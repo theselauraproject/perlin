@@ -47,8 +47,11 @@ namespace perlin::entity {
         e.flags = flags;
         e.mainHand = mainHand;
         e.isSelf = rid == selfRuntime && rid != 0;
-        if (fresh)
+        // spawn is the first sample too: an entity that never moves has no other
+        if (fresh) {
             e.moveSerial = 1;
+            e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
+        }
         byUnique[uid] = rid;
         AttachSkinLocked(e);
     }
@@ -71,6 +74,7 @@ namespace perlin::entity {
         e.markVariant = markVariant;
         e.color = color;
         e.moveSerial = 1;
+        e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
         byUnique[uid] = rid;
     }
 
@@ -89,6 +93,7 @@ namespace perlin::entity {
         e.itemBlock = blockRuntimeId;
         e.itemEnchanted = enchanted;
         e.moveSerial = 1;
+        e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
         byUnique[uid] = rid;
     }
 
@@ -126,6 +131,7 @@ namespace perlin::entity {
             e.pos = target;
             e.onGround = onGround;
             e.moveSerial++;
+            e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
         }
     }
 
@@ -393,6 +399,7 @@ namespace perlin::entity {
             if (glm::dot(p - e.pos, p - e.pos) > 1e-10) {
                 e.pos = p;
                 e.moveSerial++;
+                e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
             }
             e.onGround = grounded;
         }
