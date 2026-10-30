@@ -237,10 +237,8 @@ namespace perlin {
         for (const auto& entry : fs::recursive_directory_iterator(dir, ec)) {
             if (!entry.is_regular_file())
                 continue;
-            const std::string name = entry.path().filename().string();
-            const bool isGeo = name.size() >= 9 && name.compare(name.size() - 9, 9, ".geo.json") == 0;
-            const bool isGeometry = name.size() >= 14 && name.compare(name.size() - 14, 14, ".geometry.json") == 0;
-            if (!isGeo && !isGeometry)
+            // the game reads every json under models/: packs name block models plainly (models/blocks/pad.json)
+            if (entry.path().extension() != ".json")
                 continue;
             const auto doc = json::Document::Parse(ReadAll(entry.path()), true);
             if (!doc)
