@@ -1444,7 +1444,8 @@ namespace perlin::entity {
             renderer->UiSubmit(dollModel ? UiLayer::Doll : fpModel ? UiLayer::Hand : UiLayer::World, draw);
         }
         if (itemRenderer && !fpModel && (!dollModel || dollClip)) {
-            const auto held = [&](const std::string& name, const glm::mat4& arm, bool left) {
+            static const glm::mat4 kLegacyItemSpace = glm::scale(glm::mat4(1.0f), glm::vec3(-16.0f, -16.0f, 16.0f));
+            const auto held = [&](const std::string& name, bool left) {
                 if (name.empty())
                     return;
                 ui::HudItem item;
@@ -1452,14 +1453,20 @@ namespace perlin::entity {
                 item.count = 1;
                 item.maxDamage = ui::MaxDurability(name);
                 const float bowTicks = !left && e.AimingBow() ? static_cast<float>((v.now - v.usingSince) * 20.0) : -1.0f;
-                itemRenderer->DrawHeldItem(item, model * arm, left, light, bowTicks);
+                // the game anchors held items at the rightitem/leftitem bone, in the legacy model space (x and y flipped,
+                // pixels to blocks); the arm offset is only for skins without one
+                // trident keeps its 3d geometry path: the game draws it through an attachable
+                if ((left ? v.hasItemL : v.hasItemR) && name != "minecraft:trident")
+                    itemRenderer->DrawBedrockHeldItem(item, model * (left ? v.itemL : v.itemR) * kLegacyItemSpace, left, light, bowTicks);
+                else if (left ? v.hasArmL : v.hasArmR)
+                    itemRenderer->DrawHeldItem(item, model * (left ? v.armL : v.armR), left, light, bowTicks);
             };
             itemRenderer->SetWorldShadowOnly(shadowOnlyPass);
             itemRenderer->SetDollClip(dollModel ? dollClip : nullptr);
-            if (v.hasArmR && !v.attachedItem[0])
-                held(e.mainHand, v.armR, false);
-            if (v.hasArmL && !v.attachedItem[1])
-                held(e.offHand, v.armL, true);
+            if (!v.attachedItem[0])
+                held(e.mainHand, false);
+            if (!v.attachedItem[1])
+                held(e.offHand, true);
             itemRenderer->SetDollClip(nullptr);
             itemRenderer->SetWorldShadowOnly(false);
         }

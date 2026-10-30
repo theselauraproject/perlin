@@ -832,6 +832,56 @@ namespace perlin {
         worldPass = false;
     }
 
+    // ItemInHandRenderer third person (main hand 0x14597CAF0, offhand 0x14597EF30, blocks 0x145981B60)
+    void HandRenderer::DrawBedrockHeldItem(const ui::HudItem& item, const glm::mat4& bone, bool left, const glm::vec3& light,
+                                           float bowUseTicks) {
+        if (!renderer || item.Empty())
+            return;
+        ui::HudItem renderedItem = item;
+        if (item.name == "minecraft:bow" && bowUseTicks >= 0.0f) {
+            const int frame = bowUseTicks >= 18.0f ? 2 : bowUseTicks >= 13.0f ? 1 : 0;
+            renderedItem.name = "minecraft:bow_pulling_" + std::to_string(frame);
+        }
+        const Model& model = ItemModel(renderedItem);
+        if (!model.valid)
+            return;
+        const std::string n = item.name.rfind("minecraft:", 0) == 0 ? item.name.substr(10) : item.name;
+        const auto ends = [&](const char* suffix) {
+            const size_t l = std::char_traits<char>::length(suffix);
+            return n.size() >= l && n.compare(n.size() - l, l, suffix) == 0;
+        };
+        // Item::isHandEquipped
+        const bool handheld = ends("_sword") || ends("_pickaxe") || ends("_axe") || ends("_shovel") || ends("_hoe") || n == "stick" ||
+                              n == "blaze_rod" || n == "bone" || n == "mace" || n == "breeze_rod";
+        const glm::mat4 flat = S(0.375f) * Rz(60.0f) * Rx(-90.0f) * Rz(20.0f);
+        glm::mat4 m = bone;
+        if (n == "fishing_rod" || n == "carrot_on_a_stick" || n == "warped_fungus_on_a_stick")
+            m = m * Rx(180.0f) * Rx(-15.0f) * (left ? T(0.1f, 0.265f, 0.0f) : T(0.1f, 0.065f, -0.0625f)) * S(0.625f) * Rx(80.0f) * Ry(45.0f);
+        else if (n == "bow")
+            m = m * Ry(180.0f) * T(-0.025f, 0.265f, -0.375f) * S(0.625f) * Rx(80.0f) * Ry(45.0f);
+        // x: 0.4 + 0.3 * actor scale
+        else if (n == "crossbow")
+            m = m * Ry(102.5f) * Rz(37.5f) * Rx(65.0f) * T(0.7f, -0.2f, -0.325f) * S(0.625f);
+        else if (n == "glow_stick")
+            m = m * T(0.0f, 0.1875f, -0.3125f) * Rx(200.0f) * Ry(45.0f) * S(0.375f) * T(0.0f, 0.0f, -0.625f) * S(1.5f) * Rx(40.0f) * Rz(40.0f);
+        else if (n == "arrow")
+            m = m * (left ? T(0.375f, 0.1875f, -0.125f) : T(0.25f, 0.1875f, -0.1875f)) * flat;
+        else if (handheld)
+            m = m * (left ? T(0.0f, 0.265f, 0.0f) : Ry(180.0f) * T(0.1f, 0.265f, 0.0f)) * S(0.625f) * Rx(80.0f) * Ry(45.0f);
+        else if (model.block) {
+            m = m * T(0.0f, n == "snow_layer" ? 0.03125f : 0.1875f, -0.3125f) * Rx(200.0f) * Ry(225.0f) * S(0.375f);
+            // main-hand only: shapes 10 (stairs), 22 (chest) and the carved pumpkin turn to face out
+            if (!left && (ends("_stairs") || n == "chest" || n == "trapped_chest" || n == "carved_pumpkin"))
+                m = m * Ry(180.0f);
+        } else
+            m = m * T(0.3125f, 0.1875f, -0.1875f) * flat;
+        // blocks are tessellated centred; flat sprites start at their corner, grip at (0,0)
+        m = m * (model.block ? T(-0.5f, -0.5f, -0.5f) : T(0.0f, 0.0f, -0.5f));
+        worldPass = true;
+        DrawModel(model.quads, model.texture, m, light, 0.1f, item.enchanted);
+        worldPass = false;
+    }
+
     void HandRenderer::RenderArm(const FrameIn& in, const HandSettings& s, bool rightArm, float swing, float equip) {
         BuildArms(in.slimArm);
         EnsureSkin(in);

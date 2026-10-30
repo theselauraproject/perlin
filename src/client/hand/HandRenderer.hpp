@@ -67,6 +67,9 @@ namespace perlin {
 
         void DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left, const glm::vec3& light,
                           float bowUseTicks = -1.0f);
+        // bone: rightitem/leftitem pivot in the legacy model space (blocks, x and y flipped)
+        void DrawBedrockHeldItem(const ui::HudItem& item, const glm::mat4& bone, bool left, const glm::vec3& light,
+                                 float bowUseTicks = -1.0f);
         void SetWorldShadowOnly(bool on) { worldShadowOnly = on; }
         void SetDollClip(const int* clip) { dollClip = clip; }
 
