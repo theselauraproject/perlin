@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <chrono>
 #include <functional>
 #include <glm/glm.hpp>
@@ -62,6 +63,13 @@ namespace perlin::entity {
         int variant = 0, markVariant = 0, color = 0;
         float health = -1.0f;
         uint32_t moveSerial = 0;
+        // every move received, by moveSerial: several can land in one network batch between two frames
+        struct Move {
+            glm::dvec3 pos{0.0};
+            float yaw = 0, pitch = 0, headYaw = 0;
+        };
+        static constexpr uint32_t kMoveRing = 16;
+        std::array<Move, kMoveRing> moves{};
         uint32_t hurtSerial = 0;
         bool dying = false;
         uint32_t swingSerial = 0;

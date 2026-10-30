@@ -145,6 +145,7 @@ namespace perlin::entity {
     struct EntityRenderer::View {
         bool init = false;
         glm::dvec3 pos{0.0}, lastPos{0.0};
+        uint32_t sampledSerial = 0;
         struct Sample {
             double t = 0;
             glm::dvec3 pos{0.0};
@@ -460,28 +461,38 @@ namespace perlin::entity {
         const float prevYaw = v.yaw;
         glm::dvec3 d = e.pos - v.pos;
         if (buffered) {
-            if (v.samples.empty() || v.samples.back().pos != e.pos || v.samples.back().yaw != e.yaw ||
-                v.samples.back().headYaw != e.headYaw || v.samples.back().pitch != e.pitch) {
-                if (!v.samples.empty() && glm::length(e.pos - v.samples.back().pos) > 12.0) {
+            // replay every move since last frame, not just the newest: a batch of several would otherwise drop all
+            // but one and leave a long gap. moves of one batch are a server tick apart, ending at this frame
+            const uint32_t fresh = std::min(e.moveSerial - v.sampledSerial, Entity::kMoveRing);
+            if (v.sampledSerial == 0 || e.moveSerial - v.sampledSerial > Entity::kMoveRing)
+                v.sampledSerial = e.moveSerial - std::min<uint32_t>(fresh, 1);
+            for (uint32_t serial = e.moveSerial - std::min(fresh, e.moveSerial - v.sampledSerial) + 1;
+                 fresh > 0 && serial <= e.moveSerial; serial++) {
+                const Entity::Move& m = e.moves[serial % Entity::kMoveRing];
+                if (!v.samples.empty() && glm::length(m.pos - v.samples.back().pos) > 12.0) {
                     v.samples.clear();
-                    v.pos = e.pos;
-                    v.lastPos = e.pos;
-                    v.yaw = e.yaw;
-                    v.headYaw = e.headYaw;
-                    v.pitch = e.pitch;
+                    v.pos = m.pos;
+                    v.lastPos = m.pos;
+                    v.yaw = m.yaw;
+                    v.headYaw = m.headYaw;
+                    v.pitch = m.pitch;
                     v.lastArrival = 0;
                 }
+                double t = in.time - static_cast<double>(e.moveSerial - serial) * 0.05;
+                if (!v.samples.empty())
+                    t = std::max(t, v.samples.back().t + 0.005);
                 if (v.lastArrival > 0) {
-                    const double gap = std::clamp(in.time - v.lastArrival, 0.005, 0.5);
+                    const double gap = std::clamp(t - v.lastArrival, 0.005, 0.5);
                     const double dev = std::fabs(gap - v.interval);
                     v.interval += (gap - v.interval) * 0.1;
                     v.jitter += (dev - v.jitter) * 0.1;
                 }
-                v.lastArrival = in.time;
-                v.samples.push_back({in.time, e.pos, e.yaw, e.headYaw, e.pitch});
+                v.lastArrival = t;
+                v.samples.push_back({t, m.pos, m.yaw, m.headYaw, m.pitch});
                 while (v.samples.size() > 64)
                     v.samples.pop_front();
             }
+            v.sampledSerial = e.moveSerial;
             const double wantDelay = std::clamp(v.interval * 1.25 + v.jitter * 2.0, 0.06, 0.25);
             v.delay += (wantDelay - v.delay) * std::min(1.0, static_cast<double>(dt) * 2.0);
             const double renderT = in.time - v.delay;
@@ -498,7 +509,7 @@ namespace perlin::entity {
                 v.headYaw = mix(a.headYaw, b.headYaw);
                 v.pitch = a.pitch + WrapDegrees(b.pitch - a.pitch) * static_cast<float>(f);
             } else if (v.samples.size() >= 2) {
-                v.pos = v.samples[0].pos;
+                // render time behind the oldest sample (the delay just grew): hold, don't snap back to it
             } else if (!v.samples.empty()) {
                 const double catchUp = 1.0 - std::exp(-static_cast<double>(dt) / 0.06);
                 v.pos += (v.samples.back().pos - v.pos) * catchUp;

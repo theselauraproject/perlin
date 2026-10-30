@@ -148,6 +148,7 @@ namespace perlin::entity {
         e.headYaw = headYaw;
         e.onGround = onGround;
         e.moveSerial++;
+        e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
     }
 
     void EntityTracker::MoveDelta(uint64_t rid, const double* x, const double* y, const double* z, const float* pitch,
@@ -169,6 +170,7 @@ namespace perlin::entity {
         if (headYaw) e.headYaw = *headYaw;
         e.onGround = onGround;
         e.moveSerial++;
+        e.moves[e.moveSerial % Entity::kMoveRing] = {e.pos, e.yaw, e.pitch, e.headYaw};
     }
 
     void EntityTracker::SetVehicle(int64_t riderUid, int64_t vehicleUid) {
