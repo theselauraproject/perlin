@@ -276,18 +276,19 @@ jobs:
 
       - name: Upload symbols (Windows)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Perlin-${{ matrix.name }}-symbols
           path: symbols
           if-no-files-found: ignore
 
+      # the package is already an archive: uploaded as that file (the artifact is named after it), so downloading
+      # it gives Perlin-<platform>.zip itself and not a zip holding the zip
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: Perlin-${{ matrix.name }}
           path: pkg/Perlin-${{ matrix.name }}.zip
-          compression-level: 0
+          archive: false
           if-no-files-found: error
 
   web:
@@ -356,7 +357,7 @@ jobs:
           # the running page compares this with the commit it was built from and offers a reload when they differ
           printf '{"commit":"%s","run":%s}\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" > site/version.json
       # the artifact is zipped by the action itself; the release job makes Perlin-web.zip from it
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Perlin-web
           path: site/
@@ -476,10 +477,10 @@ jobs:
         run: |
           mkdir dist
           cp android/app/build/outputs/apk/release/*.apk dist/Perlin.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: Perlin-android
           path: dist/Perlin.apk
+          archive: false
           if-no-files-found: error
 
   ios:
@@ -562,10 +563,10 @@ jobs:
           codesign --force --sign - --timestamp=none Payload/Perlin.app
           zip -qry dist/Perlin.ipa Payload
           du -h dist/Perlin.ipa
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: Perlin-ios
           path: dist/Perlin.ipa
+          archive: false
           if-no-files-found: error
 
   # the web build on GitHub Pages, redeployed by every nightly: the site is always the newest build and the page
@@ -582,7 +583,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: Perlin-web
           path: site
@@ -602,21 +603,39 @@ jobs:
       - uses: actions/checkout@v4
         if: github.ref == 'refs/heads/main'
 
-      - uses: actions/download-artifact@v4
+      # finished packages (Perlin-<platform>.zip, Perlin.apk, Perlin.ipa: names with a dot) are kept exactly as
+      # uploaded; the web site and debug symbols arrive as folders and are zipped once here
+      - name: Download packages
+        uses: actions/download-artifact@v8
         with:
-          path: artifacts
+          pattern: "Perlin*.*"
+          path: packages
+          skip-decompress: true
+      - name: Download web build
+        uses: actions/download-artifact@v8
+        with:
+          name: Perlin-web
+          path: folders/Perlin-web
+      - name: Download debug symbols
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*-symbols"
+          path: folders
 
       - name: Archive
         run: |
-          cd artifacts
-          mkdir ../release
-          for dir in */; do
-            name="${dir%/}"
-            case "$name" in
-              # web and debug symbols are plain folders; everything else is already its final archive
-              Perlin-web | *-symbols) (cd "$name" && zip -qr "../../release/$name.zip" .) ;;
-              *) cp "$name"/* ../release/ ;;
-            esac
+          mkdir release
+          find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' \) -exec cp {} release/ \;
+          for dir in folders/*/; do
+            name=$(basename "$dir")
+            (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)
+          done
+          ls -l release
+          # a package that is itself a zip of a single zip means an artifact got wrapped again: fail loudly
+          for z in release/Perlin-*.zip; do
+            if [ "$(unzip -Z1 "$z" | grep -vc '/$')" = 1 ] && unzip -Z1 "$z" | grep -q '\.zip$'; then
+              echo "::error::$z only holds another zip"; exit 1
+            fi
           done
 
       # AltStore / SideStore source: add
