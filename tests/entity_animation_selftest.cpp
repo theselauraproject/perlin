@@ -138,6 +138,21 @@ static glm::mat4 JavaRotation(glm::vec3 r) {
            glm::rotate(glm::mat4(1), -r.x, glm::vec3(1, 0, 0));
 }
 
+// one render-frame stream through PlayerBodyClock; pos and head are functions of time
+template <class Pos, class Head>
+float RunClock(int fps, double seconds, Pos pos, Head head, float& maxOffset, bool swinging = false) {
+    PlayerBodyClock clock;
+    float body = 0;
+    maxOffset = 0;
+    for (int frame = 0; frame <= int(seconds * fps); ++frame) {
+        const double t = double(frame) / fps;
+        const auto [x, z] = pos(t);
+        body = clock.Frame(x, z, head(t), frame == 0 ? 0.0 : 1.0 / fps, swinging, false, 0);
+        if (frame > 0)
+            maxOffset = std::max(maxOffset, std::abs(Wrap(head(t) - body)));
+    }
+    return body;
+}
 int main(int argc, char** argv) {
     if (argc > 1)
         CheckJavaReference(argv[1]);
@@ -183,6 +198,50 @@ int main(int argc, char** argv) {
         CHECK(Near(t.body, reference.body, .001f));
         CHECK(Near(t.speed, reference.speed, .001f));
         CHECK(Near(t.phase, reference.phase, .001f));
+    }
+    {
+        // standing, head turns 90: body stays put until the 50 degree limit, then is dragged
+        float off;
+        const auto still = [](double) { return std::pair{0.0, 0.0}; };
+        const float body = RunClock(60, 2, still, [](double t) { return float(std::min(t, 1.0) * 90); }, off);
+        CHECK(Near(body, 40, .01f));
+        CHECK(off <= 50.01f);
+        RunClock(60, 2, still, [](double t) { return float(std::min(t, 1.0) * 40); }, off);
+        CHECK(Near(off, 40, .01f));
+        // walking backward (+z is yaw 0, so -z is behind): body keeps facing the head
+        const float back = RunClock(60, 3, [](double t) { return std::pair{0.0, -t * 4.3}; }, [](double) { return 0.0f; }, off);
+        CHECK(std::abs(Wrap(back)) < .01f);
+        // strafing left (+x is yaw -90): body turns toward the movement, capped 50 from the head
+        const float strafe = RunClock(60, 3, [](double t) { return std::pair{t * 4.3, 0.0}; }, [](double) { return 0.0f; }, off);
+        CHECK(Near(strafe, -50, .01f));
+        CHECK(off <= 50.01f);
+        // diagonal forward-left: body follows the movement direction, under the cap
+        const float diag = RunClock(60, 3, [](double t) { return std::pair{t * 3.0, t * 3.0}; }, [](double) { return 0.0f; }, off);
+        CHECK(Near(diag, -45, .05f));
+        // swinging snaps the body back to the head while moving sideways
+        const float swing = RunClock(60, 3, [](double t) { return std::pair{t * 4.3, 0.0}; }, [](double) { return 0.0f; }, off, true);
+        CHECK(std::abs(Wrap(swing)) < .01f);
+        // head crossing +-180: no full spin, offset bounded
+        RunClock(144, 3, still, [](double t) { return float(170 + t * 20); }, off);
+        CHECK(off <= 50.01f);
+        // same trajectory, every frame rate: same body
+        const auto walk = [](double t) { return std::pair{std::sin(t) * 3.0, std::min(t, 2.0) * 2.0 - std::max(t - 3.0, 0.0) * 3.0}; };
+        const auto look = [](double t) { return float(t * 37.0); };
+        const float ref = RunClock(20, 6, walk, look, off);
+        for (int fps : {10, 15, 30, 60, 144, 240})
+            CHECK(Near(Wrap(RunClock(fps, 6, walk, look, off) - ref), 0, 1.0f));
+        // teleport: reset to the head, no turn toward the jump
+        PlayerBodyClock c;
+        c.Frame(0, 0, 0, 0, false, false, 0);
+        for (int i = 0; i < 10; ++i)
+            c.Frame(0, 0, 0, 0.05, false, false, 0);
+        CHECK(Near(c.Frame(100, 0, 30, 0.05, false, false, 0), 30));
+        // riding: body eases toward the vehicle facing
+        c.Reset(0, 0, 0);
+        float ride = 0;
+        for (int i = 0; i < 40; ++i)
+            ride = c.Frame(0, 0, 0, 0.05, false, true, 90);
+        CHECK(Near(ride, 90, .1f));
     }
     PoseBlend blend;
     blend.Tick(true);

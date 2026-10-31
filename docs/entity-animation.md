@@ -18,6 +18,12 @@ walking, torso interpolation and cape state. Velocity queries use elapsed time.
 World, first-person and inventory doll views maintain separate animation state.
 Riding, sleeping and death stop the walking cycle.
 
+Remote and third-person players run `BodyRotation::PlayerTick` through
+`PlayerBodyClock`: each 20 Hz tick sees the position and head yaw at its own
+time, so the body is identical at every frame rate. The drawn body trails the
+head by one tick of interpolation; the 50-degree head/body cap is applied to the
+drawn pair as well.
+
 Java's player model parts are independent. Bedrock arms and heads often inherit
 the torso transform, and armor can have a different hierarchy again. The pose
 adapter fits each part's world transform to the actual skin or armor skeleton.
@@ -79,7 +85,8 @@ before applying scale. Full-body lighting normals follow the resulting pose.
 The inventory doll uses the same root transform in its own view state.
 
 Offline visual checks can use `PERLIN_PREVIEW_ENTITIES=player:cape,player:alex`,
-`PERLIN_PREVIEW_ENTITY_WALK=1`, `PERLIN_PREVIEW_TURN=1`,
+`PERLIN_PREVIEW_ENTITY_WALK=1` (with `PERLIN_PREVIEW_ENTITY_WALK_DIR=90` to walk sideways
+or `180` backward), `PERLIN_PREVIEW_ENTITY_HEAD=70` (head turns that far between 0.5 and 1.5 s), `PERLIN_PREVIEW_TURN=1`,
 `PERLIN_PREVIEW_SNEAK=1`, `PERLIN_PREVIEW_SWIM=1`,
 `PERLIN_PREVIEW_ARMOR=diamond`, `PERLIN_PREVIEW_USING=1`,
 `PERLIN_PREVIEW_LEFT_HANDED=1`, `PERLIN_PREVIEW_OFFHAND=minecraft:shield`,

@@ -51,6 +51,52 @@ namespace perlin::entity::java {
         }
         float Sample(float partial) const { return Turn(previous, current, partial); }
     };
+    // BodyRotation driven by render frames: each 20 Hz tick sees the position and head at its own time
+    struct PlayerBodyClock {
+        BodyRotation rotation;
+        double remainder = 0, lastX = 0, lastZ = 0, tickX = 0, tickZ = 0;
+        float lastHead = 0;
+        bool init = false;
+        void Reset(double x, double z, float head) {
+            rotation.Reset(head);
+            remainder = 0;
+            lastX = tickX = x;
+            lastZ = tickZ = z;
+            lastHead = head;
+            init = true;
+        }
+        float Frame(double x, double z, float head, double dt, bool swinging, bool riding, float facing) {
+            // teleports and first sight: no turn toward a jump of several blocks
+            if (!init || (x - lastX) * (x - lastX) + (z - lastZ) * (z - lastZ) > 64.0)
+                Reset(x, z, head);
+            remainder += dt;
+            int ticks = 0;
+            while (remainder + 1e-10 >= 0.05 && ticks < 8) {
+                remainder = std::max(0.0, remainder - 0.05);
+                const double f = dt > 0 ? std::clamp(1.0 - remainder / dt, 0.0, 1.0) : 1.0;
+                const double tx = lastX + (x - lastX) * f, tz = lastZ + (z - lastZ) * f;
+                if (riding) {
+                    rotation.previous = rotation.current;
+                    rotation.current = Turn(rotation.current, facing, 0.3f);
+                } else
+                    rotation.PlayerTick(tx - tickX, tz - tickZ, Turn(lastHead, head, static_cast<float>(f)), swinging);
+                tickX = tx;
+                tickZ = tz;
+                ++ticks;
+            }
+            // long stall: drop the backlog instead of replaying it
+            remainder = std::min(remainder, 0.05);
+            lastX = x;
+            lastZ = z;
+            lastHead = head;
+            const float body = rotation.Sample(static_cast<float>(remainder / 0.05));
+            if (riding)
+                return body;
+            // the sampled body trails the head by one tick: keep the 50 degree cap on screen too
+            const float offset = Wrap(head - body);
+            return body + offset - std::clamp(offset, -50.0f, 50.0f);
+        }
+    };
     struct WalkAnimation {
         float previousSpeed = 0, speed = 0, position = 0;
         void Reset() { previousSpeed = speed = position = 0; }

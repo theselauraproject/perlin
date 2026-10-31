@@ -7088,7 +7088,7 @@ namespace perlin {
             }
             if (PERLIN_ENV("PERLIN_PREVIEW_DEAD"))
                 previewEntities.Die(rid);
-            if (PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK"))
+            if (PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK") || PERLIN_ENV("PERLIN_PREVIEW_ENTITY_HEAD"))
                 previewWalk.push_back(rid);
         }
     }
@@ -8888,13 +8888,19 @@ namespace perlin {
                             ApplyBedPose(live->NetLevel(), e);
                 if (!live && !previewWalk.empty()) {
                     static std::unordered_map<uint64_t, glm::dvec3> base;
-                    static const auto t0 = std::chrono::steady_clock::now();
-                    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                    // timed from when the world settles: the screenshot fires at PERLIN_PREVIEW_WAIT on the same clock
+                    const double t = std::chrono::duration<double>(frameStart - previewReadyAt).count();
+                    static const bool walking = PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK") != nullptr;
+                    static const double walkTurn = PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK_DIR") ? std::atof(PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK_DIR")) : 0.0;
+                    // head turns by this much between 0.5 s and 1.5 s
+                    static const float headTurn = PERLIN_ENV("PERLIN_PREVIEW_ENTITY_HEAD") ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_PREVIEW_ENTITY_HEAD"))) : 0.0f;
                     for (entity::Entity& pe : entities)
                         if (std::find(previewWalk.begin(), previewWalk.end(), pe.runtimeId) != previewWalk.end()) {
                             const glm::dvec3 b = base.emplace(pe.runtimeId, pe.pos).first->second;
-                            const double yawRad = glm::radians(static_cast<double>(pe.yaw));
-                            pe.pos = b + glm::dvec3(-std::sin(yawRad), 0.0, std::cos(yawRad)) * std::sin(t * 1.5) * 1.5;
+                            const double yawRad = glm::radians(static_cast<double>(pe.yaw) + walkTurn);
+                            // always from the base: Move takes eye height for players, feeding pos back would sink it
+                            pe.pos = b + glm::dvec3(-std::sin(yawRad), 0.0, std::cos(yawRad)) * (walking ? std::sin(t * 1.5) * 1.5 : 0.0);
+                            pe.headYaw = pe.yaw + headTurn * static_cast<float>(std::clamp(t - 0.5, 0.0, 1.0));
                             previewEntities.Move(pe.runtimeId, pe.pos, pe.pitch, pe.yaw, pe.headYaw, true);
                         }
                 }

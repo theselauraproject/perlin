@@ -6,6 +6,7 @@
 #include "util/Env.hpp"
 #include "util/Paths.hpp"
 #include "client/entity/EntityQuery.hpp"
+#include "client/entity/JavaAnimation.hpp"
 #include "client/hand/HandRenderer.hpp"
 #include "client/ui/ItemData.hpp"
 
@@ -193,10 +194,7 @@ namespace perlin::entity {
         std::string tag;
         glm::mat4 armR{1.0f}, armL{1.0f};
         bool hasArmR = false, hasArmL = false;
-        bool bodyInit = false;
-        float body = 0, bodyPrev = 0;
-        double bodyTickAcc = 0;
-        glm::dvec3 bodyTickPos{0.0};
+        java::PlayerBodyClock body;
         CapeChain cape;
     };
 
@@ -408,27 +406,9 @@ namespace perlin::entity {
         return 0;
     }
 
-    void EntityRenderer::TickPlayerBody(View& v, float dt, float prevYaw) {
-        const float look = v.headYaw;
-        if (!v.bodyInit) {
-            v.bodyInit = true;
-            v.body = v.bodyPrev = look;
-            v.bodyTickPos = v.pos;
-        }
-        const double xd = v.pos.x - v.bodyTickPos.x, zd = v.pos.z - v.bodyTickPos.z;
-        v.bodyTickPos = v.pos;
-        const float speed = static_cast<float>(std::sqrt(xd * xd + zd * zd)) / std::max(dt, 0.001f);
-        v.bodyTickAcc += (speed - static_cast<float>(v.bodyTickAcc)) * std::min(1.0f, dt * 12.0f);
-        const bool moving = v.bodyTickAcc > 0.35 || v.attackTime > 0.0f;
-        const float tau = moving ? 0.045f : 0.09f;
-        const float cap = moving ? 30.0f : 40.0f;
-        float diff = WrapDegrees(look - v.body);
-        v.body += diff * (1.0f - std::exp(-dt / tau));
-        diff = WrapDegrees(look - v.body);
-        if (std::fabs(diff) > cap)
-            v.body += diff - (diff > 0.0f ? cap : -cap);
-        v.body = WrapDegrees(v.body);
-        v.yaw = v.body;
+    void EntityRenderer::TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw) {
+        // v.yaw holds the server yaw here: what a ridden vehicle turns the body toward
+        v.yaw = v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
         v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / std::max(dt, 0.001f);
     }
 
@@ -531,7 +511,7 @@ namespace perlin::entity {
         }
 
         if (e.isPlayer && !v.fp)
-            TickPlayerBody(v, dt, prevYaw);
+            TickPlayerBody(e, v, dt, prevYaw);
 
         const glm::dvec3 step = v.pos - v.lastPos;
         const float horizontal = static_cast<float>(std::sqrt(step.x * step.x + step.z * step.z));

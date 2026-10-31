@@ -154,7 +154,7 @@ namespace perlin::entity {
         const int* dollClip = nullptr;
         uint32_t TextureFor(const Entity& e, const std::string& key);
         void Track(const Entity& e, View& v, const FrameIn& in);
-        void TickPlayerBody(View& v, float dt, float prevYaw);
+        void TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw);
         void DrawShadow(const glm::dvec3& pos, float radius, float strength, const FrameIn& in);
         uint32_t shadowTexture = 0;
         struct Tag {
