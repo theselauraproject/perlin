@@ -20,11 +20,13 @@ namespace perlin {
         physics::bds::ScaffoldingCell ClimberCell(int x, int y, int z) const override;
         bool CollisionChunkReady(int x, int z) const override;
         physics::bds::TerrainHeightLimits CollisionHeightLimits() const override;
+        physics::BlockShape CollisionQuery(int x, int y, int z) const override { return QueryMain(x, y, z); }
+        const std::vector<physics::Box>* CollisionEntityBoxes() const override { return entityBoxes.get(); }
         static const physics::BlockShape& ShapeOf(uint16_t id);
         bool Selection(int x, int y, int z, std::vector<physics::Box>& out) const;
 
     private:
-        enum class Kind : uint8_t { Plain, Fence, Wall, Pane };
+        enum class Kind : uint8_t { Plain, Fence, Wall, Pane, Door };
         struct Info {
             bool ready = false;
             Kind kind = Kind::Plain;

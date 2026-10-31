@@ -11,6 +11,8 @@ namespace perlin::physics::bds {
         uint64_t tick = 0;
         int32_t remaining = 0;
         int32_t type = -1;
+        // server event replayed in its frame (0x143A18B90): sets the entry outright, no shorter-duration check
+        bool server = false;
     };
 
     using MovementEffects = std::array<MovementEffect, 2>;
@@ -19,7 +21,7 @@ namespace perlin::physics::bds {
         if (incoming.type < 0 || incoming.type >= static_cast<int32_t>(effects.size()))
             return;
         auto& current = effects[incoming.type];
-        if (incoming.remaining != current.remaining &&
+        if (!incoming.server && incoming.remaining != current.remaining &&
             (current.remaining == -1 || (incoming.remaining != -1 && incoming.remaining < current.remaining)))
             return;
         current = incoming;

@@ -571,6 +571,8 @@ endif()
 # Keep these rules even when PERLIN_FAST_MATH relaxes rendering calculations.
 foreach(PERLIN_PHYSICS_SOURCE IN ITEMS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/PlayerPhysics.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/VehiclePhysics.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/LocalPlayer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/PlayerFov.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/resources/BlockOffsetDefinition.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/resources/BlockBoxDefinition.cpp")

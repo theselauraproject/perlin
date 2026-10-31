@@ -66,8 +66,8 @@ namespace perlin::entity {
             {"is_silent", flag::Silent}, {"is_fire_immune", flag::FireImmune}, {"is_dancing", flag::Dancing},
             {"is_enchanted", flag::Enchanted}, {"is_transforming", flag::Transforming}, {"is_bribed", flag::Bribed},
             {"is_pregnant", flag::Pregnant}, {"is_laying_egg", flag::LayingEgg}, {"is_eating", flag::Eating},
-            {"is_laying_down", flag::LayingDown}, {"has_collision", flag::HasCollision}, {"has_gravity", flag::Gravity},
-            {"is_lingering", 0}, {"is_rearing", flag::Rearing},
+            {"has_collision", flag::HasCollision}, {"has_gravity", flag::Gravity},
+            {"is_lingering", flag::Linger}, {"is_rearing", flag::Rearing},
         };
         static const std::unordered_map<std::string, uint64_t> kFlagMap = [] {
             std::unordered_map<std::string, uint64_t> m;
@@ -78,6 +78,7 @@ namespace perlin::entity {
         if (const auto f = kFlagMap.find(name); f != kFlagMap.end())
             return f->second ? has(f->second) : yes(false);
 
+        if (name == "is_laying_down") return yes(e.Has(flag::LayingDown));
         if (name == "is_alive") return yes(e.health != 0);
         if (name == "is_on_ground") return yes(e.onGround);
         if (name == "is_jumping") return yes(!e.onGround && c.verticalSpeed > 0.5f);

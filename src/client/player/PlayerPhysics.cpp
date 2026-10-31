@@ -21,6 +21,7 @@
 #include "client/player/PerlinFluidState.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <vector>
 
@@ -35,7 +36,7 @@ namespace perlin::physics {
     }
     namespace {
         constexpr float kFloatEps = 1.1920929e-7f;
-        constexpr double kClimbSpeed = 0.2;
+        constexpr float kClimbSpeed = 0.2f;
 
         struct Vec3 {
             double x = 0, y = 0, z = 0;
@@ -55,6 +56,7 @@ namespace perlin::physics {
         };
 
         bds::CollisionBox CollisionBox(const Box& box);
+        Box PhysicsBox(const bds::CollisionBox& box);
 
         void Gather(const World& world, const Box& region, std::vector<Box>& out,
                     std::vector<ShapeMetadata>* metadata = nullptr, const Box* actorBox = nullptr,
@@ -73,7 +75,7 @@ namespace perlin::physics {
             bds::CollectTerrainCells(nativeRegion, world.CollisionHeightLimits(),
                                     [&](int32_t x, int32_t z) { return world.CollisionColumnPresent(x, z); },
                                     [&](int32_t x, int32_t y, int32_t z) {
-                BlockShape shape = world.Query(x, y, z);
+                BlockShape shape = world.CollisionQuery(x, y, z);
                 const bds::BlockPosition position{x, y, z};
                 if (shape.scaffoldingStability >= 0 && actorBox &&
                     bds::ScaffoldingSupports(CollisionBox(*actorBox), position,
@@ -104,8 +106,31 @@ namespace perlin::physics {
             });
         }
 
+        // MoveCollisionSystem 0x14360a290 -> 0x143a10780: whole entity boxes after every block shape, no block,
+        // kept when they overlap the query region grown by 0.25
+        template<class Emit>
+        void CollectEntityBoxes(const World& world, const bds::CollisionBox& region, Emit&& emit) {
+            const auto* entities = world.CollisionEntityBoxes();
+            if (!entities)
+                return;
+            bds::CollisionBox grown;
+            for (int axis = 0; axis < 3; ++axis) {
+                const float low = bds::detail::Round(region[axis] + -0.25f);
+                const float high = bds::detail::Round(region[axis + 3] + 0.25f);
+                grown[axis] = low < high ? low : high;
+                grown[axis + 3] = low > high ? low : high;
+            }
+            for (const Box& entity : *entities) {
+                const auto box = CollisionBox(entity);
+                if (box[0] < grown[3] && grown[0] < box[3] && box[1] < grown[4] && grown[1] < box[4] &&
+                    box[2] < grown[5] && grown[2] < box[5])
+                    emit(box);
+            }
+        }
+
         bool NoCollision(const World& world, const Box& box, std::vector<Box>& scratch) {
             Gather(world, box, scratch);
+            CollectEntityBoxes(world, CollisionBox(box), [&](const bds::CollisionBox& b) { scratch.push_back(PhysicsBox(b)); });
             for (const Box& b : scratch)
                 if (b.Intersects(box))
                     return false;
@@ -160,6 +185,12 @@ namespace perlin::physics {
                 }
                 return records;
             });
+            // the move request is rebuilt every tick (TravelMoveRequestSystem 0x147ccdf90 adds velocity to it), so the
+            // cache never outlives one move and the entity pass runs on every refresh
+            CollectEntityBoxes(world, search.region, [&](const bds::CollisionBox& box) {
+                cache.shapes.push_back(box);
+                cache.blocks.push_back({});
+            });
             const auto& shapes = cache.shapes;
             auto requested = search.movement;
             if (sneakEdge) {
@@ -199,14 +230,16 @@ namespace perlin::physics {
                  static_cast<float>(motion.resolved.z)},
                 {static_cast<float>(velocity.x), static_cast<float>(velocity.y), static_cast<float>(velocity.z)},
                 {state.horizontalCollision, state.verticalCollision, state.onGround,
-                 state.collision, state.collidableMobNear}, false,
-                motion.preserveHorizontalMotion);
+                 state.collision, state.collidableMobNear, state.horizontalCollisionX, state.horizontalCollisionZ},
+                false, motion.preserveHorizontalMotion);
             state.x = result.position.x;
             state.y = result.position.y;
             state.z = result.position.z;
             state.box = motion.box;
             state.hasBox = true;
             state.horizontalCollision = result.flags.horizontalCollision;
+            state.horizontalCollisionX = result.flags.horizontalCollisionX;
+            state.horizontalCollisionZ = result.flags.horizontalCollisionZ;
             state.verticalCollision = result.flags.verticalCollision;
             state.onGround = result.flags.onGround;
             state.fallDistance = bds::FallDistanceAfterMove(state.fallDistance,
@@ -216,7 +249,8 @@ namespace perlin::physics {
             return {result.velocity.x, result.velocity.y, result.velocity.z};
         }
 
-        Vec3 LandingResponse(State& state, Vec3 velocity, uint8_t supportingSurface, bool collided, bool sneaking) {
+        Vec3 LandingResponse(State& state, Vec3 velocity, uint8_t supportingSurface, bool collided, bool sneaking,
+                             std::optional<float>* appliedRestitutionY = nullptr) {
             bds::Float3 motion{static_cast<float>(velocity.x), static_cast<float>(velocity.y),
                                static_cast<float>(velocity.z)};
             if (collided) {
@@ -227,8 +261,13 @@ namespace perlin::physics {
                 const bds::Float3 pos{static_cast<float>(state.x), static_cast<float>(state.y), static_cast<float>(state.z)};
                 motion = bds::VerticalCollision(motion, pos, surface, sneaking, false, false, true,
                                                 state.restitution).velocity;
+                // ResetVerticalVelocitySystem 0x147b8d050: every vertical collision, rising bodies on slime too;
+                // runs after the bounce is computed and before it is applied
+                motion.y = 0.0f;
             }
             if (state.restitution) {
+                if (appliedRestitutionY)
+                    *appliedRestitutionY = state.restitution->y;
                 motion = bds::ApplyRestitution(motion, *state.restitution);
                 state.restitution.reset();
             }
@@ -395,6 +434,15 @@ namespace perlin::physics {
             return bds::DampComponent(static_cast<float>(value), retention);
         }
 
+        // TravelMoveRequestSystem 0x147ccdf90 builds the request from posDelta, before the block slowdown;
+        // 0x14ce2d080 copies it and the pre-move position for the sprint stop test
+        void RecordMoveRequest(State& state) {
+            state.requestX = static_cast<float>(state.vx);
+            state.requestZ = static_cast<float>(state.vz);
+            state.requestFromX = static_cast<float>(state.x);
+            state.requestFromZ = static_cast<float>(state.z);
+        }
+
         Vec3 ApplyStoredBlockSlowdown(State& state, Vec3 requested) {
             bds::Float3 multiplier{state.stuckX, state.stuckY, state.stuckZ};
             bds::Float3 movement{static_cast<float>(requested.x), static_cast<float>(requested.y),
@@ -412,7 +460,9 @@ namespace perlin::physics {
         }
 
         const BlockShape& Below(const World& world, const State& s, BlockShape& storage) {
-            storage = world.Query(static_cast<int>(std::floor(s.x)), static_cast<int>(std::floor(s.y - 0.1f)),
+            // float add on the box bottom (GroundTravelType 0x146d1f730, DefaultMove 0x1484c0920)
+            storage = world.Query(static_cast<int>(std::floor(s.x)),
+                                  static_cast<int>(std::floor(static_cast<float>(s.y) + -0.1f)),
                                   static_cast<int>(std::floor(s.z)));
             return storage;
         }
@@ -438,7 +488,9 @@ namespace perlin::physics {
         });
     }
 
-    MoveVector ProcessMoveInput(float forward, float strafe, bool sneaking, bool inWater, float itemUseModifier) {
+    // sub_140493140 for the sneak part; item use is a later system (0x14ce4c200)
+    MoveVector ProcessMoveInput(float forward, float strafe, bool sneaking, bool inWater, float itemUseModifier,
+                                float sneakScale) {
         const float lengthSq = forward * forward + strafe * strafe;
         if (lengthSq > 1.0f) {
             const float length = std::sqrt(lengthSq);
@@ -446,11 +498,51 @@ namespace perlin::physics {
             strafe /= length;
         }
         if (sneaking && !inWater) {
-            forward *= 0.3f;
-            strafe *= 0.3f;
+            forward *= sneakScale;
+            strafe *= sneakScale;
         }
         const float useScale = itemUseModifier * itemUseModifier;
         return {forward * useScale, strafe * useScale};
+    }
+
+    // SneakingSystem 0x14b3307b0: cvtsi2ss, mulss 0.15f, addss 0.3f, minss 1.0f
+    float SneakSpeed(int swiftSneakLevel, bool sneaking) {
+        if (swiftSneakLevel <= 0 || !sneaking)
+            return 0.3f;
+        const float scaled = static_cast<float>(swiftSneakLevel) * 0.15f;
+        return std::fmin(scaled + 0.3f, 1.0f);
+    }
+
+    float ClampAttribute(float value, float min, float max, const std::vector<AttributeModifierValue>& modifiers) {
+        float cap = max;
+        for (const auto& m : modifiers)
+            if (m.operation == 3)
+                cap = std::fmin(m.amount, cap);
+        return cap < value ? cap : std::fmax(value, min);
+    }
+
+    float RecalculateAttribute(const std::array<float, 3>& base, const std::vector<AttributeModifierValue>& modifiers,
+                               float current, std::array<float, 2>& limits) {
+        // additions, then multiply-base on the added base, then multiply-total in list order
+        std::array<float, 3> added = base;
+        for (const auto& m : modifiers)
+            if (m.operation == 0 && m.operand >= 0 && m.operand < 3)
+                added[m.operand] = m.amount + added[m.operand];
+        std::array<float, 3> total = added;
+        for (const auto& m : modifiers)
+            if (m.operation == 1 && m.operand >= 0 && m.operand < 3) {
+                const float scaled = added[m.operand] * m.amount;
+                total[m.operand] = scaled + total[m.operand];
+            }
+        for (const auto& m : modifiers)
+            if (m.operation == 2 && m.operand >= 0 && m.operand < 3) {
+                const float factor = m.amount + 1.0f;
+                total[m.operand] = factor * total[m.operand];
+            }
+        limits = {total[0], total[1]};
+        // modifiers that leave the base unchanged keep the old value; none at all resets it (movement: Attribute byte 0 set)
+        const float value = !modifiers.empty() && !(total[2] != base[2]) ? current : total[2];
+        return ClampAttribute(value, limits[0], limits[1], modifiers);
     }
 
     namespace {
@@ -460,9 +552,9 @@ namespace perlin::physics {
     }
 
     Box BoundingBox(const State& s, bool sneaking) {
-        const float half = static_cast<float>(kWidth) * 0.5f;
+        const float half = (s.mobSize ? (*s.mobSize)[0] : static_cast<float>(kWidth)) * 0.5f;
         const float x = static_cast<float>(s.x), y = static_cast<float>(s.y), z = static_cast<float>(s.z);
-        const float h = static_cast<float>((s.crawling || s.swimming) ? kCrawlHeight : sneaking ? kSneakHeight : kStandHeight);
+        const float h = static_cast<float>(s.Height(sneaking));
         if (s.hasBox && BoxCentre(s.box.x0, s.box.x1) == F(s.x) && BoxCentre(s.box.z0, s.box.z1) == F(s.z) &&
             static_cast<float>(s.box.y0) == y) {
             Box b = s.box;
@@ -498,10 +590,11 @@ namespace perlin::physics {
         const Box fluidSensingBox = BoundingBox(s, s.collisionHeight == static_cast<float>(kSneakHeight));
         s.crawling = in.crawl && !in.flying;
         s.swimming = in.swimming && !in.flying;
+        s.gliding = in.gliding && !in.flying;
         const bool sneaking = in.sneak && !in.flying;
         const bool crouched = (in.sneak || in.forceCrouch) && !in.flying;
-        const float collisionHeight = static_cast<float>((s.crawling || s.swimming) ? kCrawlHeight
-                                                        : crouched ? kSneakHeight : kStandHeight);
+        // UpdateHorizontalPoseSystem / bounding box request 0x142D006B0: horizontal pose first, then sneak
+        const float collisionHeight = static_cast<float>(s.Height(crouched));
         if (s.collisionHeight != collisionHeight) {
             s.collisionHeight = collisionHeight;
             s.hasBox = false;
@@ -509,13 +602,16 @@ namespace perlin::physics {
 
         s.x = F(s.x); s.y = F(s.y); s.z = F(s.z);
         s.vx = F(s.vx); s.vy = F(s.vy); s.vz = F(s.vz);
-        if (s.vx * s.vx + s.vy * s.vy + s.vz * s.vz < 1.0e-12)
-            s.vx = s.vy = s.vz = 0;
+        // GlideInputSystem 0x146d09030 adds (0, 0.1f, 0.0f) in the input phase
+        if (in.glideLift) {
+            s.vx = F(static_cast<float>(s.vx) + 0.0f);
+            s.vy = F(static_cast<float>(s.vy) + 0.1f);
+            s.vz = F(static_cast<float>(s.vz) + 0.0f);
+        }
 
         if (!in.flying)
             ApplyCurrent(s, world, fluidSensingBox);
 
-        const bool prevHorizontal = s.horizontalCollision;
         const bool grounded = s.onGround;
         if (!in.jump)
             s.jumpDelay = 0;
@@ -528,7 +624,13 @@ namespace perlin::physics {
         bds::UpdateLavaFallDistance(fluidMaterial, s.fallDistance);
         const BlockShape feet = world.Query(static_cast<int>(std::floor(s.x)), static_cast<int>(std::floor(s.y)),
                                             static_cast<int>(std::floor(s.z)));
-        s.onClimbable = feet.climbable;
+        // DefaultMoveSystems 0x1484c0b40, AutoClimbSystem 0x14332c490, jump 0x14ad34580: wall climbers always,
+        // else CAN_CLIMB with a climbable block or powder snow the body can stand on
+        const auto climbing = [&](const BlockShape& block) {
+            return in.wallClimbing ||
+                   (in.canClimb && (block.climbable || (block.powderSnow && in.canStandOnPowderSnow)));
+        };
+        s.onClimbable = climbing(feet);
         bds::ResetClimbingFallDistance(s.fallDistance, in.wallClimbing, in.canClimb,
                                       feet.climbable, feet.powderSnow, in.canStandOnPowderSnow);
 
@@ -545,19 +647,28 @@ namespace perlin::physics {
                 ns /= length;
             }
         }
-        const auto intent = bds::AttenuateTravelIntent({ns, 0.0f, nf}, 0.0f);
+        const auto intent = in.mobIntent ? bds::TravelIntentResult{*in.mobIntent, 0.0f, *in.mobIntent}
+                                         : bds::AttenuateTravelIntent({ns, 0.0f, nf}, 0.0f);
         const double forward = intent.movement.z;
         const double strafe = intent.movement.x;
 
-        if (in.flying) {
+        // TravelTypeSensingSystem 0x147cce890 reads MovementAbilities, updated a tick after a double tap; the
+        // vertical control and its hover friction (VerticalFlySpeedControlSystem 0x142cf1c60) follow the new state
+        const bool flyingTravel = in.flying != in.flyToggled;
+        if (flyingTravel) {
             if (s.hasTeleported)
                 return;
-            const bool hover = std::max(std::fabs(in.forward), std::fabs(in.strafe)) < 0.01f;
+            const bool hover = in.flying && std::max(std::fabs(in.forward), std::fabs(in.strafe)) < 0.01f;
             MoveRelative(s, strafe, forward, static_cast<double>(attr.flySpeed) * (in.sprint ? 2.0 : 1.0),
                          attr.currentMovementMath);
-            s.vy = bds::FlyingControl(static_cast<float>(s.vy), attr.verticalFlySpeed,
-                hover, in.creativeFlight, in.flyUp, in.flyDown, in.flyUpSlow, in.flyDownSlow);
+            if (in.flying)
+                s.vy = bds::FlyingControl(static_cast<float>(s.vy), attr.verticalFlySpeed,
+                    hover, in.creativeFlight, in.flyUp, in.flyDown, in.flyUpSlow, in.flyDownSlow);
+            // FlyingPlayerStuckOnGroundWorkaroundSystem 0x14333df70: runs before collision, lets a grounded flyer lift off
+            if (grounded && s.vy == 0)
+                s.vy = std::numeric_limits<float>::denorm_min();
             const float hMod = hover ? (in.creativeFlight ? 0.375f : 0.75f) : 1.0f;
+            RecordMoveRequest(s);
             const Vec3 req = ApplyStoredBlockSlowdown(s, {s.vx, s.vy, s.vz});
             if (in.noClip) {
                 s.hasBox = false;
@@ -565,7 +676,16 @@ namespace perlin::physics {
                 s.y = F(s.y + req.y);
                 s.z = F(s.z + req.z);
                 s.collidableMobNear = false;
-                const auto velocity = LandingResponse(s, {s.vx, s.vy, s.vz}, 0, false, in.sneak);
+                // FinalizeMoveSystem 0x145dd9980 keeps last tick's collision tags under no-clip, and the
+                // velocity resets (0x147b8c020, 0x147b8d050) still act on them; no support block, no bounce
+                Vec3 kept{s.vx, s.vy, s.vz};
+                if (s.horizontalCollision) {
+                    if (s.horizontalCollisionX)
+                        kept.x = 0;
+                    if (s.horizontalCollisionZ)
+                        kept.z = 0;
+                }
+                const auto velocity = LandingResponse(s, kept, 0, s.verticalCollision, in.sneak);
                 s.vx = velocity.x;
                 s.vy = velocity.y;
                 s.vz = velocity.z;
@@ -585,8 +705,6 @@ namespace perlin::physics {
                               in.gravity.descendThroughBlock, s.fallDistance, in.canStandOnPowderSnow);
             bds::UpdateRecovery(s.recovery, m.penetration >= 1.0e-6f, in.pushTowardsClosestSpace);
             auto finalized = FinalizeMotion(s, m, m.velocity);
-            if (m.stepped)
-                finalized.y = 0;
             finalized = LandingResponse(s, finalized, m.supportingSurface, m.cy, in.sneak);
             s.vx = finalized.x;
             s.vy = finalized.y;
@@ -599,6 +717,16 @@ namespace perlin::physics {
             return;
         }
 
+        // flight starts this tick: input-phase vertical control on top of ground/air travel, gravity and drag
+        std::optional<float> flyFrictionOverride;
+        if (in.flying && !s.hasTeleported) {
+            const bool hover = std::max(std::fabs(in.forward), std::fabs(in.strafe)) < 0.01f;
+            s.vy = bds::FlyingControl(static_cast<float>(s.vy), attr.verticalFlySpeed,
+                hover, in.creativeFlight, in.flyUp, in.flyDown, in.flyUpSlow, in.flyDownSlow);
+            if (hover)
+                flyFrictionOverride = in.creativeFlight ? 0.375f : 0.75f;
+        }
+
         const bool water = s.inWater, lava = s.inLava;
         auto gravity = in.gravity;
         if (in.overDescendableBlock)
@@ -607,20 +735,28 @@ namespace perlin::physics {
             s.vy = -0.15f;
             s.fallDistance = 0;
         }
-        const float friction = grounded ? 0.91f * blockFriction : 0.91f;
+        // ground and air friction (0x1433563e0, 0x1433307f0) take the hover override as 0.91 * (coef * override)
+        const float friction = flyFrictionOverride
+            ? bds::FlyingHorizontalRetention(grounded ? blockFriction : 1.0f, flyFrictionOverride, attr.airDrag)
+            : grounded ? 0.91f * blockFriction : 0.91f;
         double relSpeed;
         if (water) {
             relSpeed = bds::WaterAcceleration(attr.speed, attr.underwaterSpeed, attr.speed,
                 swimSpeedMultiplier, attr.waterWalkSpeedEnchant, attr.dolphin, grounded, true);
         } else if (lava) {
-            relSpeed = 0.02;
+            // lava travel speed 0x14CE37DE0: the lava_movement attribute as is
+            relSpeed = attr.lavaSpeed;
         } else if (grounded) {
             float accFriction = blockFriction;
-            if (under.surface == 4)
+            // soul sand drag (GroundTravelType 0x146d1f730); soul speed boots skip it
+            if (under.surface == 4 && !attr.soulSpeed)
                 accFriction *= 1.225f;
             relSpeed = bds::GroundAcceleration(attr.speed, accFriction);
+        } else if (attr.airSpeed) {
+            relSpeed = *attr.airSpeed;
         } else {
-            relSpeed = in.sprint ? 0.026 : 0.02;
+            // player air speed 0x14336f010: sprint value is 0x3cd4fdf3, one ulp under 0.026f
+            relSpeed = in.sprint ? std::bit_cast<float>(0x3cd4fdf3u) : 0.02f;
         }
 
         const bool jumpBlockedBySwim = (s.swimAmount > 0.0f && s.swimAmount < 1.0f)
@@ -632,11 +768,12 @@ namespace perlin::physics {
             s.vy = 0.15f;
             s.jumpDelay = 10;
         }
+        // MobJump 0x14AD34580: swim block wins first, scaffolding and climbing jumps return before the fluid lift
         if (in.jump && (water || lava)) {
             if (jumpBlockedBySwim) {
-                // surface exit still gets a small lift or the server corrects us
-                if (water) s.vy = F(static_cast<float>(s.vy) + 0.04f);
-            } else {
+                if (water) s.vy = 0.0f;
+            } else if (!scaffoldJump && !s.onClimbable) {
+                s.previousJumpPosition = {static_cast<float>(s.x), static_cast<float>(s.y), static_cast<float>(s.z)};
                 s.vy = F(static_cast<float>(s.vy) + 0.04f);
             }
         }
@@ -651,23 +788,22 @@ namespace perlin::physics {
         }
 
         const bool glide = in.gliding && !water && !lava && !s.hasTeleported;
-        if (glide) {
-            const bool boost = s.movementEffects[static_cast<int32_t>(bds::MovementEffectType::GlideBoost)].type != -1;
-            const auto velocity = bds::GlideVelocity(
-                {static_cast<float>(s.vx), static_cast<float>(s.vy), static_cast<float>(s.vz)},
-                s.previousRotation, {in.pitch, s.yaw}, attr.slowFalling, boost, s.fallDistance);
-            s.vx = velocity.x;
-            s.vy = velocity.y;
-            s.vz = velocity.z;
-        } else if (!s.hasTeleported) {
-            MoveRelative(s, strafe, forward, relSpeed, attr.currentMovementMath);
-        }
 
-        const bool climbJump = in.jump && !jumpBlockedBySwim && s.onClimbable;
+        // the scaffolding lift returns before the climb branch in the jump system
+        const bool climbJump = in.jump && !jumpBlockedBySwim && !scaffoldJump && s.onClimbable;
+        // jump permission 0x14333bef0: any shape crossing minY - 0.2 under the body wins (queried without an actor,
+        // so powder snow has none); with none, the block at the feet decides
+        const auto jumpOnPowderSnow = [&] {
+            Box probe = BoundingBox(s, crouched);
+            probe.y0 = probe.y1 = static_cast<double>(F(static_cast<float>(probe.y0) - 0.2f));
+            return NoCollision(world, probe, scratch) &&
+                   world.Query(static_cast<int>(std::floor(s.x)), static_cast<int>(std::floor(s.y)),
+                               static_cast<int>(std::floor(s.z))).powderSnow;
+        };
         const bool jumpInitiated = in.jump && !scaffoldJump && !jumpBlockedBySwim && !glide && !climbJump && s.onGround && s.jumpDelay == 0 && !water && !lava &&
             bds::GroundJumpAllowed((gravity.inScaffolding ? 0x20ull : 0ull) |
                                    (gravity.overScaffolding ? 0x40ull : 0ull) |
-                                   (gravity.descendThroughBlock ? 0x80ull : 0ull), under.powderSnow,
+                                   (gravity.descendThroughBlock ? 0x80ull : 0ull), jumpOnPowderSnow(),
                                    [&] { return in.canStandOnPowderSnow; }, [] { return false; });
         if (jumpInitiated) {
             bds::JumpParameters jump;
@@ -691,19 +827,38 @@ namespace perlin::physics {
             s.jumpDelay = 10;
         }
 
+        // JumpFromGroundSystem (0x147028c25) is registered before DefaultMoveSystems (0x14702b483): the sprint jump
+        // boost 0x14ad32d50 lands in posDelta before the input acceleration 0x1484c0920 is added
+        if (glide) {
+            const bool boost = s.movementEffects[static_cast<int32_t>(bds::MovementEffectType::GlideBoost)].type != -1;
+            const auto velocity = bds::GlideVelocity(
+                {static_cast<float>(s.vx), static_cast<float>(s.vy), static_cast<float>(s.vz)},
+                s.previousRotation, {in.pitch, s.yaw}, attr.slowFalling, boost, s.fallDistance);
+            s.vx = velocity.x;
+            s.vy = velocity.y;
+            s.vz = velocity.z;
+        } else if (!s.hasTeleported) {
+            MoveRelative(s, strafe, forward, relSpeed, attr.currentMovementMath);
+        }
+
         if (s.hasTeleported)
             return;
 
-        if (s.onClimbable) {
-            s.vy = std::max(s.vy, -kClimbSpeed);
-            if (climbJump || prevHorizontal)
-                s.vy = kClimbSpeed;
-            else if (sneaking && s.vy < 0)
+        if (climbJump)
+            s.vy = kClimbSpeed;
+        // DefaultMoveSystems Ground/Air 0x1484c0b40: water, lava and glide travel skip the clamp; climbing up
+        // only comes from the jump above and AutoClimbSystem after the move
+        if (s.onClimbable && !water && !lava && !glide) {
+            if (static_cast<float>(s.vy) < -kClimbSpeed)
+                s.vy = -kClimbSpeed;
+            // sneak-hold property (+0x134 bit 2) comes with every climbable block, never with powder snow
+            if (sneaking && s.vy < 0 && feet.climbable)
                 s.vy = 0;
         }
         if (water && sneaking)
             s.vy = F(static_cast<float>(s.vy) - 0.04f);
 
+        RecordMoveRequest(s);
         Vec3 req = ApplyStoredBlockSlowdown(s, {s.vx, s.vy, s.vz});
         const Box box = BoundingBox(s, crouched);
         bool requestSneakFlag = false;
@@ -713,15 +868,17 @@ namespace perlin::physics {
                                        gravity.descendThroughBlock, s.fallDistance, in.canStandOnPowderSnow);
         bds::UpdateRecovery(s.recovery, m.penetration >= 1.0e-6f, in.pushTowardsClosestSpace);
         Vec3 v = FinalizeMotion(s, m, m.velocity);
-        if (m.stepped)
-            v.y = 0;
-        v = LandingResponse(s, v, m.supportingSurface, m.cy, sneaking);
+        std::optional<float> restitutionY;
+        v = LandingResponse(s, v, m.supportingSurface, m.cy, sneaking, &restitutionY);
+        const auto bounceGravity = restitutionY
+            ? bds::RequestGravityCorrection(*restitutionY, m.requested.y, static_cast<float>(m.resolved.y))
+            : std::nullopt;
 
+        // AutoClimbSystem Ground/Air 0x14332c490: needs ground or air travel (no water, lava or glide)
         const bool autoClimb =
-            !water && !lava && (m.cx || m.cz) &&
-            world.Query(static_cast<int>(std::floor(s.x)), static_cast<int>(std::floor(s.y)),
-                        static_cast<int>(std::floor(s.z)))
-                .climbable;
+            !water && !lava && !glide && (m.cx || m.cz) &&
+            climbing(world.Query(static_cast<int>(std::floor(s.x)), static_cast<int>(std::floor(s.y)),
+                                 static_cast<int>(std::floor(s.z))));
         if (autoClimb)
             v.y = kClimbSpeed;
 
@@ -737,14 +894,16 @@ namespace perlin::physics {
                 v.z = F(static_cast<float>(v.z) * 0.5f);
             }
             if (water)
-                v.y = bds::PostWaterVertical(static_cast<float>(v.y), s.fallDistance, attr.levitation, in.swimming);
+                v.y = bds::PostWaterVertical(static_cast<float>(v.y), s.fallDistance, attr.levitation, in.swimming,
+                                             bounceGravity);
             else if (attr.levitation > 0)
                 v.y = bds::LevitateVelocity(static_cast<float>(v.y), attr.levitation);
             else
-                v.y = F(static_cast<float>(v.y) - 0.02f);
+                v.y = bds::ApplyGravity(static_cast<float>(v.y), s.fallDistance, {-0.02f, false}, bounceGravity);
         } else if (!glide) {
             v.y = bds::PostGroundVertical(static_cast<float>(v.y), s.fallDistance, gravity,
-                                         attr.levitation, attr.slowFalling, autoClimb);
+                                         attr.levitation, attr.slowFalling, autoClimb, false, attr.airDrag,
+                                         bounceGravity);
             v.x = DampHorizontal(v.x, friction);
             v.z = DampHorizontal(v.z, friction);
         }
@@ -758,23 +917,13 @@ namespace perlin::physics {
                 NoCollision(world, probe, scratch))
                 v.y = 0.3f;
         }
-        // SlimeBlock::onStandOn (0x1421c9d70): fabs(mPosDelta.y) < 0.1, not one-sided; fast rise (vy > 0.1, bounce) not damped
-        if (s.onGround && !sneaking && std::fabs(static_cast<float>(v.y)) < 0.1f) {
+        // slime/honey onStandOn 0x146d7aee0: one-sided vy < 0.1, a fast rise (bounce) is not damped
+        if (s.onGround && !sneaking && !(static_cast<float>(v.y) >= 0.1f)) {
             const BlockShape stand = world.Query(static_cast<int>(std::floor(s.x)),
                                                  static_cast<int>(std::floor(s.y - 0.5)),
                                                  static_cast<int>(std::floor(s.z)));
             if (stand.surface == 1 || stand.surface == 3) {
-                const float factor = std::fabs(static_cast<float>(v.y)) * 0.2f + 0.4f;
-                v.x = F(static_cast<float>(v.x) * factor);
-                v.z = F(static_cast<float>(v.z) * factor);
-            }
-        }
-        if (!water && !lava && !in.flying) {
-            const int fx = static_cast<int>(std::floor(s.x)), fz = static_cast<int>(std::floor(s.z));
-            float factor = world.Query(fx, static_cast<int>(std::floor(s.y)), fz).speedFactor;
-            if (factor == 1.0f)
-                factor = world.Query(fx, static_cast<int>(std::floor(s.y - 0.5000001)), fz).speedFactor;
-            if (factor != 1.0f) {
+                const float factor = bds::detail::Round(bds::detail::Round(std::fabs(static_cast<float>(v.y)) * 0.2f) + 0.4f);
                 v.x = F(static_cast<float>(v.x) * factor);
                 v.z = F(static_cast<float>(v.z) * factor);
             }
@@ -809,7 +958,7 @@ namespace perlin::physics {
                 const auto velocity = bds::HoneyContacts(
                     {static_cast<float>(s.x), static_cast<float>(s.y), static_cast<float>(s.z)},
                     {static_cast<float>(s.vx), static_cast<float>(s.vy), static_cast<float>(s.vz)},
-                    static_cast<float>(kWidth), honey, s.fallDistance);
+                    s.mobSize ? (*s.mobSize)[0] : static_cast<float>(kWidth), honey, s.fallDistance);
                 s.vx = velocity.x;
                 s.vy = velocity.y;
                 s.vz = velocity.z;
@@ -835,19 +984,116 @@ namespace perlin::physics {
         }
     }
 
+    // StartSpinAttackActionSystem 0x14B3367C0: push along the unit look by ((level + 1) * 0.25) * 3, before the move
+    static void StartSpinAttack(State& s, const Input& in, bool headInWater) {
+        const auto mul = [](float a, float b) { return bds::detail::Round(a * b); };
+        const auto add = [](float a, float b) { return bds::detail::Round(a + b); };
+        const auto div = [](float a, float b) { return bds::detail::Round(a / b); };
+        const auto sine = [](float coordinate) { return bds::CurrentSineEntry(bds::SineIndex(coordinate)); };
+        const float yawCoordinate = mul(mul(s.yaw, 0.017453292f), 10430.378f);
+        const float pitchCoordinate = mul(mul(0.017453292f, in.pitch), 10430.378f);
+        const float pitchCos = sine(add(pitchCoordinate, 16384.0f));
+        const float pitchSin = sine(pitchCoordinate);
+        const float lookX = mul(-sine(yawCoordinate), pitchCos);
+        const float lookZ = mul(pitchCos, sine(add(16384.0f, yawCoordinate)));
+        const float length = std::sqrt(add(mul(lookZ, lookZ), add(mul(pitchSin, pitchSin), mul(lookX, lookX))));
+        // a look shorter than 1.0e-4 pushes nowhere
+        const bool tiny = length < 1.0e-4f;
+        const float unitX = tiny ? 0.0f : div(lookX, length);
+        const float unitY = tiny ? 0.0f : div(-pitchSin, length);
+        const float unitZ = tiny ? 0.0f : div(lookZ, length);
+        const float force = mul(mul(add(static_cast<float>(in.riptideLevel), 1.0f), 0.25f), 3.0f);
+        float pushY = mul(unitY, force);
+        // launched from the ground: +0.08 cancels this tick's gravity; in water with the head out, the water drag
+        if (s.onGround)
+            pushY = s.inWater && !headInWater ? mul(div(pushY, 0.8f), 0.98f) : add(pushY, 0.08f);
+        s.vx = add(static_cast<float>(s.vx), mul(unitX, force));
+        s.vy = add(static_cast<float>(s.vy), pushY);
+        s.vz = add(mul(force, unitZ), static_cast<float>(s.vz));
+        s.spinAttack = true;
+        s.spinTicks = 0;
+    }
+
+    // PostDamageNearbyMobsSystem 0x14B33CC90: each mob hit scales the velocity by -0.2 and ends the spin, so does a
+    // wall; otherwise 20 ticks, or landing after 5
+    static void EndSpinAttack(State& s, const Input& in) {
+        if (!s.spinAttack)
+            return;
+        // SpinAttackFetchNearbyMobsSystem 0x14B316910: mobs touching the box grown by 1 on every side
+        const auto grow = [](double v, float d) { return static_cast<double>(static_cast<float>(v) + d); };
+        const Box body = BoundingBox(s, false);
+        const Box reach{grow(body.x0, -1.0f), grow(body.y0, -1.0f), grow(body.z0, -1.0f),
+                        grow(body.x1, 1.0f), grow(body.y1, 1.0f), grow(body.z1, 1.0f)};
+        int hits = 0;
+        for (const Box& mob : in.mobBoxes)
+            if (reach.Intersects(mob))
+                ++hits;
+        if (hits > 0) {
+            for (int i = 0; i < hits; ++i) {
+                s.vx = static_cast<float>(s.vx) * -0.2f;
+                s.vy = static_cast<float>(s.vy) * -0.2f;
+                s.vz = static_cast<float>(s.vz) * -0.2f;
+            }
+            s.spinAttack = false;
+            s.spinTicks = 0;
+        } else if (s.horizontalCollision) {
+            s.spinAttack = false;
+            s.spinTicks = 0;
+        }
+        const int elapsed = s.spinTicks++;
+        if (elapsed > 18 || (elapsed >= 5 && s.onGround)) {
+            s.spinAttack = false;
+            s.spinTicks = 0;
+        }
+    }
+
     void Step(State& s, const Input& in, const Attributes& attr, const World& world) {
         for (const auto& effect : in.movementEffects)
             bds::ApplyMovementEffect(s.movementEffects, effect);
+        if (in.riptideLevel > 0)
+            StartSpinAttack(s, in, in.headInWater);
         StepMovement(s, in, attr, world);
+        EndSpinAttack(s, in);
         const auto climber = bds::SenseScaffolding(CollisionBox(BoundingBox(s, in.sneak)),
             [&](int32_t x, int32_t y, int32_t z) { return world.ClimberCell(x, y, z); }, in.canStandOnPowderSnow);
         if (!climber.overPowderSnow && (climber.inside || climber.over || climber.ascendable || climber.descendable))
             s.fallDistance = 0;
         UpdateBlockContacts(s, in, attr, world, s.inWater);
         bds::TickMovementEffects(s.movementEffects);
-        s.swimAmount = in.swimming ? std::fmin(s.swimAmount + 0.1f, 1.0f)
-                                  : std::fmax(s.swimAmount - 0.1f, 0.0f);
+        // CurrentSwimAmountSystem 0x1484D5990: the crawling flag drives the amount too
+        s.swimAmount = (in.swimming || s.crawling) ? std::fmin(s.swimAmount + 0.1f, 1.0f)
+                                                  : std::fmax(s.swimAmount - 0.1f, 0.0f);
         s.previousRotation = {in.pitch, s.yaw};
         s.hasTeleported = false;
+    }
+
+    BoxMove MoveBox(const World& world, const Box& start, float dx, float dy, float dz, bool wasOnGround,
+                    bds::RecoveryState& recovery) {
+        std::vector<Box> scratch;
+        bool oneShotStep = false;
+        const Vec3 request{dx, dy, dz};
+        const Motion m = ResolveMotion(world, start, request, request, wasOnGround, scratch,
+                                       bds::RecoveryLimits(recovery), 0.0f, false, oneShotStep);
+        bds::UpdateRecovery(recovery, m.penetration >= 1.0e-6f, false);
+        bds::MovementFlags flags;
+        flags.onGround = wasOnGround;
+        const auto result = bds::FinalizeMove(
+            CollisionBox(m.box), 0.0f, m.requested,
+            {static_cast<float>(m.resolved.x), static_cast<float>(m.resolved.y), static_cast<float>(m.resolved.z)},
+            {dx, dy, dz}, flags, false, m.preserveHorizontalMotion);
+        BoxMove out;
+        out.x = result.position.x;
+        out.y = result.position.y;
+        out.z = result.position.z;
+        out.vx = result.velocity.x;
+        out.vy = result.velocity.y;
+        out.vz = result.velocity.z;
+        // ResetVerticalVelocitySystem 0x147b8d050: every vertical collision tag
+        if (result.flags.verticalCollision)
+            out.vy = 0.0f;
+        out.onGround = result.flags.onGround;
+        out.horizontalCollision = result.flags.horizontalCollision;
+        out.verticalCollision = result.flags.verticalCollision;
+        return out;
     }
 }

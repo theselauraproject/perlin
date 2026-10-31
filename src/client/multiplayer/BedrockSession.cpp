@@ -1312,6 +1312,9 @@ namespace perlin {
         }
         if (hasAction)
             add(InputFlag::PerformBlockActions);
+        // SendPlayerInputPacketSystem 0x146dab080: bit 45 goes with the vehicle rotation and id, never alone
+        if (input.predictedVehicle)
+            add(static_cast<uint32_t>(proto::InputData::ClientPredictedVehicle));
 
         float mx = input.moveX, mz = input.moveZ;
         const float mlen = std::sqrt(mx * mx + mz * mz);
@@ -1351,6 +1354,10 @@ namespace perlin {
             entry.position = {action.x, action.y, action.z};
             entry.face = action.face;
             f.blockAction = std::vector<proto::PlayerAuthInputPacketBlockActionEntry>{entry};
+        }
+        if (input.predictedVehicle) {
+            f.vehicleRotation = proto::Vec2F{(*input.vehicleRotation)[0], (*input.vehicleRotation)[1]};
+            f.predictedVehicle = *input.predictedVehicle;
         }
         f.analogueMoveVector = {0, 0};
         f.cameraOrientation = {-std::sin(yaw) * cp, -std::sin(pitch), std::cos(yaw) * cp};
@@ -1468,6 +1475,15 @@ namespace perlin {
             return false;
         out = serverMotions.front();
         serverMotions.pop_front();
+        return true;
+    }
+
+    bool BedrockSession::TakeVehicleCorrection(VehicleCorrection& out) {
+        std::lock_guard lock(vehicleCorrectionMutex);
+        if (vehicleCorrections.empty())
+            return false;
+        out = vehicleCorrections.front();
+        vehicleCorrections.pop_front();
         return true;
     }
 

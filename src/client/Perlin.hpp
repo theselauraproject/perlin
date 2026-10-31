@@ -136,6 +136,7 @@ namespace perlin {
         void UpdateSession(FrameContext& f);
         void UpdateRiding(BedrockSession& live, const std::vector<entity::Entity>& entities);
         void UpdateEatingAndDrinking(FrameContext& f, BedrockSession& live);
+        void ReleaseHeldItem(BedrockSession* live, const ui::HudItem& held, const float eye[3]);
         void UpdateViewSettings(FrameContext& f);
         void ApplyRendererSwitch();
         void UpdateChat(FrameContext& f);

@@ -3,6 +3,7 @@
 #include "client/player/PerlinPhysicsNumerics.hpp"
 
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -31,24 +32,27 @@ namespace perlin::physics::bds {
                                             bool sneaking, bool minecart, bool hasBounceComponent,
                                             bool isPlayer, std::optional<Float3>& restitution) {
         LandingResult result{velocity, std::nullopt};
-        if (surface != LandingSurface::Ordinary && !sneaking && velocity.y < 0) {
+        // ComputeBlockRestitutionSystem 0x1484bc1e0: falls slower than this don't bounce, so a body resting on
+        // slime (gravity alone gives -0.0784 per tick) lands like on any block
+        constexpr float minimumBounceSpeed = std::bit_cast<float>(0x3da3d71au);
+        const bool bounces = velocity.y < 0 && !(minimumBounceSpeed > std::fabs(velocity.y));
+        if (surface != LandingSurface::Ordinary && !sneaking && bounces) {
             if (!restitution)
                 restitution = Float3{};
             const float coefficient = surface == LandingSurface::Bed ? 0.75f : 1.0f;
-            restitution->y = -detail::Round(velocity.y * coefficient);
+            // keeps the larger of a pending upward impulse and this bounce
+            const float bounce = -detail::Round(velocity.y * coefficient);
+            restitution->y = bounce > restitution->y ? bounce : restitution->y;
             if (minecart)
                 restitution->y = detail::Round(restitution->y * 0.95f);
             if (hasBounceComponent && isPlayer)
                 result.bouncePosition = BlockPosition{FloorBlockCoordinate(position.x),
                                                        FloorBlockCoordinate(position.y),
                                                        FloorBlockCoordinate(position.z)};
-            result.velocity.y = 0.0f;
-        } else if (surface == LandingSurface::Ordinary || sneaking) {
-            // Sneaking on any surface (and all ordinary landings) kills vertical motion.
-            // A rising or stationary body on slime/bed is left alone: the game only
-            // bounces falling bodies and never zeroes anything otherwise.
-            result.velocity.y = 0.0f;
         }
+        // ResetVerticalVelocitySystem 0x147b8d6a0 runs after the restitution is computed: every vertical
+        // collision, up or down and on any block, ends with vy = 0 before the impulse is added
+        result.velocity.y = 0.0f;
         return result;
     }
 

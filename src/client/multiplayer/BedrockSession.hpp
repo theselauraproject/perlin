@@ -182,8 +182,31 @@ namespace perlin {
             bool hasDelta = false;
             bool hasBlockAction = false;
             BlockActionData blockAction;
+            // client-predicted vehicle: ActorRotation (x, y) and ActorUniqueID; sets InputData 45
+            std::optional<std::array<float, 2>> vehicleRotation;
+            std::optional<int64_t> predictedVehicle;
         };
         bool SendMoveInput(const MoveInput& input);
+
+        // CorrectPlayerMovePredictionPacket with the vehicle prediction type
+        struct VehicleCorrection {
+            uint64_t tick = 0;
+            float pos[3] = {0, 0, 0};
+            float delta[3] = {0, 0, 0};
+            float rotation[2] = {0, 0};
+            std::optional<float> angularVelocity;
+            bool onGround = false;
+        };
+        bool TakeVehicleCorrection(VehicleCorrection& out);
+        // RiderSeatPosition (actor data 56) of the local player, when the server sent one
+        std::optional<std::array<float, 3>> OwnSeatOffset() const {
+            std::lock_guard lock(attrMutex);
+            return ownSeatOffset;
+        }
+        // SetActorLink type 1: the local player sits in the controlling seat
+        bool RidingAsDriver() const { return ridingDriver.load(); }
+        // server moves of this actor are ignored while the client predicts it
+        void SetPredictedVehicle(uint64_t runtime) { predictedVehicleRuntime = runtime; }
 
         struct ServerMotion {
             bool poseChanged = false;
@@ -216,16 +239,16 @@ namespace perlin {
             const auto it = ownAttributes.find("minecraft:movement");
             return it == ownAttributes.end() ? 0.1f : it->second;
         }
-        float PredictedMovementSpeed(bool sprinting) const {
+        // adds or removes the sprint modifier like the game's sprint action, then returns the instance value;
+        // a freeze strength swaps the sent "Freeze effect" modifier for ours
+        float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength = std::nullopt);
+        // own FREEZING_EFFECT_STRENGTH (actor data 120) with the server tick it was set on
+        struct FreezeUpdate { uint64_t tick = 0; float strength = 0; };
+        std::vector<FreezeUpdate> TakeFreezeUpdates() {
             std::lock_guard lock(attrMutex);
-            const auto it = ownAttributes.find("minecraft:movement");
-            float speed = it == ownAttributes.end() ? 0.1f : it->second;
-            if (movementAttribute)
-                for (const auto& modifier : movementAttribute->modifiers)
-                    if (modifier.id == "d208fc00-42aa-4aad-9276-d5446530de43" &&
-                        modifier.operation == 2 && modifier.operand == 2 && modifier.amount > -1.0f)
-                        speed /= 1.0f + modifier.amount;
-            return speed * (sprinting ? 1.3f : 1.0f);
+            std::vector<FreezeUpdate> updates;
+            updates.swap(freezeUpdates);
+            return updates;
         }
         std::optional<proto::PlayerAttributesEntry> MovementAttribute() const {
             std::lock_guard lock(attrMutex);
@@ -246,6 +269,11 @@ namespace perlin {
         float UnderwaterMovementSpeedAttribute() const {
             std::lock_guard lock(attrMutex);
             const auto it = ownAttributes.find("minecraft:underwater_movement");
+            return it == ownAttributes.end() ? 0.02f : it->second;
+        }
+        float LavaMovementSpeedAttribute() const {
+            std::lock_guard lock(attrMutex);
+            const auto it = ownAttributes.find("minecraft:lava_movement");
             return it == ownAttributes.end() ? 0.02f : it->second;
         }
         std::optional<float> AirDragAttribute() const {
@@ -508,7 +536,25 @@ void RequestRespawn();
         bool RequestReconnect();
         int ServerProtocol() const { return serverProtocol; }
         bool MayFly() const { return mayFly; }
+        bool Instabuild() const { return instabuild; }
         bool IsFlying() const { return isFlying; }
+        // bumped by every UpdateAbilities: the game applies the whole set, not only changes
+        uint32_t AbilitiesSeq() const { return abilitiesSeq; }
+        // Player::setPlayerGameType 0x1402b9ab0 -> base ability layer 0x1402e1980 (5: the world's type);
+        // creative keeps flying, survival and adventure drop it; spectator lives in its own layer
+        void ApplyGameTypeAbilities(int worldGameType) {
+            const int type = gameType == 5 ? worldGameType : gameType;
+            if (type == 1) {
+                mayFly = true;
+                instabuild = true;
+                noClip = false;
+            } else if (type == 0 || type == 2) {
+                mayFly = false;
+                instabuild = false;
+                isFlying = false;
+                noClip = false;
+            }
+        }
         // entity flag 32 (gliding), last from server for local player
         // actor flag 75 (sleeping): extended flag word
         // local invisibility (actor flag 5) from our SetActorData
@@ -651,6 +697,8 @@ void RequestRespawn();
         }
         InventoryView GetInventory() const;
         int WaterWalkSpeedEnchant() const;
+        int SoulSpeedEnchant() const;
+        int SwiftSneakEnchant() const;
         TitleText GetTitleText() const;
         bool SelectHotbarSlot(int slot);
         bool SendSwingArm(const char* source = "build");
@@ -677,7 +725,7 @@ void RequestRespawn();
         struct EffectUpdate { uint64_t tick = 0; int id = 0, amplifier = 0; bool active = false; int32_t duration = 0; };
         std::vector<EffectUpdate> TakeEffectUpdates();
         struct MotionUpdate { uint64_t tick = 0; std::array<double, 3> velocity{}; };
-        struct ServerMovementEffect { uint32_t type = 0, duration = 0; uint64_t tick = 0; };
+        struct ServerMovementEffect { uint32_t type = 0; int32_t duration = 0; uint64_t tick = 0; };
         std::vector<ServerMovementEffect> TakeMovementEffects();
         bool WorkbenchOpen() const { std::lock_guard lock(statusMutex); return workbenchOpen; }
         bool TakeWorkbenchOpened();
@@ -1021,6 +1069,13 @@ void RequestRespawn();
         std::array<uint64_t, 2> ownFlagWords{};
         std::array<bool, 2> ownFlagWordsKnown{};
         std::optional<proto::PlayerAttributesEntry> movementAttribute;
+        // own copy of the movement AttributeInstance: modifiers, base (min, max, value), limits, value
+        std::vector<proto::PlayerAttributesEntryModifiersEntry> movementModifiers;
+        std::array<float, 3> movementBase{};
+        std::array<float, 2> movementLimits{};
+        float movementValue = 0.1f;
+        std::vector<FreezeUpdate> freezeUpdates;
+        void ApplyMovementAttribute(const proto::PlayerAttributesEntry& entry);
         int64_t ownPlayerFlags = 0;
         float ownScale = 1.0f, ownWidth = 0.6f, ownHeight = 1.8f;
         int predictionSyncCountdown = -1;
@@ -1051,8 +1106,11 @@ void RequestRespawn();
 
         bool mayFly = false;
         bool noClip = false;
+        // ability 11, MovementAbilitiesComponent bit 2: changes jump while gliding
+        bool instabuild = false;
         int gameType = 0;
         bool isFlying = false;
+        uint32_t abilitiesSeq = 0;
         float flySpeed = 0.05f;
         float vFlySpeed = 1.0f;
         float walkSpeed = 0.1f;
@@ -1103,6 +1161,11 @@ void RequestRespawn();
         InventoryView inventory;
         proto::ItemV4 inventoryRaw[36];
         std::atomic<int64_t> ridingUid{0};
+        std::atomic<bool> ridingDriver{false};
+        std::atomic<uint64_t> predictedVehicleRuntime{0};
+        std::optional<std::array<float, 3>> ownSeatOffset;
+        std::mutex vehicleCorrectionMutex;
+        std::deque<VehicleCorrection> vehicleCorrections;
         proto::ItemV4 extraRaw[20];
         proto::ItemV4 horseRaw[17];
         int horseWindow = -1;

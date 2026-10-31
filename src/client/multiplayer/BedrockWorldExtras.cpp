@@ -474,12 +474,7 @@ namespace perlin {
         On<MotionPredictionHintsPacket>([this](const MotionPredictionHintsPacket& p) {
             if (runtimeId == 0 || p.entityRuntimeId != runtimeId)
                 return;
-            ServerMotion motion;
-            motion.hasVelocity = true;
-            motion.velocity[0] = p.velocity.x;
-            motion.velocity[1] = p.velocity.y;
-            motion.velocity[2] = p.velocity.z;
-            QueueServerMotion(motion);
+            // the game's handler (ClientNetworkHandler 0x146BD64E0) only looks the actor up: no velocity change
             NoteKnockback(p.velocity.x, p.velocity.z);
         });
     }

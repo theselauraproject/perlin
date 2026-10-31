@@ -999,6 +999,27 @@ namespace perlin {
         });
 
         On<CorrectPlayerMovePredictionPacket>([this](const CorrectPlayerMovePredictionPacket& p) {
+            if (p.predictionType == CorrectPlayerMovePredictionPacketPredictionType::Vehicle) {
+                if (!SaneWorldPos(p.position.x, p.position.y, p.position.z))
+                    return;
+                VehicleCorrection c;
+                c.tick = p.tick;
+                c.pos[0] = p.position.x;
+                c.pos[1] = p.position.y;
+                c.pos[2] = p.position.z;
+                c.delta[0] = p.delta.x;
+                c.delta[1] = p.delta.y;
+                c.delta[2] = p.delta.z;
+                c.rotation[0] = p.rotation.x;
+                c.rotation[1] = p.rotation.z;
+                c.angularVelocity = p.angularVelocity;
+                c.onGround = p.onGround;
+                std::lock_guard lk(vehicleCorrectionMutex);
+                vehicleCorrections.push_back(c);
+                while (vehicleCorrections.size() > 64)
+                    vehicleCorrections.pop_front();
+                return;
+            }
             if (p.predictionType != CorrectPlayerMovePredictionPacketPredictionType::Player)
                 return;
             if (!SaneWorldPos(p.position.x, p.position.y, p.position.z))
@@ -1150,6 +1171,9 @@ namespace perlin {
         On<MoveEntityPacket>([this](const MoveEntityPacket& p) {
             if (runtimeId != 0 && p.runtimeEntityId == runtimeId)
                 return;
+            // the client-predicted vehicle is moved by our own simulation
+            if (p.runtimeEntityId == predictedVehicleRuntime.load())
+                return;
             constexpr float kByte = 360.0f / 256.0f;
             entities.Move(p.runtimeEntityId, {p.position.x, p.position.y, p.position.z}, p.rotation.pitch * kByte,
                           p.rotation.yaw * kByte, p.rotation.headYaw * kByte, (p.flags & 1) != 0);
@@ -1157,6 +1181,8 @@ namespace perlin {
 
         On<MoveEntityDeltaPacket>([this](const MoveEntityDeltaPacket& p) {
             if (runtimeId != 0 && p.runtimeEntityId == runtimeId)
+                return;
+            if (p.runtimeEntityId == predictedVehicleRuntime.load())
                 return;
             constexpr float kByte = 360.0f / 256.0f;
             double x = 0, y = 0, z = 0;
@@ -1190,11 +1216,19 @@ namespace perlin {
                         }
                         continue;
                     }
+                    if (m.key == MetadataDictionaryEntryKey::RiderSeatPosition) {
+                        if (const auto* inner = std::get_if<4>(&m.value))
+                            if (const auto* seat = std::get_if<9>(inner))
+                                ownSeatOffset = std::array<float, 3>{seat->x, seat->y, seat->z};
+                        continue;
+                    }
                     double n = 0;
                     if (!MetaNumber(m, n))
                         continue;
                     if (m.key == MetadataDictionaryEntryKey::PlayerFlags)
                         ownPlayerFlags = static_cast<int64_t>(n);
+                    else if (m.key == MetadataDictionaryEntryKey::FreezingEffectStrength)
+                        freezeUpdates.push_back({p.tick, static_cast<float>(n)});
                     else if (m.key == MetadataDictionaryEntryKey::Scale)
                         ownScale = static_cast<float>(n);
                     else if (m.key == MetadataDictionaryEntryKey::BoundingboxWidth)
@@ -1305,7 +1339,10 @@ namespace perlin {
                 std::lock_guard lk(attrMutex);
                 for (const PlayerAttributesEntry& a : p.attributes) {
                     ownAttributes[a.name] = a.current;
-                    if (a.name == "minecraft:movement") movementAttribute = a;
+                    if (a.name == "minecraft:movement") {
+                        movementAttribute = a;
+                        ApplyMovementAttribute(a);
+                    }
                 }
             }
             for (const PlayerAttributesEntry& a : p.attributes) {
@@ -1431,8 +1468,10 @@ namespace perlin {
         On<SetEntityLinkPacket>([this](const SetEntityLinkPacket& p) {
             const int64_t rider = p.link.riderEntityId == 0 ? static_cast<int64_t>(uniqueId) : p.link.riderEntityId;
             entities.SetVehicle(rider, p.link.type == 0 ? 0 : p.link.riddenEntityId);
-            if (rider == static_cast<int64_t>(uniqueId))
+            if (rider == static_cast<int64_t>(uniqueId)) {
                 ridingUid = p.link.type == 0 ? 0 : p.link.riddenEntityId;
+                ridingDriver = p.link.type == 1;
+            }
             Log("bedrock", "link rider={} vehicle={} type={}", rider, p.link.riddenEntityId, int(p.link.type));
         });
 
@@ -1446,9 +1485,10 @@ namespace perlin {
             }
             if (runtimeId != 0 && p.entityUniqueId != 0 && uniqueId != 0 && p.entityUniqueId != uniqueId)
                 return;
-            bool fly = false, flying = false, clip = false;
+            bool fly = false, flying = false, clip = false, build = false;
             for (const AbilityLayers& layer : p.abilities) {
                 if (layer.allowed & (1u << 10)) fly = (layer.enabled & (1u << 10)) != 0;
+                if (layer.allowed & (1u << 11)) build = (layer.enabled & (1u << 11)) != 0;
                 if (layer.allowed & (1u << 9)) flying = (layer.enabled & (1u << 9)) != 0;
                 if (layer.allowed & (1u << 17)) clip = (layer.enabled & (1u << 17)) != 0;
                 if (layer.allowed & (1u << 13)) flySpeed = layer.flySpeed;
@@ -1456,7 +1496,9 @@ namespace perlin {
                 if (layer.allowed & (1u << 14)) walkSpeed = layer.walkSpeed;
             }
             mayFly = fly;
+            instabuild = build;
             isFlying = flying;
+            ++abilitiesSeq;
             noClip = clip;
             Log("bedrock", "abilities mayFly={} flying={} noclip={} fly={}", mayFly, isFlying, noClip, flySpeed);
         });
@@ -1465,8 +1507,12 @@ namespace perlin {
             if (uniqueId != 0 && p.playerUniqueId != uniqueId)
                 return;
             gameType = static_cast<int>(p.gamemode);
-            if (gameType == 1)
-                mayFly = true;
+            int worldGameType;
+            {
+                std::lock_guard<std::mutex> lk(worldMutex);
+                worldGameType = world.worldGameMode;
+            }
+            ApplyGameTypeAbilities(worldGameType);
         });
         On<SetDefaultGameTypePacket>([this](const SetDefaultGameTypePacket& p) {
             std::lock_guard<std::mutex> lk(worldMutex);
@@ -1490,8 +1536,12 @@ namespace perlin {
 
         On<SetPlayerGameTypePacket>([this](const SetPlayerGameTypePacket& p) {
             gameType = static_cast<int>(p.gamemode);
-            if (gameType == 1)
-                mayFly = true;
+            int worldGameType;
+            {
+                std::lock_guard<std::mutex> lk(worldMutex);
+                worldGameType = world.worldGameMode;
+            }
+            ApplyGameTypeAbilities(worldGameType);
         });
 
         On<NetworkStackLatencyPacket>([this](const NetworkStackLatencyPacket& p) {

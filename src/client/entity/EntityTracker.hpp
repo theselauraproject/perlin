@@ -33,13 +33,20 @@ namespace perlin::entity {
             Resting = 1ull << 23, Sitting = 1ull << 24, Angry = 1ull << 25, Interested = 1ull << 26, Charged = 1ull << 27,
             Tamed = 1ull << 28, Orphaned = 1ull << 29, Leashed = 1ull << 30, Sheared = 1ull << 31, Gliding = 1ull << 32,
             Elder = 1ull << 33, Moving = 1ull << 34, Breathing = 1ull << 35, Chested = 1ull << 36, Stackable = 1ull << 37,
-            Rearing = 1ull << 39, Idling = 1ull << 41, Silent = 1ull << 17, HasCollision = 1ull << 47, Gravity = 1ull << 48,
-            FireImmune = 1ull << 49, Dancing = 1ull << 50, Enchanted = 1ull << 51, Transforming = 1ull << 54,
-            SpinAttack = 1ull << 55, Swimming = 1ull << 56, Bribed = 1ull << 57, Pregnant = 1ull << 58, LayingEgg = 1ull << 59,
-            Eating = 1ull << 62, LayingDown = 1ull << 63, Sleeping = 0,
+            // MetadataFlags1 order of protocol/bedrock-1.26.60.json: linger takes bit 47, everything after moves up one
+            Rearing = 1ull << 39, Idling = 1ull << 41, Silent = 1ull << 17, Linger = 1ull << 47, HasCollision = 1ull << 48,
+            Gravity = 1ull << 49, FireImmune = 1ull << 50, Dancing = 1ull << 51, Enchanted = 1ull << 52,
+            Transforming = 1ull << 55, SpinAttack = 1ull << 56, Swimming = 1ull << 57, Bribed = 1ull << 58,
+            Pregnant = 1ull << 59, LayingEgg = 1ull << 60, Eating = 1ull << 63, Sleeping = 0,
             Charging = 1ull << 43,
         };
         constexpr uint64_t FacingTargetToRangeAttack = 1ull << 24;
+
+        // MetadataFlags2 bits, read from Entity::flagsExtended
+        struct Extended {
+            uint64_t bit;
+        };
+        inline constexpr Extended LayingDown{1ull << 0};
     }
 
     struct Entity {
@@ -88,6 +95,7 @@ namespace perlin::entity {
         struct Attribute { float min = 0, value = 0, max = 0; };
         std::map<std::string, Attribute> attributes;
         bool Has(uint64_t f) const { return (flags & f) != 0 || (crawling && (f & flag::Swimming) != 0); }
+        bool Has(flag::Extended f) const { return (flagsExtended & f.bit) != 0; }
         bool AimingBow() const { return mainHand == "minecraft:bow" && (flagsExtended & flag::FacingTargetToRangeAttack) != 0; }
     };
 

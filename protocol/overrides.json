@@ -184,6 +184,8 @@
         "default": "void"
       }
     ],
-    "packet_take_item_entity.target": "varint64"
+    "packet_take_item_entity.target": "varint64",
+    "packet_movement_effect.effect_type": "zigzag32",
+    "packet_movement_effect.effect_duration": "zigzag32"
   }
 }

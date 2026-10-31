@@ -535,16 +535,17 @@ namespace perlin {
                         ? custom.useTicks > 0
                         : blockuse::VanillaUseTicks(held.name, HandRenderer::IsFood(held.name)) > 0;
                 live->SendUseItemInAir(eyeF, heldUse);
+                if (held.name == "minecraft:firework_rocket")
+                    player.UseFirework();
                 usingItem = heldUse;
+                if (heldUse)
+                    player.BeginItemUse();
             }
         }
         if (!useHeld && live)
             live->EndItemUseOn();
-        if (usingItem && !useHeld) {
-            usingItem = false;
-            if (live)
-                live->SendReleaseItem(eyeF);
-        }
+        if (usingItem && !useHeld)
+            ReleaseHeldItem(live, held, eyeF);
 
         if (live && inputManager.Pressed(Action::PickBlock)) {
             entity::Entity picked;

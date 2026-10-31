@@ -15,9 +15,17 @@ namespace perlin::physics::bds {
     }
 
     inline CollisionBox TranslateBlockCollisionShape(const CollisionBox& local, Float3 origin) {
-        return {detail::Round(origin.x + local[0]), detail::Round(origin.y + local[1]),
-                detail::Round(origin.z + local[2]), detail::Round(origin.x + local[3]),
-                detail::Round(origin.y + local[4]), detail::Round(origin.z + local[5])};
+        const CollisionVector low{detail::Round(origin.x + local[0]), detail::Round(origin.y + local[1]),
+                                  detail::Round(origin.z + local[2])};
+        const CollisionVector high{detail::Round(origin.x + local[3]), detail::Round(origin.y + local[4]),
+                                   detail::Round(origin.z + local[5])};
+        // collision component collector 0x149b69ce0 reorders each axis (cmpltps/maxps): inverted shapes still collide
+        CollisionBox box;
+        for (int axis = 0; axis < 3; ++axis) {
+            box[axis] = low[axis] < high[axis] ? low[axis] : high[axis];
+            box[axis + 3] = low[axis] > high[axis] ? low[axis] : high[axis];
+        }
+        return box;
     }
 
     inline bool AcceptBlockCollisionShape(const CollisionBox& box, const CollisionBox* query) {

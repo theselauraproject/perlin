@@ -4,12 +4,15 @@
 #include "util/Env.hpp"
 #include <cstdlib>
 #include "client/multiplayer/BedrockSession.hpp"
+#include "client/player/PlayerPhysics.hpp"
 #include "world/level/block/BlockPalette.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <string_view>
 #include "util/Log.hpp"
 
 namespace perlin {
@@ -181,6 +184,113 @@ namespace perlin {
                 if (id == 7)
                     level = std::max(level, enchantLevel);
         return level;
+    }
+
+    int BedrockSession::SoulSpeedEnchant() const {
+        std::lock_guard lock(statusMutex);
+        int level = 0;
+        // boots only: the game reads armor slot 3 for SoulSpeedEnchantFlagComponent (0x1437e2f60)
+        for (const auto& [id, enchantLevel] : inventory.armor[3].enchants)
+            if (id == 36)
+                level = std::max(level, enchantLevel);
+        return level;
+    }
+
+    int BedrockSession::SwiftSneakEnchant() const {
+        std::lock_guard lock(statusMutex);
+        int level = 0;
+        // leggings only: armor slot 2, enchant 37 for SwiftSneakEnchantComponent (0x1437e2f60)
+        for (const auto& [id, enchantLevel] : inventory.armor[2].enchants)
+            if (id == 37)
+                level = std::max(level, enchantLevel);
+        return level;
+    }
+
+    namespace {
+        std::vector<physics::AttributeModifierValue> ModifierValues(
+            const std::vector<PlayerAttributesEntryModifiersEntry>& modifiers) {
+            std::vector<physics::AttributeModifierValue> values;
+            values.reserve(modifiers.size());
+            for (const auto& m : modifiers)
+                values.push_back({m.amount, m.operation, m.operand});
+            return values;
+        }
+
+        // hasModifier 0x142bf14a0: uuid, name, operation and operand; the uuid is parsed, so case does not matter
+        bool IsSprintModifier(const PlayerAttributesEntryModifiersEntry& m) {
+            static constexpr std::string_view kSprintUuid = "d208fc00-42aa-4aad-9276-d5446530de43";
+            if (m.id.size() != kSprintUuid.size() || m.name != "Sprinting speed boost" || m.operation != 2 ||
+                m.operand != 2)
+                return false;
+            for (size_t i = 0; i < kSprintUuid.size(); ++i)
+                if (std::tolower(static_cast<unsigned char>(m.id[i])) != kSprintUuid[i])
+                    return false;
+            return true;
+        }
+    }
+
+    // client AttributeData apply 0x142bf4780: modifiers replaced, value set to the sent one, then base and limits
+    void BedrockSession::ApplyMovementAttribute(const PlayerAttributesEntry& entry) {
+        movementModifiers = entry.modifiers;
+        const float baseMin = std::fmin(entry.defaultMax, entry.defaultMin);
+        movementBase = {baseMin, entry.defaultMax,
+                        entry.defaultMax < entry.default_ ? entry.defaultMax : std::fmax(entry.default_, baseMin)};
+        movementLimits = {std::fmin(entry.max, entry.min), entry.max};
+        movementValue = physics::ClampAttribute(entry.current, movementLimits[0], movementLimits[1],
+                                                ModifierValues(movementModifiers));
+    }
+
+    // ActionSprintTriggerSystem 0x14b346c80 → 0x14b319130: the sprint modifier (0.3, multiply-total) is appended on
+    // start, removed on stop; each change recalculates from the base, otherwise the value stays as sent
+    float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength) {
+        std::lock_guard lock(attrMutex);
+        // FreezingSystem 0x145E14260: "Freeze effect" = strength * -0.05 (addition on the value), removed at
+        // |strength| <= 2^-23 and re-appended on every change
+        std::optional<float> freeze;
+        if (freezeStrength && std::fabs(*freezeStrength) > 0.00000011920929f)
+            freeze = *freezeStrength * -0.05f;
+        if (!movementAttribute) {
+            const float factor = 0.3f + 1.0f;
+            const float value = freeze ? *freeze + 0.1f : 0.1f;
+            return sprinting ? factor * value : value;
+        }
+        // the server's freeze modifier lags a tick behind its move: ours replaces it when they differ
+        const auto withFreeze = [&](float value) {
+            if (!freezeStrength)
+                return value;
+            const auto isFreeze = [](const PlayerAttributesEntryModifiersEntry& m) { return m.name == "Freeze effect"; };
+            std::optional<float> sent;
+            for (const auto& m : movementModifiers)
+                if (isFreeze(m))
+                    sent = m.amount;
+            if (sent == freeze)
+                return value;
+            std::vector<PlayerAttributesEntryModifiersEntry> modifiers = movementModifiers;
+            std::erase_if(modifiers, isFreeze);
+            auto values = ModifierValues(modifiers);
+            if (freeze)
+                values.push_back({*freeze, 0, 2});
+            std::array<float, 2> limits = movementLimits;
+            return physics::RecalculateAttribute(movementBase, values, value, limits);
+        };
+        const bool present = std::any_of(movementModifiers.begin(), movementModifiers.end(), IsSprintModifier);
+        if (sprinting == present)
+            return withFreeze(movementValue);
+        if (sprinting) {
+            PlayerAttributesEntryModifiersEntry boost;
+            boost.id = "d208fc00-42aa-4aad-9276-d5446530de43";
+            boost.name = "Sprinting speed boost";
+            boost.amount = 0.3f;
+            boost.operation = 2;
+            boost.operand = 2;
+            boost.serializable = false;
+            movementModifiers.push_back(boost);
+        } else {
+            std::erase_if(movementModifiers, IsSprintModifier);
+        }
+        movementValue = physics::RecalculateAttribute(movementBase, ModifierValues(movementModifiers), movementValue,
+                                                      movementLimits);
+        return withFreeze(movementValue);
     }
 
     BedrockSession::TitleText BedrockSession::GetTitleText() const {
@@ -768,6 +878,7 @@ namespace perlin {
         On<MovementEffectPacket>([this](const MovementEffectPacket& p) {
             if (runtimeId == 0 || p.runtimeId != runtimeId)
                 return;
+            // type and duration are zigzag varints (reader 0x14072F7D0, retyped in overrides.json): unsigned doubles them
             const auto type = static_cast<uint32_t>(p.effectType);
             if (type > 1)
                 return;

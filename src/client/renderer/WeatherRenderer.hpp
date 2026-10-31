@@ -26,6 +26,7 @@ namespace perlin {
         };
         void Draw(const In& in);
         void Reset();
+        bool BlocksRain(Level& level, uint16_t id) { return Blocks(level, id); }
 
     private:
         struct Column {

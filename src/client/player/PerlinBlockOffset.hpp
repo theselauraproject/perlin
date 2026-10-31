@@ -20,11 +20,8 @@ namespace perlin::physics::bds {
         }
     };
 
-    inline PositionRandomState SeedPositionRandom(BlockPosition position) {
+    inline PositionRandomState SeedRandomFromHash(uint64_t hash) {
         const auto extend = [](int32_t value) { return static_cast<uint64_t>(static_cast<int64_t>(value)); };
-        const uint32_t xProduct = std::bit_cast<uint32_t>(position[0]) * 3129871u;
-        const uint64_t hash = extend(std::bit_cast<int32_t>(xProduct)) ^
-                              (extend(position[2]) * 116129781ULL) ^ extend(position[1]);
         const uint64_t product = hash * (42317861ULL * hash + 11);
         const uint64_t seed = extend(std::bit_cast<int32_t>(static_cast<uint32_t>(product >> 16))) ^
                               0x6A09E667F3BCC909ULL;
@@ -37,6 +34,19 @@ namespace perlin::physics::bds {
         if ((state.first | state.second) == 0)
             state = {0x9E3779B97F4A7C15ULL, 0x6A09E667F3BCC909ULL};
         return state;
+    }
+
+    inline PositionRandomState SeedPositionRandom(BlockPosition position) {
+        const auto extend = [](int32_t value) { return static_cast<uint64_t>(static_cast<int64_t>(value)); };
+        const uint32_t xProduct = std::bit_cast<uint32_t>(position[0]) * 3129871u;
+        return SeedRandomFromHash(extend(std::bit_cast<int32_t>(xProduct)) ^
+                                  (extend(position[2]) * 116129781ULL) ^ extend(position[1]));
+    }
+
+    // block offset generator 0x145c633b0: x multiplied in 64 bits (movsxd + imul), no y term
+    inline PositionRandomState SeedBlockOffsetRandom(BlockPosition position) {
+        const auto extend = [](int32_t value) { return static_cast<uint64_t>(static_cast<int64_t>(value)); };
+        return SeedRandomFromHash((extend(position[0]) * 3129871ULL) ^ (extend(position[2]) * 116129781ULL));
     }
 
     struct BlockOffsetAxis {
@@ -71,8 +81,7 @@ namespace perlin::physics::bds {
     }
 
     inline Float3 GenerateBlockOffset(const BlockRandomOffset& component, BlockPosition position) {
-        position[1] = 0;
-        auto random = SeedPositionRandom(position);
+        auto random = SeedBlockOffsetRandom(position);
         const float x = SampleBlockOffset(component.axes[0], random.NextUnit());
         const float y = SampleBlockOffset(component.axes[1], random.NextUnit());
         const float z = SampleBlockOffset(component.axes[2], random.NextUnit());

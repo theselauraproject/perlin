@@ -12,6 +12,9 @@ namespace perlin::physics::bds {
         bool onGround = false;
         bool collision = false;
         bool collidableMobNear = false;
+        // HorizontalCollisionFlagComponent lanes, kept stale under no-clip like the component
+        bool horizontalCollisionX = false;
+        bool horizontalCollisionZ = false;
     };
 
     struct FinalizedMove {
@@ -31,18 +34,22 @@ namespace perlin::physics::bds {
             const float dx = std::fabs(requested.x - resolved.x);
             const float dy = std::fabs(requested.y - resolved.y);
             const float dz = std::fabs(requested.z - resolved.z);
-            flags.horizontalCollision = dx > epsilon || dz > epsilon;
+            // FinalizeMoveSystem 0x145dd9980; a NaN dy counts as a vertical collision
+            flags.horizontalCollisionX = dx > epsilon;
+            flags.horizontalCollisionZ = dz > epsilon;
+            flags.horizontalCollision = flags.horizontalCollisionX || flags.horizontalCollisionZ;
             flags.verticalCollision = !(dy <= epsilon);
             if (flags.verticalCollision && requested.y < 0)
                 flags.onGround = true;
             else
-                flags.onGround = flags.onGround && !(dy > epsilon) && requested.y == 0;
-            flags.collision = flags.horizontalCollision || dy > epsilon;
+                flags.onGround = flags.onGround && dy <= epsilon && requested.y == 0;
+            flags.collision = flags.horizontalCollision || !(dy <= epsilon);
         }
-        if (!preserveHorizontalMotion) {
-            if (resolved.x != requested.x)
+        // ResetHorizontalVelocitySystem 0x147b8c020: per-axis flags past the epsilon, not exact inequality
+        if (!preserveHorizontalMotion && flags.horizontalCollision) {
+            if (flags.horizontalCollisionX)
                 velocity.x = 0;
-            if (resolved.z != requested.z)
+            if (flags.horizontalCollisionZ)
                 velocity.z = 0;
         }
         flags.collidableMobNear = false;

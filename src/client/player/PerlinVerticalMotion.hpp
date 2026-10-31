@@ -2,6 +2,8 @@
 
 #include "client/player/PerlinPhysicsNumerics.hpp"
 
+#include <bit>
+#include <cmath>
 #include <optional>
 
 namespace perlin::physics::bds {
@@ -32,9 +34,37 @@ namespace perlin::physics::bds {
         return Gravity{-0.005f, false};
     }
 
-    inline float ApplyGravity(float velocity, float& fallDistance, Gravity gravity) {
+    // BounceGravityCorrectionComponent: MoveRequest +52 (requested y) and +64 (resolved y) of a bounce tick
+    struct BounceGravityCorrection {
+        float requested;
+        float resolved;
+    };
+
+    // RequestGravityCorrectionSystem 0x1484cd7b0: only while a bounce impulse is pending and the body moved in y
+    inline std::optional<BounceGravityCorrection> RequestGravityCorrection(float restitutionY, float requested,
+                                                                           float resolved) {
+        const float epsilon = std::bit_cast<float>(0x34000000u);
+        if (!(std::fabs(restitutionY) > epsilon) || !(std::fabs(resolved) > epsilon))
+            return std::nullopt;
+        return BounceGravityCorrection{requested, resolved};
+    }
+
+    inline float ApplyGravity(float velocity, float& fallDistance, Gravity gravity,
+                              std::optional<BounceGravityCorrection> bounce = std::nullopt) {
         if (gravity.resetFallDistance)
             fallDistance = 0;
+        const float epsilon = std::bit_cast<float>(0x34000000u);
+        const float g = std::fabs(gravity.acceleration);
+        // ApplyGravityWithBounceCorrection 0x143368b50: gravity only for the part of the tick after the impact
+        // (|v|t + g t^2/2 = |resolved|); it removes ApplyGravityComponent, so the plain gravity is skipped
+        if (bounce && std::fabs(bounce->resolved) > epsilon && g > epsilon) {
+            const float v = bounce->requested;
+            const float sign = 0.0f < v ? 1.0f : (v < 0.0f ? -1.0f : 0.0f);
+            const float root = detail::Round(std::sqrt(
+                detail::Round(detail::Round((g + g) * std::fabs(bounce->resolved)) + detail::Round(v * v))));
+            const float impact = std::fabs(detail::Round(detail::Round(std::fabs(v) - root) / gravity.acceleration));
+            return detail::Round(detail::Round(detail::Round(1.0f - impact) * sign) * g) + velocity;
+        }
         return gravity.acceleration + velocity;
     }
 
@@ -42,8 +72,13 @@ namespace perlin::physics::bds {
         return detail::Round(velocity * 0.8f) + detail::Round(static_cast<float>(level) * 0.01f);
     }
 
-    inline float GroundVerticalDrag(float velocity, bool hasGravity) {
-        return hasGravity ? velocity * 0.98f : velocity;
+    // MobMovementDrag::Ground 0x14334fb00: the air drag modifier scales the lost fraction, then clamps it to [0, 1]
+    inline float GroundVerticalDrag(float velocity, bool hasGravity, std::optional<float> airDrag = std::nullopt) {
+        if (!hasGravity)
+            return velocity;
+        const float lost = detail::Round(detail::Round(1.0f - 0.98f) * airDrag.value_or(1.0f));
+        const float retention = 1.0f < lost ? 0.0f : detail::Round(1.0f - (0.0f > lost ? 0.0f : lost));
+        return retention * velocity;
     }
 
     inline float FlyingControl(float velocity, float speed, bool hover, bool creative,
@@ -83,22 +118,24 @@ namespace perlin::physics::bds {
 
     inline float PostGroundVertical(float velocity, float& fallDistance, const GravityFlags& flags,
                                     int levitationLevel, bool slowFalling, bool autoClimb,
-                                    bool discardFriction = false) {
+                                    bool discardFriction = false, std::optional<float> airDrag = std::nullopt,
+                                    std::optional<BounceGravityCorrection> bounce = std::nullopt) {
         if (levitationLevel > 0)
             velocity = LevitateVelocity(velocity, levitationLevel);
         else if (!autoClimb)
             if (auto gravity = GroundGravity(velocity, flags, slowFalling))
-                velocity = ApplyGravity(velocity, fallDistance, *gravity);
+                velocity = ApplyGravity(velocity, fallDistance, *gravity, bounce);
         if (!autoClimb && !discardFriction)
-            velocity = GroundVerticalDrag(velocity, flags.hasGravity);
+            velocity = GroundVerticalDrag(velocity, flags.hasGravity, airDrag);
         return velocity;
     }
 
-    inline float PostWaterVertical(float velocity, float& fallDistance, int levitationLevel, bool swimming) {
+    inline float PostWaterVertical(float velocity, float& fallDistance, int levitationLevel, bool swimming,
+                                   std::optional<BounceGravityCorrection> bounce = std::nullopt) {
         if (levitationLevel > 0)
             return LevitateVelocity(velocity, levitationLevel);
         if (auto gravity = PlayerWaterGravity(swimming))
-            velocity = ApplyGravity(velocity, fallDistance, *gravity);
+            velocity = ApplyGravity(velocity, fallDistance, *gravity, bounce);
         return velocity;
     }
 
