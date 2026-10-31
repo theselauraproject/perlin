@@ -235,6 +235,26 @@ int main() {
         CHECK(!route.Read({43, 0, 0}).replaceable);
     }
 
+    {
+        // standing in a cell, or mid-jump inside a 1x1 hole: a block there would land in the body
+        physics::State standing;
+        standing.x = 0.5;
+        standing.y = 0.0;
+        standing.z = 0.5;
+        CHECK(heldbuild::OverlapsBody({0, 0, 0}, {kCube}, physics::BoundingBox(standing, false)));
+        CHECK(heldbuild::OverlapsBody({0, 1, 0}, {kCube}, physics::BoundingBox(standing, false)));
+        physics::State jumping = standing;
+        jumping.y = 0.42;
+        CHECK(heldbuild::OverlapsBody({0, 0, 0}, {kCube}, physics::BoundingBox(jumping, false)));
+        // high enough to clear the cell: pillaring under the feet stays allowed
+        jumping.y = 1.0;
+        CHECK(!heldbuild::OverlapsBody({0, 0, 0}, {kCube}, physics::BoundingBox(jumping, false)));
+        // the block under the feet and the cell beside the body are free
+        CHECK(!heldbuild::OverlapsBody({0, -1, 0}, {kCube}, physics::BoundingBox(standing, false)));
+        CHECK(!heldbuild::OverlapsBody({1, 0, 0}, {kCube}, physics::BoundingBox(standing, false)));
+        // a slab in the feet cell still hits the body
+        CHECK(heldbuild::OverlapsBody({0, 0, 0}, {kSlab}, physics::BoundingBox(standing, false)));
+    }
     std::printf("Bridging: %d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;
 }

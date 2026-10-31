@@ -7991,12 +7991,20 @@ namespace perlin {
                     const bool sameCell = destination == lastBuildCell && useTime - lastBuildAt < 200;
                     if (use == blockuse::Use::Place && holdsBlock && sameCell && useHeld && !usePressed)
                         use = blockuse::Use::Nothing;
-                    // never place a block into the player's own body
+                    // never place a block into the player's own body, and send nothing: servers that trust the
+                    // click, or see the player a tick behind mid-jump, place it and push the player out
+                    bool intoBody = false;
                     if (use == blockuse::Use::Place && holdsBlock) {
-                        const auto& placed = LevelCollision::ShapeOf(BlockPalette::Instance().InternRuntime(static_cast<int32_t>(held.blockRuntimeId)));
-                        const std::vector<physics::Box> shape(placed.boxes.begin(), placed.boxes.end());
-                        if (heldbuild::OverlapsBody(destination, shape, physics::BoundingBox(player.State(), player.Sneaking())))
+                        const uint16_t placedId = BlockPalette::Instance().InternRuntime(static_cast<int32_t>(held.blockRuntimeId));
+                        const auto& placed = LevelCollision::ShapeOf(placedId);
+                        std::vector<physics::Box> shape(placed.boxes.begin(), placed.boxes.end());
+                        // an id the palette can't resolve reads as air, with no shape: assume a full cube
+                        if (placedId == 0)
+                            shape = {physics::Box{0, 0, 0, 1, 1, 1}};
+                        if (heldbuild::OverlapsBody(destination, shape, physics::BoundingBox(player.State(), player.Sneaking()))) {
                             use = blockuse::Use::Nothing;
+                            intoBody = true;
+                        }
                     }
                     // fresh clicks start item use immediately, food included
                     if (usePressed || (useHeld && repeatReady)) {
@@ -8019,7 +8027,7 @@ namespace perlin {
                         }
                         const bool allowed = usePressed || (use == blockuse::Use::Place);
                         const bool consumableInAir = holdsItem && !holdsBlock && use == blockuse::Use::Nothing && HandRenderer::IsFood(held.name);
-                        if (useAim.kind == AimHit::Kind::Block && allowed && !consumableInAir &&
+                        if (useAim.kind == AimHit::Kind::Block && allowed && !consumableInAir && !intoBody &&
                             !DispatchModInteract(abi::InteractKind::UseOnBlock, useAim.bx, useAim.by, useAim.bz, useAim.face, 0)) {
                             bool sent = !live;
                             if (live) {
@@ -8064,7 +8072,7 @@ namespace perlin {
                                 sounds.PlayBlockEvent(held.name, "place", glm::dvec3(dest[0] + 0.5, dest[1] + 0.5, dest[2] + 0.5));
                             }
                         }
-                        if (usePressed && !earlyItemUse && !blockedFoodUse && live && holdsItem && use == blockuse::Use::Nothing && !interactedEntity &&
+                        if (usePressed && !earlyItemUse && !blockedFoodUse && live && holdsItem && use == blockuse::Use::Nothing && !interactedEntity && !intoBody &&
                             !DispatchModInteract(abi::InteractKind::UseItem, 0, 0, 0, 0, 0)) {
                             CustomItemDef custom;
                             const bool heldUse = ServerBlocks::Instance().Item(held.name, custom)
