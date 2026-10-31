@@ -74,7 +74,7 @@ namespace perlin {
                     const auto hb = entityRenderer.HitBox(e);
                     return glm::vec2(hb.first, hb.second);
                 },
-                {camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), PickRange(creative, 1),
+                {camera.x, camera.y, camera.z}, glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch)), PickRange(creative, 1),
                 EntityPickRange(creative));
         }
         if (PERLIN_ENV("PERLIN_AIM_DEBUG"))
@@ -294,21 +294,21 @@ namespace perlin {
         auto& blockedFoodUse = f.blockedFoodUse;
         auto& previewLevel = loop->previewLevel;
         const float eyeF[3] = {camera.x, camera.y, camera.z};
+        // GameMode::buildBlock 0x143771570: binary32 hit point minus the binary32 block position
         const auto clickOf = [](const AimHit& aim, float out[3]) {
-            out[0] = static_cast<float>(aim.point.x - aim.bx);
-            out[1] = static_cast<float>(aim.point.y - aim.by);
-            out[2] = static_cast<float>(aim.point.z - aim.bz);
+            out[0] = static_cast<float>(aim.point.x) - static_cast<float>(aim.bx);
+            out[1] = static_cast<float>(aim.point.y) - static_cast<float>(aim.by);
+            out[2] = static_cast<float>(aim.point.z) - static_cast<float>(aim.bz);
         };
         double& useClock = mining.useClock;
-        // attack/pick ray unchanged; with bedrock bridging, air beside your footing places against the block under you
-        // (reach-around), held use keeps building from the last placed block (heldbuild::HeldBuild); a real crosshair hit wins
+        // fresh press builds only on a crosshair block hit, no air fallback (ClientInstance::_tickBuildAction 0x1465a2950);
+        // held use keeps building from the last placed block (heldbuild::HeldBuild)
         AimHit useAim = aimHit;
         const bool bedrockBuild = options.bedrockBridging && !held.Empty() && held.blockRuntimeId != 0;
         const glm::vec3 buildEye(camera.x, camera.y, camera.z);
-        const glm::vec3 buildVelocity =
-            glm::vec3(static_cast<float>(player.State().vx), static_cast<float>(player.State().vy),
-                      static_cast<float>(player.State().vz)) *
-            20.0f;
+        // the game times builds on the steady clock in ns
+        const int64_t buildNow =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(detail::Clock::now().time_since_epoch()).count();
         static const int kFaceNormal[6][3] = {{0, -1, 0}, {0, 1, 0},  {0, 0, -1},
                                               {0, 0, 1},  {-1, 0, 0}, {1, 0, 0}};
         const auto aimAt = [&](glm::ivec3 support, int face, glm::dvec3 point) {
@@ -319,40 +319,9 @@ namespace perlin {
             useAim.face = face;
             useAim.point = point;
         };
-        if (bedrockBuild && live && levelRenderer && aimHit.kind == AimHit::Kind::None) {
-            Level& level = live->NetLevel();
-            const LevelCollision collision(level, &levelRenderer->Blocks());
-            auto& palette = BlockPalette::Instance();
-            const auto& shape =
-                LevelCollision::ShapeOf(palette.InternRuntime(static_cast<int32_t>(held.blockRuntimeId)));
-            const std::vector<physics::Box> heldShape(shape.boxes.begin(), shape.boxes.end());
-            bridging::Request request;
-            request.eye = {camera.x, camera.y, camera.z};
-            request.direction = glm::dvec3(camera.Direction());
-            request.body = physics::BoundingBox(player.State(), player.Sneaking());
-            request.sneaking = player.Sneaking();
-            request.reach = PickRange(creative, 1);
-            request.placedShape = heldShape;
-            request.horizontalSlab = held.name.contains("slab") && heldShape.size() == 1 &&
-                                     std::abs(heldShape[0].y1 - heldShape[0].y0 - 0.5) < 1e-5;
-            const auto around = bridging::FindTarget(request, [&](glm::ivec3 position) {
-                bridging::Cell cell;
-                bool loaded = false;
-                const uint16_t id = level.GetBlock(position.x, position.y, position.z, loaded);
-                const std::string& name = palette.Name(id);
-                cell.loaded = loaded;
-                cell.replaceable = blockuse::IsReplaceableCell(loaded, id, name);
-                cell.interactive = blockuse::IsInteractive(name);
-                if (loaded && !cell.replaceable) {
-                    collision.Selection(position.x, position.y, position.z, cell.collision);
-                }
-                return cell;
-            });
-            if (around)
-                aimAt(around->anchor, around->face, around->point);
-        }
+        // startBuildBlock only for a press on a block (0x146584810)
         if (bedrockBuild && inputManager.Pressed(Action::Use))
-            heldBuild.Start(detail::MsNow(), player.TickCount());
+            heldBuild.Start(player.TickCount(), useAim.kind == AimHit::Kind::Block);
         // held repeats follow the game's build rules (heldbuild::HeldBuild): direct crosshair hits only, the
         // repeat delay and the build line; reach-around is for fresh presses
         bool heldRepeat = false;
@@ -360,12 +329,14 @@ namespace perlin {
             heldbuild::Hit hit;
             hit.block = aimHit.kind == AimHit::Kind::Block;
             hit.target = {{aimHit.bx, aimHit.by, aimHit.bz}, aimHit.face};
-            hit.point = hit.block ? glm::vec3(aimHit.point)
-                                  : buildEye + glm::normalize(camera.Direction()) *
-                                                   static_cast<float>(PickRange(creative, 1));
-            const glm::vec3 posDelta = buildVelocity / 20.0f;
+            // line ray ends at the block or entity hit, else at full reach
+            hit.point = aimHit.kind != AimHit::Kind::None ? glm::vec3(aimHit.point)
+                                                          : buildEye + glm::normalize(camera.Direction()) *
+                                                                           static_cast<float>(PickRange(creative, 1));
+            const glm::vec3 velocity(static_cast<float>(player.State().vx), static_cast<float>(player.State().vy),
+                                     static_cast<float>(player.State().vz));
             const auto chosen = heldBuild.Next(
-                hit, buildEye, posDelta, player.Sneaking(), detail::MsNow(), player.TickCount(),
+                hit, buildEye, velocity, player.TickDisplacement(), player.Sneaking(), buildNow, player.TickCount(),
                 [&](glm::ivec3 p) {
                     if (!live)
                         return false;
@@ -379,10 +350,7 @@ namespace perlin {
                 heldRepeat = true;
                 if (!hit.block || chosen->support != hit.target.support || chosen->face != hit.target.face)
                     aimAt(chosen->support, chosen->face,
-                          glm::dvec3(chosen->support) + glm::dvec3(0.5) +
-                              glm::dvec3(kFaceNormal[chosen->face][0], kFaceNormal[chosen->face][1],
-                                         kFaceNormal[chosen->face][2]) *
-                                  0.5);
+                          hit.block ? glm::dvec3(aimHit.point) : glm::dvec3(chosen->support));
             }
         }
         const bool ammoBlocked = !detail::HasAmmo(hudState, live, held.name);
@@ -412,7 +380,8 @@ namespace perlin {
                 use = blockuse::Use::Nothing;
             std::copy(r.dest, r.dest + 3, dest);
         }
-        if (!useHeld || !holdsBlock)
+        // stopBuildBlock only on release: switching items keeps the line
+        if (!inputManager.IsDown(Action::Use))
             heldBuild.Stop();
         const glm::ivec3 destination{dest[0], dest[1], dest[2]};
         const uint64_t useTime = detail::MsNow();
@@ -423,8 +392,8 @@ namespace perlin {
         // held building repeats only when build rules allow it this tick; other held use keeps the 200 ms repeat
         const bool repeatReady =
             bedrockBuild && use == blockuse::Use::Place ? heldRepeat : useClock >= 0.2 && !tooSoon;
-        // press and held repeat can fire on consecutive ticks for the same cell: drop the duplicate
-        const bool sameCell = destination == lastBuildCell && useTime - lastBuildAt < 200;
+        // outside the build rules press and repeat can fire on consecutive ticks for the same cell: drop the duplicate
+        const bool sameCell = !bedrockBuild && destination == lastBuildCell && useTime - lastBuildAt < 200;
         if (use == blockuse::Use::Place && holdsBlock && sameCell && useHeld && !usePressed)
             use = blockuse::Use::Nothing;
         // never place a block into the player's own body, and send nothing: servers that trust the
@@ -476,7 +445,7 @@ namespace perlin {
                     float click[3];
                     clickOf(useAim, click);
                     sent = live->SendUseItemOnBlock(useAim.bx, useAim.by, useAim.bz, useAim.face, click, eyeF,
-                                                    static_cast<int>(use), dest);
+                                                    static_cast<int>(use), dest, !usePressed);
                 }
                 if (use == blockuse::Use::Place && holdsBlock) {
                     lastBuildAt = useTime;
@@ -489,16 +458,29 @@ namespace perlin {
                                         heldbuild::IsSnappable(
                                             held.name, std::vector<physics::Box>(placedShape.boxes.begin(),
                                                                                  placedShape.boxes.end())),
-                                        false, useTime, !usePressed);
+                                        false, buildNow, !usePressed);
                     }
                 }
-                if (sent && use != blockuse::Use::Nothing && (usePressed || use == blockuse::Use::Place)) {
+                // padded-body overlap: no local place, so no swing and no sound either (useOn result Success|Swing)
+                bool overlapsPadded = false;
+                if (sent && live && use == blockuse::Use::Place && holdsBlock && !bedrockBuild && !player.Flying()) {
+                    const physics::State& pst = player.State();
+                    const double pad = pst.onGround ? 0.0 : 0.6;
+                    const double lo = pst.y - pad + std::min(0.0, pst.vy * 2.0);
+                    const double hi = pst.y + 1.85 + pad + std::max(0.0, pst.vy * 2.0);
+                    overlapsPadded =
+                        pst.x + 0.35 + pad * 0.3 > dest[0] && pst.x - 0.35 - pad * 0.3 < dest[0] + 1 &&
+                        pst.z + 0.35 + pad * 0.3 > dest[2] && pst.z - 0.35 - pad * 0.3 < dest[2] + 1 &&
+                        hi > dest[1] && lo < dest[1] + 1;
+                }
+                if (sent && !overlapsPadded && use != blockuse::Use::Nothing &&
+                    (usePressed || use == blockuse::Use::Place)) {
                     handRenderer.Swing(options.hand);
                     selfSwing++;
                     if (live)
                         live->SendSwingArm(use == blockuse::Use::Place ? "build" : "interact");
                 }
-                if (sent && use == blockuse::Use::Place && holdsBlock) {
+                if (sent && !overlapsPadded && use == blockuse::Use::Place && holdsBlock) {
                     if (live && bedrockBuild) {
                         // bridge placements checked against the actual body: the airborne padding below would block jump bridging
                         float click[3];
@@ -506,18 +488,6 @@ namespace perlin {
                         live->PredictBridgePlace(dest[0], dest[1], dest[2],
                                                  static_cast<int32_t>(held.blockRuntimeId), useAim.face,
                                                  click);
-                    } else if (live && !player.Flying()) {
-                        const physics::State& pst = player.State();
-                        const double pad = pst.onGround ? 0.0 : 0.6;
-                        const double lo = pst.y - pad + std::min(0.0, pst.vy * 2.0);
-                        const double hi = pst.y + 1.85 + pad + std::max(0.0, pst.vy * 2.0);
-                        const bool overlaps =
-                            pst.x + 0.35 + pad * 0.3 > dest[0] && pst.x - 0.35 - pad * 0.3 < dest[0] + 1 &&
-                            pst.z + 0.35 + pad * 0.3 > dest[2] && pst.z - 0.35 - pad * 0.3 < dest[2] + 1 &&
-                            hi > dest[1] && lo < dest[1] + 1;
-                        if (!overlaps)
-                            live->PredictPlace(dest[0], dest[1], dest[2],
-                                               static_cast<int32_t>(held.blockRuntimeId));
                     } else if (live) {
                         live->PredictPlace(dest[0], dest[1], dest[2],
                                            static_cast<int32_t>(held.blockRuntimeId));

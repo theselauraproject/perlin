@@ -106,7 +106,8 @@ namespace perlin::entity {
             glm::dvec3 outlineLo{0.0}, outlineHi{0.0};
             std::vector<std::pair<glm::dvec3, glm::dvec3>> outlineShape;
             bool blobShadows = true;
-            float ownSwingTicks = 6.0f;
+            // local player's attack anim, -1 when not drawn from the hand
+            float ownAttackTime = -1.0f;
             bool selfShadow = false;
             int capePhysics = 1;
         };

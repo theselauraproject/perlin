@@ -9,16 +9,9 @@
 #include <string>
 #include <vector>
 
-// placement while use stays held, per the game's rules (ClientInstance::_tickBuildAction,
-// GameMode::startBuildBlock / continueBuildBlock / stopBuildBlock):
-//  - fresh press always places at the crosshair (Start + Built)
-//  - held: each attempt waits the repeat delay: 300 ms when sneaking, after an interactive block, or with a
-//    snappable block before a build line exists; else min(900 / speed, 180) ms (speed in blocks/s,
-//    3d, from this tick's movement); 200 ms standing still
-//  - snappable blocks (full cubes, stairs, slabs, fences, panes, bars) form a build line: once a repeat lands one
-//    block from the last, only the next cell along the line is placed, and only while the look ray passes
-//    through it; moving players extend from the last placed block on the face they move toward
-//  - releasing use ends the line
+// held use, as ClientInstance::_tickBuildAction 0x1465A2950 and GameMode::continueBuildBlock 0x14376BB80 run it:
+// the repeat waits 300 ms (sneaking, after an interaction, snappable block without a line), else
+// min(900 / speed, 180) ms moving, 200 ms standing; a line of snappable blocks then only places its next cell
 namespace perlin::heldbuild {
     // a block and the face to click (0 down, 1 up, 2 north, 3 south, 4 west, 5 east)
     struct Target {
@@ -34,25 +27,24 @@ namespace perlin::heldbuild {
 
     class HeldBuild {
     public:
-        // Fresh press (GameMode::startBuildBlock): forgets the previous block's kind and any line.
-        void Start(uint64_t nowMs, uint64_t simulationTick);
-        // Use released (GameMode::stopBuildBlock).
+        // use pressed; `reachedBlock`: the press clicked a block (GameMode::startBuildBlock 0x14376B260)
+        void Start(uint64_t simulationTick, bool reachedBlock);
+        // use released (GameMode::stopBuildBlock 0x14376C540)
         void Stop();
 
-        // The repeat to attempt now, or nothing. `canBuildOver(pos)` says whether placing on `pos` replaces that
-        // block (tall grass, snow layer...). `posDelta` is this tick's movement in blocks.
-        std::optional<Target> Next(const Hit& hit, glm::vec3 eye, glm::vec3 posDelta, bool sneaking, uint64_t nowMs, uint64_t simulationTick,
-                                   const std::function<bool(glm::ivec3)>& canBuildOver);
+        // times in steady-clock ns; `velocity` picks the face to extend toward (the game's posDelta),
+        // `moved` is the last tick's displacement (PostTickPositionDeltaComponent) and sets the delay
+        std::optional<Target> Next(const Hit& hit, glm::vec3 eye, glm::vec3 velocity, glm::vec3 moved, bool sneaking, int64_t nowNs,
+                                   uint64_t simulationTick, const std::function<bool(glm::ivec3)>& canBuildOver);
 
         // placement went through: click on `clicked` produced a block at `cell`; `snappable` / `interactive`
         // describe the held and clicked blocks, as GameMode::useItemOn records them
-        void Built(const Target& clicked, glm::ivec3 cell, bool snappable, bool interactive, uint64_t nowMs, bool fromRepeat);
+        void Built(const Target& clicked, glm::ivec3 cell, bool snappable, bool interactive, int64_t nowNs, bool fromRepeat);
 
     private:
-        uint64_t Delay(glm::vec3 posDelta, bool sneaking) const;
+        int64_t DelayNs(glm::vec3 moved, bool sneaking) const;
 
         std::optional<uint64_t> lastAttemptTick;
-        bool active = false;
         bool lastInteractive = false;
         bool lastSnappable = false;
         bool hasDirection = false;
@@ -61,12 +53,14 @@ namespace perlin::heldbuild {
         glm::ivec3 nextBuild{};
         glm::ivec3 direction{};
         int continueFacing = 0;
-        uint64_t lastBuildMs = 0;
-        uint64_t nextBuildMs = 0;  // lastBuildMs once the attempt Next returned succeeds
+        // survives presses: a press that builds nothing keeps the last build's time
+        int64_t lastBuildNs = 0;
+        int64_t nextBuildNs = 0;  // lastBuildNs once the attempt Next returned succeeds
         bool pendingLine = false;  // attempt in flight is the line's next cell
+        bool replacedSupport = false;  // attempt in flight builds into a replaceable support
     };
 
-    // face index along the dominant axis of `v` (Facing::fromVec3), vertical included
+    // face along the strictly dominant axis, y first, then x, else z (0x14376B8D0)
     int FacingFromVec(glm::vec3 v);
 
     // full cubes, stairs, slabs, fences, walls, panes, bars: blocks starting a build line

@@ -857,6 +857,10 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID)
     target_include_directories(targeting_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(targeting_selftest PRIVATE cxx_std_23)
     add_test(NAME targeting_selftest COMMAND targeting_selftest)
+    add_executable(hand_anim_selftest tests/hand_anim_selftest.cpp)
+    target_include_directories(hand_anim_selftest PRIVATE src)
+    target_compile_features(hand_anim_selftest PRIVATE cxx_std_23)
+    add_test(NAME hand_anim_selftest COMMAND hand_anim_selftest)
     add_executable(bridging_selftest
         tests/bridging_selftest.cpp
         src/client/player/Bridging.cpp

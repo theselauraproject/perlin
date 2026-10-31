@@ -613,9 +613,12 @@ namespace perlin::entity {
         }
         if (static const char* forced = PERLIN_ENV("PERLIN_PREVIEW_ATTACK"); forced && e.isSelf)
             v.attackTime = static_cast<float>(std::atof(forced));
+        // own swing: the hand state, stepped per tick like Mob::updateAttackAnim 0x142c2d060
+        else if (e.isSelf && in.ownAttackTime >= 0.0f)
+            v.attackTime = in.ownAttackTime;
         else if (v.attackTime > 0)
             {
-            const float seconds = std::max(1.0f, e.isSelf ? in.ownSwingTicks : 6.0f) / 20.0f;
+            const float seconds = 6.0f / 20.0f;
             v.attackTime = v.attackTime + dt / seconds >= 1.0f ? 0.0f : v.attackTime + dt / seconds;
         }
         if (e.hurtSerial != v.hurtSerial) {

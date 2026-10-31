@@ -168,15 +168,8 @@ namespace perlin {
         return yawUnwrapped;
     }
 
-    void HandRenderer::Swing(const HandSettings& s) {
-        const int duration = std::max(1, static_cast<int>(std::lround(6.0f / std::max(0.1f, s.swingSpeed))));
-        if (!s.swing)
-            return;
-        if (!swinging || swingTime >= duration / 2 || swingTime < 0) {
-            swingTime = -1;
-            swinging = true;
-        }
-    }
+    // runs with the swing option off too: the third person body reads it, first person hides it
+    void HandRenderer::Swing(const HandSettings&) { armSwing.Start(); }
 
     void HandRenderer::Attack(const HandSettings& s, bool resetsCooldown) {
         Swing(s);
@@ -185,12 +178,7 @@ namespace perlin {
     }
 
     float HandRenderer::SwingProgress(float partial) const {
-        if (forcedSwing >= 0.0f)
-            return forcedSwing;
-        float d = attackAnim - oAttackAnim;
-        if (d < 0.0f)
-            d += 1.0f;
-        return oAttackAnim + d * partial;
+        return forcedSwing >= 0.0f ? forcedSwing : armSwing.Progress(partial);
     }
 
     bool HandRenderer::IsFood(const std::string& full) {
@@ -215,18 +203,10 @@ namespace perlin {
     }
 
     void HandRenderer::Tick(const TickIn& in, const HandSettings& s) {
-        const int duration = std::max(1, static_cast<int>(std::lround(6.0f / std::max(0.1f, s.swingSpeed))));
-        oAttackAnim = attackAnim;
-        if (swinging) {
-            ++swingTime;
-            if (swingTime >= duration) {
-                swingTime = 0;
-                swinging = false;
-            }
-        } else {
-            swingTime = 0;
-        }
-        attackAnim = static_cast<float>(swingTime) / static_cast<float>(duration);
+        armSwing.Tick(s.swingSpeed == 1.0f ? in.swingTicks
+                                           : static_cast<int>(std::lround(static_cast<float>(in.swingTicks) /
+                                                                          std::max(0.1f, s.swingSpeed))));
+        showSwing = s.swing;
         attackStrengthTicker++;
 
         if (!in.eating)
@@ -268,31 +248,24 @@ namespace perlin {
         if (firstTick) {
             mainShown = in.main;
             offShown = in.off;
+            mainSlot = in.slot;
             mainHandHeight = oMainHandHeight = 1.0f;
             offHandHeight = oOffHandHeight = 1.0f;
             firstTick = false;
         }
-        if (SameItem(mainShown, in.main))
-            mainShown = in.main;
-        if (SameItem(offShown, in.off))
-            offShown = in.off;
-
-        // no attack cooldown in bedrock: no dip after swing (java 1.9+ only); lowers only on item switch
-        const float mainTarget = SameItem(mainShown, in.main) ? 1.0f : 0.0f;
-        const float offTarget = SameItem(offShown, in.off) ? 1.0f : 0.0f;
+        // no attack cooldown in bedrock: no dip after swing (java 1.9+ only)
         if (!s.equipAnimation) {
             mainShown = in.main;
             offShown = in.off;
+            mainSlot = in.slot;
             mainHandHeight = 1.0f;
             offHandHeight = 1.0f;
         } else {
-            mainHandHeight += std::clamp(mainTarget - mainHandHeight, -0.4f, 0.4f);
-            offHandHeight += std::clamp(offTarget - offHandHeight, -0.4f, 0.4f);
+            hand::TickEquip(mainShown, mainSlot, mainHandHeight, in.main, in.slot, SameItem(mainShown, in.main));
+            // the offhand check never sees a slot change
+            int offSlot = 0;
+            hand::TickEquip(offShown, offSlot, offHandHeight, in.off, 0, SameItem(offShown, in.off));
         }
-        if (mainHandHeight < 0.1f)
-            mainShown = in.main;
-        if (offHandHeight < 0.1f)
-            offShown = in.off;
     }
 
     namespace {
@@ -1110,7 +1083,7 @@ namespace perlin {
 
     HandRenderer::RigState HandRenderer::Rig(float partial) const {
         RigState r;
-        r.attackTime = SwingProgress(partial);
+        r.attackTime = showSwing ? SwingProgress(partial) : 0.0f;
         r.armHeight = oMainHandHeight + (mainHandHeight - oMainHandHeight) * partial;
         r.offArmHeight = oOffHandHeight + (offHandHeight - oOffHandHeight) * partial;
         r.main = mainShown.Empty() ? std::string() : mainShown.name;
@@ -1243,7 +1216,7 @@ namespace perlin {
         if (s.sway)
             local.viewEffect = in.viewEffect * Rx((in.pitch - xb) * 0.1f) * Ry((yaw - yb) * 0.1f);
 
-        const float swing = SwingProgress(in.partial);
+        const float swing = showSwing ? SwingProgress(in.partial) : 0.0f;
         const float mainEquip = 1.0f - Lerp(in.partial, oMainHandHeight, mainHandHeight);
         const float offEquip = 1.0f - Lerp(in.partial, oOffHandHeight, offHandHeight);
         const bool mainRight = !s.leftHanded;
