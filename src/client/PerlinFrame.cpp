@@ -139,7 +139,7 @@ namespace perlin {
         UpdateChat(f);
         UpdateGameInput(f);
         UpdatePreviewWorld(f);
-        UpdateThirdPersonDistance(f.live);
+        UpdateThirdPersonDistance(f.live, f.dt);
         SampleEyeEnvironment(f);
         FillFrameHud(f);
         HandleDebugKeys(f);

@@ -174,23 +174,118 @@ namespace perlin {
         }
     }
 
-    void Perlin::UpdateThirdPersonDistance(BedrockSession* live) {
-        camera.thirdPersonDistance = 5.0f;
-        if (live && camera.mode != PerspectiveMode::FirstPerson) {
-            const LevelCollision col(live->NetLevel(), &levelRenderer->Blocks());
-            const glm::vec3 d =
-                camera.mode == PerspectiveMode::ThirdPersonBack ? -camera.Direction() : camera.Direction();
-            for (float t = 0.3f; t <= 5.0f; t += 0.15f) {
-                const glm::vec3 q = glm::vec3(camera.x, camera.y, camera.z) + d * t;
-                const physics::BlockShape cell =
-                    col.Query(static_cast<int>(std::floor(q.x)), static_cast<int>(std::floor(q.y)),
-                              static_cast<int>(std::floor(q.z)));
-                if (!cell.Empty()) {
-                    camera.thirdPersonDistance = std::max(0.3f, t - 0.3f);
-                    break;
+    namespace {
+        // segment from a to b against a box; returns the entry fraction, or a value past 1 when missed
+        float SegmentBoxEntry(const glm::vec3& a, const glm::vec3& b, const glm::vec3& lo, const glm::vec3& hi) {
+            float enter = 0.0f, leave = 1.0f;
+            for (int i = 0; i < 3; ++i) {
+                const float d = b[i] - a[i];
+                if (d == 0.0f) {
+                    if (a[i] < lo[i] || a[i] > hi[i])
+                        return 2.0f;
+                    continue;
                 }
+                float t0 = (lo[i] - a[i]) / d, t1 = (hi[i] - a[i]) / d;
+                if (t0 > t1)
+                    std::swap(t0, t1);
+                enter = std::max(enter, t0);
+                leave = std::min(leave, t1);
+                if (enter > leave)
+                    return 2.0f;
             }
+            return enter;
         }
+
+        // BlockSource clip walk (0x1432DA390) with the camera shape (shape type 2): cells in ray order, at most 200,
+        // the first hit against a block's camera box ends it
+        std::optional<glm::vec3> CameraClip(const Level& level, const LevelCollision& col, glm::vec3 from, glm::vec3 to) {
+            glm::ivec3 cell(static_cast<int>(std::floor(from.x)), static_cast<int>(std::floor(from.y)),
+                            static_cast<int>(std::floor(from.z)));
+            const glm::ivec3 last(static_cast<int>(std::floor(to.x)), static_cast<int>(std::floor(to.y)),
+                                  static_cast<int>(std::floor(to.z)));
+            const glm::vec3 d = to - from;
+            glm::ivec3 step;
+            glm::vec3 next, delta;
+            for (int i = 0; i < 3; ++i) {
+                step[i] = d[i] > 0.0f ? 1 : (d[i] < 0.0f ? -1 : 0);
+                delta[i] = step[i] != 0 ? std::abs(1.0f / d[i]) : std::numeric_limits<float>::infinity();
+                const float edge = step[i] > 0 ? static_cast<float>(cell[i] + 1) : static_cast<float>(cell[i]);
+                next[i] = step[i] != 0 ? (edge - from[i]) / d[i] : std::numeric_limits<float>::infinity();
+            }
+            for (int visited = 0; visited < 200; ++visited) {
+                physics::BlockShape shape = col.Query(cell.x, cell.y, cell.z);
+                bool loaded = false;
+                const std::string& name = BlockPalette::Instance().Name(level.GetBlock(cell.x, cell.y, cell.z, loaded));
+                // camera shape overrides: grates never stop the camera (0x147726070), soul sand and mud use a
+                // full cube instead of their lowered collision (0x148F936E0)
+                if (name.ends_with("copper_grate"))
+                    shape.boxes.clear();
+                else if (name == "minecraft:soul_sand" || name == "minecraft:mud")
+                    shape.boxes = {{0, 0, 0, 1, 1, 1}};
+                float best = 2.0f;
+                for (const physics::Box& b : shape.boxes) {
+                    const glm::vec3 lo(static_cast<float>(cell.x + b.x0), static_cast<float>(cell.y + b.y0),
+                                       static_cast<float>(cell.z + b.z0));
+                    const glm::vec3 hi(static_cast<float>(cell.x + b.x1), static_cast<float>(cell.y + b.y1),
+                                       static_cast<float>(cell.z + b.z1));
+                    best = std::min(best, SegmentBoxEntry(from, to, lo, hi));
+                }
+                if (best <= 1.0f)
+                    return from + d * best;
+                if (cell == last)
+                    break;
+                const int axis = next.x < next.y ? (next.x < next.z ? 0 : 2) : (next.y < next.z ? 1 : 2);
+                if (next[axis] > 1.0f)
+                    break;
+                cell[axis] += step[axis];
+                next[axis] += delta[axis];
+            }
+            return std::nullopt;
+        }
+    }
+
+    // CameraAvoidanceSystem, lambda 0x146F838E0, with the code defaults: no whisker rays, distance_constraint_min 0,
+    // relax spring 4 (0x40800000)
+    void Perlin::UpdateThirdPersonDistance(BedrockSession* live, float dt) {
+        // TODO: the vanilla preset distance and whisker rays come from the camera presets json, 5 until they're read
+        constexpr float desired = 5.0f;
+        if (camera.mode == PerspectiveMode::FirstPerson) {
+            // a fresh avoidance component starts at distance 0: entering third person springs out from the eye
+            camera.thirdPersonDistance = 0.0f;
+            camera.avoidanceVelocity = 0.0f;
+            return;
+        }
+        float target = desired;
+        if (live) {
+            const LevelCollision col(live->NetLevel(), &levelRenderer->Blocks());
+            const glm::vec3 pivot(camera.x, camera.y, camera.z);
+            const glm::vec3 dir = camera.mode == PerspectiveMode::ThirdPersonBack ? -camera.Direction() : camera.Direction();
+            const glm::vec3 wanted = pivot + dir * desired;
+            const float nearClip = camera.nearPlane;
+            // 8 rays from the corners of a +-0.1 box around the pivot, parallel to pivot -> camera; the hit distance
+            // is measured from the pivot centre
+            float best = std::numeric_limits<float>::max();
+            for (int i = 0; i < 8; ++i) {
+                const glm::vec3 o(static_cast<float>(((2 * i) & 2) - 1) * 0.1f, static_cast<float>((i & 2) - 1) * 0.1f,
+                                  static_cast<float>(((i >> 1) & 2) - 1) * 0.1f);
+                if (const auto hit = CameraClip(live->NetLevel(), col, pivot + o, wanted + o))
+                    best = std::min(std::max(nearClip, glm::length(pivot - *hit) - nearClip), best);
+            }
+            target = desired < best ? desired : std::max(best, 0.0f);
+        }
+        // only the box rays pull the camera in at once; going back out is a critically damped spring
+        if (camera.thirdPersonDistance > target) {
+            camera.thirdPersonDistance = target;
+            camera.avoidanceVelocity = 0.0f;
+        }
+        constexpr float k = 4.0f;
+        const float x0 = camera.thirdPersonDistance - target;
+        const float a = x0 * k;
+        const float b = camera.avoidanceVelocity + a;
+        const float c = -k * dt;
+        const float e = std::exp(c);
+        camera.avoidanceVelocity = ((c * b + b) - a) * e;
+        camera.thirdPersonDistance = ((dt * b) + x0) * e + target;
     }
 
     void Perlin::SampleEyeEnvironment(FrameContext& f) {

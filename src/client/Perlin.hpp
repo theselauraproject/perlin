@@ -149,7 +149,7 @@ namespace perlin {
         void StopBreaking(BedrockSession* live);
         void SwingHand();
         void UpdatePreviewWorld(FrameContext& f);
-        void UpdateThirdPersonDistance(BedrockSession* live);
+        void UpdateThirdPersonDistance(BedrockSession* live, float dt);
         void SampleEyeEnvironment(FrameContext& f);
         void FillFrameHud(FrameContext& f);
         void HandleDebugKeys(FrameContext& f);
