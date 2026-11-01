@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.perlin.client</id>
+  <name>Perlin</name>
+  <summary>A Minecraft Bedrock compatible game client</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <description>
+    <p>Perlin plays on Minecraft Bedrock servers, Realms and friends' worlds, has its own singleplayer, and runs
+    resource packs, shader packs and WebAssembly mods.</p>
+  </description>
+  <launchable type="desktop-id">io.perlin.client.desktop</launchable>
+  <categories>
+    <category>Game</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+</component>

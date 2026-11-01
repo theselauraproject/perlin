@@ -15,7 +15,12 @@ if(NOT TARGET perlin_rhi)
     option(PERLIN_RHI_METAL "build the metal backend" OFF)
     option(PERLIN_RHI_WEBGPU "build the webgpu backend" OFF)
     # headers only: the streamline dlls are loaded at run time and shipped beside the executable
-    option(PERLIN_RHI_STREAMLINE "build the dlss / reflex / frame generation layer" ${WIN32})
+    # nvidia ships the streamline dlls for x64 only
+    set(_perlin_rhi_streamline_default OFF)
+    if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64)$" AND NOT CMAKE_CXX_COMPILER_TARGET MATCHES "^(aarch64|arm64)")
+        set(_perlin_rhi_streamline_default ON)
+    endif()
+    option(PERLIN_RHI_STREAMLINE "build the dlss / reflex / frame generation layer" ${_perlin_rhi_streamline_default})
     # offline builds point these at checkouts; otherwise the pinned revisions are fetched
     set(PERLIN_RHI_DEPS_DIR "" CACHE PATH "directory holding Vulkan-Headers, volk, vma, d3d12ma, DirectX-Headers checkouts")
 

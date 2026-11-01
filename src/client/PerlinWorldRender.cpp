@@ -1808,5 +1808,6 @@ namespace perlin {
                                               !disconnect.shown && !loading.shown && !titleScreen.shown)) {
             platform->DrawTouchOverlay(*renderer);
         }
+        platform->DrawPointerOverlay(*renderer);
     }
 }

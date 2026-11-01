@@ -2,11 +2,12 @@
 #include "util/Log.hpp"
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
 #endif
 
 namespace perlin {

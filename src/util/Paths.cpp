@@ -15,6 +15,11 @@
 #elif defined(__APPLE__)
 #include <limits.h>
 #include <mach-o/dyld.h>
+#elif defined(__FreeBSD__)
+#include <climits>
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#include <unistd.h>
 #else
 #include <climits>
 #include <unistd.h>
@@ -38,6 +43,14 @@ namespace perlin::paths {
         std::error_code ec;
         fs::path p = fs::canonical(buf, ec);
         return (ec ? fs::path(buf) : p).parent_path().generic_string();
+#elif defined(__FreeBSD__)
+        // no /proc by default: the kernel names the running image
+        int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+        char buf[PATH_MAX] = {};
+        size_t size = sizeof(buf);
+        if (sysctl(mib, 4, buf, &size, nullptr, 0) != 0 || size == 0)
+            return {};
+        return fs::path(buf).parent_path().generic_string();
 #else
         char buf[PATH_MAX] = {};
         ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);

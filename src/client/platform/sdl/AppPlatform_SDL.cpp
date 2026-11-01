@@ -122,8 +122,15 @@ namespace {
 
 #if defined(SDL_PLATFORM_LINUX) && !defined(SDL_PLATFORM_ANDROID)
     void RegisterDesktopEntry() {
+        // a Flatpak exports its own entry; an AppImage's should start the .AppImage, not its temporary mount
+        if (std::getenv("FLATPAK_ID"))
+            return;
         std::error_code ec;
-        const std::filesystem::path exe = std::filesystem::read_symlink("/proc/self/exe", ec);
+        std::filesystem::path exe;
+        if (const char* image = std::getenv("APPIMAGE"); image && *image)
+            exe = image;
+        else
+            exe = std::filesystem::read_symlink("/proc/self/exe", ec);
         if (ec || exe.empty())
             return;
         std::filesystem::path data;
@@ -701,6 +708,60 @@ void AppPlatform_SDL::SetTouchMode(bool on) {
     }
 }
 
+void AppPlatform_SDL::MovePointer(float dx, float dy) {
+    if (!game)
+        return;
+    const float w = static_cast<float>(framebufferWidth.load()),
+                h = static_cast<float>(framebufferHeight.load());
+    if (!pointerShown) {
+        perlin::Input& in = game->GetInput();
+        pointerX = in.MouseX() > 0 ? in.MouseX() : w * 0.5f;
+        pointerY = in.MouseY() > 0 ? in.MouseY() : h * 0.5f;
+        pointerShown = true;
+    }
+    pointerX = std::clamp(pointerX + dx, 0.0f, w - 1.0f);
+    pointerY = std::clamp(pointerY + dy, 0.0f, h - 1.0f);
+    game->GetInput().OnMouseMove(pointerX, pointerY);
+}
+
+void AppPlatform_SDL::DrawPointerOverlay(perlin::RenderContext& renderer) {
+    if (!pointerShown || !game || !game->GetInput().TextMode())
+        return;
+    if (!pointerTexture) {
+        // a 12x19 arrow, white with a dark outline, in the style of the classic system pointer
+        static const char* const kArrow[19] = {"X...........", "XX..........", "XWX.........", "XWWX........",
+                                               "XWWWX.......", "XWWWWX......", "XWWWWWX.....", "XWWWWWWX....",
+                                               "XWWWWWWWX...", "XWWWWWWWWX..", "XWWWWWWWWWX.", "XWWWWWWXXXXX",
+                                               "XWWWXWWX....", "XWWX.XWWX...", "XWX..XWWX...", "XX....XWWX..",
+                                               "X.....XWWX..", ".......XWWX.", "........XX.."};
+        std::vector<uint8_t> px(12 * 19 * 4, 0);
+        for (int y = 0; y < 19; y++)
+            for (int x = 0; x < 12; x++) {
+                uint8_t* p = &px[static_cast<size_t>(y * 12 + x) * 4];
+                const char c = kArrow[y][x];
+                const uint8_t v = c == 'W' ? 255 : 0;
+                p[0] = p[1] = p[2] = v;
+                p[3] = c == '.' ? 0 : 255;
+            }
+        pointerTexture = renderer.UiCreateTexture(12, 19, px.data(), false);
+    }
+    const float s = std::max(1.0f, std::round(static_cast<float>(framebufferHeight.load()) / 360.0f));
+    const float x0 = pointerX, y0 = pointerY, x1 = x0 + 12.0f * s, y1 = y0 + 19.0f * s;
+    const perlin::UiVertex v[4] = {{x0, y0, 0.0f, 0xFFFFFFFFu, 0.0f, 0.0f},
+                                   {x1, y0, 0.0f, 0xFFFFFFFFu, 1.0f, 0.0f},
+                                   {x1, y1, 0.0f, 0xFFFFFFFFu, 1.0f, 1.0f},
+                                   {x0, y1, 0.0f, 0xFFFFFFFFu, 0.0f, 1.0f}};
+    const uint32_t idx[6] = {0, 1, 2, 0, 2, 3};
+    if (const uint32_t mesh = renderer.UiCreateFrameMesh(v, 4, idx, 6)) {
+        perlin::UiDraw draw;
+        draw.mesh = mesh;
+        draw.texture = pointerTexture;
+        draw.premultiplied = true;
+        renderer.UiSubmit(perlin::UiLayer::Top, draw);
+        renderer.UiDestroyMesh(mesh);
+    }
+}
+
 void AppPlatform_SDL::DrawTouchOverlay(perlin::RenderContext& renderer) {
     if ((!touchMode && !touch.Editing()) || !game)
         return;
@@ -731,6 +792,25 @@ bool AppPlatform_SDL::Initialize() {
         perlin::Log("sdl", "SDL_Init failed: {}", SDL_GetError());
         return false;
     }
+#ifdef PERLIN_MOBILE
+    adaptiveInput = false;
+    virtualPointer = true;
+#endif
+#ifdef __EMSCRIPTEN__
+    // a page cannot move the system pointer either
+    virtualPointer = true;
+#endif
+#ifdef SDL_PLATFORM_ANDROID
+    // Android TV and Fire TV are driven from the couch; Chromebooks and Samsung DeX have a mouse and keyboard.
+    // Those start without touch controls and switch to them only when the screen is touched
+    tvMode = SDL_IsTV();
+    if (tvMode || SDL_IsChromebook() || SDL_IsDeXMode()) {
+        adaptiveInput = true;
+        touchMode = false;
+        perlin::Log("sdl", "{}: mouse, keyboard and controller first",
+                    tvMode ? "TV" : "desktop-class Android");
+    }
+#endif
 
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "Perlin");
@@ -945,7 +1025,20 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         const int code = e.gbutton.button;
         if (code < 0 || code >= 15)
             break;
+        if (pressed && touchMode)
+            SetTouchMode(false);
         if (input->TextMode() && !input->PadCapture()) {
+            if (virtualPointer && pressed && code >= perlin::Pad::DpadUp && code <= perlin::Pad::DpadRight) {
+                const float step =
+                    static_cast<float>(std::min(framebufferWidth.load(), framebufferHeight.load())) / 18.0f;
+                MovePointer(code == perlin::Pad::DpadLeft    ? -step
+                            : code == perlin::Pad::DpadRight ? step
+                                                             : 0.0f,
+                            code == perlin::Pad::DpadUp     ? -step
+                            : code == perlin::Pad::DpadDown ? step
+                                                            : 0.0f);
+                break;
+            }
             if (code == perlin::Pad::A) {
                 if (pressed)
                     input->OnMouseDown(0);
@@ -971,6 +1064,32 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         break;
     }
     case SDL_EVENT_KEY_DOWN:
+        // a TV remote in menus: the D-pad moves the pointer and the centre button clicks
+        if (input && tvMode && input->TextMode() && !textActive &&
+            (e.key.scancode == SDL_SCANCODE_UP || e.key.scancode == SDL_SCANCODE_DOWN ||
+             e.key.scancode == SDL_SCANCODE_LEFT || e.key.scancode == SDL_SCANCODE_RIGHT ||
+             e.key.scancode == SDL_SCANCODE_SELECT || e.key.scancode == SDL_SCANCODE_RETURN)) {
+            const float step =
+                static_cast<float>(std::min(framebufferWidth.load(), framebufferHeight.load())) / 18.0f;
+            switch (e.key.scancode) {
+            case SDL_SCANCODE_UP:
+                MovePointer(0, -step);
+                break;
+            case SDL_SCANCODE_DOWN:
+                MovePointer(0, step);
+                break;
+            case SDL_SCANCODE_LEFT:
+                MovePointer(-step, 0);
+                break;
+            case SDL_SCANCODE_RIGHT:
+                MovePointer(step, 0);
+                break;
+            default:
+                if (!e.key.repeat)
+                    input->OnMouseDown(0);
+            }
+            break;
+        }
         if (input) {
             const int k = KeyFromScancode(e.key.scancode);
             if (k && !e.key.repeat)
@@ -991,6 +1110,11 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         }
         break;
     case SDL_EVENT_KEY_UP:
+        if (input && tvMode && input->TextMode() && !textActive &&
+            (e.key.scancode == SDL_SCANCODE_SELECT || e.key.scancode == SDL_SCANCODE_RETURN)) {
+            input->OnMouseUp(0);
+            break;
+        }
         if (input)
             if (int k = KeyFromScancode(e.key.scancode))
                 input->OnKeyUp(k);
@@ -1007,12 +1131,11 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
             break;
         }
         if (touchMode) {
-#ifdef PERLIN_MOBILE
-            break;
-#else
+            if (!adaptiveInput)
+                break;
             SetTouchMode(false);
-#endif
         }
+        pointerShown = false;
         if (input) {
             if (cursorCaptured)
                 input->OnMouseDelta(e.motion.xrel, e.motion.yrel);
@@ -1031,12 +1154,11 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
             break;
         }
         if (touchMode) {
-#ifdef PERLIN_MOBILE
-            break;
-#else
+            if (!adaptiveInput)
+                break;
             SetTouchMode(false);
-#endif
         }
+        pointerShown = false;
         if (!cursorCaptured && !(input && (input->TextMode() || input->FreeCursor()))) {
             SetCursorCaptured(true);
             break;
@@ -1124,11 +1246,17 @@ void AppPlatform_SDL::PumpGamepad() {
         in.SetPadLook(0, 0);
         const float sx = shape(lx), sy = shape(ly);
         if (sx != 0.0f || sy != 0.0f) {
-            float x = 0, y = 0;
-            SDL_GetMouseState(&x, &y);
-            const float speed = 700.0f * dt / std::max(1.0f, SDL_GetWindowPixelDensity(window));
-            SDL_WarpMouseInWindow(window, x + sx * std::fabs(sx) * speed * 1.4f,
-                                  y + sy * std::fabs(sy) * speed * 1.4f);
+            if (virtualPointer || tvMode) {
+                // no system pointer to warp: the game's own, in framebuffer pixels
+                const float speed = 700.0f * dt * 1.4f;
+                MovePointer(sx * std::fabs(sx) * speed, sy * std::fabs(sy) * speed);
+            } else {
+                float x = 0, y = 0;
+                SDL_GetMouseState(&x, &y);
+                const float speed = 700.0f * dt / std::max(1.0f, SDL_GetWindowPixelDensity(window));
+                SDL_WarpMouseInWindow(window, x + sx * std::fabs(sx) * speed * 1.4f,
+                                      y + sy * std::fabs(sy) * speed * 1.4f);
+            }
         }
         padScroll += -shape(ry) * dt * 9.0f;
         if (std::fabs(padScroll) >= 1.0f) {

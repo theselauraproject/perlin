@@ -72,12 +72,11 @@ namespace perlin::entity {
                 const float b = std::asin(std::clamp(-fit[0][2], -1.0f, 1.0f));
                 const float cc = std::atan2(fit[1][2], fit[2][2]);
                 const float a = std::atan2(fit[0][1], fit[0][0]);
-                const glm::vec3 euler(-glm::degrees(cc), -glm::degrees(b), glm::degrees(a) / zs);
+                // fit = Rz(a) Ry(b) Rx(cc); EulerZYX(v) is Rz(zs * v.z) Ry(v.y) Rx(-v.x), so v.y is +b. (The
+                // sign was flipped before, which mirrored the head's yaw while crouching: the "weird turn".)
+                const glm::vec3 euler(-glm::degrees(cc), glm::degrees(b), glm::degrees(a) / zs);
                 x.rotation = euler - restOf(name);
-                const glm::mat3 r(
-                    glm::rotate(glm::mat4(1.0f), glm::radians(zs * euler.z), glm::vec3(0, 0, 1)) *
-                    glm::rotate(glm::mat4(1.0f), glm::radians(-euler.y), glm::vec3(0, 1, 0)) *
-                    glm::rotate(glm::mat4(1.0f), glm::radians(-euler.x), glm::vec3(1, 0, 0)));
+                const glm::mat3 r(attachable::EulerZYX(euler));
                 const glm::vec3 t(fit[3]);
                 x.position = t - c + r * c;
             };
@@ -660,8 +659,7 @@ namespace perlin::entity {
         // own swing: the hand state, stepped per tick like Mob::updateAttackAnim 0x142c2d060
         else if (e.isSelf && in.ownAttackTime >= 0.0f)
             v.attackTime = in.ownAttackTime;
-        else if (v.attackTime > 0)
-            {
+        else if (v.attackTime > 0) {
             const float seconds = 6.0f / 20.0f;
             v.attackTime = v.attackTime + dt / seconds >= 1.0f ? 0.0f : v.attackTime + dt / seconds;
         }
@@ -1248,6 +1246,7 @@ namespace perlin::entity {
         }
         if (itemRenderer && !layers.empty() && !v.fp) {
             static const int kOrder[4] = {0, 1, 2, 3};
+            attachable::BoneWorlds wornBones;
             for (int slot : kOrder) {
                 const std::string& item = e.armor[slot];
                 if (item.empty())
@@ -1305,8 +1304,14 @@ namespace perlin::entity {
                 bool haveRoot = false;
                 if (bindGeometry && e.isPlayer)
                     haveRoot = attachable::BoneWorld(*bindGeometry, pose, "root", rootWorld, rootPivot);
+                // Java's armour models copy the wearer's part poses (HumanoidArmorLayer): each armour bone takes the
+                // world matrix of the player's bone of the same name. The armour files parent their legs to the
+                // body, so through their own chain a crouch tipped the leggings and boots forward with the torso
+                if (bindGeometry && e.isPlayer && wornBones.empty())
+                    attachable::ComputeBoneWorlds(*bindGeometry, pose, wornBones);
+                const bool attach = !wornBones.empty() && item != "minecraft:elytra";
                 attachable::BuildMesh(*geometry, *meshPose, nullptr, mesh, attachable::BoneFilter(),
-                                      haveRoot ? &rootWorld : nullptr, true);
+                                      haveRoot ? &rootWorld : nullptr, true, attach ? &wornBones : nullptr);
                 if (PERLIN_ENV("PERLIN_ARMOR_DEBUG")) {
                     glm::vec3 lo(1e9f), hi(-1e9f);
                     for (const auto& q : mesh.body)

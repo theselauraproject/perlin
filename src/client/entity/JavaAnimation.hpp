@@ -91,11 +91,16 @@ namespace perlin::entity::java {
             lastZ = z;
             lastHead = head;
             const float body = rotation.Sample(static_cast<float>(remainder / 0.05));
-            if (riding)
+            if (!riding)
+                // LivingEntityRenderer.solveBodyRot: the interpolated body, nothing more. The 50 degree limit is
+                // a tick rule; between ticks the head may lead the body further, as it does in Java
                 return body;
-            // the sampled body trails the head by one tick: keep the 50 degree cap on screen too
-            const float offset = Wrap(head - body);
-            return body + offset - std::clamp(offset, -50.0f, 50.0f);
+            // riding: the head may turn 85 degrees from the mount's body, and past 50 the body leans a fifth along
+            const float headDiff = std::clamp(Wrap(head - body), -85.0f, 85.0f);
+            float riderBody = head - headDiff;
+            if (std::abs(headDiff) > 50.0f)
+                riderBody += headDiff * 0.2f;
+            return riderBody;
         }
     };
     struct WalkAnimation {

@@ -4,9 +4,13 @@ Every push to `main` builds all platforms and replaces the assets of the `nightl
 
 | Asset | Platform |
 |-------|----------|
-| `Perlin-windows-x64.zip`, `Perlin-linux-x64.zip` | Windows, Linux |
+| `Perlin-windows-x64.zip`, `Perlin-windows-arm64.zip` | Windows (x64, ARM) |
+| `Perlin-linux-x64.zip`, `Perlin-linux-arm64.zip` | Linux (x64, arm64) |
+| `Perlin-linux-x64.AppImage`, `Perlin-linux-arm64.AppImage` | Linux, single file (replaces itself on update) |
+| `Perlin.flatpak` | Linux Flatpak bundle (updates through Flatpak) |
+| `Perlin-freebsd-x64.zip` | FreeBSD |
 | `Perlin-macos-arm64.zip`, `Perlin-macos-x64.zip` | macOS 12+ (signed app bundle, zipped with `ditto` on the Mac) |
-| `Perlin.apk` | Android |
+| `Perlin.apk` | Android phones, tablets, Android TV / Fire TV, Chromebooks |
 | `Perlin.ipa`, `altstore-source.json` | iOS / iPadOS 15+ |
 | `Perlin-web.zip` | the web build (also deployed to GitHub Pages) |
 

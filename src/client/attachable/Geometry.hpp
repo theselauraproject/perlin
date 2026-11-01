@@ -83,9 +83,14 @@ namespace perlin::attachable {
     };
     using TextureLookup = std::function<const Texture*(const std::string& shortName)>;
     using BoneFilter = std::function<bool(const std::string&)>;
+    // model-space world matrices of a posed geometry's bones, by (lower case) name
+    using BoneWorlds = std::unordered_map<std::string, glm::mat4>;
+    // attach: bones whose name is in it take that world matrix as is instead of their own parent chain, so worn
+    // geometry (armour) follows the wearer's posed parts exactly whatever hierarchy its own file uses
     void BuildMesh(const Geometry& geometry, const Pose& pose, const TextureLookup& textures, BuiltMesh& out,
                    const BoneFilter& visible = nullptr, const glm::mat4* rootParent = nullptr,
-                   bool mirrorTextures = false);
+                   bool mirrorTextures = false, const BoneWorlds* attach = nullptr);
+    void ComputeBoneWorlds(const Geometry& geometry, const Pose& pose, BoneWorlds& out);
 
     Geometry VoxelizeSkinLayers(const Geometry& source, const uint8_t* rgba, int width, int height);
     std::vector<Quad> ExtrudeSprite(const Texture& atlas, int tileX, int tileY, int tileWidth, int tileHeight,

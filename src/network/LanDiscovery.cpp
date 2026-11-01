@@ -40,11 +40,12 @@ namespace perlin::lan {
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
 #endif

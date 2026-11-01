@@ -1,4 +1,7 @@
 #include "util/Relaunch.hpp"
+#include "util/Paths.hpp"
+
+#include <filesystem>
 
 #include <cstdlib>
 #include <string>
@@ -55,7 +58,13 @@ namespace perlin {
         for (std::string& a : Args())
             argv.push_back(a.data());
         argv.push_back(nullptr);
+#if defined(__linux__)
         execv("/proc/self/exe", argv.data());
+#else
+        // the program's own path; argv[0] may be relative to a directory that is no longer current
+        const std::string self = paths::ExeDir() + "/" + std::filesystem::path(Args()[0]).filename().string();
+        execv(self.c_str(), argv.data());
+#endif
         return false;
 #endif
 #endif

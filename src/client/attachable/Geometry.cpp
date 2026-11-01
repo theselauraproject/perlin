@@ -676,21 +676,43 @@ namespace perlin::attachable {
             }
     }
 
-    void BuildMesh(const Geometry& g, const Pose& pose, const TextureLookup& textures, BuiltMesh& out,
-                   const BoneFilter& visible, const glm::mat4* rootParent, bool mirrorTextures) {
+    void ComputeBoneWorlds(const Geometry& g, const Pose& pose, BoneWorlds& out) {
         std::vector<glm::mat4> world(g.bones.size(), glm::mat4(1.0f));
         for (size_t i = 0; i < g.bones.size(); i++) {
             const Bone& b = g.bones[i];
             BoneXform x;
             if (const auto it = pose.find(b.name); it != pose.end())
                 x = it->second;
-            glm::mat4 local = glm::translate(glm::mat4(1.0f), x.position) *
-                              glm::translate(glm::mat4(1.0f), b.pivot) * EulerZYX(b.rotation + x.rotation) *
-                              glm::scale(glm::mat4(1.0f), x.scale) *
-                              glm::translate(glm::mat4(1.0f), -b.pivot);
-            world[i] = (b.parent >= 0 ? world[static_cast<size_t>(b.parent)]
-                                      : (rootParent ? *rootParent : glm::mat4(1.0f))) *
-                       local;
+            const glm::mat4 local = glm::translate(glm::mat4(1.0f), x.position) *
+                                    glm::translate(glm::mat4(1.0f), b.pivot) *
+                                    EulerZYX(b.rotation + x.rotation) * glm::scale(glm::mat4(1.0f), x.scale) *
+                                    glm::translate(glm::mat4(1.0f), -b.pivot);
+            world[i] = (b.parent >= 0 ? world[static_cast<size_t>(b.parent)] : glm::mat4(1.0f)) * local;
+            out[b.name] = world[i];
+        }
+    }
+
+    void BuildMesh(const Geometry& g, const Pose& pose, const TextureLookup& textures, BuiltMesh& out,
+                   const BoneFilter& visible, const glm::mat4* rootParent, bool mirrorTextures,
+                   const BoneWorlds* attach) {
+        std::vector<glm::mat4> world(g.bones.size(), glm::mat4(1.0f));
+        for (size_t i = 0; i < g.bones.size(); i++) {
+            const Bone& b = g.bones[i];
+            const auto worn = attach ? attach->find(b.name) : BoneWorlds::const_iterator();
+            if (attach && worn != attach->end()) {
+                world[i] = worn->second;
+            } else {
+                BoneXform x;
+                if (const auto it = pose.find(b.name); it != pose.end())
+                    x = it->second;
+                const glm::mat4 local =
+                    glm::translate(glm::mat4(1.0f), x.position) * glm::translate(glm::mat4(1.0f), b.pivot) *
+                    EulerZYX(b.rotation + x.rotation) * glm::scale(glm::mat4(1.0f), x.scale) *
+                    glm::translate(glm::mat4(1.0f), -b.pivot);
+                world[i] = (b.parent >= 0 ? world[static_cast<size_t>(b.parent)]
+                                          : (rootParent ? *rootParent : glm::mat4(1.0f))) *
+                           local;
+            }
             if (b.neverRender || (visible && !visible(b.name)))
                 continue;
             for (const Cube& c : b.cubes)

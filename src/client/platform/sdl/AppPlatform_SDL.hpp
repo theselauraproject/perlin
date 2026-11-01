@@ -35,6 +35,7 @@ public:
     void SetTouchState(const perlin::TouchState& state) override;
     bool TakeTouchLayout(std::map<std::string, perlin::TouchPlace>& out) override;
     void DrawTouchOverlay(perlin::RenderContext& renderer) override;
+    void DrawPointerOverlay(perlin::RenderContext& renderer) override;
 
 private:
     void HandleEvent(const SDL_Event& event);
@@ -67,6 +68,16 @@ private:
     bool backgrounded = false; // iOS: no gpu work allowed until the app is in front again
     bool recaptureAfterText = false;
     bool touchMode = false;
+    // a mouse, keyboard or controller may take over from touch (desktop, Chromebooks, TVs, DeX); phones stay touch
+    bool adaptiveInput = true;
+    // Android TV / Fire TV: lean-back, remote or controller, nothing to touch
+    bool tvMode = false;
+    // menus with a controller or remote where the cursor cannot be warped: a pointer drawn by the game
+    bool virtualPointer = false;
+    bool pointerShown = false;
+    float pointerX = 0.0f, pointerY = 0.0f;
+    uint32_t pointerTexture = 0;
+    void MovePointer(float dx, float dy);
     perlin::TouchControls touch;
 
     SDL_Window* window = nullptr;

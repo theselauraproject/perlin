@@ -30,6 +30,8 @@ namespace perlin::platform {
         "windows";
 #elif defined(__APPLE__)
         "macos";
+#elif defined(__FreeBSD__)
+        "freebsd";
 #else
         "linux";
 #endif

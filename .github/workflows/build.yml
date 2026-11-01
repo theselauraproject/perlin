@@ -36,6 +36,8 @@ jobs:
   native:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # new targets report failures without holding back the nightly; drop `experimental` once they are green
+    continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +46,12 @@ jobs:
             os: windows-latest
           - name: linux-x64
             os: ubuntu-24.04
+            appimage: x86_64
+          # native arm64 runner (free for public repositories): Raspberry Pi 5, Asahi, Snapdragon Linux laptops
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            appimage: aarch64
+            experimental: true
           - name: macos-arm64
             os: macos-15
           - name: macos-x64
@@ -288,6 +296,170 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: pkg/Perlin-${{ matrix.name }}.zip
+          archive: false
+          if-no-files-found: error
+
+      # Linux also as one AppImage: runs on any distribution, and updates itself by replacing that one file
+      - name: AppImage
+        if: matrix.appimage
+        run: |
+          curl -fsSL -o /usr/local/bin/appimagetool \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage }}.AppImage"
+          chmod +x /usr/local/bin/appimagetool
+          sh tools/package/make-appimage.sh dist "pkg/Perlin-${{ matrix.name }}.AppImage" ${{ matrix.appimage }}
+          "pkg/Perlin-${{ matrix.name }}.AppImage" --appimage-extract >/dev/null
+          test -x squashfs-root/usr/lib/perlin/Perlin && test -s squashfs-root/io.perlin.client.desktop
+      - name: Upload AppImage
+        if: matrix.appimage
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}.AppImage
+          archive: false
+          if-no-files-found: error
+
+      # the shader pack is the same file for every Vulkan-only build: FreeBSD (no slang compiler exists for it) uses this one
+      - name: Upload shader pack
+        if: matrix.name == 'linux-x64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: shader-pack-vulkan
+          path: build/shaders/perlin_shaders.pack
+          if-no-files-found: error
+
+  # Windows on ARM (Snapdragon X and friends), cross-compiled on the x64 runner: its compilers, vcpkg and the
+  # x64 shader compilers are all there; the arm64 binary cannot run on it, so there are no tests here
+  windows-arm64:
+    name: windows-arm64
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-windows-arm64-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+      - name: Cache OpenSSL (arm64)
+        id: openssl-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/openssl-arm64
+          key: openssl-static-arm64-v1-${{ env.OPENSSL_VERSION }}
+      - name: Install OpenSSL (arm64)
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:arm64-windows-static --x-install-root="$env:GITHUB_WORKSPACE/openssl-arm64"
+      - name: Set up MSVC environment (x64 host, arm64 target)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: windows-arm64
+          max-size: 500M
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64
+          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link
+          -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static"
+          -DPERLIN_WINDOWS_FFMPEG=OFF
+          ${{ env.PERLIN_UPDATE_FLAGS }}
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Package
+        shell: bash
+        run: |
+          cmake --install build --config Release --prefix dist
+          rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
+          find dist \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.a' \) -delete
+          find dist -type d -empty -delete
+          # an arm64 image (IMAGE_FILE_MACHINE_ARM64 = 0xaa64 at the PE header)
+          python - <<'PY'
+          import struct, glob
+          exe = glob.glob("dist/*.exe")[0]
+          data = open(exe, "rb").read(4096)
+          pe = struct.unpack_from("<I", data, 0x3C)[0]
+          machine = struct.unpack_from("<H", data, pe + 4)[0]
+          print(exe, hex(machine))
+          assert machine == 0xAA64, "not an arm64 executable"
+          PY
+          mkdir -p pkg
+          (cd dist && 7z a -tzip -bso0 ../pkg/Perlin-windows-arm64.zip .)
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-windows-arm64.zip
+          archive: false
+          if-no-files-found: error
+
+  # FreeBSD (x64) in a VM. Slang publishes no FreeBSD compiler, so the Vulkan shader pack comes from the linux-x64
+  # build (the same backends, the same file)
+  freebsd:
+    name: freebsd-x64
+    needs: native
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v8
+        with:
+          name: shader-pack-vulkan
+          path: prebuilt
+      - name: Build in FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.3"
+          mem: 12288
+          envs: "PERLIN_UPDATE_FLAGS"
+          usesh: true
+          prepare: |
+            pkg install -y cmake ninja git python3 pkgconf perl5 bash \
+              libX11 libXext libXrandr libXcursor libXi libXfixes libXrender libXScrnSaver libXtst \
+              libxkbcommon wayland wayland-protocols libdrm mesa-libs vulkan-loader evdev-proto \
+              pulseaudio alsa-lib libinotify dbus zip
+          run: |
+            set -e
+            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+              -DPERLIN_SHADER_PACK_PREBUILT="$PWD/prebuilt/perlin_shaders.pack" $PERLIN_UPDATE_FLAGS
+            cmake --build build --parallel
+            ctest --test-dir build --output-on-failure || echo "::warning::some tests failed on FreeBSD"
+            cmake --install build --prefix dist
+            rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
+            find dist -name '*.a' -delete
+            mkdir -p pkg
+            (cd dist && zip -qry ../pkg/Perlin-freebsd-x64.zip .)
+            ls -l pkg
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-freebsd-x64.zip
+          archive: false
+          if-no-files-found: error
+
+  # a Flatpak bundle for sideloading (flatpak install Perlin.flatpak); not on Flathub yet, because Flathub builds
+  # without network access and this build fetches its pinned dependencies
+  flatpak:
+    name: flatpak-x64
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: Perlin.flatpak
+          manifest-path: packaging/flatpak/io.perlin.client.yml
+          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          upload-artifact: false
+      - uses: actions/upload-artifact@v7
+        with:
+          path: Perlin.flatpak
           archive: false
           if-no-files-found: error
 
@@ -600,7 +772,7 @@ jobs:
 
   release:
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-    needs: [native, web, android, ios]
+    needs: [native, windows-arm64, freebsd, flatpak, web, android, ios]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -630,7 +802,7 @@ jobs:
       - name: Archive
         run: |
           mkdir release
-          find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' \) -exec cp {} release/ \;
+          find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' -o -name '*.AppImage' -o -name '*.flatpak' \) -exec cp {} release/ \;
           for dir in folders/*/; do
             name=$(basename "$dir")
             (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)

@@ -7,8 +7,10 @@
 #include <SDL3/SDL_misc.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <atomic>
 #include <filesystem>
+#include <fstream>
 #include <mutex>
 #include <string_view>
 #include <thread>
@@ -122,6 +124,28 @@ namespace perlin::update {
 
         std::string ReleasePage() {
             return "https://github.com/" + std::string(kRepo) + "/releases/tag/nightly";
+        }
+
+        // a Linux AppImage replaces its own single file (APPIMAGE is set by its runtime); the unpacked tree it runs
+        // from is read-only
+        std::string AppImagePath() {
+#if defined(__linux__) && !defined(__ANDROID__)
+            if (const char* p = std::getenv("APPIMAGE"); p && *p)
+                return p;
+#endif
+            return {};
+        }
+
+        std::string AppImageAsset() {
+            std::string a(kAsset);
+            if (a.ends_with(".zip"))
+                a.replace(a.size() - 4, 4, ".AppImage");
+            return a;
+        }
+
+        // Flatpak (and distribution packages) update through their own package manager
+        bool ManagedElsewhere() {
+            return std::getenv("FLATPAK_ID") != nullptr || std::getenv("SNAP") != nullptr;
         }
 
 #if !defined(__EMSCRIPTEN__)
@@ -241,6 +265,43 @@ namespace perlin::update {
                 Set(State::Available, "Update " + Short(sha) + " available - tap to get it");
                 return;
             }
+#if defined(__linux__) && !defined(__ANDROID__)
+            if (const std::string image = AppImagePath(); !image.empty()) {
+                const fs::path next = image + ".new";
+                std::error_code ec;
+                std::string have;
+                if (std::ifstream mark(image + ".new.sha"); mark)
+                    mark >> have;
+                if (have != sha || !fs::exists(next, ec)) {
+                    download::Progress progress;
+                    std::atomic<bool> done{false};
+                    std::thread watcher([&] {
+                        while (!done) {
+                            const uint64_t total = progress.total.load();
+                            Set(State::Downloading, "Downloading update...",
+                                total ? static_cast<float>(progress.done.load()) / static_cast<float>(total)
+                                      : 0.0f);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                        }
+                    });
+                    const bool fetched = download::Fetch("https://github.com/" + std::string(kRepo) +
+                                                             "/releases/download/nightly/" + AppImageAsset(),
+                                                         next, &progress);
+                    done = true;
+                    watcher.join();
+                    if (!fetched) {
+                        Set(State::Available,
+                            "Update " + Short(sha) + " available (could not write beside the AppImage)");
+                        return;
+                    }
+                    ::chmod(next.c_str(), 0755);
+                    std::ofstream(image + ".new.sha") << sha;
+                }
+                State_().payload = next;
+                Set(State::Ready, "Restart to update");
+                return;
+            }
+#endif
             if (fs::path staged = StagedFor(sha); !staged.empty()) {
                 State_().payload = staged;
                 Set(State::Ready,
@@ -298,8 +359,18 @@ namespace perlin::update {
         // moves every top-level item of the staged package over the installed one; the replaced files are renamed
         // aside (a running executable can be renamed, not overwritten) and deleted on the next start
         bool Install(const fs::path& staged) {
-            const fs::path root = InstallRoot();
             std::error_code ec;
+            if (const std::string image = AppImagePath(); !image.empty()) {
+                // the running AppImage is open, not locked: the new file simply takes its name
+                fs::rename(staged, image, ec);
+                fs::remove(image + ".new.sha", ec);
+                if (ec)
+                    Log("update", "could not replace the AppImage");
+                else
+                    Log("update", "installed the update");
+                return !ec;
+            }
+            const fs::path root = InstallRoot();
             std::vector<std::pair<fs::path, fs::path>> moved;
             bool ok = true;
             std::vector<fs::path> items;
@@ -339,6 +410,14 @@ namespace perlin::update {
 
         void Relaunch() {
             const fs::path root = InstallRoot();
+#if defined(__linux__) && !defined(__ANDROID__)
+            if (const std::string image = AppImagePath(); !image.empty()) {
+                char* argv[] = {const_cast<char*>(image.c_str()), nullptr};
+                pid_t pid = 0;
+                posix_spawn(&pid, image.c_str(), nullptr, nullptr, argv, environ);
+                return;
+            }
+#endif
 #if defined(__ANDROID__) || defined(PERLIN_IOS)
             (void)root;
 #elif defined(_WIN32)
@@ -407,12 +486,13 @@ namespace perlin::update {
 #endif
 #endif // !__EMSCRIPTEN__
 
-
     }
 
     bool Supported() {
         if constexpr (kKind == Kind::Web)
             return !kCommit.empty();
+        if (ManagedElsewhere())
+            return false;
         return !kCommit.empty() && !kRepo.empty() && (kKind == Kind::Ios || !kAsset.empty());
     }
 

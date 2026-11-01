@@ -18,6 +18,9 @@
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#elif defined(__FreeBSD__)
+#include <sys/sysctl.h>
+#include <sys/types.h>
 #endif
 
 namespace perlin::sysinfo {
@@ -77,6 +80,12 @@ namespace perlin::sysinfo {
         if (sysctlbyname("machdep.cpu.brand_string", buffer, &size, nullptr, 0) == 0)
             return Trim(buffer);
         return {};
+#elif defined(__FreeBSD__)
+        char buffer[256] = {};
+        size_t size = sizeof(buffer);
+        if (sysctlbyname("hw.model", buffer, &size, nullptr, 0) == 0)
+            return Trim(buffer);
+        return {};
 #else
         return {};
 #endif
@@ -103,6 +112,10 @@ namespace perlin::sysinfo {
         uint64_t mem = 0;
         size_t size = sizeof(mem);
         return sysctlbyname("hw.memsize", &mem, &size, nullptr, 0) == 0 ? mem : 0;
+#elif defined(__FreeBSD__)
+        unsigned long mem = 0;
+        size_t size = sizeof(mem);
+        return sysctlbyname("hw.physmem", &mem, &size, nullptr, 0) == 0 ? mem : 0;
 #else
         return 0;
 #endif

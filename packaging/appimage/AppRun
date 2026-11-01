@@ -1,0 +1,4 @@
+#!/bin/sh
+# AppImage entry point: the game lives in usr/lib/perlin with its resources beside it
+here=$(dirname "$(readlink -f "$0")")
+exec "$here/usr/lib/perlin/Perlin" "$@"

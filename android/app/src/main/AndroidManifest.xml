@@ -3,6 +3,12 @@
 
     <uses-feature android:name="android.hardware.vulkan.version" android:version="0x400003" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- Android TV / Google TV / Fire TV: listed in the TV launcher, played with a controller or the remote -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.faketouch" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
     <uses-feature android:name="android.hardware.type.pc" android:required="false" />
 
@@ -22,6 +28,10 @@
         android:extractNativeLibs="true"
         android:enableOnBackInvokedCallback="false"
         android:hardwareAccelerated="true"
+        android:banner="@drawable/tv_banner"
+        android:isGame="true"
+        android:appCategory="game"
+        android:resizeableActivity="true"
         android:theme="@style/PerlinGame">
 
         <activity
@@ -37,7 +47,11 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <!-- Chromebooks and large-screen Android: start at a sensible window size -->
+            <layout android:defaultWidth="1280dp" android:defaultHeight="720dp" android:minWidth="640dp"
+                android:minHeight="360dp" />
         </activity>
     </application>
 </manifest>

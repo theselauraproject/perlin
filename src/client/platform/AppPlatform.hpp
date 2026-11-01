@@ -87,6 +87,8 @@ public:
         return false;
     }
     virtual void DrawTouchOverlay(perlin::RenderContext& renderer) { (void)renderer; }
+    // the pointer a gamepad or TV remote moves through menus where the system draws none (TV, phones, tablets)
+    virtual void DrawPointerOverlay(perlin::RenderContext& renderer) { (void)renderer; }
 
     virtual std::unique_ptr<perlin::RenderContext> CreateRenderContext() = 0;
 

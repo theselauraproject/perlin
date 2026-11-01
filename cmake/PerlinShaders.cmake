@@ -5,6 +5,18 @@ set(PERLIN_DXC_STAMP "2025_02_20" CACHE STRING "Date stamp in the DXC release fi
 set(PERLIN_SLANGC "" CACHE FILEPATH "slangc to compile shaders with; fetched for the build machine when empty")
 set(PERLIN_DXC_LIBS "" CACHE PATH "directory with dxcompiler and dxil for DXIL output; fetched when empty")
 
+# a pack compiled on another machine for the same backends (FreeBSD: slang ships no FreeBSD compiler, so CI builds
+# the pack on Linux, whose backends are the same, and hands it over)
+set(PERLIN_SHADER_PACK_PREBUILT "" CACHE FILEPATH "perlin_shaders.pack built elsewhere for the same graphics backends")
+if(PERLIN_SHADER_PACK_PREBUILT)
+    set(PERLIN_SHADER_PACK "${CMAKE_CURRENT_BINARY_DIR}/shaders/perlin_shaders.pack")
+    add_custom_command(OUTPUT "${PERLIN_SHADER_PACK}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PERLIN_SHADER_PACK_PREBUILT}" "${PERLIN_SHADER_PACK}"
+        DEPENDS "${PERLIN_SHADER_PACK_PREBUILT}" COMMENT "Using the prebuilt shader pack" VERBATIM)
+    add_custom_target(perlin_shader_pack DEPENDS "${PERLIN_SHADER_PACK}")
+    return()
+endif()
+
 if(NOT PERLIN_SLANGC)
     if(CMAKE_HOST_WIN32)
         set(_slang_os windows)

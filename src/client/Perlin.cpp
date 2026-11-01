@@ -276,7 +276,9 @@ namespace perlin {
         ServerPacks::Instance().SetRoot(paths::DataDir() + "/server_packs_extracted");
 
         account.reset();
-        if (onlineThisRun) {
+        // singleplayer is this process's own server: it checks no Xbox login, so none is fetched (that also keeps it
+        // working in the browser with no sign-in relay, and offline everywhere)
+        if (onlineThisRun && !inSingleplayer) {
             account = std::make_shared<xbox::Account>(ActiveAuthPath());
             session->SetAccount(account, ActiveAuthPath());
         }
