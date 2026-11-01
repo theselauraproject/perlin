@@ -160,7 +160,52 @@ namespace perlin {
             abi::EventHttp ev;
             ev.id = id;
 #ifdef __EMSCRIPTEN__
-            ev.error = "network requests are not available in the web build";
+            // the browser's fetch: same https-only rule and size limits; the browser applies its own CORS and
+            // private-network checks in place of the address filter below
+            do {
+                if (!url.starts_with("https://")) {
+                    ev.error = "only https:// URLs are allowed";
+                    break;
+                }
+                std::map<std::string, std::string> extra;
+                std::string contentType;
+                for (const auto& [k, v] : headers) {
+                    std::string lower = k;
+                    std::transform(lower.begin(), lower.end(), lower.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if (lower == "content-type")
+                        contentType = v;
+                    else if (lower != "host" && lower != "content-length" && lower != "transfer-encoding" &&
+                             lower != "connection")
+                        extra[k] = v;
+                }
+                const perlin::http::Response res =
+                    perlin::http::Request({}, 0, true, method, url, std::string(body.begin(), body.end()),
+                                          contentType, extra, std::max(1, timeoutMs / 1000));
+                if (res.status == 0) {
+                    ev.error = "the request failed (offline, or the site does not allow browser requests)";
+                    break;
+                }
+                if (res.body.size() > (savePath.empty() ? (4u << 20) : (64u << 20))) {
+                    ev.error =
+                        savePath.empty() ? "response larger than 4 MiB" : "download larger than 64 MiB";
+                    break;
+                }
+                ev.status = res.status;
+                for (const auto& [k, v] : res.headers)
+                    ev.headers.emplace_back(k, v);
+                ev.body.assign(res.body.begin(), res.body.end());
+                if (!savePath.empty() && ev.status >= 200 && ev.status < 300) {
+                    std::error_code ec;
+                    std::filesystem::create_directories(std::filesystem::path(savePath).parent_path(), ec);
+                    std::ofstream out(savePath, std::ios::binary | std::ios::trunc);
+                    out.write(reinterpret_cast<const char*>(ev.body.data()),
+                              static_cast<std::streamsize>(ev.body.size()));
+                    if (!out)
+                        ev.error = "could not write the file";
+                    ev.body.clear();
+                }
+            } while (false);
 #else
             do {
                 static const std::string scheme = "https://";

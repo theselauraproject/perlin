@@ -2,8 +2,10 @@
 
 #include <emscripten/fetch.h>
 
+#include <array>
 #include <cctype>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
 namespace {
@@ -12,6 +14,34 @@ namespace {
 
 namespace perlin::http {
     namespace {
+        std::mutex relayMutex;
+        std::string relayBase;
+
+        // https://host[:443]/path -> <relay>/host/path for the services that send no CORS headers
+        std::string ThroughRelay(const std::string& url) {
+            constexpr std::string_view kHttps = "https://";
+            if (!url.starts_with(kHttps))
+                return url;
+            const size_t hostEnd = url.find_first_of(":/?", kHttps.size());
+            const std::string host = url.substr(kHttps.size(), hostEnd - kHttps.size());
+            if (!NeedsWebRelay(host))
+                return url;
+            std::string base;
+            {
+                std::lock_guard lock(relayMutex);
+                base = relayBase;
+            }
+            if (base.empty())
+                return url;
+            size_t rest = hostEnd == std::string::npos ? url.size() : hostEnd;
+            if (rest < url.size() && url.compare(rest, 4, ":443") == 0)
+                rest += 4;
+            std::string tail = url.substr(rest);
+            if (tail.empty() || tail[0] != '/')
+                tail.insert(0, "/");
+            return base + "/" + host + tail;
+        }
+
         Response Fetch(const std::string& url, const std::string& method, const std::string& body,
                        const std::string& contentType, const std::map<std::string, std::string>& extra,
                        int timeoutSecs) {
@@ -47,7 +77,8 @@ namespace perlin::http {
                 attr.requestDataSize = body.size();
             }
 
-            emscripten_fetch_t* fetch = emscripten_fetch(&attr, url.c_str());
+            const std::string target = ThroughRelay(url);
+            emscripten_fetch_t* fetch = emscripten_fetch(&attr, target.c_str());
             if (!fetch)
                 return {};
             Response out;
@@ -105,5 +136,27 @@ namespace perlin::http {
     Response GetUrl(const std::string& url, const std::map<std::string, std::string>& headers,
                     int timeoutSecs) {
         return Fetch(url, "GET", {}, {}, headers, timeoutSecs);
+    }
+
+    void SetWebRelay(std::string base) {
+        while (!base.empty() && base.back() == '/')
+            base.pop_back();
+        std::lock_guard lock(relayMutex);
+        relayBase = std::move(base);
+    }
+
+    bool WebRelayReady() {
+        std::lock_guard lock(relayMutex);
+        return !relayBase.empty();
+    }
+
+    bool NeedsWebRelay(std::string_view host) {
+        static constexpr std::array<std::string_view, 6> kSuffixes = {
+            "login.live.com",          ".xboxlive.com",   ".minecraft.net",
+            ".minecraft-services.net", ".playfabapi.com", "account.xbox.com"};
+        for (std::string_view s : kSuffixes)
+            if (host == s || (s.front() == '.' && host.ends_with(s)) || host == s.substr(s.front() == '.'))
+                return true;
+        return false;
     }
 }

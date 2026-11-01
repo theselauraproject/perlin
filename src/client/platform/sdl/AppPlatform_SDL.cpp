@@ -28,6 +28,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <miniz.h>
 #endif
 
 namespace {
@@ -448,7 +449,70 @@ double AppPlatform_SDL::DisplayRefreshHz() {
     return cached;
 }
 
+#ifdef __EMSCRIPTEN__
+namespace {
+    // "open the folder" in a browser: the file, or the whole folder as a zip, is handed to the browser as a download
+    void OfferDownload(const std::string& name, const void* data, size_t size) {
+        // clang-format off
+        MAIN_THREAD_EM_ASM({
+            var bytes = HEAPU8.slice($1, $1 + $2);
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(new Blob([bytes]));
+            link.download = UTF8ToString($0);
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 10000);
+        }, name.c_str(), data, size);
+        // clang-format on
+    }
+
+    bool DownloadLocalPath(std::string path) {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        if (!fs::exists(path, ec))
+            return false;
+        if (fs::is_regular_file(path, ec)) {
+            std::ifstream in(path, std::ios::binary);
+            const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            OfferDownload(fs::path(path).filename().string(), bytes.data(), bytes.size());
+            return true;
+        }
+        mz_zip_archive zip{};
+        if (!mz_zip_writer_init_heap(&zip, 0, 1 << 20))
+            return false;
+        size_t files = 0;
+        for (const fs::directory_entry& e : fs::recursive_directory_iterator(path, ec)) {
+            if (!e.is_regular_file(ec))
+                continue;
+            const std::string rel = fs::relative(e.path(), path, ec).generic_string();
+            std::ifstream in(e.path(), std::ios::binary);
+            const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            if (mz_zip_writer_add_mem(&zip, rel.c_str(), bytes.data(), bytes.size(), MZ_DEFAULT_COMPRESSION))
+                files++;
+        }
+        void* out = nullptr;
+        size_t size = 0;
+        const bool ok = files > 0 && mz_zip_writer_finalize_heap_archive(&zip, &out, &size);
+        if (ok)
+            OfferDownload(fs::path(path).filename().string() + ".zip", out, size);
+        mz_zip_writer_end(&zip);
+        return ok;
+    }
+}
+#endif
+
 void AppPlatform_SDL::OpenUrl(const std::string& url) {
+#ifdef __EMSCRIPTEN__
+    if (url.starts_with("file://")) {
+        std::string path = url.substr(7);
+        while (path.starts_with("//"))
+            path.erase(0, 1);
+        if (!path.starts_with("/"))
+            path.insert(0, "/");
+        DownloadLocalPath(path);
+        return;
+    }
+#endif
     SDL_RunOnMainThread(
         [](void* data) {
             std::unique_ptr<std::string> u(static_cast<std::string*>(data));

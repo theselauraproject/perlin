@@ -19,7 +19,15 @@ Requirements
 Try it locally
     python3 serve.py 8080      then open http://localhost:8080/
 
-The game opens on its own start screen. Web builds join NetherNet (WebRTC) servers only.
+The game opens on its own start screen. Web builds join NetherNet (WebRTC) servers, friends' worlds and
+Realms that offer NetherNet, and play singleplayer (the server runs inside the page).
+
+MICROSOFT SIGN-IN
+  Microsoft, Xbox Live and Minecraft services send no CORS headers, so the page reaches them through a
+  relay. serve.py has one built in. On a static host, deploy tools/web/auth-relay (a free Cloudflare
+  Worker) and put perlin-config.json beside index.html:
+        {"authRelay": "https://perlin-auth-relay.<you>.workers.dev"}
+  (or open the page with ?relay=<url>). See tools/web/auth-relay/README.md.
 
 LOCAL / LAN SERVERS
   serve.py relays /__relay/<host>/<port>/... to servers on this machine or private network, so a

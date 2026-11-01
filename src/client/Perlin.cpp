@@ -1,5 +1,6 @@
 #include "client/PerlinInternal.hpp"
 #include "client/update/Updater.hpp"
+#include "network/Http.hpp"
 #include "util/Log.hpp"
 
 namespace perlin {
@@ -46,6 +47,21 @@ namespace perlin {
         runningRenderer = options.renderer;
         // headless runs (tests, control port) never touch the installation
         update::Start(options.autoUpdate && !std::getenv("PERLIN_NO_UPDATE") && !args.hidden);
+#ifdef __EMSCRIPTEN__
+        {
+            // the page's sign-in relay (perlin-config.json, ?relay=, or serve.py's own): see tools/web/auth-relay
+            // clang-format off
+            char* relay = static_cast<char*>(EM_ASM_PTR({
+                var r = Module.perlinAuthRelay || '';
+                var n = lengthBytesUTF8(r) + 1, p = _malloc(n);
+                stringToUTF8(r, p, n);
+                return p;
+            }));
+            // clang-format on
+            http::SetWebRelay(relay ? relay : "");
+            std::free(relay);
+        }
+#endif
         i18n::Lang::Get().Configure(std::string(), paths::DataDir(), options.language);
         // dev/test: PERLIN_TEST_SERVER_PACKS=dir1:dir2: extracted pack folders act as the server's packs
         if (const char* test = PERLIN_ENV("PERLIN_TEST_SERVER_PACKS")) {

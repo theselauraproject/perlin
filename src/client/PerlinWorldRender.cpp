@@ -255,8 +255,9 @@ namespace perlin {
         // TODO: the vanilla preset distance and whisker rays come from the camera presets json, 5 until they're read
         constexpr float desired = 5.0f;
         if (camera.mode == PerspectiveMode::FirstPerson) {
-            // a fresh avoidance component starts at distance 0: entering third person springs out from the eye
-            camera.thirdPersonDistance = 0.0f;
+            // entering third person puts the camera straight at its distance (no zoom out from the eye): negative
+            // marks "not placed yet"
+            camera.thirdPersonDistance = -1.0f;
             camera.avoidanceVelocity = 0.0f;
             return;
         }
@@ -279,6 +280,11 @@ namespace perlin {
                     best = std::min(std::max(nearClip, glm::length(pivot - *hit) - nearClip), best);
             }
             target = desired < best ? desired : std::max(best, 0.0f);
+        }
+        if (camera.thirdPersonDistance < 0.0f) {
+            camera.thirdPersonDistance = target;
+            camera.avoidanceVelocity = 0.0f;
+            return;
         }
         // only the box rays pull the camera in at once; going back out is a critically damped spring
         if (camera.thirdPersonDistance > target) {

@@ -1,5 +1,5 @@
 var CACHE = 'perlin-static-v1';
-var NETWORK_ONLY = /assets-manifest\.json$|version\.json$|coi-sw\.js$/;
+var NETWORK_ONLY = /assets-manifest\.json$|version\.json$|perlin-config\.json$|__relay|coi-sw\.js$/;
 
 function isolate(response) {
   if (response.status === 0) return response;

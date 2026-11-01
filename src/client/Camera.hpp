@@ -37,10 +37,12 @@ namespace perlin {
         glm::vec3 EyePosition() const {
             const glm::vec3 dir = Direction();
             glm::vec3 eye(x, y, z);
+            // negative: third person was just entered and the distance is set on the next update
+            const float distance = thirdPersonDistance < 0.0f ? 5.0f : thirdPersonDistance;
             if (mode == PerspectiveMode::ThirdPersonBack)
-                eye -= dir * thirdPersonDistance;
+                eye -= dir * distance;
             else if (mode == PerspectiveMode::ThirdPersonFront)
-                eye += dir * thirdPersonDistance;
+                eye += dir * distance;
             return eye;
         }
 

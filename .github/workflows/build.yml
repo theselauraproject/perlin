@@ -354,8 +354,13 @@ jobs:
           cp build-web/*.data site/ 2>/dev/null || true
           cp build-web/perlin-*.js build-web/coi-sw.js build-web/perlin.css build-web/assets-manifest.json site/
           cp tools/web/serve.py tools/web/HOSTING.txt site/
+          cp -r tools/web/auth-relay site/
           # the running page compares this with the commit it was built from and offers a reload when they differ
           printf '{"commit":"%s","run":%s}\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" > site/version.json
+          # Microsoft sign-in in the browser goes through the relay in tools/web/auth-relay (repository variable)
+          if [ -n "${{ vars.WEB_AUTH_RELAY }}" ]; then
+            printf '{"authRelay":"%s"}\n' "${{ vars.WEB_AUTH_RELAY }}" > site/perlin-config.json
+          fi
       # the artifact is zipped by the action itself; the release job makes Perlin-web.zip from it
       - uses: actions/upload-artifact@v7
         with:

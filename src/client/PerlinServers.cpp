@@ -111,6 +111,14 @@ namespace perlin {
         signIn.code.clear();
         signIn.status.clear();
         signIn.gamertag.clear();
+#ifdef __EMSCRIPTEN__
+        if (!http::WebRelayReady()) {
+            signIn.status =
+                "Microsoft sign-in in the browser needs the site's sign-in relay (see HOSTING.txt)";
+            signIn.state = 3;
+            return;
+        }
+#endif
         signIn.state = 1;
         workers->Submit([this, acct = signIn.account] {
             std::string error, gamertag;
@@ -220,8 +228,14 @@ namespace perlin {
                                                      std::filesystem::file_size(path, ec) != bytes.size()))
                     std::ofstream(path, std::ios::binary) << bytes;
             }
+            // the browser has a fixed pool of worker threads shared with the client: the world generator gets two
+#ifdef __EMSCRIPTEN__
+            const std::string threads = ",\"max_threads\":2";
+#else
+            const std::string threads;
+#endif
             const std::string config =
-                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 32)) +
+                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 32)) + threads +
                 ",\"block_data_dir\":\"" + dir + "\"}";
             std::string error;
             if (!singleplayerServer->Start(dir, config, error)) {

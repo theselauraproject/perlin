@@ -48,6 +48,8 @@ namespace perlin::server {
         c.seed = static_cast<uint64_t>(root["seed"].Int(static_cast<int64_t>(c.seed)));
         c.whitelist = root["whitelist"].Bool(c.whitelist);
         c.lanDiscovery = root["lan_discovery"].Bool(c.lanDiscovery);
+        c.maxThreads = static_cast<decltype(c.maxThreads)>(
+            std::clamp<int64_t>(root["max_threads"].Int(static_cast<int64_t>(c.maxThreads)), 0, 256));
         c.nethernet = root["nethernet"].Bool(c.nethernet);
         c.port = static_cast<uint16_t>(std::clamp<int64_t>(root["port"].Int(c.port), 1, 65535));
         c.bindAddress = root["bind_address"].String(c.bindAddress);

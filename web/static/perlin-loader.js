@@ -320,6 +320,25 @@
     Module.preinitializedWebGPUDevice = device;
   }
 
+  // Microsoft, Xbox and Minecraft services send no CORS headers, so the page reaches them through a relay
+  // (tools/web/auth-relay): ?relay=<url>, else perlin-config.json's "authRelay", else serve.py's own /__relay-https
+  async function authRelay() {
+    var fromUrl = new URLSearchParams(location.search).get('relay');
+    if (fromUrl) return fromUrl;
+    try {
+      var r = await fetch('perlin-config.json', { cache: 'no-store' });
+      if (r.ok) {
+        var cfg = await r.json();
+        if (cfg && cfg.authRelay) return String(cfg.authRelay);
+      }
+    } catch (e) {}
+    try {
+      var probe = await fetch('__relay-https/ping', { cache: 'no-store' });
+      if (probe.ok && (await probe.text()) === 'perlin-relay') return new URL('__relay-https', location.href).href;
+    } catch (e) {}
+    return '';
+  }
+
   async function start() {
     if (starting || !runtimeReady) return;
     starting = true;
@@ -348,6 +367,7 @@
       window.addEventListener('pagehide', saveState);
       document.addEventListener('visibilitychange', function () { if (document.hidden) saveState(); });
       document.getElementById('canvas').focus();
+      Module.perlinAuthRelay = await authRelay();
       Module.callMain(['--nethernet']);
     } catch (e) {
       setProgress(-1);
