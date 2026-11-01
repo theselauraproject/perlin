@@ -731,8 +731,8 @@ namespace perlin {
 
         bool PredictPlace(int x, int y, int z, int32_t heldRuntimeId);
         bool PredictBridgePlace(int x, int y, int z, int32_t heldRuntimeId, int face, const float click[3]);
-        bool SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3],
-                                int use, const int dest[3]);
+        // repeat: a held build repeat (GameMode::continueBuildBlock), sent with the simulation-tick trigger
+        bool SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3], int use, const int dest[3], bool repeat = false);
         bool SendUseItemInAir(const float eye[3], bool held);
         bool SendReleaseItem(const float eye[3]);
         bool SendAttackEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
@@ -844,7 +844,7 @@ namespace perlin {
         static const char* PacketName(uint32_t id);
 
     private:
-        bool PredictPlaceState(int x, int y, int z, int32_t runtimeId, bool resolvedSlab);
+        bool PredictPlaceState(int x, int y, int z, int32_t runtimeId, bool resolved);
         void HandleBatch(const std::vector<uint8_t>& msg);
         void OnGamePacket(uint32_t id, const std::vector<uint8_t>& body);
         void RegisterPacketHandlers();

@@ -1,5 +1,6 @@
 #pragma once
 #include "client/Options.hpp"
+#include "client/hand/HandAnim.hpp"
 #include "client/attachable/Attachable.hpp"
 #include "client/multiplayer/SkinLoader.hpp"
 #include "client/renderer/RenderContext.hpp"
@@ -36,6 +37,9 @@ namespace perlin {
             bool sneaking = false;
             bool useHeld = false;
             bool eating = false;
+            int slot = 0;
+            // Mob::getCurrentSwingDuration ticks, before the swing speed option
+            int swingTicks = 6;
         };
         static bool IsFood(const std::string& name);
         static bool IsThrowable(const std::string& name);
@@ -127,14 +131,14 @@ namespace perlin {
 
         RenderContext* renderer = nullptr;
 
-        bool swinging = false;
-        int swingTime = 0;
-        float attackAnim = 0, oAttackAnim = 0;
+        hand::Swing armSwing;
+        bool showSwing = true;
         int attackStrengthTicker = 100;
         float forcedSwing = -1.0f;
 
         float mainHandHeight = 0, oMainHandHeight = 0, offHandHeight = 0, oOffHandHeight = 0;
         ui::HudItem mainShown, offShown;
+        int mainSlot = 0;
         bool firstTick = true;
 
         float xBob = 0, xBobO = 0, yBob = 0, yBobO = 0;

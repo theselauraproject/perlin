@@ -420,6 +420,18 @@ namespace perlin {
                 handIn.pitch = -camera.pitch;
                 handIn.main = hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)];
                 handIn.off = hudState.offhand;
+                handIn.slot = std::clamp(hudState.selectedSlot, 0, 8);
+                if (live) {
+                    int fast = -1, slow = -1;
+                    for (const auto& fx : live->GetEffects()) {
+                        if (fx.id == 3 || fx.id == 26)
+                            fast = std::max(fast, fx.amplifier);
+                        else if (fx.id == 4)
+                            slow = std::max(slow, fx.amplifier);
+                    }
+                    // TODO: the held item own swing duration, base 6 for now
+                    handIn.swingTicks = hand::SwingTicks(6, fast, slow);
+                }
                 handIn.survival = hudState.Survival();
                 handIn.sneaking = player.Sneaking();
                 handIn.useHeld = ((input.Captured() && inputManager.IsDown(Action::Use)) ||
@@ -1127,18 +1139,7 @@ namespace perlin {
         }
         PrepareModRender(ein);
         ein.capePhysics = options.capePhysics == "shoulder" ? 2 : options.capePhysics == "off" ? 0 : 1;
-        if (live) {
-            int fast = -1, slow = -1;
-            for (const auto& fx : live->GetEffects()) {
-                if (fx.id == 3 || fx.id == 26)
-                    fast = std::max(fast, fx.amplifier);
-                else if (fx.id == 4)
-                    slow = std::max(slow, fx.amplifier);
-            }
-            ein.ownSwingTicks = fast >= 0   ? 6.0f - static_cast<float>(1 + fast)
-                                : slow >= 0 ? 6.0f + static_cast<float>((1 + slow) * 2)
-                                            : 6.0f;
-        }
+        ein.ownAttackTime = handRenderer.SwingProgress(f.partial);
         ein.frustum = &frustum;
         ein.sectionReached = [this](int sx, int sy, int sz) { return renderer->SectionReached(sx, sy, sz); };
         ein.cameraYaw = camera.yaw - 90.0f;

@@ -20,10 +20,8 @@ namespace perlin {
         }
     }
 
-    bool BedrockSession::SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3],
-                                            const float eye[3], int use, const int dest[3]) {
-        if (face < 0 || face > 5)
-            return false;
+    bool BedrockSession::SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3], int use, const int dest[3], bool repeat) {
+        if (face < 0 || face > 5) return false;
         InventoryTransactionPacket p;
         p.transaction.transactionType = TransactionTransactionType::ItemUse;
         TransactionUseItem u;
@@ -49,12 +47,14 @@ namespace perlin {
                 return false;
         }
         u.actionType = TransactionUseItemActionType::ClickBlock;
-        u.triggerType = TransactionUseItemTriggerType::PlayerInput;
+        // GameMode::buildBlock 0x14376B290 writes trigger = simulated + 1: startBuildBlock passes false, continueBuildBlock true
+        u.triggerType = repeat ? TransactionUseItemTriggerType::SimulationTick : TransactionUseItemTriggerType::PlayerInput;
         u.blockPosition = {bx, by, bz};
         u.face = static_cast<uint8_t>(face);
         u.hotbarSlot = selected;
         u.hand = TransactionUseItemHand::MainHand;
-        u.playerPos = V(eye);
+        // the actor's tick position (eye level, the same one PlayerAuthInput carries), not the interpolated camera
+        u.playerPos = haveLastAuthPos ? Vec3F{lastAuthPos[0], lastAuthPos[1] + kPlayerEyeHeight, lastAuthPos[2]} : V(eye);
         u.clickPos = V(click);
         {
             bool loaded = false;
@@ -324,27 +324,43 @@ namespace perlin {
         auto& palette = BlockPalette::Instance();
         const uint16_t held = palette.InternRuntime(heldRuntimeId);
         const std::string name = palette.Name(held);
-        if (!name.starts_with("minecraft:") || !name.ends_with("_slab") || name.contains("double"))
+        auto states = palette.States(held);
+        const auto bareKey = [](const std::string& key) { return key.starts_with("minecraft:") ? key.substr(10) : key; };
+        const bool slab = name.ends_with("_slab") && !name.contains("double");
+        const bool stairs = name.ends_with("_stairs");
+        const bool pillar = !slab && !stairs && states.size() == 1 && bareKey(states[0].first) == "pillar_axis";
+        if (!name.starts_with("minecraft:") || !(slab || stairs || pillar))
             return PredictPlace(x, y, z, heldRuntimeId);
         if (face < 0 || face > 5 || !std::isfinite(click[1]))
             return false;
         const bool upper = blockuse::IsUpperSlabPlacement(face, click[1]);
-        auto states = palette.States(held);
-        bool resolved = false;
+        // pillar_axis values by index: y, x, z
+        static const char* const kAxis[3] = {"y", "x", "z"};
+        int resolved = 0;
         for (auto& [key, value] : states) {
-            const auto bare = key.starts_with("minecraft:") ? key.substr(10) : key;
-            if (bare == "top_slot_bit" && value.kind != BlockPalette::StateValue::String) {
+            const auto bare = bareKey(key);
+            const bool text = value.kind == BlockPalette::StateValue::String;
+            if (slab && bare == "top_slot_bit" && !text) {
                 value.i = upper ? 1 : 0;
-                resolved = true;
-            } else if (bare == "vertical_half" && value.kind == BlockPalette::StateValue::String) {
+                resolved++;
+            } else if (slab && bare == "vertical_half" && text) {
                 value.s = upper ? "top" : "bottom";
-                resolved = true;
+                resolved++;
+            } else if (stairs && bare == "upside_down_bit" && !text) {
+                value.i = blockuse::IsUpsideDownStairPlacement(face, click[1], value.i != 0) ? 1 : 0;
+                resolved++;
+            } else if (stairs && bare == "weirdo_direction" && !text) {
+                // the actor yaw of the last tick, as PlayerAuthInput sent it
+                value.i = blockuse::StairDirection(pose.yaw);
+                resolved++;
+            } else if (pillar && text) {
+                value.s = kAxis[blockuse::PillarAxis(face)];
+                resolved++;
             }
         }
-        if (!resolved)
-            return false;
-        std::sort(states.begin(), states.end(),
-                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        // every state set by the rules above: an unknown extra state would be guessed
+        if (resolved == 0 || resolved != static_cast<int>(states.size())) return false;
+        std::sort(states.begin(), states.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
         const uint16_t placed = palette.Intern(BlockPalette::HashState(name, states));
         const int32_t runtime = palette.RuntimeId(placed);
         if (palette.Name(placed) != name || palette.InternRuntime(runtime) != placed)
@@ -352,7 +368,7 @@ namespace perlin {
         return PredictPlaceState(x, y, z, runtime, true);
     }
 
-    bool BedrockSession::PredictPlaceState(int x, int y, int z, int32_t heldRuntimeId, bool resolvedSlab) {
+    bool BedrockSession::PredictPlaceState(int x, int y, int z, int32_t heldRuntimeId, bool resolved) {
         if (heldRuntimeId == 0)
             return false;
         BlockPalette& pal = BlockPalette::Instance();
@@ -360,90 +376,27 @@ namespace perlin {
         const std::string name = pal.Name(local);
         if (local == 0 || name.empty() || name == "minecraft:air")
             return false;
-        static const char* const kSkipNames[] = {"slab",
-                                                 "door",
-                                                 "bed",
-                                                 "chest",
-                                                 "sign",
-                                                 "banner",
-                                                 "skull",
-                                                 "head",
-                                                 "piston",
-                                                 "observer",
-                                                 "hopper",
-                                                 "dropper",
-                                                 "dispenser",
-                                                 "water",
-                                                 "lava",
-                                                 "fire",
-                                                 "portal",
-                                                 "frame",
-                                                 "lectern",
-                                                 "cauldron",
-                                                 "campfire",
-                                                 "candle",
-                                                 "lantern",
-                                                 "stairs",
-                                                 "trapdoor",
-                                                 "button",
-                                                 "lever",
-                                                 "rail",
-                                                 "torch",
-                                                 "ladder",
-                                                 "vine",
-                                                 "anvil",
-                                                 "grindstone",
-                                                 "barrel",
-                                                 "furnace",
-                                                 "smoker",
-                                                 "blast_furnace",
-                                                 "shulker",
-                                                 "command_block",
-                                                 "structure",
-                                                 "jigsaw",
-                                                 "end_rod",
-                                                 "lightning_rod",
-                                                 "bell",
-                                                 "glazed_terracotta",
-                                                 "log",
-                                                 "wood",
-                                                 "stem",
-                                                 "hyphae",
-                                                 "pillar",
-                                                 "sapling",
-                                                 "flower",
-                                                 "tallgrass",
-                                                 "double_plant",
-                                                 "leaves",
-                                                 "cake",
-                                                 "comparator",
-                                                 "repeater",
-                                                 "tripwire",
-                                                 "pressure_plate",
-                                                 "sea_pickle",
-                                                 "turtle_egg",
-                                                 "snow_layer",
-                                                 "pointed_dripstone",
-                                                 "amethyst_cluster",
-                                                 "bud",
-                                                 "coral",
-                                                 "kelp",
-                                                 "seagrass"};
-        if (!resolvedSlab)
+        static const char* const kSkipNames[] = {"slab", "door", "bed", "chest", "sign", "banner", "skull", "head", "piston", "observer", "hopper",
+                                                 "dropper", "dispenser", "water", "lava", "fire", "portal", "frame", "lectern", "cauldron",
+                                                 "campfire", "candle", "lantern", "stairs", "trapdoor", "button", "lever", "rail", "torch",
+                                                 "ladder", "vine", "anvil", "grindstone", "barrel", "furnace", "smoker", "blast_furnace",
+                                                 "shulker", "command_block", "structure", "jigsaw", "end_rod", "lightning_rod", "bell",
+                                                 "glazed_terracotta", "log", "wood", "stem", "hyphae", "pillar", "sapling", "flower", "tallgrass",
+                                                 "double_plant", "leaves", "cake", "comparator", "repeater", "tripwire", "pressure_plate", "sea_pickle",
+                                                 "turtle_egg", "snow_layer", "pointed_dripstone", "amethyst_cluster", "bud", "coral", "kelp", "seagrass"};
+        static const char* const kSkipStates[] = {"facing_direction", "direction", "cardinal_direction", "vertical_half", "upside_down_bit",
+                                                  "top_slot_bit", "pillar_axis", "attached_bit", "hanging", "open_bit", "powered_bit"};
+        // a resolved state already went through the game's getPlacementBlock rules (PredictBridgePlace)
+        if (!resolved) {
             for (const char* skip : kSkipNames)
                 if (name.contains(skip))
                     return false;
-        static const char* const kSkipStates[] = {"facing_direction", "direction",       "cardinal_direction",
-                                                  "vertical_half",    "upside_down_bit", "top_slot_bit",
-                                                  "pillar_axis",      "attached_bit",    "hanging",
-                                                  "open_bit",         "powered_bit"};
-        for (const auto& [key, value] : pal.States(local)) {
-            (void)value;
-            if (resolvedSlab && (key.contains("top_slot_bit") || key.contains("vertical_half")))
-                continue;
-            for (const char* skip : kSkipStates)
-                if (key.contains(skip))
-                    return false;
+            for (const auto& [key, value] : pal.States(local)) {
+                (void)value;
+                for (const char* skip : kSkipStates)
+                    if (key.contains(skip))
+                        return false;
+            }
         }
         bool loaded = false;
         const uint16_t previous = netLevel.GetBlock(x, y, z, loaded);
