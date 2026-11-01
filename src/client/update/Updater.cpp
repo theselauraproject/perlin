@@ -49,6 +49,32 @@ extern char** environ;
 
 namespace fs = std::filesystem;
 
+#if defined(__EMSCRIPTEN__)
+// the site itself is the nightly: version.json beside index.html names the commit it was built from
+// clang-format off
+EM_JS(void, perlin_js_check_version, (), {
+    fetch("version.json", {cache: "no-store"})
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (v) {
+            if (!v || !v.commit) return;
+            var size = lengthBytesUTF8(v.commit) + 1;
+            var ptr = _malloc(size);
+            stringToUTF8(v.commit, ptr, size);
+            _perlin_web_version(ptr);
+            _free(ptr);
+        })
+        .catch(function () {});
+});
+EM_JS(void, perlin_js_reload_fresh, (), {
+    var reload = function () { location.reload(); };
+    if (!self.caches) { reload(); return; }
+    caches.keys()
+        .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+        .then(reload, reload);
+});
+// clang-format on
+#endif
+
 namespace perlin::update {
     namespace {
         constexpr std::string_view kCommit = PERLIN_BUILD_COMMIT;
@@ -381,29 +407,7 @@ namespace perlin::update {
 #endif
 #endif // !__EMSCRIPTEN__
 
-#if defined(__EMSCRIPTEN__)
-        // the site itself is the nightly: version.json beside index.html names the commit it was built from
-        // clang-format off
-        EM_JS(void, perlin_js_check_version, (), {
-            fetch('version.json', {cache: 'no-store'})
-                .then(function (r) { return r.ok ? r.json() : null; })
-                .then(function (v) {
-                    if (!v || !v.commit) return;
-                    var size = lengthBytesUTF8(v.commit) + 1, ptr = _malloc(size);
-                    stringToUTF8(v.commit, ptr, size);
-                    _perlin_web_version(ptr);
-                    _free(ptr);
-                })
-                .catch(function () {});
-        });
-        EM_JS(void, perlin_js_reload_fresh, (), {
-            var reload = function () { location.reload(); };
-            if (!self.caches) { reload(); return; }
-            caches.keys().then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
-                .then(reload, reload);
-        });
-        // clang-format on
-#endif
+
     }
 
     bool Supported() {

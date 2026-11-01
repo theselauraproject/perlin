@@ -450,20 +450,21 @@ double AppPlatform_SDL::DisplayRefreshHz() {
 }
 
 #ifdef __EMSCRIPTEN__
+// clang-format off
+EM_JS(void, perlin_js_offer_download, (const char* name, const void* data, size_t size), {
+    var bytes = HEAPU8.slice(data, data + size);
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([bytes]));
+    link.download = UTF8ToString(name);
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 10000);
+});
+// clang-format on
 namespace {
     // "open the folder" in a browser: the file, or the whole folder as a zip, is handed to the browser as a download
     void OfferDownload(const std::string& name, const void* data, size_t size) {
-        // clang-format off
-        MAIN_THREAD_EM_ASM({
-            var bytes = HEAPU8.slice($1, $1 + $2);
-            var link = document.createElement('a');
-            link.href = URL.createObjectURL(new Blob([bytes]));
-            link.download = UTF8ToString($0);
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 10000);
-        }, name.c_str(), data, size);
-        // clang-format on
+        perlin_js_offer_download(name.c_str(), data, size);
     }
 
     bool DownloadLocalPath(std::string path) {
@@ -551,16 +552,16 @@ namespace {
 // the browser's file chooser: the chosen file is written straight into the virtual file system, then reported back
 // clang-format off
 EM_JS(void, perlin_js_pick_file, (const char* accept, const char* dir, const char* prefix), {
-    const input = document.createElement('input');
-    input.type = 'file';
+    const input = document.createElement("input");
+    input.type = "file";
     input.accept = UTF8ToString(accept);
     const folder = UTF8ToString(dir), pre = UTF8ToString(prefix);
     input.onchange = async () => {
         const file = input.files && input.files[0];
         if (!file) return;
         const data = new Uint8Array(await file.arrayBuffer());
-        const dot = file.name.lastIndexOf('.');
-        const path = folder + '/' + pre + Date.now() + (dot >= 0 ? file.name.substring(dot).toLowerCase() : '');
+        const dot = file.name.lastIndexOf(".");
+        const path = folder + "/" + pre + Date.now() + (dot >= 0 ? file.name.substring(dot).toLowerCase() : "");
         FS.writeFile(path, data);
         const size = lengthBytesUTF8(path) + 1, ptr = _malloc(size);
         stringToUTF8(path, ptr, size);

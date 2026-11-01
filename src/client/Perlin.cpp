@@ -3,6 +3,19 @@
 #include "network/Http.hpp"
 #include "util/Log.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <cstdlib>
+// clang-format off
+EM_JS(char*, perlin_js_auth_relay, (), {
+    var relay = Module["perlinAuthRelay"] || "";
+    var size = lengthBytesUTF8(relay) + 1;
+    var ptr = _malloc(size);
+    stringToUTF8(relay, ptr, size);
+    return ptr;
+});
+// clang-format on
+#endif
+
 namespace perlin {
     namespace {
         std::string FormatClock(int64_t day, int tickOfDay) {
@@ -48,17 +61,9 @@ namespace perlin {
         // headless runs (tests, control port) never touch the installation
         update::Start(options.autoUpdate && !std::getenv("PERLIN_NO_UPDATE") && !args.hidden);
 #ifdef __EMSCRIPTEN__
-        {
-            // the page's sign-in relay (perlin-config.json, ?relay=, or serve.py's own): see tools/web/auth-relay
-            // clang-format off
-            char* relay = static_cast<char*>(EM_ASM_PTR({
-                var r = Module.perlinAuthRelay || '';
-                var n = lengthBytesUTF8(r) + 1, p = _malloc(n);
-                stringToUTF8(r, p, n);
-                return p;
-            }));
-            // clang-format on
-            http::SetWebRelay(relay ? relay : "");
+        // the page's sign-in relay (perlin-config.json, ?relay=, or serve.py's own): see tools/web/auth-relay
+        if (char* relay = perlin_js_auth_relay()) {
+            http::SetWebRelay(relay);
             std::free(relay);
         }
 #endif

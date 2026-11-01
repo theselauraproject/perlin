@@ -440,6 +440,11 @@ namespace perlin {
         m.Nav(detail::TrOr("perlin.options.hand", "Hand & Camera..."), 4);
         m.Nav(detail::TrOr("resourcePack.title", "Resource Packs..."), 7);
         m.Nav(detail::TrOr("perlin.shaderPacks", "Shader Packs..."), 8);
+        // nightly builds keep themselves current (src/client/update); local builds have nothing to follow
+        if (update::Supported()) {
+            m.Toggle(detail::TrOr("perlin.options.autoUpdate", "Auto Update"), options.autoUpdate);
+            m.rows.back().wide = true;
+        }
     }
 
     void Perlin::BuildVideoOptions(OptionsModel& m, PauseFrame& f) {
@@ -514,8 +519,6 @@ namespace perlin {
                  });
         m.Toggle(detail::TrOr("options.vsync", "VSync"), options.vsync);
         m.Toggle(detail::TrOr("options.fullscreen", "Fullscreen"), options.fullscreen);
-        if (update::Supported())
-            m.Toggle(detail::TrOr("perlin.options.autoUpdate", "Auto Update"), options.autoUpdate);
         m.rows.push_back({std::string("GUI Scale"),
                           options.guiScale == 0 ? detail::TrOr("options.guiScale.auto", "Auto")
                                                 : std::to_string(options.guiScale),

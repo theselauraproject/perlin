@@ -21,7 +21,7 @@ variables set by CI). At start the game asks GitHub which commit the `nightly` t
 - **iOS**: AltStore / SideStore update the app from `altstore-source.json`; the title screen links the release.
 - **Web**: the page compares `version.json` with its own commit and offers a reload that skips the caches.
 
-Options → Video → **Auto Update** turns it off; `PERLIN_NO_UPDATE=1` does too. Local builds never update.
+Options → **Auto Update** (main page) turns it off; `PERLIN_NO_UPDATE=1` does too. Local builds never update.
 
 ## Repository secrets
 
