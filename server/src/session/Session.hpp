@@ -69,6 +69,10 @@ namespace perlin::server {
 
         // other players entering / leaving this player's world
         void ShowPlayer(const Session& other);
+        // what another player (or this one) wears, for this client to draw
+        void ShowArmor(const Session& wearer);
+        // puts the held armor piece on, swapping with what was worn (use in air with armor in hand)
+        bool EquipHeldArmor();
         void HidePlayer(const Session& other);
         void SendBlockUpdate(int x, int y, int z, int32_t networkId);
         // items lying in the world

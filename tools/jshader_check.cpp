@@ -8,6 +8,8 @@
 #include "client/javashaders/ProgramSet.hpp"
 #include "client/javashaders/RhiBackend.hpp"
 #include "client/javashaders/ShaderScreens.hpp"
+#include "client/javashaders/Biomes.hpp"
+#include "client/javashaders/UniformTable.hpp"
 #include "client/javashaders/Transform.hpp"
 
 #include <glslang/Public/ResourceLimits.h>
@@ -121,10 +123,13 @@ int main(int argc, char** argv) {
     bool verbose = false;
     std::string only, profileArg;
     int randomConfigs = 0;
+    std::string uniformBiome; // -u <biome>: print the pack's custom uniforms there and stop
     for (int i = 2; i < argc; i++) {
         const std::string a = argv[i];
         if (a == "-P" && i + 1 < argc)
             profileArg = argv[++i];
+        else if (a == "-u" && i + 1 < argc)
+            uniformBiome = argv[++i];
         else if (a == "-r" && i + 1 < argc)
             randomConfigs = std::atoi(argv[++i]);
         else if (a == "-v")
@@ -152,6 +157,39 @@ int main(int argc, char** argv) {
     env.features = BaseFeatureFlags();
     for (const char* f : {"CUSTOM_IMAGES", "COMPUTE_SHADERS", "SSBO"})
         env.features.insert(f);
+    if (!uniformBiome.empty()) {
+        ShaderPackInstance probe(pack, overrides, EngineMacros(260300, false, env));
+        probe.SetDimension("world0");
+        const PipelineConfig cfg = ParsePipelineConfig(probe);
+        CustomUniforms custom;
+        for (const std::string& e : custom.Load(cfg.customUniformProps))
+            std::printf("custom uniform error: %s\n", e.c_str());
+        UniformTable table;
+        table.SetCustom(&custom);
+        FrameState state;
+        state.biome = JavaBiomeId(uniformBiome);
+        state.biomeCategory = JavaBiomes()[static_cast<size_t>(state.biome)].category;
+        state.biomePrecipitation = BiomePrecipitationAt(state.biome, 64.0);
+        state.eyeAltitude = 70.0f;
+        state.cameraPosition[1] = 70.0;
+        std::printf("biome %s -> id %d, category %d, precipitation %d\n", uniformBiome.c_str(), state.biome,
+                    state.biomeCategory, state.biomePrecipitation);
+        for (int frame = 0; frame < 600; frame++) {
+            state.frameCounter = frame;
+            state.frameTime = 1.0f / 60.0f;
+            state.frameTimeCounter = frame / 60.0f;
+            custom.Evaluate(state, table);
+        }
+        for (const auto& [key, value] : cfg.customUniformProps) {
+            const size_t dot = key.rfind('.');
+            const std::string name = key.substr(dot + 1);
+            float v[16] = {};
+            int n = 0;
+            if (custom.Get(name, v, n))
+                std::printf("%-28s = %g%s\n", name.c_str(), v[0], n > 1 ? " ..." : "");
+        }
+        return 0;
+    }
     // -P NAME applies a profile of the pack, -P all checks every profile in turn
     std::vector<std::pair<std::string, OptionValues>> configs;
     if (profileArg.empty()) {

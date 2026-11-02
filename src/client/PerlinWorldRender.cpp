@@ -696,6 +696,12 @@ namespace perlin {
         params.shadowEntities = options.shadowEntities;
         params.cameraMedium = headUnderwater ? 1 : (headInLava ? 2 : 0);
         params.waterSurfaceAbove = waterSurfaceAbove;
+        // java packs draw only the real chunks, so their fog belongs at that edge even with lods beyond it
+        params.renderDistance = std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks));
+        params.eyeSkyLight = loop->handSky;
+        params.eyeBlockLight = loop->handBlock;
+        std::snprintf(params.biome, sizeof(params.biome), "%s", f.eyeBiome.c_str());
+        params.thunder = f.thunder;
         if (pause.shown && options.menuBlur > 0)
             params.menuBlur = static_cast<float>(options.menuBlur * std::max(1, hud->OverlayScale()));
         if (const char* mb = PERLIN_ENV("PERLIN_MOTION_BLUR"))

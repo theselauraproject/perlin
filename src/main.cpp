@@ -160,13 +160,21 @@ namespace {
         SymInitialize(process, nullptr, TRUE);
         CONTEXT context = *info->ContextRecord;
         STACKFRAME64 frame = {};
+#if defined(_M_ARM64) || defined(__aarch64__)
+        frame.AddrPC.Offset = context.Pc;
+        frame.AddrFrame.Offset = context.Fp;
+        frame.AddrStack.Offset = context.Sp;
+        constexpr DWORD kMachine = IMAGE_FILE_MACHINE_ARM64;
+#else
         frame.AddrPC.Offset = context.Rip;
         frame.AddrFrame.Offset = context.Rbp;
         frame.AddrStack.Offset = context.Rsp;
+        constexpr DWORD kMachine = IMAGE_FILE_MACHINE_AMD64;
+#endif
         frame.AddrPC.Mode = frame.AddrFrame.Mode = frame.AddrStack.Mode = AddrModeFlat;
         for (int i = 0; i < 40; i++) {
             PrintFrame(process, frame.AddrPC.Offset);
-            if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, GetCurrentThread(), &frame, &context, nullptr,
+            if (!StackWalk64(kMachine, process, GetCurrentThread(), &frame, &context, nullptr,
                              SymFunctionTableAccess64, SymGetModuleBase64, nullptr) ||
                 frame.AddrPC.Offset == 0)
                 break;

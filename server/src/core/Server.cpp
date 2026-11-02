@@ -600,6 +600,11 @@ namespace perlin::server {
         return n > config.maxPlayers;
     }
 
+    void Server::BroadcastArmor(const Session& wearer) {
+        for (Session* s : InGamePlayers())
+            s->ShowArmor(wearer);
+    }
+
     void Server::OnPlayerJoined(Session& joined) {
         LogInfo(joined.Name() + " joined (" + joined.Conn().Describe() + ")");
         for (Session* other : InGamePlayers()) {
@@ -607,7 +612,10 @@ namespace perlin::server {
                 continue;
             other->ShowPlayer(joined);
             joined.ShowPlayer(*other);
+            other->ShowArmor(joined);
+            joined.ShowArmor(*other);
         }
+        joined.ShowArmor(joined);
         for (const ItemEntity& item : itemEntities)
             joined.ShowItem(item);
         SendWorldState(joined);

@@ -123,6 +123,12 @@ namespace perlin {
         uint32_t frameIndex;
         // level clock for java pack uniforms; -1 when the session has none yet
         int worldDay = -1, worldTick = -1;
+        // what java packs read about the player's surroundings: light at the eye (0-15), the biome there
+        int eyeSkyLight = 15, eyeBlockLight = 0;
+        // render distance in chunks: java packs' `far` uniform is this many blocks
+        int renderDistance = 8;
+        char biome[48] = "minecraft:plains";
+        float thunder = 0.0f;
         float cameraNear = 0.05f, cameraFar = 1024.0f;
         float handProjection[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         int dynMode = 0;

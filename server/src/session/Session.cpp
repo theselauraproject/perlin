@@ -821,13 +821,22 @@ namespace perlin::server {
         if (!Decode(body, p) || state != State::InGame)
             return;
         proto::ItemStackResponsePacket reply;
+        bool armorChanged = false;
         for (const proto::ItemStackRequest& r : p.requests) {
             const RequestResult result = ApplyStackRequest(inventory, r, creative);
             reply.responses.push_back(MakeResponse(inventory, r.requestId, result));
             if (result.ok)
+                for (const auto& [container, slot] : result.touched)
+                    if (container == proto::ContainerSlotType::Armor) {
+                        armorChanged = true;
+                        break;
+                    }
+            if (result.ok)
                 for (const ItemStack& thrown : result.dropped)
                     server.DropFromPlayer(*this, thrown);
         }
+        if (armorChanged)
+            server.BroadcastArmor(*this);
         if (!reply.responses.empty())
             Send(reply);
     }
@@ -944,7 +953,12 @@ namespace perlin::server {
             server.PlayerBreak(*this, at.x, at.y, at.z);
             break;
         case proto::TransactionUseItemActionType::ClickBlock:
-            server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
+            // armor used on a block is put on, as in the game, rather than placed
+            if (!EquipHeldArmor())
+                server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
+            break;
+        case proto::TransactionUseItemActionType::ClickAir:
+            EquipHeldArmor();
             break;
         default:
             break;
@@ -1212,6 +1226,42 @@ namespace perlin::server {
         t.sourceName = source;
         t.message = message;
         Send(t);
+    }
+
+    void Session::ShowArmor(const Session& wearer) {
+        proto::MobArmorEquipmentPacket p;
+        p.runtimeEntityId = wearer.runtimeId;
+        p.helmet = ToWire(wearer.inventory.armor[0]);
+        p.chestplate = ToWire(wearer.inventory.armor[1]);
+        p.leggings = ToWire(wearer.inventory.armor[2]);
+        p.boots = ToWire(wearer.inventory.armor[3]);
+        Send(p);
+    }
+
+    bool Session::EquipHeldArmor() {
+        ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
+        if (held.Empty() || held.count != 1)
+            return false;
+        const int slot = ArmorSlotFor(held.networkId);
+        if (slot < 0)
+            return false;
+        // the game swaps: what was worn goes to the hand
+        std::swap(held, inventory.armor[static_cast<size_t>(slot)]);
+        if (!held.Empty())
+            held.stackId = inventory.NewStackId();
+        inventory.armor[static_cast<size_t>(slot)].stackId = inventory.NewStackId();
+        SendSlot(inventory.selected);
+        proto::InventorySlotPacket p;
+        p.windowId = proto::WindowIDVarint::Armor;
+        p.slot = static_cast<uint32_t>(slot);
+        proto::FullContainerName c;
+        c.containerId = proto::ContainerSlotType::Armor;
+        p.container = c;
+        p.item = ToWire(inventory.armor[static_cast<size_t>(slot)]);
+        Send(p);
+        SendHeldSelection();
+        server.BroadcastArmor(*this);
+        return true;
     }
 
     void Session::ShowPlayer(const Session& other) {

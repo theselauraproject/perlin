@@ -1,4 +1,5 @@
 #include "client/javashaders/GlslangBridge.hpp"
+#include "client/javashaders/Biomes.hpp"
 
 #include <glslang/Include/glslang_c_interface.h>
 #include <glslang/Public/ResourceLimits.h>
@@ -108,6 +109,20 @@ namespace perlin::jshader {
                                   "WATER",   "GRASS",     "AIR",   "ILLUMINATED"};
         for (int i = 0; i < 16; i++)
             m[std::string("DH_BLOCK_") + dhBlocks[i]] = std::to_string(i);
+        // iris IrisDefines: biome ids, biome categories and precipitation kinds, for shaders and custom uniforms
+        const auto& biomes = JavaBiomes();
+        for (size_t i = 0; i < biomes.size(); i++) {
+            std::string name = biomes[i].name;
+            for (char& ch : name)
+                ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            m["BIOME_" + name] = std::to_string(i);
+        }
+        const auto& cats = BiomeCategoryNames();
+        for (size_t i = 0; i < cats.size(); i++)
+            m["CAT_" + cats[i]] = std::to_string(i);
+        m["PPT_NONE"] = "0";
+        m["PPT_RAIN"] = "1";
+        m["PPT_SNOW"] = "2";
 #if defined(__APPLE__)
         m["MC_OS_MAC"] = "";
 #elif defined(_WIN32)

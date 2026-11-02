@@ -324,6 +324,9 @@ namespace perlin::gpu {
         double prevCamera[3] = {0, 0, 0};
         bool havePrev = false;
         float lastTime = 0.0f;
+        // smoothed uniforms (eyeBrightnessSmooth, wetness)
+        float smoothAt = 0.0f, wetnessSmooth = 0.0f, eyeSmooth[2] = {240.0f, 240.0f};
+        bool smoothStarted = false;
 
         // shadow camera of the current frame
         float shadowView[16] = {}, shadowProjection[16] = {}, shadowDrawView[16] = {};

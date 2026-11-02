@@ -149,6 +149,28 @@ namespace perlin::server {
         return true;
     }
 
+    int ArmorSlotFor(int16_t networkId) {
+        const CatalogItem* item = BlockCatalog::Instance().ItemById(networkId);
+        if (!item)
+            return -1;
+        std::string n = item->name;
+        if (n.compare(0, 10, "minecraft:") == 0)
+            n.erase(0, 10);
+        const auto ends = [&](const char* s) {
+            const size_t l = std::char_traits<char>::length(s);
+            return n.size() >= l && n.compare(n.size() - l, l, s) == 0;
+        };
+        if (ends("_helmet") || n == "carved_pumpkin" || ends("_skull") || ends("_head") || n == "skull")
+            return 0;
+        if (ends("_chestplate") || n == "elytra")
+            return 1;
+        if (ends("_leggings"))
+            return 2;
+        if (ends("_boots"))
+            return 3;
+        return -1;
+    }
+
     proto::ItemV4 ToWire(const ItemStack& stack) {
         proto::ItemV4 out;
         if (stack.Empty())
@@ -207,8 +229,10 @@ namespace perlin::server {
                 ItemStack* dst = work.Resolve(a.destination.slotType.containerId, a.destination.slot);
                 if (!src || !dst || src == dst || !StackIdMatches(*src, a.source.stackId))
                     return result;
-                // armor slots take wearables only, and the catalog has none
-                if (a.destination.slotType.containerId == Container::Armor)
+                // armor slots take one wearable of their kind
+                if (a.destination.slotType.containerId == Container::Armor &&
+                    (ArmorSlotFor(src->networkId) != static_cast<int>(a.destination.slot) || a.count != 1 ||
+                     !dst->Empty()))
                     return result;
                 if (!Move(*src, *dst, a.count))
                     return result;
@@ -222,8 +246,12 @@ namespace perlin::server {
                 if (!src || !dst || src == dst || !StackIdMatches(*src, a.source.stackId) ||
                     !StackIdMatches(*dst, a.destination.stackId))
                     return result;
-                if (a.destination.slotType.containerId == Container::Armor ||
-                    a.source.slotType.containerId == Container::Armor)
+                const auto fits = [](const ItemStack& s, int slot) {
+                    return s.Empty() || (ArmorSlotFor(s.networkId) == slot && s.count == 1);
+                };
+                if (a.destination.slotType.containerId == Container::Armor && !fits(*src, a.destination.slot))
+                    return result;
+                if (a.source.slotType.containerId == Container::Armor && !fits(*dst, a.source.slot))
                     return result;
                 std::swap(*src, *dst);
                 note(a.source);

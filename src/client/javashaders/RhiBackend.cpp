@@ -437,10 +437,11 @@ namespace perlin::jshader {
                 at = end;
             }
             std::string first, second, third;
-            // fully optimised first (the pack is the whole frame, so shader quality is frame time); the cache keeps this a one time cost
-            if (run(hlsl, D3DCOMPILE_OPTIMIZATION_LEVEL3, first) ||
-                run(looped, D3DCOMPILE_OPTIMIZATION_LEVEL3, second) ||
-                run(looped, D3DCOMPILE_OPTIMIZATION_LEVEL1, third)) {
+            // loops kept as loops first: fxc unrolling complementary's big passes took minutes per shader (the
+            // pack sat at "2 left"), and a loop costs little at run time; full unrolling only when that fails
+            if (run(looped, D3DCOMPILE_OPTIMIZATION_LEVEL3, first) ||
+                run(looped, D3DCOMPILE_OPTIMIZATION_LEVEL1, second) ||
+                run(hlsl, D3DCOMPILE_OPTIMIZATION_LEVEL3, third)) {
                 store();
                 return true;
             }
@@ -450,8 +451,8 @@ namespace perlin::jshader {
                 store();
                 return true;
             }
-            error = first + (second.empty() || second == first ? "" : "\n(without loop hints) " + second) +
-                    (third.empty() ? "" : "\n(level 1) " + third) +
+            error = first + (second.empty() || second == first ? "" : "\n(level 1) " + second) +
+                    (third.empty() ? "" : "\n(unrolled) " + third) +
                     (fourth.empty() ? "" : "\n(without optimization) " + fourth);
             return false;
         };

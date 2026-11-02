@@ -20,6 +20,8 @@ namespace perlin::server {
     };
 
     int MaxStack(int16_t networkId);
+    // the armor slot an item is worn in (0 head, 1 chest, 2 legs, 3 feet), -1 when it is not wearable
+    int ArmorSlotFor(int16_t networkId);
 
     class PlayerInventory {
     public:

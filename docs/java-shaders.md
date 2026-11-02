@@ -44,6 +44,21 @@ Packs see Perlin as Iris (`IS_IRIS`, `IRIS_VERSION 11107`, `IRIS_TAG_SUPPORT 2`)
 
    Each pass runs its `.csh` / `_a`…`_z.csh` compute shaders before its fragment program.
 
+## What packs read about the world
+
+Iris feeds packs live values, and so does Perlin:
+
+- the biome at the eye, with its id, category and precipitation, numbered as Iris numbers Java's biomes
+  (`BIOME_*`, `CAT_*` and `PPT_*` are defined for shaders and custom uniforms);
+- the light at the eye (`eyeBrightness` / `eyeBrightnessSmooth`);
+- the level clock, rain, thunder and wetness, with the pack's half-lives;
+- `far` as the render distance in blocks;
+- the sun path tilted by `sunPathRotation`;
+- vanilla ambient occlusion in the vertex colour (in the alpha with `separateAo`);
+- block light emission in `at_midBlock.w`.
+
+`jshader_check <pack> -u minecraft:plains` prints the pack's custom uniforms for a biome.
+
 ## Checking a pack offline
 
 `jshader_check` is built with `PERLIN_BUILD_TESTS=ON`. It sends every program of every dimension through the

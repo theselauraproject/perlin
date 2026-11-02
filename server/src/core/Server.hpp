@@ -69,6 +69,8 @@ namespace perlin::server {
         void HandleChat(Session& from, const std::string& message);
         void RunPlayerCommand(Session& from, const std::string& line);
         std::vector<Session*> InGamePlayers();
+        // tells every player (the wearer too) what `wearer` has on
+        void BroadcastArmor(const Session& wearer);
         Session* FindSession(uint64_t id);
         Session* FindByName(const std::string& name);
         bool IsOperatorName(const std::string& name) const;

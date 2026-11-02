@@ -1,4 +1,6 @@
 #include "client/renderer/gpu/JavaPack.hpp"
+#include "client/javashaders/Biomes.hpp"
+#include "util/Log.hpp"
 
 #include "client/javashaders/GlslangBridge.hpp"
 #include "client/javashaders/PackSource.hpp"
@@ -1020,8 +1022,8 @@ namespace perlin::gpu {
             img.format = ImageFormat(info.internalFormat, img.integer);
             img.dim = info.dims == 3 ? rhi::TextureDim::Tex3D : rhi::TextureDim::Tex2D;
             if (img.format == rhi::Format::Unknown || info.dims == 1) {
-                std::fprintf(stderr, "[jshader] image %s: format %s / %dD is not supported\n",
-                             info.name.c_str(), info.internalFormat.c_str(), info.dims);
+                Log("jshader", "image {}: format {} / {}D is not supported", info.name.c_str(),
+                    info.internalFormat.c_str(), info.dims);
                 continue;
             }
             const int slot = static_cast<int>(images.size());
@@ -1272,7 +1274,20 @@ namespace perlin::gpu {
             for (int i = 0; i < 4; i++) {
                 uint8_t* o = out.data() + (q + static_cast<size_t>(i)) * kPackVertexBytes;
                 const float pos[3] = {v[i].x, v[i].y, v[i].z};
-                const uint32_t abgr = v[i].rgba;
+                // vanilla ambient occlusion rides in the tangent's fraction; java gives it to packs in the vertex
+                // colour: in the alpha with separateAo, multiplied into the colour otherwise
+                const float ao = std::clamp((v[i].tangent - std::floor(v[i].tangent)) * 16.0f, 0.0f, 1.0f);
+                uint32_t abgr = v[i].rgba;
+                if (config.separateAo) {
+                    abgr = (abgr & 0x00FFFFFFu) | (static_cast<uint32_t>(std::lround(ao * 255.0f)) << 24);
+                } else {
+                    uint32_t out = abgr & 0xFF000000u;
+                    for (int ch = 0; ch < 3; ch++) {
+                        const uint32_t c8 = (abgr >> (ch * 8)) & 0xFFu;
+                        out |= static_cast<uint32_t>(std::lround(static_cast<float>(c8) * ao)) << (ch * 8);
+                    }
+                    abgr = out;
+                }
                 const float uv[2] = {au[i], av[i]};
                 const float light[2] = {static_cast<float>(v[i].light & 0xFF),
                                         static_cast<float>((v[i].light >> 8) & 0xFF)};
@@ -1376,8 +1391,8 @@ namespace perlin::gpu {
         p.regs = regs;
         for (const jshader::RhiSampler& s : samplerList) {
             if (s.slot >= static_cast<int>(kTextureSlots)) {
-                std::fprintf(stderr, "[jshader] %s: sampler '%s' needs slot %d (only %u exist)\n",
-                             progName.c_str(), s.name.c_str(), s.slot, kTextureSlots);
+                Log("jshader", "{}: sampler '{}' needs slot {} (only {} exist)", progName.c_str(),
+                    s.name.c_str(), s.slot, kTextureSlots);
                 p.valid = false;
                 continue;
             }
@@ -1386,8 +1401,7 @@ namespace perlin::gpu {
         for (const std::string& img : imageNames) {
             const auto it = imageSlotOf.find(img);
             if (it == imageSlotOf.end() || !images[static_cast<size_t>(it->second)].tex) {
-                std::fprintf(stderr, "[jshader] %s: image '%s' has no texture\n", progName.c_str(),
-                             img.c_str());
+                Log("jshader", "{}: image '{}' has no texture", progName.c_str(), img.c_str());
                 p.valid = false;
                 continue;
             }
@@ -1395,8 +1409,7 @@ namespace perlin::gpu {
             p.imageMask |= 1u << it->second;
         }
         if (p.regs > 256) {
-            std::fprintf(stderr, "[jshader] %s: %d uniform registers (limit 256)\n", progName.c_str(),
-                         p.regs);
+            Log("jshader", "{}: {} uniform registers (limit 256)", progName.c_str(), p.regs);
             p.valid = false;
         }
         for (const jshader::UniformDecl& d : uniforms) {
@@ -1407,8 +1420,7 @@ namespace perlin::gpu {
                                                           "currentRenderedItemId", "renderStage"};
             slot.perDraw = d.name.compare(0, 5, "iris_") == 0 || perDraw.contains(d.name);
             if (!slot.known && loggedMissing.insert(progName + ":" + d.name).second)
-                std::fprintf(stderr, "[jshader] %s: unknown uniform '%s' (left at 0)\n", progName.c_str(),
-                             d.name.c_str());
+                Log("jshader", "{}: unknown uniform '{}' (left at 0)", progName.c_str(), d.name.c_str());
             p.anyPerDraw = p.anyPerDraw || slot.perDraw;
             p.slots.push_back(std::move(slot));
         }
@@ -1559,8 +1571,7 @@ namespace perlin::gpu {
             return nullptr;
         std::shared_ptr<Converted> c = it->second.get();
         if (!c->ok) {
-            std::fprintf(stderr, "[jshader] program %s failed: %.1500s\n", progName.c_str(),
-                         c->error.c_str());
+            Log("jshader", "program {} failed: {}", progName, c->error.substr(0, 1500));
             if (const char* dump = std::getenv("JSHADER_DUMP"))
                 if (progName == dump)
                     std::fprintf(stderr, "---- %s vertex (failed)\n%s\n---- fragment (failed)\n%s\n",
@@ -1576,8 +1587,7 @@ namespace perlin::gpu {
                              c->transform.vertex.glsl.c_str(), c->transform.fragment.glsl.c_str());
         Program* p = Finish(key, progName, *c, source);
         if (!p->valid) {
-            std::fprintf(stderr, "[jshader] program %s could not be created on this device\n",
-                         progName.c_str());
+            Log("jshader", "program {} could not be created on this device", progName.c_str());
             return nullptr;
         }
         return p;
@@ -1867,8 +1877,8 @@ namespace perlin::gpu {
             td.name = info.name.c_str();
             img.tex = dev.CreateTexture(td);
             if (!img.tex) {
-                std::fprintf(stderr, "[jshader] image %s (%ux%ux%u) could not be created\n",
-                             info.name.c_str(), img.w, img.h, img.d);
+                Log("jshader", "image {} ({}x{}x{}) could not be created", info.name.c_str(), img.w, img.h,
+                    img.d);
                 continue;
             }
             gpu.SetState(img.tex, rhi::State::Undefined);
@@ -2054,8 +2064,7 @@ namespace perlin::gpu {
         const std::shared_ptr<Converted> c = it->second.get();
         pending.erase(it);
         if (!c->ok) {
-            std::fprintf(stderr, "[jshader] compute %s #%zu failed: %.1500s\n", progName.c_str(), index,
-                         c->error.c_str());
+            Log("jshader", "compute {} #{} failed: {}", progName, index, c->error.substr(0, 1500));
             if (lastError.empty())
                 lastError = progName + ".csh: " + c->error.substr(0, 300);
             programs[key] = std::make_unique<Program>();
@@ -2183,7 +2192,11 @@ namespace perlin::gpu {
         s.worldTime = static_cast<int>(frac * 24000.0) % 24000;
         s.worldDay = 0;
         s.moonPhase = static_cast<int>(std::floor(params.sky.moonPhase)) & 7;
-        const glm::vec3 sunDir(-std::sin(static_cast<float>(a)), std::cos(static_cast<float>(a)), 0.0f);
+        // iris CelestialUniforms: modelView * rotY(-90) * rotZ(sunPathRotation) * rotX(skyAngle) * (0, 100, 0)
+        const float tiltRad = glm::radians(config.sunPathRotation);
+        const glm::vec3 sunDir(-std::sin(static_cast<float>(a)),
+                               std::cos(static_cast<float>(a)) * std::cos(tiltRad),
+                               -std::cos(static_cast<float>(a)) * std::sin(tiltRad));
         const glm::mat3 rot3(rotation);
         const glm::vec3 sunView = rot3 * sunDir * 100.0f, moonView = -sunView,
                         upView = rot3 * glm::vec3(0, 1, 0) * 100.0f;
@@ -2203,17 +2216,60 @@ namespace perlin::gpu {
         s.fogEnd = params.renderDistanceFogEnd;
         s.fogDensity = 1.0f;
         s.rainStrength = std::clamp(1.0f - params.sky.rainBrightness, 0.0f, 1.0f);
-        s.wetness = s.rainStrength;
-        s.thunderStrength = 0.0f;
+        s.thunderStrength = std::clamp(params.thunder, 0.0f, 1.0f);
+        // the level clock when the session has one (moon phases, day counters)
+        if (params.worldTick >= 0) {
+            s.worldTime = params.worldTick % 24000;
+            s.worldDay = std::max(0, params.worldDay);
+        }
+        // iris SmoothedFloat / SmoothedVec2f: exponential approach with the pack's half-lives (seconds)
+        const float dtSmooth = std::clamp(params.timeSeconds - smoothAt, 0.0f, 1.0f);
+        smoothAt = params.timeSeconds;
+        const auto approach = [&](float& v, float target, float halflife, bool first) {
+            if (first || halflife <= 0.0f) {
+                v = target;
+                return;
+            }
+            v += (target - v) * (1.0f - std::exp(-dtSmooth * 0.69314718f / halflife));
+        };
+        const bool firstSmooth = !smoothStarted;
+        smoothStarted = true;
+        // wetness follows rain with its own fade in and out
+        approach(wetnessSmooth, s.rainStrength,
+                 // iris counts these half-lives in tenths of a second
+                 s.rainStrength > wetnessSmooth ? config.wetnessHalflife * 0.1f
+                                                : config.drynessHalflife * 0.1f,
+                 firstSmooth);
+        s.wetness = wetnessSmooth;
+        // light at the eye as the game has it: 0-240 per channel (block, sky), smoothed with eyeBrightnessHalflife
+        s.eyeBrightness[0] = std::clamp(params.eyeBlockLight, 0, 15) * 16;
+        s.eyeBrightness[1] = std::clamp(params.eyeSkyLight, 0, 15) * 16;
+        for (int i = 0; i < 2; i++) {
+            approach(eyeSmooth[i], static_cast<float>(s.eyeBrightness[i]),
+                     config.eyeBrightnessHalflife * 0.1f, firstSmooth);
+            s.eyeBrightnessSmooth[i] = static_cast<int>(std::lround(eyeSmooth[i]));
+        }
+        // the biome at the eye, numbered as iris numbers java's biomes
+        {
+            const int id = jshader::JavaBiomeId(params.biome);
+            const auto& biome = jshader::JavaBiomes()[static_cast<size_t>(id)];
+            s.biome = id;
+            s.biomeCategory = biome.category;
+            s.biomePrecipitation = jshader::BiomePrecipitationAt(id, params.cameraPosition[1]);
+            s.biomeTemperature = biome.temperature;
+            s.biomeRainfall = biome.downfall;
+            s.inSwamp = biome.category == 14;
+        }
         s.frameCounter = static_cast<int>(params.frameIndex);
         s.frameTimeCounter = params.timeSeconds;
         s.frameTime = std::clamp(params.timeSeconds - lastTime, 0.0f, 0.25f);
         lastTime = params.timeSeconds;
         const float c = s.projection[10], d = s.projection[14];
-        if (std::fabs(c - 1.0f) > 1e-6f && std::fabs(c + 1.0f) > 1e-6f) {
+        if (std::fabs(c - 1.0f) > 1e-6f && std::fabs(c + 1.0f) > 1e-6f)
             s.nearPlane = d / (c - 1.0f);
-            s.farPlane = d / (c + 1.0f);
-        }
+        // iris: `far` is the render distance in blocks (packs place their border fog with it), not the
+        // projection's far plane
+        s.farPlane = static_cast<float>(std::clamp(params.renderDistance, 2, 64) * 16);
         s.isEyeInWater = params.cameraMedium == 1 ? 1 : (params.cameraMedium == 2 ? 2 : 0);
         s.eyeAltitude = params.cameraPosition[1];
         s.heldBlockLightValue = static_cast<int>(params.heldLight);
@@ -2230,13 +2286,8 @@ namespace perlin::gpu {
         s.dimensionId = instance->Dimension() == "world-1" ? -1 : (instance->Dimension() == "world1" ? 1 : 0);
 
         // the shadow camera sits on the light and snaps to whole shadow texels so the map does not swim while the player moves
-        glm::vec3 lightDir = dayLight ? sunDir : -sunDir;
-        if (std::fabs(config.sunPathRotation) > 0.001f) {
-            const glm::mat4 tilt =
-                glm::rotate(glm::mat4(1.0f), glm::radians(config.sunPathRotation), glm::vec3(1, 0, 0));
-            lightDir = glm::vec3(tilt * glm::vec4(lightDir, 0.0f));
-        }
-        lightDir = glm::normalize(lightDir);
+        // the same tilted sun as sunPosition, so shadows fall where the pack's lighting expects them
+        glm::vec3 lightDir = glm::normalize(dayLight ? sunDir : -sunDir);
         glm::vec3 up(0, 0, 1);
         if (std::fabs(lightDir.z) > 0.99f)
             up = glm::vec3(0, 1, 0);
@@ -2488,7 +2539,7 @@ namespace perlin::gpu {
             }
             const rhi::PipelineHandle pipe = PipelineFor(*p, ls);
             if (!pipe) {
-                std::fprintf(stderr, "[jshader] %s: pipeline creation failed\n", programName);
+                Log("jshader", "{}: pipeline creation failed", programName);
                 continue;
             }
             list.SetPipeline(pipe);
@@ -2651,7 +2702,9 @@ namespace perlin::gpu {
                                0,
                                1};
         const double a = frame.sky.sunAngle;
-        const glm::mat4 spin = glm::rotate(glm::mat4(1.0f), static_cast<float>(a), glm::vec3(0, 0, 1));
+        const glm::mat4 spin =
+            glm::rotate(glm::mat4(1.0f), -glm::radians(config.sunPathRotation), glm::vec3(1, 0, 0)) *
+            glm::rotate(glm::mat4(1.0f), static_cast<float>(a), glm::vec3(0, 0, 1));
         float spun[16];
         FromMat(ToMat(rot) * spin, spun);
 
