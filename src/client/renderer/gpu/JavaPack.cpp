@@ -30,7 +30,7 @@ namespace perlin::gpu {
         // converted programs are kept on disk: glslang, the cross compiler and fxc take seconds per program for a big pack,
         // and nothing about them changes between runs
         constexpr uint32_t kCacheMagic = 0x4a504b34u;
-        constexpr int kCacheVersion = 4;
+        constexpr int kCacheVersion = 5;
 
         struct CachedProgram {
             std::vector<jshader::UniformDecl> uniforms;
@@ -1080,6 +1080,7 @@ namespace perlin::gpu {
         }
         lap("opened");
         instance->SetDimension(cfg.dimension);
+        noSkyLight = cfg.dimension != "world0";
         name = instance->Name().empty() ? cfg.path : instance->Name();
         config = jshader::ParsePipelineConfig(*instance);
         lap("parsed config");
@@ -1127,6 +1128,7 @@ namespace perlin::gpu {
     void JavaPack::SetDimension(const std::string& folder) {
         if (instance && instance->Dimension() != folder)
             instance->SetDimension(folder);
+        noSkyLight = folder != "world0";
     }
 
     void JavaPack::BuildBlockMap() {
@@ -1435,7 +1437,7 @@ namespace perlin::gpu {
                 }
                 const float uv[2] = {au[i], av[i]};
                 const float light[2] = {static_cast<float>(v[i].light & 0xFF),
-                                        static_cast<float>((v[i].light >> 8) & 0xFF)};
+                                        noSkyLight ? 0.0f : static_cast<float>((v[i].light >> 8) & 0xFF)};
                 const glm::vec3 toMid = (blockCentre - glm::vec3(pos[0], pos[1], pos[2])) * 64.0f;
                 const uint16_t midBlock[4] = {ToHalf(std::clamp(std::round(toMid.x), -127.0f, 127.0f)),
                                               ToHalf(std::clamp(std::round(toMid.y), -127.0f, 127.0f)),
@@ -1455,6 +1457,15 @@ namespace perlin::gpu {
     }
 
     // -- programs ------------------------------------------------------------------------------------------------------
+
+    bool JavaPack::IsFullscreenPass(const std::string& progName) {
+        static constexpr const char* kPassPrefixes[] = {"composite", "deferred",   "prepare", "final",
+                                                        "begin",     "shadowcomp", "setup"};
+        for (const char* prefix : kPassPrefixes)
+            if (progName.rfind(prefix, 0) == 0)
+                return true;
+        return false;
+    }
 
     std::string JavaPack::KeyFor(const std::string& n, bool toBackbuffer) const {
         return n + (toBackbuffer ? "#B" : "#O");
@@ -1538,6 +1549,12 @@ namespace perlin::gpu {
             b.index = img->second;
         } else
             b.kind = Kind::Dummy;
+        // iris IrisSamplers: colortex0 is the default sampler (texture unit 0) of fullscreen passes, so the
+        // gbuffer names (texture, tex, gtexture) and any sampler iris does not bind read colortex0 there
+        if (resolvingFullscreen && (b.kind == Kind::Atlas || b.kind == Kind::Dummy)) {
+            b.kind = Kind::Color;
+            b.index = 0;
+        }
         return b;
     }
 
@@ -1548,6 +1565,7 @@ namespace perlin::gpu {
         p.regs = regs;
         resolvingWaterShadow = false;
         resolvingStage = TextureStageOf(progName);
+        resolvingFullscreen = IsFullscreenPass(progName);
         for (const jshader::RhiSampler& s : samplerList)
             resolvingWaterShadow = resolvingWaterShadow || s.name == "watershadow";
         for (const jshader::RhiSampler& s : samplerList) {
@@ -1705,7 +1723,11 @@ namespace perlin::gpu {
             jshader::TransformOptions opts;
             opts.macros = instance->EngineMacros();
             opts.preprocess = jshader::PreprocessGlsl;
-            opts.availableAttribs = AttribMask();
+            // full-screen passes draw a quad with only a position and a uv (iris POSITION_TEX): everything
+            // else reads iris's defaults (white colour, full light) instead of an unbound vertex input
+            opts.availableAttribs = IsFullscreenPass(progName) ? jshader::AttribBit(jshader::kAttribPosition) |
+                                                                     jshader::AttribBit(jshader::kAttribTexCoord0)
+                                                               : AttribMask();
             opts.zeroToOneDepth = true;
             opts.splitSamplers = true;
             opts.alphaTest = alpha;
@@ -2115,7 +2137,7 @@ namespace perlin::gpu {
                     t = textureOverride;
                 else if (atlas)
                     t = atlas;
-                smp = SAtlas;
+                smp = textureOverride && overrideRepeat ? SPointRepeat : SAtlas;
                 break;
             case Kind::Lightmap:
                 if (lightmapTex)
@@ -2514,7 +2536,10 @@ namespace perlin::gpu {
         }
         havePrev = true;
 
-        const double a = params.sky.sunAngle;
+        // java's nether and end have a fixed time of day (18000 and 6000): the celestial angle is 0.5 and 0
+        const bool nether = instance && instance->Dimension() == "world-1",
+                   end = instance && instance->Dimension() == "world1";
+        const double a = nether ? kPi : (end ? 0.0 : static_cast<double>(params.sky.sunAngle));
         double frac = a / (2.0 * kPi) + 0.25;
         frac -= std::floor(frac);
         s.sunAngle = static_cast<float>(frac);
@@ -2542,9 +2567,47 @@ namespace perlin::gpu {
             s.skyColor[i] = params.sky.skyColor[i];
             s.fogColor[i] = params.fogColor[i];
         }
-        s.fogStart = params.renderDistanceFogStart;
-        s.fogEnd = params.renderDistanceFogEnd;
-        s.fogDensity = 1.0f;
+        // iris FogUniforms: fogStart / fogEnd are vanilla's environmental fog, not the render distance fog.
+        // 26.3 FogRenderer: air 0..1024 (rain pulls both in), water -8..96 scaled by the player's water vision,
+        // lava 0.25..1. fogDensity is iris's legacy water density (exp2) and 0 elsewhere (linear)
+        {
+            const float frameDt = std::clamp(params.timeSeconds - fogClock, 0.0f, 0.25f);
+            fogClock = params.timeSeconds;
+            if (params.cameraMedium == 1)
+                waterVisionTicks = std::min(600.0f, waterVisionTicks + frameDt * 20.0f);
+            else
+                waterVisionTicks = 0.0f;
+            // LocalPlayer.getWaterVision
+            const float t = waterVisionTicks;
+            const float f = std::clamp(t / 100.0f, 0.0f, 1.0f);
+            const float g = t < 100.0f ? 0.0f : std::clamp((t - 100.0f) / 500.0f, 0.0f, 1.0f);
+            const float waterVision = t >= 600.0f ? 1.0f : f * 0.6f + g * 0.39999998f;
+            const float rain = std::clamp(1.0f - params.sky.rainBrightness, 0.0f, 1.0f);
+            if (params.cameraMedium == 1) {
+                s.fogStart = -8.0f;
+                s.fogEnd = 96.0f * std::max(0.25f, waterVision);
+                s.fogDensity = 0.05f - waterVision * waterVision * 0.03f;
+                s.fogMode = 0x0801; // GL_EXP2
+            } else if (params.cameraMedium == 2) {
+                s.fogStart = 0.25f;
+                s.fogEnd = 1.0f;
+                s.fogDensity = 0.0f;
+                s.fogMode = 0x2601; // GL_LINEAR
+            } else if (nether) {
+                // FogRenderer: a dimension with thick fog (the nether) pulls the fog to 5%..50% of the view
+                const float view = static_cast<float>(std::clamp(params.renderDistance, 2, 64) * 16);
+                s.fogStart = view * 0.05f;
+                s.fogEnd = std::min(view, 192.0f) * 0.5f;
+                s.fogDensity = 0.0f;
+                s.fogMode = 0x2601;
+            } else {
+                s.fogStart = 0.0f - 160.0f * rain;
+                s.fogEnd = std::max(std::min(96.0f, 1024.0f), 1024.0f - 256.0f * rain);
+                s.fogDensity = 0.0f;
+                s.fogMode = 0x2601;
+            }
+            s.fogShape = 1; // iris keeps 1 (cylindrical) as its stable value
+        }
         s.rainStrength = std::clamp(1.0f - params.sky.rainBrightness, 0.0f, 1.0f);
         s.thunderStrength = std::clamp(params.thunder, 0.0f, 1.0f);
         // the level clock when the session has one (moon phases, day counters)
@@ -2573,7 +2636,7 @@ namespace perlin::gpu {
         s.wetness = wetnessSmooth;
         // light at the eye as the game has it: 0-240 per channel (block, sky), smoothed with eyeBrightnessHalflife
         s.eyeBrightness[0] = std::clamp(params.eyeBlockLight, 0, 15) * 16;
-        s.eyeBrightness[1] = std::clamp(params.eyeSkyLight, 0, 15) * 16;
+        s.eyeBrightness[1] = noSkyLight ? 0 : std::clamp(params.eyeSkyLight, 0, 15) * 16;
         for (int i = 0; i < 2; i++) {
             approach(eyeSmooth[i], static_cast<float>(s.eyeBrightness[i]),
                      config.eyeBrightnessHalflife * 0.1f, firstSmooth);
@@ -3032,7 +3095,7 @@ namespace perlin::gpu {
     void JavaPack::BuildVertices(const UiVertex* v, size_t vertexCount, const uint32_t* idx,
                                  size_t indexCount, const float model[16], int blockLight, int skyLight,
                                  std::vector<uint8_t>& out, const int8_t* vertexLight,
-                                 const float* faceToward) {
+                                 const float* faceToward, bool noSkyLight) {
         const glm::mat4 m = glm::make_mat4(model);
         const glm::mat3 nm = glm::mat3(m);
         // the mesh's middle: box models are near enough convex that a face normal pointing away from it is outward
@@ -3095,6 +3158,8 @@ namespace perlin::gpu {
                     if (s >= 0)
                         vl[1] = static_cast<float>(std::min<int>(s, 15) * 16);
                 }
+                if (noSkyLight)
+                    vl[1] = 0.0f;
                 std::memcpy(o + kLight, vl, 8);
                 std::memcpy(o + kNormal, normal, 8);
                 std::memcpy(o + kEntity, entity, 8);
@@ -3431,7 +3496,7 @@ namespace perlin::gpu {
     void JavaPack::DrawSkyObjects(rhi::CommandList& list, const char* programName, int stage,
                                   rhi::BufferHandle vb, uint32_t first, uint32_t count,
                                   rhi::BufferHandle ring, uint64_t ringOffset, const float* modelView,
-                                  rhi::TextureHandle texture, bool additive) {
+                                  rhi::TextureHandle texture, bool additive, const float* colorModulator) {
         Program* p = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
                                 AlphaFor(programName, -1.0f));
         if (!p || count == 0)
@@ -3484,6 +3549,8 @@ namespace perlin::gpu {
         jshader::PackDrawState d = TerrainDraw();
         std::memcpy(d.modelView, modelView, sizeof(d.modelView));
         d.renderStage = stage;
+        if (colorModulator)
+            std::memcpy(d.colorModulator, colorModulator, sizeof(d.colorModulator));
         if (!BindUniforms(list, *p, d)) {
             list.EndRendering();
             return;
@@ -3516,6 +3583,42 @@ namespace perlin::gpu {
                                0,
                                0,
                                1};
+        // java's DimensionSpecialEffects: the nether draws no sky at all, the end draws its textured box
+        const bool nether = instance->Dimension() == "world-1", end = instance->Dimension() == "world1";
+        if (nether)
+            return;
+        if (end) {
+            // LevelRenderer.renderEndSky: six faces of end_sky.png repeated 16 times, colour (40, 40, 40),
+            // drawn with gbuffers_skytextured in iris's CUSTOM_SKY phase
+            SkyBuilder sb;
+            const uint8_t grey[4] = {40, 40, 40, 255};
+            const glm::mat4 faces[6] = {
+                glm::mat4(1.0f),
+                glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1, 0, 0)),
+                glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1, 0, 0)),
+                glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(1, 0, 0)),
+                glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0, 0, 1)),
+                glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0, 0, 1)),
+            };
+            for (const glm::mat4& f : faces) {
+                const glm::vec3 p[4] = {glm::vec3(f * glm::vec4(-100, -100, -100, 1)),
+                                        glm::vec3(f * glm::vec4(-100, -100, 100, 1)),
+                                        glm::vec3(f * glm::vec4(100, -100, 100, 1)),
+                                        glm::vec3(f * glm::vec4(100, -100, -100, 1))};
+                const float uv[4][2] = {{0, 0}, {0, 16}, {16, 16}, {16, 0}};
+                for (int k : {0, 1, 2, 0, 2, 3})
+                    sb.Vertex(p[k].x, p[k].y, p[k].z, grey, uv[k][0], uv[k][1]);
+            }
+            const gpu::RingSlice slice = gpu.Ring(sb.bytes.size(), 16);
+            if (slice.data && skyEndTex) {
+                std::memcpy(slice.data, sb.bytes.data(), sb.bytes.size());
+                overrideRepeat = true;
+                DrawSkyObjects(list, "gbuffers_skytextured", 3, {}, 0, sb.count, slice.buffer, slice.offset, rot,
+                               skyEndTex, false);
+                overrideRepeat = false;
+            }
+            return;
+        }
         const double a = frame.sky.sunAngle;
         const glm::mat4 spin =
             glm::rotate(glm::mat4(1.0f), -glm::radians(config.sunPathRotation), glm::vec3(1, 0, 0)) *
@@ -3582,11 +3685,46 @@ namespace perlin::gpu {
                                {}, false);
             }
         }
-        // stars rotate with the sun
-        DrawSkyObjects(list, "gbuffers_skybasic", 6, skyStatic, 0, starVertexCount, {}, 0, spun, {}, false);
+        // sunrise / sunset fan (iris SUNSET phase): DimensionSpecialEffects.getSunriseColor, a fan of 16 segments
+        // facing the sun on the horizon, centre colour with the fan's alpha fading to 0 at the rim
+        if (frame.sky.sunrise[3] > 0.0f) {
+            SkyBuilder sb;
+            const auto c8 = [](float v) { return static_cast<uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f); };
+            const uint8_t centre[4] = {c8(frame.sky.sunrise[0]), c8(frame.sky.sunrise[1]), c8(frame.sky.sunrise[2]),
+                                       c8(frame.sky.sunrise[3])};
+            const uint8_t rim[4] = {centre[0], centre[1], centre[2], 0};
+            // rotX(90) * rotZ(sun below/above: 180 or 0) * rotZ(90), as LevelRenderer.renderSky
+            const float sinSun = std::sin(static_cast<float>(a));
+            const glm::mat4 fan = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1, 0, 0)) *
+                                  glm::rotate(glm::mat4(1.0f), glm::radians(sinSun < 0.0f ? 180.0f : 0.0f),
+                                              glm::vec3(0, 0, 1)) *
+                                  glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0, 0, 1));
+            const glm::vec3 mid = glm::vec3(fan * glm::vec4(0, 100, 0, 1));
+            glm::vec3 prev;
+            for (int i = 0; i <= 16; i++) {
+                const float t = static_cast<float>(i) * 6.2831853f / 16.0f;
+                const float sn = std::sin(t), cs = std::cos(t);
+                const glm::vec3 p = glm::vec3(fan * glm::vec4(sn * 120.0f, cs * 120.0f, -cs * 40.0f * frame.sky.sunrise[3], 1));
+                if (i > 0) {
+                    sb.Vertex(mid.x, mid.y, mid.z, centre, 0, 0);
+                    sb.Vertex(prev.x, prev.y, prev.z, rim, 0, 0);
+                    sb.Vertex(p.x, p.y, p.z, rim, 0, 0);
+                }
+                prev = p;
+            }
+            const gpu::RingSlice slice = gpu.Ring(sb.bytes.size(), 16);
+            if (slice.data) {
+                std::memcpy(slice.data, sb.bytes.data(), sb.bytes.size());
+                DrawSkyObjects(list, "gbuffers_skybasic", 2, {}, 0, sb.count, slice.buffer, slice.offset, rot, {},
+                               false);
+            }
+        }
+        // the sun and moon fade out in rain: shader colour (1, 1, 1, 1 - rain)
+        const float rainAlpha = std::clamp(frame.sky.rainBrightness, 0.0f, 1.0f);
+        const float celestial[4] = {1.0f, 1.0f, 1.0f, rainAlpha};
         // sun
         DrawSkyObjects(list, "gbuffers_skytextured", 4, skyStatic, starVertexCount, 6, {}, 0, spun, skySunTex,
-                       true);
+                       true, celestial);
         // moon: opposite the sun, one phase cell of the 4x2 sheet
         {
             SkyBuilder sb;
@@ -3600,7 +3738,37 @@ namespace perlin::gpu {
                 std::memcpy(slice.data, sb.bytes.data(), sb.bytes.size());
                 // vanilla (and iris) draw the moon like the sun, additively: its black surround adds nothing
                 DrawSkyObjects(list, "gbuffers_skytextured", 5, {}, 0, sb.count, slice.buffer, slice.offset,
-                               spun, skyMoonTex, true);
+                               spun, skyMoonTex, true, celestial);
+            }
+        }
+        // stars rotate with the sun; vanilla skips them when dark is 0 and colours them with the star brightness
+        // (times the rain fade) in all four channels
+        const float stars = std::clamp(frame.sky.starBrightness * rainAlpha, 0.0f, 1.0f);
+        if (stars > 0.0f) {
+            const float starColor[4] = {stars, stars, stars, stars};
+            DrawSkyObjects(list, "gbuffers_skybasic", 6, skyStatic, 0, starVertexCount, {}, 0, spun, {}, false,
+                           starColor);
+        }
+        // the dark void disc below the horizon when the camera is under the horizon height (VOID phase)
+        if (frame.sky.darkDisc) {
+            SkyBuilder sb;
+            const uint8_t black[4] = {0, 0, 0, 255};
+            glm::vec3 prev(0.0f);
+            for (int i = 0; i <= 16; i++) {
+                const float t = static_cast<float>(i) * 6.2831853f / 16.0f;
+                const glm::vec3 p(std::sin(t) * 512.0f, -16.0f, std::cos(t) * 512.0f);
+                if (i > 0) {
+                    sb.Vertex(0.0f, -16.0f, 0.0f, black, 0, 0);
+                    sb.Vertex(p.x, p.y, p.z, black, 0, 0);
+                    sb.Vertex(prev.x, prev.y, prev.z, black, 0, 0);
+                }
+                prev = p;
+            }
+            const gpu::RingSlice slice = gpu.Ring(sb.bytes.size(), 16);
+            if (slice.data) {
+                std::memcpy(slice.data, sb.bytes.data(), sb.bytes.size());
+                DrawSkyObjects(list, "gbuffers_skybasic", 7, {}, 0, sb.count, slice.buffer, slice.offset, rot, {},
+                               false);
             }
         }
     }
@@ -3804,6 +3972,7 @@ namespace perlin::gpu {
         RunChain(list, "prepare");
         skySunTex = out.sun;
         skyMoonTex = out.moon;
+        skyEndTex = out.endSky;
         DrawSky(list);
         DrawTerrain(list);
         using K = ExternalDraw::Kind;

@@ -362,7 +362,8 @@ namespace perlin {
         const int skyLevel = draw.skyLight >= 0 ? draw.skyLight : frame.eyeSkyLight;
         gpu::JavaPack::BuildVertices(mesh.cpuVertices->data(), mesh.cpuVertices->size(),
                                      mesh.cpuIndices->data(), mesh.cpuIndices->size(), draw.model, blockLevel,
-                                     skyLevel, d.vertices, draw.vertexLight);
+                                     skyLevel, d.vertices, draw.vertexLight, nullptr,
+                                     jpackDimension != "world0");
         d.count = static_cast<uint32_t>(d.vertices.size() / gpu::kPackVertexBytes);
         if (d.count == 0)
             return true;

@@ -218,6 +218,18 @@ namespace perlin {
         cloudBuilt = false;
     }
 
+    void RenderContext_rhi::UploadEndSkyTexture(const Texture& endSky) {
+        if (!initialized)
+            return;
+        FreeTexture(endSkyTex);
+        endSkySource = endSky;
+        if (endSky.width <= 0 || endSky.height <= 0)
+            return;
+        if (MakeTexture(endSkyTex, static_cast<uint32_t>(endSky.width), static_cast<uint32_t>(endSky.height), 1, 1,
+                        rhi::Format::RGBA8Unorm, gpu::SamplerKind::PointRepeat, "end sky"))
+            gpu.WriteTexture(endSkyTex.handle, 0, 0, 0, endSkyTex.w, endSkyTex.h, endSky.pixels.data());
+    }
+
     void RenderContext_rhi::UploadTileFlags(const std::vector<uint8_t>& flags) {
         if (!initialized)
             return;
@@ -275,12 +287,12 @@ namespace perlin {
 
     void RenderContext_rhi::UnloadLevelResources() {
         ClearChunkMeshes();
-        for (TexRec* texture : {&atlas, &sunTex, &moonTex, &cloudMapTex, &tileFlagsTex, &crosshair})
+        for (TexRec* texture : {&atlas, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair})
             FreeTexture(*texture);
         animatedTiles.clear();
         std::vector<uint8_t>().swap(atlasSource);
         std::vector<uint8_t>().swap(tileFlagData);
-        sunSource = moonSource = cloudSource = iconSource = Texture{};
+        sunSource = moonSource = endSkySource = cloudSource = iconSource = Texture{};
         cloudTexture = {};
         cloudBuilt = false;
         atlasLayers = atlasTiles = crosshairPx = 0;

@@ -176,7 +176,7 @@ namespace perlin::jshader {
         struct BuiltinUse {
             bool modelView = false, modelViewInv = false, proj = false, projInv = false, normalMat = false;
             bool textureMat = false, fogColor = false, fogDensity = false, fogStart = false, fogEnd = false,
-                 fogScale = false;
+                 fogScale = false, colorMod = false;
             bool fogCoord = false, fragCoord = false, shadow2D = false, shadow2DLod = false,
                  shadow2DProj = false;
             bool vertexIndex = false;
@@ -351,6 +351,7 @@ namespace perlin::jshader {
             {"iris_FogColor", "vec4", "", 0},     {"iris_FogDensity", "float", "", 0},
             {"iris_FogStart", "float", "", 0},    {"iris_FogEnd", "float", "", 0},
             {"iris_FogScale", "float", "", 0},    {"iris_ViewHeight", "float", "", 0},
+            {"iris_ColorModulator", "vec4", "", 0},
         };
         return decls;
     }
@@ -1125,8 +1126,11 @@ namespace perlin::jshader {
                     ctx.vin.position = true;
                     rep = "vec4(iris_Position, 1.0)";
                 } else if (id == "gl_Color") {
+                    // iris: the fixed-function colour is the vertex colour times the draw's shader colour
+                    // (RenderSystem.setShaderColor: star brightness, the sun fading in rain)
                     ctx.vin.color = true;
-                    rep = "iris_Color";
+                    ctx.use.colorMod = true;
+                    rep = "(iris_Color * iris_ColorModulator)";
                 } else if (id == "gl_Normal") {
                     ctx.vin.normal = true;
                     rep = "iris_Normal";
@@ -1475,6 +1479,7 @@ namespace perlin::jshader {
             addBuiltin(ctx.use.fogStart, "iris_FogStart");
             addBuiltin(ctx.use.fogEnd, "iris_FogEnd");
             addBuiltin(ctx.use.fogScale, "iris_FogScale");
+            addBuiltin(ctx.use.colorMod, "iris_ColorModulator");
             addBuiltin(options.flipFragCoordY && ctx.use.fragCoord, "iris_ViewHeight");
 
             std::string flags;

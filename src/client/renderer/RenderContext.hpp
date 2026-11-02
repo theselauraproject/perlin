@@ -224,6 +224,8 @@ namespace perlin {
         virtual void UploadCrosshair(const Texture& icons) = 0;
         virtual void DrawHudCursor(float x, float y, float w, float h) = 0;
         virtual void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) = 0;
+        // textures/environment/end_sky.png, for java shader packs in the end
+        virtual void UploadEndSkyTexture(const Texture&) {}
         virtual void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) = 0;
         virtual void UploadTileFlags(const std::vector<uint8_t>&) {}
         virtual int MaxAtlasLayers(int) const { return 2048; }

@@ -76,6 +76,7 @@ namespace perlin::jshader {
         float projection[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         float entityColor[4] = {0, 0, 0, 0};
         float fogColor[4] = {1, 1, 1, 1};
+        float colorModulator[4] = {1, 1, 1, 1};
         float fogDensity = 0.0f, fogStart = 0.0f, fogEnd = 128.0f;
         int entityId = 0, blockEntityId = 0, currentRenderedItemId = 0;
         int renderStage = 0;

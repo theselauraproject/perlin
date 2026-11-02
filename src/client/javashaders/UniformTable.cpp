@@ -677,6 +677,8 @@ namespace perlin::jshader {
             const float span = D(c).fogEnd - D(c).fogStart;
             o[0] = span > 0 ? 1.0f / span : 0.0f;
         });
+        Add("iris_ColorModulator", 4,
+            [=](C c, float* o) { std::memcpy(o, D(c).colorModulator, 4 * sizeof(float)); });
         Add("iris_ViewHeight", 1, [=](C c, float* o) { o[0] = static_cast<float>(D(c).viewHeight); });
 
         Add("cameraPosition", 3, [=](C c, float* o) {
@@ -770,11 +772,22 @@ namespace perlin::jshader {
         // iris uniforms the engine has no live source for: constants that match what a pack sees in a plain overworld
         // iris: the alpha test reference of the program drawing (0 where it has none)
         Add("alphaTestRef", 1, [=](C c, float* o) { o[0] = D(c).alphaTestRef; });
-        Add("bedrockLevel", 1, [=](C, float* o) { o[0] = -64.0f; });
-        Add("heightLimit", 1, [=](C, float* o) { o[0] = 384.0f; });
-        Add("logicalHeightLimit", 1, [=](C, float* o) { o[0] = 384.0f; });
-        Add("hasSkylight", 1, [=](C, float* o) { o[0] = 1.0f; });
-        Add("hasCeiling", 1, [=](C, float* o) { o[0] = 0.0f; });
+        // iris reads these from the level's dimension type: overworld -64/384/384 with skylight, the nether
+        // 0/256/128 with a ceiling and 0.1 ambient light, the end 0/256/256; only the overworld has skylight
+        Add("bedrockLevel", 1, [=](C c, float* o) {
+            o[0] = F(c).dimensionNether || F(c).dimensionEnd ? 0.0f : -64.0f;
+        });
+        Add("heightLimit", 1, [=](C c, float* o) {
+            o[0] = F(c).dimensionNether || F(c).dimensionEnd ? 256.0f : 384.0f;
+        });
+        Add("logicalHeightLimit", 1, [=](C c, float* o) {
+            o[0] = F(c).dimensionNether ? 128.0f : (F(c).dimensionEnd ? 256.0f : 384.0f);
+        });
+        Add("hasSkylight", 1, [=](C c, float* o) {
+            o[0] = F(c).dimensionNether || F(c).dimensionEnd ? 0.0f : 1.0f;
+        });
+        Add("hasCeiling", 1, [=](C c, float* o) { o[0] = F(c).dimensionNether ? 1.0f : 0.0f; });
+        Add("ambientLight", 1, [=](C c, float* o) { o[0] = F(c).dimensionNether ? 0.1f : 0.0f; });
         Add("constantMood", 1, [=](C, float* o) { o[0] = 0.0f; });
         Add("currentColorSpace", 1, [=](C, float* o) { o[0] = 0.0f; });
         Add("currentSelectedBlockId", 1, [=](C, float* o) { o[0] = -1.0f; });

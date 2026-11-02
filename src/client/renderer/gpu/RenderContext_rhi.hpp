@@ -172,6 +172,7 @@ namespace perlin {
         void UploadCrosshair(const Texture& icons) override;
         void DrawHudCursor(float x, float y, float w, float h) override;
         void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) override;
+        void UploadEndSkyTexture(const Texture& endSky) override;
         void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) override;
         void UploadTileFlags(const std::vector<uint8_t>& flags) override;
         int MaxAtlasLayers(int tilePx) const override;
@@ -581,7 +582,7 @@ namespace perlin {
         uint32_t screenDepthW = 0, screenDepthH = 0;
 
         // textures
-        TexRec atlas, lightmap, sunTex, moonTex, cloudMapTex, tileFlagsTex, crosshair;
+        TexRec atlas, lightmap, sunTex, moonTex, endSkyTex, cloudMapTex, tileFlagsTex, crosshair;
         int atlasLayers = 0;
         int tileSize = 16;
         std::unordered_map<const uint8_t*, std::vector<std::vector<uint8_t>>> animatedTiles;
@@ -593,7 +594,7 @@ namespace perlin {
         // cpu copies that let a renderer switch rebuild the textures on the new device
         std::vector<uint8_t> atlasSource;
         int atlasTiles = 0;
-        Texture sunSource, moonSource, cloudSource, iconSource;
+        Texture sunSource, moonSource, endSkySource, cloudSource, iconSource;
 
         // static geometry
         rhi::BufferHandle topSky, bottomSky, skyBox, skyBoxIdx, screenTri, starVerts, starIdx, sunriseVerts,

@@ -74,6 +74,15 @@ Iris feeds packs live values, and so does Perlin:
   states are turned into Java ones, and the first matching entry wins as in Iris;
 - entity and item ids from `entity.properties` / `item.properties` (Bedrock names mapped to Java's);
 - the light where each mob, item and particle stands. Mesh colours stay plain so the pack does the lighting.
+- the dimension. The nether and the end load the pack's `world-1` / `world1` programs and get Java's dimension
+  values: no skylight (sky light 0 everywhere), `hasCeiling` and 0.1 `ambientLight` in the nether, the height
+  limits, the fixed sun angle, the nether's thick fog, no sky in the nether, and the textured end sky
+  (`gbuffers_skytextured`, CUSTOM_SKY). `PERLIN_DEV_PACK_DIMENSION=1|2` runs those programs in any world for testing;
+- the vanilla sky as Iris draws it: sky, sunrise fan, sun and moon fading in rain, stars only at night (coloured by
+  their brightness through `gl_Color`), and the void disc below the horizon.
+
+Full-screen passes (composite, deferred, final...) get Iris's quad: `gl_Color` is white, and `texture` /
+`gtexture` / unbound samplers read colortex0.
 
 `jshader_check <pack> -u minecraft:plains` prints the pack's custom uniforms for a biome.
 

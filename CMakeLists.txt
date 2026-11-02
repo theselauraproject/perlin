@@ -35,6 +35,8 @@ if(CMAKE_HOST_WIN32 AND PERLIN_USE_CLANG_CL AND NOT CMAKE_GENERATOR MATCHES "Vis
 endif()
 
 project(Perlin VERSION 1.0.0 LANGUAGES C CXX)
+# -pthread rather than an empty Threads::Threads where libc only stubs pthreads (freebsd)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 # target cpu / os: arm64 builds (Windows on ARM, Linux on ARM, Apple silicon) and FreeBSD change a few choices below
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64|AARCH64)$" OR CMAKE_OSX_ARCHITECTURES MATCHES "^arm64$"
    OR CMAKE_CXX_COMPILER_TARGET MATCHES "^(aarch64|arm64)")
@@ -944,6 +946,8 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(benchmark_selftest PRIVATE src)
     add_test(NAME benchmark_selftest COMMAND benchmark_selftest)
 
+    # targets that start threads: freebsd links libpthread only when asked
+    target_link_libraries(gpu_level_unload_selftest PRIVATE Threads::Threads)
     # offline java shader pack checker: tools/jshader_check <pack> (not a ctest; packs are not in the tree)
     add_executable(jshader_check tools/jshader_check.cpp)
     target_include_directories(jshader_check PRIVATE src)

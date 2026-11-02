@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "client/PerlinInternal.hpp"
 #include "util/Log.hpp"
 #include "world/level/lighting/LightRegistry.hpp"
@@ -170,7 +171,10 @@ namespace perlin {
             }
         }
         if (renderer->JavaShaderPackActive() && live) {
-            const int dim = std::clamp(live->DimensionId(), 0, 2);
+            int dim = std::clamp(live->DimensionId(), 0, 2);
+            // developer testing: run the pack's nether (1) or end (2) programs in any world
+            if (const char* forced = std::getenv("PERLIN_DEV_PACK_DIMENSION"))
+                dim = std::clamp(std::atoi(forced), 0, 2);
             if (dim != javaPackDimension) {
                 javaPackDimension = dim;
                 renderer->SetJavaShaderPackDimension(dim == 1 ? "world-1" : dim == 2 ? "world1" : "world0");

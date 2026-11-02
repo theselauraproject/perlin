@@ -108,6 +108,9 @@ namespace perlin {
         }
 
         context.UploadSkyTextures(sun, moon, clouds);
+        Texture endSky;
+        if (load("end_sky.png", endSky))
+            context.UploadEndSkyTexture(endSky);
         skyTexturesLoaded = true;
     }
 

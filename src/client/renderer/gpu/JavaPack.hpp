@@ -53,7 +53,7 @@ namespace perlin::gpu {
             uint32_t width = 0, height = 0;
             float scale = 1.0f; // internal resolution against width / height
             rhi::TextureHandle lightmap;
-            rhi::TextureHandle sun, moon;
+            rhi::TextureHandle sun, moon, endSky;
         };
 
         JavaPack(Gpu& gpu, ChunkMeshStore& meshes);
@@ -134,7 +134,7 @@ namespace perlin::gpu {
         static void BuildVertices(const UiVertex* vertices, size_t vertexCount, const uint32_t* indices,
                                   size_t indexCount, const float model[16], int blockLight, int skyLight,
                                   std::vector<uint8_t>& out, const int8_t* vertexLight = nullptr,
-                                  const float* faceToward = nullptr);
+                                  const float* faceToward = nullptr, bool noSkyLight = false);
         void QueueDraw(ExternalDraw draw) { queued.push_back(std::move(draw)); }
         // atlas tiles of still / flowing water and lava: fluid quads (waterlogged blocks included) carry the
         // fluid's block id and mc_Entity.y = 1, as iris's fluid renderer gives them
@@ -349,7 +349,8 @@ namespace perlin::gpu {
         void DrawSky(rhi::CommandList& list);
         void DrawSkyObjects(rhi::CommandList& list, const char* program, int stage, rhi::BufferHandle vb,
                             uint32_t first, uint32_t count, rhi::BufferHandle ring, uint64_t ringOffset,
-                            const float* modelView, rhi::TextureHandle texture, bool additive);
+                            const float* modelView, rhi::TextureHandle texture, bool additive,
+                            const float* colorModulator = nullptr);
         void DrawTranslucent(rhi::CommandList& list);
         void DrawTerrain(rhi::CommandList& list);
         bool DrawLayers(rhi::CommandList& list, const char* program, const std::vector<RenderLayer>& layers,
@@ -402,7 +403,12 @@ namespace perlin::gpu {
         rhi::BufferHandle quad;
         rhi::BufferHandle skyStatic;
         uint32_t starVertexCount = 0;
-        rhi::TextureHandle textureOverride, skySunTex, skyMoonTex;
+        rhi::TextureHandle textureOverride, skySunTex, skyMoonTex, skyEndTex;
+        // java gives only the overworld skylight: elsewhere every lightmap coordinate has sky 0
+        bool noSkyLight = false;
+        bool overrideRepeat = false; // the end sky's texture repeats
+        bool resolvingFullscreen = false;
+        static bool IsFullscreenPass(const std::string& progName);
 
         std::array<Buffer, jshader::kMaxColorTex> bufs;
         rhi::TextureHandle depth[3];
@@ -411,6 +417,7 @@ namespace perlin::gpu {
             shadowDepthNoTranslucents; // shadowtex1: the shadow depth before translucent terrain
         bool shadowCleared = false;
         bool resolvingWaterShadow = false;
+        float fogClock = 0.0f, waterVisionTicks = 0.0f;
         // copies of attachments a pass also samples (see FeedbackCopy)
         struct Feedback {
             rhi::TextureHandle tex;

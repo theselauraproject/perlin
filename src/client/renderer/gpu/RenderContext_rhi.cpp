@@ -431,7 +431,7 @@ namespace perlin {
         cloudVertexCapacity = cloudIndexCapacity = 0;
         cloudBuilt = false;
         for (TexRec* t :
-             {&atlas, &lightmap, &sunTex, &moonTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
+             {&atlas, &lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
               &javaNormalDef, &javaSpecDef, &javaBlack, &javaCloudWater, &javaMaterials})
             FreeTexture(*t);
         javaTexReady = false;
@@ -991,6 +991,7 @@ namespace perlin {
             po.lightmap = lightmap.handle;
             po.sun = sunTex.handle;
             po.moon = moonTex.handle;
+            po.endSky = endSkyTex.handle;
             // the pack wrote the whole picture and the depth: the world stage draws on top instead of clearing
             const bool recorded = jpack->Record(*list, frame, po);
             jpack->DropQueued();
@@ -1275,7 +1276,7 @@ namespace perlin {
         std::vector<uint8_t> atlasSaved = std::move(atlasSource);
         const int atlasTilesSaved = atlasTiles, tilePxSaved = tileSize;
         const Texture sunSaved = sunSource, moonSaved = moonSource, cloudSaved = cloudSource,
-                      iconSaved = iconSource;
+                      iconSaved = iconSource, endSkySaved = endSkySource;
         uint8_t lightmapSaved[kLightmapBytes];
         std::memcpy(lightmapSaved, lastLightmap, kLightmapBytes);
         const bool lightmapWas = lightmapValid;
@@ -1373,6 +1374,8 @@ namespace perlin {
             UploadAtlas(atlasSaved.data(), tilePxSaved, atlasTilesSaved);
         if (sunSaved.width > 0 || cloudSaved.width > 0)
             UploadSkyTextures(sunSaved, moonSaved, cloudSaved);
+        if (endSkySaved.width > 0)
+            UploadEndSkyTexture(endSkySaved);
         if (!flagsSaved.empty())
             UploadTileFlags(flagsSaved);
         if (iconSaved.width > 0)
