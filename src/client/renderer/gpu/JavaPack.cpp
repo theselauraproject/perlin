@@ -27,13 +27,14 @@ namespace perlin::gpu {
     namespace {
         // converted programs are kept on disk: glslang, the cross compiler and fxc take seconds per program for a big pack,
         // and nothing about them changes between runs
-        constexpr uint32_t kCacheMagic = 0x4a504b33u;
+        constexpr uint32_t kCacheMagic = 0x4a504b34u;
         constexpr int kCacheVersion = 4;
 
         struct CachedProgram {
             std::vector<jshader::UniformDecl> uniforms;
             std::vector<int> drawBuffers;
             std::vector<jshader::RhiSampler> samplers;
+            std::vector<std::string> images;
             int uniformRegs = 0;
             std::vector<uint8_t> vertex, fragment;
         };
@@ -67,6 +68,12 @@ namespace perlin::gpu {
                                  o.zeroToOneDepth, o.splitSamplers,
                                  o.explicitLod,    static_cast<int>(o.availableAttribs)};
             h = HashBytes(h, flags, sizeof(flags));
+            for (const auto& [img, slot] : o.imageSlots) {
+                h = HashString(h, img);
+                h = HashBytes(h, &slot, sizeof(slot));
+            }
+            for (const auto& [img, fmt] : o.imageFormats)
+                h = HashString(h, img + "=" + fmt);
             h = HashString(h, __DATE__ " " __TIME__);
             try {
                 const std::filesystem::path dir =
@@ -140,6 +147,9 @@ namespace perlin::gpu {
                 Put<int32_t>(out, s.slot);
                 Put<uint8_t>(out, s.shadow ? 1 : 0);
             }
+            Put<uint32_t>(out, static_cast<uint32_t>(c.images.size()));
+            for (const auto& img : c.images)
+                PutString(out, img);
             PutString(out, std::string(c.vertex.begin(), c.vertex.end()));
             PutString(out, std::string(c.fragment.begin(), c.fragment.end()));
             try {
@@ -192,6 +202,9 @@ namespace perlin::gpu {
                 s.shadow = r.Get<uint8_t>() != 0;
                 c.samplers.push_back(std::move(s));
             }
+            const uint32_t ni = r.Get<uint32_t>();
+            for (uint32_t i = 0; i < ni && r.ok; i++)
+                c.images.push_back(r.Str());
             const std::string vs = r.Str(), fs = r.Str();
             c.vertex.assign(vs.begin(), vs.end());
             c.fragment.assign(fs.begin(), fs.end());
@@ -339,6 +352,42 @@ namespace perlin::gpu {
                     }
                     d[3] = static_cast<uint8_t>(sum[3] / 4);
                 }
+        }
+
+        // iris internal format names of custom images; integer formats sample nearest
+        rhi::Format ImageFormat(const std::string& internal, bool& integer) {
+            static const std::map<std::string, std::pair<rhi::Format, bool>> formats = {
+                {"rgba8", {rhi::Format::RGBA8Unorm, false}},
+                {"rgba", {rhi::Format::RGBA8Unorm, false}},
+                {"rgb8", {rhi::Format::RGBA8Unorm, false}},
+                {"rg8", {rhi::Format::RG8Unorm, false}},
+                {"r8", {rhi::Format::R8Unorm, false}},
+                {"rgba16f", {rhi::Format::RGBA16Float, false}},
+                {"rgb16f", {rhi::Format::RGBA16Float, false}},
+                {"rg16f", {rhi::Format::RG16Float, false}},
+                {"r16f", {rhi::Format::R16Float, false}},
+                {"rgba32f", {rhi::Format::RGBA32Float, false}},
+                {"rgb32f", {rhi::Format::RGBA32Float, false}},
+                {"rg32f", {rhi::Format::RG32Float, false}},
+                {"r32f", {rhi::Format::R32Float, false}},
+                {"rgba16", {rhi::Format::RGBA16Unorm, false}},
+                {"rg16", {rhi::Format::RG16Unorm, false}},
+                {"rgb10_a2", {rhi::Format::RGB10A2Unorm, false}},
+                {"r11f_g11f_b10f", {rhi::Format::R11G11B10Float, false}},
+                {"r8ui", {rhi::Format::R8Uint, true}},
+                {"r16ui", {rhi::Format::R16Uint, true}},
+                {"r32ui", {rhi::Format::R32Uint, true}},
+                {"rg32ui", {rhi::Format::RG32Uint, true}},
+                {"rgba32ui", {rhi::Format::RGBA32Uint, true}},
+                {"r32i", {rhi::Format::R32Uint, true}},
+                {"rgba32i", {rhi::Format::RGBA32Uint, true}}};
+            const auto it = formats.find(jshader::ImageFormatQualifier(internal));
+            if (it == formats.end()) {
+                integer = false;
+                return rhi::Format::Unknown;
+            }
+            integer = it->second.second;
+            return it->second.first;
         }
 
         rhi::Format ToFormat(jshader::BufferFormat f) {
@@ -499,6 +548,7 @@ namespace perlin::gpu {
         for (size_t i = 0; i < s.texture.size(); i++) {
             h = (h ^ s.texture[i].value) * 1099511628211ull;
             h = (h ^ s.sampler[i]) * 1099511628211ull;
+            h = (h ^ static_cast<size_t>(s.dim[i])) * 1099511628211ull;
         }
         return h;
     }
@@ -524,6 +574,10 @@ namespace perlin::gpu {
                 dev.Destroy(kv.second->vs);
             if (kv.second->fs)
                 dev.Destroy(kv.second->fs);
+            if (kv.second->cs)
+                dev.Destroy(kv.second->cs);
+            if (kv.second->computePipeline)
+                dev.Destroy(kv.second->computePipeline);
         }
         programs.clear();
         for (auto& kv : pipelines)
@@ -542,8 +596,12 @@ namespace perlin::gpu {
             dev.Destroy(pipelineLayout);
         if (textureLayout)
             dev.Destroy(textureLayout);
+        if (imageLayout)
+            dev.Destroy(imageLayout);
+        if (bufferLayout)
+            dev.Destroy(bufferLayout);
         pipelineLayout = {};
-        textureLayout = {};
+        textureLayout = imageLayout = bufferLayout = {};
         if (skyStatic) {
             gpu.ForgetBuffer(skyStatic);
             dev.Destroy(skyStatic);
@@ -628,20 +686,38 @@ namespace perlin::gpu {
                                rhi::ShaderStage::Fragment | rhi::ShaderStage::Vertex, 1,
                                rhi::TextureDim::Tex2D, true});
         }
+        for (auto& e : entries)
+            e.stages = rhi::ShaderStage::All;
         rhi::BindLayoutDesc bl;
         bl.entries = entries;
         bl.name = "java pack textures";
         textureLayout = dev.CreateBindLayout(bl);
+        // set 2: the pack's custom images for load / store, set 3: its shader storage buffers
+        std::vector<rhi::BindLayoutEntry> imageEntries, bufferEntries;
+        for (uint32_t i = 0; i < kImageSlots; i++)
+            imageEntries.push_back({i, rhi::BindingType::StorageTextureRW, rhi::ShaderStage::All, 1,
+                                    rhi::TextureDim::Tex2D, false});
+        for (uint32_t i = 0; i < kSsboSlots; i++)
+            bufferEntries.push_back({i, rhi::BindingType::StorageBufferRW, rhi::ShaderStage::All, 1,
+                                     rhi::TextureDim::Tex2D, false});
+        bl.entries = imageEntries;
+        bl.name = "java pack images";
+        imageLayout = dev.CreateBindLayout(bl);
+        bl.entries = bufferEntries;
+        bl.name = "java pack buffers";
+        bufferLayout = dev.CreateBindLayout(bl);
         rhi::PipelineLayoutDesc pl;
         pl.sets[0] = gpu.UniformLayout();
         pl.sets[1] = textureLayout;
+        pl.sets[2] = imageLayout;
+        pl.sets[3] = bufferLayout;
         pl.name = "java pack";
         pipelineLayout = dev.CreatePipelineLayout(pl);
 
         const QuadVertex verts[6] = {{0, 0, 0, 0, 0}, {1, 0, 0, 1, 0}, {1, 1, 0, 1, 1},
                                      {0, 0, 0, 0, 0}, {1, 1, 0, 1, 1}, {0, 1, 0, 0, 1}};
         quad = gpu.CreateStatic(verts, sizeof(verts), rhi::BufferUsage::Vertex, "java pack quad");
-        return textureLayout && pipelineLayout && quad;
+        return textureLayout && imageLayout && bufferLayout && pipelineLayout && quad;
     }
 
     void JavaPack::CreateStatic() {
@@ -777,9 +853,11 @@ namespace perlin::gpu {
                 if (b >= 0 && b < jshader::kMaxColorTex)
                     bufs[static_cast<size_t>(b)].used = true;
         }
-        if (instance->ProgramExists("shadow"))
+        // a disabled shadow program (complementary at shadow quality -1) means no shadow pass, as in iris; the
+        // shadow textures still exist when the pack samples them, so its fallback paths read something valid
+        config.shadowEnabled = instance->ProgramExists("shadow") && instance->ProgramEnabled("shadow");
+        if (config.shadowEnabled)
             shadowUsed = true;
-        config.shadowEnabled = shadowUsed;
     }
 
     bool JavaPack::CreateTargets(uint32_t w, uint32_t h) {
@@ -822,7 +900,7 @@ namespace perlin::gpu {
             if (!shadowDepth)
                 return false;
         }
-        return true;
+        return CreateStorage();
     }
 
     void JavaPack::DestroyTargets() {
@@ -842,6 +920,26 @@ namespace perlin::gpu {
             }
         }
         owned = keep;
+        for (auto& kv : imageGroups)
+            dev.Destroy(kv.second);
+        imageGroups.clear();
+        if (bufferGroup)
+            dev.Destroy(bufferGroup);
+        bufferGroup = {};
+        for (rhi::BufferHandle& b : ssbo)
+            if (b) {
+                dev.Destroy(b);
+                b = {};
+            }
+        for (rhi::BufferHandle* b : {&dummySsbo, &zeroBuffer})
+            if (*b) {
+                dev.Destroy(*b);
+                *b = {};
+            }
+        zeroBytes = 0;
+        for (Image& img : images)
+            img.tex = {}; // owned: destroyed above
+        dummyStorage = {};
         for (Buffer& b : bufs)
             b.tex[0] = b.tex[1] = {};
         depth[0] = depth[1] = depth[2] = {};
@@ -849,12 +947,22 @@ namespace perlin::gpu {
         shadowColor[0] = shadowColor[1] = {};
     }
 
+    std::vector<std::string> JavaPack::ExtraFeatures() const {
+        // storage images and buffers in every stage: vulkan, d3d12 and metal. d3d11 binds pixel shader uavs
+        // against the render targets, which the rhi does not do, so packs take their fallback paths there
+        const rhi::Api api = gpu.Api();
+        if (api == rhi::Api::Vulkan || api == rhi::Api::D3D12 || api == rhi::Api::Metal)
+            return {"CUSTOM_IMAGES", "COMPUTE_SHADERS", "SSBO"};
+        return {};
+    }
+
     bool JavaPack::Load(const Config& cfg, std::string& error) {
         const rhi::Api api = gpu.Api();
-        if (api != rhi::Api::Vulkan && api != rhi::Api::D3D12 && api != rhi::Api::D3D11) {
+        if (api != rhi::Api::Vulkan && api != rhi::Api::D3D12 && api != rhi::Api::D3D11 &&
+            api != rhi::Api::Metal) {
             error =
-                std::string(
-                    "Java shader packs need the Vulkan, Direct3D 12 or Direct3D 11 renderer (this one is ") +
+                std::string("Java shader packs need the Vulkan, Direct3D 12, Direct3D 11 or Metal renderer "
+                            "(this one is ") +
                 rhi::ApiName(api) + ")";
             lastError = error;
             return false;
@@ -875,14 +983,54 @@ namespace perlin::gpu {
         }
         path = cfg.path;
         blockName = cfg.blockName;
+        blockEmission = cfg.blockEmission;
+        jshader::EngineEnvironment env;
+        {
+            const rhi::AdapterInfo& adapter = gpu.Dev().Caps().adapter;
+            env.renderer = adapter.name;
+            env.vendor = adapter.vendorId == 0x10DE   ? "NVIDIA Corporation"
+                         : adapter.vendorId == 0x1002 ? "AMD"
+                         : adapter.vendorId == 0x8086 ? "Intel"
+                         : adapter.vendorId == 0x106B ? "Apple"
+                                                      : adapter.name;
+            env.features = jshader::BaseFeatureFlags();
+            for (const std::string& f : ExtraFeatures())
+                env.features.insert(f);
+        }
         instance = std::make_shared<jshader::ShaderPackInstance>(
             std::shared_ptr<jshader::PackSource>(std::move(source)), cfg.options,
-            jshader::EngineMacros(260300, false));
+            jshader::EngineMacros(260300, false, env));
+        if (!instance->MissingFeatures().empty()) {
+            error = instance->FirstError();
+            lastError = error;
+            return false;
+        }
         lap("opened");
         instance->SetDimension(cfg.dimension);
         name = instance->Name().empty() ? cfg.path : instance->Name();
         config = jshader::ParsePipelineConfig(*instance);
         lap("parsed config");
+        // the image table: slot i of set 2 is config.images[i]; the textures come with the render targets
+        images.clear();
+        imageSlotOf.clear();
+        imageSamplerOf.clear();
+        for (const jshader::CustomImage& info : config.images) {
+            Image img;
+            img.info = info;
+            img.format = ImageFormat(info.internalFormat, img.integer);
+            img.dim = info.dims == 3 ? rhi::TextureDim::Tex3D : rhi::TextureDim::Tex2D;
+            if (img.format == rhi::Format::Unknown || info.dims == 1) {
+                std::fprintf(stderr, "[jshader] image %s: format %s / %dD is not supported\n",
+                             info.name.c_str(), info.internalFormat.c_str(), info.dims);
+                continue;
+            }
+            const int slot = static_cast<int>(images.size());
+            imageSlotOf[info.name] = slot;
+            if (!info.sampler.empty())
+                imageSamplerOf[info.sampler] = slot;
+            images.push_back(std::move(img));
+        }
+        setupDone = false;
         custom.Load(config.customUniformProps);
         table.SetCustom(&custom);
         pool.Start(static_cast<int>(std::max(2u, std::min(6u, std::thread::hardware_concurrency() > 2
@@ -1098,6 +1246,9 @@ namespace perlin::gpu {
                 tangent = glm::vec3(1, 0, 0);
             tangent = glm::normalize(tangent);
             const int packId = block ? PackBlockId(block) : -1;
+            // iris BLOCK_EMISSION_ATTRIBUTE: the block's light level rides in at_midBlock.w
+            const float emission =
+                block && blockEmission ? static_cast<float>(std::clamp(blockEmission(block), 0, 15)) : 0.0f;
             float au[4], av[4];
             for (int i = 0; i < 4; i++) {
                 const uint32_t tile = v[i].light >> 16;
@@ -1128,7 +1279,8 @@ namespace perlin::gpu {
                 const glm::vec3 toMid = (blockCentre - glm::vec3(pos[0], pos[1], pos[2])) * 64.0f;
                 const uint16_t midBlock[4] = {ToHalf(std::clamp(std::round(toMid.x), -127.0f, 127.0f)),
                                               ToHalf(std::clamp(std::round(toMid.y), -127.0f, 127.0f)),
-                                              ToHalf(std::clamp(std::round(toMid.z), -127.0f, 127.0f)), 0};
+                                              ToHalf(std::clamp(std::round(toMid.z), -127.0f, 127.0f)),
+                                              ToHalf(emission)};
                 put(o, kPos, pos, 12);
                 put(o, kColor, &abgr, 4);
                 put(o, kUv, uv, 8);
@@ -1207,47 +1359,47 @@ namespace perlin::gpu {
             b.kind = Kind::Specular;
         else if (n == "iris_overlay")
             b.kind = Kind::Overlay;
-        else if (customTextures.contains(n))
+        else if (const auto img = imageSamplerOf.find(n); img != imageSamplerOf.end()) {
+            b.kind = Kind::Image;
+            b.index = img->second;
+        } else if (customTextures.contains(n))
             b.kind = Kind::Custom;
         else
             b.kind = Kind::Dummy;
         return b;
     }
 
-    JavaPack::Program* JavaPack::Finish(const std::string& key, const std::string& progName,
-                                        const Converted& c, std::shared_ptr<jshader::ProgramSource> source) {
-        auto p = std::make_unique<Program>();
-        p->source = std::move(source);
-        const jshader::RhiProgram& rp = c.program;
-        const rhi::ShaderFormat format = rp.kind == jshader::RhiShaderKind::SpirV  ? rhi::ShaderFormat::SpirV
-                                         : rp.kind == jshader::RhiShaderKind::Dxbc ? rhi::ShaderFormat::Dxbc
-                                                                                   : rhi::ShaderFormat::Hlsl;
-        rhi::ShaderDesc sd;
-        sd.format = format;
-        sd.name = progName.c_str();
-        sd.stage = rhi::ShaderStage::Vertex;
-        sd.code = rp.vertex;
-        p->vs = gpu.Dev().CreateShader(sd);
-        sd.stage = rhi::ShaderStage::Fragment;
-        sd.code = rp.fragment;
-        p->fs = gpu.Dev().CreateShader(sd);
-        p->valid = p->vs && p->fs;
-        p->regs = rp.uniformRegs;
-        for (const jshader::RhiSampler& s : rp.samplers) {
+    void JavaPack::FillProgramResources(Program& p, const std::string& progName,
+                                        const std::vector<jshader::RhiSampler>& samplerList,
+                                        const std::vector<std::string>& imageNames,
+                                        const std::vector<jshader::UniformDecl>& uniforms, int regs) {
+        p.regs = regs;
+        for (const jshader::RhiSampler& s : samplerList) {
             if (s.slot >= static_cast<int>(kTextureSlots)) {
                 std::fprintf(stderr, "[jshader] %s: sampler '%s' needs slot %d (only %u exist)\n",
                              progName.c_str(), s.name.c_str(), s.slot, kTextureSlots);
-                p->valid = false;
+                p.valid = false;
                 continue;
             }
-            p->samplers.push_back(ResolveSampler(s));
+            p.samplers.push_back(ResolveSampler(s));
         }
-        if (p->regs > 256) {
+        for (const std::string& img : imageNames) {
+            const auto it = imageSlotOf.find(img);
+            if (it == imageSlotOf.end() || !images[static_cast<size_t>(it->second)].tex) {
+                std::fprintf(stderr, "[jshader] %s: image '%s' has no texture\n", progName.c_str(),
+                             img.c_str());
+                p.valid = false;
+                continue;
+            }
+            p.imageSlots.push_back(it->second);
+            p.imageMask |= 1u << it->second;
+        }
+        if (p.regs > 256) {
             std::fprintf(stderr, "[jshader] %s: %d uniform registers (limit 256)\n", progName.c_str(),
-                         p->regs);
-            p->valid = false;
+                         p.regs);
+            p.valid = false;
         }
-        for (const jshader::UniformDecl& d : c.transform.uniforms) {
+        for (const jshader::UniformDecl& d : uniforms) {
             UniformSlot slot;
             slot.decl = d;
             slot.known = table.Known(d.name);
@@ -1257,9 +1409,35 @@ namespace perlin::gpu {
             if (!slot.known && loggedMissing.insert(progName + ":" + d.name).second)
                 std::fprintf(stderr, "[jshader] %s: unknown uniform '%s' (left at 0)\n", progName.c_str(),
                              d.name.c_str());
-            p->anyPerDraw = p->anyPerDraw || slot.perDraw;
-            p->slots.push_back(std::move(slot));
+            p.anyPerDraw = p.anyPerDraw || slot.perDraw;
+            p.slots.push_back(std::move(slot));
         }
+        p.frameRegs.assign(static_cast<size_t>(std::max(1, p.regs)) * 4, 0.0f);
+        p.drawRegs = p.frameRegs;
+    }
+
+    JavaPack::Program* JavaPack::Finish(const std::string& key, const std::string& progName,
+                                        const Converted& c, std::shared_ptr<jshader::ProgramSource> source) {
+        auto p = std::make_unique<Program>();
+        p->source = std::move(source);
+        const jshader::RhiProgram& rp = c.program;
+        const rhi::ShaderFormat format = rp.kind == jshader::RhiShaderKind::SpirV  ? rhi::ShaderFormat::SpirV
+                                         : rp.kind == jshader::RhiShaderKind::Dxbc ? rhi::ShaderFormat::Dxbc
+                                         : rp.kind == jshader::RhiShaderKind::Msl  ? rhi::ShaderFormat::Msl
+                                                                                   : rhi::ShaderFormat::Hlsl;
+        rhi::ShaderDesc sd;
+        sd.format = format;
+        sd.name = progName.c_str();
+        if (format == rhi::ShaderFormat::Msl)
+            sd.entry = "main0"; // spirv-cross renames main, which msl reserves
+        sd.stage = rhi::ShaderStage::Vertex;
+        sd.code = rp.vertex;
+        p->vs = gpu.Dev().CreateShader(sd);
+        sd.stage = rhi::ShaderStage::Fragment;
+        sd.code = rp.fragment;
+        p->fs = gpu.Dev().CreateShader(sd);
+        p->valid = p->vs && p->fs;
+        FillProgramResources(*p, progName, rp.samplers, rp.images, c.transform.uniforms, rp.uniformRegs);
         int maxLoc = -1;
         for (int l : c.transform.fragment.drawBuffers)
             maxLoc = std::max(maxLoc, l);
@@ -1267,8 +1445,6 @@ namespace perlin::gpu {
         const std::vector<int>& tag = p->source ? p->source->drawBuffers : none;
         for (int l = 0; l <= maxLoc; l++)
             p->attachments.push_back(l < static_cast<int>(tag.size()) ? tag[static_cast<size_t>(l)] : l);
-        p->frameRegs.assign(static_cast<size_t>(std::max(1, p->regs)) * 4, 0.0f);
-        p->drawRegs = p->frameRegs;
         Program* raw = p.get();
         programs[key] = std::move(p);
         return raw;
@@ -1311,9 +1487,15 @@ namespace perlin::gpu {
             // offscreen targets are stored upside down against the screen so the pack's opengl uv convention holds
             opts.flipVertexY = !toBackbuffer;
             opts.flipFragCoordY = toBackbuffer;
+            for (const auto& [imgName, slot] : imageSlotOf) {
+                opts.imageSlots[imgName] = slot;
+                opts.imageFormats[imgName] =
+                    jshader::ImageFormatQualifier(images[static_cast<size_t>(slot)].info.internalFormat);
+            }
             const rhi::Api api = gpu.Api();
             const jshader::RhiShaderKind kind = api == rhi::Api::Vulkan  ? jshader::RhiShaderKind::SpirV
                                                 : api == rhi::Api::D3D12 ? jshader::RhiShaderKind::Dxbc
+                                                : api == rhi::Api::Metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;
             const jshader::RhiShaderKind kindUsed = std::getenv("JSHADER_FORCE_HLSL")
                                                         ? jshader::RhiShaderKind::Hlsl
@@ -1333,6 +1515,7 @@ namespace perlin::gpu {
                     c->program.vertex = std::move(cached.vertex);
                     c->program.fragment = std::move(cached.fragment);
                     c->program.samplers = std::move(cached.samplers);
+                    c->program.images = std::move(cached.images);
                     c->program.uniformRegs = cached.uniformRegs;
                     c->ok = true;
                     if (std::getenv("JSHADER_TRACE"))
@@ -1362,6 +1545,7 @@ namespace perlin::gpu {
                     save.uniforms = c->transform.uniforms;
                     save.drawBuffers = c->transform.fragment.drawBuffers;
                     save.samplers = c->program.samplers;
+                    save.images = c->program.images;
                     save.uniformRegs = c->program.uniformRegs;
                     save.vertex = c->program.vertex;
                     save.fragment = c->program.fragment;
@@ -1545,7 +1729,7 @@ namespace perlin::gpu {
             rhi::BindGroupEntry t;
             t.binding = s * 2;
             t.texture.texture = set.texture[s] ? set.texture[s] : gpu.White2D();
-            t.texture.viewDim = rhi::TextureDim::Tex2D;
+            t.texture.viewDim = set.texture[s] ? set.dim[s] : rhi::TextureDim::Tex2D;
             entries.push_back(t);
             rhi::BindGroupEntry smp;
             smp.binding = s * 2 + 1;
@@ -1567,6 +1751,7 @@ namespace perlin::gpu {
         for (size_t i = 0; i < kTextureSlots; i++) {
             set.texture[i] = white;
             set.sampler[i] = SLinearClamp;
+            set.dim[i] = rhi::TextureDim::Tex2D;
         }
         const auto isAttached = [&](rhi::TextureHandle t) {
             return std::find(attached.begin(), attached.end(), t) != attached.end();
@@ -1622,18 +1807,344 @@ namespace perlin::gpu {
                 t = customTextures[s.name];
                 smp = SLinearRepeat;
                 break;
+            case Kind::Image: {
+                // iris samples custom images with linear filtering, integer ones nearest
+                const Image& img = images[static_cast<size_t>(s.index)];
+                t = img.tex;
+                smp = img.integer ? SPointClamp : SLinearClamp;
+                set.dim[static_cast<size_t>(s.slot)] = img.dim;
+                break;
+            }
             case Kind::Dummy:
                 break;
             }
-            if (!t || isAttached(t))
+            if (!t || isAttached(t)) {
                 t = white;
+                set.dim[static_cast<size_t>(s.slot)] = rhi::TextureDim::Tex2D;
+            }
             set.texture[static_cast<size_t>(s.slot)] = t;
             set.sampler[static_cast<size_t>(s.slot)] = static_cast<uint8_t>(smp);
         }
+        // images the program stores to stay writable for the whole pass (sampling them too reads that state)
+        const auto stored = [&](rhi::TextureHandle t) {
+            for (int slot : p.imageSlots)
+                if (images[static_cast<size_t>(slot)].tex == t)
+                    return true;
+            return false;
+        };
         for (size_t i = 0; i < kTextureSlots; i++)
-            if (set.texture[i])
+            if (set.texture[i] && !stored(set.texture[i]))
                 gpu.Transition(list, set.texture[i], rhi::State::ShaderRead);
+        for (int slot : p.imageSlots)
+            gpu.Transition(list, images[static_cast<size_t>(slot)].tex, rhi::State::ShaderWrite);
         return GroupFor(set);
+    }
+
+    // -- custom images, storage buffers and compute ----------------------------------------------------------------------
+
+    bool JavaPack::CreateStorage() {
+        rhi::Device& dev = gpu.Dev();
+        constexpr rhi::TextureUsage kImage =
+            rhi::TextureUsage::Sampled | rhi::TextureUsage::Storage | rhi::TextureUsage::CopyDst;
+        uint64_t zero = 256;
+        for (Image& img : images) {
+            const jshader::CustomImage& info = img.info;
+            img.w = info.relative
+                        ? std::max(1u, static_cast<uint32_t>(static_cast<float>(width) * info.relativeWidth))
+                        : static_cast<uint32_t>(info.width);
+            img.h =
+                info.relative
+                    ? std::max(1u, static_cast<uint32_t>(static_cast<float>(height) * info.relativeHeight))
+                    : static_cast<uint32_t>(info.height);
+            img.d = img.dim == rhi::TextureDim::Tex3D ? static_cast<uint32_t>(info.depth) : 1u;
+            rhi::TextureDesc td;
+            td.dim = img.dim;
+            td.format = img.format;
+            td.width = img.w;
+            td.height = img.h;
+            td.depthOrLayers = img.d;
+            td.usage = kImage;
+            td.name = info.name.c_str();
+            img.tex = dev.CreateTexture(td);
+            if (!img.tex) {
+                std::fprintf(stderr, "[jshader] image %s (%ux%ux%u) could not be created\n",
+                             info.name.c_str(), img.w, img.h, img.d);
+                continue;
+            }
+            gpu.SetState(img.tex, rhi::State::Undefined);
+            owned.push_back(img.tex);
+            const uint64_t pitch =
+                (static_cast<uint64_t>(img.w) * rhi::GetFormatInfo(img.format).bytesPerBlock + 255) &
+                ~uint64_t(255);
+            zero = std::max(zero, pitch * img.h * img.d);
+        }
+        // a 1x1 storage texture fills the image slots a program does not use
+        rhi::TextureDesc dd;
+        dd.format = rhi::Format::RGBA8Unorm;
+        dd.usage = rhi::TextureUsage::Storage | rhi::TextureUsage::Sampled;
+        dd.name = "pack dummy image";
+        dummyStorage = dev.CreateTexture(dd);
+        if (dummyStorage) {
+            gpu.SetState(dummyStorage, rhi::State::Undefined);
+            owned.push_back(dummyStorage);
+        }
+        rhi::BufferDesc bd;
+        bd.usage = rhi::BufferUsage::Storage | rhi::BufferUsage::CopyDst;
+        for (const jshader::BufferObject& b : config.bufferObjects) {
+            bd.size =
+                b.relative
+                    ? std::max<uint64_t>(16, static_cast<uint64_t>(static_cast<double>(b.size) *
+                                                                   (width * b.scaleX) * (height * b.scaleY)))
+                    : std::max<uint64_t>(16, b.size);
+            bd.name = "pack ssbo";
+            ssbo[static_cast<size_t>(b.index)] = dev.CreateBuffer(bd);
+            zero = std::max(zero, bd.size);
+        }
+        bd.size = 256;
+        bd.name = "pack dummy ssbo";
+        dummySsbo = dev.CreateBuffer(bd);
+        rhi::BufferDesc zd;
+        zd.size = zero;
+        zd.usage = rhi::BufferUsage::CopySrc | rhi::BufferUsage::CopyDst;
+        zd.name = "pack zeroes";
+        zeroBuffer = dev.CreateBuffer(zd);
+        zeroBytes = zero;
+        storageFresh = true;
+        if (!dummyStorage || !dummySsbo || !zeroBuffer)
+            return false;
+        std::vector<rhi::BindGroupEntry> entries;
+        for (uint32_t i = 0; i < kSsboSlots; i++) {
+            rhi::BindGroupEntry e;
+            e.binding = i;
+            e.buffer.buffer = ssbo[i] ? ssbo[i] : dummySsbo;
+            entries.push_back(e);
+        }
+        rhi::BindGroupDesc gd;
+        gd.layout = bufferLayout;
+        gd.entries = entries;
+        gd.name = "java pack buffers";
+        bufferGroup = dev.CreateBindGroup(gd);
+        return static_cast<bool>(bufferGroup);
+    }
+
+    // fresh storage is zeroed (iris clears images and buffers when it creates them); clear=true images every frame
+    void JavaPack::ClearImages(rhi::CommandList& list, bool all) {
+        if (!zeroBuffer)
+            return;
+        if (storageFresh) {
+            list.Barrier(rhi::BufferBarrier{zeroBuffer, rhi::State::Undefined, rhi::State::CopyDst});
+            list.FillBuffer(zeroBuffer, 0, zeroBytes, 0);
+            list.Barrier(rhi::BufferBarrier{zeroBuffer, rhi::State::CopyDst, rhi::State::CopySrc});
+            for (rhi::BufferHandle b : ssbo) {
+                if (!b)
+                    continue;
+                const rhi::BufferDesc* d = gpu.Dev().GetDesc(b);
+                list.Barrier(rhi::BufferBarrier{b, rhi::State::Undefined, rhi::State::CopyDst});
+                if (d)
+                    list.CopyBuffer(b, 0, zeroBuffer, 0, std::min(d->size, zeroBytes));
+                list.Barrier(rhi::BufferBarrier{b, rhi::State::CopyDst, rhi::State::ShaderWrite});
+            }
+            list.Barrier(rhi::BufferBarrier{dummySsbo, rhi::State::Undefined, rhi::State::ShaderWrite});
+            gpu.Transition(list, dummyStorage, rhi::State::ShaderWrite);
+        }
+        for (Image& img : images) {
+            if (!img.tex || !(all || storageFresh || img.info.clear))
+                continue;
+            gpu.Transition(list, img.tex, rhi::State::CopyDst);
+            rhi::BufferTextureCopy c;
+            c.bufferRowPitch = static_cast<uint32_t>(
+                (static_cast<uint64_t>(img.w) * rhi::GetFormatInfo(img.format).bytesPerBlock + 255) &
+                ~uint64_t(255));
+            c.width = img.w;
+            c.height = img.h;
+            c.depth = img.d;
+            list.CopyBufferToTexture(img.tex, zeroBuffer, std::span<const rhi::BufferTextureCopy>(&c, 1));
+            gpu.Transition(list, img.tex, rhi::State::ShaderRead);
+        }
+        storageFresh = false;
+    }
+
+    rhi::BindGroupHandle JavaPack::ImageGroup(uint32_t mask) {
+        const auto it = imageGroups.find(mask);
+        if (it != imageGroups.end())
+            return it->second;
+        std::vector<rhi::BindGroupEntry> entries;
+        for (uint32_t i = 0; i < kImageSlots; i++) {
+            rhi::BindGroupEntry e;
+            e.binding = i;
+            const bool used = (mask >> i) & 1u && i < images.size() && images[i].tex;
+            e.texture.texture = used ? images[i].tex : dummyStorage;
+            e.texture.viewDim = used ? images[i].dim : rhi::TextureDim::Tex2D;
+            entries.push_back(e);
+        }
+        rhi::BindGroupDesc gd;
+        gd.layout = imageLayout;
+        gd.entries = entries;
+        gd.name = "java pack images";
+        const rhi::BindGroupHandle g = gpu.Dev().CreateBindGroup(gd);
+        imageGroups.emplace(mask, g);
+        return g;
+    }
+
+    void JavaPack::BindStorage(rhi::CommandList& list, const Program& p) {
+        const rhi::BindGroupHandle g = ImageGroup(p.imageMask);
+        if (g)
+            list.SetBindGroup(2, g);
+        if (bufferGroup)
+            list.SetBindGroup(3, bufferGroup);
+    }
+
+    // writes of one pass become visible to the next (images stay writable, storage buffers always are)
+    void JavaPack::StorageBarrier(rhi::CommandList& list, const Program& p) {
+        for (int slot : p.imageSlots)
+            list.UavBarrier(images[static_cast<size_t>(slot)].tex);
+        if (!config.bufferObjects.empty())
+            for (rhi::BufferHandle b : ssbo)
+                if (b)
+                    list.UavBarrier(b);
+    }
+
+    JavaPack::Program* JavaPack::GetCompute(const std::string& progName, size_t index) {
+        const std::string key = "cs:" + progName + ":" + std::to_string(index);
+        const auto ready = programs.find(key);
+        if (ready != programs.end())
+            return ready->second->valid ? ready->second.get() : nullptr;
+        auto it = pending.find(key);
+        if (it == pending.end()) {
+            const std::shared_ptr<jshader::ProgramSource> source = instance->Program(progName);
+            if (!source || index >= source->compute.size()) {
+                programs[key] = std::make_unique<Program>();
+                return nullptr;
+            }
+            jshader::TransformOptions opts;
+            opts.macros = instance->EngineMacros();
+            opts.preprocess = jshader::PreprocessGlsl;
+            opts.zeroToOneDepth = true;
+            opts.splitSamplers = true;
+            opts.explicitLod = true;
+            for (const auto& [imgName, slot] : imageSlotOf) {
+                opts.imageSlots[imgName] = slot;
+                opts.imageFormats[imgName] =
+                    jshader::ImageFormatQualifier(images[static_cast<size_t>(slot)].info.internalFormat);
+            }
+            const rhi::Api api = gpu.Api();
+            const jshader::RhiShaderKind kind = api == rhi::Api::Vulkan  ? jshader::RhiShaderKind::SpirV
+                                                : api == rhi::Api::D3D12 ? jshader::RhiShaderKind::Dxbc
+                                                : api == rhi::Api::Metal ? jshader::RhiShaderKind::Msl
+                                                                         : jshader::RhiShaderKind::Hlsl;
+            const jshader::DxbcCompiler dxbc = jshader::SystemDxbcCompiler();
+            auto fut = pool.Submit([text = source->compute[index], opts, kind, dxbc]() {
+                auto c = std::make_shared<Converted>();
+                c->isCompute = true;
+                c->computeTransform = jshader::TransformCompute(text, opts);
+                if (!c->computeTransform.ok()) {
+                    c->error = c->computeTransform.stage.error;
+                    return c;
+                }
+                c->computeProgram = jshader::BuildRhiCompute(c->computeTransform, kind, dxbc);
+                c->ok = c->computeProgram.ok;
+                if (!c->ok)
+                    c->error = c->computeProgram.error;
+                return c;
+            });
+            it = pending.emplace(key, fut).first;
+        }
+        if (it->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return nullptr;
+        const std::shared_ptr<Converted> c = it->second.get();
+        pending.erase(it);
+        if (!c->ok) {
+            std::fprintf(stderr, "[jshader] compute %s #%zu failed: %.1500s\n", progName.c_str(), index,
+                         c->error.c_str());
+            if (lastError.empty())
+                lastError = progName + ".csh: " + c->error.substr(0, 300);
+            programs[key] = std::make_unique<Program>();
+            return nullptr;
+        }
+        return FinishCompute(key, progName, *c);
+    }
+
+    JavaPack::Program* JavaPack::FinishCompute(const std::string& key, const std::string& progName,
+                                               const Converted& c) {
+        auto p = std::make_unique<Program>();
+        p->compute = true;
+        p->dispatch = c.computeTransform;
+        const jshader::RhiCompute& rc = c.computeProgram;
+        rhi::ShaderDesc sd;
+        sd.format = rc.kind == jshader::RhiShaderKind::SpirV  ? rhi::ShaderFormat::SpirV
+                    : rc.kind == jshader::RhiShaderKind::Dxbc ? rhi::ShaderFormat::Dxbc
+                    : rc.kind == jshader::RhiShaderKind::Msl  ? rhi::ShaderFormat::Msl
+                                                              : rhi::ShaderFormat::Hlsl;
+        sd.name = progName.c_str();
+        if (sd.format == rhi::ShaderFormat::Msl)
+            sd.entry = "main0";
+        sd.stage = rhi::ShaderStage::Compute;
+        sd.code = rc.code;
+        p->cs = gpu.Dev().CreateShader(sd);
+        p->valid = static_cast<bool>(p->cs);
+        FillProgramResources(*p, progName, rc.samplers, rc.images, c.computeTransform.stage.uniforms,
+                             rc.uniformRegs);
+        if (p->valid) {
+            rhi::ComputePipelineDesc cd;
+            cd.compute = p->cs;
+            cd.layout = pipelineLayout;
+            cd.name = progName.c_str();
+            p->computePipeline = gpu.Dev().CreateComputePipeline(cd);
+            p->valid = static_cast<bool>(p->computePipeline);
+        }
+        Program* raw = p.get();
+        programs[key] = std::move(p);
+        return raw;
+    }
+
+    bool JavaPack::RunCompute(rhi::CommandList& list, const std::string& progName, uint32_t renderW,
+                              uint32_t renderH) {
+        const std::shared_ptr<jshader::ProgramSource> source = instance->Program(progName);
+        if (!source)
+            return true;
+        bool allReady = true;
+        for (size_t i = 0; i < source->compute.size(); i++) {
+            const std::string key = "cs:" + progName + ":" + std::to_string(i);
+            Program* p = GetCompute(progName, i);
+            if (!p) {
+                // still compiling (a failed one is final and skipped)
+                if (pending.contains(key))
+                    allReady = false;
+                continue;
+            }
+            const rhi::BindGroupHandle textures = Textures(list, *p, {});
+            if (!textures)
+                continue;
+            list.SetPipeline(p->computePipeline);
+            jshader::PackDrawState d;
+            d.viewHeight = static_cast<int>(renderH);
+            if (!BindUniforms(list, *p, d))
+                continue;
+            list.SetBindGroup(1, textures);
+            BindStorage(list, *p);
+            const jshader::ComputeResult& cr = p->dispatch;
+            uint32_t groups[3] = {1, 1, 1};
+            if (cr.fixedGroups) {
+                for (int a = 0; a < 3; a++)
+                    groups[a] = cr.workGroups[a];
+            } else {
+                const float sx = static_cast<float>(renderW) * cr.workGroupsRender[0];
+                const float sy = static_cast<float>(renderH) * cr.workGroupsRender[1];
+                groups[0] = std::max(1u, (static_cast<uint32_t>(std::ceil(sx)) + cr.localSize[0] - 1) /
+                                             cr.localSize[0]);
+                groups[1] = std::max(1u, (static_cast<uint32_t>(std::ceil(sy)) + cr.localSize[1] - 1) /
+                                             cr.localSize[1]);
+            }
+            const uint32_t limit = 65535;
+            if (groups[0] && groups[1] && groups[2] && groups[0] <= limit && groups[1] <= limit &&
+                groups[2] <= limit)
+                list.Dispatch(groups[0], groups[1], groups[2]);
+            StorageBarrier(list, *p);
+            if (trace)
+                std::fprintf(stderr, "[jshader] compute %s #%zu groups %ux%ux%u\n", progName.c_str(), i,
+                             groups[0], groups[1], groups[2]);
+        }
+        return allReady;
     }
 
     // -- frame state ---------------------------------------------------------------------------------------------------
@@ -1948,6 +2459,7 @@ namespace perlin::gpu {
             return false;
         }
         list.SetBindGroup(1, textures);
+        BindStorage(list, *p);
         for (RenderLayer layer : layers) {
             const auto& runList = shadow ? shadowRuns[layer == RenderLayer::Solid    ? 0
                                                       : layer == RenderLayer::Cutout ? 1
@@ -1998,6 +2510,8 @@ namespace perlin::gpu {
             }
         }
         list.EndRendering();
+        if (p->imageMask || !config.bufferObjects.empty())
+            StorageBarrier(list, *p); // shadow voxelization writes images from the vertex shader
         return true;
     }
 
@@ -2109,6 +2623,7 @@ namespace perlin::gpu {
             return;
         }
         list.SetBindGroup(1, textures);
+        BindStorage(list, *p);
         list.SetPipeline(pipe);
         list.SetVertexBuffer(0, ring ? ring : vb,
                              ring ? ringOffset : static_cast<uint64_t>(first) * kPackVertexBytes);
@@ -2283,10 +2798,13 @@ namespace perlin::gpu {
             return false;
         }
         list.SetBindGroup(1, textures);
+        BindStorage(list, *p);
         list.SetPipeline(pipe);
         list.SetVertexBuffer(0, quad);
         list.Draw(6, 1, 0, 0);
         list.EndRendering();
+        if (p->imageMask || !config.bufferObjects.empty())
+            StorageBarrier(list, *p);
         if (trace)
             std::fprintf(stderr, "[jshader] pass %s %ux%u targets %zu\n", passName.c_str(), vw, vh,
                          targets.size());
@@ -2300,9 +2818,16 @@ namespace perlin::gpu {
     }
 
     void JavaPack::RunChain(rhi::CommandList& list, const char* base) {
+        const bool shadowChain = std::strcmp(base, "shadowcomp") == 0;
+        const uint32_t res = static_cast<uint32_t>(config.shadowMapResolution);
         for (const std::string& n : instance->PassChain(base)) {
             if (!instance->ProgramEnabled(n))
                 continue;
+            // iris runs a pass's compute shaders (name.csh, name_a.csh ...) before its fragment program
+            RunCompute(list, n, shadowChain ? res : width, shadowChain ? res : height);
+            const std::shared_ptr<jshader::ProgramSource> src = instance->Program(n);
+            if (!src || src->fragment.text.empty())
+                continue; // compute only
             Output unused;
             RunPass(list, n, false, unused);
         }
@@ -2346,6 +2871,7 @@ namespace perlin::gpu {
         d.viewHeight = static_cast<int>(out.height);
         if (BindUniforms(list, *p, d)) {
             list.SetBindGroup(1, textures);
+            BindStorage(list, *p);
             list.SetPipeline(pipe);
             list.SetVertexBuffer(0, quad);
             list.Draw(6, 1, 0, 0);
@@ -2374,10 +2900,31 @@ namespace perlin::gpu {
         frameStamp++;
         BuildFrame(params, out);
 
+        ClearImages(list, false);
         ClearBuffers(list, params);
+        // setup runs once, when all of its compute shaders are ready
+        if (!setupDone) {
+            bool ready = true;
+            for (const std::string& n : instance->PassChain("setup"))
+                if (instance->ProgramEnabled(n))
+                    for (size_t i = 0; i < (instance->Program(n) ? instance->Program(n)->compute.size() : 0);
+                         i++)
+                        ready = GetCompute(n, i) != nullptr ||
+                                        !pending.contains("cs:" + n + ":" + std::to_string(i))
+                                    ? ready
+                                    : false;
+            if (ready) {
+                for (const std::string& n : instance->PassChain("setup"))
+                    if (instance->ProgramEnabled(n))
+                        RunCompute(list, n, width, height);
+                setupDone = true;
+            }
+        }
         RunChain(list, "begin");
         DrawShadows(list);
-        RunChain(list, "shadowcomp");
+        // iris runs shadowcomp only with a shadow pass
+        if (config.shadowEnabled && shadowDepth)
+            RunChain(list, "shadowcomp");
         RunChain(list, "prepare");
         skySunTex = out.sun;
         skyMoonTex = out.moon;
@@ -2426,6 +2973,7 @@ namespace perlin::gpu {
             d.viewHeight = static_cast<int>(out.height);
             if (BindUniforms(list, *p, d)) {
                 list.SetBindGroup(1, textures);
+                BindStorage(list, *p);
                 list.SetPipeline(pipe);
                 list.SetVertexBuffer(0, quad);
                 list.Draw(6, 1, 0, 0);

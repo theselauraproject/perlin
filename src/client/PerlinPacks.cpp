@@ -1,5 +1,6 @@
 #include "client/PerlinInternal.hpp"
 #include "util/Log.hpp"
+#include "world/level/lighting/LightRegistry.hpp"
 
 namespace perlin {
     namespace {
@@ -145,6 +146,8 @@ namespace perlin {
             std::string error;
             const std::string path = javaPackPending;
             renderer->SetBlockNameLookup([](uint16_t id) { return BlockPalette::Instance().Name(id); });
+            renderer->SetBlockEmissionLookup(
+                [](uint16_t id) { return static_cast<int>(LightRegistry::Instance().Resolve(id).emission); });
             if (renderer->SetJavaShaderPack(path, jshader::ReadJavaPackOptions(path), error)) {
                 javaPackPending.clear();
                 levelRenderer->RemeshAll();

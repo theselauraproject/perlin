@@ -31,6 +31,9 @@ namespace rhi {
         size_t clauseEnd = 0;
         // hlsl register class letter (b t s u), 0 elsewhere
         char registerClass = 0;
+        // msl: the argument table index written in the source ([[texture(n)]]), which equals binding unless a
+        // `// perlin:msl-sets` line moved a range of indices to another set
+        uint32_t nativeIndex = 0;
     };
 
     struct ShaderInterface {

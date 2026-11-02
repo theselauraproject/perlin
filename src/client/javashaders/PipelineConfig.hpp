@@ -2,6 +2,7 @@
 #include "client/javashaders/ProgramSet.hpp"
 
 #include <array>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -63,6 +64,25 @@ namespace perlin::jshader {
         std::string type = "texture2D";
     };
 
+    // iris image.<name> = <sampler|none> <format> <internal format> <pixel type> <clear> <relative> <size...>
+    struct CustomImage {
+        std::string name, sampler;
+        std::string format, internalFormat, pixelType; // gl names, lower case (rgba, rgba16f, half_float)
+        int dims = 2;                                  // 1, 2 or 3
+        int width = 1, height = 1, depth = 1;
+        bool clear = false;
+        bool relative = false;
+        float relativeWidth = 1.0f, relativeHeight = 1.0f;
+    };
+
+    // iris bufferObject.<n> = <bytes> [<relative> <scaleX> <scaleY>]
+    struct BufferObject {
+        int index = 0;
+        uint64_t size = 0;
+        bool relative = false;
+        float scaleX = 1.0f, scaleY = 1.0f;
+    };
+
     struct ProgramConfig {
         BlendFactors blend;
         std::map<int, BlendFactors> blendPerBuffer;
@@ -101,6 +121,8 @@ namespace perlin::jshader {
         std::string particlesBeforeDeferred;
         std::map<std::string, ProgramConfig> programs;
         std::vector<CustomTexture> textures;
+        std::vector<CustomImage> images;
+        std::vector<BufferObject> bufferObjects;
         std::string noiseTexture;
         std::vector<std::pair<std::string, std::string>> customUniformProps;
         std::vector<std::string> problems;
@@ -112,5 +134,7 @@ namespace perlin::jshader {
     };
 
     PipelineConfig ParsePipelineConfig(ShaderPackInstance& pack);
+    // the glsl image format qualifier of an iris internal format name ("rgba16f", "r16ui"; "rgba" -> "rgba8")
+    std::string ImageFormatQualifier(const std::string& internalFormat);
     int GlEnumFromName(const std::string& name);
 }

@@ -5,6 +5,7 @@
 #include <glslang/Public/ShaderLang.h>
 #include <SPIRV/GlslangToSpv.h>
 
+#include <cctype>
 #include <mutex>
 
 namespace perlin::jshader {
@@ -82,14 +83,73 @@ namespace perlin::jshader {
         return !spirv.empty();
     }
 
-    MacroMap EngineMacros(int mcVersion, bool opengl) {
+    const std::set<std::string>& BaseFeatureFlags() {
+        static const std::set<std::string> flags = {
+            "SEPARATE_HARDWARE_SAMPLERS", "HIGHER_SHADOWCOLOR",  "ENTITY_TRANSLUCENT", "REVERSED_CULLING",
+            "BLOCK_EMISSION_ATTRIBUTE",   "CAN_DISABLE_WEATHER", "FADE_VARIABLE",      "PER_BUFFER_BLENDING"};
+        return flags;
+    }
+
+    MacroMap EngineMacros(int mcVersion, bool opengl, const EngineEnvironment& env) {
         MacroMap m;
         m["MC_VERSION"] = std::to_string(mcVersion);
-        m["MC_GL_VERSION"] = "450";
-        m["MC_GLSL_VERSION"] = "450";
+        m["MC_GL_VERSION"] = "460";
+        m["MC_GLSL_VERSION"] = "460";
+        // packs look like they run on iris 1.11.7, which perlin follows (uniforms, features, transforms)
+        m["IS_IRIS"] = "";
+        m["IRIS_VERSION"] = "11107";
+        m["IRIS_TAG_SUPPORT"] = "2";
+        m["IRIS_HAS_TRANSLUCENCY_SORTING"] = "";
+        m["IRIS_REQUIRES_SEPARATE_ENTITY_DRAWS"] = "";
+        m["MAX_COLOR_BUFFERS"] = "16";
+        m["MC_MIPMAP_LEVEL"] = std::to_string(env.mipmapLevels);
+        const char* dhBlocks[] = {"UNKNOWN", "LEAVES",    "STONE", "WOOD",       "METAL",      "DIRT",
+                                  "LAVA",    "DEEPSLATE", "SNOW",  "SAND",       "TERRACOTTA", "NETHER_STONE",
+                                  "WATER",   "GRASS",     "AIR",   "ILLUMINATED"};
+        for (int i = 0; i < 16; i++)
+            m[std::string("DH_BLOCK_") + dhBlocks[i]] = std::to_string(i);
+#if defined(__APPLE__)
+        m["MC_OS_MAC"] = "";
+#elif defined(_WIN32)
         m["MC_OS_WINDOWS"] = "";
-        m["MC_GL_VENDOR_OTHER"] = "";
-        m["MC_GL_RENDERER_OTHER"] = "";
+#elif defined(__linux__) || defined(__ANDROID__)
+        m["MC_OS_LINUX"] = "";
+#else
+        m["MC_OS_UNKNOWN"] = "";
+#endif
+        std::string vendor = env.vendor, renderer = env.renderer;
+        for (char& c : vendor)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char& c : renderer)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const auto starts = [](const std::string& s, const char* p) { return s.rfind(p, 0) == 0; };
+        const auto has = [](const std::string& s, const char* p) { return s.find(p) != std::string::npos; };
+        // rhi vendor strings are not opengl's: match on the names inside them as well
+        if (starts(vendor, "ati") || starts(vendor, "amd") || has(vendor, "amd") || has(vendor, "radeon"))
+            m[starts(vendor, "ati") ? "MC_GL_VENDOR_ATI" : "MC_GL_VENDOR_AMD"] = "";
+        else if (has(vendor, "intel"))
+            m["MC_GL_VENDOR_INTEL"] = "";
+        else if (has(vendor, "nvidia"))
+            m["MC_GL_VENDOR_NVIDIA"] = "";
+        else
+            m["MC_GL_VENDOR_OTHER"] = "";
+        const std::string& r = renderer.empty() ? vendor : renderer;
+        if (has(r, "radeon") || starts(r, "amd") || starts(r, "ati"))
+            m["MC_GL_RENDERER_RADEON"] = "";
+        else if (has(r, "intel"))
+            m["MC_GL_RENDERER_INTEL"] = "";
+        else if (has(r, "quadro"))
+            m["MC_GL_RENDERER_QUADRO"] = "";
+        else if (has(r, "geforce") || has(r, "nvidia") || has(r, "rtx") || has(r, "gtx"))
+            m["MC_GL_RENDERER_GEFORCE"] = "";
+        else if (has(r, "mesa") || has(r, "llvmpipe"))
+            m["MC_GL_RENDERER_MESA"] = "";
+        else
+            m["MC_GL_RENDERER_OTHER"] = "";
+        // every flag the renderer supports, as iris gives shaders.properties; the instance narrows the set the
+        // shaders see to the pack's iris.features.optional list
+        for (const std::string& f : env.features.empty() ? BaseFeatureFlags() : env.features)
+            m["IRIS_FEATURE_" + f] = "";
         m["MC_NORMAL_MAP"] = "";
         m["MC_SPECULAR_MAP"] = "";
         m["MC_HAND_DEPTH"] = "0.125";

@@ -67,6 +67,8 @@ namespace perlin {
         bool centerCursor = true;
         // nightly builds fetch the newest nightly in the background and install it when the game closes
         bool autoUpdate = true;
+        // join servers that advertise an older version without asking first (the disconnect screen's checkbox)
+        bool versionMismatchNoAsk = false;
         bool eulaAccepted = false;
         int renderDistance = 8;
         float fov = 70.0f;

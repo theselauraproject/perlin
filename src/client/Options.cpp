@@ -91,6 +91,7 @@ namespace perlin {
             bool fullscreen = false;
             bool centerCursor = true;
             bool autoUpdate = true;
+            bool versionMismatchNoAsk = false;
         };
     }
 
@@ -338,6 +339,7 @@ namespace perlin {
         o.fullscreen = stored.fullscreen;
         o.centerCursor = stored.centerCursor;
         o.autoUpdate = stored.autoUpdate;
+        o.versionMismatchNoAsk = stored.versionMismatchNoAsk;
         return o;
     }
 
@@ -423,6 +425,7 @@ namespace perlin {
         stored.fullscreen = fullscreen;
         stored.centerCursor = centerCursor;
         stored.autoUpdate = autoUpdate;
+        stored.versionMismatchNoAsk = versionMismatchNoAsk;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))

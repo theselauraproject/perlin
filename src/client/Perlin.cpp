@@ -231,6 +231,8 @@ namespace perlin {
         session = std::make_unique<BedrockSession>();
         if (pendingSingleplayer)
             session->SetInjectedTransport(std::move(pendingSingleplayer));
+        else if (!friendLease && versionOverride.protocol > 0 && versionOverride.server == options.server)
+            session->SetProtocolOverride(versionOverride.protocol, versionOverride.version);
         session->SetRecordTap(replayCtl.NewSessionTap());
         if (connectsInFlight.load() == 0)
             std::erase_if(retiredSessions,
@@ -276,61 +278,70 @@ namespace perlin {
         ServerPacks::Instance().SetRoot(paths::DataDir() + "/server_packs_extracted");
 
         account.reset();
-        // singleplayer is this process's own server: it checks no Xbox login, so none is fetched (that also keeps it
-        // working in the browser with no sign-in relay, and offline everywhere)
-        if (onlineThisRun && !inSingleplayer) {
+        // a signed-in Microsoft account plays singleplayer as itself (gamertag, xuid, skin) like on a server. the
+        // embedded server checks no Xbox login, so when the sign-in cannot be reached (offline, the browser without a
+        // relay) the join goes on as an offline player with the account's name instead of failing
+        if (onlineThisRun) {
             account = std::make_shared<xbox::Account>(ActiveAuthPath());
             session->SetAccount(account, ActiveAuthPath());
+            if (inSingleplayer)
+                if (const AccountEntry* active = accounts.Active(); active && !active->name.empty())
+                    session->SetPlayerName(active->name);
         }
+        const bool singleplayerJoin = inSingleplayer;
         connectsInFlight++;
         std::string nameAccountId;
         if (const AccountEntry* active = accounts.Active();
             account && active && active->microsoft && active->name.empty())
             nameAccountId = active->id;
-        workers->Submit([this, host, port, gen, s = session.get(), acct = account, nameAccountId] {
-            struct InFlight {
-                std::atomic<int>& n;
-                ~InFlight() { n--; }
-            } inFlight{connectsInFlight};
-            const auto current = [&] { return connectGeneration.load() == gen; };
-            if (acct) {
-                std::string error;
-                const bool signedIn = acct->SignIn(
-                    [this, &current](const std::string& url, const std::string& code) {
-                        if (!current())
-                            return;
-                        Log("auth", "To sign in, open {} and enter the code {}", url, code);
-                        platform->ShowSignInCode(url, code);
-                        SetStatusHint(i18n::Tr("perlin.status.sign_in", {url, code}));
-                    },
-                    error);
-                if (!current())
-                    return;
-                if (!signedIn) {
-                    Log("auth", "sign-in failed: {}", error);
-                    SetStatusHint(i18n::Tr("perlin.status.sign_in_failed", {error}));
-                    return;
-                }
-                SetStatusHint({});
-                if (!nameAccountId.empty()) {
-                    std::string gamertag, why;
-                    if (acct->FetchGamertag(gamertag, why)) {
-                        std::lock_guard lock(signIn.mutex);
-                        signIn.pendingRenames.emplace_back(nameAccountId, gamertag);
+        workers->Submit(
+            [this, host, port, gen, s = session.get(), acct = account, nameAccountId, singleplayerJoin] {
+                struct InFlight {
+                    std::atomic<int>& n;
+                    ~InFlight() { n--; }
+                } inFlight{connectsInFlight};
+                const auto current = [&] { return connectGeneration.load() == gen; };
+                if (acct) {
+                    std::string error;
+                    const bool signedIn = acct->SignIn(
+                        [this, &current](const std::string& url, const std::string& code) {
+                            if (!current())
+                                return;
+                            Log("auth", "To sign in, open {} and enter the code {}", url, code);
+                            platform->ShowSignInCode(url, code);
+                            SetStatusHint(i18n::Tr("perlin.status.sign_in", {url, code}));
+                        },
+                        error);
+                    if (!current())
+                        return;
+                    if (!signedIn && singleplayerJoin) {
+                        Log("auth", "sign-in failed ({}): joining singleplayer offline", error);
+                        s->SetAccount(nullptr);
+                    } else if (!signedIn) {
+                        Log("auth", "sign-in failed: {}", error);
+                        SetStatusHint(i18n::Tr("perlin.status.sign_in_failed", {error}));
+                        return;
+                    }
+                    SetStatusHint({});
+                    if (signedIn && !nameAccountId.empty()) {
+                        std::string gamertag, why;
+                        if (acct->FetchGamertag(gamertag, why)) {
+                            std::lock_guard lock(signIn.mutex);
+                            signIn.pendingRenames.emplace_back(nameAccountId, gamertag);
+                        }
                     }
                 }
-            }
-            const bool connected = s->Connect(host, port);
-            if (!current()) {
+                const bool connected = s->Connect(host, port);
+                if (!current()) {
+                    if (connected)
+                        s->Disconnect();
+                    return;
+                }
                 if (connected)
-                    s->Disconnect();
-                return;
-            }
-            if (connected)
-                sessionReady = true;
-            else if (acct)
-                SetStatusHint(i18n::Tr("perlin.status.login_failed", {s->LastError()}));
-        });
+                    sessionReady = true;
+                else if (acct)
+                    SetStatusHint(i18n::Tr("perlin.status.login_failed", {s->LastError()}));
+            });
     }
 
     void Perlin::SetStatusHint(const std::string& text) {

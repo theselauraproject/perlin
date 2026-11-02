@@ -9,6 +9,10 @@
 #include "client/javashaders/GlslangBridge.hpp"
 
 #include <spirv_hlsl.hpp>
+#include <spirv_msl.hpp>
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 
 #include <algorithm>
 #include <cstring>
@@ -23,15 +27,13 @@
 namespace perlin::jshader {
     void MatchStageInterface(std::string& vs, std::string& ps);
     namespace {
+        constexpr uint32_t kMslImageBase = 96, kMslStorageBufferBase = 10;
+
         bool CrossHlsl(const std::vector<uint32_t>& spirv, Stage stage, std::string& out,
                        std::string& error) {
             try {
                 spirv_cross::CompilerHLSL c(spirv);
                 const spirv_cross::ShaderResources res = c.get_shader_resources();
-                if (!res.storage_images.empty() || !res.storage_buffers.empty()) {
-                    error = "storage images / buffers are not supported";
-                    return false;
-                }
                 if (stage == Stage::Vertex) {
                     for (const auto& in : res.stage_inputs) {
                         const uint32_t loc = c.get_decoration(in.id, spv::DecorationLocation);
@@ -49,6 +51,69 @@ namespace perlin::jshader {
                 h.flatten_matrix_vertex_input_semantics = false;
                 c.set_hlsl_options(h);
                 out = c.compile();
+                return true;
+            } catch (const std::exception& e) {
+                error = e.what();
+                return false;
+            }
+        }
+
+        // metal: resources keep their (set, binding) as the slot number the rhi reflects ([[texture(b)]],
+        // [[sampler(b)]], [[buffer(b)]]); the metal backend compacts samplers itself
+        bool CrossMsl(const std::vector<uint32_t>& spirv, Stage stage, std::string& out, std::string& error) {
+            try {
+                spirv_cross::CompilerMSL c(spirv);
+                spirv_cross::CompilerMSL::Options m;
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+                m.platform = spirv_cross::CompilerMSL::Options::iOS;
+#else
+                m.platform = spirv_cross::CompilerMSL::Options::macOS;
+#endif
+                m.set_msl_version(2, 3);
+                m.enable_decoration_binding = true;
+                m.pad_fragment_output_components = true;
+                m.force_native_arrays = true;
+                c.set_msl_options(m);
+                const spv::ExecutionModel model = stage == Stage::Vertex    ? spv::ExecutionModelVertex
+                                                  : stage == Stage::Compute ? spv::ExecutionModelGLCompute
+                                                                            : spv::ExecutionModelFragment;
+                const spirv_cross::ShaderResources res = c.get_shader_resources();
+                // set 1 textures keep their binding (0..95); set 2 storage images go to 96 + binding and set 3
+                // storage buffers to 10 + binding, which the `perlin:msl-sets` line tells the rhi reflection
+                const auto bind = [&](const spirv_cross::Resource& r, bool buffer) {
+                    spirv_cross::MSLResourceBinding b;
+                    b.stage = model;
+                    b.desc_set = c.get_decoration(r.id, spv::DecorationDescriptorSet);
+                    b.binding = c.get_decoration(r.id, spv::DecorationBinding);
+                    const uint32_t textureIndex = b.desc_set == 2 ? kMslImageBase + b.binding : b.binding;
+                    const uint32_t bufferIndex =
+                        b.desc_set == 3 ? kMslStorageBufferBase + b.binding : b.binding;
+                    b.msl_buffer = buffer ? bufferIndex : 0;
+                    b.msl_texture = buffer ? 0 : textureIndex;
+                    b.msl_sampler = buffer ? 0 : b.binding;
+                    c.add_msl_resource_binding(b);
+                };
+                for (const auto& r : res.uniform_buffers)
+                    bind(r, true);
+                for (const auto& r : res.storage_buffers)
+                    bind(r, true);
+                for (const auto& r : res.separate_images)
+                    bind(r, false);
+                for (const auto& r : res.separate_samplers)
+                    bind(r, false);
+                for (const auto& r : res.sampled_images)
+                    bind(r, false);
+                for (const auto& r : res.storage_images)
+                    bind(r, false);
+                out = "// perlin:msl-sets texture " + std::to_string(kMslImageBase) + " 2 buffer " +
+                      std::to_string(kMslStorageBufferBase) + " 3\n";
+                if (stage == Stage::Compute) {
+                    const spirv_cross::SPIREntryPoint& ep = c.get_entry_point("main", model);
+                    out += "// perlin:threads " + std::to_string(std::max(1u, ep.workgroup_size.x)) + " " +
+                           std::to_string(std::max(1u, ep.workgroup_size.y)) + " " +
+                           std::to_string(std::max(1u, ep.workgroup_size.z)) + "\n";
+                }
+                out += c.compile();
                 return true;
             } catch (const std::exception& e) {
                 error = e.what();
@@ -78,6 +143,12 @@ namespace perlin::jshader {
         std::map<std::string, RhiSampler> samplers;
         for (const StageResult* st : {&program.vertex, &program.fragment})
             for (const SamplerDecl& s : st->samplers) {
+                if (s.image) {
+                    // storage images bind through the image table (set 2)
+                    if (std::find(result.images.begin(), result.images.end(), s.name) == result.images.end())
+                        result.images.push_back(s.name);
+                    continue;
+                }
                 RhiSampler r;
                 r.name = s.name;
                 r.slot = s.binding;
@@ -103,6 +174,17 @@ namespace perlin::jshader {
                 *outputs[i] = Bytes(spirv);
                 continue;
             }
+            if (kind == RhiShaderKind::Msl) {
+                std::string msl, err;
+                if (!CrossMsl(spirv, stages[i]->stage, msl, err)) {
+                    result.error = std::string(fragment ? "fragment" : "vertex") +
+                                   " shader conversion to MSL failed: " + err;
+                    return result;
+                }
+                *sources[i] = msl;
+                outputs[i]->assign(msl.begin(), msl.end());
+                continue;
+            }
             std::string hlsl, err;
             if (!CrossHlsl(spirv, stages[i]->stage, hlsl, err)) {
                 result.error =
@@ -124,7 +206,7 @@ namespace perlin::jshader {
                 hlsl.replace(at, 11, ".SampleCmpLevelZero(");
             *sources[i] = hlsl;
         }
-        if (kind != RhiShaderKind::SpirV) {
+        if (kind == RhiShaderKind::Hlsl || kind == RhiShaderKind::Dxbc) {
             MatchStageInterface(result.vertexSource, result.fragmentSource);
             for (int i = 0; i < 2; i++) {
                 const bool fragment = i == 1;
@@ -133,12 +215,66 @@ namespace perlin::jshader {
                     continue;
                 }
                 std::string cerr;
-                if (!dxbc(*sources[i], fragment, *outputs[i], cerr)) {
+                if (!dxbc(*sources[i], fragment ? Stage::Fragment : Stage::Vertex, *outputs[i], cerr)) {
                     result.error =
                         std::string(fragment ? "pixel" : "vertex") + " shader: HLSL compile failed: " + cerr;
                     return result;
                 }
             }
+        }
+        result.ok = true;
+        return result;
+    }
+
+    RhiCompute BuildRhiCompute(const ComputeResult& program, RhiShaderKind kind, const DxbcCompiler& dxbc) {
+        RhiCompute result;
+        result.kind = kind;
+        result.uniformRegs = program.uniformRegs;
+        if (!program.ok()) {
+            result.error = program.stage.error.empty() ? "program did not transform" : program.stage.error;
+            return result;
+        }
+        if (kind == RhiShaderKind::Dxbc && !dxbc) {
+            result.error = "no HLSL compiler available";
+            return result;
+        }
+        for (const SamplerDecl& s : program.stage.samplers) {
+            if (s.image) {
+                result.images.push_back(s.name);
+                continue;
+            }
+            RhiSampler r;
+            r.name = s.name;
+            r.slot = s.binding;
+            r.shadow = s.type.contains("Shadow");
+            result.samplers.push_back(r);
+        }
+        std::vector<uint32_t> spirv;
+        std::string log;
+        if (!CompileToSpirv(program.stage.glsl, Stage::Compute, spirv, log)) {
+            result.error = "compute shader failed to compile: " + log;
+            return result;
+        }
+        if (kind == RhiShaderKind::SpirV) {
+            result.code = Bytes(spirv);
+            result.ok = true;
+            return result;
+        }
+        std::string text, err;
+        const bool converted = kind == RhiShaderKind::Msl ? CrossMsl(spirv, Stage::Compute, text, err)
+                                                          : CrossHlsl(spirv, Stage::Compute, text, err);
+        if (!converted) {
+            result.error = "compute shader conversion failed: " + err;
+            return result;
+        }
+        result.source = text;
+        if (kind == RhiShaderKind::Dxbc) {
+            if (!dxbc(text, Stage::Compute, result.code, err)) {
+                result.error = "compute shader: HLSL compile failed: " + err;
+                return result;
+            }
+        } else {
+            result.code.assign(text.begin(), text.end());
         }
         result.ok = true;
         return result;
@@ -193,8 +329,9 @@ namespace perlin::jshader {
 
     DxbcCompiler SystemDxbcCompiler() {
 #ifdef _WIN32
-        return [](const std::string& hlsl, bool fragment, std::vector<uint8_t>& dxbc,
+        return [](const std::string& hlsl, Stage stage, std::vector<uint8_t>& dxbc,
                   std::string& error) -> bool {
+            const bool fragment = stage == Stage::Fragment;
             static HMODULE module = LoadLibraryA("d3dcompiler_47.dll");
             static pD3DCompile compile =
                 module ? reinterpret_cast<pD3DCompile>(GetProcAddress(module, "D3DCompile")) : nullptr;
@@ -210,7 +347,9 @@ namespace perlin::jshader {
                     h ^= c;
                     h *= 1099511628211ull;
                 }
-                h ^= fragment ? 0x9e3779b97f4a7c15ull : 0x517cc1b727220a95ull;
+                h ^= stage == Stage::Compute ? 0x2545f4914f6cdd1dull
+                     : fragment              ? 0x9e3779b97f4a7c15ull
+                                             : 0x517cc1b727220a95ull;
                 char name[48];
                 std::snprintf(name, sizeof(name), "%016llx_%zx.dxbc", static_cast<unsigned long long>(h),
                               hlsl.size());
@@ -243,7 +382,10 @@ namespace perlin::jshader {
                 ID3DBlob* code = nullptr;
                 ID3DBlob* messages = nullptr;
                 const HRESULT hr = compile(text.data(), text.size(), "javapack", nullptr, nullptr, "main",
-                                           fragment ? "ps_5_1" : "vs_5_1", flags, 0, &code, &messages);
+                                           stage == Stage::Compute ? "cs_5_1"
+                                           : fragment              ? "ps_5_1"
+                                                                   : "vs_5_1",
+                                           flags, 0, &code, &messages);
                 if (FAILED(hr) || !code) {
                     err = messages ? std::string(static_cast<const char*>(messages->GetBufferPointer()),
                                                  messages->GetBufferSize())

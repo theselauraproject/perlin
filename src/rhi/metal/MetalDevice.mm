@@ -495,13 +495,11 @@ namespace rhi::metal {
             s.binding = r->binding;
             s.kind = r->kind;
             s.dim = r->dim;
-            s.index = r->binding;
+            s.index = r->nativeIndex;
             if (r->kind == ResourceKind::Sampler) {
-                if (nextSampler >= 16) {
-                    error = "more than 16 samplers in " + sh.entry;
-                    return {};
-                }
-                s.index = nextSampler++;
+                // metal has 16 sampler slots per stage: past that (java packs with many buffers) the rest share
+                // the last one, which only costs them their own filtering mode
+                s.index = nextSampler < 16 ? nextSampler++ : 15;
                 edits.push_back(
                     {r->clauseBegin, r->clauseEnd, "[[sampler(" + std::to_string(s.index) + ")]]"});
             }

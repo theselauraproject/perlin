@@ -109,6 +109,23 @@ namespace perlin::jshader {
         return it == table.end() ? fallback : it->second;
     }
 
+    std::string ImageFormatQualifier(const std::string& internalFormat) {
+        const std::string f = str::Lower(internalFormat);
+        if (f == "rgba" || f == "rgb" || f == "rgb8")
+            return "rgba8";
+        if (f == "rg")
+            return "rg8";
+        if (f == "red" || f == "r")
+            return "r8";
+        if (f == "rgb16f")
+            return "rgba16f";
+        if (f == "rgb32f")
+            return "rgba32f";
+        if (f == "rgb16")
+            return "rgba16";
+        return f;
+    }
+
     PipelineConfig ParsePipelineConfig(ShaderPackInstance& pack) {
         PipelineConfig cfg;
         const Properties& p = pack.Props();
@@ -231,13 +248,67 @@ namespace perlin::jshader {
                     if (idx >= 0)
                         cfg.programs[rest.substr(0, dot)].flip[idx] = IsTrue(val);
                 }
+            } else if (key.compare(0, 6, "image.") == 0 && key.size() > 6) {
+                const auto w = SplitWords(val);
+                if (w.size() < 7)
+                    continue;
+                CustomImage img;
+                img.name = key.substr(6);
+                img.sampler = w[0] == "none" ? std::string() : w[0];
+                img.format = str::Lower(w[1]);
+                img.internalFormat = str::Lower(w[2]);
+                img.pixelType = str::Lower(w[3]);
+                img.clear = IsTrue(w[4]);
+                img.relative = IsTrue(w[5]);
+                if (img.relative && w.size() >= 8) {
+                    img.relativeWidth = static_cast<float>(std::atof(w[6].c_str()));
+                    img.relativeHeight = static_cast<float>(std::atof(w[7].c_str()));
+                } else if (!img.relative) {
+                    img.dims = static_cast<int>(w.size()) - 6;
+                    if (img.dims < 1 || img.dims > 3)
+                        continue;
+                    img.width = std::max(1, std::atoi(w[6].c_str()));
+                    img.height = img.dims >= 2 ? std::max(1, std::atoi(w[7].c_str())) : 1;
+                    img.depth = img.dims == 3 ? std::max(1, std::atoi(w[8].c_str())) : 1;
+                }
+                // a later definition (another #if branch) replaces an earlier one of the same name
+                std::erase_if(cfg.images, [&](const CustomImage& o) { return o.name == img.name; });
+                if (cfg.images.size() < 16)
+                    cfg.images.push_back(std::move(img));
+                else
+                    cfg.problems.push_back("more than 16 custom images: " + key);
+            } else if (key.compare(0, 13, "bufferObject.") == 0) {
+                const auto w = SplitWords(val);
+                if (w.empty())
+                    continue;
+                BufferObject b;
+                b.index = std::atoi(key.c_str() + 13);
+                b.size = std::strtoull(w[0].c_str(), nullptr, 10);
+                if (w.size() >= 4) {
+                    b.relative = IsTrue(w[1]);
+                    b.scaleX = static_cast<float>(std::atof(w[2].c_str()));
+                    b.scaleY = static_cast<float>(std::atof(w[3].c_str()));
+                }
+                if (b.index < 0 || b.index > 12 || b.size == 0)
+                    continue;
+                std::erase_if(cfg.bufferObjects, [&](const BufferObject& o) { return o.index == b.index; });
+                cfg.bufferObjects.push_back(b);
             } else if (key.compare(0, 12, "size.buffer.") == 0) {
                 const int idx = BufferIndex(key.substr(12));
                 const auto w = SplitWords(val);
                 if (idx >= 0 && idx < kMaxColorTex && w.size() >= 2) {
                     BufferSetup& b = cfg.color[static_cast<size_t>(idx)];
-                    b.fixedWidth = std::atoi(w[0].c_str());
-                    b.fixedHeight = std::atoi(w[1].c_str());
+                    // a fraction is a scale of the screen (iris), a whole number a size in pixels
+                    const auto relative = [](const std::string& t) {
+                        return t.find('.') != std::string::npos;
+                    };
+                    if (relative(w[0]) || relative(w[1])) {
+                        b.scaleX = static_cast<float>(std::atof(w[0].c_str()));
+                        b.scaleY = static_cast<float>(std::atof(w[1].c_str()));
+                    } else {
+                        b.fixedWidth = std::atoi(w[0].c_str());
+                        b.fixedHeight = std::atoi(w[1].c_str());
+                    }
                 }
             } else if (key.compare(0, 8, "texture.") == 0 && key != "texture.noise") {
                 const std::string rest = key.substr(8);
@@ -257,7 +328,7 @@ namespace perlin::jshader {
             }
         }
         for (const char* s : {"shadow"})
-            if (pack.ProgramExists(s))
+            if (pack.ProgramExists(s) && pack.ProgramEnabled(s))
                 cfg.shadowEnabled = true;
         return cfg;
     }

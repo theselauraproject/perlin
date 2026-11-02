@@ -288,6 +288,7 @@ endif()
 # Java (OptiFine / Iris) shader packs: GLSL -> SPIR-V (glslang) -> GLSL / HLSL (SPIRV-Cross).
 CPMAddPackage(NAME glslang GITHUB_REPOSITORY KhronosGroup/glslang GIT_TAG e2bb10631198bc9d73daf752d9170608d5e2c8bd GIT_SHALLOW NO DOWNLOAD_ONLY YES)
 CPMAddPackage(NAME SPIRV-Cross GITHUB_REPOSITORY KhronosGroup/SPIRV-Cross GIT_TAG 300681bbcb8365a8d1eacdacdbdd0249bbf1d6b1 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
+option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 include(cmake/PerlinJavaShaders.cmake)
 
 # graphics apis per platform: the first one the device supports is picked at run time, the others stay switchable in game
@@ -932,6 +933,15 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME gpu_level_unload_selftest COMMAND gpu_level_unload_selftest "${PERLIN_SHADER_PACK}")
     set_tests_properties(gpu_level_unload_selftest PROPERTIES SKIP_RETURN_CODE 77)
     add_test(NAME java_to_slang_selftest COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/java_to_slang_selftest.py")
+    add_executable(benchmark_selftest tests/benchmark_selftest.cpp src/client/Benchmark.cpp)
+    target_include_directories(benchmark_selftest PRIVATE src)
+    add_test(NAME benchmark_selftest COMMAND benchmark_selftest)
+
+    # offline java shader pack checker: tools/jshader_check <pack> (not a ctest; packs are not in the tree)
+    add_executable(jshader_check tools/jshader_check.cpp)
+    target_include_directories(jshader_check PRIVATE src)
+    target_link_libraries(jshader_check PRIVATE perlin_gpu)
+
     add_executable(ten_font_metrics_selftest tests/ten_font_metrics_selftest.cpp
         src/client/ui/TenFont.cpp src/client/ui/McFont.cpp)
     target_include_directories(ten_font_metrics_selftest PRIVATE src "${stb_SOURCE_DIR}")

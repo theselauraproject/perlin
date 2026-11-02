@@ -212,13 +212,13 @@ namespace perlin {
         }
     }
 
-    void Perlin::JoinSingleplayer() {
+    void Perlin::JoinSingleplayer(const std::string& worldDir, uint64_t seed, int gameMode) {
 #ifdef PERLIN_SINGLEPLAYER
         ReleaseFriendLease();
         if (!singleplayerServer)
             singleplayerServer = std::make_unique<EmbeddedServer>();
         if (!singleplayerServer->Running()) {
-            const std::string dir = paths::DataDir() + "/singleplayer";
+            const std::string dir = worldDir.empty() ? paths::DataDir() + "/singleplayer" : worldDir;
             paths::EnsureDir(dir);
             // the server reads its block tables from files: write the copies the client carries
             for (const char* name : {"block_states.json", "block_destroy.tsv", "extra_items.txt"}) {
@@ -235,8 +235,13 @@ namespace perlin {
 #else
             const std::string threads;
 #endif
+            std::string extra;
+            if (seed)
+                extra += ",\"seed\":" + std::to_string(static_cast<int64_t>(seed & 0x7FFFFFFFFFFFFFFFull));
+            if (gameMode >= 0)
+                extra += ",\"gamemode\":" + std::to_string(gameMode);
             const std::string config =
-                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 32)) + threads +
+                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 32)) + threads + extra +
                 ",\"block_data_dir\":\"" + dir + "\"}";
             std::string error;
             if (!singleplayerServer->Start(dir, config, error)) {

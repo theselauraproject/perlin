@@ -1,6 +1,7 @@
 #include "rhi/common/ShaderReflect.hpp"
 
 #include <charconv>
+#include <cstdio>
 #include <cstdlib>
 
 namespace rhi {
@@ -237,7 +238,22 @@ namespace rhi {
         }
 
         void ReflectMsl(std::string_view src, ShaderInterface& out) {
-            // resources are entry point parameters: `texture2d<float, access::sample> name [[texture(28)]]`
+            // resources are entry point parameters: `texture2d<float, access::sample> name [[texture(28)]]`.
+            // textures and samplers are set 1, buffers set 0, except where a
+            // `// perlin:msl-sets texture <base> <set> buffer <base> <set>` line moves the indices from a base on
+            // to another set (java packs: storage images in set 2, storage buffers in set 3)
+            uint32_t textureBase = ~0u, textureSet = 1, bufferBase = ~0u, bufferSet = 0;
+            if (const size_t m = src.find("// perlin:msl-sets "); m != std::string_view::npos) {
+                const std::string line(src.substr(m, src.find('\n', m) - m));
+                unsigned tb = 0, ts = 0, bb = 0, bs = 0;
+                if (std::sscanf(line.c_str(), "// perlin:msl-sets texture %u %u buffer %u %u", &tb, &ts, &bb,
+                                &bs) == 4) {
+                    textureBase = tb;
+                    textureSet = ts;
+                    bufferBase = bb;
+                    bufferSet = bs;
+                }
+            }
             size_t pos = 0;
             while ((pos = src.find("[[", pos)) != std::string_view::npos) {
                 const size_t clauseBegin = pos;
@@ -253,6 +269,7 @@ namespace rhi {
                     continue;
                 ShaderResource r;
                 r.binding = index;
+                r.nativeIndex = index;
                 r.clauseBegin = clauseBegin;
                 r.clauseEnd = c.at;
                 // the parameter declaration runs back to the previous `,` or `(` outside any <...>
@@ -298,8 +315,16 @@ namespace rhi {
                                 : starts("texturecube")   ? TextureDim::Cube
                                                           : TextureDim::Tex2D;
                     }
+                    if (index >= textureBase) {
+                        r.set = textureSet;
+                        r.binding = index - textureBase;
+                    }
                 } else {
                     r.set = 0;
+                    if (index >= bufferBase) {
+                        r.set = bufferSet;
+                        r.binding = index - bufferBase;
+                    }
                     if (starts("constant"))
                         r.kind = ResourceKind::UniformBuffer;
                     else if (starts("const device"))

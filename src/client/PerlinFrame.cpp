@@ -146,6 +146,17 @@ namespace perlin {
         FillDebug(hudState, f.live, f.live ? &f.live->NetLevel() : loop->previewLevel.get());
         UpdateAudio(f.live, detail::SecondsSince(loop->startedAt, f.frameStart), f.dt);
         TickGame(f);
+        if (args.benchmarkSeconds > 0 && !benchmarkCliStarted) {
+            benchmarkCliStarted = true;
+            bench::Settings s;
+            s.seconds = args.benchmarkSeconds;
+            if (args.benchmarkSeed)
+                s.seed = args.benchmarkSeed;
+            s.output = args.benchmarkOut;
+            s.exitWhenDone = true;
+            StartBenchmark(std::move(s));
+        }
+        UpdateBenchmark(f);
         PrepareView(f);
         BuildFrameParams(f);
         RenderLevel(f);

@@ -109,6 +109,19 @@ mcimg { display: block; position: absolute; }
         ReplaceAll(d, "title", FormatCodesToRml(t.title));
         ReplaceAll(d, "code", EscapeRml(t.code));
         ReplaceAll(d, "reason", body);
+        // added here rather than in the template so edited disconnect_screen.rml files get it too
+        if (!t.extra.empty()) {
+            const std::string row =
+                "  <div id=\"" + std::string(kDisconnectExtraId) +
+                "\" class=\"btn\" style=\"left: " + std::to_string(guiW / 2 - 102) +
+                "px; top: " + std::to_string(y1 + 48) +
+                "px;\">\n    <div class=\"rim\"></div><div class=\"face\"></div><div class=\"shade\"></div>"
+                "<div class=\"edge\"></div>\n    <div class=\"lbl\">" +
+                EscapeRml(t.extra) + "</div>\n  </div>\n";
+            const size_t at = d.rfind("</body>");
+            if (at != std::string::npos)
+                d.insert(at, row);
+        }
         return d;
     }
 }

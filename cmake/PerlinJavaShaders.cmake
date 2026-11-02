@@ -10,6 +10,11 @@ if(NOT TARGET perlin_glslang)
         "${glslang_SOURCE_DIR}/glslang/ResourceLimits/*.cpp"
         "${glslang_SOURCE_DIR}/glslang/CInterface/*.cpp"
         "${glslang_SOURCE_DIR}/SPIRV/*.cpp")
+    # the hlsl front end is only for tools/jshader_check, which validates the generated hlsl without fxc / dxc
+    if(PERLIN_BUILD_TESTS)
+        file(GLOB PERLIN_GLSLANG_HLSL_SOURCES "${glslang_SOURCE_DIR}/glslang/HLSL/*.cpp")
+        list(APPEND PERLIN_GLSLANG_SOURCES ${PERLIN_GLSLANG_HLSL_SOURCES})
+    endif()
     if(WIN32)
         list(APPEND PERLIN_GLSLANG_SOURCES "${glslang_SOURCE_DIR}/glslang/OSDependent/Windows/ossource.cpp")
     else()
@@ -18,6 +23,9 @@ if(NOT TARGET perlin_glslang)
     add_library(perlin_glslang STATIC ${PERLIN_GLSLANG_SOURCES})
     target_include_directories(perlin_glslang PUBLIC "${glslang_SOURCE_DIR}" "${PERLIN_GLSLANG_GEN}")
     target_compile_definitions(perlin_glslang PRIVATE ENABLE_OPT=0)
+    if(PERLIN_BUILD_TESTS)
+        target_compile_definitions(perlin_glslang PRIVATE ENABLE_HLSL=1)
+    endif()
     set_target_properties(perlin_glslang PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_STANDARD 17)
     if(MSVC)
         target_compile_options(perlin_glslang PRIVATE /w /EHsc)
@@ -27,7 +35,8 @@ if(NOT TARGET perlin_glslang)
     add_library(perlin_spirv_cross STATIC
         "${SPIRV-Cross_SOURCE_DIR}/spirv_cross.cpp" "${SPIRV-Cross_SOURCE_DIR}/spirv_cfg.cpp"
         "${SPIRV-Cross_SOURCE_DIR}/spirv_cross_parsed_ir.cpp" "${SPIRV-Cross_SOURCE_DIR}/spirv_parser.cpp"
-        "${SPIRV-Cross_SOURCE_DIR}/spirv_glsl.cpp" "${SPIRV-Cross_SOURCE_DIR}/spirv_hlsl.cpp")
+        "${SPIRV-Cross_SOURCE_DIR}/spirv_glsl.cpp" "${SPIRV-Cross_SOURCE_DIR}/spirv_hlsl.cpp"
+        "${SPIRV-Cross_SOURCE_DIR}/spirv_msl.cpp")
     target_include_directories(perlin_spirv_cross PUBLIC "${SPIRV-Cross_SOURCE_DIR}")
     set_target_properties(perlin_spirv_cross PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_STANDARD 17)
     if(MSVC)

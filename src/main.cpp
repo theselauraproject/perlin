@@ -7,7 +7,10 @@
 #include <SDL3/SDL_main.h>
 #include "client/update/Updater.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #if defined(__GLIBC__)
 #include <malloc.h>
 #endif
@@ -218,6 +221,14 @@ namespace {
                 args.acceptEula = true;
             else if (arg == "--stun" && i + 1 < argc)
                 args.stun = argv[++i];
+            else if (arg == "--benchmark") {
+                args.benchmarkSeconds = 60.0;
+                if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0])))
+                    args.benchmarkSeconds = std::max(5.0, std::atof(argv[++i]));
+            } else if (arg == "--benchmark-seed" && i + 1 < argc)
+                args.benchmarkSeed = std::strtoull(argv[++i], nullptr, 10);
+            else if (arg == "--benchmark-out" && i + 1 < argc)
+                args.benchmarkOut = argv[++i];
             else if (arg == "--help" || arg == "-h")
                 std::printf(
                     "Perlin options:\n"
@@ -234,7 +245,10 @@ namespace {
                     "  --raknet             connect over RakNet (Lifeboat, The Hive, any public server)\n"
                     "  --nethernet          connect over NetherNet (BDS with the nethernet transport)\n"
                     "  --tls                use https for the NetherNet signaling requests\n"
-                    "  --stun <urls>        comma separated STUN servers for NetherNet\n");
+                    "  --stun <urls>        comma separated STUN servers for NetherNet\n"
+                    "  --benchmark [secs]   fly through a fixed world, write the frame times and quit\n"
+                    "  --benchmark-seed <n> world seed for the benchmark (default 8675309)\n"
+                    "  --benchmark-out <f>  where the benchmark json goes (default <data>/benchmarks)\n");
         }
         return args;
     }

@@ -1436,6 +1436,32 @@ namespace perlin {
             info = session->GetDisconnectInfo();
             lastError = session->LastError();
         }
+        // the server advertises an older version (the hive's ping says 1.26.14 while it lets newer clients in):
+        // offer to join announcing that version, or do it straight away when the player said not to ask again
+        const bool olderServer = !preview && info.outdated == 2 && info.serverProtocol > 0 &&
+                                 info.serverProtocol < kBedrockProtocol && !inSingleplayer;
+        const bool overrideTried =
+            versionOverride.protocol == info.serverProtocol && versionOverride.server == options.server;
+        const auto joinAsServerVersion = [&] {
+            versionOverride.server = options.server;
+            versionOverride.protocol = info.serverProtocol;
+            versionOverride.version = info.serverVersion;
+            if (versionOverride.dontAsk && !options.versionMismatchNoAsk) {
+                options.versionMismatchNoAsk = true;
+                options.Save();
+            }
+            Log("perlin", "joining {} again as protocol {} ({})", options.server, info.serverProtocol,
+                info.serverVersion);
+            hud.Overlay().ClearOverlay();
+            disconnect.shown = false;
+            disconnect.signature.clear();
+            sessionReady = false;
+            Connect();
+        };
+        if (olderServer && !overrideTried && options.versionMismatchNoAsk) {
+            joinAsServerVersion();
+            return true;
+        }
         std::string message = ui::StripFormatting(info.message);
         if (!message.empty() && !message.contains(' ') && message.contains('.')) {
             const std::string translated = i18n::Tr(message);
@@ -1456,6 +1482,28 @@ namespace perlin {
                 "\n\n" + i18n::Tr("perlin.disconnect.versions", {theirs, std::string(kBedrockVersion)});
             if (!message.empty())
                 t.reason += "\n" + message;
+            if (olderServer && !overrideTried) {
+                t.title =
+                    detail::TrOr("perlin.disconnect.older_server", "This server advertises an older version");
+                const std::vector<std::string> args = {theirs, std::to_string(info.serverProtocol),
+                                                       std::string(kBedrockVersion),
+                                                       std::to_string(kBedrockProtocol)};
+                t.reason = i18n::Tr("perlin.disconnect.older_server_reason", args);
+                if (t.reason == "perlin.disconnect.older_server_reason")
+                    t.reason =
+                        "The server says it runs Minecraft " + args[0] + " (protocol " + args[1] +
+                        "); Perlin speaks " + args[2] + " (" + args[3] +
+                        "). Many servers, The Hive among them, still let newer clients in.\n\nPerlin can "
+                        "join announcing " +
+                        args[0] +
+                        ". Things that changed between the two versions may not work. Are you sure?";
+                t.rejoin = detail::TrOr("perlin.disconnect.join_anyway", "Join Anyway");
+                t.extra = std::string(versionOverride.dontAsk ? "[x] " : "[  ] ") +
+                          detail::TrOr("perlin.disconnect.dont_ask", "Don't ask again");
+            } else if (olderServer) {
+                t.reason += "\n\n" + detail::TrOr("perlin.disconnect.older_server_failed",
+                                                  "Joining as the server's version did not work either.");
+            }
         } else if (info.happened && info.connectionLost) {
             t.title = i18n::Tr("perlin.disconnect.lost");
             t.reason = i18n::Tr("perlin.disconnect.lost_reason");
@@ -1512,7 +1560,13 @@ namespace perlin {
         if (!down && disconnect.leftDown && now - disconnect.openedAt > std::chrono::milliseconds(300) &&
             !preview) {
             const std::string hover = hud.Overlay().OverlayHover();
-            if (hover == ui::kDisconnectRejoinId) {
+            if (hover == ui::kDisconnectExtraId) {
+                versionOverride.dontAsk = !versionOverride.dontAsk;
+                disconnect.signature.clear();
+            } else if (hover == ui::kDisconnectRejoinId && olderServer && !overrideTried) {
+                joinAsServerVersion();
+                return true;
+            } else if (hover == ui::kDisconnectRejoinId) {
                 Log("ui", "disconnect screen: rejoin");
                 hud.Overlay().ClearOverlay();
                 disconnect.shown = false;

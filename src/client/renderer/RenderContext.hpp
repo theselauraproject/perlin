@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -135,6 +136,10 @@ namespace perlin {
         uint8_t lightmap[kLightmapBytes];
     };
 
+    namespace jshader {
+        class ShaderPackInstance;
+    }
+
     struct JavaPackOption {
         std::string name, label, comment, group;
         bool toggle = false;
@@ -157,10 +162,14 @@ namespace perlin {
         virtual void ClearJavaShaderPack() {}
         virtual bool JavaShaderPackActive() const { return false; }
         virtual std::vector<JavaPackOption> JavaShaderPackOptions() const { return {}; }
+        // the running java pack (screens, profiles, lang), null when none is loaded
+        virtual std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const { return {}; }
         virtual std::string JavaShaderPackError() const { return {}; }
         virtual void SetJavaShaderPackDimension(const std::string&) {}
         // block name of a palette id, which packs map to their own block ids
         virtual void SetBlockNameLookup(std::function<std::string(uint16_t)>) {}
+        // block light a palette id gives off (0-15), for packs that read it from at_midBlock.w
+        virtual void SetBlockEmissionLookup(std::function<int(uint16_t)>) {}
         virtual bool PackShadowsActive() const { return false; }
         virtual void SetVsync(bool) {}
         // switches the graphics api while the game keeps running; applied before the next frame, false when unsupported

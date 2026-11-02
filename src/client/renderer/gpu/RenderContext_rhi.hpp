@@ -123,9 +123,15 @@ namespace perlin {
         void ClearJavaShaderPack() override;
         bool JavaShaderPackActive() const override { return javaActive || jpack != nullptr; }
         std::vector<JavaPackOption> JavaShaderPackOptions() const override;
+        std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const override {
+            return jpack ? jpack->Instance() : nullptr;
+        }
         bool JavaPackReady() const { return PackRunning(); }
         std::string JavaShaderPackError() const override { return jpackError; }
         void SetJavaShaderPackDimension(const std::string& folder) override;
+        void SetBlockEmissionLookup(std::function<int(uint16_t)> lookup) override {
+            blockEmission = std::move(lookup);
+        }
         void SetBlockNameLookup(std::function<std::string(uint16_t)> lookup) override {
             blockNames = std::move(lookup);
         }
@@ -517,6 +523,7 @@ namespace perlin {
         bool jpackGathered = false;
         float jpackScale = 1.0f;
         std::function<std::string(uint16_t)> blockNames;
+        std::function<int(uint16_t)> blockEmission;
         bool PackRunning() const { return jpack && jpackReady; }
         bool AttachJavaPack();
         bool ResolvePrograms();

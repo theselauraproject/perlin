@@ -25,6 +25,8 @@
 namespace perlin::gpu {
     // bytes per vertex of the pack stream; layout in JavaPack.cpp
     constexpr uint32_t kPackVertexBytes = 72;
+    // iris allows 16 custom images; storage buffer indices go up to 12
+    constexpr uint32_t kImageSlots = 16, kSsboSlots = 16;
 
     // runs an optifine / iris shader pack on the rhi: gbuffers into the pack's own targets, the begin / shadowcomp / prepare /
     // deferred / composite chains and final, then the pack's depth goes back to the engine for what draws after it
@@ -37,6 +39,7 @@ namespace perlin::gpu {
             jshader::OptionValues options;
             std::string dimension = "world0";
             std::function<std::string(uint16_t)> blockName;
+            std::function<int(uint16_t)> blockEmission;
         };
 
         // what the engine hands over each frame
@@ -100,7 +103,8 @@ namespace perlin::gpu {
             Normals,
             Specular,
             Overlay,
-            Custom
+            Custom,
+            Image // the sampler of a custom image (image.<name> = <sampler> ...)
         };
         struct SamplerBind {
             int slot = 0;
@@ -108,6 +112,15 @@ namespace perlin::gpu {
             int index = 0;
             bool shadow = false;
             std::string name;
+        };
+        // an iris custom image: storage texture in set 2 at its slot, sampled through its sampler name
+        struct Image {
+            jshader::CustomImage info;
+            rhi::TextureHandle tex;
+            rhi::Format format = rhi::Format::Unknown;
+            rhi::TextureDim dim = rhi::TextureDim::Tex2D;
+            uint32_t w = 1, h = 1, d = 1;
+            bool integer = false;
         };
         struct UniformSlot {
             jshader::UniformDecl decl;
@@ -128,12 +141,23 @@ namespace perlin::gpu {
             bool anyPerDraw = false;
             bool valid = false;
             bool debugCopy = false;
+            // custom images the program loads / stores (slots in set 2)
+            std::vector<int> imageSlots;
+            uint32_t imageMask = 0;
+            // compute programs (.csh)
+            bool compute = false;
+            rhi::ShaderHandle cs;
+            rhi::PipelineHandle computePipeline;
+            jshader::ComputeResult dispatch;
         };
         struct Converted {
             bool ok = false;
             std::string error;
             jshader::ProgramResult transform;
             jshader::RhiProgram program;
+            bool isCompute = false;
+            jshader::ComputeResult computeTransform;
+            jshader::RhiCompute computeProgram;
         };
         struct PipeState {
             bool scene = true;
@@ -150,7 +174,10 @@ namespace perlin::gpu {
         struct PackSet {
             std::array<rhi::TextureHandle, kTextureSlots> texture{};
             std::array<uint8_t, kTextureSlots> sampler{};
-            bool operator==(const PackSet& o) const { return texture == o.texture && sampler == o.sampler; }
+            std::array<rhi::TextureDim, kTextureSlots> dim{};
+            bool operator==(const PackSet& o) const {
+                return texture == o.texture && sampler == o.sampler && dim == o.dim;
+            }
         };
         struct PackSetHash {
             size_t operator()(const PackSet& s) const;
@@ -172,6 +199,8 @@ namespace perlin::gpu {
             bool quit = false;
         };
 
+        // iris feature flags beyond the base set this device runs (custom images, compute, ssbo)
+        std::vector<std::string> ExtraFeatures() const;
         // setup
         void ScanUsage();
         void CreateStatic();
@@ -199,6 +228,20 @@ namespace perlin::gpu {
         rhi::BindGroupHandle Textures(rhi::CommandList& list, Program& p,
                                       const std::vector<rhi::TextureHandle>& attached);
         rhi::BindGroupHandle GroupFor(const PackSet& set);
+        // custom images and storage buffers (sets 2 and 3)
+        bool CreateStorage();
+        void ClearImages(rhi::CommandList& list, bool all);
+        rhi::BindGroupHandle ImageGroup(uint32_t mask);
+        void BindStorage(rhi::CommandList& list, const Program& p);
+        void StorageBarrier(rhi::CommandList& list, const Program& p);
+        Program* GetCompute(const std::string& name, size_t index);
+        Program* FinishCompute(const std::string& key, const std::string& name, const Converted& c);
+        // the compute shaders of a pass, before its fragment program; false while one still compiles
+        bool RunCompute(rhi::CommandList& list, const std::string& name, uint32_t renderW, uint32_t renderH);
+        void FillProgramResources(Program& p, const std::string& name,
+                                  const std::vector<jshader::RhiSampler>& samplerList,
+                                  const std::vector<std::string>& imageNames,
+                                  const std::vector<jshader::UniformDecl>& uniforms, int regs);
 
         // frame
         void BuildFrame(const FrameParams& params, const Output& out);
@@ -232,6 +275,7 @@ namespace perlin::gpu {
         std::string lastError;
         std::string path;
         std::function<std::string(uint16_t)> blockName;
+        std::function<int(uint16_t)> blockEmission;
         std::unordered_map<std::string, int> nameToPackId;
         std::vector<int16_t> paletteMap;
 
@@ -242,7 +286,17 @@ namespace perlin::gpu {
         std::unordered_map<std::string, rhi::PipelineHandle> pipelines;
         std::unordered_map<PackSet, rhi::BindGroupHandle, PackSetHash> groups;
 
-        rhi::BindLayoutHandle textureLayout;
+        rhi::BindLayoutHandle textureLayout, imageLayout, bufferLayout;
+        std::vector<Image> images;
+        std::map<std::string, int> imageSlotOf, imageSamplerOf;
+        rhi::TextureHandle dummyStorage;
+        std::array<rhi::BufferHandle, 16> ssbo{};
+        rhi::BufferHandle dummySsbo, zeroBuffer;
+        uint64_t zeroBytes = 0;
+        bool storageFresh = true;
+        rhi::BindGroupHandle bufferGroup;
+        std::unordered_map<uint32_t, rhi::BindGroupHandle> imageGroups;
+        bool setupDone = false;
         rhi::PipelineLayoutHandle pipelineLayout;
         std::array<rhi::SamplerHandle, 16> samplers{};
         rhi::BufferHandle quad;

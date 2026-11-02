@@ -84,6 +84,12 @@ namespace perlin {
         // signs in ahead of the join so connecting skips Xbox Live, PlayFab and the Minecraft token
         static void PrewarmLogin(std::shared_ptr<xbox::Account> account, const std::string& loginKey);
         void SetChunkRadius(int r) { chunkRadius = r; }
+        // join announcing another protocol / game version than perlin's own (servers that advertise an older one
+        // but let newer clients in); 0 = perlin's own
+        void SetProtocolOverride(int protocol, std::string version) {
+            protocolOverride = protocol;
+            versionOverride = std::move(version);
+        }
         void RequestChunkRadiusNow() { SendRequestChunkRadius(); }
         void SetNearRadius(int r) { nearRadius = r; }
         int NearRadius() const { return nearRadius; }
@@ -1111,6 +1117,8 @@ namespace perlin {
         std::string playerUuid;
         std::string serverAddress;
         std::string gameVersion;
+        int protocolOverride = 0;
+        std::string versionOverride;
         PlayerPose pose;
         uint64_t runtimeId = 0;
         int64_t uniqueId = 0;

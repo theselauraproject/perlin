@@ -271,7 +271,8 @@ namespace perlin::jshader {
 
     ShaderPackInstance::ShaderPackInstance(std::shared_ptr<PackSource> source, OptionValues values,
                                            MacroMap engine)
-        : pack(std::move(source)), overrides(std::move(values)), engineMacros(std::move(engine)) {
+        : pack(std::move(source)), overrides(std::move(values)), engineAll(std::move(engine)) {
+        engineMacros = engineAll;
         packName = pack->Name();
         Reload(overrides);
     }
@@ -313,7 +314,8 @@ namespace perlin::jshader {
             if (pack->Read(file, text))
                 ScanOptionsInText(ctx, file, text);
         }
-        macros = engineMacros;
+        engineMacros = engineAll;
+        macros = engineAll;
         for (const ShaderOption& o : options) {
             const auto ov = overrides.find(o.name);
             switch (o.kind) {
@@ -335,9 +337,94 @@ namespace perlin::jshader {
     void ShaderPackInstance::LoadProperties() {
         std::string text;
         props = {};
-        if (pack->Read("shaders.properties", text))
+        rawProps = {};
+        activeFeatures.clear();
+        missingFeatures.clear();
+        if (pack->Read("shaders.properties", text)) {
             props = ParseProperties(text, macros);
-        if (dimension.empty()) {}
+            rawProps = ParseProperties(text, {}, false);
+        }
+        // iris expands macros in values too (size.buffer.colortex1 = REFLECTION_RES REFLECTION_RES)
+        const auto expand = [&](std::string value) {
+            for (int pass = 0; pass < 4; pass++) {
+                std::string out;
+                bool changed = false;
+                for (size_t i = 0; i < value.size();) {
+                    if (std::isalpha(static_cast<unsigned char>(value[i])) || value[i] == '_') {
+                        size_t j = i;
+                        while (j < value.size() &&
+                               (std::isalnum(static_cast<unsigned char>(value[j])) || value[j] == '_'))
+                            j++;
+                        const std::string word = value.substr(i, j - i);
+                        const auto it = macros.find(word);
+                        // a word glued to a dot or slash is part of a name (colortex1.foo), not a macro use
+                        const bool glued = (i > 0 && (value[i - 1] == '.' || value[i - 1] == '/')) ||
+                                           (j < value.size() && (value[j] == '.' || value[j] == '/'));
+                        if (it != macros.end() && !it->second.empty() && !glued) {
+                            out += it->second;
+                            changed = true;
+                        } else {
+                            out += word;
+                        }
+                        i = j;
+                    } else {
+                        out += value[i++];
+                    }
+                }
+                value = std::move(out);
+                if (!changed)
+                    break;
+            }
+            return value;
+        };
+        for (auto& [key, value] : props.entries) {
+            if (key.compare(0, 6, "screen") == 0 || key.compare(0, 8, "profile.") == 0 || key == "sliders" ||
+                key.compare(0, 5, "iris.") == 0)
+                continue;
+            value = expand(value);
+            props.map[key] = value;
+        }
+        // feature flags: shaders.properties saw every flag the renderer has; the shaders only see the optional
+        // ones the pack lists (iris ShaderPack)
+        const auto upper = [](std::string s) {
+            for (char& c : s)
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            return s;
+        };
+        std::set<std::string> optional;
+        for (const std::string& f : SplitWords(rawProps.Get("iris.features.optional")))
+            optional.insert(upper(f));
+        for (const std::string& f : SplitWords(rawProps.Get("iris.features.required"))) {
+            const std::string u = upper(f);
+            if (!engineAll.contains("IRIS_FEATURE_" + u))
+                missingFeatures.push_back(u);
+        }
+        for (auto it = engineMacros.begin(); it != engineMacros.end();) {
+            if (it->first.compare(0, 13, "IRIS_FEATURE_") == 0) {
+                const std::string flag = it->first.substr(13);
+                if (optional.contains(flag)) {
+                    activeFeatures.insert(flag);
+                    ++it;
+                    continue;
+                }
+                macros.erase(it->first);
+                it = engineMacros.erase(it);
+                continue;
+            }
+            ++it;
+        }
+        if (props.Bool("supportsColorCorrection", false)) {
+            const char* spaces[] = {"SRGB", "DCI_P3", "DISPLAY_P3", "REC2020", "ADOBE_RGB"};
+            for (int i = 0; i < 5; i++) {
+                engineMacros[std::string("COLOR_SPACE_") + spaces[i]] = std::to_string(i);
+                macros[std::string("COLOR_SPACE_") + spaces[i]] = std::to_string(i);
+            }
+        }
+        if (!missingFeatures.empty() && firstError.empty()) {
+            firstError = "the pack needs features this renderer lacks:";
+            for (const std::string& f : missingFeatures)
+                firstError += " " + f;
+        }
     }
 
     void ShaderPackInstance::LoadIdTables() {
@@ -410,7 +497,11 @@ namespace perlin::jshader {
     }
 
     bool ShaderPackInstance::ProgramEnabled(const std::string& name) const {
-        const auto it = props.map.find("program." + name + ".enabled");
+        // iris: program.<dimension folder>/<name>.enabled, or program.<name>.enabled for every dimension
+        auto it = dimension.empty() ? props.map.end()
+                                    : props.map.find("program." + dimension + "/" + name + ".enabled");
+        if (it == props.map.end())
+            it = props.map.find("program." + name + ".enabled");
         if (it == props.map.end())
             return true;
         const std::string& v = it->second;
@@ -532,7 +623,7 @@ namespace perlin::jshader {
         for (char letter = 'a'; letter <= 'z'; letter++) {
             const std::string file = FindFile(use + "_" + std::string(1, letter), ".csh");
             if (file.empty())
-                break;
+                continue; // iris takes every letter that exists, gaps included
             program->compute.push_back(ExpandIncludes(ctx, file));
         }
         return program;

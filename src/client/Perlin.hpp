@@ -29,6 +29,7 @@
 #include "client/replay/FfmpegDownload.hpp"
 #include "client/replay/ReplayController.hpp"
 #include "client/replay/Timeline.hpp"
+#include "client/Benchmark.hpp"
 #include "client/resources/PackInfo.hpp"
 #include "client/ui/ChatLog.hpp"
 #include "client/ui/ChestScreen.hpp"
@@ -85,6 +86,10 @@ namespace perlin {
         std::string stun;
         bool hidden = false;
         int controlPort = 0;
+        // --benchmark [seconds]: run the benchmark, write the result and quit
+        double benchmarkSeconds = 0;
+        uint64_t benchmarkSeed = 0;
+        std::string benchmarkOut;
     };
 
     struct FrameContext;
@@ -245,7 +250,12 @@ namespace perlin {
         void RefreshTab(ui::ServerTab tab);
         void RefreshFeatured(bool force);
         void JoinServer(const std::string& address);
-        void JoinSingleplayer();
+        // the world folder, seed and game mode are for the benchmark; the defaults are the player's own world
+        void JoinSingleplayer(const std::string& worldDir = {}, uint64_t seed = 0, int gameMode = -1);
+        // benchmark mode (Benchmark.hpp)
+        void StartBenchmark(bench::Settings settings);
+        void UpdateBenchmark(FrameContext& f);
+        void FinishBenchmark();
         void JoinRealm(long long id);
         void JoinFriend(const ui::ServerEntry& entry);
         void JoinLanGame(const ui::ServerEntry& entry);
@@ -902,6 +912,17 @@ namespace perlin {
         // singleplayer: the world server runs in this process; its transport goes to the next Connect
 #ifdef PERLIN_SINGLEPLAYER
         std::unique_ptr<EmbeddedServer> singleplayerServer;
+        std::unique_ptr<bench::Run> benchmark;
+        std::chrono::steady_clock::time_point benchmarkLastFrame{};
+        bool benchmarkJoinIssued = false;
+        bool benchmarkCliStarted = false;
+        // a server that advertised an older version than perlin's: the next join to it announces that version
+        struct VersionOverride {
+            std::string server;
+            int protocol = 0;
+            std::string version;
+            bool dontAsk = false; // the disconnect screen's checkbox, saved when the join goes ahead
+        } versionOverride;
 #endif
         std::unique_ptr<Transport> pendingSingleplayer;
         // the current session is the embedded server: leaving it goes to the title screen, not the server list

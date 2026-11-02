@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <map>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <unordered_map>
@@ -184,16 +186,49 @@ namespace perlin::jshader {
 
         const std::map<std::string, std::string>& TextureFunctionMap() {
             static const std::map<std::string, std::string> m = {
-                {"texture1D", "texture"},         {"texture2D", "texture"},
-                {"texture3D", "texture"},         {"textureCube", "texture"},
-                {"texture1DLod", "textureLod"},   {"texture2DLod", "textureLod"},
-                {"texture3DLod", "textureLod"},   {"textureCubeLod", "textureLod"},
-                {"texture1DProj", "textureProj"}, {"texture2DProj", "textureProj"},
-                {"texture3DProj", "textureProj"}, {"texture2DProjLod", "textureProjLod"},
-                {"texture2DGrad", "textureGrad"}, {"texture3DGrad", "textureGrad"},
-                {"texelFetch2D", "texelFetch"},   {"texelFetch3D", "texelFetch"},
-                {"texelFetch1D", "texelFetch"},   {"textureSize2D", "textureSize"},
-                {"textureSize3D", "textureSize"}};
+                {"texture1D", "texture"},
+                {"texture2D", "texture"},
+                {"texture3D", "texture"},
+                {"textureCube", "texture"},
+                {"texture1DLod", "textureLod"},
+                {"texture2DLod", "textureLod"},
+                {"texture3DLod", "textureLod"},
+                {"textureCubeLod", "textureLod"},
+                {"texture1DProj", "textureProj"},
+                {"texture2DProj", "textureProj"},
+                {"texture3DProj", "textureProj"},
+                {"texture2DProjLod", "textureProjLod"},
+                {"texture2DGrad", "textureGrad"},
+                {"texture3DGrad", "textureGrad"},
+                {"texelFetch2D", "texelFetch"},
+                {"texelFetch3D", "texelFetch"},
+                {"texelFetch1D", "texelFetch"},
+                {"textureSize2D", "textureSize"},
+                {"textureSize3D", "textureSize"},
+                // GL_ARB_shader_texture_lod / GL_EXT_gpu_shader4 spellings
+                {"texture2DGradARB", "textureGrad"},
+                {"texture3DGradARB", "textureGrad"},
+                {"textureCubeGradARB", "textureGrad"},
+                {"texture2DLodARB", "textureLod"},
+                {"texture3DLodARB", "textureLod"},
+                {"textureCubeLodARB", "textureLod"},
+                {"texture2DProjLodARB", "textureProjLod"},
+                {"texture2DProjGradARB", "textureProjGrad"},
+                {"texture1DGradARB", "textureGrad"},
+                {"texture1DLodARB", "textureLod"},
+                {"texture2DGradEXT", "textureGrad"},
+                {"texture2DLodEXT", "textureLod"},
+                {"textureCubeLodEXT", "textureLod"},
+                {"textureCubeGradEXT", "textureGrad"},
+                {"texture2DProjGrad", "textureProjGrad"},
+                {"texture1DGrad", "textureGrad"},
+                {"textureCubeGrad", "textureGrad"},
+                {"texture1DProjLod", "textureProjLod"},
+                {"texture3DProjLod", "textureProjLod"},
+                {"textureSize1D", "textureSize"},
+                {"textureSizeCube", "textureSize"},
+                {"texture2DArray", "texture"},
+                {"texture2DArrayLod", "textureLod"}};
             return m;
         }
 
@@ -1223,6 +1258,11 @@ namespace perlin::jshader {
                     } else if (id == "sample" && i + 1 < tokens.size() && tokens[i + 1].kind == Tok::Ident &&
                                IsType(tokens[i + 1].text)) {
                         rep = id;
+                    } else if ((id == "buffer" || id == "shared" || id == "coherent" || id == "restrict" ||
+                                id == "readonly" || id == "writeonly" || id == "patch") &&
+                               i + 1 < tokens.size() && tokens[i + 1].kind == Tok::Ident) {
+                        // a qualifier (readonly buffer Name { ... }, shared float x[64]), not a variable name
+                        rep = id;
                     } else {
                         rep = "iris_kw_" + id;
                     }
@@ -1310,6 +1350,11 @@ namespace perlin::jshader {
                                       d.type.compare(0, 6, "iimage") == 0 ||
                                       d.type.compare(0, 6, "uimage") == 0;
                             s.imageFormat = LayoutWithout(d.layout, "binding");
+                            // memory qualifiers stay with the image (readonly / writeonly / coherent ...)
+                            for (const char* q :
+                                 {"readonly", "writeonly", "coherent", "volatile", "restrict"})
+                                if (HasQualifier(d, q))
+                                    s.qualifiers += std::string(q) + " ";
                             ctx.samplers.push_back(s);
                         }
                         bodyText += "/*SAMPLERS*/";
@@ -1488,6 +1533,198 @@ namespace perlin::jshader {
         }
     }
 
+    namespace {
+        // shader storage blocks (iris bufferObject.<n>) bind at set 3, binding n; the pack only writes binding = n
+        std::string AssignBufferSets(const std::string& glsl) {
+            static const std::regex re(
+                R"(layout\s*\(([^)]*)\)((?:\s+(?:readonly|writeonly|coherent|volatile|restrict))*)\s+buffer\b)");
+            if (glsl.find("buffer") == std::string::npos)
+                return glsl;
+            std::string out;
+            size_t last = 0;
+            for (auto it = std::sregex_iterator(glsl.begin(), glsl.end(), re); it != std::sregex_iterator();
+                 ++it) {
+                const std::smatch& m = *it;
+                std::string layout = m[1].str();
+                if (layout.find("set") == std::string::npos)
+                    layout = "set = 3, " + layout;
+                out += glsl.substr(last, static_cast<size_t>(m.position(0)) - last);
+                out += "layout(" + layout + ")" + m[2].str() + " buffer";
+                last = static_cast<size_t>(m.position(0) + m.length(0));
+            }
+            out += glsl.substr(last);
+            return out;
+        }
+
+        // the uniform block, the sampler / image declarations and the stage body (split by \x01)
+        std::string SharedPrelude(StageResult& r, const TransformOptions& options,
+                                  const std::map<std::string, int>& samplerBindings) {
+            std::string glsl = StripFlags(r.glsl);
+            std::string block;
+            if (!r.uniforms.empty()) {
+                std::string globals;
+                int reg = 0;
+                block = "layout(std140, set = 0, binding = 0) uniform IrisGlobals {\n";
+                for (UniformDecl& u : r.uniforms) {
+                    const std::string member = "iris_u_" + u.name;
+                    const int count = std::max(1, u.arrayCount);
+                    const bool matrix = u.type.compare(0, 3, "mat") == 0;
+                    int comps = 1;
+                    if (u.type.size() > 3 && (u.type.compare(0, 3, "vec") == 0))
+                        comps = u.type[3] - '0';
+                    else if (u.type.size() > 4 &&
+                             (u.type.compare(0, 4, "ivec") == 0 || u.type.compare(0, 4, "uvec") == 0 ||
+                              u.type.compare(0, 4, "bvec") == 0))
+                        comps = u.type[4] - '0';
+                    u.reg = reg;
+                    u.regsPerElement = matrix ? 4 : 1;
+                    u.regs = u.regsPerElement * count;
+                    u.components = matrix ? (u.type == "mat2" ? 4 : u.type == "mat3" ? 9 : 16) : comps;
+                    reg += u.regs;
+                    block += std::string("    ") + (matrix ? "mat4 " : "vec4 ") + member;
+                    if (count > 1 || u.arrayCount > 0)
+                        block += "[" + std::to_string(count) + "]";
+                    block += ";\n";
+                    auto unpack = [&](const std::string& ref) -> std::string {
+                        const std::string& t = u.type;
+                        if (t == "float")
+                            return ref + ".x";
+                        if (t == "int")
+                            return "int(" + ref + ".x)";
+                        if (t == "uint")
+                            return "uint(" + ref + ".x)";
+                        if (t == "bool")
+                            return "(" + ref + ".x != 0.0)";
+                        if (t == "vec2")
+                            return ref + ".xy";
+                        if (t == "vec3")
+                            return ref + ".xyz";
+                        if (t == "vec4" || t == "mat4")
+                            return ref;
+                        if (t == "mat3" || t == "mat2")
+                            return t + "(" + ref + ")";
+                        if (t == "ivec2" || t == "ivec3" || t == "ivec4" || t == "uvec2" || t == "uvec3" ||
+                            t == "uvec4")
+                            return t + "(" + ref +
+                                   (t.back() == '2'   ? ".xy"
+                                    : t.back() == '3' ? ".xyz"
+                                                      : "") +
+                                   ")";
+                        if (t == "bvec2" || t == "bvec3" || t == "bvec4")
+                            return "notEqual(" + ref +
+                                   (t.back() == '2'   ? ".xy"
+                                    : t.back() == '3' ? ".xyz"
+                                                      : "") +
+                                   ", vec" + t.back() + "(0.0))";
+                        return ref;
+                    };
+                    if (u.arrayCount > 0) {
+                        globals += u.type + " " + u.name + "[" + std::to_string(count) + "] = " + u.type +
+                                   "[" + std::to_string(count) + "](";
+                        for (int i = 0; i < count; i++) {
+                            if (i)
+                                globals += ", ";
+                            globals += unpack(member + "[" + std::to_string(i) + "]");
+                        }
+                        globals += ");\n";
+                    } else {
+                        globals += u.type + " " + u.name + " = " + unpack(member) + ";\n";
+                    }
+                }
+                block += "};\n" + globals;
+            }
+            glsl = ReplaceFirst(glsl, "/*IRIS_UNIFORM_BLOCK*/", "");
+            for (SamplerDecl& smp : r.samplers)
+                smp.binding = samplerBindings.at(smp.name);
+            std::string samplerText;
+            for (const SamplerDecl& s : r.samplers) {
+                if (options.splitSamplers && !s.image) {
+                    // sampler2D -> texture2D, isampler2D -> itexture2D, sampler2DShadow -> texture2D + samplerShadow
+                    std::string texture = s.type;
+                    const bool shadow =
+                        texture.size() > 6 && texture.compare(texture.size() - 6, 6, "Shadow") == 0;
+                    if (shadow)
+                        texture.erase(texture.size() - 6);
+                    const size_t at = texture.find("sampler");
+                    if (at == std::string::npos) {
+                        r.ok = false;
+                        r.error = "unsupported sampler type '" + s.type + "'";
+                        continue;
+                    }
+                    texture.replace(at, 7, "texture");
+                    samplerText += "layout(set = 1, binding = " + std::to_string(s.binding * 2) +
+                                   ") uniform " + texture + " " + s.name + "_iris_t;\n";
+                    samplerText += "layout(set = 1, binding = " + std::to_string(s.binding * 2 + 1) +
+                                   ") uniform " + (shadow ? "samplerShadow " : "sampler ") + s.name +
+                                   "_iris_s;\n";
+                    samplerText += "#define " + s.name + " " + s.type + "(" + s.name + "_iris_t, " + s.name +
+                                   "_iris_s)\n";
+                    continue;
+                }
+                if (s.image) {
+                    // custom images (iris image.<name>) live in set 2 at the slot the renderer gave them
+                    const auto slot = options.imageSlots.find(s.name);
+                    if (slot == options.imageSlots.end()) {
+                        r.ok = false;
+                        r.error = "image '" + s.name + "' is not declared by the pack (image." + s.name + ")";
+                        continue;
+                    }
+                    samplerText += "layout(set = 2, binding = " + std::to_string(slot->second);
+                    std::string format = s.imageFormat;
+                    if (format.empty())
+                        if (const auto f = options.imageFormats.find(s.name); f != options.imageFormats.end())
+                            format = f->second;
+                    if (!format.empty())
+                        samplerText += ", " + format;
+                    samplerText += ") uniform " + s.qualifiers + s.type + " " + s.name + ";\n";
+                    continue;
+                }
+                samplerText += "layout(set = 0, binding = " + std::to_string(s.binding);
+                samplerText += ") uniform " + s.type + " " + s.name + ";\n";
+            }
+            glsl = ReplaceAll(glsl, "/*SAMPLERS*/", "");
+            glsl = AssignBufferSets(glsl);
+            // texture() on an integer sampler returns the nearest texel in gl; hlsl below sm 6.7 cannot sample integer
+            // textures at all, so the call becomes the texelFetch it amounts to (every backend, same result)
+            if (options.splitSamplers) {
+                bool any = false;
+                for (const SamplerDecl& smp : r.samplers) {
+                    if (smp.image ||
+                        (smp.type.compare(0, 8, "usampler") != 0 && smp.type.compare(0, 8, "isampler") != 0))
+                        continue;
+                    const std::string dim = smp.type.substr(8); // 1D 2D 3D 2DArray
+                    if (dim != "1D" && dim != "2D" && dim != "3D")
+                        continue;
+                    const std::string t = smp.name + "_iris_t, " + smp.name + "_iris_s, ";
+                    const std::regex call("\\b(texture|textureLod)\\s*\\(\\s*" + smp.name + "\\s*,");
+                    std::string replaced;
+                    size_t last = 0;
+                    for (auto it = std::sregex_iterator(glsl.begin(), glsl.end(), call);
+                         it != std::sregex_iterator(); ++it) {
+                        const std::smatch& m = *it;
+                        replaced += glsl.substr(last, static_cast<size_t>(m.position(0)) - last);
+                        replaced += (m[1].str() == "texture" ? "iris_inearest_" : "iris_inearestlod_") + dim +
+                                    "(" + smp.type + ", " + t;
+                        last = static_cast<size_t>(m.position(0) + m.length(0));
+                        any = true;
+                    }
+                    replaced += glsl.substr(last);
+                    glsl = std::move(replaced);
+                }
+                if (any)
+                    samplerText +=
+                        R"(#define iris_inearest_1D(T, t, s, c) texelFetch(T(t, s), clamp(int(floor((c) * float(textureSize(T(t, s), 0)))), 0, textureSize(T(t, s), 0) - 1), 0)
+#define iris_inearest_2D(T, t, s, c) texelFetch(T(t, s), clamp(ivec2(floor((c) * vec2(textureSize(T(t, s), 0)))), ivec2(0), textureSize(T(t, s), 0) - 1), 0)
+#define iris_inearest_3D(T, t, s, c) texelFetch(T(t, s), clamp(ivec3(floor((c) * vec3(textureSize(T(t, s), 0)))), ivec3(0), textureSize(T(t, s), 0) - 1), 0)
+#define iris_inearestlod_1D(T, t, s, c, l) texelFetch(T(t, s), clamp(int(floor((c) * float(textureSize(T(t, s), int(l))))), 0, textureSize(T(t, s), int(l)) - 1), int(l))
+#define iris_inearestlod_2D(T, t, s, c, l) texelFetch(T(t, s), clamp(ivec2(floor((c) * vec2(textureSize(T(t, s), int(l))))), ivec2(0), textureSize(T(t, s), int(l)) - 1), int(l))
+#define iris_inearestlod_3D(T, t, s, c, l) texelFetch(T(t, s), clamp(ivec3(floor((c) * vec3(textureSize(T(t, s), int(l))))), ivec3(0), textureSize(T(t, s), int(l)) - 1), int(l))
+)";
+            }
+            return block + samplerText + "\x01" + glsl;
+        }
+    }
+
     ProgramResult TransformProgram(const ExpandedSource& vertexSource, const ExpandedSource& fragmentSource,
                                    const TransformOptions& options) {
         ProgramResult program;
@@ -1626,116 +1863,8 @@ namespace perlin::jshader {
             return s + ";\n";
         };
 
-        auto sharedPrelude = [&](StageResult& r, bool vertex) -> std::string {
-            std::string glsl = StripFlags(r.glsl);
-            std::string block;
-            if (!r.uniforms.empty()) {
-                std::string globals;
-                int reg = 0;
-                block = "layout(std140, set = 0, binding = 0) uniform IrisGlobals {\n";
-                for (UniformDecl& u : r.uniforms) {
-                    const std::string member = "iris_u_" + u.name;
-                    const int count = std::max(1, u.arrayCount);
-                    const bool matrix = u.type.compare(0, 3, "mat") == 0;
-                    int comps = 1;
-                    if (u.type.size() > 3 && (u.type.compare(0, 3, "vec") == 0))
-                        comps = u.type[3] - '0';
-                    else if (u.type.size() > 4 &&
-                             (u.type.compare(0, 4, "ivec") == 0 || u.type.compare(0, 4, "uvec") == 0 ||
-                              u.type.compare(0, 4, "bvec") == 0))
-                        comps = u.type[4] - '0';
-                    u.reg = reg;
-                    u.regsPerElement = matrix ? 4 : 1;
-                    u.regs = u.regsPerElement * count;
-                    u.components = matrix ? (u.type == "mat2" ? 4 : u.type == "mat3" ? 9 : 16) : comps;
-                    reg += u.regs;
-                    block += std::string("    ") + (matrix ? "mat4 " : "vec4 ") + member;
-                    if (count > 1 || u.arrayCount > 0)
-                        block += "[" + std::to_string(count) + "]";
-                    block += ";\n";
-                    auto unpack = [&](const std::string& ref) -> std::string {
-                        const std::string& t = u.type;
-                        if (t == "float")
-                            return ref + ".x";
-                        if (t == "int")
-                            return "int(" + ref + ".x)";
-                        if (t == "uint")
-                            return "uint(" + ref + ".x)";
-                        if (t == "bool")
-                            return "(" + ref + ".x != 0.0)";
-                        if (t == "vec2")
-                            return ref + ".xy";
-                        if (t == "vec3")
-                            return ref + ".xyz";
-                        if (t == "vec4" || t == "mat4")
-                            return ref;
-                        if (t == "mat3" || t == "mat2")
-                            return t + "(" + ref + ")";
-                        if (t == "ivec2" || t == "ivec3" || t == "ivec4" || t == "uvec2" || t == "uvec3" ||
-                            t == "uvec4")
-                            return t + "(" + ref +
-                                   (t.back() == '2'   ? ".xy"
-                                    : t.back() == '3' ? ".xyz"
-                                                      : "") +
-                                   ")";
-                        if (t == "bvec2" || t == "bvec3" || t == "bvec4")
-                            return "notEqual(" + ref +
-                                   (t.back() == '2'   ? ".xy"
-                                    : t.back() == '3' ? ".xyz"
-                                                      : "") +
-                                   ", vec" + t.back() + "(0.0))";
-                        return ref;
-                    };
-                    if (u.arrayCount > 0) {
-                        globals += u.type + " " + u.name + "[" + std::to_string(count) + "] = " + u.type +
-                                   "[" + std::to_string(count) + "](";
-                        for (int i = 0; i < count; i++) {
-                            if (i)
-                                globals += ", ";
-                            globals += unpack(member + "[" + std::to_string(i) + "]");
-                        }
-                        globals += ");\n";
-                    } else {
-                        globals += u.type + " " + u.name + " = " + unpack(member) + ";\n";
-                    }
-                }
-                block += "};\n" + globals;
-            }
-            glsl = ReplaceFirst(glsl, "/*IRIS_UNIFORM_BLOCK*/", "");
-            for (SamplerDecl& smp : r.samplers)
-                smp.binding = samplerBindings.at(smp.name);
-            std::string samplerText;
-            for (const SamplerDecl& s : r.samplers) {
-                if (options.splitSamplers && !s.image) {
-                    // sampler2D -> texture2D, isampler2D -> itexture2D, sampler2DShadow -> texture2D + samplerShadow
-                    std::string texture = s.type;
-                    const bool shadow =
-                        texture.size() > 6 && texture.compare(texture.size() - 6, 6, "Shadow") == 0;
-                    if (shadow)
-                        texture.erase(texture.size() - 6);
-                    const size_t at = texture.find("sampler");
-                    if (at == std::string::npos) {
-                        r.ok = false;
-                        r.error = "unsupported sampler type '" + s.type + "'";
-                        continue;
-                    }
-                    texture.replace(at, 7, "texture");
-                    samplerText += "layout(set = 1, binding = " + std::to_string(s.binding * 2) +
-                                   ") uniform " + texture + " " + s.name + "_iris_t;\n";
-                    samplerText += "layout(set = 1, binding = " + std::to_string(s.binding * 2 + 1) +
-                                   ") uniform " + (shadow ? "samplerShadow " : "sampler ") + s.name +
-                                   "_iris_s;\n";
-                    samplerText += "#define " + s.name + " " + s.type + "(" + s.name + "_iris_t, " + s.name +
-                                   "_iris_s)\n";
-                    continue;
-                }
-                samplerText += "layout(set = 0, binding = " + std::to_string(s.binding);
-                if (s.image && !s.imageFormat.empty())
-                    samplerText += ", " + s.imageFormat;
-                samplerText += ") uniform " + s.type + " " + s.name + ";\n";
-            }
-            glsl = ReplaceAll(glsl, "/*SAMPLERS*/", "");
-            return block + samplerText + "\x01" + glsl;
+        const auto sharedPrelude = [&](StageResult& r, bool) {
+            return SharedPrelude(r, options, samplerBindings);
         };
 
         {
@@ -1800,10 +1929,31 @@ namespace perlin::jshader {
             }
             if (fogCoord)
                 varyings += varyingDecl("iris_FogFragCoord", links["iris_FogFragCoord"], true);
+            // a varying the fragment shader reads but the vertex shader never declares (packs hide some behind
+            // ifdefs): metal and d3d refuse such a pipeline, so the vertex shader writes it as zero
+            std::string zeroFill;
+            for (const auto& [linkName, l] : links) {
+                if (!l.inFragmentIn || l.inVertexOut)
+                    continue;
+                varyings += varyingDecl(linkName, l, true);
+                const std::string zero =
+                    l.type.compare(0, 3, "mat") == 0 || l.type.compare(0, 3, "vec") == 0 || l.type == "float"
+                        ? l.type + "(0.0)"
+                        : l.type + "(0)";
+                if (l.arrayCount > 0)
+                    zeroFill += "    for (int i = 0; i < " + std::to_string(l.arrayCount) + "; i++) " +
+                                linkName + "[i] = " + zero + ";\n";
+                else
+                    zeroFill += "    " + linkName + " = " + zero + ";\n";
+            }
             body = ReplaceAll(body, "/*VARYING_OUT*/", "");
             std::string prelude;
             prelude += "#define PERLIN_VULKAN_GLSL 1\n";
-            std::string footer = "\nvoid main() {\n    iris_user_main();\n";
+            // iris FADE_VARIABLE: sodium's chunk fade-in; perlin shows chunks whole, which is a fade of 1
+            if (body.find("mc_chunkFade") != std::string::npos &&
+                attrs.find("mc_chunkFade") == std::string::npos)
+                prelude += "const float mc_chunkFade = 1.0;\n";
+            std::string footer = "\nvoid main() {\n" + zeroFill + "    iris_user_main();\n";
             if (options.flipVertexY)
                 footer += "    gl_Position.y = -gl_Position.y;\n";
             if (options.zeroToOneDepth)
@@ -1900,5 +2050,62 @@ namespace perlin::jshader {
         for (const UniformDecl& u : program.uniforms)
             program.uniformRegs += u.regs;
         return program;
+    }
+
+    ComputeResult TransformCompute(const ExpandedSource& source, const TransformOptions& options) {
+        ComputeResult out;
+        out.stage = TransformStage(Stage::Compute, source.text, options);
+        StageResult& r = out.stage;
+        if (!r.ok)
+            return out;
+        // the dispatch size is read from the preprocessed body, before the prelude is added
+        const std::string& text = r.glsl;
+        std::smatch m;
+        static const std::regex local(R"(local_size_([xyz])\s*=\s*([0-9]+))");
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), local); it != std::sregex_iterator();
+             ++it) {
+            const int axis = (*it)[1].str()[0] - 'x';
+            out.localSize[axis] = static_cast<uint32_t>(std::max(1, std::atoi((*it)[2].str().c_str())));
+        }
+        static const std::regex groups(
+            R"(const\s+ivec3\s+workGroups\s*=\s*ivec3\s*\(\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*\))");
+        static const std::regex render(
+            R"(const\s+vec2\s+workGroupsRender\s*=\s*vec2\s*\(\s*([0-9.eE+-]+)\s*,\s*([0-9.eE+-]+)\s*\))");
+        if (std::regex_search(text, m, groups)) {
+            out.fixedGroups = true;
+            for (int a = 0; a < 3; a++)
+                out.workGroups[a] = static_cast<uint32_t>(std::atoi(m[a + 1].str().c_str()));
+        } else if (std::regex_search(text, m, render)) {
+            out.workGroupsRender[0] = static_cast<float>(std::atof(m[1].str().c_str()));
+            out.workGroupsRender[1] = static_cast<float>(std::atof(m[2].str().c_str()));
+        }
+        std::map<std::string, int> bindings;
+        {
+            std::set<int> used;
+            for (const SamplerDecl& smp : r.samplers)
+                if (const auto fixed = options.fixedSamplerSlots.find(smp.name);
+                    fixed != options.fixedSamplerSlots.end()) {
+                    bindings[smp.name] = fixed->second;
+                    used.insert(fixed->second);
+                }
+            int cursor = 0;
+            for (const SamplerDecl& smp : r.samplers) {
+                if (bindings.contains(smp.name))
+                    continue;
+                while (used.contains(cursor))
+                    cursor++;
+                bindings[smp.name] = cursor;
+                used.insert(cursor);
+            }
+        }
+        const std::string prelude = SharedPrelude(r, options, bindings);
+        for (const UniformDecl& u : r.uniforms)
+            out.uniformRegs = std::max(out.uniformRegs, u.reg + u.regs);
+        const size_t sep = prelude.find('\x01');
+        std::string samplerText = prelude.substr(0, sep), body = prelude.substr(sep + 1);
+        const std::string structs = HoistStructs(body);
+        r.glsl = "#version 450\n#define PERLIN_VULKAN_GLSL 1\n" + structs + samplerText + body +
+                 "\nvoid main() {\n    iris_user_main();\n}\n";
+        return out;
     }
 }

@@ -30,6 +30,7 @@ namespace perlin::jshader {
         int binding = 0;
         bool image = false;
         std::string imageFormat;
+        std::string qualifiers;
     };
 
     struct InterfaceVar {
@@ -70,6 +71,10 @@ namespace perlin::jshader {
         bool splitSamplers = false;
         // sample plain texture() / texture2D() calls at level 0 (full screen passes whose buffers have no mips)
         bool explicitLod = false;
+        // custom image name -> binding in set 2 (the renderer's image table)
+        std::map<std::string, int> imageSlots;
+        // custom image name -> glsl format qualifier (r16ui ...), for images the pack declares without one
+        std::map<std::string, std::string> imageFormats;
     };
 
     struct ProgramResult {
@@ -82,6 +87,19 @@ namespace perlin::jshader {
 
     ProgramResult TransformProgram(const ExpandedSource& vertexSource, const ExpandedSource& fragmentSource,
                                    const TransformOptions& options);
+
+    // a compute program (.csh): the same uniform block / samplers / images as the graphics stages, plus the
+    // dispatch size it asks for (iris: workGroups, else workGroupsRender against the render size, else 1:1)
+    struct ComputeResult {
+        StageResult stage;
+        int uniformRegs = 0;
+        uint32_t localSize[3] = {1, 1, 1};
+        bool fixedGroups = false;
+        uint32_t workGroups[3] = {1, 1, 1};
+        float workGroupsRender[2] = {1.0f, 1.0f};
+        bool ok() const { return stage.ok; }
+    };
+    ComputeResult TransformCompute(const ExpandedSource& source, const TransformOptions& options);
 
     const std::vector<UniformDecl>& BuiltinUniformDecls();
 }

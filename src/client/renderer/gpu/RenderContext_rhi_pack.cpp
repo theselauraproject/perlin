@@ -26,8 +26,8 @@ namespace perlin {
                                               const std::map<std::string, std::string>& options,
                                               std::string& error) {
         ClearJavaShaderPack();
-        if (!PERLIN_ENV("PERLIN_JAVA_RUNTIME") && options.empty() &&
-            path.contains("ComplementaryReimagined_r5.9.3"))
+        // the hand-made approximation of complementary is only a debugging aid now: every pack runs for real
+        if (PERLIN_ENV("PERLIN_JAVA_BAKED"))
             return SetBakedJavaShaderPack(path, options, error);
         if (!initialized) {
             error = "renderer is not ready";
@@ -49,6 +49,7 @@ namespace perlin {
             config.options[kv.first] = kv.second;
         config.dimension = jpackDimension;
         config.blockName = blockNames;
+        config.blockEmission = blockEmission;
         if (!pack->Load(config, error)) {
             jpackError = error;
             jpackPath.clear();
@@ -132,7 +133,7 @@ namespace perlin {
                                                                                const std::string& title) {
             if (!visiting.insert(key).second)
                 return;
-            for (const std::string& w : jshader::SplitWords(inst.Props().Get(key))) {
+            for (const std::string& w : jshader::SplitWords(inst.RawProps().Get(key))) {
                 if (w.size() > 2 && w.front() == '[' && w.back() == ']') {
                     const std::string sub = w.substr(1, w.size() - 2);
                     const std::string t = inst.Lang("screen." + sub);

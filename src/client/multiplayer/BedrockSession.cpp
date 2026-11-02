@@ -705,6 +705,13 @@ namespace perlin {
         gameVersion = net->Info().version;
         if (gameVersion.empty())
             gameVersion = "1.26.60";
+        if (protocolOverride > 0) {
+            Log("bedrock", "announcing protocol {} ({}) instead of {}", protocolOverride,
+                versionOverride.empty() ? gameVersion : versionOverride, serverProtocol);
+            serverProtocol = protocolOverride;
+            if (!versionOverride.empty())
+                gameVersion = versionOverride;
+        }
         if (!SendRequestNetworkSettings()) {
             lastError = "failed to send RequestNetworkSettings";
             state = State::Failed;

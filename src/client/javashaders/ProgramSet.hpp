@@ -5,6 +5,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,13 @@ namespace perlin::jshader {
 
         const PackSource& Source() const { return *pack; }
         const Properties& Props() const { return props; }
+        // shaders.properties without preprocessing: iris reads screens, sliders, profiles and feature flags
+        // from it so #if branches do not change the option layout
+        const Properties& RawProps() const { return rawProps; }
+        // iris feature flags the pack asked for that the renderer has (IRIS_FEATURE_* in the shaders)
+        const std::set<std::string>& ActiveFeatures() const { return activeFeatures; }
+        // required feature flags the renderer lacks: the pack cannot run
+        const std::vector<std::string>& MissingFeatures() const { return missingFeatures; }
         const MacroMap& Macros() const { return macros; }
         const MacroMap& EngineMacros() const { return engineMacros; }
         const std::vector<ShaderOption>& Options() const { return options; }
@@ -74,9 +82,12 @@ namespace perlin::jshader {
 
         std::shared_ptr<PackSource> pack;
         OptionValues overrides;
+        MacroMap engineAll;
         MacroMap engineMacros;
         MacroMap macros;
-        Properties props;
+        Properties props, rawProps;
+        std::set<std::string> activeFeatures;
+        std::vector<std::string> missingFeatures;
         std::vector<ShaderOption> options;
         std::string dimension;
         std::string packName;
