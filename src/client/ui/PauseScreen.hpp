@@ -157,7 +157,8 @@ namespace perlin::ui {
                                      const std::string& dragText, const std::string& open,
                                      const std::string& settings, const std::string& cancel,
                                      const std::string& apply, const std::string& done, float scroll,
-                                     int guiW, int guiH);
+                                     int guiW, int guiH, const std::string& progressText = {},
+                                     float progress = -1.0f);
 
     struct ModEntry {
         std::string name, desc, badge, icon;

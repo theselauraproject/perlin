@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include "util/Env.hpp"
 #include <filesystem>
 #include "util/Paths.hpp"
 #include "util/Resources.hpp"
@@ -814,8 +815,12 @@ bool AppPlatform_SDL::Initialize() {
 
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "Perlin");
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 1280);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, 720);
+    int startW = 1280, startH = 720;
+    if (const char* size = PERLIN_ENV("PERLIN_WINDOW_SIZE")) // developer testing: "WxH"
+        if (std::sscanf(size, "%dx%d", &startW, &startH) != 2 || startW < 64 || startH < 64)
+            startW = 1280, startH = 720;
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, startW);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, startH);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, args.hidden);
 #ifndef __EMSCRIPTEN__

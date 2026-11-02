@@ -425,6 +425,7 @@ namespace perlin {
                 mesh->Begin();
                 BuildChunkMesh(*target, job.pos, *mesh, &blocks, &biomeTints);
                 mesh->End();
+                context.PrepareChunkMesh(*mesh);
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                     std::chrono::steady_clock::now() - t0)
                                     .count();

@@ -97,6 +97,7 @@ namespace perlin::jshader {
     struct PipelineConfig {
         std::array<BufferSetup, kMaxColorTex> color;
         int shadowMapResolution = 1024;
+        int noiseTextureResolution = 256;
         float shadowDistance = 160.0f;
         float shadowIntervalSize = 2.0f;
         float shadowNearPlane = -100.05f, shadowFarPlane = 156.0f;

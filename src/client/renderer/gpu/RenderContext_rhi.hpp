@@ -7,6 +7,7 @@
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/UniformStore.hpp"
 
+#include <shared_mutex>
 #include <array>
 #include <glm/glm.hpp>
 
@@ -125,6 +126,25 @@ namespace perlin {
         void ClearJavaShaderPack() override;
         bool JavaShaderPackActive() const override { return javaActive || jpack != nullptr; }
         bool JavaPackDrawing() const override { return PackRunning(); }
+        void PrepareChunkMesh(Tessellator& tess) override {
+            std::shared_lock lock(jpackMutex);
+            if (!jpack || meshes.ExtensionBytes() == 0)
+                return;
+            tess.packVertices.clear();
+            jpack->Convert(tess, tess.packVertices);
+            tess.packStamp = jpackStamp.load();
+        }
+        JavaPackLoad JavaShaderPackLoad() const override {
+            JavaPackLoad l;
+            if (!jpack || jpackReady || !jpackError.empty())
+                return l;
+            const gpu::JavaPack::WarmProgress p = jpack->Progress();
+            l.active = true;
+            l.done = p.done;
+            l.total = p.total;
+            l.current = p.current;
+            return l;
+        }
         std::vector<JavaPackOption> JavaShaderPackOptions() const override;
         std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const override {
             return jpack ? jpack->Instance() : nullptr;
@@ -527,6 +547,9 @@ namespace perlin {
 
         // java shader pack: loaded as soon as it is set, drawn once its programs have compiled
         std::unique_ptr<gpu::JavaPack> jpack;
+        // meshing threads convert chunks for the pack under a shared lock; replacing the pack takes it exclusively
+        mutable std::shared_mutex jpackMutex;
+        std::atomic<uint64_t> jpackStamp{1};
         std::string jpackPath, jpackError, jpackDimension = "world0";
         std::map<std::string, std::string> jpackOptions;
         bool jpackReady = false;

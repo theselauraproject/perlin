@@ -2,6 +2,7 @@
 // game uses (include expansion, option macros, Transform, glslang to SPIR-V) and on to each backend's language
 // (SPIR-V for Vulkan, HLSL for Direct3D, MSL for Metal). Compute programs are compiled too.
 //   jshader_check <pack folder or zip> [-d world0,world-1,world1] [-b spirv,hlsl,msl] [-o NAME=VALUE]... [-v] [-p prog]
+#include "client/javashaders/BlockStates.hpp"
 #include "client/javashaders/GlslangBridge.hpp"
 #include "client/javashaders/PackSource.hpp"
 #include "client/javashaders/PipelineConfig.hpp"
@@ -253,6 +254,29 @@ int main(int argc, char** argv) {
         for (const std::string& dim : dims) {
             ShaderPackInstance instance(pack, configValues, EngineMacros(260300, false, env));
             instance.SetDimension(dim);
+            // JSHADER_BLOCKS="minecraft:grass_block;minecraft:lantern|hanging=1": the ids block.properties gives
+            if (const char* blocks = std::getenv("JSHADER_BLOCKS")) {
+                BlockIdMatcher matcher;
+                matcher.Build(instance.BlockIdLines());
+                std::string list = blocks;
+                size_t start = 0;
+                while (start <= list.size()) {
+                    const size_t end = list.find(';', start);
+                    const std::string b =
+                        list.substr(start, end == std::string::npos ? std::string::npos : end - start);
+                    if (!b.empty()) {
+                        const JavaBlock jb = ToJavaBlock(b);
+                        std::string props;
+                        for (const auto& kv : jb.props)
+                            props += " " + kv.first + "=" + kv.second;
+                        std::printf("block %s -> %s%s : id %d\n", b.c_str(), jb.name.c_str(), props.c_str(),
+                                    matcher.Match(jb));
+                    }
+                    if (end == std::string::npos)
+                        break;
+                    start = end + 1;
+                }
+            }
             std::printf("== %s %s %s: %zu options\n", instance.Name().c_str(), configName.c_str(),
                         dim.c_str(), instance.Options().size());
             const PipelineConfig pipeline = ParsePipelineConfig(instance);

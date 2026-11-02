@@ -276,15 +276,49 @@ namespace perlin {
             const ui::ShaderScreenLayout l =
                 ui::ComputeShaderScreenLayout(static_cast<int>(rows.size()) + 1, guiW, guiH);
             packUi.shaderScroll = std::clamp(packUi.shaderScroll - wheel, 0.0f, l.maxScroll);
-            const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "s" +
-                                          std::to_string(static_cast<int>(packUi.shaderScroll)) + "|" +
-                                          std::to_string(selectedRow) + "|" +
-                                          std::to_string(packUi.shaderPendingEnabled) + "|" + [&] {
-                                              std::string s;
-                                              for (const auto& r : rows)
-                                                  s += r + ";";
-                                              return s;
-                                          }();
+            // a java pack getting ready shows its progress over this screen; Done waits for it
+            std::string progressText;
+            float progress = -1.0f;
+            {
+                const RenderContext::JavaPackLoad load =
+                    renderer ? renderer->JavaShaderPackLoad() : RenderContext::JavaPackLoad{};
+                if (!javaPackPending.empty()) {
+                    progress = 0.0f;
+                    progressText =
+                        live ? detail::TrOr("perlin.shaders.loadingTextures", "Loading the block textures...")
+                             : detail::TrOr("perlin.shaders.loadsInWorld",
+                                            "The shader pack loads when you join a world");
+                    if (!live)
+                        progress = -1.0f;
+                } else if (load.active) {
+                    progress = load.total > 0 ? static_cast<float>(load.done) / static_cast<float>(load.total)
+                                              : 0.0f;
+                    progressText = detail::TrOr("perlin.shaders.compiling", "Compiling shaders") + " " +
+                                   std::to_string(load.done) + "/" + std::to_string(load.total) +
+                                   (load.current.empty() ? std::string() : ": " + load.current);
+                } else if (renderer && !renderer->JavaShaderPackError().empty() && packUi.shaderLoadWatch) {
+                    progressText = renderer->JavaShaderPackError();
+                }
+                if (progress < 0.0f && progressText.empty() && packUi.closeWhenLoaded) {
+                    packUi.closeWhenLoaded = false;
+                    packUi.shaderLoadWatch = false;
+                    leave();
+                    pause.leftDown = down;
+                    return;
+                }
+                if (progress < 0.0f && progressText.empty())
+                    packUi.shaderLoadWatch = false;
+            }
+            const std::string signature =
+                std::to_string(guiW) + "x" + std::to_string(guiH) + "s" +
+                std::to_string(static_cast<int>(packUi.shaderScroll)) + "|" + std::to_string(selectedRow) +
+                "|" + std::to_string(packUi.shaderPendingEnabled) + "|" + progressText + "|" +
+                std::to_string(static_cast<int>(progress * 200.0f)) + "|" + [&] {
+                    std::string s;
+                    for (const auto& r : rows)
+                        s += r + ";";
+                    return s;
+                }();
             if (signature != optionsUi.signature || !hud.Overlay().HasOverlay()) {
                 optionsUi.signature = signature;
                 submit(ui::BuildShaderScreenRml(
@@ -295,16 +329,23 @@ namespace perlin {
                            detail::TrOr("perlin.shaders.settings", "Shader Pack Settings..."),
                            detail::TrOr("perlin.shaders.cancel", "Cancel"),
                            detail::TrOr("perlin.shaders.apply", "Apply"), detail::TrOr("gui.done", "Done"),
-                           packUi.shaderScroll, guiW, guiH),
+                           packUi.shaderScroll, guiW, guiH, progressText, progress),
                        "shader packs");
             }
             hud.Overlay().MouseMove(gx, gy);
             hud.UpdateOverlay(fbW, fbH, options.guiScale);
             const auto apply = [&]() {
-                options.shaderPack = packUi.shaderPendingEnabled ? packUi.shaderPending : std::string();
+                const std::string wanted = packUi.shaderPendingEnabled ? packUi.shaderPending : std::string();
+                // applying the pack already running changes nothing: no reload
+                if (wanted == options.shaderPack &&
+                    (wanted.empty() || renderer->JavaShaderPackActive() || !javaPackPending.empty()))
+                    return;
+                options.shaderPack = wanted;
                 options.Save();
                 ApplyShaderPack();
+                packUi.shaderLoadWatch = true;
             };
+
             if (click) {
                 if (inside(l.openX, l.row1Y, l.btnW1, 20.0f)) {
                     openFolder(dir);
@@ -323,9 +364,17 @@ namespace perlin {
                     apply();
                 } else if (inside(l.doneX, l.row2Y, l.thirdW, 20.0f)) {
                     apply();
-                    leave();
-                    pause.leftDown = down;
-                    return;
+                    // stay here with the progress bar until the pack is ready, then close
+                    const bool loading = (!javaPackPending.empty() && live) ||
+                                         (renderer && renderer->JavaShaderPackLoad().active);
+                    if (loading) {
+                        packUi.closeWhenLoaded = true;
+                        optionsUi.signature.clear();
+                    } else {
+                        leave();
+                        pause.leftDown = down;
+                        return;
+                    }
                 } else if (gy >= l.listTop && gy < l.listBottom && gx >= l.colX && gx < l.colX + l.colW) {
                     for (int i = 0; i < static_cast<int>(rows.size()); i++) {
                         if (!inside(l.colX, l.RowY(i, packUi.shaderScroll), l.colW, 18.0f))

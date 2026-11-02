@@ -581,6 +581,7 @@ namespace perlin {
             std::string modSelected, modSearch;
             std::string shaderPending, metaStampDir;
             bool shaderPendingEnabled = false, shaderPendingInit = false;
+            bool closeWhenLoaded = false, shaderLoadWatch = false;
             std::map<std::string, PackMetaCacheEntry> metaCache;
             std::map<std::string, std::string> modIconStamp;
             std::vector<std::string> foundCache;
@@ -647,6 +648,7 @@ namespace perlin {
 
         // texture/shader pack state
         std::string javaPackPending;
+        bool benchmarkWorldOnly = false;
         int javaPackDimension = 0;
         bool levelUnloadPending = false;
         struct HotStamps {

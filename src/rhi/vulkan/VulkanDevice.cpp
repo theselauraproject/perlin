@@ -1682,7 +1682,12 @@ namespace rhi::vk {
             wi.semaphoreCount = n;
             wi.pSemaphores = sems;
             wi.pValues = values;
-            const VkResult r = fn.vkWaitSemaphores(device, &wi, 10'000'000'000ull);
+            // a slow frame (software rasterisers, a driver compiling a huge pipeline) can take longer than any
+            // fixed timeout; reusing its resources early would corrupt the frame still in flight, so keep waiting
+            // until it finishes or the device is lost
+            VkResult r = fn.vkWaitSemaphores(device, &wi, 10'000'000'000ull);
+            while (r == VK_TIMEOUT)
+                r = fn.vkWaitSemaphores(device, &wi, 10'000'000'000ull);
             if (r != VK_SUCCESS)
                 ReportError("frame wait did not complete (" + std::to_string(r) + ")");
         }

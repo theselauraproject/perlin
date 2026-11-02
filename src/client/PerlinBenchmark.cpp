@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include "util/Env.hpp"
 #include "client/PerlinFrame.hpp"
 #include "client/PerlinInternal.hpp"
 #include "client/update/Updater.hpp"
@@ -48,7 +50,36 @@ namespace perlin {
         if (!benchmarkJoinIssued) {
             // spectator: no gravity, no collisions, nothing in the hand
             benchmarkJoinIssued = true;
+            // PERLIN_BENCHMARK_WORLD=<gamemode>: only open the benchmark world (developer testing with
+            // --control-port), no camera path and no report
+            if (const char* mode = PERLIN_ENV("PERLIN_BENCHMARK_WORLD")) {
+                JoinSingleplayer(paths::DataDir() + "/benchmark-world", run.Config().seed, std::atoi(mode));
+                benchmarkWorldOnly = true;
+                return;
+            }
             JoinSingleplayer(paths::DataDir() + "/benchmark-world", run.Config().seed, 6);
+            return;
+        }
+        if (benchmarkWorldOnly) {
+            // developer world: once in, run PERLIN_BENCHMARK_CMDS ("/time set noon;/tp @s 0 80 0") and hand over
+            if (f.live && f.live->Initialized() && sessionReady && session) {
+                if (const char* cmds = PERLIN_ENV("PERLIN_BENCHMARK_CMDS")) {
+                    std::string list = cmds;
+                    size_t start = 0;
+                    while (start < list.size()) {
+                        const size_t end = list.find(';', start);
+                        const std::string c =
+                            list.substr(start, end == std::string::npos ? std::string::npos : end - start);
+                        if (!c.empty())
+                            session->SendCommand(c);
+                        if (end == std::string::npos)
+                            break;
+                        start = end + 1;
+                    }
+                }
+                benchmarkWorldOnly = false;
+                benchmark.reset();
+            }
             return;
         }
         if (!run.HasSpawn()) {

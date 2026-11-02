@@ -1176,7 +1176,12 @@ namespace rhi::d3d12 {
                 continue;
             std::lock_guard lock(waitMutex);
             queues[i].fence->SetEventOnCompletion(need[i], waitEvent.get());
-            if (WaitForSingleObject(waitEvent.get(), 10'000) != WAIT_OBJECT_0)
+            // never reuse a slot whose frame is still running: wait it out unless the device is gone
+            DWORD w = WaitForSingleObject(waitEvent.get(), 10'000);
+            while (w == WAIT_TIMEOUT && device && device->GetDeviceRemovedReason() == S_OK &&
+                   queues[i].fence->GetCompletedValue() < need[i])
+                w = WaitForSingleObject(waitEvent.get(), 10'000);
+            if (w != WAIT_OBJECT_0 && queues[i].fence->GetCompletedValue() < need[i])
                 ReportError("frame wait did not complete");
         }
         ResetSlot(slot);

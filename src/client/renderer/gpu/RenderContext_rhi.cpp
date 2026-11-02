@@ -257,7 +257,10 @@ namespace perlin {
         }
         gpu.Dev().WaitIdle();
         FinishReadbacks();
-        jpack.reset();
+        {
+            std::unique_lock jpackLock(jpackMutex);
+            jpack.reset();
+        }
         DestroyStaticResources();
         meshes.Shutdown();
         DestroyUi();
@@ -1246,7 +1249,10 @@ namespace perlin {
         ReleaseFrameMeshes();
         // the pack holds device objects; it is built again on the new device (the meshes keep their extra stream)
         const bool hadPack = jpack != nullptr;
-        jpack.reset();
+        {
+            std::unique_lock jpackLock(jpackMutex);
+            jpack.reset();
+        }
         jpackReady = false;
 
         const std::vector<gpu::PipelineKey> warmKeys = gpu.PipelineKeys();
@@ -1382,7 +1388,10 @@ namespace perlin {
             std::string why;
             if (pack->Load(config, why)) {
                 pack->SetAtlas(atlasSource.data(), tileSize, atlasTiles);
-                jpack = std::move(pack);
+                {
+                    std::unique_lock jpackLock(jpackMutex);
+                    jpack = std::move(pack);
+                }
                 AttachJavaPack();
             } else {
                 jpackError = why;

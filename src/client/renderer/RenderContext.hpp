@@ -183,6 +183,13 @@ namespace perlin {
         // a java pack draws this frame: entity / item meshes should carry their plain tint, not the engine's
         // lighting, since the pack lights them from the lightmap coordinates
         virtual bool JavaPackDrawing() const { return false; }
+        // a java pack getting ready: programs compiled of all it will use, and which one is still compiling
+        struct JavaPackLoad {
+            bool active = false;
+            int done = 0, total = 0;
+            std::string current;
+        };
+        virtual JavaPackLoad JavaShaderPackLoad() const { return {}; }
         virtual std::vector<JavaPackOption> JavaShaderPackOptions() const { return {}; }
         // the running java pack (screens, profiles, lang), null when none is loaded
         virtual std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const { return {}; }
@@ -237,6 +244,8 @@ namespace perlin {
         virtual void FramebufferSize(int& width, int& height) const = 0;
 
         virtual void UpdateChunkMesh(int cx, int cz, const Tessellator& tess, uint64_t version) = 0;
+        // called on chunk meshing threads once a mesh is built: renderer-specific work that can run there
+        virtual void PrepareChunkMesh(Tessellator&) {}
         virtual void RemoveChunkMesh(int cx, int cz) = 0;
         virtual void UpdateLodTile(int tx, int tz, int size, const Tessellator& tess, uint64_t version) = 0;
         virtual void RemoveLodTile(int tx, int tz) = 0;

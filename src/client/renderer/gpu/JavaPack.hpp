@@ -146,6 +146,11 @@ namespace perlin::gpu {
         }
         void DropQueued() { queued.clear(); }
         // the pack has a shadow pass (iris draws entities into it)
+        struct WarmProgress {
+            int done = 0, total = 0;
+            std::string current; // a program still compiling
+        };
+        WarmProgress Progress() const;
         bool ShadowsEnabled() const { return config.shadowEnabled && shadowDepth; }
         // shaders.properties clouds: "off", "fast", "fancy" or "default"
         const std::string& CloudSetting() const { return config.clouds; }
@@ -178,6 +183,7 @@ namespace perlin::gpu {
             int index = 0;
             bool shadow = false;
             std::string name;
+            std::string customKey; // Kind::Custom: "<stage>:<sampler>"
         };
         // an iris custom image: storage texture in set 2 at its slot, sampled through its sampler name
         struct Image {
@@ -301,6 +307,10 @@ namespace perlin::gpu {
         // the alpha test a program runs with: the pack's alphaTest.<program> or iris's for the render type
         // (defaultRef < 0: none)
         std::string AlphaFor(const std::string& progName, float defaultRef) const;
+        std::string ComputeAlpha(const std::string& progName, float defaultRef) const;
+        mutable std::unordered_map<std::string, std::string> alphaCache;
+        bool IsFluidBlock(uint16_t palette);
+        std::vector<uint8_t> fluidMap;
         const jshader::ProgramConfig* BlendConfigFor(const std::string& progName) const;
         Program* Finish(const std::string& key, const std::string& name, const Converted& c,
                         std::shared_ptr<jshader::ProgramSource> source);
@@ -401,11 +411,16 @@ namespace perlin::gpu {
             shadowDepthNoTranslucents; // shadowtex1: the shadow depth before translucent terrain
         bool shadowCleared = false;
         bool resolvingWaterShadow = false;
+        mutable std::mutex progressMutex;
+        WarmProgress warmProgress;
         rhi::TextureHandle shadowColor[2];
         bool shadowColorUsed[2] = {false, false};
         bool shadowUsed = false;
         rhi::TextureHandle white, flatNormal, blackTex, noise;
-        std::map<std::string, rhi::TextureHandle> customTextures;
+        std::map<std::string, rhi::TextureHandle> customTextures; // "<stage>:<sampler>"
+        std::map<std::string, int> customSamplers;
+        int noiseSampler = 2; // linear repeat
+        std::string resolvingStage;
         std::vector<rhi::TextureHandle> owned;
         uint32_t width = 0, height = 0;
         int frameStamp = 0;

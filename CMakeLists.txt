@@ -1413,15 +1413,28 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(light_selftest PRIVATE cxx_std_23)
     add_test(NAME light_selftest COMMAND light_selftest)
 
-    add_executable(mod_selftest tests/mod_selftest.cpp src/client/mods/ModManager.cpp src/client/mods/WasmRuntime.cpp src/client/ui/Json.cpp)
+    # the same wasm engine as the app: wasm3 where wasmedge is not built (freebsd, web)
+    if(PERLIN_WASM3)
+        set(PERLIN_MOD_RUNTIME_SOURCE src/client/mods/WasmRuntimeWasm3.cpp)
+    else()
+        set(PERLIN_MOD_RUNTIME_SOURCE src/client/mods/WasmRuntime.cpp)
+    endif()
+    add_executable(mod_selftest tests/mod_selftest.cpp src/client/mods/ModManager.cpp ${PERLIN_MOD_RUNTIME_SOURCE}
+        src/client/ui/Json.cpp)
     target_include_directories(mod_selftest PRIVATE src mods/sdk)
-    target_link_libraries(mod_selftest PRIVATE perlin_wasmedge Threads::Threads)
+    target_link_libraries(mod_selftest PRIVATE ${PERLIN_WASM_ENGINE} Threads::Threads)
     target_compile_features(mod_selftest PRIVATE cxx_std_23)
     set(PERLIN_TEST_PLUGINS "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/plugins")
+    if(PERLIN_WASM3)
+        # wasm3 runs 32-bit modules only
+        add_test(NAME mod_selftest COMMAND mod_selftest
+            "${PERLIN_TEST_PLUGINS}/hello32.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm")
+    else()
     add_test(NAME mod_selftest COMMAND mod_selftest
         "${PERLIN_TEST_PLUGINS}/hello64.wasm" "${PERLIN_TEST_PLUGINS}/hello32.wasm"
         "${PERLIN_TEST_PLUGINS}/loop_64.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm"
         "${CMAKE_CURRENT_SOURCE_DIR}/mods/prebuilt/waila.wasm")
+    endif()
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_FOUND)

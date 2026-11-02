@@ -281,11 +281,12 @@ namespace perlin {
             }
             target = desired < best ? desired : std::max(best, 0.0f);
         }
-        if (camera.thirdPersonDistance < 0.0f) {
-            camera.thirdPersonDistance = target;
-            camera.avoidanceVelocity = 0.0f;
+        // the camera sits straight at its distance: no spring back out after a wall pulled it in or after a
+        // perspective switch (only the zoom key eases)
+        camera.thirdPersonDistance = target;
+        camera.avoidanceVelocity = 0.0f;
+        if (target >= 0.0f)
             return;
-        }
         // only the box rays pull the camera in at once; going back out is a critically damped spring
         if (camera.thirdPersonDistance > target) {
             camera.thirdPersonDistance = target;

@@ -14,11 +14,18 @@ namespace perlin {
         jpack->SetFluidTiles(static_cast<int>(frame.waterTile), static_cast<int>(frame.waterFlowTile),
                              static_cast<int>(frame.lavaTile), -1);
         // the pack's vertex stream is built next to the normal one whenever a chunk mesh uploads
-        meshes.SetExtension(gpu::kPackVertexBytes,
-                            [this](const Tessellator& tess, std::vector<uint8_t>& out) {
-                                if (jpack)
-                                    jpack->Convert(tess, out);
-                            });
+        jpackStamp++;
+        meshes.SetExtension(
+            gpu::kPackVertexBytes, [this](const Tessellator& tess, std::vector<uint8_t>& out) {
+                // usually converted already on the meshing thread
+                if (tess.packStamp == jpackStamp.load() &&
+                    tess.packVertices.size() == tess.Vertices().size() * gpu::kPackVertexBytes) {
+                    out = tess.packVertices;
+                    return;
+                }
+                if (jpack)
+                    jpack->Convert(tess, out);
+            });
         Tessellator::SetCaptureQuadInfo(true);
         jpackReady = false;
         return true;
@@ -58,7 +65,10 @@ namespace perlin {
             return false;
         }
         pack->SetAtlas(atlasSource.data(), tileSize, atlasTiles);
-        jpack = std::move(pack);
+        {
+            std::unique_lock jpackLock(jpackMutex);
+            jpack = std::move(pack);
+        }
         AttachJavaPack();
         return true;
     }
@@ -68,7 +78,10 @@ namespace perlin {
         if (!jpack && jpackPath.empty())
             return;
         const bool had = jpack != nullptr;
-        jpack.reset();
+        {
+            std::unique_lock jpackLock(jpackMutex);
+            jpack.reset();
+        }
         jpackReady = false;
         jpackGathered = false;
         jpackPath.clear();

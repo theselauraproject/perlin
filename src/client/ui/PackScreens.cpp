@@ -305,7 +305,7 @@ div, mcimg { display: block; position: absolute; }
                                      const std::string& dragText, const std::string& open,
                                      const std::string& settings, const std::string& cancel,
                                      const std::string& apply, const std::string& done, float scroll,
-                                     int guiW, int guiH) {
+                                     int guiW, int guiH, const std::string& progressText, float progress) {
         const ShaderScreenLayout l = ComputeShaderScreenLayout(static_cast<int>(rows.size()) + 1, guiW, guiH);
         const float h = l.listBottom - l.listTop;
         std::string d = Styles(guiW, guiH, 140);
@@ -355,6 +355,24 @@ div, mcimg { display: block; position: absolute; }
         d += Btn("shcancel", l.cancelX, l.row2Y, l.thirdW, cancel, false);
         d += Btn("shapply", l.applyX, l.row2Y, l.thirdW, apply, false);
         d += Btn("shdone", l.doneX, l.row2Y, l.thirdW, done, false);
+        if (!progressText.empty() || progress >= 0.0f) {
+            // the pack loading: a panel over the list with what it is doing and a bar
+            const float pw = std::min(static_cast<float>(guiW) - 20.0f, 300.0f);
+            const float px = (static_cast<float>(guiW) - pw) / 2.0f;
+            const float py = l.listTop + (l.listBottom - l.listTop) / 2.0f - 22.0f;
+            d += "<div style=\"left: " + N(px) + "px; top: " + N(py) + "px; width: " + N(pw) +
+                 "px; height: 44px; background-color: rgba(0,0,0,215); border-width: 1px; border-color: "
+                 "#a0a0a0;\"></div>\n";
+            d += Text(px + 6, py + 7, pw - 12, progressText, "", nullptr, true);
+            if (progress >= 0.0f) {
+                const float bw = pw - 24.0f;
+                d += "<div style=\"left: " + N(px + 12) + "px; top: " + N(py + 26) + "px; width: " + N(bw) +
+                     "px; height: 6px; background-color: #404040;\"></div>\n";
+                d += "<div style=\"left: " + N(px + 12) + "px; top: " + N(py + 26) +
+                     "px; width: " + N(bw * std::clamp(progress, 0.0f, 1.0f)) +
+                     "px; height: 6px; background-color: #80ff20;\"></div>\n";
+            }
+        }
         d += "</body>\n</rml>\n";
         return d;
     }

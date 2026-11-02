@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/block/BlockLibrary.hpp"
 #include "util/Env.hpp"
@@ -133,7 +134,8 @@ namespace perlin {
         std::vector<uint32_t>& out = indices[static_cast<size_t>(layer)];
         static constexpr uint32_t kForward[6] = {0, 1, 2, 0, 2, 3};
         static constexpr uint32_t kFlipped[6] = {1, 2, 3, 1, 3, 0};
-        const uint32_t* pattern = flip ? kFlipped : kForward;
+        static const bool noFlip = std::getenv("PERLIN_NOFLIP") != nullptr;
+        const uint32_t* pattern = flip && !noFlip ? kFlipped : kForward;
         for (int i = 0; i < 6; i++)
             out.push_back(base + pattern[i]);
     }

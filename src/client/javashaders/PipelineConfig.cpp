@@ -199,6 +199,8 @@ namespace perlin::jshader {
         }
         // iris PackShadowDirectives defaults: 1024 texels, a 160 block half plane, near -100.05 / far 156
         cfg.shadowMapResolution = static_cast<int>(d.Number("shadowMapResolution", 1024));
+        cfg.noiseTextureResolution =
+            std::clamp(static_cast<int>(d.Number("noiseTextureResolution", 256)), 1, 4096);
         cfg.shadowDistance = static_cast<float>(d.Number("shadowDistance", 160));
         cfg.shadowNearPlane = static_cast<float>(d.Number("shadowNearPlane", -100.05));
         cfg.shadowFarPlane = static_cast<float>(d.Number("shadowFarPlane", 156.0));

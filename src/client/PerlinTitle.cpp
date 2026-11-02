@@ -1286,8 +1286,16 @@ namespace perlin {
                 loading.startAt = now;
             const int chunks = session->ChunksReceived();
             const int freshChunks = chunks - loading.chunkBase;
-            const bool assets = levelRenderer && levelRenderer->Blocks().Complete();
-            const bool enough = freshChunks >= 9 && assets;
+            // the world shows only once it can be drawn: block textures loaded, the player placed and the
+            // chunks around it meshed. hiding the screen earlier leaves an empty sky behind the touch controls
+            const bool assets =
+                levelRenderer && levelRenderer->Blocks().Complete() && levelRenderer->TexturesLoaded();
+            const bool placed = session->Initialized();
+            const size_t meshed =
+                levelRenderer ? levelRenderer->MeshedChunks() -
+                                    std::min(levelRenderer->MeshedChunks(), levelRenderer->MeshesInFlight())
+                              : 0;
+            const bool enough = freshChunks >= 9 && assets && placed && meshed >= 9;
             if (enough) {
                 if (!loading.readyArmed) {
                     loading.readyArmed = true;
@@ -1296,13 +1304,28 @@ namespace perlin {
             } else {
                 loading.readyArmed = false;
             }
-            const bool timeout = now - loading.startAt > std::chrono::seconds(5);
-            if (loading.readyArmed || timeout) {
+            // a world with almost nothing around it (void, a tiny server lobby) never reaches 9 chunks: after a
+            // while, the screen goes once whatever arrived is drawable
+            const auto waited = now - loading.startAt;
+            const bool settled = assets && placed && freshChunks > 0 && levelRenderer &&
+                                 levelRenderer->PendingMeshes() == 0 &&
+                                 levelRenderer->MeshesInFlight() == 0 && waited > std::chrono::seconds(8);
+            if (loading.readyArmed || settled) {
                 loading.done = true;
                 show = false;
+            } else if (!assets) {
+                t.message = tr("perlin.loading.textures", "Loading block textures");
+            } else if (!placed || freshChunks == 0) {
+                t.message = tr("perlin.loading.world", "Waiting for the world");
+                if (waited > std::chrono::seconds(20))
+                    t.detail =
+                        tr("perlin.loading.worldSlow", "The server has not sent any terrain yet (%1 s)",
+                           {std::to_string(static_cast<int>(
+                               std::chrono::duration_cast<std::chrono::seconds>(waited).count()))});
             } else {
                 t.message = tr("progressScreen.message.building", "Building terrain");
-                const float fraction = std::min(1.0f, static_cast<float>(freshChunks) / 49.0f);
+                const float fraction =
+                    std::min(1.0f, static_cast<float>(std::min<size_t>(meshed, 49)) / 49.0f);
                 t.progress = std::min(0.98f, fraction);
             }
         }

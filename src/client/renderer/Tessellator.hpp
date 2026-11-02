@@ -88,6 +88,10 @@ namespace perlin {
                      float sky);
 
         const std::vector<Vertex>& Vertices() const { return vertices; }
+
+        // a java shader pack's vertex stream for this mesh, built on the meshing thread (stamp: which pack)
+        std::vector<uint8_t> packVertices;
+        uint64_t packStamp = 0;
         const std::vector<uint32_t>& Indices(RenderLayer value) const {
             return indices[static_cast<size_t>(value)];
         }

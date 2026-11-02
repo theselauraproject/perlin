@@ -461,10 +461,43 @@ namespace perlin::gpu {
             "#version 120\nuniform sampler2D colortex0;\nvarying vec2 texcoord;\n/* DRAWBUFFERS:0 */\nvoid "
             "main() { gl_FragData[0] = texture2D(colortex0, texcoord); }\n";
 
+        // iris texture stages: which texture.<stage>.* lines a program sees
+        std::string TextureStageOf(const std::string& program) {
+            const auto starts = [&](const char* p) { return program.compare(0, std::strlen(p), p) == 0; };
+            if (starts("shadowcomp"))
+                return "shadowcomp";
+            if (starts("gbuffers") || starts("shadow") || starts("dh_"))
+                return "gbuffers";
+            if (starts("deferred"))
+                return "deferred";
+            if (starts("composite") || starts("final"))
+                return "composite";
+            if (starts("prepare"))
+                return "prepare";
+            if (starts("begin"))
+                return "begin";
+            if (starts("setup"))
+                return "setup";
+            return "composite";
+        }
+
+        // the legacy buffer names stand for colortex0..7
+        std::string CanonicalSamplerName(const std::string& n) {
+            static const std::pair<const char*, const char*> table[] = {
+                {"gcolor", "colortex0"},    {"gdepth", "colortex1"}, {"gnormal", "colortex2"},
+                {"composite", "colortex3"}, {"gaux1", "colortex4"},  {"gaux2", "colortex5"},
+                {"gaux3", "colortex6"},     {"gaux4", "colortex7"}};
+            for (const auto& e : table)
+                if (n == e.first)
+                    return e.second;
+            return n;
+        }
+
         enum SamplerId : int {
             SPointClamp,
             SLinearClamp,
             SLinearRepeat,
+            SPointRepeat,
             SAtlas,
             SCompareLinear,
             SComparePoint,
@@ -597,6 +630,7 @@ namespace perlin::gpu {
         atlas = {};
         white = flatNormal = blackTex = noise = {};
         customTextures.clear();
+        customSamplers.clear();
     }
 
     rhi::TextureHandle JavaPack::MakeTexture(uint32_t w, uint32_t h, rhi::Format format,
@@ -630,6 +664,11 @@ namespace perlin::gpu {
         case SLinearClamp:
             break;
         case SLinearRepeat:
+            sd.u = sd.v = sd.w = rhi::AddressMode::Repeat;
+            break;
+        case SPointRepeat:
+            point();
+            sd.mip = rhi::Filter::Nearest;
             sd.u = sd.v = sd.w = rhi::AddressMode::Repeat;
             break;
         case SAtlas:
@@ -742,17 +781,67 @@ namespace perlin::gpu {
             stbi_image_free(data);
             return t;
         };
+        // iris CustomTextureData: a png's sampling comes from its .mcmeta (texture.blur / texture.clamp), nearest
+        // and repeating without one
+        const auto samplerFor = [&](const std::string& file) {
+            std::string clean = file;
+            while (!clean.empty() && clean[0] == '/')
+                clean.erase(0, 1);
+            std::string meta;
+            bool blur = false, clamp = false;
+            if (instance->Source().Read(clean + ".mcmeta", meta)) {
+                const auto flag = [&](const char* key) {
+                    const size_t at = meta.find(std::string("\"") + key + "\"");
+                    if (at == std::string::npos)
+                        return false;
+                    const size_t colon = meta.find(':', at);
+                    return colon != std::string::npos && meta.find("true", colon) != std::string::npos &&
+                           meta.find("true", colon) < meta.find_first_of(",}", colon);
+                };
+                blur = flag("blur");
+                clamp = flag("clamp");
+            }
+            return blur ? (clamp ? SLinearClamp : SLinearRepeat) : (clamp ? SPointClamp : SPointRepeat);
+        };
+        {
+            // iris NativeImageBackedNoiseTexture: random rgb noise, noiseTextureResolution square, linear and
+            // repeating, when the pack names no texture.noise
+            const int res = config.noiseTextureResolution;
+            std::vector<uint8_t> px(static_cast<size_t>(res) * res * 4);
+            uint64_t state = 0x9E3779B97F4A7C15ull;
+            for (size_t i = 0; i < px.size(); i++) {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                px[i] = (i % 4 == 3) ? 255 : static_cast<uint8_t>(state >> 56);
+            }
+            rhi::TextureDesc td;
+            td.format = rhi::Format::RGBA8Unorm;
+            td.width = td.height = static_cast<uint32_t>(res);
+            td.name = "pack noise";
+            if (const rhi::TextureHandle t = gpu.CreateSampled(td)) {
+                gpu.WriteTexture(t, 0, 0, 0, td.width, td.height, px.data());
+                owned.push_back(t);
+                noise = t;
+                noiseSampler = SLinearRepeat;
+            }
+        }
         if (!config.noiseTexture.empty()) {
             const rhi::TextureHandle t = load(config.noiseTexture);
-            if (t)
+            if (t) {
                 noise = t;
+                noiseSampler = samplerFor(config.noiseTexture);
+            }
         }
         for (const jshader::CustomTexture& ct : config.textures) {
-            if (customTextures.contains(ct.sampler))
+            const std::string key = ct.stage + ":" + CanonicalSamplerName(ct.sampler);
+            if (customTextures.contains(key))
                 continue;
             const rhi::TextureHandle t = load(ct.path);
-            if (t)
-                customTextures[ct.sampler] = t;
+            if (t) {
+                customTextures[key] = t;
+                customSamplers[key] = samplerFor(ct.path);
+            }
         }
     }
 
@@ -939,6 +1028,7 @@ namespace perlin::gpu {
     }
 
     bool JavaPack::Load(const Config& cfg, std::string& error) {
+        alphaCache.clear();
         const rhi::Api api = gpu.Api();
         if (api != rhi::Api::Vulkan && api != rhi::Api::D3D12 && api != rhi::Api::D3D11 &&
             api != rhi::Api::Metal) {
@@ -1043,6 +1133,7 @@ namespace perlin::gpu {
         entityIdMap.clear();
         itemIdMap.clear();
         paletteMap.assign(65536, -2);
+        fluidMap.assign(65536, 0);
         fluidIds[0] = fluidIds[1] = -1;
         if (!instance)
             return;
@@ -1079,6 +1170,23 @@ namespace perlin::gpu {
         }
         slot = static_cast<int16_t>(std::clamp(result, -1, 32000));
         return slot;
+    }
+
+    bool JavaPack::IsFluidBlock(uint16_t palette) {
+        // per palette entry, filled on first use (chunk meshing runs on several threads: a racing duplicate
+        // fill writes the same value)
+        if (fluidMap.size() < 65536)
+            return false;
+        uint8_t& slot = fluidMap[palette];
+        if (slot == 0) {
+            bool fluid = false;
+            if (blockName) {
+                const std::string n = jshader::ToJavaBlock(blockName(palette)).name;
+                fluid = n == "water" || n == "lava";
+            }
+            slot = fluid ? 2 : 1;
+        }
+        return slot == 2;
     }
 
     int JavaPack::PackEntityId(const std::string& bedrockType) {
@@ -1275,9 +1383,8 @@ namespace perlin::gpu {
                 if (waterTile || lavaTile) {
                     fluid = true;
                     packId = fluidIds[waterTile ? 0 : 1];
-                } else if (block && blockName) {
-                    const std::string n = jshader::ToJavaBlock(blockName(block)).name;
-                    fluid = n == "water" || n == "lava";
+                } else if (block) {
+                    fluid = IsFluidBlock(block);
                 }
             }
             // iris BLOCK_EMISSION_ATTRIBUTE: the block's light level rides in at_midBlock.w
@@ -1295,7 +1402,8 @@ namespace perlin::gpu {
                                   (av[0] + av[1] + av[2] + av[3]) * 0.25f};
             const uint16_t normal[4] = {ToHalf(n.x), ToHalf(n.y), ToHalf(n.z), 0};
             const uint16_t tang[4] = {ToHalf(tangent.x), ToHalf(tangent.y), ToHalf(tangent.z), ToHalf(1.0f)};
-            if (layerType > 0.5f && std::getenv("JSHADER_WATERDBG")) {
+            static const bool waterDebug = std::getenv("JSHADER_WATERDBG") != nullptr;
+            if (layerType > 0.5f && waterDebug) {
                 static int shown = 0;
                 if (shown++ < 6)
                     std::fprintf(stderr,
@@ -1303,6 +1411,9 @@ namespace perlin::gpu {
                                  blockName ? blockName(block).c_str() : "?", packId, v[0].rgba);
             }
             (void)layerType;
+            static const bool noIds = std::getenv("JSHADER_NOIDS") != nullptr;
+            if (noIds)
+                packId = -1;
             const float entity[2] = {static_cast<float>(packId), fluid ? 1.0f : 0.0f};
             for (int i = 0; i < 4; i++) {
                 uint8_t* o = out.data() + (q + static_cast<size_t>(i)) * kPackVertexBytes;
@@ -1365,6 +1476,13 @@ namespace perlin::gpu {
             return true;
         };
         int idx = 0;
+        // iris: texture.<stage>.<name> replaces the sampler (buffer names included) in that stage's programs
+        if (const std::string key = resolvingStage + ":" + CanonicalSamplerName(n);
+            customTextures.contains(key)) {
+            b.kind = Kind::Custom;
+            b.customKey = key;
+            return b;
+        }
         if (numeric("colortex", idx) && idx < jshader::kMaxColorTex) {
             b.kind = Kind::Color;
             b.index = idx;
@@ -1417,9 +1535,7 @@ namespace perlin::gpu {
         else if (const auto img = imageSamplerOf.find(n); img != imageSamplerOf.end()) {
             b.kind = Kind::Image;
             b.index = img->second;
-        } else if (customTextures.contains(n))
-            b.kind = Kind::Custom;
-        else
+        } else
             b.kind = Kind::Dummy;
         return b;
     }
@@ -1430,6 +1546,7 @@ namespace perlin::gpu {
                                         const std::vector<jshader::UniformDecl>& uniforms, int regs) {
         p.regs = regs;
         resolvingWaterShadow = false;
+        resolvingStage = TextureStageOf(progName);
         for (const jshader::RhiSampler& s : samplerList)
             resolvingWaterShadow = resolvingWaterShadow || s.name == "watershadow";
         for (const jshader::RhiSampler& s : samplerList) {
@@ -1507,6 +1624,18 @@ namespace perlin::gpu {
     }
 
     std::string JavaPack::AlphaFor(const std::string& progName, float defaultRef) const {
+        // called for every draw: remember each answer (the pack's settings only change with a reload)
+        char keyBuf[16];
+        std::snprintf(keyBuf, sizeof(keyBuf), "|%g", static_cast<double>(defaultRef));
+        std::string cacheKey = progName + keyBuf;
+        if (auto it = alphaCache.find(cacheKey); it != alphaCache.end())
+            return it->second;
+        std::string result = ComputeAlpha(progName, defaultRef);
+        alphaCache.emplace(std::move(cacheKey), result);
+        return result;
+    }
+
+    std::string JavaPack::ComputeAlpha(const std::string& progName, float defaultRef) const {
         // iris: the shaders.properties override for the program file that loaded, else the render type's test
         const jshader::ProgramConfig* pc = nullptr;
         if (instance) {
@@ -1683,36 +1812,100 @@ namespace perlin::gpu {
     }
 
     int JavaPack::WarmUp() {
-        int remaining = 0, started = 0;
-        const auto touch = [&](const std::string& n, bool toBackbuffer, float alphaRef = -1.0f) {
-            const std::string alpha = toBackbuffer ? std::string() : AlphaFor(n, alphaRef);
-            const std::string key = KeyFor(n, toBackbuffer) + (alpha.empty() ? "" : "@" + alpha);
-            if (programs.contains(key))
-                return;
-            if (!pending.contains(key)) {
-                if (started >= 2) {
-                    remaining++;
-                    return;
-                }
-                started++;
-            }
-            GetProgram(n, toBackbuffer, nullptr, nullptr, rhi::Format::Unknown, alpha);
-            if (!programs.contains(key))
-                remaining++;
+        // every program the pack draws with, with the alpha test each draw asks for, so nothing (the hand, the
+        // player, particles) pops in after the pack starts. reading a program's source happens here on the render
+        // thread; converting and compiling runs on the pool. a small time budget keeps the menus responsive.
+        struct Want {
+            const char* name;
+            float alpha;
+            bool back;
         };
-        touch("gbuffers_terrain_solid", false, -1.0f);
-        touch("gbuffers_terrain_cutout", false, 0.5f);
-        touch("gbuffers_water", false, 0.0001f);
-        if (config.shadowEnabled) {
-            touch("shadow_solid", false, -1.0f);
-            touch("shadow_cutout", false, 0.5f);
-        }
+        std::vector<Want> wants = {
+            {"gbuffers_terrain_solid", -1.0f, false},
+            {"gbuffers_terrain_cutout", 0.5f, false},
+            {"gbuffers_water", 0.0001f, false},
+            {"gbuffers_skybasic", -1.0f, false},
+            {"gbuffers_skytextured", -1.0f, false},
+            {"gbuffers_entities", -1.0f, false},
+            {"gbuffers_entities", 0.1f, false},
+            {"gbuffers_hand", 0.1f, false},
+            {"gbuffers_entities_translucent", 0.1f, false},
+            {"gbuffers_hand_water", 0.1f, false},
+            {"gbuffers_spidereyes", 0.0001f, false},
+            {"gbuffers_particles", 0.1f, false},
+            {"gbuffers_particles_translucent", 0.1f, false},
+            {"gbuffers_weather", 0.1f, false},
+            {"gbuffers_block", 0.1f, false},
+            {"gbuffers_block_translucent", 0.1f, false},
+            {"gbuffers_damagedblock", 0.1f, false},
+            {"gbuffers_armor_glint", 0.0001f, false},
+            {"gbuffers_clouds", 0.1f, false},
+            {"gbuffers_line", -1.0f, false},
+            {"gbuffers_lightning", -1.0f, false},
+        };
+        if (config.shadowEnabled)
+            for (const Want& w : std::initializer_list<Want>{{"shadow_solid", -1.0f, false},
+                                                             {"shadow_cutout", 0.5f, false},
+                                                             {"shadow_water", -1.0f, false},
+                                                             {"shadow_entities", 0.1f, false},
+                                                             {"shadow_block", 0.1f, false}})
+                wants.push_back(w);
+        std::vector<std::string> passNames;
         for (const char* base : {"begin", "prepare", "deferred", "composite", "shadowcomp"})
             for (const std::string& n : instance->PassChain(base))
-                if (instance->ProgramEnabled(n))
-                    touch(n, false);
-        touch("final", true);
+                if (instance->ProgramEnabled(n) &&
+                    (std::string(base) != "shadowcomp" || config.shadowEnabled))
+                    passNames.push_back(n);
+        for (const std::string& n : passNames)
+            wants.push_back({n.c_str(), -2.0f, false}); // full screen passes run without an alpha test
+        wants.push_back({"final", -2.0f, true});
+
+        const auto started = std::chrono::steady_clock::now();
+        int remaining = 0, done = 0, total = 0;
+        std::string current;
+        for (const Want& w : wants) {
+            if (!instance->ProgramExists(w.name) && std::strcmp(w.name, "final") != 0) {
+                // a missing program falls back (gbuffers_hand -> textured_lit ...); count it only if one loads
+                const auto src = instance->Program(w.name);
+                if (!src || !src->found)
+                    continue;
+            }
+            const std::string alpha = w.back || w.alpha < -1.5f ? std::string() : AlphaFor(w.name, w.alpha);
+            const std::string key = KeyFor(w.name, w.back) + (alpha.empty() ? "" : "@" + alpha);
+            total++;
+            if (programs.contains(key)) {
+                done++;
+                continue;
+            }
+            const bool overBudget =
+                std::chrono::steady_clock::now() - started > std::chrono::milliseconds(12);
+            if (!pending.contains(key) && overBudget) {
+                remaining++;
+                if (current.empty())
+                    current = w.name;
+                continue;
+            }
+            GetProgram(w.name, w.back, nullptr, nullptr, rhi::Format::Unknown, alpha);
+            if (programs.contains(key)) {
+                done++;
+            } else {
+                remaining++;
+                if (current.empty())
+                    current = w.name;
+            }
+        }
+        {
+            std::lock_guard lock(progressMutex);
+            warmProgress.done = done;
+            warmProgress.total = total;
+            warmProgress.current = current;
+        }
         return remaining;
+    }
+
+    JavaPack::WarmProgress JavaPack::Progress() const {
+        std::lock_guard lock(progressMutex);
+        return warmProgress;
     }
 
     bool JavaPack::TerrainUsable() {
@@ -1914,7 +2107,7 @@ namespace perlin::gpu {
                 break;
             case Kind::Noise:
                 t = noise;
-                smp = SLinearRepeat;
+                smp = noiseSampler;
                 break;
             case Kind::Atlas:
                 if (textureOverride)
@@ -1935,8 +2128,8 @@ namespace perlin::gpu {
                 t = blackTex;
                 break;
             case Kind::Custom:
-                t = customTextures[s.name];
-                smp = SLinearRepeat;
+                t = customTextures[s.customKey];
+                smp = customSamplers[s.customKey];
                 break;
             case Kind::Image: {
                 // iris samples custom images with linear filtering, integer ones nearest
@@ -3165,7 +3358,8 @@ namespace perlin::gpu {
                                   rhi::BufferHandle vb, uint32_t first, uint32_t count,
                                   rhi::BufferHandle ring, uint64_t ringOffset, const float* modelView,
                                   rhi::TextureHandle texture, bool additive) {
-        Program* p = GetProgram(programName, false);
+        Program* p = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                                AlphaFor(programName, -1.0f));
         if (!p || count == 0)
             return;
         std::vector<rhi::TextureHandle> colors;
