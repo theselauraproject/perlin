@@ -21,6 +21,7 @@ namespace perlin::particle {
         float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
         std::string texture;
         int blend = 0;
+        int8_t blockLight = -1, skyLight = -1;
     };
 
     struct CameraView {
@@ -33,6 +34,7 @@ namespace perlin::particle {
     struct DataWorld {
         std::function<bool(int, int, int)> solid;
         std::function<glm::vec3(const glm::dvec3&)> light;
+        std::function<glm::ivec2(const glm::dvec3&)> lightLevels; // see particle::WorldAccess
     };
 
     class DataParticles {

@@ -1,4 +1,5 @@
 #pragma once
+#include "client/javashaders/BlockStates.hpp"
 #include "client/javashaders/PipelineConfig.hpp"
 #include "client/javashaders/ProgramSet.hpp"
 #include "client/javashaders/RhiBackend.hpp"
@@ -9,9 +10,11 @@
 #include "client/renderer/gpu/GpuCore.hpp"
 
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <initializer_list>
 #include <future>
 #include <map>
 #include <memory>
@@ -84,6 +87,69 @@ namespace perlin::gpu {
 
         static constexpr uint32_t AttribMask();
 
+        // what iris draws through the pack besides terrain and sky: mobs, players, the hand, particles, weather,
+        // block breaking. the engine hands its meshes over instead of drawing them on top of the pack's picture
+        struct ExternalDraw {
+            enum class Kind : uint8_t {
+                Entity,              // gbuffers_entities
+                EntityTranslucent,   // gbuffers_entities_translucent
+                Eyes,                // gbuffers_spidereyes (emissive layers)
+                Hand,                // gbuffers_hand
+                HandTranslucent,     // gbuffers_hand_water
+                Particle,            // gbuffers_particles
+                ParticleTranslucent, // gbuffers_particles_translucent
+                Weather,             // gbuffers_weather
+                Cracks,              // gbuffers_damagedblock
+                Block,               // gbuffers_block (block entities)
+                BlockTranslucent,    // gbuffers_block_translucent (sign text, translucent block entities)
+                Glint,               // gbuffers_armor_glint
+                HandGlint,           // gbuffers_armor_glint, in the hand pass
+                Clouds,              // gbuffers_clouds
+                Lightning,           // gbuffers_lightning
+                Line,                // gbuffers_line (block outline, hit boxes)
+                Glowing              // gbuffers_entities_glowing
+            };
+            Kind kind = Kind::Entity;
+            std::vector<uint8_t> vertices; // pack vertex stream, a plain triangle list
+            uint32_t count = 0;
+            rhi::TextureHandle texture;
+            bool depthTest = true, depthWrite = true;
+            bool blend = false, additive = false;
+            float entityColor[4] = {0, 0, 0, 0};
+            bool castsShadow = false;
+            bool shadowOnly = false; // the first person body: only its shadow
+            bool player = false;
+            // entity.properties / block.properties / item.properties ids
+            int entityId = 0, blockEntityId = 0, itemId = 0;
+            // the render type's alpha test (iris AlphaTests), < 0 for none
+            float alphaRef = -1.0f;
+            // iris_TextureMat[0] (glint scrolling)
+            float textureMatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+            bool glintBlend = false; // vanilla glint: src colour, one / zero, one; depth equal
+        };
+        // a triangle list in the pack's vertex layout from an engine mesh: positions through `model`, normals and
+        // tangents from each triangle, light from the given levels (0-15) or per vertex (two levels each, -1 for
+        // the given ones); normals point away from the mesh's middle, or toward `faceToward` (a world point) when
+        // given
+        static void BuildVertices(const UiVertex* vertices, size_t vertexCount, const uint32_t* indices,
+                                  size_t indexCount, const float model[16], int blockLight, int skyLight,
+                                  std::vector<uint8_t>& out, const int8_t* vertexLight = nullptr,
+                                  const float* faceToward = nullptr);
+        void QueueDraw(ExternalDraw draw) { queued.push_back(std::move(draw)); }
+        // atlas tiles of still / flowing water and lava: fluid quads (waterlogged blocks included) carry the
+        // fluid's block id and mc_Entity.y = 1, as iris's fluid renderer gives them
+        void SetFluidTiles(int water, int waterFlow, int lava, int lavaFlow) {
+            fluidTiles[0] = water;
+            fluidTiles[1] = waterFlow;
+            fluidTiles[2] = lava;
+            fluidTiles[3] = lavaFlow;
+        }
+        void DropQueued() { queued.clear(); }
+        // the pack has a shadow pass (iris draws entities into it)
+        bool ShadowsEnabled() const { return config.shadowEnabled && shadowDepth; }
+        // shaders.properties clouds: "off", "fast", "fancy" or "default"
+        const std::string& CloudSetting() const { return config.clouds; }
+
     private:
         struct Buffer {
             rhi::TextureHandle tex[2];
@@ -140,6 +206,7 @@ namespace perlin::gpu {
             bool haveDraw = false;
             bool anyPerDraw = false;
             bool valid = false;
+            float alphaRef = 0.0f;
             bool debugCopy = false;
             // custom images the program loads / stores (slots in set 2)
             std::vector<int> imageSlots;
@@ -213,12 +280,28 @@ namespace perlin::gpu {
         rhi::SamplerHandle SamplerFor(int id);
         void BuildBlockMap();
         int PackBlockId(uint16_t palette);
+        // entity.properties / item.properties / block.properties ids (0 when the pack does not list it)
+        int PackEntityId(const std::string& bedrockType);
+        int PackItemId(const std::string& bedrockItem);
+        int PackBlockIdByName(const std::string& bedrockName);
+
+    public:
+        // ids for engine draws (0 when the pack does not list them)
+        int EntityIdFor(const std::string& bedrockType) { return PackEntityId(bedrockType); }
+        int ItemIdFor(const std::string& bedrockItem) { return PackItemId(bedrockItem); }
+        int BlockIdFor(const std::string& bedrockName) { return PackBlockIdByName(bedrockName); }
+
+    private:
         // programs
         std::string KeyFor(const std::string& name, bool toBackbuffer) const;
         Program* GetProgram(const std::string& name, bool toBackbuffer,
                             const jshader::ExpandedSource* vs = nullptr,
                             const jshader::ExpandedSource* fs = nullptr,
-                            rhi::Format backFormat = rhi::Format::Unknown);
+                            rhi::Format backFormat = rhi::Format::Unknown, const std::string& alpha = {});
+        // the alpha test a program runs with: the pack's alphaTest.<program> or iris's for the render type
+        // (defaultRef < 0: none)
+        std::string AlphaFor(const std::string& progName, float defaultRef) const;
+        const jshader::ProgramConfig* BlendConfigFor(const std::string& progName) const;
         Program* Finish(const std::string& key, const std::string& name, const Converted& c,
                         std::shared_ptr<jshader::ProgramSource> source);
         SamplerBind ResolveSampler(const jshader::RhiSampler& s);
@@ -260,7 +343,7 @@ namespace perlin::gpu {
         void DrawTranslucent(rhi::CommandList& list);
         void DrawTerrain(rhi::CommandList& list);
         bool DrawLayers(rhi::CommandList& list, const char* program, const std::vector<RenderLayer>& layers,
-                        bool translucent, bool shadow);
+                        bool translucent, bool shadow, int stage, float alphaRef);
         void DepthToEngine(rhi::CommandList& list, const Output& out);
         void CopyDepth(rhi::CommandList& list, rhi::TextureHandle src, rhi::TextureHandle dst);
 
@@ -276,7 +359,9 @@ namespace perlin::gpu {
         std::string path;
         std::function<std::string(uint16_t)> blockName;
         std::function<int(uint16_t)> blockEmission;
-        std::unordered_map<std::string, int> nameToPackId;
+        jshader::BlockIdMatcher blockMatcher;
+        std::unordered_map<std::string, int> entityIdMap, itemIdMap, entityIdCache, itemIdCache;
+        int fluidIds[2] = {-1, -1}; // water, lava
         std::vector<int16_t> paletteMap;
 
         Pool pool;
@@ -297,6 +382,11 @@ namespace perlin::gpu {
         rhi::BindGroupHandle bufferGroup;
         std::unordered_map<uint32_t, rhi::BindGroupHandle> imageGroups;
         bool setupDone = false;
+        std::vector<ExternalDraw> queued;
+        // read by the mesh threads that convert chunks
+        std::array<std::atomic<int>, 4> fluidTiles{-1, -1, -1, -1};
+        void DrawExternal(rhi::CommandList& list, std::initializer_list<ExternalDraw::Kind> kinds,
+                          bool shadowPass);
         rhi::PipelineLayoutHandle pipelineLayout;
         std::array<rhi::SamplerHandle, 16> samplers{};
         rhi::BufferHandle quad;
@@ -307,6 +397,10 @@ namespace perlin::gpu {
         std::array<Buffer, jshader::kMaxColorTex> bufs;
         rhi::TextureHandle depth[3];
         rhi::TextureHandle shadowDepth;
+        rhi::TextureHandle
+            shadowDepthNoTranslucents; // shadowtex1: the shadow depth before translucent terrain
+        bool shadowCleared = false;
+        bool resolvingWaterShadow = false;
         rhi::TextureHandle shadowColor[2];
         bool shadowColorUsed[2] = {false, false};
         bool shadowUsed = false;
@@ -330,10 +424,11 @@ namespace perlin::gpu {
 
         // shadow camera of the current frame
         float shadowView[16] = {}, shadowProjection[16] = {}, shadowDrawView[16] = {};
+        float handProjection[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         FrameParams frame{};
         rhi::TextureHandle lightmapTex;
         std::array<std::vector<ChunkMeshStore::Run>, kRenderLayerCount> layerRuns;
-        std::array<std::vector<ChunkMeshStore::Run>, 3> shadowRuns;
+        std::array<std::vector<ChunkMeshStore::Run>, kRenderLayerCount> shadowRuns;
         bool trace = false;
     };
 

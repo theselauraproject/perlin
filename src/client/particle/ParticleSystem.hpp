@@ -35,6 +35,7 @@ namespace perlin::particle {
         float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
         int terrainTile = -1;
         bool additive = false;
+        int8_t blockLight = -1, skyLight = -1; // java packs: lightmap levels (-1: unknown)
     };
 
     struct WorldAccess {
@@ -42,6 +43,8 @@ namespace perlin::particle {
         std::function<uint16_t(int, int, int)> block;
         std::function<glm::vec3(const glm::dvec3&)> light;
         std::function<std::string(uint16_t)> blockName;
+        // set while a java pack draws: colours stay plain and quads carry the light levels instead
+        std::function<glm::ivec2(const glm::dvec3&)> lightLevels;
     };
 
     struct TileChoice {

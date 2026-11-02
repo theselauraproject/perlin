@@ -235,6 +235,8 @@ namespace perlin {
         UiPage& p = uiPages[static_cast<size_t>(mesh.page)];
         mesh.vCount = vertexCount;
         mesh.iCount = indexCount;
+        mesh.cpuVertices = std::make_shared<const std::vector<UiVertex>>(vertices, vertices + vertexCount);
+        mesh.cpuIndices = std::make_shared<const std::vector<uint32_t>>(indices, indices + indexCount);
         gpu.WriteBuffer(p.vb, static_cast<uint64_t>(mesh.vFirst) * sizeof(UiVertex), vertices,
                         static_cast<uint64_t>(vertexCount) * sizeof(UiVertex));
         gpu.WriteBuffer(p.ib, static_cast<uint64_t>(mesh.iFirst) * sizeof(uint32_t), indices,
@@ -265,6 +267,12 @@ namespace perlin {
         std::memcpy(mesh.ti.data, indices, static_cast<size_t>(indexCount) * sizeof(uint32_t));
         mesh.iCount = indexCount;
         mesh.transient = true;
+        // per-frame meshes only need the copy while a java pack takes the world draws
+        if (PackRunning()) {
+            mesh.cpuVertices =
+                std::make_shared<const std::vector<UiVertex>>(vertices, vertices + vertexCount);
+            mesh.cpuIndices = std::make_shared<const std::vector<uint32_t>>(indices, indices + indexCount);
+        }
         const uint32_t id = StoreUiMesh(mesh);
         if (id)
             frameUiMeshes.push_back(id);
@@ -301,6 +309,97 @@ namespace perlin {
 
     // -- drawing ----------------------------------------------------------------------------------------------------
 
+    bool RenderContext_rhi::RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
+                                            rhi::TextureHandle texture, bool glint) {
+        if (layer != UiLayer::World && layer != UiLayer::WorldLate && layer != UiLayer::Hand)
+            return false;
+        // name tags and colour-masked overlays stay with the engine (iris draws text outside the pack too)
+        if (draw.material == DrawMaterial::Nametag || draw.colorMask || !mesh.cpuVertices || !mesh.cpuIndices)
+            return false;
+        using K = gpu::JavaPack::ExternalDraw::Kind;
+        gpu::JavaPack::ExternalDraw d;
+        const bool translucent = draw.blend == 1 || draw.premultiplied || draw.customBlend;
+        const bool lightning =
+            draw.entityType && std::strcmp(draw.entityType, "minecraft:lightning_bolt") == 0;
+        // iris ShaderKey alpha tests: entity cutout / translucent 0.1, solid none, eyes and glint non-zero
+        constexpr float kTenth = 0.1f, kNonZero = 0.0001f;
+        if (glint) {
+            d.kind = layer == UiLayer::Hand ? K::HandGlint : K::Glint;
+            d.alphaRef = kNonZero;
+        } else if (layer == UiLayer::Hand) {
+            d.kind = translucent ? K::HandTranslucent : K::Hand;
+            d.alphaRef = kTenth;
+        } else if (draw.packKind == UiDraw::PackKind::Line) {
+            d.kind = K::Line;
+        } else if (draw.packKind == UiDraw::PackKind::Clouds) {
+            d.kind = K::Clouds;
+            d.alphaRef = kTenth;
+        } else if (lightning || draw.packKind == UiDraw::PackKind::Lightning) {
+            d.kind = K::Lightning;
+        } else if (draw.packKind == UiDraw::PackKind::BlockText) {
+            d.kind = K::BlockTranslucent;
+            d.alphaRef = kTenth;
+        } else if (draw.blockEntity) {
+            d.kind = translucent ? K::BlockTranslucent : K::Block;
+            d.alphaRef = kTenth;
+        } else if (draw.material == DrawMaterial::Particle) {
+            d.kind = translucent && draw.alphaCutoff < 0.5f ? K::ParticleTranslucent : K::Particle;
+            d.alphaRef = kTenth;
+        } else if (draw.material == DrawMaterial::Weather) {
+            d.kind = K::Weather;
+            d.alphaRef = kTenth;
+        } else if (draw.material == DrawMaterial::Cracks) {
+            d.kind = K::Cracks;
+            d.alphaRef = kTenth;
+        } else if (draw.emissive == 1 || draw.blend == 2) {
+            d.kind = K::Eyes;
+            d.alphaRef = kNonZero;
+        } else {
+            d.kind = translucent ? K::EntityTranslucent : K::Entity;
+            d.alphaRef = translucent || draw.alphaCutoff > 0.0f ? kTenth : -1.0f;
+        }
+        const int blockLevel = draw.blockLight >= 0 ? draw.blockLight : frame.eyeBlockLight;
+        const int skyLevel = draw.skyLight >= 0 ? draw.skyLight : frame.eyeSkyLight;
+        gpu::JavaPack::BuildVertices(mesh.cpuVertices->data(), mesh.cpuVertices->size(),
+                                     mesh.cpuIndices->data(), mesh.cpuIndices->size(), draw.model, blockLevel,
+                                     skyLevel, d.vertices, draw.vertexLight);
+        d.count = static_cast<uint32_t>(d.vertices.size() / gpu::kPackVertexBytes);
+        if (d.count == 0)
+            return true;
+        d.texture = texture;
+        d.depthTest = draw.depth || layer == UiLayer::Hand;
+        d.depthWrite = draw.depthWrite;
+        d.blend = translucent;
+        d.additive = draw.blend == 2;
+        std::memcpy(d.entityColor, draw.overlay, sizeof(d.entityColor));
+        d.castsShadow = layer == UiLayer::World && !d.additive && draw.depthWrite && !glint &&
+                        (d.kind == K::Entity || d.kind == K::EntityTranslucent || d.kind == K::Block ||
+                         d.kind == K::Lightning);
+        d.shadowOnly = draw.shadowOnly;
+        d.player = draw.player;
+        if (draw.entityType)
+            d.entityId = jpack->EntityIdFor(draw.entityType);
+        if (draw.blockEntity)
+            d.blockEntityId = jpack->BlockIdFor(draw.blockEntity);
+        if (draw.itemName)
+            d.itemId = jpack->ItemIdFor(draw.itemName);
+        if (glint) {
+            // vanilla glint texturing: scroll and a 10 degree turn, as a texture matrix the pack applies to
+            // gl_MultiTexCoord0
+            d.glintBlend = true;
+            d.depthWrite = false;
+            const float scrollU = draw.glintMatrix[0], scrollV = draw.glintMatrix[1];
+            const float scale = draw.glintMatrix[2] > 0.0f ? draw.glintMatrix[2] : 0.5f;
+            const float c = std::cos(0.17453292f), sn = std::sin(0.17453292f);
+            // translate(scroll) * rotateZ * scale, column major
+            const float m[16] = {c * scale, sn * scale, 0, 0, -sn * scale, c * scale, 0, 0,
+                                 0,         0,          1, 0, scrollU,     scrollV,   0, 1};
+            std::memcpy(d.textureMatrix, m, sizeof(m));
+        }
+        jpack->QueueDraw(std::move(d));
+        return true;
+    }
+
     void RenderContext_rhi::UiSubmit(UiLayer layer, const UiDraw& draw) {
         if (!initialized || !frameOpen)
             return;
@@ -325,6 +424,12 @@ namespace perlin {
             texture = &uiTextures[draw.texture - 1];
         const bool glint = draw.glintTexture != 0 && draw.glintTexture <= uiTextures.size() &&
                            uiTextures[draw.glintTexture - 1].used;
+        if (PackRunning() && jpackGathered &&
+            RouteToJavaPack(layer, draw, mesh,
+                            glint ? uiTextures[draw.glintTexture - 1].handle
+                                  : (texture ? texture->handle : rhi::TextureHandle{}),
+                            glint))
+            return;
         const View view = layer == UiLayer::World       ? View::Entity
                           : layer == UiLayer::WorldLate ? View::Late
                           : layer == UiLayer::Hand      ? View::Hand

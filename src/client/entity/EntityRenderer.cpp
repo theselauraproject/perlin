@@ -1399,6 +1399,11 @@ namespace perlin::entity {
         glm::vec3 light(1.0f);
         if (in.light)
             light = in.light(v.pos + glm::dvec3(0.0, 1.0, 0.0));
+        // a java pack lights the model itself (lightmap coordinates, normals): it gets the plain tint
+        const bool packLit = renderer->JavaPackDrawing() && !dollModel;
+        glm::ivec2 levels(-1, -1);
+        if (packLit && in.lightLevels)
+            levels = in.lightLevels(v.pos + glm::dvec3(0.0, 1.0, 0.0));
         if (fpModel) {
             model = *fpModel;
             if (fp)
@@ -1470,8 +1475,8 @@ namespace perlin::entity {
                 const glm::vec3 n = rot * q.n;
                 const float lit = std::min(
                     1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
-                const uint32_t color = fullbright ? PackColor(tint, layer.tint[3])
-                                                  : PackColor(light * lit * tint, layer.tint[3]);
+                const uint32_t color = fullbright || packLit ? PackColor(tint, layer.tint[3])
+                                                             : PackColor(light * lit * tint, layer.tint[3]);
                 const uint32_t base = static_cast<uint32_t>(vertices.size());
                 for (int i = 0; i < 4; i++)
                     vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
@@ -1506,6 +1511,15 @@ namespace perlin::entity {
             else
                 draw.blend = layer.material.blend == Blend::Additive ? 2 : 1;
             draw.material = DrawMaterial::Entity;
+            draw.player = e.isPlayer;
+            draw.entityType = e.type.c_str();
+            if (fullbright) {
+                draw.blockLight = 15;
+                draw.skyLight = 15;
+            } else if (levels.x >= 0) {
+                draw.blockLight = static_cast<int8_t>(levels.x);
+                draw.skyLight = static_cast<int8_t>(levels.y);
+            }
             draw.colorMask = layer.material.colorMask;
             draw.emissive = layer.material.emissive;
             if (layerHurt > 0.0f) {
@@ -1550,10 +1564,14 @@ namespace perlin::entity {
             };
             itemRenderer->SetWorldShadowOnly(shadowOnlyPass);
             itemRenderer->SetDollClip(dollModel ? dollClip : nullptr);
+            itemRenderer->SetPackLight(levels.x, levels.y);
+            itemRenderer->SetPackEntity(e.type.c_str());
             if (v.hasArmR && !v.attachedItem[0])
                 held(e.mainHand, v.armR, false);
             if (v.hasArmL && !v.attachedItem[1])
                 held(e.offHand, v.armL, true);
+            itemRenderer->SetPackLight(-1, -1);
+            itemRenderer->SetPackEntity(nullptr);
             itemRenderer->SetDollClip(nullptr);
             itemRenderer->SetWorldShadowOnly(false);
         }
@@ -1727,6 +1745,13 @@ namespace perlin::entity {
         struct Batch {
             std::vector<UiVertex> vertices;
             std::vector<uint32_t> indices;
+            std::vector<int8_t> light; // block, sky per vertex (java packs)
+        };
+        const auto pushLight = [](std::vector<int8_t>& light, int8_t block, int8_t sky) {
+            for (int k = 0; k < 4; k++) {
+                light.push_back(block);
+                light.push_back(sky);
+            }
         };
         std::unordered_map<int, Batch> batches;
         static const std::vector<particle::Quad> noQuads;
@@ -1740,6 +1765,7 @@ namespace perlin::entity {
             b.vertices.push_back({p1.x, p1.y, p1.z, q.abgr, q.u1, q.v1});
             b.vertices.push_back({p2.x, p2.y, p2.z, q.abgr, q.u1, q.v0});
             b.vertices.push_back({p3.x, p3.y, p3.z, q.abgr, q.u0, q.v0});
+            pushLight(b.light, q.blockLight, q.skyLight);
             for (uint32_t k : {0u, 1u, 2u, 0u, 2u, 3u, 0u, 2u, 1u, 0u, 3u, 2u})
                 b.indices.push_back(i0 + k);
         }
@@ -1756,6 +1782,7 @@ namespace perlin::entity {
             struct CustomBatch {
                 std::vector<UiVertex> vertices;
                 std::vector<uint32_t> indices;
+                std::vector<int8_t> light;
             };
             std::map<std::pair<std::string, int>, CustomBatch> grouped;
             for (const particle::CustomQuad& q : custom) {
@@ -1768,6 +1795,7 @@ namespace perlin::entity {
                 b.vertices.push_back({p1.x, p1.y, p1.z, q.abgr, q.u1, q.v1});
                 b.vertices.push_back({p2.x, p2.y, p2.z, q.abgr, q.u1, q.v0});
                 b.vertices.push_back({p3.x, p3.y, p3.z, q.abgr, q.u0, q.v0});
+                pushLight(b.light, q.blockLight, q.skyLight);
                 for (uint32_t k : {0u, 1u, 2u, 0u, 2u, 3u, 0u, 2u, 1u, 0u, 3u, 2u})
                     b.indices.push_back(i0 + k);
             }
@@ -1799,6 +1827,7 @@ namespace perlin::entity {
                 draw.alphaCutoff = keyPair.second == 0 ? 0.5f : 0.02f;
                 draw.emissive = 2;
                 draw.shadowOnly = shadowOnlyPass;
+                draw.vertexLight = b.light.data();
                 renderer->UiSubmit(UiLayer::World, draw);
             }
         }
@@ -1837,6 +1866,7 @@ namespace perlin::entity {
             draw.alphaCutoff = tile < 0 ? 0.02f : 0.5f;
             draw.emissive = 2;
             draw.shadowOnly = shadowOnlyPass;
+            draw.vertexLight = b.light.data();
             renderer->UiSubmit(UiLayer::World, draw);
         }
     }
@@ -2188,8 +2218,15 @@ namespace perlin::entity {
                     glm::vec3 light(1.0f);
                     if (in.light)
                         light = in.light(v.pos + glm::dvec3(0.0, 0.5, 0.0));
+                    if (renderer->JavaPackDrawing() && in.lightLevels) {
+                        const glm::ivec2 l = in.lightLevels(v.pos + glm::dvec3(0.0, 0.5, 0.0));
+                        itemRenderer->SetPackLight(l.x, l.y);
+                    }
+                    itemRenderer->SetPackEntity("minecraft:item");
                     itemRenderer->DrawWorldItem(item, v.pos, static_cast<float>((in.time - v.born) * 20.0),
                                                 e.runtimeId, light);
+                    itemRenderer->SetPackEntity(nullptr);
+                    itemRenderer->SetPackLight(-1, -1);
                     drawn++;
                 }
                 continue;
@@ -2565,6 +2602,7 @@ namespace perlin::entity {
                              static_cast<float>(in.camera.z), 1.0f);
         std::copy_n(&model[0][0], 16, draw.model);
         draw.shadowOnly = shadowOnlyPass;
+        draw.packKind = UiDraw::PackKind::Line; // iris: gbuffers_line
         renderer->UiSubmit(UiLayer::World, draw);
     }
 
@@ -2816,6 +2854,7 @@ namespace perlin::entity {
             draw.depthWrite = true;
             draw.emissive = 0;
             draw.shadowOnly = shadowOnlyPass;
+            draw.entityType = "minecraft:painting";
             renderer->UiSubmit(UiLayer::World, draw);
         };
         submit(front, fi, texture);
@@ -2989,8 +3028,19 @@ namespace perlin::entity {
                 renderer->UiCreateTexture(font.AtlasWidth(), font.AtlasHeight(), font.Atlas().data(), false);
             fontTextureVersion = font.Version();
         }
+        const bool packLit = renderer->JavaPackDrawing();
+        // java packs: per vertex light levels, kept beside each batch's vertices
+        std::unordered_map<const std::vector<UiVertex>*, std::vector<int8_t>> batchLight;
+        glm::ivec2 curLevels(-1, -1);
+        const auto syncLight = [&](const std::vector<UiVertex>& vv) {
+            std::vector<int8_t>& l = batchLight[&vv];
+            while (l.size() < vv.size() * 2) {
+                l.push_back(static_cast<int8_t>(curLevels.x));
+                l.push_back(static_cast<int8_t>(curLevels.y));
+            }
+        };
         const auto submit = [&](std::vector<UiVertex>& vv, std::vector<uint32_t>& ii, uint32_t texture,
-                                float cutoff) {
+                                float cutoff, const char* blockEntity, bool textBe = false) {
             if (vv.empty() || !texture)
                 return;
             const uint32_t mesh = renderer->UiCreateFrameMesh(vv.data(), static_cast<uint32_t>(vv.size()),
@@ -3009,6 +3059,13 @@ namespace perlin::entity {
             draw.depthWrite = !overlay;
             draw.emissive = 0;
             draw.shadowOnly = shadowOnlyPass;
+            draw.blockEntity = blockEntity;
+            if (textBe)
+                draw.packKind = UiDraw::PackKind::BlockText;
+            if (packLit) {
+                syncLight(vv);
+                draw.vertexLight = batchLight[&vv].data();
+            }
             renderer->UiSubmit(UiLayer::World, draw);
         };
         std::unordered_map<int, std::pair<std::vector<UiVertex>, std::vector<uint32_t>>> beds;
@@ -3020,7 +3077,17 @@ namespace perlin::entity {
         std::map<std::string, SkullBatch> skulls;
         std::pair<std::vector<UiVertex>, std::vector<uint32_t>> text;
         const double maxDist = 64.0;
+        const auto syncAll = [&] {
+            if (!packLit)
+                return;
+            for (auto& [c, b] : beds)
+                syncLight(b.first);
+            for (auto& [t, b] : skulls)
+                syncLight(b.v);
+            syncLight(text.first);
+        };
         for (const BlockEntityDraw& d : draws) {
+            syncAll();
             const glm::dvec3 centre = d.origin + glm::dvec3(0.5, 0.5, 0.5);
             const glm::dvec3 delta = centre - in.camera;
             const double dist2 = glm::dot(delta, delta);
@@ -3037,8 +3104,11 @@ namespace perlin::entity {
                                                         static_cast<int>(std::floor(d.origin.z)) >> 4))
                 continue;
             glm::vec3 light(1.0f);
-            if (in.light)
+            if (packLit) {
+                curLevels = in.lightLevels ? in.lightLevels(centre) : glm::ivec2(-1, -1);
+            } else if (in.light) {
                 light = in.light(centre);
+            }
             const float ryRad = d.yaw * kDeg;
             const float cs = std::cos(ryRad), sn = std::sin(ryRad);
             const auto rotate = [&](float lx, float lz, float& ox, float& oz) {
@@ -3160,7 +3230,7 @@ namespace perlin::entity {
                                         tv = static_cast<float>((f.tile / 4) * 16);
                             const float uu0 = (tu + f.u0) / 64.0f, vv0 = (tv + f.v0) / 48.0f,
                                         uu1 = (tu + f.u1) / 64.0f, vv1 = (tv + f.v1) / 48.0f;
-                            const uint32_t color = PackColor(light * kShade[f.dir]);
+                            const uint32_t color = PackColor(light * (packLit ? 1.0f : kShade[f.dir]));
                             const uint32_t i0 = static_cast<uint32_t>(batch.first.size());
                             batch.first.push_back({tl.x, tl.y, tl.z, color, uu0, vv0});
                             batch.first.push_back({tr.x, tr.y, tr.z, color, uu1, vv0});
@@ -3207,7 +3277,7 @@ namespace perlin::entity {
                     const float u = b.u, v = b.v, w = b.w, h = b.h, dd = b.d;
                     const auto face = [&](glm::vec3 tl, glm::vec3 tr, glm::vec3 br, glm::vec3 bl, float fu,
                                           float fv, float fw, float fh, float shade) {
-                        const uint32_t color = PackColor(light * shade * tint);
+                        const uint32_t color = PackColor(light * (packLit ? 1.0f : shade) * tint);
                         const uint32_t i0 = static_cast<uint32_t>(batch.v.size());
                         const float uu0 = fu / def.texW, vv0 = fv / def.texH, uu1 = (fu + fw) / def.texW,
                                     vv1 = (fv + fh) / def.texH;
@@ -3358,15 +3428,45 @@ namespace perlin::entity {
             emit(d.front, d.frontColor, d.frontGlow, true, frontZ);
             emit(d.back, d.backColor, d.backGlow, false, backZ);
         }
+        syncAll();
+        const auto skullBlock = [](const std::string& texture) -> const char* {
+            if (texture.contains("banner"))
+                return "minecraft:white_banner";
+            if (texture.contains("wither"))
+                return "minecraft:wither_skeleton_skull";
+            if (texture.contains("skeleton"))
+                return "minecraft:skeleton_skull";
+            if (texture.contains("zombie"))
+                return "minecraft:zombie_head";
+            if (texture.contains("creeper"))
+                return "minecraft:creeper_head";
+            if (texture.contains("dragon"))
+                return "minecraft:dragon_head";
+            if (texture.contains("piglin"))
+                return "minecraft:piglin_head";
+            if (texture.contains("chest"))
+                return texture.contains("ender")
+                           ? "minecraft:ender_chest"
+                           : (texture.contains("trapped") ? "minecraft:trapped_chest" : "minecraft:chest");
+            return "minecraft:player_head";
+        };
+        static const char* const kBedBlocks[] = {
+            "minecraft:white_bed",      "minecraft:orange_bed", "minecraft:magenta_bed",
+            "minecraft:light_blue_bed", "minecraft:yellow_bed", "minecraft:lime_bed",
+            "minecraft:pink_bed",       "minecraft:gray_bed",   "minecraft:light_gray_bed",
+            "minecraft:cyan_bed",       "minecraft:purple_bed", "minecraft:blue_bed",
+            "minecraft:brown_bed",      "minecraft:green_bed",  "minecraft:red_bed",
+            "minecraft:black_bed"};
         for (auto& [texture, batch] : skulls)
             if (!batch.overlay)
-                submit(batch.v, batch.i, TextureByPath(texture), 0.1f);
+                submit(batch.v, batch.i, TextureByPath(texture), 0.1f, skullBlock(texture));
         for (auto& [texture, batch] : skulls)
             if (batch.overlay)
-                submit(batch.v, batch.i, TextureByPath(texture), -1.0f);
+                submit(batch.v, batch.i, TextureByPath(texture), -1.0f, skullBlock(texture));
         for (auto& [color, batch] : beds)
             submit(batch.first, batch.second, TextureByPath(std::string("bed_") + kDyeNames[color] + ".png"),
-                   0.0f);
-        submit(text.first, text.second, fontTexture, 0.1f);
+                   0.0f, kBedBlocks[color]);
+        // iris TEXT_BE: sign text draws with gbuffers_block_translucent
+        submit(text.first, text.second, fontTexture, 0.1f, "minecraft:oak_sign", true);
     }
 }

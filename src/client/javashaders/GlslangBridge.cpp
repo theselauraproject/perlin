@@ -86,8 +86,10 @@ namespace perlin::jshader {
 
     const std::set<std::string>& BaseFeatureFlags() {
         static const std::set<std::string> flags = {
-            "SEPARATE_HARDWARE_SAMPLERS", "HIGHER_SHADOWCOLOR",  "ENTITY_TRANSLUCENT", "REVERSED_CULLING",
-            "BLOCK_EMISSION_ATTRIBUTE",   "CAN_DISABLE_WEATHER", "FADE_VARIABLE",      "PER_BUFFER_BLENDING"};
+            // HIGHER_SHADOWCOLOR (shadowcolor2-7) is left out: there are two shadow colour buffers
+            "SEPARATE_HARDWARE_SAMPLERS", "ENTITY_TRANSLUCENT",  "REVERSED_CULLING",
+            "BLOCK_EMISSION_ATTRIBUTE",   "CAN_DISABLE_WEATHER", "FADE_VARIABLE",
+            "PER_BUFFER_BLENDING"};
         return flags;
     }
 

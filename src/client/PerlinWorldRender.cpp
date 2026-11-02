@@ -1259,6 +1259,20 @@ namespace perlin {
             }
             return entry.colour;
         };
+        // java packs light entities from lightmap coordinates: the block / sky levels where they stand
+        ein.lightLevels = [&, lightFn = ein.light](const glm::dvec3& p) -> glm::ivec2 {
+            lightFn(p);
+            const int bx = static_cast<int>(std::floor(p.x)), by = static_cast<int>(std::floor(p.y)),
+                      bz = static_cast<int>(std::floor(p.z));
+            const int64_t key = (static_cast<int64_t>(bx) * 73856093) ^
+                                (static_cast<int64_t>(by) * 19349663) ^ (static_cast<int64_t>(bz) * 83492791);
+            const auto& entry = entityLight[key];
+            int block = entry.block;
+            if (!dyn.empty())
+                block =
+                    std::max(block, static_cast<int>(dynlight::LevelAt(dyn, p + glm::dvec3(0.0, 0.5, 0.0))));
+            return {std::clamp(block, 0, 15), std::clamp(entry.sky, 0, 15)};
+        };
         if (entityLight.size() > 4096)
             entityLight.clear();
         TickParticles(f, entityLevel, ein, entities);
@@ -1385,9 +1399,12 @@ namespace perlin {
             }
         }
         pw.light = ein.light;
+        if (renderer && renderer->JavaPackDrawing())
+            pw.lightLevels = ein.lightLevels;
         particle::DataWorld dataWorld;
         dataWorld.solid = pw.solid;
         dataWorld.light = pw.light;
+        dataWorld.lightLevels = pw.lightLevels;
         if (live) {
             for (const BedrockSession::ParticleEvent& pe : live->TakeParticles()) {
                 const glm::dvec3 at(pe.x, pe.y, pe.z);

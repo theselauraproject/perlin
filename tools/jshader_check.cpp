@@ -336,7 +336,13 @@ int main(int argc, char** argv) {
                     opts.flipFragCoordY = toBack;
                     opts.explicitLod =
                         name.compare(0, 8, "gbuffers") != 0 && name.compare(0, 6, "shadow") != 0;
+                    // geometry passes get an alpha test as the renderer gives them (iris AlphaTests)
+                    if (!opts.explicitLod)
+                        opts.alphaTest = "> 0.1";
                     const ProgramResult result = TransformProgram(src->vertex, src->fragment, opts);
+                    if (const char* dump = std::getenv("JSHADER_DUMP"); dump && name == dump)
+                        std::printf("%s\n----\n%s\n", result.vertex.glsl.c_str(),
+                                    result.fragment.glsl.c_str());
                     if (!result.ok()) {
                         bad++;
                         reasons["transform"]++;

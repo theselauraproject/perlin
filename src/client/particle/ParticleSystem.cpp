@@ -653,8 +653,13 @@ namespace perlin::particle {
             }
             q.half = std::max(size, 0.0f);
             glm::vec3 lit(1.0f);
-            if (!p.fullbright && world.light)
+            if (world.lightLevels) {
+                const glm::ivec2 l = p.fullbright ? glm::ivec2(15, 15) : world.lightLevels(q.centre);
+                q.blockLight = static_cast<int8_t>(l.x);
+                q.skyLight = static_cast<int8_t>(l.y);
+            } else if (!p.fullbright && world.light) {
                 lit = world.light(q.centre);
+            }
             q.abgr = Pack(p.colour * lit, p.alpha);
             if (p.kind == Kind::Terrain) {
                 q.terrainTile = p.tile;

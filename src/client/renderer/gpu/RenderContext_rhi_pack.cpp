@@ -11,6 +11,8 @@ namespace perlin {
     bool RenderContext_rhi::AttachJavaPack() {
         if (!jpack)
             return false;
+        jpack->SetFluidTiles(static_cast<int>(frame.waterTile), static_cast<int>(frame.waterFlowTile),
+                             static_cast<int>(frame.lavaTile), -1);
         // the pack's vertex stream is built next to the normal one whenever a chunk mesh uploads
         meshes.SetExtension(gpu::kPackVertexBytes,
                             [this](const Tessellator& tess, std::vector<uint8_t>& out) {

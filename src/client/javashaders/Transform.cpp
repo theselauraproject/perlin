@@ -2037,7 +2037,13 @@ namespace perlin::jshader {
                 mainPrefix = "    iris_FragCoord = vec4(gl_FragCoord.x, iris_ViewHeight - gl_FragCoord.y, "
                              "gl_FragCoord.z, gl_FragCoord.w);\n";
             }
-            std::string footer = "\nvoid main() {\n" + mainPrefix + "    iris_user_main();\n}\n";
+            // iris CommonTransformer: the program's alpha test runs on gl_FragData[0] after the pack's main (not
+            // for packs that declare their own outputs)
+            std::string alphaTest;
+            if (!options.alphaTest.empty() && outs.contains(" out vec4 iris_FragData0;"))
+                alphaTest = "    if (!(iris_FragData0.a " + options.alphaTest + ")) discard;\n";
+            std::string footer =
+                "\nvoid main() {\n" + mainPrefix + "    iris_user_main();\n" + alphaTest + "}\n";
             const std::string structs = HoistStructs(body);
             r.glsl = head + structs + varyings + outs + samplerText + prelude + fragCoord + body + footer;
             if (!mainPrefix.empty() && !r.glsl.contains("IrisGlobals")) {

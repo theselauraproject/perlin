@@ -192,7 +192,9 @@ namespace perlin {
     }
 
     // runs with the swing option off too: the third person body reads it, first person hides it
-    void HandRenderer::Swing(const HandSettings&) { armSwing.Start(); }
+    void HandRenderer::Swing(const HandSettings&) {
+        armSwing.Start();
+    }
 
     void HandRenderer::Attack(const HandSettings& s, bool resetsCooldown) {
         Swing(s);
@@ -323,7 +325,8 @@ namespace perlin {
             mainHandHeight = 1.0f;
             offHandHeight = 1.0f;
         } else {
-            hand::TickEquip(mainShown, mainSlot, mainHandHeight, in.main, in.slot, SameItem(mainShown, in.main));
+            hand::TickEquip(mainShown, mainSlot, mainHandHeight, in.main, in.slot,
+                            SameItem(mainShown, in.main));
             // the offhand check never sees a slot change
             int offSlot = 0;
             hand::TickEquip(offShown, offSlot, offHandHeight, in.off, 0, SameItem(offShown, in.off));
@@ -782,6 +785,7 @@ namespace perlin {
         static const glm::vec3 l0 = glm::normalize(glm::vec3(0.2f, 1.0f, -0.7f));
         static const glm::vec3 l1 = glm::normalize(glm::vec3(-0.2f, 1.0f, 0.7f));
         const glm::mat3 normalMatrix(model);
+        const bool packLit = renderer->JavaPackDrawing() && !(worldPass && dollClip);
         std::vector<UiVertex> vertices;
         vertices.reserve(quads.size() * 4);
         std::vector<uint32_t> indices;
@@ -793,7 +797,8 @@ namespace perlin {
                 n /= len;
             const float lit = std::min(
                 1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
-            const uint32_t color = PackColor(light * lit);
+            // a java pack lights the item itself: plain colour
+            const uint32_t color = packLit ? 0xFFFFFFFFu : PackColor(light * lit);
             const uint32_t base = static_cast<uint32_t>(vertices.size());
             for (int i = 0; i < 4; i++)
                 vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
@@ -821,6 +826,10 @@ namespace perlin {
             draw.overlay[3] = 0.3f;
         }
         draw.shadowOnly = worldPass && worldShadowOnly && !dollClip;
+        draw.itemName = currentItem.empty() ? nullptr : currentItem.c_str();
+        draw.blockLight = packBlockLight;
+        draw.skyLight = packSkyLight;
+        draw.entityType = packEntity;
         if (worldPass && dollClip) {
             draw.scissor = true;
             std::copy_n(dollClip, 4, draw.scissorRect);
@@ -856,6 +865,7 @@ namespace perlin {
 
     void HandRenderer::DrawWorldItem(const ui::HudItem& item, const glm::dvec3& feet, float age,
                                      uint64_t seed, const glm::vec3& light) {
+        currentItem = item.name; // java packs: currentRenderedItemId
         if (!renderer || item.Empty())
             return;
         const Model& model = ItemModel(item);
@@ -900,6 +910,7 @@ namespace perlin {
 
     void HandRenderer::DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left,
                                     const glm::vec3& light, float bowUseTicks) {
+        currentItem = item.name; // java packs: currentRenderedItemId
         if (!renderer || item.Empty())
             return;
         ui::HudItem renderedItem = item;
@@ -1054,6 +1065,7 @@ namespace perlin {
 
     void HandRenderer::RenderItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                   bool rightArm, float swing, float equip) {
+        currentItem = item.name; // java packs: currentRenderedItemId
         const float side = rightArm ? 1.0f : -1.0f;
         glm::mat4 m = in.viewEffect;
         m = m * Custom(s.itemX, s.itemY, s.itemZ, s.itemRotX, s.itemRotY, s.itemRotZ, s.itemScale, side);
@@ -1195,6 +1207,7 @@ namespace perlin {
 
     void HandRenderer::RenderShield(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                     bool rightArm, const glm::mat4& hand) {
+        currentItem = item.name; // java packs: currentRenderedItemId
         if (!shieldTexture)
             shieldTexture = AttachableTexture("textures/entity/shield");
         if (!shieldTexture)
@@ -1235,6 +1248,7 @@ namespace perlin {
 
     bool HandRenderer::DrawGeometryItem(const ui::HudItem& item, const glm::mat4& base, bool leftHand,
                                         bool firstPerson, const glm::vec3& light) {
+        currentItem = item.name; // java packs: currentRenderedItemId
         const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, false);
         const itemdisplay::Transform& t = firstPerson ? (leftHand ? display.firstLeft : display.firstRight)
                                                       : (leftHand ? display.thirdLeft : display.thirdRight);
@@ -1321,6 +1335,7 @@ namespace perlin {
 
     bool HandRenderer::RenderAttachable(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                         bool rightArm, const glm::mat4& hand) {
+        currentItem = item.name; // java packs: currentRenderedItemId
         attachables.Configure(ui::UiAssets::Instance().VanillaRoot());
         static const bool debug = PERLIN_ENV("PERLIN_ATTACH_DEBUG") != nullptr;
         if (!attachables.Has(item.name)) {

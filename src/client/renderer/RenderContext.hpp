@@ -84,6 +84,19 @@ namespace perlin {
         float glintOffset[2] = {0, 0};
         float glintStrength = 1.0f;
         bool shadowOnly = false;
+        // a player model (java packs: shadowPlayer)
+        bool player = false;
+        // java shader packs: what is being drawn (entity.properties / item.properties / block.properties ids)
+        // and the light where it stands (-1: the light at the eye)
+        const char* entityType = nullptr;
+        const char* itemName = nullptr;
+        const char* blockEntity = nullptr;
+        int8_t blockLight = -1, skyLight = -1;
+        // per vertex block / sky levels (two per vertex, -1 for unknown), valid during UiSubmit
+        const int8_t* vertexLight = nullptr;
+        // engine draw categories with their own java program
+        enum class PackKind : uint8_t { Auto, Clouds, Lightning, BeaconBeam, Line, Glowing, BlockText };
+        PackKind packKind = PackKind::Auto;
     };
 
     struct FrameParams {
@@ -167,6 +180,9 @@ namespace perlin {
         }
         virtual void ClearJavaShaderPack() {}
         virtual bool JavaShaderPackActive() const { return false; }
+        // a java pack draws this frame: entity / item meshes should carry their plain tint, not the engine's
+        // lighting, since the pack lights them from the lightmap coordinates
+        virtual bool JavaPackDrawing() const { return false; }
         virtual std::vector<JavaPackOption> JavaShaderPackOptions() const { return {}; }
         // the running java pack (screens, profiles, lang), null when none is loaded
         virtual std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const { return {}; }

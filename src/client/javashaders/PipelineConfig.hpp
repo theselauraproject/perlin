@@ -96,9 +96,10 @@ namespace perlin::jshader {
 
     struct PipelineConfig {
         std::array<BufferSetup, kMaxColorTex> color;
-        int shadowMapResolution = 2048;
-        float shadowDistance = 128.0f;
+        int shadowMapResolution = 1024;
+        float shadowDistance = 160.0f;
         float shadowIntervalSize = 2.0f;
+        float shadowNearPlane = -100.05f, shadowFarPlane = 156.0f;
         float shadowDistanceRenderMul = -1.0f;
         bool shadowHardwareFiltering[2] = {false, false};
         bool shadowFilterLinear[2] = {true, true};
@@ -106,6 +107,7 @@ namespace perlin::jshader {
         bool shadowColorLinear[2] = {true, true};
         BufferFormat shadowColorFormat[2] = {BufferFormat::RGBA8, BufferFormat::RGBA8};
         bool shadowColorClear[2] = {true, true};
+        float shadowColorClearColor[2][4] = {{1, 1, 1, 1}, {1, 1, 1, 1}};
         bool shadowEnabled = false;
         bool depthMipmap = false;
         float sunPathRotation = 0.0f;
@@ -115,7 +117,9 @@ namespace perlin::jshader {
         bool oldLighting = false, oldHandLight = true, separateAo = false, underwaterOverlay = true,
              sun = true, moon = true, vignette = true;
         bool rainDepth = false, beaconBeamDepth = false, dynamicHandLight = true, frustumCulling = true,
-             shadowTranslucent = true;
+             shadowTranslucent = true, shadowTerrain = true;
+        // iris shaders.properties: which entities go into the shadow pass
+        bool shadowEntities = true, shadowPlayer = true, shadowBlockEntities = true;
         std::string clouds = "default";
         std::string cloudShadow;
         std::string particlesBeforeDeferred;

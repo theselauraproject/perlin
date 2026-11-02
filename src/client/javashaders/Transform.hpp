@@ -75,6 +75,8 @@ namespace perlin::jshader {
         std::map<std::string, int> imageSlots;
         // custom image name -> glsl format qualifier (r16ui ...), for images the pack declares without one
         std::map<std::string, std::string> imageFormats;
+        // the program's alpha test as a comparison against gl_FragData[0].a ("> 0.1"); empty for none
+        std::string alphaTest;
     };
 
     struct ProgramResult {

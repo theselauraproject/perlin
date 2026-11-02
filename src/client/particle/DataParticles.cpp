@@ -728,8 +728,13 @@ namespace perlin::particle {
                      static_cast<float>(Num(d.color[2], scope, 1)),
                      static_cast<float>(Num(d.color[3], scope, 1))};
             }
-            if (d.lit && world.light)
+            if (world.lightLevels) {
+                const glm::ivec2 l = d.lit ? world.lightLevels(p.pos) : glm::ivec2(15, 15);
+                q.blockLight = static_cast<int8_t>(l.x);
+                q.skyLight = static_cast<int8_t>(l.y);
+            } else if (d.lit && world.light) {
                 c = glm::vec4(glm::vec3(c) * world.light(p.pos), c.a);
+            }
             q.abgr = Pack(c);
             out.push_back(std::move(q));
         }

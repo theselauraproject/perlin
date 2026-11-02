@@ -53,6 +53,7 @@ namespace perlin::entity {
             float dt = 0.016f;
             glm::dvec3 camera{0.0};
             std::function<glm::vec3(const glm::dvec3&)> light;
+            std::function<glm::ivec2(const glm::dvec3&)> lightLevels; // block, sky (0-15)
             bool firstPerson = true;
             float maxDistance = 96.0f;
             float cameraYaw = 0, cameraPitch = 0;

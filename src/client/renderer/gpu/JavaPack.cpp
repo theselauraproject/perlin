@@ -70,6 +70,7 @@ namespace perlin::gpu {
                                  o.zeroToOneDepth, o.splitSamplers,
                                  o.explicitLod,    static_cast<int>(o.availableAttribs)};
             h = HashBytes(h, flags, sizeof(flags));
+            h = HashString(h, o.alphaTest);
             for (const auto& [img, slot] : o.imageSlots) {
                 h = HashString(h, img);
                 h = HashBytes(h, &slot, sizeof(slot));
@@ -265,32 +266,6 @@ namespace perlin::gpu {
             std::memcpy(out, in, sizeof(float) * 16);
             for (int c = 0; c < 4; c++)
                 out[c * 4 + 2] = 2.0f * in[c * 4 + 2] - in[c * 4 + 3];
-        }
-
-        std::string Normalize(std::string n) {
-            if (n.compare(0, 10, "minecraft:") == 0)
-                n.erase(0, 10);
-            return n;
-        }
-
-        std::string BaseName(const std::string& entry) {
-            std::vector<std::string> parts;
-            size_t start = 0;
-            for (;;) {
-                const size_t colon = entry.find(':', start);
-                parts.push_back(
-                    entry.substr(start, colon == std::string::npos ? std::string::npos : colon - start));
-                if (colon == std::string::npos)
-                    break;
-                start = colon + 1;
-            }
-            std::vector<std::string> kept;
-            for (const std::string& p : parts)
-                if (!p.contains('='))
-                    kept.push_back(p);
-            if (kept.empty())
-                return {};
-            return kept.size() >= 2 ? kept[1] : kept[0];
         }
 
         // bedrock names for blocks the java packs list under their old ids
@@ -789,8 +764,9 @@ namespace perlin::gpu {
             for (const std::string& n : instance->PassChain(base))
                 names.insert(n);
         names.insert("final");
-        const std::regex re("(colortex|shadowcolor|gaux)([0-9]+)|\\b(gcolor|gdepth)\\b|\\bshadowtex[01]\\b|"
-                            "\\bshadow\\b|\\bwatershadow\\b|\\bshadowcolor\\b");
+        const std::regex re(
+            "(colortex|shadowcolor|gaux)([0-9]+)|\\b(gcolor|gdepth)\\b|\\bshadowtex[01](HW)?\\b|"
+            "\\bshadow\\b|\\bwatershadow\\b|\\bshadowcolor\\b");
         bufs[0].used = true;
         for (const std::string& n : names) {
             if (!instance->ProgramExists(n))
@@ -839,7 +815,7 @@ namespace perlin::gpu {
                             shadowColorUsed[0] = true;
                             shadowUsed = true;
                         } else if ((len == 9 && std::strncmp(w, "shadowtex", 9) == 0) ||
-                                   (len == 10 && std::strncmp(w, "shadowtex", 9) == 0 &&
+                                   ((len == 10 || len == 12) && std::strncmp(w, "shadowtex", 9) == 0 &&
                                     (w[9] == '0' || w[9] == '1')) ||
                                    (len == 6 && std::strncmp(w, "shadow", 6) == 0) ||
                                    (len == 12 && std::strncmp(w, "watershadow", 11) == 0)) {
@@ -895,6 +871,8 @@ namespace perlin::gpu {
         if (shadowUsed) {
             const uint32_t res = static_cast<uint32_t>(config.shadowMapResolution);
             shadowDepth = MakeTexture(res, res, rhi::Format::D32Float, kDepth, "pack shadow depth");
+            shadowDepthNoTranslucents =
+                MakeTexture(res, res, rhi::Format::D32Float, kDepth, "pack shadow depth (no translucents)");
             for (int i = 0; i < 2; i++)
                 if (shadowColorUsed[i])
                     shadowColor[i] = MakeTexture(res, res, ToFormat(config.shadowColorFormat[i]), kColor,
@@ -946,6 +924,8 @@ namespace perlin::gpu {
             b.tex[0] = b.tex[1] = {};
         depth[0] = depth[1] = depth[2] = {};
         shadowDepth = {};
+        shadowDepthNoTranslucents = {};
+        shadowCleared = false;
         shadowColor[0] = shadowColor[1] = {};
     }
 
@@ -1059,23 +1039,23 @@ namespace perlin::gpu {
     }
 
     void JavaPack::BuildBlockMap() {
-        nameToPackId.clear();
+        blockMatcher = {};
+        entityIdMap.clear();
+        itemIdMap.clear();
         paletteMap.assign(65536, -2);
+        fluidIds[0] = fluidIds[1] = -1;
         if (!instance)
             return;
-        std::unordered_map<std::string, bool> plain;
-        for (const auto& kv : instance->BlockIds())
-            for (const std::string& entry : kv.second) {
-                const std::string base = BaseName(entry);
-                if (base.empty())
-                    continue;
-                const bool isPlain = !entry.contains('=');
-                auto it = nameToPackId.find(base);
-                if (it == nameToPackId.end() || (isPlain && !plain[base])) {
-                    nameToPackId[base] = kv.first;
-                    plain[base] = isPlain;
-                }
-            }
+        blockMatcher.Build(instance->BlockIdLines());
+        entityIdMap = jshader::FlatIdMap(instance->EntityIdLines());
+        itemIdMap = jshader::FlatIdMap(instance->ItemIdLines());
+        jshader::JavaBlock water, lava;
+        water.name = "water";
+        water.props = {{"level", "0"}};
+        lava.name = "lava";
+        lava.props = {{"level", "0"}};
+        fluidIds[0] = blockMatcher.Match(water);
+        fluidIds[1] = blockMatcher.Match(lava);
     }
 
     int JavaPack::PackBlockId(uint16_t palette) {
@@ -1086,16 +1066,53 @@ namespace perlin::gpu {
             return slot;
         int result = -1;
         if (blockName) {
-            std::string n = Normalize(blockName(palette));
-            auto it = nameToPackId.find(n);
-            if (it == nameToPackId.end())
-                if (const char* alias = Alias(n))
-                    it = nameToPackId.find(alias);
-            if (it != nameToPackId.end())
-                result = it->second;
+            const jshader::JavaBlock jb = jshader::ToJavaBlock(blockName(palette));
+            result = blockMatcher.Match(jb);
+            if (result < 0) {
+                // packs written for older versions list the pre-flattening names
+                if (const char* alias = Alias(jb.name)) {
+                    jshader::JavaBlock old = jb;
+                    old.name = alias;
+                    result = blockMatcher.Match(old);
+                }
+            }
         }
         slot = static_cast<int16_t>(std::clamp(result, -1, 32000));
         return slot;
+    }
+
+    int JavaPack::PackEntityId(const std::string& bedrockType) {
+        if (bedrockType.empty() || entityIdMap.empty())
+            return 0;
+        auto cached = entityIdCache.find(bedrockType);
+        if (cached != entityIdCache.end())
+            return cached->second;
+        const std::string java = jshader::JavaEntityName(bedrockType);
+        auto it = entityIdMap.find(java);
+        // iris leaves unlisted entities at 0
+        const int id = it != entityIdMap.end() ? it->second : 0;
+        entityIdCache.emplace(bedrockType, id);
+        return id;
+    }
+
+    int JavaPack::PackItemId(const std::string& bedrockItem) {
+        if (bedrockItem.empty() || itemIdMap.empty())
+            return 0;
+        auto cached = itemIdCache.find(bedrockItem);
+        if (cached != itemIdCache.end())
+            return cached->second;
+        const std::string java = jshader::JavaItemName(bedrockItem);
+        auto it = itemIdMap.find(java);
+        const int id = it != itemIdMap.end() ? it->second : 0;
+        itemIdCache.emplace(bedrockItem, id);
+        return id;
+    }
+
+    int JavaPack::PackBlockIdByName(const std::string& bedrockName) {
+        if (blockMatcher.Empty() || bedrockName.empty())
+            return 0;
+        const int id = blockMatcher.Match(jshader::ToJavaBlock(bedrockName));
+        return id < 0 ? 0 : id;
     }
 
     void JavaPack::SetAtlas(const uint8_t* rgba, int tilePx, int tiles) {
@@ -1247,7 +1264,22 @@ namespace perlin::gpu {
             if (glm::dot(tangent, tangent) < 1e-12f)
                 tangent = glm::vec3(1, 0, 0);
             tangent = glm::normalize(tangent);
-            const int packId = block ? PackBlockId(block) : -1;
+            int packId = block ? PackBlockId(block) : -1;
+            // fluids: iris passes the fluid's own block id (water in a waterlogged block too) and marks it in
+            // mc_Entity.y; nothing else has y set
+            bool fluid = false;
+            {
+                const int tile0 = static_cast<int>(v[0].light >> 16);
+                const bool waterTile = tile0 >= 0 && (tile0 == fluidTiles[0] || tile0 == fluidTiles[1]);
+                const bool lavaTile = tile0 >= 0 && (tile0 == fluidTiles[2] || tile0 == fluidTiles[3]);
+                if (waterTile || lavaTile) {
+                    fluid = true;
+                    packId = fluidIds[waterTile ? 0 : 1];
+                } else if (block && blockName) {
+                    const std::string n = jshader::ToJavaBlock(blockName(block)).name;
+                    fluid = n == "water" || n == "lava";
+                }
+            }
             // iris BLOCK_EMISSION_ATTRIBUTE: the block's light level rides in at_midBlock.w
             const float emission =
                 block && blockEmission ? static_cast<float>(std::clamp(blockEmission(block), 0, 15)) : 0.0f;
@@ -1270,7 +1302,8 @@ namespace perlin::gpu {
                                  "[jshader] translucent quad block=%u name='%s' packId=%d rgba=%08x\n", block,
                                  blockName ? blockName(block).c_str() : "?", packId, v[0].rgba);
             }
-            const float entity[2] = {static_cast<float>(packId), layerType};
+            (void)layerType;
+            const float entity[2] = {static_cast<float>(packId), fluid ? 1.0f : 0.0f};
             for (int i = 0; i < 4; i++) {
                 uint8_t* o = out.data() + (q + static_cast<size_t>(i)) * kPackVertexBytes;
                 const float pos[3] = {v[i].x, v[i].y, v[i].z};
@@ -1353,9 +1386,16 @@ namespace perlin::gpu {
         } else if (n == "depthtex2") {
             b.kind = Kind::Depth;
             b.index = 2;
-        } else if (n == "shadowtex0" || n == "shadowtex1" || n == "shadow" || n == "watershadow") {
+        } else if (n == "shadowtex0" || n == "shadowtex0HW" || n == "watershadow") {
             b.kind = Kind::ShadowDepth;
             b.index = 0;
+        } else if (n == "shadowtex1" || n == "shadowtex1HW") {
+            b.kind = Kind::ShadowDepth;
+            b.index = 1;
+        } else if (n == "shadow") {
+            // iris IrisSamplers: `shadow` is shadowtex1 in programs that also read watershadow
+            b.kind = Kind::ShadowDepth;
+            b.index = resolvingWaterShadow ? 1 : 0;
         } else if (n == "shadowcolor0" || n == "shadowcolor") {
             b.kind = Kind::ShadowColor;
             b.index = 0;
@@ -1389,6 +1429,9 @@ namespace perlin::gpu {
                                         const std::vector<std::string>& imageNames,
                                         const std::vector<jshader::UniformDecl>& uniforms, int regs) {
         p.regs = regs;
+        resolvingWaterShadow = false;
+        for (const jshader::RhiSampler& s : samplerList)
+            resolvingWaterShadow = resolvingWaterShadow || s.name == "watershadow";
         for (const jshader::RhiSampler& s : samplerList) {
             if (s.slot >= static_cast<int>(kTextureSlots)) {
                 Log("jshader", "{}: sampler '{}' needs slot {} (only {} exist)", progName.c_str(),
@@ -1416,8 +1459,9 @@ namespace perlin::gpu {
             UniformSlot slot;
             slot.decl = d;
             slot.known = table.Known(d.name);
-            static const std::set<std::string> perDraw = {"entityColor", "entityId", "blockEntityId",
-                                                          "currentRenderedItemId", "renderStage"};
+            static const std::set<std::string> perDraw = {"entityColor",   "entityId",
+                                                          "blockEntityId", "currentRenderedItemId",
+                                                          "renderStage",   "alphaTestRef"};
             slot.perDraw = d.name.compare(0, 5, "iris_") == 0 || perDraw.contains(d.name);
             if (!slot.known && loggedMissing.insert(progName + ":" + d.name).second)
                 Log("jshader", "{}: unknown uniform '{}' (left at 0)", progName.c_str(), d.name.c_str());
@@ -1462,10 +1506,51 @@ namespace perlin::gpu {
         return raw;
     }
 
+    std::string JavaPack::AlphaFor(const std::string& progName, float defaultRef) const {
+        // iris: the shaders.properties override for the program file that loaded, else the render type's test
+        const jshader::ProgramConfig* pc = nullptr;
+        if (instance) {
+            if (auto src = instance->Program(progName); src && src->found && !src->sourceName.empty())
+                pc = config.Find(src->sourceName);
+        }
+        if (!pc)
+            pc = config.Find(progName);
+        if (pc && pc->alpha.set) {
+            if (pc->alpha.off)
+                return {};
+            char ref[32];
+            std::snprintf(ref, sizeof(ref), "%.9g", static_cast<double>(pc->alpha.ref));
+            switch (pc->alpha.func) {
+            case 0x200: // NEVER
+                return "< -1.0e30";
+            case 0x201:
+                return std::string("< ") + ref;
+            case 0x202:
+                return std::string("== ") + ref;
+            case 0x203:
+                return std::string("<= ") + ref;
+            case 0x205:
+                return std::string("!= ") + ref;
+            case 0x206:
+                return std::string(">= ") + ref;
+            case 0x207: // ALWAYS
+                return {};
+            default:
+                return std::string("> ") + ref;
+            }
+        }
+        if (defaultRef < 0.0f)
+            return {};
+        char ref[32];
+        std::snprintf(ref, sizeof(ref), "%.9g", static_cast<double>(defaultRef));
+        return std::string("> ") + ref;
+    }
+
     JavaPack::Program* JavaPack::GetProgram(const std::string& progName, bool toBackbuffer,
                                             const jshader::ExpandedSource* vs,
-                                            const jshader::ExpandedSource* fs, rhi::Format) {
-        const std::string key = KeyFor(progName, toBackbuffer);
+                                            const jshader::ExpandedSource* fs, rhi::Format,
+                                            const std::string& alpha) {
+        const std::string key = KeyFor(progName, toBackbuffer) + (alpha.empty() ? "" : "@" + alpha);
         const auto ready = programs.find(key);
         if (ready != programs.end())
             return ready->second->valid ? ready->second.get() : nullptr;
@@ -1493,6 +1578,7 @@ namespace perlin::gpu {
             opts.availableAttribs = AttribMask();
             opts.zeroToOneDepth = true;
             opts.splitSamplers = true;
+            opts.alphaTest = alpha;
             opts.explicitLod = progName.compare(0, 8, "gbuffers") != 0 &&
                                progName.compare(0, 6, "shadow") != 0 && progName.compare(0, 4, "hand") != 0 &&
                                progName.compare(0, 6, "entity") != 0;
@@ -1586,6 +1672,9 @@ namespace perlin::gpu {
                 std::fprintf(stderr, "---- %s vertex\n%s\n---- fragment\n%s\n", progName.c_str(),
                              c->transform.vertex.glsl.c_str(), c->transform.fragment.glsl.c_str());
         Program* p = Finish(key, progName, *c, source);
+        // alphaTestRef: the reference of the comparison the program was built with
+        if (const size_t sp = alpha.find(' '); sp != std::string::npos)
+            p->alphaRef = static_cast<float>(std::atof(alpha.c_str() + sp + 1));
         if (!p->valid) {
             Log("jshader", "program {} could not be created on this device", progName.c_str());
             return nullptr;
@@ -1595,8 +1684,9 @@ namespace perlin::gpu {
 
     int JavaPack::WarmUp() {
         int remaining = 0, started = 0;
-        const auto touch = [&](const std::string& n, bool toBackbuffer) {
-            const std::string key = KeyFor(n, toBackbuffer);
+        const auto touch = [&](const std::string& n, bool toBackbuffer, float alphaRef = -1.0f) {
+            const std::string alpha = toBackbuffer ? std::string() : AlphaFor(n, alphaRef);
+            const std::string key = KeyFor(n, toBackbuffer) + (alpha.empty() ? "" : "@" + alpha);
             if (programs.contains(key))
                 return;
             if (!pending.contains(key)) {
@@ -1606,12 +1696,17 @@ namespace perlin::gpu {
                 }
                 started++;
             }
-            GetProgram(n, toBackbuffer);
+            GetProgram(n, toBackbuffer, nullptr, nullptr, rhi::Format::Unknown, alpha);
             if (!programs.contains(key))
                 remaining++;
         };
-        for (const char* n : {"gbuffers_terrain", "gbuffers_water", "shadow"})
-            touch(n, false);
+        touch("gbuffers_terrain_solid", false, -1.0f);
+        touch("gbuffers_terrain_cutout", false, 0.5f);
+        touch("gbuffers_water", false, 0.0001f);
+        if (config.shadowEnabled) {
+            touch("shadow_solid", false, -1.0f);
+            touch("shadow_cutout", false, 0.5f);
+        }
         for (const char* base : {"begin", "prepare", "deferred", "composite", "shadowcomp"})
             for (const std::string& n : instance->PassChain(base))
                 if (instance->ProgramEnabled(n))
@@ -1621,7 +1716,9 @@ namespace perlin::gpu {
     }
 
     bool JavaPack::TerrainUsable() {
-        const auto it = programs.find(KeyFor("gbuffers_terrain", false));
+        const std::string alpha = AlphaFor("gbuffers_terrain_solid", -1.0f);
+        const auto it =
+            programs.find(KeyFor("gbuffers_terrain_solid", false) + (alpha.empty() ? "" : "@" + alpha));
         return it != programs.end() && it->second->valid;
     }
 
@@ -1679,6 +1776,24 @@ namespace perlin::gpu {
             bt.dstAlpha = st.dstA;
             bt.writeMask = st.mask;
         }
+        // iris PER_BUFFER_BLENDING: blend.<program>.<buffer> overrides the draw buffer writing that colortex
+        if (p.source) {
+            const std::string& n = p.source->sourceName.empty() ? p.source->name : p.source->sourceName;
+            if (const jshader::ProgramConfig* pc = config.Find(n); pc && !pc->blendPerBuffer.empty())
+                for (uint32_t i = 0; i < st.colorCount && i < p.attachments.size(); i++) {
+                    const auto it = pc->blendPerBuffer.find(p.attachments[i]);
+                    if (it == pc->blendPerBuffer.end() || !it->second.set)
+                        continue;
+                    rhi::BlendTarget& bt = gd.blend.targets[i];
+                    bt.enable = !it->second.off;
+                    if (bt.enable) {
+                        bt.srcColor = GlFactor(it->second.src);
+                        bt.dstColor = GlFactor(it->second.dst);
+                        bt.srcAlpha = GlFactor(it->second.srcA);
+                        bt.dstAlpha = GlFactor(it->second.dstA);
+                    }
+                }
+        }
         gd.colorCount = st.colorCount;
         gd.depthFormat = st.depth;
         gd.name = "java pack";
@@ -1706,7 +1821,9 @@ namespace perlin::gpu {
         }
     }
 
-    bool JavaPack::BindUniforms(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw) {
+    bool JavaPack::BindUniforms(rhi::CommandList& list, Program& p, const jshader::PackDrawState& drawIn) {
+        jshader::PackDrawState draw = drawIn;
+        draw.alphaTestRef = p.alphaRef;
         if (p.frameStamp != frameStamp) {
             p.frameStamp = frameStamp;
             p.haveDraw = false;
@@ -1780,13 +1897,17 @@ namespace perlin::gpu {
                 t = depth[s.index];
                 smp = SPointClamp;
                 break;
-            case Kind::ShadowDepth:
-                t = shadowDepth ? shadowDepth : white;
+            case Kind::ShadowDepth: {
+                const rhi::TextureHandle depthTex =
+                    s.index == 1 && shadowDepthNoTranslucents ? shadowDepthNoTranslucents : shadowDepth;
+                const size_t fi = s.index == 1 ? 1 : 0;
+                t = depthTex ? depthTex : white;
                 if (s.shadow)
-                    smp = config.shadowFilterLinear[0] ? SCompareLinear : SComparePoint;
+                    smp = config.shadowFilterLinear[fi] ? SCompareLinear : SComparePoint;
                 else
-                    smp = config.shadowFilterLinear[0] ? SLinearClamp : SPointClamp;
+                    smp = config.shadowFilterLinear[fi] ? SLinearClamp : SPointClamp;
                 break;
+            }
             case Kind::ShadowColor:
                 t = shadowColor[s.index] ? shadowColor[s.index] : white;
                 smp = config.shadowColorLinear[s.index] ? SLinearClamp : SPointClamp;
@@ -2164,7 +2285,17 @@ namespace perlin::gpu {
         const glm::mat4 view = ToMat(params.view);
         glm::mat4 rotation = view;
         rotation[3] = glm::vec4(0, 0, 0, 1);
-        FromMat(rotation, s.modelView);
+        // iris: gbufferModelView is the real camera-relative modelview, view bobbing included. dropping the bob's
+        // translation (as a pure rotation did) made world positions rebuilt from depth wobble with every step,
+        // and shadows looked up with them jumped while walking
+        {
+            const glm::dmat4 v(view);
+            const glm::dmat4 relative =
+                v *
+                glm::translate(glm::dmat4(1.0), glm::dvec3(params.cameraPosition[0], params.cameraPosition[1],
+                                                           params.cameraPosition[2]));
+            FromMat(glm::mat4(relative), s.modelView);
+        }
         ToGlDepth(params.projection, s.projection);
         if (havePrev) {
             std::memcpy(s.prevModelView, prevModelView, sizeof(prevModelView));
@@ -2285,25 +2416,32 @@ namespace perlin::gpu {
         s.viewHeight = static_cast<int>(height);
         s.dimensionId = instance->Dimension() == "world-1" ? -1 : (instance->Dimension() == "world1" ? 1 : 0);
 
-        // the shadow camera sits on the light and snaps to whole shadow texels so the map does not swim while the player moves
-        // the same tilted sun as sunPosition, so shadows fall where the pack's lighting expects them
-        glm::vec3 lightDir = glm::normalize(dayLight ? sunDir : -sunDir);
-        glm::vec3 up(0, 0, 1);
-        if (std::fabs(lightDir.z) > 0.99f)
-            up = glm::vec3(0, 1, 0);
-        const glm::mat4 lookAt = glm::lookAt(lightDir * 100.0f, glm::vec3(0), up);
-        const glm::vec3 camera(params.cameraPosition[0], params.cameraPosition[1], params.cameraPosition[2]);
-        const float r = std::max(8.0f, config.shadowDistance);
-        const float texel = 2.0f * r / static_cast<float>(std::max(1, config.shadowMapResolution));
-        const glm::vec3 camLight = glm::mat3(lookAt) * camera;
-        const glm::vec2 snapped = glm::round(glm::vec2(camLight) / texel) * texel;
-        // the camera ends up (within a texel) at the middle of the map, halfway down the depth range so occluders toward the light are kept
-        const glm::mat4 sv =
-            glm::translate(glm::mat4(1.0f), glm::vec3(-snapped.x, -snapped.y, -camLight.z - 128.0f)) * lookAt;
-        // the pack's shaders hand shadowModelView camera-relative positions; the shadow pass draws world positions
-        FromMat(sv * glm::translate(glm::mat4(1.0f), camera), shadowView);
-        FromMat(glm::orthoRH_NO(-r, r, -r, r, 0.05f, 256.0f), shadowProjection);
-        FromMat(sv, shadowDrawView);
+        // the shadow camera, as iris ShadowMatrices builds it: rotX(90) * rotZ(-skyAngle * 360) *
+        // rotX(sunPathRotation), shifted by the camera's offset inside a shadowIntervalSize grid cell; it takes
+        // camera-relative positions. the projection is a symmetric ortho box of +-shadowDistance between the pack's
+        // near and far planes (gl depth range, like gbufferProjection)
+        const glm::dvec3 camera(params.cameraPosition[0], params.cameraPosition[1], params.cameraPosition[2]);
+        {
+            const float shadowAngle = s.shadowAngle;
+            const float skyAngle = shadowAngle < 0.25f ? shadowAngle + 0.75f : shadowAngle - 0.25f;
+            glm::mat4 mv(1.0f);
+            mv = glm::rotate(mv, glm::radians(90.0f), glm::vec3(1, 0, 0));
+            mv = glm::rotate(mv, glm::radians(skyAngle * -360.0f), glm::vec3(0, 0, 1));
+            mv = glm::rotate(mv, glm::radians(config.sunPathRotation), glm::vec3(1, 0, 0));
+            const float interval = config.shadowIntervalSize;
+            if (std::fabs(interval) > 0.0f) {
+                const float half = interval / 2.0f;
+                mv = glm::translate(mv, glm::vec3(std::fmod(static_cast<float>(camera.x), interval) - half,
+                                                  std::fmod(static_cast<float>(camera.y), interval) - half,
+                                                  std::fmod(static_cast<float>(camera.z), interval) - half));
+            }
+            FromMat(mv, shadowView);
+            const float hpl = std::max(1.0f, config.shadowDistance);
+            FromMat(glm::orthoRH_NO(-hpl, hpl, -hpl, hpl, config.shadowNearPlane, config.shadowFarPlane),
+                    shadowProjection);
+            // the shadow pass draws world positions: move them to the camera first
+            FromMat(mv * glm::translate(glm::mat4(1.0f), -glm::vec3(camera)), shadowDrawView);
+        }
         if (config.shadowEnabled) {
             std::memcpy(s.shadowModelView, shadowView, sizeof(shadowView));
             std::memcpy(s.shadowProjection, shadowProjection, sizeof(shadowProjection));
@@ -2344,8 +2482,6 @@ namespace perlin::gpu {
             meshes.CollectRuns(layer, ordered, layerRuns[static_cast<size_t>(l)]);
         }
         const float reach = std::max(8.0f, config.shadowDistance) * 1.5f + 24.0f;
-        static const RenderLayer kShadowLayers[3] = {RenderLayer::Solid, RenderLayer::Cutout,
-                                                     RenderLayer::CutoutCull};
         for (auto& v : shadowRuns)
             v.clear();
         if (!config.shadowEnabled)
@@ -2360,12 +2496,10 @@ namespace perlin::gpu {
                              static_cast<float>(g.size) * 0.5f - camZ;
             if (dx * dx + dz * dz > reach * reach)
                 continue;
-            for (size_t i = 0; i < 3; i++) {
-                const size_t slot = static_cast<size_t>(kShadowLayers[i]);
+            for (size_t slot = 0; slot < static_cast<size_t>(kRenderLayerCount); slot++)
                 if (g.layerCount[slot])
-                    shadowRuns[i].push_back(
+                    shadowRuns[slot].push_back(
                         {static_cast<uint32_t>(g.page), g.iOff[slot], g.layerCount[slot]});
-            }
         }
     }
 
@@ -2399,40 +2533,73 @@ namespace perlin::gpu {
     }
 
     void JavaPack::ClearBuffers(rhi::CommandList& list, const FrameParams& params) {
+        // iris ClearPassCreator: a buffer that clears has both its textures (main and alt) cleared at the start of the
+        // frame, colortex0 to the fog colour, colortex1 to white, the rest to transparent black, unless the pack
+        // names a colour. a pass that writes part of a buffer (scaled passes, bloom tiles) then sees the clear
+        // colour around what it wrote, not last frame's picture
         constexpr float kKeep = -1e30f;
-        std::vector<int> used;
-        for (int i = 0; i < jshader::kMaxColorTex; i++)
-            if (bufs[static_cast<size_t>(i)].used)
-                used.push_back(i);
-        for (size_t g = 0; g < used.size(); g += 8) {
+        struct Target {
+            rhi::TextureHandle tex;
+            std::array<float, 4> color;
+            uint32_t w, h;
+        };
+        std::vector<Target> targets;
+        for (int i = 0; i < jshader::kMaxColorTex; i++) {
+            Buffer& b = bufs[static_cast<size_t>(i)];
+            if (!b.used)
+                continue;
+            const jshader::BufferSetup& cfg = config.color[static_cast<size_t>(i)];
+            std::array<float, 4> c = {cfg.clearColor[0], cfg.clearColor[1], cfg.clearColor[2],
+                                      cfg.clearColor[3]};
+            if (i == 0 && instance->GetDirectives().Text("colortex0ClearColor").empty() &&
+                instance->GetDirectives().Text("gcolorClearColor").empty())
+                c = {params.fogColor[0], params.fogColor[1], params.fogColor[2], 1.0f};
+            if (i == 1 && instance->GetDirectives().Text("colortex1ClearColor").empty() &&
+                instance->GetDirectives().Text("gdepthClearColor").empty())
+                c = {1.0f, 1.0f, 1.0f, 1.0f};
+            for (int k = 0; k < 2; k++) {
+                const rhi::TextureHandle t = b.tex[k];
+                if (!t)
+                    continue;
+                // a texture never written yet is cleared whatever the pack says, so it holds no garbage
+                const bool clear = cfg.clear || gpu.StateOf(t) == rhi::State::Undefined;
+                if (!clear && k != b.cur)
+                    continue;
+                targets.push_back({t, clear ? c : std::array<float, 4>{kKeep, 0, 0, 0}, b.w, b.h});
+            }
+        }
+        // one pass per size, up to eight targets each; the first also clears the scene depth
+        bool depthCleared = false;
+        while (!targets.empty()) {
+            const uint32_t w = targets.front().w, h = targets.front().h;
             std::vector<rhi::TextureHandle> tex;
             std::vector<std::array<float, 4>> clears;
-            for (size_t k = g; k < used.size() && k < g + 8; k++) {
-                const int idx = used[k];
-                Buffer& b = bufs[static_cast<size_t>(idx)];
-                const jshader::BufferSetup& cfg = config.color[static_cast<size_t>(idx)];
-                tex.push_back(b.tex[b.cur]);
-                std::array<float, 4> c = {kKeep, 0, 0, 0};
-                if (cfg.clear || gpu.StateOf(b.tex[b.cur]) == rhi::State::Undefined) {
-                    c = {cfg.clearColor[0], cfg.clearColor[1], cfg.clearColor[2], cfg.clearColor[3]};
-                    if (idx == 0 && instance->GetDirectives().Text("colortex0ClearColor").empty())
-                        c = {params.fogColor[0], params.fogColor[1], params.fogColor[2], 1.0f};
-                    if (idx == 1 && instance->GetDirectives().Text("colortex1ClearColor").empty())
-                        c = {1.0f, 1.0f, 1.0f, 1.0f};
+            for (auto it = targets.begin(); it != targets.end() && tex.size() < 8;) {
+                if (it->w == w && it->h == h) {
+                    tex.push_back(it->tex);
+                    clears.push_back(it->color);
+                    it = targets.erase(it);
+                } else {
+                    ++it;
                 }
-                clears.push_back(c);
             }
-            const bool first = g == 0;
-            BeginPass(list, tex, first ? depth[0] : rhi::TextureHandle{},
-                      bufs[static_cast<size_t>(used[g])].w, bufs[static_cast<size_t>(used[g])].h, first,
-                      &clears, "pack clear");
+            const bool withDepth = !depthCleared && w == width && h == height;
+            depthCleared = depthCleared || withDepth;
+            BeginPass(list, tex, withDepth ? depth[0] : rhi::TextureHandle{}, w, h, withDepth, &clears,
+                      "pack clear");
+            list.EndRendering();
+        }
+        if (!depthCleared) {
+            BeginPass(list, {}, depth[0], width, height, true, nullptr, "pack depth clear");
             list.EndRendering();
         }
     }
 
     bool JavaPack::DrawLayers(rhi::CommandList& list, const char* programName,
-                              const std::vector<RenderLayer>& layers, bool translucent, bool shadow) {
-        Program* p = GetProgram(programName, false);
+                              const std::vector<RenderLayer>& layers, bool translucent, bool shadow,
+                              int stage, float alphaRef) {
+        Program* p = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                                AlphaFor(programName, alphaRef));
         if (!p)
             return false;
         bool any = false;
@@ -2441,10 +2608,8 @@ namespace perlin::gpu {
                          programName, shadow ? 1 : 0, layerRuns[0].size(), layerRuns[1].size(),
                          layerRuns[2].size());
         for (RenderLayer layer : layers) {
-            const auto& list2 = shadow ? shadowRuns[layer == RenderLayer::Solid    ? 0
-                                                    : layer == RenderLayer::Cutout ? 1
-                                                                                   : 2]
-                                       : layerRuns[static_cast<size_t>(layer)];
+            const auto& list2 =
+                shadow ? shadowRuns[static_cast<size_t>(layer)] : layerRuns[static_cast<size_t>(layer)];
             any = any || !list2.empty();
         }
         if (!any)
@@ -2487,14 +2652,8 @@ namespace perlin::gpu {
         st.depthTest = true;
         st.depthWrite = true;
         st.depthOp = rhi::CompareOp::LessEqual;
-        const jshader::ProgramConfig* pc = config.Find(programName);
-
-        if (shadow) {
-            const std::vector<std::array<float, 4>> zero(colors.size(), std::array<float, 4>{0, 0, 0, 0});
-            BeginPass(list, colors, depthTarget, w, h, true, &zero, "pack shadow");
-        } else {
-            BeginPass(list, colors, depthTarget, w, h, false, nullptr, "pack scene");
-        }
+        const jshader::ProgramConfig* pc = BlendConfigFor(programName);
+        BeginPass(list, colors, depthTarget, w, h, false, nullptr, shadow ? "pack shadow" : "pack scene");
 
         jshader::PackDrawState draw = TerrainDraw();
         if (shadow) {
@@ -2503,8 +2662,8 @@ namespace perlin::gpu {
             for (int c = 0; c < 3; c++)
                 for (int r = 0; r < 3; r++)
                     draw.normalMatrix[c * 3 + r] = shadowDrawView[c * 4 + r];
-            draw.renderStage = 0;
         }
+        draw.renderStage = stage;
         if (!BindUniforms(list, *p, draw)) {
             list.EndRendering();
             return false;
@@ -2512,10 +2671,8 @@ namespace perlin::gpu {
         list.SetBindGroup(1, textures);
         BindStorage(list, *p);
         for (RenderLayer layer : layers) {
-            const auto& runList = shadow ? shadowRuns[layer == RenderLayer::Solid    ? 0
-                                                      : layer == RenderLayer::Cutout ? 1
-                                                                                     : 2]
-                                         : layerRuns[static_cast<size_t>(layer)];
+            const auto& runList =
+                shadow ? shadowRuns[static_cast<size_t>(layer)] : layerRuns[static_cast<size_t>(layer)];
             if (runList.empty())
                 continue;
             PipeState ls = st;
@@ -2569,18 +2726,408 @@ namespace perlin::gpu {
     void JavaPack::DrawShadows(rhi::CommandList& list) {
         if (!config.shadowEnabled || !shadowDepth)
             return;
-        DrawLayers(list, "shadow", {RenderLayer::Solid, RenderLayer::Cutout, RenderLayer::CutoutCull}, false,
-                   true);
+        // iris ShadowRenderer: clear (depth to 1, colour buffers to their clear colour unless shadowcolorNClear is
+        // off), solid and cutout terrain, entities, block entities, copy shadowtex0 to shadowtex1, translucent
+        // terrain
+        {
+            std::vector<rhi::TextureHandle> colors;
+            std::vector<std::array<float, 4>> clears;
+            for (int i = 0; i < 2; i++)
+                if (shadowColor[i] && (config.shadowColorClear[i] || !shadowCleared)) {
+                    colors.push_back(shadowColor[i]);
+                    clears.push_back({config.shadowColorClearColor[i][0], config.shadowColorClearColor[i][1],
+                                      config.shadowColorClearColor[i][2],
+                                      config.shadowColorClearColor[i][3]});
+                }
+            const uint32_t res = static_cast<uint32_t>(config.shadowMapResolution);
+            BeginPass(list, colors, shadowDepth, res, res, true, &clears, "pack shadow clear");
+            list.EndRendering();
+            shadowCleared = true;
+        }
+        using K = ExternalDraw::Kind;
+        if (config.shadowTerrain) {
+            DrawLayers(list, "shadow_solid", {RenderLayer::Solid}, false, true, 8, -1.0f);
+            DrawLayers(list, "shadow_cutout", {RenderLayer::Cutout, RenderLayer::CutoutCull}, false, true, 10,
+                       0.5f);
+        }
+        // mobs and players cast shadows too (shadowEntities / shadowPlayer), then block entities
+        DrawExternal(list, {K::Entity, K::EntityTranslucent, K::Lightning}, true);
+        DrawExternal(list, {K::Block}, true);
+        if (shadowDepthNoTranslucents)
+            CopyDepth(list, shadowDepth, shadowDepthNoTranslucents);
+        if (config.shadowTerrain && config.shadowTranslucent)
+            DrawLayers(list, "shadow_water", {RenderLayer::Translucent, RenderLayer::TranslucentCull}, false,
+                       true, 17, -1.0f);
     }
 
+    // -- engine draws through the pack -----------------------------------------------------------------------------
+
+    void JavaPack::BuildVertices(const UiVertex* v, size_t vertexCount, const uint32_t* idx,
+                                 size_t indexCount, const float model[16], int blockLight, int skyLight,
+                                 std::vector<uint8_t>& out, const int8_t* vertexLight,
+                                 const float* faceToward) {
+        const glm::mat4 m = glm::make_mat4(model);
+        const glm::mat3 nm = glm::mat3(m);
+        // the mesh's middle: box models are near enough convex that a face normal pointing away from it is outward
+        glm::vec3 centre(0.0f);
+        for (size_t i = 0; i < vertexCount; i++)
+            centre += glm::vec3(m * glm::vec4(v[i].x, v[i].y, v[i].z, 1.0f));
+        if (vertexCount)
+            centre /= static_cast<float>(vertexCount);
+        const size_t tris = indexCount / 3;
+        out.resize(tris * 3 * kPackVertexBytes);
+        const float light[2] = {static_cast<float>(std::clamp(blockLight, 0, 15) * 16),
+                                static_cast<float>(std::clamp(skyLight, 0, 15) * 16)};
+        const float entity[2] = {-1.0f, 0.0f};
+        size_t written = 0;
+        for (size_t t = 0; t < tris; t++) {
+            const uint32_t i0 = idx[t * 3], i1 = idx[t * 3 + 1], i2 = idx[t * 3 + 2];
+            if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount)
+                continue;
+            const UiVertex* tv[3] = {&v[i0], &v[i1], &v[i2]};
+            glm::vec3 p[3];
+            for (int k = 0; k < 3; k++)
+                p[k] = glm::vec3(m * glm::vec4(tv[k]->x, tv[k]->y, tv[k]->z, 1.0f));
+            glm::vec3 n = glm::cross(p[1] - p[0], p[2] - p[0]);
+            const float len = glm::length(n);
+            if (len < 1e-10f)
+                n = glm::normalize(nm * glm::vec3(0, 1, 0));
+            else
+                n /= len;
+            if (faceToward) {
+                if (glm::dot(n, glm::vec3(faceToward[0], faceToward[1], faceToward[2]) - p[0]) < 0.0f)
+                    n = -n;
+            } else if (glm::dot(n, (p[0] + p[1] + p[2]) / 3.0f - centre) < 0.0f) {
+                n = -n;
+            }
+            const glm::vec2 uv0(tv[0]->u, tv[0]->v), uv1(tv[1]->u, tv[1]->v), uv2(tv[2]->u, tv[2]->v);
+            const glm::vec3 e1 = p[1] - p[0], e2 = p[2] - p[0];
+            const glm::vec2 d1 = uv1 - uv0, d2 = uv2 - uv0;
+            const float det = d1.x * d2.y - d2.x * d1.y;
+            glm::vec3 tangent = std::fabs(det) > 1e-10f ? (e1 * d2.y - e2 * d1.y) / det : e1;
+            if (glm::dot(tangent, tangent) < 1e-12f)
+                tangent = glm::vec3(1, 0, 0);
+            tangent = glm::normalize(tangent);
+            const float mid[2] = {(uv0.x + uv1.x + uv2.x) / 3.0f, (uv0.y + uv1.y + uv2.y) / 3.0f};
+            const uint16_t normal[4] = {ToHalf(n.x), ToHalf(n.y), ToHalf(n.z), 0};
+            const uint16_t tang[4] = {ToHalf(tangent.x), ToHalf(tangent.y), ToHalf(tangent.z), ToHalf(1.0f)};
+            const uint16_t midBlock[4] = {0, 0, 0, 0};
+            const uint32_t tri[3] = {i0, i1, i2};
+            for (int k = 0; k < 3; k++) {
+                uint8_t* o = out.data() + written * kPackVertexBytes;
+                const float pos[3] = {p[k].x, p[k].y, p[k].z};
+                const float uv[2] = {tv[k]->u, tv[k]->v};
+                std::memcpy(o + kPos, pos, 12);
+                std::memcpy(o + kColor, &tv[k]->abgr, 4);
+                std::memcpy(o + kUv, uv, 8);
+                float vl[2] = {light[0], light[1]};
+                if (vertexLight) {
+                    const int8_t b = vertexLight[tri[k] * 2], s = vertexLight[tri[k] * 2 + 1];
+                    if (b >= 0)
+                        vl[0] = static_cast<float>(std::min<int>(b, 15) * 16);
+                    if (s >= 0)
+                        vl[1] = static_cast<float>(std::min<int>(s, 15) * 16);
+                }
+                std::memcpy(o + kLight, vl, 8);
+                std::memcpy(o + kNormal, normal, 8);
+                std::memcpy(o + kEntity, entity, 8);
+                std::memcpy(o + kMid, mid, 8);
+                std::memcpy(o + kMidBlock, midBlock, 8);
+                std::memcpy(o + kTangent, tang, 8);
+                written++;
+            }
+        }
+        out.resize(written * kPackVertexBytes);
+    }
+
+    void JavaPack::DrawExternal(rhi::CommandList& list, std::initializer_list<ExternalDraw::Kind> kinds,
+                                bool shadowPass) {
+        using K = ExternalDraw::Kind;
+        for (const K kind : kinds) {
+            std::vector<const ExternalDraw*> draws;
+            for (const ExternalDraw& d : queued) {
+                if (d.kind != kind || d.count == 0)
+                    continue;
+                if (shadowPass) {
+                    // iris ShadowRenderer: every entity with shadowEntities, else the player with shadowPlayer;
+                    // block entities with shadowBlockEntities
+                    if (!d.castsShadow)
+                        continue;
+                    if (kind == K::Block ? !config.shadowBlockEntities
+                                         : !(config.shadowEntities || (d.player && config.shadowPlayer)))
+                        continue;
+                } else if (d.shadowOnly) {
+                    continue;
+                }
+                draws.push_back(&d);
+            }
+            if (draws.empty())
+                continue;
+            const bool hand = kind == K::Hand || kind == K::HandTranslucent || kind == K::HandGlint;
+            const char* programName = nullptr;
+            if (shadowPass)
+                programName = kind == K::Block       ? "shadow_block"
+                              : kind == K::Lightning ? "shadow_lightning"
+                                                     : "shadow_entities";
+            else
+                switch (kind) {
+                case K::Entity:
+                    programName = "gbuffers_entities";
+                    break;
+                case K::EntityTranslucent:
+                    programName = "gbuffers_entities_translucent";
+                    break;
+                case K::Eyes:
+                    programName = "gbuffers_spidereyes";
+                    break;
+                case K::Hand:
+                    programName = "gbuffers_hand";
+                    break;
+                case K::HandTranslucent:
+                    programName = "gbuffers_hand_water";
+                    break;
+                case K::Particle:
+                    programName = "gbuffers_particles";
+                    break;
+                case K::ParticleTranslucent:
+                    programName = "gbuffers_particles_translucent";
+                    break;
+                case K::Weather:
+                    programName = "gbuffers_weather";
+                    break;
+                case K::Cracks:
+                    programName = "gbuffers_damagedblock";
+                    break;
+                case K::Block:
+                    programName = "gbuffers_block";
+                    break;
+                case K::BlockTranslucent:
+                    programName = "gbuffers_block_translucent";
+                    break;
+                case K::Glint:
+                case K::HandGlint:
+                    programName = "gbuffers_armor_glint";
+                    break;
+                case K::Clouds:
+                    programName = "gbuffers_clouds";
+                    break;
+                case K::Lightning:
+                    programName = "gbuffers_lightning";
+                    break;
+                case K::Line:
+                    programName = "gbuffers_line";
+                    break;
+                case K::Glowing:
+                    programName = "gbuffers_entities_glowing";
+                    break;
+                }
+            // iris WorldRenderingPhase ordinals (MC_RENDER_STAGE_*)
+            int stage = 11;
+            switch (kind) {
+            case K::Hand:
+            case K::HandGlint:
+                stage = 16;
+                break;
+            case K::HandTranslucent:
+                stage = 23;
+                break;
+            case K::Particle:
+            case K::ParticleTranslucent:
+                stage = 19;
+                break;
+            case K::Weather:
+                stage = 21;
+                break;
+            case K::Cracks:
+                stage = 13;
+                break;
+            case K::Block:
+            case K::BlockTranslucent:
+                stage = 12;
+                break;
+            case K::Clouds:
+                stage = 20;
+                break;
+            case K::Line:
+                stage = 14;
+                break;
+            default:
+                stage = 11;
+                break;
+            }
+            // the targets come from the program's source, the same for every alpha variant
+            Program* base = nullptr;
+            for (const ExternalDraw* d : draws) {
+                base = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                                  AlphaFor(programName, shadowPass ? 0.1f : d->alphaRef));
+                if (base)
+                    break;
+            }
+            if (!base)
+                continue;
+            std::vector<rhi::TextureHandle> colors;
+            rhi::TextureHandle depthTarget;
+            uint32_t w = width, h = height;
+            if (shadowPass) {
+                for (auto t : shadowColor)
+                    if (t)
+                        colors.push_back(t);
+                depthTarget = shadowDepth;
+                w = h = static_cast<uint32_t>(config.shadowMapResolution);
+            } else {
+                for (int idx : base->attachments) {
+                    if (idx < 0 || idx >= jshader::kMaxColorTex)
+                        idx = 0;
+                    Buffer& b = bufs[static_cast<size_t>(idx)];
+                    b.used = true;
+                    colors.push_back(b.tex[b.cur] ? b.tex[b.cur] : bufs[0].tex[bufs[0].cur]);
+                }
+                depthTarget = depth[0];
+            }
+            if (!depthTarget || (colors.empty() && !shadowPass))
+                continue;
+            std::vector<rhi::TextureHandle> attached = colors;
+            attached.push_back(depthTarget);
+            const jshader::ProgramConfig* pc = BlendConfigFor(programName);
+
+            struct Ready {
+                Program* program = nullptr;
+                rhi::BindGroupHandle textures;
+                rhi::PipelineHandle pipe;
+                gpu::RingSlice slice;
+                uint32_t count = 0;
+                jshader::PackDrawState state;
+            };
+            std::vector<Ready> ready;
+            for (const ExternalDraw* d : draws) {
+                Ready r;
+                r.program = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                                       AlphaFor(programName, shadowPass ? 0.1f : d->alphaRef));
+                if (!r.program)
+                    continue;
+                Program& p = *r.program;
+                textureOverride = d->texture ? d->texture : white;
+                r.textures = Textures(list, p, attached);
+                textureOverride = {};
+                PipeState st;
+                st.colorCount = static_cast<uint32_t>(colors.size());
+                for (size_t i = 0; i < colors.size(); i++) {
+                    const rhi::TextureDesc* td = gpu.Dev().GetDesc(colors[i]);
+                    st.colors[i] = td ? td->format : rhi::Format::RGBA8Unorm;
+                }
+                st.depth = rhi::Format::D32Float;
+                st.depthTest = shadowPass || d->depthTest;
+                st.depthWrite = shadowPass || d->depthWrite;
+                st.depthOp = rhi::CompareOp::LessEqual;
+                st.blend = !shadowPass && (d->blend || d->additive || d->glintBlend);
+                st.src = rhi::BlendFactor::SrcAlpha;
+                st.dst = d->additive ? rhi::BlendFactor::One : rhi::BlendFactor::InvSrcAlpha;
+                st.srcA = rhi::BlendFactor::One;
+                st.dstA = rhi::BlendFactor::InvSrcAlpha;
+                if (!shadowPass && kind == K::Eyes) {
+                    // iris ProgramId.SpiderEyes: src alpha, one / zero, one
+                    st.blend = true;
+                    st.src = rhi::BlendFactor::SrcAlpha;
+                    st.dst = rhi::BlendFactor::One;
+                    st.srcA = rhi::BlendFactor::Zero;
+                    st.dstA = rhi::BlendFactor::One;
+                }
+                if (!shadowPass && kind == K::Lightning) {
+                    st.blend = true;
+                    st.src = rhi::BlendFactor::SrcAlpha;
+                    st.dst = rhi::BlendFactor::One;
+                }
+                if (!shadowPass && d->glintBlend) {
+                    // vanilla GLINT transparency and depth: src colour, one / zero, one; depth equal, no write
+                    st.src = rhi::BlendFactor::SrcColor;
+                    st.dst = rhi::BlendFactor::One;
+                    st.srcA = rhi::BlendFactor::Zero;
+                    st.dstA = rhi::BlendFactor::One;
+                    st.depthOp = rhi::CompareOp::Equal;
+                    st.depthWrite = false;
+                }
+                if (!shadowPass && pc && pc->blend.set) {
+                    st.blend = !pc->blend.off;
+                    if (st.blend) {
+                        st.src = GlFactor(pc->blend.src);
+                        st.dst = GlFactor(pc->blend.dst);
+                        st.srcA = GlFactor(pc->blend.srcA);
+                        st.dstA = GlFactor(pc->blend.dstA);
+                    }
+                }
+                r.pipe = PipelineFor(p, st);
+                if (!r.textures || !r.pipe)
+                    continue;
+                r.slice = gpu.Ring(d->vertices.size(), 16);
+                if (!r.slice.data)
+                    continue;
+                std::memcpy(r.slice.data, d->vertices.data(), d->vertices.size());
+                r.count = d->count;
+                r.state = TerrainDraw();
+                if (shadowPass) {
+                    std::memcpy(r.state.modelView, shadowDrawView, sizeof(r.state.modelView));
+                    std::memcpy(r.state.projection, shadowProjection, sizeof(r.state.projection));
+                    for (int c = 0; c < 3; c++)
+                        for (int rr = 0; rr < 3; rr++)
+                            r.state.normalMatrix[c * 3 + rr] = shadowDrawView[c * 4 + rr];
+                } else if (hand) {
+                    // the hand's vertices are already in view space; iris squeezes its depth by MC_HAND_DEPTH
+                    const float identity[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+                    std::memcpy(r.state.modelView, identity, sizeof(identity));
+                    std::memcpy(r.state.projection, handProjection, sizeof(handProjection));
+                    const float n3[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+                    std::memcpy(r.state.normalMatrix, n3, sizeof(n3));
+                }
+                r.state.renderStage = stage;
+                r.state.overrideEntity = true;
+                r.state.entityId = d->entityId;
+                r.state.blockEntityId = d->blockEntityId;
+                r.state.currentRenderedItemId = d->itemId;
+                std::memcpy(r.state.textureMatrix0, d->textureMatrix, sizeof(d->textureMatrix));
+                std::memcpy(r.state.entityColor, d->entityColor, sizeof(d->entityColor));
+                ready.push_back(r);
+            }
+            if (ready.empty())
+                continue;
+            BeginPass(list, colors, depthTarget, w, h, false, nullptr,
+                      shadowPass ? "pack entity shadows" : programName);
+            bool anyStorage = false;
+            for (Ready& r : ready) {
+                if (!BindUniforms(list, *r.program, r.state))
+                    continue;
+                list.SetBindGroup(1, r.textures);
+                BindStorage(list, *r.program);
+                list.SetPipeline(r.pipe);
+                list.SetVertexBuffer(0, r.slice.buffer, r.slice.offset);
+                list.Draw(r.count, 1, 0, 0);
+                anyStorage = anyStorage || r.program->imageMask;
+            }
+            list.EndRendering();
+            if (anyStorage || !config.bufferObjects.empty())
+                StorageBarrier(list, *base);
+        }
+    }
+
+    const jshader::ProgramConfig* JavaPack::BlendConfigFor(const std::string& progName) const {
+        // iris ProgramDirectives: blend.<program> of the program file that loaded
+        if (instance)
+            if (auto src = instance->Program(progName); src && src->found && !src->sourceName.empty())
+                if (const jshader::ProgramConfig* pc = config.Find(src->sourceName))
+                    return pc;
+        return config.Find(progName);
+    }
+
+    // iris (sodium) terrain passes: gbuffers_terrain_solid with no alpha test, gbuffers_terrain_cutout at 0.5,
+    // gbuffers_water above zero
     void JavaPack::DrawTerrain(rhi::CommandList& list) {
-        DrawLayers(list, "gbuffers_terrain",
-                   {RenderLayer::Solid, RenderLayer::Cutout, RenderLayer::CutoutCull}, false, false);
+        DrawLayers(list, "gbuffers_terrain_solid", {RenderLayer::Solid}, false, false, 8, -1.0f);
+        DrawLayers(list, "gbuffers_terrain_cutout", {RenderLayer::Cutout, RenderLayer::CutoutCull}, false,
+                   false, 10, 0.5f);
     }
 
     void JavaPack::DrawTranslucent(rhi::CommandList& list) {
         DrawLayers(list, "gbuffers_water", {RenderLayer::Translucent, RenderLayer::TranslucentCull}, true,
-                   false);
+                   false, 17, 0.0001f);
     }
 
     namespace {
@@ -2890,8 +3437,9 @@ namespace perlin::gpu {
         gpu.Transition(list, src, rhi::State::CopySrc);
         gpu.Transition(list, dst, rhi::State::CopyDst);
         rhi::TextureCopy c;
-        c.width = width;
-        c.height = height;
+        const rhi::TextureDesc* sd = gpu.Dev().GetDesc(src);
+        c.width = sd ? sd->width : width;
+        c.height = sd ? sd->height : height;
         list.CopyTexture(dst, src, std::span<const rhi::TextureCopy>(&c, 1));
         gpu.Transition(list, dst, rhi::State::ShaderRead);
     }
@@ -2950,6 +3498,12 @@ namespace perlin::gpu {
         }
         frame = params;
         lightmapTex = out.lightmap;
+        {
+            // iris HandRenderer: the hand projection with its depth squeezed by MC_HAND_DEPTH (0.125)
+            ToGlDepth(params.handProjection, handProjection);
+            for (int c = 0; c < 4; c++)
+                handProjection[c * 4 + 2] *= 0.125f;
+        }
         frameStamp++;
         BuildFrame(params, out);
 
@@ -2983,16 +3537,29 @@ namespace perlin::gpu {
         skyMoonTex = out.moon;
         DrawSky(list);
         DrawTerrain(list);
-        // depthtex1 / depthtex2 hold the opaque world: water and glass are drawn after the copy
+        using K = ExternalDraw::Kind;
+        // iris order: opaque entities, block breaking and particles with the terrain; depthtex2 is the depth before
+        // the hand; the solid hand; depthtex1 is the depth before translucents
+        DrawExternal(list,
+                     {K::Entity, K::Eyes, K::Glowing, K::Lightning, K::Glint, K::Block, K::Cracks, K::Line,
+                      K::Particle},
+                     false);
         CopyDepth(list, depth[0], depth[2]);
+        DrawExternal(list, {K::Hand, K::HandGlint}, false);
         CopyDepth(list, depth[0], depth[1]);
         static const char* const debugTex = std::getenv("PERLIN_PACK_DEBUG_TEX");
         if (debugTex)
             DrawTranslucent(list);
         if (!debugTex) {
             RunChain(list, "deferred");
-            // translucent terrain lands on the lit opaque picture, as in Iris
+            // translucent terrain lands on the lit opaque picture, as in Iris, then translucent entities,
+            // particles, weather and the translucent hand
             DrawTranslucent(list);
+            DrawExternal(
+                list,
+                {K::EntityTranslucent, K::BlockTranslucent, K::ParticleTranslucent, K::Clouds, K::Weather},
+                false);
+            DrawExternal(list, {K::HandTranslucent}, false);
             RunChain(list, "composite");
         }
 

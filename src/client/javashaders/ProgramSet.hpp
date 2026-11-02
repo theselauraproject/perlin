@@ -66,6 +66,11 @@ namespace perlin::jshader {
         const Directives& GetDirectives();
         const std::map<int, std::vector<std::string>>& BlockIds() const { return blockIds; }
         const std::map<int, std::vector<std::string>>& EntityIds() const { return entityIds; }
+        // the id lines in file order (iris keeps them so; the first block entry matching a state wins)
+        using IdLines = std::vector<std::pair<int, std::vector<std::string>>>;
+        const IdLines& BlockIdLines() const { return blockIdsOrdered; }
+        const IdLines& EntityIdLines() const { return entityIdsOrdered; }
+        const IdLines& ItemIdLines() const { return itemIdsOrdered; }
         const std::map<int, std::vector<std::string>>& ItemIds() const { return itemIds; }
         std::string Lang(const std::string& key, const std::string& locale = "en_US") const;
         std::string FirstError() const { return firstError; }
@@ -95,6 +100,7 @@ namespace perlin::jshader {
         Directives directives;
         bool directivesLoaded = false;
         std::map<int, std::vector<std::string>> blockIds, entityIds, itemIds;
+        IdLines blockIdsOrdered, entityIdsOrdered, itemIdsOrdered;
         std::map<std::string, std::map<std::string, std::string>> lang;
         std::string firstError;
     };

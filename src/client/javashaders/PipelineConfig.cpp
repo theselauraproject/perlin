@@ -131,14 +131,28 @@ namespace perlin::jshader {
         const Properties& p = pack.Props();
         const Directives& d = pack.GetDirectives();
 
+        // optifine's old names for colortex0-7 work for every buffer directive (iris PackRenderTargetDirectives)
+        static const char* const kLegacy[] = {"gcolor", "gdepth", "gnormal", "composite",
+                                              "gaux1",  "gaux2",  "gaux3",   "gaux4"};
         for (int i = 0; i < kMaxColorTex; i++) {
             const std::string n = "colortex" + std::to_string(i);
+            const std::string legacy = i < 8 ? kLegacy[i] : std::string();
+            const auto text = [&](const std::string& suffix) {
+                std::string v = d.Text(n + suffix);
+                if (v.empty() && !legacy.empty())
+                    v = d.Text(legacy + suffix);
+                return v;
+            };
+            const auto flag = [&](const std::string& suffix, bool fallback) {
+                const std::string v = text(suffix);
+                return v.empty() ? fallback : (v == "true" || v == "1");
+            };
             BufferSetup& b = cfg.color[static_cast<size_t>(i)];
             if (i == 0)
                 b.format = BufferFormat::RGBA8;
-            b.format = ParseBufferFormat(d.Text(n + "Format"), b.format);
-            b.clear = d.Bool(n + "Clear", true);
-            const std::string cc = d.Text(n + "ClearColor");
+            b.format = ParseBufferFormat(text("Format"), b.format);
+            b.clear = flag("Clear", true);
+            const std::string cc = text("ClearColor");
             if (!cc.empty()) {
                 std::string s = cc;
                 const size_t o = s.find('(');
@@ -153,13 +167,28 @@ namespace perlin::jshader {
                     k = comma + 1;
                 }
             }
-            b.mipmap = d.Bool(n + "MipmapEnabled", false);
-            b.linear = !d.Bool(n + "Nearest", false);
+            b.mipmap = flag("MipmapEnabled", false);
+            b.linear = !flag("Nearest", false);
         }
         for (int i = 0; i < kMaxShadowColor; i++) {
             const std::string n = "shadowcolor" + std::to_string(i);
             cfg.shadowColorFormat[i] = ParseBufferFormat(d.Text(n + "Format"), BufferFormat::RGBA8);
             cfg.shadowColorClear[i] = d.Bool(n + "Clear", true);
+            // iris SamplingSettings: shadow colour buffers clear to white unless the pack says otherwise
+            if (const std::string cc = d.Text(n + "ClearColor"); !cc.empty()) {
+                std::string s = cc;
+                const size_t o = s.find('(');
+                if (o != std::string::npos)
+                    s = s.substr(o + 1);
+                size_t k = 0;
+                for (int c = 0; c < 4 && k < s.size(); c++) {
+                    cfg.shadowColorClearColor[i][c] = static_cast<float>(std::atof(s.c_str() + k));
+                    const size_t comma = s.find(',', k);
+                    if (comma == std::string::npos)
+                        break;
+                    k = comma + 1;
+                }
+            }
             cfg.shadowColorLinear[i] = !d.Bool(n + "Nearest", false);
             const std::string t = "shadowtex" + std::to_string(i);
             cfg.shadowHardwareFiltering[i] = d.Bool(t + "HardwareFiltering", false) ||
@@ -168,8 +197,11 @@ namespace perlin::jshader {
             cfg.shadowFilterLinear[i] = !d.Bool(t + "Nearest", false);
             cfg.shadowMipmap[i] = d.Bool(t + "Mipmap", false);
         }
-        cfg.shadowMapResolution = static_cast<int>(d.Number("shadowMapResolution", 2048));
-        cfg.shadowDistance = static_cast<float>(d.Number("shadowDistance", 128));
+        // iris PackShadowDirectives defaults: 1024 texels, a 160 block half plane, near -100.05 / far 156
+        cfg.shadowMapResolution = static_cast<int>(d.Number("shadowMapResolution", 1024));
+        cfg.shadowDistance = static_cast<float>(d.Number("shadowDistance", 160));
+        cfg.shadowNearPlane = static_cast<float>(d.Number("shadowNearPlane", -100.05));
+        cfg.shadowFarPlane = static_cast<float>(d.Number("shadowFarPlane", 156.0));
         cfg.shadowIntervalSize = static_cast<float>(d.Number("shadowIntervalSize", 2));
         cfg.sunPathRotation = static_cast<float>(d.Number("sunPathRotation", 0));
         cfg.eyeBrightnessHalflife = static_cast<float>(d.Number("eyeBrightnessHalflife", 10));
@@ -192,6 +224,11 @@ namespace perlin::jshader {
         cfg.dynamicHandLight = p.Bool("dynamicHandLight", true);
         cfg.frustumCulling = p.Bool("frustum.culling", true);
         cfg.shadowTranslucent = p.Bool("shadowTranslucent", true);
+        cfg.shadowTerrain = p.Bool("shadowTerrain", true);
+        cfg.shadowEntities = p.Bool("shadowEntities", true);
+        // iris ShadowRenderer: every entity when shadowEntities, else only the player when shadowPlayer
+        cfg.shadowPlayer = p.Bool("shadowPlayer", false);
+        cfg.shadowBlockEntities = p.Bool("shadowBlockEntities", true);
         cfg.clouds = str::Lower(p.Get("clouds", "default"));
         if (p.Has("texture.noise"))
             cfg.noiseTexture = p.Get("texture.noise");

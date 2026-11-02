@@ -44,6 +44,20 @@ Packs see Perlin as Iris (`IS_IRIS`, `IRIS_VERSION 11107`, `IRIS_TAG_SUPPORT 2`)
 
    Each pass runs its `.csh` / `_a`…`_z.csh` compute shaders before its fragment program.
 
+   The geometry passes follow Iris:
+   - shadow: clear (shadow colour to `shadowcolorNClearColor`, white by default), `shadow_solid`,
+     `shadow_cutout`, `shadow_entities`, `shadow_block`, copy `shadowtex0` to `shadowtex1`, `shadow_water`;
+   - gbuffers: sky, `gbuffers_terrain_solid`, `gbuffers_terrain_cutout`, entities, spider eyes, lightning,
+     armor glint, block entities, block breaking, outlines, particles, the hand, deferred, `gbuffers_water`,
+     translucent entities and block entities (sign text), translucent particles, clouds, weather, the
+     translucent hand.
+
+   Every gbuffers and shadow program gets the alpha test of its render type (0.5 for cutout terrain, 0.1 for
+   entities, particles and the hand, above 0 for water, glint and spider eyes), unless `alphaTest.<program>`
+   sets another. As in Iris, it runs only for programs that write `gl_FragData[0]`. `blend.<program>.<buffer>`
+   overrides blending per draw buffer, and `renderStage`, `alphaTestRef`, `entityId`, `blockEntityId` and
+   `currentRenderedItemId` are set per draw.
+
 ## What packs read about the world
 
 Iris feeds packs live values, and so does Perlin:
@@ -55,7 +69,11 @@ Iris feeds packs live values, and so does Perlin:
 - `far` as the render distance in blocks;
 - the sun path tilted by `sunPathRotation`;
 - vanilla ambient occlusion in the vertex colour (in the alpha with `separateAo`);
-- block light emission in `at_midBlock.w`.
+- block light emission in `at_midBlock.w`;
+- block ids from `block.properties` with block state filters (`lantern:hanging=true`, `%leaves` tags). Bedrock
+  states are turned into Java ones, and the first matching entry wins as in Iris;
+- entity and item ids from `entity.properties` / `item.properties` (Bedrock names mapped to Java's);
+- the light where each mob, item and particle stands. Mesh colours stay plain so the pack does the lighting.
 
 `jshader_check <pack> -u minecraft:plains` prints the pack's custom uniforms for a biome.
 
@@ -93,7 +111,8 @@ Changes are saved to the pack's `.txt` file and applied with Apply Changes.
 
 ## Not done yet
 
-- Geometry shaders (`.gsh`) and tessellation.
+- Geometry shaders (`.gsh`) and tessellation. The engine's pipelines have no geometry stage, and Metal has
+  none at all.
 - Distant Horizons / Voxy programs (`dh_*`), which Iris also skips without those mods.
 - Per-texture PBR maps from resource packs: `normals` and `specular` bind flat defaults.
-- `shadowtex0` and `shadowtex1` share one depth map, so translucent shadows are not separate.
+- Block states Bedrock does not store (`waterlogged`, `snowy`) use Java's defaults.

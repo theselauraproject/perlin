@@ -573,7 +573,21 @@ namespace perlin {
     void RenderContext_rhi::DrawClouds() {
         if (javaActive)
             return;
-        const CloudDraw& clouds = frame.cloud;
+        const CloudDraw& cloudsIn = frame.cloud;
+        CloudDraw clouds = cloudsIn;
+        const bool pack = PackRunning();
+        if (pack) {
+            // iris: shaders.properties clouds=off|fast|fancy overrides the player's setting
+            const std::string& mode = jpack->CloudSetting();
+            if (mode == "off")
+                return;
+            if (mode == "fast")
+                clouds.fancy = false;
+            else if (mode == "fancy")
+                clouds.fancy = true;
+            if (cloudCpu.vertices.empty() && cloudBuilt && cloudIndexCount > 0)
+                cloudBuilt = false; // rebuild once to keep a cpu copy
+        }
         material::Registry::Instance().Configure(clouds.fancy);
         if (!clouds.enabled || cloudTexture.solid.empty())
             return;
@@ -603,6 +617,10 @@ namespace perlin {
                                 static_cast<uint64_t>(indexCount) * sizeof(uint32_t));
             }
             cloudIndexCount = vertexCount && indexCount ? indexCount : 0;
+            if (PackRunning())
+                cloudCpu = mesh;
+            else
+                cloudCpu = {};
             cloudBuiltFrame = builtFor;
             cloudBuiltFancy = fancy;
             cloudBuiltRange = range;
@@ -650,6 +668,40 @@ namespace perlin {
         const float cellDz =
             static_cast<float>(wrapDelta(now.cellZ - cloudBuiltFrame.cellZ, cloudTexture.height)) *
             kCloudCellSize;
+        if (pack) {
+            if (cloudCpu.vertices.empty())
+                return;
+            // through the pack (gbuffers_clouds): vanilla bakes each face's shade into the vertex colour
+            std::vector<UiVertex> verts;
+            verts.reserve(cloudCpu.vertices.size());
+            for (const TextureVertex& v : cloudCpu.vertices) {
+                const float shade = v.u;
+                const auto ch = [&](int i) {
+                    return static_cast<uint32_t>(
+                        std::lround(std::clamp(clouds.color[i] * shade, 0.0f, 1.0f) * 255.0f));
+                };
+                const uint32_t a =
+                    static_cast<uint32_t>(std::lround(std::clamp(clouds.color[3], 0.0f, 1.0f) * 255.0f));
+                verts.push_back(
+                    {v.x, v.y, v.z, ch(0) | (ch(1) << 8) | (ch(2) << 16) | (a << 24), 0.0f, 0.0f});
+            }
+            float model[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+            model[12] = -(now.xInCell + cellDx) + frame.cameraPosition[0];
+            model[13] = now.relativeBottomY + frame.cameraPosition[1];
+            model[14] = -(now.zInCell + cellDz) + frame.cameraPosition[2];
+            gpu::JavaPack::ExternalDraw d;
+            d.kind = gpu::JavaPack::ExternalDraw::Kind::Clouds;
+            d.alphaRef = 0.1f;
+            gpu::JavaPack::BuildVertices(verts.data(), verts.size(), cloudCpu.indices.data(),
+                                         cloudCpu.indices.size(), model, 0, 15, d.vertices, nullptr,
+                                         frame.cameraPosition);
+            d.count = static_cast<uint32_t>(d.vertices.size() / gpu::kPackVertexBytes);
+            d.depthTest = true;
+            d.depthWrite = clouds.fancy;
+            d.blend = true;
+            jpack->QueueDraw(std::move(d));
+            return;
+        }
         uni.Vec4("u_cloudOffset", -(now.xInCell + cellDx), now.relativeBottomY, -(now.zInCell + cellDz),
                  0.0f);
         uni.Set("u_cloudColor", clouds.color, 4);

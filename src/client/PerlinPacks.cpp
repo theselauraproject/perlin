@@ -145,7 +145,18 @@ namespace perlin {
         if (!javaPackPending.empty() && levelRenderer && levelRenderer->Blocks().Complete()) {
             std::string error;
             const std::string path = javaPackPending;
-            renderer->SetBlockNameLookup([](uint16_t id) { return BlockPalette::Instance().Name(id); });
+            // "name|state=value|..." so the pack can match iris's block-state entries
+            renderer->SetBlockNameLookup([](uint16_t id) {
+                const BlockPalette& palette = BlockPalette::Instance();
+                std::string out = palette.Name(id);
+                for (const auto& [key, value] : palette.States(id)) {
+                    out += '|';
+                    out += key;
+                    out += '=';
+                    out += value.kind == BlockPalette::StateValue::String ? value.s : std::to_string(value.i);
+                }
+                return out;
+            });
             renderer->SetBlockEmissionLookup(
                 [](uint16_t id) { return static_cast<int>(LightRegistry::Instance().Resolve(id).emission); });
             if (renderer->SetJavaShaderPack(path, jshader::ReadJavaPackOptions(path), error)) {

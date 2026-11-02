@@ -80,6 +80,7 @@ namespace perlin::jshader {
         int entityId = 0, blockEntityId = 0, currentRenderedItemId = 0;
         int renderStage = 0;
         int viewHeight = 720;
+        float alphaTestRef = 0.0f;
         bool overrideEntity = false;
     };
 

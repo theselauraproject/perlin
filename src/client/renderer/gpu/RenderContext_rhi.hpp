@@ -117,11 +117,14 @@ namespace perlin {
         std::string GpuDescription() const override;
         void SetVsync(bool enabled) override;
         bool ReloadShaders() override;
-        bool PackShadowsActive() const override { return packActive || javaActive; }
+        bool PackShadowsActive() const override {
+            return packActive || javaActive || (PackRunning() && jpack->ShadowsEnabled());
+        }
         bool SetJavaShaderPack(const std::string& path, const std::map<std::string, std::string>& options,
                                std::string& error) override;
         void ClearJavaShaderPack() override;
         bool JavaShaderPackActive() const override { return javaActive || jpack != nullptr; }
+        bool JavaPackDrawing() const override { return PackRunning(); }
         std::vector<JavaPackOption> JavaShaderPackOptions() const override;
         std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const override {
             return jpack ? jpack->Instance() : nullptr;
@@ -278,6 +281,9 @@ namespace perlin {
             bool live = false;
         };
         struct UiMeshGpu {
+            // a copy the java pack path reads to rebuild the mesh in its own vertex layout
+            std::shared_ptr<const std::vector<UiVertex>> cpuVertices;
+            std::shared_ptr<const std::vector<uint32_t>> cpuIndices;
             int page = -1;
             uint32_t vFirst = 0, vCount = 0, iFirst = 0, iCount = 0;
             uint32_t generation = 0;
@@ -285,6 +291,10 @@ namespace perlin {
             bool transient = false;
             gpu::RingSlice tv, ti;
         };
+        // a world, late world or hand draw handed to the running java pack instead of drawn here (iris draws
+        // entities, the hand, particles and weather through the pack)
+        bool RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
+                             rhi::TextureHandle texture, bool glint);
 
         // one step of a frame: a render pass over some views, or a texture copy between passes
         struct Stage {
@@ -571,6 +581,7 @@ namespace perlin {
         CloudTexture cloudTexture;
         gpu::Arena cloudVb, cloudIb;
         uint32_t cloudVertexCapacity = 0, cloudIndexCapacity = 0, cloudIndexCount = 0;
+        CloudMesh cloudCpu; // the uploaded cloud mesh, for java packs (gbuffers_clouds)
         CloudFrame cloudBuiltFrame;
         bool cloudBuiltFancy = false;
         int cloudBuiltRange = 0;

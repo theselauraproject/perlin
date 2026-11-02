@@ -14,7 +14,7 @@ namespace perlin::jshader {
             {"shadow_cutout", "shadow"},
             {"shadow_water", "shadow"},
             {"shadow_entities", "shadow"},
-            {"shadow_lightning", "shadow"},
+            {"shadow_lightning", "shadow_entities"},
             {"shadow_block", "shadow"},
             {"gbuffers_basic", ""},
             {"gbuffers_line", "gbuffers_basic"},
@@ -42,7 +42,7 @@ namespace perlin::jshader {
             {"gbuffers_weather", "gbuffers_textured_lit"},
             {"gbuffers_particles", "gbuffers_textured_lit"},
             {"gbuffers_particles_translucent", "gbuffers_particles"},
-            {"gbuffers_lightning", "gbuffers_textured"},
+            {"gbuffers_lightning", "gbuffers_entities"},
             {"dh_terrain", ""},
             {"dh_water", ""},
             {"dh_shadow", ""},
@@ -215,7 +215,14 @@ namespace perlin::jshader {
                                                  "gaux3ClearColor",
                                                  "gaux4ClearColor",
                                                  "shadowtex0Format",
-                                                 "voxelDistance"};
+                                                 "voxelDistance",
+                                                 "shadowNearPlane",
+                                                 "shadowFarPlane",
+                                                 "shadowMapFov",
+                                                 "entityShadowDistanceMul",
+                                                 "shadowtex1Nearest",
+                                                 "shadowtexNearest",
+                                                 "shadowtexMipmap"};
             for (const char* k : kNames)
                 if (n == k)
                     return true;
@@ -431,27 +438,44 @@ namespace perlin::jshader {
         blockIds.clear();
         entityIds.clear();
         itemIds.clear();
-        auto load = [&](const char* file, const char* prefix, std::map<int, std::vector<std::string>>& out) {
+        blockIdsOrdered.clear();
+        entityIdsOrdered.clear();
+        itemIdsOrdered.clear();
+        auto load = [&](const char* file, const char* prefix, std::map<int, std::vector<std::string>>& out,
+                        IdLines& ordered) {
             std::string text;
             if (!pack->Read(file, text))
                 return;
             const Properties p = ParseProperties(text, macros);
+            // java Properties: a repeated key keeps its first place and takes the last value
+            std::map<std::string, size_t> at;
+            std::vector<std::pair<std::string, std::string>> lines;
             for (const auto& e : p.entries) {
                 if (e.first.compare(0, std::char_traits<char>::length(prefix), prefix) != 0)
                     continue;
+                if (auto it = at.find(e.first); it != at.end()) {
+                    lines[it->second].second = e.second;
+                    continue;
+                }
+                at[e.first] = lines.size();
+                lines.push_back(e);
+            }
+            for (const auto& e : lines) {
                 const std::string idText = e.first.substr(std::char_traits<char>::length(prefix));
                 char* end = nullptr;
                 const long id = std::strtol(idText.c_str(), &end, 10);
-                if (end == idText.c_str())
+                if (end == idText.c_str() || *end != '\0')
                     continue;
                 auto& list = out[static_cast<int>(id)];
-                for (const std::string& w : SplitWords(e.second))
+                std::vector<std::string> words = SplitWords(e.second);
+                for (const std::string& w : words)
                     list.push_back(w);
+                ordered.emplace_back(static_cast<int>(id), std::move(words));
             }
         };
-        load("block.properties", "block.", blockIds);
-        load("entity.properties", "entity.", entityIds);
-        load("item.properties", "item.", itemIds);
+        load("block.properties", "block.", blockIds, blockIdsOrdered);
+        load("entity.properties", "entity.", entityIds, entityIdsOrdered);
+        load("item.properties", "item.", itemIds, itemIdsOrdered);
     }
 
     void ShaderPackInstance::LoadLang() {
@@ -658,6 +682,15 @@ namespace perlin::jshader {
                 std::string line;
                 while (std::getline(in, line)) {
                     const std::string t = str::Trim(line);
+                    // optifine comment directives: /* SHADOWRES:2048 */, /* SHADOWHPL:160.0 */, /* SHADOWFOV:90 */
+                    for (const auto& [tag, name] :
+                         {std::pair{"SHADOWRES:", "shadowMapResolution"},
+                          std::pair{"SHADOWHPL:", "shadowDistance"}, std::pair{"SHADOWFOV:", "shadowMapFov"}})
+                        if (const size_t at = t.find(tag); at != std::string::npos && t.find("/*") < at) {
+                            const size_t from = at + std::char_traits<char>::length(tag);
+                            const size_t end = t.find_first_of(" */", from);
+                            directives.constants[name] = str::Trim(t.substr(from, end - from));
+                        }
                     if (t.compare(0, 6, "const ") != 0)
                         continue;
                     const size_t eq = t.find('=');

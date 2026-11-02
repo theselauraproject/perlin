@@ -842,6 +842,9 @@ namespace perlin {
         uniformCache.assign(uniformCache.size(), {});
         frameOpen = true;
         frame = params;
+        if (jpack)
+            jpack->SetFluidTiles(static_cast<int>(params.waterTile), static_cast<int>(params.waterFlowTile),
+                                 static_cast<int>(params.lavaTile), -1);
         PlanViews(params);
         {
             const bool usable = std::isfinite(params.projection[0]) && params.projection[0] != 0.0f &&
@@ -985,6 +988,7 @@ namespace perlin {
             po.moon = moonTex.handle;
             // the pack wrote the whole picture and the depth: the world stage draws on top instead of clearing
             const bool recorded = jpack->Record(*list, frame, po);
+            jpack->DropQueued();
             if (std::getenv("JSHADER_TRACE"))
                 std::fprintf(stderr, "[jshader] pack frame recorded: %d (stages %zu, first views %zu)\n",
                              recorded ? 1 : 0, stages.size(),

@@ -768,7 +768,8 @@ namespace perlin::jshader {
             o[1] = static_cast<float>(F(c).atlasSize[1]);
         });
         // iris uniforms the engine has no live source for: constants that match what a pack sees in a plain overworld
-        Add("alphaTestRef", 1, [=](C, float* o) { o[0] = 0.1f; });
+        // iris: the alpha test reference of the program drawing (0 where it has none)
+        Add("alphaTestRef", 1, [=](C c, float* o) { o[0] = D(c).alphaTestRef; });
         Add("bedrockLevel", 1, [=](C, float* o) { o[0] = -64.0f; });
         Add("heightLimit", 1, [=](C, float* o) { o[0] = 384.0f; });
         Add("logicalHeightLimit", 1, [=](C, float* o) { o[0] = 384.0f; });
