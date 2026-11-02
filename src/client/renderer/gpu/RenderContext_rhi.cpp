@@ -795,7 +795,9 @@ namespace perlin {
         const FrameParams* chosen = &paramsIn;
         if (PackRunning()) {
             packParams = paramsIn;
-            jpackScale = paramsIn.renderScale;
+            // iris renders packs at full resolution: only an upscaler the player turned on lowers it (the
+            // automatic 75% for modest gpus made packs visibly softer)
+            jpackScale = paramsIn.upscaler != 0 ? paramsIn.renderScale : 1.0f;
             packParams.renderScale = 1.0f;
             packParams.upscaler = 0;
             packParams.frameGen = 1;

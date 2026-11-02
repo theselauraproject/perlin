@@ -411,6 +411,14 @@ namespace perlin::gpu {
             shadowDepthNoTranslucents; // shadowtex1: the shadow depth before translucent terrain
         bool shadowCleared = false;
         bool resolvingWaterShadow = false;
+        // copies of attachments a pass also samples (see FeedbackCopy)
+        struct Feedback {
+            rhi::TextureHandle tex;
+            uint64_t serial = 0;
+        };
+        std::unordered_map<uint32_t, Feedback> feedback;
+        uint64_t passSerial = 1;
+        rhi::TextureHandle FeedbackCopy(rhi::CommandList& list, rhi::TextureHandle src);
         mutable std::mutex progressMutex;
         WarmProgress warmProgress;
         rhi::TextureHandle shadowColor[2];

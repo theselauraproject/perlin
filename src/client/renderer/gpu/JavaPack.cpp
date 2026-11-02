@@ -1015,6 +1015,7 @@ namespace perlin::gpu {
         shadowDepth = {};
         shadowDepthNoTranslucents = {};
         shadowCleared = false;
+        feedback.clear();
         shadowColor[0] = shadowColor[1] = {};
     }
 
@@ -2142,7 +2143,12 @@ namespace perlin::gpu {
             case Kind::Dummy:
                 break;
             }
-            if (!t || isAttached(t)) {
+            if (t && isAttached(t)) {
+                // iris samples a buffer the pass also draws into (gbuffers_water reading colortex4 for its
+                // reflections sees the lit scene): a copy taken just before the pass reads the same
+                t = FeedbackCopy(list, t);
+            }
+            if (!t) {
                 t = white;
                 set.dim[static_cast<size_t>(s.slot)] = rhi::TextureDim::Tex2D;
             }
@@ -2675,6 +2681,16 @@ namespace perlin::gpu {
             meshes.CollectRuns(layer, ordered, layerRuns[static_cast<size_t>(l)]);
         }
         const float reach = std::max(8.0f, config.shadowDistance) * 1.5f + 24.0f;
+        // last frame's shadow camera (it moves in shadowIntervalSize steps), widened a little for the step
+        bool haveShadowCull = false;
+        glm::mat4 shadowCull(1.0f);
+        if (shadowDrawView[15] != 0.0f && shadowProjection[15] != 0.0f) {
+            glm::mat4 proj = ToMat(shadowProjection);
+            proj[0] *= 0.9f; // ±11% margin in x and y
+            proj[1] *= 0.9f;
+            shadowCull = proj * ToMat(shadowDrawView);
+            haveShadowCull = true;
+        }
         for (auto& v : shadowRuns)
             v.clear();
         if (!config.shadowEnabled)
@@ -2689,6 +2705,25 @@ namespace perlin::gpu {
                              static_cast<float>(g.size) * 0.5f - camZ;
             if (dx * dx + dz * dz > reach * reach)
                 continue;
+            // iris culls shadow terrain to the shadow camera's box: a column whose corners all fall outside it on
+            // one side of x or y is never drawn into the shadow map
+            if (haveShadowCull) {
+                const float x0 = static_cast<float>(g.cx) * static_cast<float>(g.size),
+                            z0 = static_cast<float>(g.cz) * static_cast<float>(g.size);
+                const float x1 = x0 + static_cast<float>(g.size), z1 = z0 + static_cast<float>(g.size);
+                const float ys[2] = {g.minY, g.maxY > g.minY ? g.maxY : g.minY + 16.0f};
+                int outside[4] = {0, 0, 0, 0};
+                for (int c = 0; c < 8; c++) {
+                    const glm::vec4 p((c & 1) ? x1 : x0, ys[(c >> 1) & 1], (c & 4) ? z1 : z0, 1.0f);
+                    const glm::vec4 q = shadowCull * p;
+                    outside[0] += q.x < -q.w;
+                    outside[1] += q.x > q.w;
+                    outside[2] += q.y < -q.w;
+                    outside[3] += q.y > q.w;
+                }
+                if (outside[0] == 8 || outside[1] == 8 || outside[2] == 8 || outside[3] == 8)
+                    continue;
+            }
             for (size_t slot = 0; slot < static_cast<size_t>(kRenderLayerCount); slot++)
                 if (g.layerCount[slot])
                     shadowRuns[slot].push_back(
@@ -2698,9 +2733,48 @@ namespace perlin::gpu {
 
     // -- passes --------------------------------------------------------------------------------------------------------
 
+    rhi::TextureHandle JavaPack::FeedbackCopy(rhi::CommandList& list, rhi::TextureHandle src) {
+        const rhi::TextureDesc* sd = gpu.Dev().GetDesc(src);
+        if (!sd)
+            return {};
+        Feedback& f = feedback[src.value];
+        if (f.tex) {
+            const rhi::TextureDesc* fd = gpu.Dev().GetDesc(f.tex);
+            if (!fd || fd->width != sd->width || fd->height != sd->height || fd->format != sd->format) {
+                gpu.Dev().WaitIdle();
+                owned.erase(std::remove(owned.begin(), owned.end(), f.tex), owned.end());
+                gpu.DestroyTexture(f.tex);
+                f.tex = {};
+            }
+        }
+        if (!f.tex) {
+            const bool isDepth = sd->format == rhi::Format::D32Float;
+            f.tex = MakeTexture(sd->width, sd->height, sd->format,
+                                (isDepth ? rhi::TextureUsage::DepthTarget : rhi::TextureUsage::ColorTarget) |
+                                    rhi::TextureUsage::Sampled | rhi::TextureUsage::CopyDst,
+                                "pack feedback copy");
+            f.serial = ~0ull;
+            if (!f.tex)
+                return {};
+        }
+        // once per pass: the attachment does not change between the draws recorded before it begins
+        if (f.serial != passSerial) {
+            gpu.Transition(list, src, rhi::State::CopySrc);
+            gpu.Transition(list, f.tex, rhi::State::CopyDst);
+            rhi::TextureCopy c;
+            c.width = sd->width;
+            c.height = sd->height;
+            list.CopyTexture(f.tex, src, std::span<const rhi::TextureCopy>(&c, 1));
+            gpu.Transition(list, f.tex, rhi::State::ShaderRead);
+            f.serial = passSerial;
+        }
+        return f.tex;
+    }
+
     void JavaPack::BeginPass(rhi::CommandList& list, const std::vector<rhi::TextureHandle>& colors,
                              rhi::TextureHandle depthTex, uint32_t w, uint32_t h, bool clearDepth,
                              const std::vector<std::array<float, 4>>* clears, const char* passName) {
+        passSerial++;
         rhi::RenderingDesc rd;
         rd.colorCount = static_cast<uint32_t>(colors.size());
         for (size_t i = 0; i < colors.size(); i++) {
@@ -3524,8 +3598,9 @@ namespace perlin::gpu {
             const gpu::RingSlice slice = gpu.Ring(sb.bytes.size(), 16);
             if (slice.data) {
                 std::memcpy(slice.data, sb.bytes.data(), sb.bytes.size());
+                // vanilla (and iris) draw the moon like the sun, additively: its black surround adds nothing
                 DrawSkyObjects(list, "gbuffers_skytextured", 5, {}, 0, sb.count, slice.buffer, slice.offset,
-                               spun, skyMoonTex, false);
+                               spun, skyMoonTex, true);
             }
         }
     }
