@@ -213,6 +213,7 @@ namespace perlin {
         virtual void BeginFrame(const FrameParams& params) = 0;
         virtual void EndFrame() = 0;
         virtual bool PresentGenerated(int, int) { return false; }
+        virtual bool CanGenerateFrames() const { return false; }
         virtual void RequestScreenshot(const std::string& path) = 0;
         using CaptureSink = std::function<void(uint32_t width, uint32_t height, uint32_t pitch,
                                                const uint8_t* bgra, bool flipY)>;

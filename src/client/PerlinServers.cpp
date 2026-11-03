@@ -1,6 +1,9 @@
 #include "client/PerlinInternal.hpp"
 #include "util/Log.hpp"
 
+#include <algorithm>
+#include <thread>
+
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -233,7 +236,9 @@ namespace perlin {
 #ifdef __EMSCRIPTEN__
             const std::string threads = ",\"max_threads\":2";
 #else
-            const std::string threads;
+            const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+            const unsigned genThreads = cores > 8 ? cores - 2 : std::max(2u, cores / 2);
+            const std::string threads = ",\"max_threads\":" + std::to_string(genThreads);
 #endif
             std::string extra;
             if (seed)

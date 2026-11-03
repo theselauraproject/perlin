@@ -1203,6 +1203,7 @@ namespace perlin {
                             }
                             return {app->tintR, app->tintG, app->tintB, 0};
                         };
+                        int blockUniform = -1, blockCentre = 0;
                         auto biomeTintFor = [&](const std::string& tex, int tile,
                                                 bool isTop) -> std::array<float, 4> {
                             if (TexHas(tex, "redstone_dust")) {
@@ -1217,15 +1218,19 @@ namespace perlin {
                             std::array<float, 4> sum{0, 0, 0, 0};
                             std::array<float, 4> own{0, 0, 0, 0};
                             int count = 0;
-                            const int centre = cache.Biome(std::clamp(x, -1, 16), y, std::clamp(z, -1, 16));
-                            bool uniform = true;
-                            for (int dz = -2; dz <= 2 && uniform; dz++)
-                                for (int dx = -2; dx <= 2; dx++)
-                                    if (cache.Biome(std::clamp(x + dx, -1, 16), y,
-                                                    std::clamp(z + dz, -1, 16)) != centre) {
-                                        uniform = false;
-                                        break;
-                                    }
+                            if (blockUniform < 0) {
+                                blockCentre = cache.Biome(std::clamp(x, -1, 16), y, std::clamp(z, -1, 16));
+                                blockUniform = 1;
+                                for (int dz = -2; dz <= 2 && blockUniform; dz++)
+                                    for (int dx = -2; dx <= 2; dx++)
+                                        if (cache.Biome(std::clamp(x + dx, -1, 16), y,
+                                                        std::clamp(z + dz, -1, 16)) != blockCentre) {
+                                            blockUniform = 0;
+                                            break;
+                                        }
+                            }
+                            const int centre = blockCentre;
+                            const bool uniform = blockUniform == 1;
                             if (uniform) {
                                 TintKey k{app, tile, texHash, centre};
                                 auto mit = tintMemo.find(k);
@@ -2197,7 +2202,10 @@ namespace perlin {
                         int tTop = 0, tSide = 0, tBottom = 0;
                         bool tintT = false, tintS = false, tintB = false, known = false;
                         float tr = 1, tg = 1, tb = 1;
-                        std::string useTopTex, useSideTex, useBotTex;
+                        static const std::string kNoTex;
+                        const std::string* useTopTexP = &kNoTex;
+                        const std::string* useSideTexP = &kNoTex;
+                        const std::string* useBotTexP = &kNoTex;
                         if (app) {
                             tTop = PickTile(app->varTop, app->top, bhash);
                             tSide = PickTile(app->varSide, app->side, bhash);
@@ -2209,18 +2217,28 @@ namespace perlin {
                             tg = app->tintG;
                             tb = app->tintB;
                             known = (tTop | tSide | tBottom) != 0;
-                            useTopTex = app->texTop;
-                            useSideTex = app->texSide;
-                            useBotTex = app->texBottom;
+                            useTopTexP = &app->texTop;
+                            useSideTexP = &app->texSide;
+                            useBotTexP = &app->texBottom;
                         }
+                        const std::string& useTopTex = *useTopTexP;
+                        const std::string& useSideTex = *useSideTexP;
+                        const std::string& useBotTex = *useBotTexP;
+                        const auto shut = [&](int dx, int dy, int dz) {
+                            return cache.Get(x + dx, y + dy, z + dz) != 0 && cache.Occ(x + dx, y + dy, z + dz);
+                        };
+                        const bool sideOpen = !shut(1, 0, 0) || !shut(-1, 0, 0) || !shut(0, 0, 1) || !shut(0, 0, -1);
+                        const bool needTop = !shut(0, 1, 0) || sideOpen;
+                        const bool needBottom = !shut(0, -1, 0);
                         float trT = tr, tgT = tg, tbT = tb;
                         float trS = tr, tgS = tg, tbS = tb;
                         float trB = tr, tgB = tg, tbB = tb;
                         bool fT = tintT, fS = tintS, fB = tintB;
                         if (known) {
-                            auto ttT = biomeTintFor(useTopTex, tTop, true);
-                            auto ttS = biomeTintFor(useSideTex, tSide, false);
-                            auto ttB = biomeTintFor(useBotTex, tBottom, false);
+                            static constexpr std::array<float, 4> kSkip{0, 0, 0, 0};
+                            const auto ttT = needTop ? biomeTintFor(useTopTex, tTop, true) : kSkip;
+                            const auto ttS = sideOpen ? biomeTintFor(useSideTex, tSide, false) : kSkip;
+                            const auto ttB = needBottom ? biomeTintFor(useBotTex, tBottom, false) : kSkip;
                             if (ttT[3]) {
                                 trT = ttT[0];
                                 tgT = ttT[1];

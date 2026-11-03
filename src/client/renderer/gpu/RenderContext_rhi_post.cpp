@@ -4,6 +4,7 @@
 #include "util/Env.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
@@ -154,6 +155,7 @@ namespace perlin {
             Stage s;
             s.target = t;
             s.views = {View::JavaDeferred};
+            s.overwrite = true;
             stages.push_back(s);
             pushCopy(post.javaTempA, post.worldColor);
             pushCopy(post.javaTempB, post.javaC5);
@@ -201,6 +203,7 @@ namespace perlin {
             Stage s;
             s.target = t;
             s.views = {r.view};
+            s.overwrite = true;
             stages.push_back(s);
             pushCopy(post.javaTempA, r.d0);
             if (r.d1)
@@ -209,6 +212,7 @@ namespace perlin {
         Stage out;
         out.toScreen = true;
         out.views = {View::JavaFinal};
+        out.overwrite = true;
         stages.push_back(out);
         {
             ViewData& vd = views[static_cast<size_t>(View::JavaFinal)];
@@ -223,11 +227,12 @@ namespace perlin {
               &post.bloom[1],   &post.bloom[2],   &post.bloom[3],   &post.up[0],   &post.up[1],
               &post.up[2],      &post.sceneColor, &post.sceneDepth, &post.javaAux, &post.javaC1,
               &post.javaC2,     &post.javaC3,     &post.javaC4,     &post.javaC5,  &post.javaC7,
-              &post.javaTempA,  &post.javaTempB,  &post.javaTempC})
+              &post.javaTempA,  &post.javaTempB,  &post.javaTempC, &post.packLow})
             if (*t) {
                 gpu.DestroyTexture(*t);
                 *t = {};
             }
+        post.packLowW = post.packLowH = 0;
         post.worldW = post.worldH = post.upW = post.upH = 0;
         post.histValid = post.upHistoryValid = post.sceneValid = false;
         postTextures.clear();
@@ -413,6 +418,7 @@ namespace perlin {
                 gpu.Dev().WaitIdle();
                 DestroyPostTargets();
             }
+            PlanPackUpscale(params);
             direct();
             overlays();
             return;
@@ -570,6 +576,7 @@ namespace perlin {
             s.target.h = world.h;
             s.target.colorFormat = kPostColor;
             s.views = {View::Blur};
+            s.overwrite = true;
             stages.push_back(s);
             ViewData& vd = views[static_cast<size_t>(View::Blur)];
             vd.colorFormat = kPostColor;
@@ -589,6 +596,7 @@ namespace perlin {
             s.target.h = static_cast<uint32_t>(height);
             s.target.colorFormat = kPostColor;
             s.views = {View::Up0};
+            s.overwrite = true;
             stages.push_back(s);
             ViewData& vd = views[static_cast<size_t>(View::Up0)];
             vd.colorFormat = kPostColor;
@@ -600,6 +608,7 @@ namespace perlin {
                 sharp.target.h = static_cast<uint32_t>(height);
                 sharp.target.colorFormat = kPostColor;
                 sharp.views = {View::Up1};
+                sharp.overwrite = true;
                 stages.push_back(sharp);
                 ViewData& v1 = views[static_cast<size_t>(View::Up1)];
                 v1.colorFormat = kPostColor;
@@ -613,6 +622,7 @@ namespace perlin {
         Stage out;
         out.toScreen = true;
         out.views = {View::BlurOut};
+        out.overwrite = true;
         stages.push_back(out);
         {
             ViewData& vd = views[static_cast<size_t>(View::BlurOut)];
@@ -620,6 +630,88 @@ namespace perlin {
             vd.depthFormat = rhi::Format::Unknown;
         }
         overlays();
+    }
+
+    bool RenderContext_rhi::PlanPackUpscale(const FrameParams& params) {
+        plan.packUpscale = plan.packSharpen = false;
+        static const bool noUpscale = PERLIN_ENV("PERLIN_NO_UPSCALE") != nullptr;
+        const float scale = std::max(0.4f, std::min(1.0f, jpackScale));
+        const bool want = PackRunning() && !noUpscale && scale < 0.999f && jpackUpscaler != 0 &&
+                          ProgramIndex(Program::Upscale) >= 0 && width > 0 && height > 0;
+        if (!want) {
+            if (post.packLow) {
+                gpu.Dev().WaitIdle();
+                postTextures.erase(std::remove(postTextures.begin(), postTextures.end(), post.packLow),
+                                   postTextures.end());
+                gpu.DestroyTexture(post.packLow);
+                post.packLow = {};
+                post.packLowW = post.packLowH = 0;
+            }
+            return false;
+        }
+        const uint32_t iw = std::max(1u, static_cast<uint32_t>(static_cast<float>(width) * scale));
+        const uint32_t ih = std::max(1u, static_cast<uint32_t>(static_cast<float>(height) * scale));
+        if (!post.packLow || post.packLowW != iw || post.packLowH != ih) {
+            if (post.packLow) {
+                gpu.Dev().WaitIdle();
+                postTextures.erase(std::remove(postTextures.begin(), postTextures.end(), post.packLow),
+                                   postTextures.end());
+                gpu.DestroyTexture(post.packLow);
+            }
+            post.packLow = MakeTarget(gpu, iw, ih, rhi::Format::RGBA8Unorm, kColorRt, "pack low resolution");
+            post.packLowW = post.packLow ? iw : 0;
+            post.packLowH = post.packLow ? ih : 0;
+            if (!post.packLow)
+                return false;
+            postTextures.push_back(post.packLow);
+        }
+        const bool sharpen = params.upscaleSharpness > 0.001f;
+        if (sharpen && !EnsureUpscaleTargets())
+            return false;
+        plan.packUpscale = true;
+        plan.packSharpen = sharpen;
+        const uint32_t W = static_cast<uint32_t>(width), H = static_cast<uint32_t>(height);
+        if (sharpen) {
+            Stage s;
+            s.target.color = post.up[0];
+            s.target.w = W;
+            s.target.h = H;
+            s.target.colorFormat = kPostColor;
+            s.views = {View::Up0};
+            s.overwrite = true;
+            stages.push_back(s);
+        }
+        Stage out;
+        out.toScreen = true;
+        out.clearColor = true;
+        out.views = {sharpen ? View::Up1 : View::Up0};
+        stages.push_back(out);
+        return true;
+    }
+
+    void RenderContext_rhi::RecordPackUpscale() {
+        if (!post.packLow || !jpackGathered)
+            return;
+        const FrameParams& params = frame;
+        const uint32_t W = static_cast<uint32_t>(width), H = static_cast<uint32_t>(height);
+        const float sharp = std::clamp(params.upscaleSharpness, 0.0f, 1.0f);
+        const float mode = jpackUpscaler == 1 ? 0.0f : 1.0f;
+        const auto pass = [&](View view, rhi::TextureHandle from, float m, uint32_t fromW, uint32_t fromH,
+                              rhi::Format format) {
+            uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
+            uni.Vec4("u_up", m, sharp, 0.0f, 0.0f);
+            uni.Vec4("u_upSize", static_cast<float>(fromW), static_cast<float>(fromH), static_cast<float>(W),
+                     static_cast<float>(H));
+            BindTexture("s_cur", from, gpu::SamplerKind::LinearClamp);
+            FullscreenPass(view, Program::Upscale, format, W, H, false);
+            ResetBindings();
+        };
+        if (plan.packSharpen) {
+            pass(View::Up0, post.packLow, mode, post.packLowW, post.packLowH, kPostColor);
+            pass(View::Up1, post.up[0], 2.0f, W, H, gpu.TargetFormat());
+        } else {
+            pass(View::Up0, post.packLow, mode, post.packLowW, post.packLowH, gpu.TargetFormat());
+        }
     }
 
     // -- recording --------------------------------------------------------------------------------------------------
@@ -727,6 +819,10 @@ namespace perlin {
     }
 
     void RenderContext_rhi::RecordPost() {
+        if (plan.packUpscale) {
+            RecordPackUpscale();
+            return;
+        }
         if (!plan.active || !post.worldColor)
             return;
         if (JavaChainReady()) {
@@ -788,6 +884,189 @@ namespace perlin {
         }
     }
 
+    void RenderContext_rhi::DestroyFrameGenTargets() {
+        for (rhi::TextureHandle* t : {&fgen.final, &fgen.hudless, &fgen.depth})
+            if (*t) {
+                gpu.DestroyTexture(*t);
+                *t = {};
+            }
+        fgen.depthSource = {};
+        fgen.w = fgen.h = 0;
+        fgen.valid = false;
+    }
+
+    bool RenderContext_rhi::EnsureFrameGenTargets(uint32_t w, uint32_t h, rhi::Format format) {
+        if (fgen.final && fgen.w == w && fgen.h == h && fgen.format == format)
+            return true;
+        if (fgen.final)
+            gpu.Dev().WaitIdle();
+        DestroyFrameGenTargets();
+        const rhi::TextureUsage colorUsage = rhi::TextureUsage::Sampled | rhi::TextureUsage::CopyDst;
+        fgen.final = MakeTarget(gpu, w, h, format, colorUsage, "framegen final");
+        fgen.hudless = MakeTarget(gpu, w, h, format, colorUsage, "framegen hudless");
+        fgen.depth = MakeTarget(gpu, w, h, kPostDepth,
+                                rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled |
+                                    rhi::TextureUsage::CopyDst,
+                                "framegen depth");
+        fgen.w = w;
+        fgen.h = h;
+        fgen.format = format;
+        if (!fgen.final || !fgen.hudless || !fgen.depth) {
+            Log("render", "could not create the frame generation targets; frame generation off");
+            DestroyFrameGenTargets();
+            return false;
+        }
+        return true;
+    }
+
+    bool RenderContext_rhi::FrameGenWanted(rhi::TextureHandle image) const {
+        if (frame.frameGen < 2 || !CanGenerateFrames() || !image)
+            return false;
+        const rhi::TextureDesc* d = const_cast<gpu::Gpu&>(gpu).Dev().GetDesc(image);
+        if (!d)
+            return false;
+        const bool copyable = rhi::Has(d->usage, rhi::TextureUsage::CopySrc) ||
+                              const_cast<gpu::Gpu&>(gpu).Api() == rhi::Api::D3D12;
+        if (!copyable && !fgenBlocked) {
+            fgenBlocked = true;
+            Log("render", "frame generation needs a swapchain that can be copied from; it stays off here");
+        }
+        return copyable;
+    }
+
+    void RenderContext_rhi::CaptureHudless(rhi::CommandList& list, const Target& screen) {
+        const auto copy = [&](rhi::TextureHandle src, rhi::TextureHandle dst, uint32_t w, uint32_t h) {
+            gpu.Transition(list, src, rhi::State::CopySrc);
+            gpu.Transition(list, dst, rhi::State::CopyDst);
+            rhi::TextureCopy c;
+            c.width = w;
+            c.height = h;
+            list.CopyTexture(dst, src, std::span<const rhi::TextureCopy>(&c, 1));
+            gpu.Transition(list, dst, rhi::State::ShaderRead);
+        };
+        copy(screen.color, fgen.hudless, fgen.w, fgen.h);
+        if (plan.active && post.worldDepth) {
+            fgen.depthSource = post.worldDepth;
+        } else if (screen.depth && screenDepthW == fgen.w && screenDepthH == fgen.h) {
+            copy(screen.depth, fgen.depth, fgen.w, fgen.h);
+            fgen.depthSource = fgen.depth;
+        } else {
+            fgen.depthSource = {};
+        }
+    }
+
+    void RenderContext_rhi::CaptureFinal(rhi::CommandList& list, const Target& screen) {
+        if (!fgen.depthSource)
+            return;
+        gpu.Transition(list, screen.color, rhi::State::CopySrc);
+        gpu.Transition(list, fgen.final, rhi::State::CopyDst);
+        rhi::TextureCopy c;
+        c.width = fgen.w;
+        c.height = fgen.h;
+        list.CopyTexture(fgen.final, screen.color, std::span<const rhi::TextureCopy>(&c, 1));
+        gpu.Transition(list, fgen.final, rhi::State::ShaderRead);
+        fgen.view = cam.view;
+        fgen.prevView = cam.prevView;
+        fgen.proj = cam.proj;
+        fgen.eye = cam.eye;
+        fgen.havePrev = cam.haveCur && cam.havePrev && !cam.teleported;
+        fgen.valid = cam.haveCur;
+    }
+
+    namespace {
+        glm::dmat4 ExtrapolateView(const glm::dmat4& prev, const glm::dmat4& cur, double t) {
+            const glm::dmat4 delta = cur * glm::inverse(prev);
+            const glm::dmat3 rot(delta);
+            const glm::dvec3 move(delta[3]);
+            const glm::dquat q = glm::normalize(glm::quat_cast(rot));
+            const double angle = 2.0 * std::acos(std::clamp(std::fabs(q.w), 0.0, 1.0));
+            if (!std::isfinite(angle) || angle > glm::radians(35.0) || glm::length(move) > 6.0)
+                return cur;
+            const glm::dquat part = glm::slerp(glm::dquat(1.0, 0.0, 0.0, 0.0), q, t);
+            glm::dmat4 step(glm::mat3_cast(part));
+            step[3] = glm::dvec4(move * t, 1.0);
+            return step * cur;
+        }
+
+        void DepthPlanes(const glm::dmat4& reversedProj, float& nearOut, float& farOut) {
+            const glm::dmat4 inv = glm::inverse(reversedProj);
+            const glm::dvec4 n = inv * glm::dvec4(0.0, 0.0, 1.0, 1.0);
+            const glm::dvec4 f = inv * glm::dvec4(0.0, 0.0, 0.0, 1.0);
+            double nearZ = std::fabs(n.w) > 1e-12 ? std::fabs(n.z / n.w) : 0.05;
+            double farZ = std::fabs(f.w) > 1e-12 ? std::fabs(f.z / f.w) : 1.0e5;
+            if (!std::isfinite(nearZ) || nearZ <= 0.0)
+                nearZ = 0.05;
+            if (!std::isfinite(farZ) || farZ <= nearZ)
+                farZ = 1.0e5;
+            nearOut = static_cast<float>(nearZ);
+            farOut = static_cast<float>(std::min(farZ, 1.0e5));
+        }
+    }
+
+    bool RenderContext_rhi::PresentGenerated(int index, int total) {
+        if (!initialized || frameOpen || offscreen || !fgen.valid || !fgen.depthSource || total < 2 ||
+            index < 1 || index >= total || ProgramIndex(Program::FrameGen) < 0)
+            return false;
+        if (gpu.TargetWidth() != fgen.w || gpu.TargetHeight() != fgen.h || gpu.TargetFormat() != fgen.format)
+            return false;
+        const double t = static_cast<double>(index) / static_cast<double>(total);
+        const glm::dmat4 genView = fgen.havePrev ? ExtrapolateView(fgen.prevView, fgen.view, t) : fgen.view;
+        const glm::dmat4 shift = glm::translate(glm::dmat4(1.0), fgen.eye);
+        const glm::dmat4 curVp = fgen.proj * fgen.view * shift;
+        const glm::dmat4 genVp = fgen.proj * genView * shift;
+        float invGen[16], cur[16];
+        StoreMatrix(glm::inverse(genVp), invGen);
+        StoreMatrix(curVp, cur);
+        float nearZ = 0.05f, farZ = 1.0e5f;
+        DepthPlanes(fgen.proj, nearZ, farZ);
+
+        rhi::Device& dev = gpu.Dev();
+        gpu.BeginFrame();
+        uniformCache.assign(uniformCache.size(), {});
+        for (ViewData& v : views)
+            v.draws.clear();
+        frameOpen = true;
+        ResetBindings();
+        uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
+        uni.Vec4("u_gen", nearZ, farZ, kOrigin > 0.5f ? 1.0f : -1.0f, 0.0f);
+        uni.Mat4("u_genInvVp", invGen);
+        uni.Mat4("u_genCurVp", cur);
+        BindTexture("s_depth", fgen.depthSource, gpu::SamplerKind::PointClamp);
+        BindTexture("s_world", fgen.hudless, gpu::SamplerKind::LinearClamp);
+        BindTexture("s_final", fgen.final, gpu::SamplerKind::PointClamp);
+        FullscreenPass(View::Top, Program::FrameGen, fgen.format, fgen.w, fgen.h, false);
+        ResetBindings();
+        frameOpen = false;
+
+        bool shown = false;
+        rhi::Swapchain::Image image;
+        if (!views[static_cast<size_t>(View::Top)].draws.empty() && gpu.AcquireImage(image)) {
+            if (rhi::CommandList* list = dev.AcquireCommandList(rhi::QueueType::Graphics)) {
+                gpu.SetState(image.texture, rhi::State::Undefined);
+                gpu.Flush(*list);
+                for (rhi::TextureHandle tex : {fgen.hudless, fgen.final, fgen.depthSource})
+                    gpu.Transition(*list, tex, rhi::State::ShaderRead);
+                Stage s;
+                s.toScreen = true;
+                s.overwrite = true;
+                s.views = {View::Top};
+                s.target.color = image.texture;
+                s.target.w = gpu.TargetWidth();
+                s.target.h = gpu.TargetHeight();
+                s.target.colorFormat = gpu.TargetFormat();
+                RunStage(*list, s);
+                gpu.Transition(*list, image.texture, rhi::State::Present);
+                gpu.FlushRings();
+                dev.Submit(rhi::QueueType::Graphics, list);
+                gpu.PresentImage();
+                shown = true;
+            }
+        }
+        dev.EndFrame();
+        views[static_cast<size_t>(View::Top)].draws.clear();
+        return shown;
+    }
+
     // -- execution --------------------------------------------------------------------------------------------------
 
     void RenderContext_rhi::ReadyForSampling(rhi::CommandList& list, rhi::TextureHandle except0,
@@ -840,25 +1119,26 @@ namespace perlin {
         rhi::RenderingDesc rd;
         rd.colorCount = target.color2 ? 3 : target.color1 ? 2 : 1;
         rd.colors[0].texture = target.color;
-        rd.colors[0].load = stage.clearColor ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
+        const rhi::LoadOp keep = stage.overwrite ? rhi::LoadOp::DontCare : rhi::LoadOp::Load;
+        rd.colors[0].load = stage.clearColor ? rhi::LoadOp::Clear : keep;
         rd.colors[0].store = rhi::StoreOp::Store;
         rd.colors[0].clear = {stage.clear[0], stage.clear[1], stage.clear[2], stage.clear[3]};
         if (target.color1) {
             rd.colors[1].texture = target.color1;
-            rd.colors[1].load = stage.clearColor ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
+            rd.colors[1].load = stage.clearColor ? rhi::LoadOp::Clear : keep;
             rd.colors[1].store = rhi::StoreOp::Store;
             rd.colors[1].clear = {0.0f, 0.0f, 0.0f, 1.0f};
         }
         if (target.color2) {
             rd.colors[2].texture = target.color2;
-            rd.colors[2].load = stage.clearColor ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
+            rd.colors[2].load = stage.clearColor ? rhi::LoadOp::Clear : keep;
             rd.colors[2].store = rhi::StoreOp::Store;
             rd.colors[2].clear = {0.0f, 0.0f, 0.0f, 1.0f};
         }
         if (target.depth) {
             rd.depth.texture = target.depth;
             rd.depth.load = stage.clearDepth ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
-            rd.depth.store = rhi::StoreOp::Store;
+            rd.depth.store = stage.discardDepth ? rhi::StoreOp::DontCare : rhi::StoreOp::Store;
             rd.depth.clearDepth = StageReversed(stage) ? 0.0f : 1.0f;
         }
         rd.name = "pass";

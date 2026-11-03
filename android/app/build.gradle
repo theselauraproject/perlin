@@ -79,6 +79,11 @@ android {
         release {
             minifyEnabled false
             signingConfig System.getenv('PERLIN_KEYSTORE') ? signingConfigs.release : signingConfigs.debug
+            externalNativeBuild {
+                cmake {
+                    arguments '-DCMAKE_BUILD_TYPE=Release'
+                }
+            }
         }
     }
 

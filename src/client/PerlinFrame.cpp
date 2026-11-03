@@ -7,6 +7,8 @@ namespace perlin {
     Perlin::~Perlin() = default;
 
     int Perlin::FrameGenMultiplier() {
+        if (options.frameGen == "off" || !renderer || !renderer->CanGenerateFrames())
+            return 1;
         if (options.frameGen == "auto") {
             double target = platform ? platform->DisplayRefreshHz() : 0.0;
             if (target < 30.0)

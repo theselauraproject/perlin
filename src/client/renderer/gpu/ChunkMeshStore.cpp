@@ -512,12 +512,31 @@ namespace perlin::gpu {
                     push(static_cast<uint32_t>(g.page), g.iOff[slot] + sec.start[slot], sec.count[slot]);
             }
         };
-        if (farToNear)
+        if (farToNear) {
             for (auto it = visible.rbegin(); it != visible.rend(); ++it)
                 emit(*it);
-        else
-            for (const Visible& item : visible)
-                emit(item);
+            return;
+        }
+        constexpr float kNearSq = 40.0f * 40.0f;
+        size_t i = 0;
+        for (; i < visible.size() && visible[i].distance <= kNearSq; i++)
+            emit(visible[i]);
+        const size_t nearRuns = out.size();
+        for (; i < visible.size(); i++)
+            emit(visible[i]);
+        if (out.size() - nearRuns < 2)
+            return;
+        std::sort(out.begin() + static_cast<std::ptrdiff_t>(nearRuns), out.end(), [](const Run& a, const Run& b) {
+            return a.page != b.page ? a.page < b.page : a.first < b.first;
+        });
+        size_t w = nearRuns;
+        for (size_t r = nearRuns; r < out.size(); r++) {
+            if (w > nearRuns && out[w - 1].page == out[r].page && out[w - 1].first + out[w - 1].count == out[r].first)
+                out[w - 1].count += out[r].count;
+            else
+                out[w++] = out[r];
+        }
+        out.resize(w);
     }
 
     void ChunkMeshStore::UpdateCave(float camX, float camY, float camZ, double now) {

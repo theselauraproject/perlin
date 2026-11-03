@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <functional>
 #include <set>
@@ -8,6 +10,27 @@
 #include "util/Log.hpp"
 
 namespace perlin {
+    int RenderContext_rhi::PackShadowLimit() const {
+        if (const char* forced = PERLIN_ENV("PERLIN_PACK_SHADOW_RES"))
+            return std::atoi(forced);
+        switch (jpackShadowQuality) {
+        case 0:
+            return 512;
+        case 1:
+            return 1024;
+        case 2:
+            return deviceTier <= rhi::Tier::Low ? 1024 : 0;
+        default:
+            return 0;
+        }
+    }
+
+    int RenderContext_rhi::PackShadowInterval() const {
+        if (const char* forced = PERLIN_ENV("PERLIN_PACK_SHADOW_INTERVAL"))
+            return std::max(1, std::atoi(forced));
+        return deviceTier <= rhi::Tier::Low && jpackShadowQuality <= 2 ? 2 : 1;
+    }
+
     bool RenderContext_rhi::AttachJavaPack() {
         if (!jpack)
             return false;
@@ -59,6 +82,8 @@ namespace perlin {
         config.dimension = jpackDimension;
         config.blockName = blockNames;
         config.blockEmission = blockEmission;
+        config.shadowResolutionLimit = PackShadowLimit();
+        config.shadowInterval = PackShadowInterval();
         if (!pack->Load(config, error)) {
             jpackError = error;
             jpackPath.clear();

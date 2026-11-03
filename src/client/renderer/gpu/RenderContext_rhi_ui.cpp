@@ -259,19 +259,20 @@ namespace perlin {
         if (!initialized || !frameOpen || vertexCount == 0 || indexCount == 0 || !vertices || !indices)
             return 0;
         UiMeshGpu mesh;
-        mesh.tv = gpu.Ring(static_cast<uint64_t>(vertexCount) * sizeof(UiVertex), 16);
-        mesh.ti = gpu.Ring(static_cast<uint64_t>(indexCount) * sizeof(uint32_t), 4);
-        if (!mesh.tv.data || !mesh.ti.data)
-            return 0;
-        std::memcpy(mesh.tv.data, vertices, static_cast<size_t>(vertexCount) * sizeof(UiVertex));
-        std::memcpy(mesh.ti.data, indices, static_cast<size_t>(indexCount) * sizeof(uint32_t));
         mesh.iCount = indexCount;
         mesh.transient = true;
-        // per-frame meshes only need the copy while a java pack takes the world draws
         if (PackRunning()) {
             mesh.cpuVertices =
                 std::make_shared<const std::vector<UiVertex>>(vertices, vertices + vertexCount);
             mesh.cpuIndices = std::make_shared<const std::vector<uint32_t>>(indices, indices + indexCount);
+            mesh.lazyRing = true;
+        } else {
+            mesh.tv = gpu.Ring(static_cast<uint64_t>(vertexCount) * sizeof(UiVertex), 16);
+            mesh.ti = gpu.Ring(static_cast<uint64_t>(indexCount) * sizeof(uint32_t), 4);
+            if (!mesh.tv.data || !mesh.ti.data)
+                return 0;
+            std::memcpy(mesh.tv.data, vertices, static_cast<size_t>(vertexCount) * sizeof(UiVertex));
+            std::memcpy(mesh.ti.data, indices, static_cast<size_t>(indexCount) * sizeof(uint32_t));
         }
         const uint32_t id = StoreUiMesh(mesh);
         if (id)
@@ -404,21 +405,11 @@ namespace perlin {
     void RenderContext_rhi::UiSubmit(UiLayer layer, const UiDraw& draw) {
         if (!initialized || !frameOpen)
             return;
-        const UiMeshGpu* found = LookupUiMesh(draw.mesh);
+        UiMeshGpu* found = LookupUiMesh(draw.mesh);
         if (!found)
             return;
-        const UiMeshGpu& mesh = *found;
-
-        Source vertices, indices;
+        UiMeshGpu& mesh = *found;
         const uint32_t count = mesh.iCount;
-        if (mesh.transient) {
-            vertices = {mesh.tv.buffer, mesh.tv.offset};
-            indices = {mesh.ti.buffer, mesh.ti.offset};
-        } else {
-            const UiPage& page = uiPages[static_cast<size_t>(mesh.page)];
-            vertices = {page.vb.Buffer(), static_cast<uint64_t>(mesh.vFirst) * sizeof(UiVertex)};
-            indices = {page.ib.Buffer(), static_cast<uint64_t>(mesh.iFirst) * sizeof(uint32_t)};
-        }
 
         const TexRec* texture = nullptr;
         if (draw.texture != 0 && draw.texture <= uiTextures.size() && uiTextures[draw.texture - 1].used)
@@ -431,6 +422,30 @@ namespace perlin {
                                   : (texture ? texture->handle : rhi::TextureHandle{}),
                             glint))
             return;
+        if (mesh.transient && mesh.lazyRing) {
+            mesh.lazyRing = false;
+            if (!mesh.cpuVertices || !mesh.cpuIndices || mesh.cpuVertices->empty() || mesh.cpuIndices->empty())
+                return;
+            mesh.tv = gpu.Ring(static_cast<uint64_t>(mesh.cpuVertices->size()) * sizeof(UiVertex), 16);
+            mesh.ti = gpu.Ring(static_cast<uint64_t>(mesh.cpuIndices->size()) * sizeof(uint32_t), 4);
+            if (!mesh.tv.data || !mesh.ti.data) {
+                mesh.tv = mesh.ti = {};
+                return;
+            }
+            std::memcpy(mesh.tv.data, mesh.cpuVertices->data(), mesh.cpuVertices->size() * sizeof(UiVertex));
+            std::memcpy(mesh.ti.data, mesh.cpuIndices->data(), mesh.cpuIndices->size() * sizeof(uint32_t));
+        }
+        if (mesh.transient && !mesh.tv.data)
+            return;
+        Source vertices, indices;
+        if (mesh.transient) {
+            vertices = {mesh.tv.buffer, mesh.tv.offset};
+            indices = {mesh.ti.buffer, mesh.ti.offset};
+        } else {
+            const UiPage& page = uiPages[static_cast<size_t>(mesh.page)];
+            vertices = {page.vb.Buffer(), static_cast<uint64_t>(mesh.vFirst) * sizeof(UiVertex)};
+            indices = {page.ib.Buffer(), static_cast<uint64_t>(mesh.iFirst) * sizeof(uint32_t)};
+        }
         const View view = layer == UiLayer::World       ? View::Entity
                           : layer == UiLayer::WorldLate ? View::Late
                           : layer == UiLayer::Hand      ? View::Hand

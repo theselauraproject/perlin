@@ -2,7 +2,27 @@
 
 #include <algorithm>
 
+#if defined(_WIN32)
+extern "C" {
+__declspec(dllimport) void* __stdcall GetCurrentThread(void);
+__declspec(dllimport) int __stdcall SetThreadPriority(void*, int);
+}
+#elif defined(__linux__) || defined(__ANDROID__)
+#include <sys/resource.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
+
 namespace perlin::server {
+    namespace {
+        void YieldToTick() {
+#if defined(_WIN32)
+            SetThreadPriority(GetCurrentThread(), -1);
+#elif defined(__linux__) || defined(__ANDROID__)
+            setpriority(PRIO_PROCESS, static_cast<id_t>(syscall(SYS_gettid)), 4);
+#endif
+        }
+    }
 
     ChunkManager::ChunkManager(std::unique_ptr<TerrainBackend> b, size_t maxThreads) : backend(std::move(b)) {
         size_t threads = 1;
@@ -29,6 +49,7 @@ namespace perlin::server {
     }
 
     void ChunkManager::Worker() {
+        YieldToTick();
         for (;;) {
             std::vector<ChunkPos> batch;
             {

@@ -6,6 +6,7 @@
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/UniformStore.hpp"
+#include "rhi/DeviceProfile.hpp"
 
 #include <shared_mutex>
 #include <array>
@@ -161,6 +162,10 @@ namespace perlin {
 
         void BeginFrame(const FrameParams& params) override;
         void EndFrame() override;
+        bool PresentGenerated(int index, int total) override;
+        bool CanGenerateFrames() const override {
+            return initialized && !offscreen && !fgenBlocked && ProgramIndex(Program::FrameGen) >= 0;
+        }
         void RequestScreenshot(const std::string& path) override;
         void SetForcedSize(int w, int h) override {
             forcedW = w;
@@ -310,6 +315,7 @@ namespace perlin {
             uint32_t generation = 0;
             bool used = false;
             bool transient = false;
+            bool lazyRing = false;
             gpu::RingSlice tv, ti;
         };
         // a world, late world or hand draw handed to the running java pack instead of drawn here (iris draws
@@ -328,6 +334,8 @@ namespace perlin {
             float clear[4] = {0, 0, 0, 1};
             rhi::TextureHandle copySrc, copyDst;
             bool copyDepth = false;
+            bool discardDepth = false;
+            bool overwrite = false;
             uint32_t copyW = 0, copyH = 0;
         };
         std::vector<Stage> stages;
@@ -353,6 +361,8 @@ namespace perlin {
             bool sceneCopy = false;
             float jitter[2] = {0, 0};
             float jitterUv[2] = {0, 0};
+            bool packUpscale = false;
+            bool packSharpen = false;
         } plan;
         // offscreen targets of the post chain; recreated when the output size or the feature set changes
         struct PostTargets {
@@ -381,7 +391,11 @@ namespace perlin {
             rhi::TextureHandle javaTempA, javaTempB, javaTempC;
             bool javaChainClear = false;
             uint32_t javaChainW = 0, javaChainH = 0;
+            rhi::TextureHandle packLow;
+            uint32_t packLowW = 0, packLowH = 0;
         } post;
+        bool PlanPackUpscale(const FrameParams& params);
+        void RecordPackUpscale();
         void PlanPost(const FrameParams& params);
         bool EnsureWorldTargets(uint32_t w, uint32_t h, bool sampledDepth, bool history);
         bool EnsureBloomTargets();
@@ -394,6 +408,22 @@ namespace perlin {
         rhi::TextureHandle RecordUpscale(rhi::TextureHandle source, uint32_t sourceW, uint32_t sourceH);
         void RecordBloom(float strength);
         void RunStage(rhi::CommandList& list, const Stage& stage);
+        struct FrameGenState {
+            rhi::TextureHandle final, hudless, depth;
+            rhi::TextureHandle depthSource;
+            uint32_t w = 0, h = 0;
+            rhi::Format format = rhi::Format::Unknown;
+            bool valid = false;
+            bool havePrev = false;
+            glm::dmat4 view{1.0}, prevView{1.0}, proj{1.0};
+            glm::dvec3 eye{0.0};
+        } fgen;
+        mutable bool fgenBlocked = false;
+        bool EnsureFrameGenTargets(uint32_t w, uint32_t h, rhi::Format format);
+        void DestroyFrameGenTargets();
+        bool FrameGenWanted(rhi::TextureHandle image) const;
+        void CaptureHudless(rhi::CommandList& list, const Target& screen);
+        void CaptureFinal(rhi::CommandList& list, const Target& screen);
         void ReadyForSampling(rhi::CommandList& list, rhi::TextureHandle except0, rhi::TextureHandle except1);
         std::vector<rhi::TextureHandle> postTextures;
 
@@ -556,6 +586,11 @@ namespace perlin {
         bool jpackReady = false;
         bool jpackGathered = false;
         float jpackScale = 1.0f;
+        int jpackUpscaler = 0;
+        int jpackShadowQuality = 2;
+        rhi::Tier deviceTier = rhi::Tier::Medium;
+        int PackShadowLimit() const;
+        int PackShadowInterval() const;
         std::function<std::string(uint16_t)> blockNames;
         std::function<int(uint16_t)> blockEmission;
         bool PackRunning() const { return jpack && jpackReady; }

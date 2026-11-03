@@ -120,6 +120,15 @@ namespace perlin::jshader {
         };
 
         bool Evaluate(const std::string& name, const Context& ctx, float* out, int& components) const;
+        const void* Lookup(const std::string& name) const {
+            const auto it = entries.find(name);
+            return it == entries.end() ? nullptr : &it->second;
+        }
+        static int EvaluateLookup(const void* handle, const Context& ctx, float* out) {
+            const Entry* e = static_cast<const Entry*>(handle);
+            e->fn(ctx, out);
+            return e->components;
+        }
         bool Known(const std::string& name) const;
         bool Scalar(const std::string& name, const Context& ctx, double& out) const;
 

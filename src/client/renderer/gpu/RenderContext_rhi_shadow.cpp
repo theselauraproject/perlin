@@ -257,7 +257,13 @@ namespace perlin {
             ShadowMap& m = shadow.maps[shadow.front == 0 ? 1 : 0];
             fillMatrices(eb, cx, cy, cz, m.sample, m.raster, m.info);
 
-            std::vector<std::pair<float, std::pair<int64_t, uint8_t>>> found;
+            struct Found {
+                uint8_t pass;
+                int page;
+                uint32_t first;
+                int64_t key;
+            };
+            std::vector<Found> found;
             for (const auto& entry : meshes.ChunkMap()) {
                 const gpu::ChunkMeshStore::Chunk& g = entry.second;
                 if (g.page < 0)
@@ -268,21 +274,21 @@ namespace perlin {
                     std::abs(glm::dot(centre, eb.up) - cy) > R + radius ||
                     std::abs(glm::dot(centre, eb.fwd) - cz) > D + radius)
                     continue;
-                const glm::vec3 rel = centre - cam;
-                const float d2 = rel.x * rel.x + rel.z * rel.z;
-                for (uint8_t pass = 0; pass < (shadow.tintEnabled ? 5 : 3); pass++)
-                    if (g.layerCount[static_cast<size_t>(kShadowLayers[pass])])
-                        found.push_back({d2, {entry.first, pass}});
+                for (uint8_t pass = 0; pass < (shadow.tintEnabled ? 5 : 3); pass++) {
+                    const size_t slot = static_cast<size_t>(kShadowLayers[pass]);
+                    if (g.layerCount[slot])
+                        found.push_back({pass, g.page, g.iOff[slot], entry.first});
+                }
             }
-            // opaque first so the glass pass can test against the finished depth; near to far inside a pass
-            std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) {
-                return a.second.second != b.second.second ? a.second.second < b.second.second
-                                                          : a.first < b.first;
+            std::sort(found.begin(), found.end(), [](const Found& a, const Found& b) {
+                if (a.pass != b.pass)
+                    return a.pass < b.pass;
+                return a.page != b.page ? a.page < b.page : a.first < b.first;
             });
             shadow.buildList.clear();
             shadow.buildList.reserve(found.size());
-            for (const auto& f : found)
-                shadow.buildList.push_back(f.second);
+            for (const Found& f : found)
+                shadow.buildList.push_back({f.key, f.pass});
             shadow.buildCursor = 0;
             shadow.buildSlice = 0;
             // the first map is built in one go; later ones spread over frames and fade in
@@ -364,10 +370,19 @@ namespace perlin {
                 }
                 if (!primedOk)
                     continue;
+                const View target = pass >= 3 ? View::ShadowGlass : View::ShadowBuild;
                 const Source vertices{meshes.Vertices(static_cast<uint32_t>(g.page)), 0};
                 const Source indices{meshes.Indices(static_cast<uint32_t>(g.page), layer), 0};
-                Push(pass >= 3 ? View::ShadowGlass : View::ShadowBuild, templ, vertices, &indices,
-                     rhi::IndexType::U32, g.iOff[slot], g.layerCount[slot]);
+                std::vector<DrawCall>& queued = views[static_cast<size_t>(target)].draws;
+                if (!queued.empty() && queued.back().pipeline == templ.pipeline &&
+                    queued.back().textures == templ.textures && queued.back().uniformOffset == templ.uniformOffset &&
+                    queued.back().uniformChunk == templ.uniformChunk && queued.back().vertices == vertices.buffer &&
+                    queued.back().indices == indices.buffer &&
+                    queued.back().first + queued.back().count == g.iOff[slot]) {
+                    queued.back().count += g.layerCount[slot];
+                    continue;
+                }
+                Push(target, templ, vertices, &indices, rhi::IndexType::U32, g.iOff[slot], g.layerCount[slot]);
             }
 
             const float one[4] = {1, 1, 1, 1};

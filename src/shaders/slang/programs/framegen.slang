@@ -81,6 +81,11 @@ void stageMain()
         gl_FragColor = vec4(shown, 1.0);
         return;
     }
+    if (linearDepth(rawDepth(uv)) < 0.13)
+    {
+        gl_FragColor = vec4(shown, 1.0);
+        return;
+    }
     vec2 ndcXY = vec2(uv.x * 2.0 - 1.0, (uv.y * 2.0 - 1.0) * u_gen.z);
     vec2 src = uv;
     float expected = 1.0;

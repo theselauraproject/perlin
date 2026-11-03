@@ -10,6 +10,8 @@
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 
+#include <glm/glm.hpp>
+
 #include <array>
 #include <atomic>
 #include <condition_variable>
@@ -44,6 +46,8 @@ namespace perlin::gpu {
             std::string dimension = "world0";
             std::function<std::string(uint16_t)> blockName;
             std::function<int(uint16_t)> blockEmission;
+            int shadowResolutionLimit = 0;
+            int shadowInterval = 1;
         };
 
         // what the engine hands over each frame
@@ -127,6 +131,8 @@ namespace perlin::gpu {
             // iris_TextureMat[0] (glint scrolling)
             float textureMatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
             bool glintBlend = false; // vanilla glint: src colour, one / zero, one; depth equal
+            mutable RingSlice ring;
+            mutable int ringStamp = -1;
         };
         // a triangle list in the pack's vertex layout from an engine mesh: positions through `model`, normals and
         // tangents from each triangle, light from the given levels (0-15) or per vertex (two levels each, -1 for
@@ -146,6 +152,7 @@ namespace perlin::gpu {
             fluidTiles[3] = lavaFlow;
         }
         void DropQueued() { queued.clear(); }
+        void WriteEngineDepth(rhi::CommandList& list, const Output& out) { DepthToEngine(list, out); }
         // the pack has a shadow pass (iris draws entities into it)
         struct WarmProgress {
             int done = 0, total = 0;
@@ -199,6 +206,8 @@ namespace perlin::gpu {
             jshader::UniformDecl decl;
             bool perDraw = false;
             bool known = false;
+            bool resolved = false;
+            const void* entry = nullptr;
         };
         struct Program {
             rhi::ShaderHandle vs, fs;
@@ -368,6 +377,15 @@ namespace perlin::gpu {
         ChunkMeshStore& meshes;
         std::shared_ptr<jshader::ShaderPackInstance> instance;
         jshader::PipelineConfig config;
+        int shadowResPatch = 0;
+        bool depthTexUsed[3] = {true, true, true};
+        int shadowInterval = 1;
+        int shadowSkipState = -1;
+        bool shadowKept = false, shadowReuse = false;
+        glm::mat4 keptShadowRot{1.0f};
+        glm::vec3 keptShadowOffset{0.0f};
+        glm::dvec3 keptShadowCamera{0.0};
+        float keptShadowAngle = 0.0f;
         jshader::UniformTable table;
         jshader::CustomUniforms custom;
         jshader::FrameState frameState;

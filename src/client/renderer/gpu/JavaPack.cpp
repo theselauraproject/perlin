@@ -4,6 +4,7 @@
 
 #include "client/javashaders/GlslangBridge.hpp"
 #include "client/javashaders/PackSource.hpp"
+#include "util/ThreadPool.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -451,6 +452,41 @@ namespace perlin::gpu {
             return s;
         }
 
+        bool IdentChar(char c) {
+            return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+        }
+
+        void PatchShadowResolution(std::string& text, int res) {
+            static constexpr std::string_view kName = "shadowMapResolution";
+            const std::string value = std::to_string(res);
+            size_t at = 0;
+            while ((at = text.find(kName, at)) != std::string::npos) {
+                const size_t end = at + kName.size();
+                if ((at > 0 && IdentChar(text[at - 1])) || (end < text.size() && IdentChar(text[end]))) {
+                    at = end;
+                    continue;
+                }
+                size_t lineStart = text.rfind('\n', at);
+                lineStart = lineStart == std::string::npos ? 0 : lineStart + 1;
+                const std::string_view head(text.data() + lineStart, at - lineStart);
+                const size_t constAt = head.find("const");
+                const size_t intAt = head.find("int");
+                size_t eq = end;
+                while (eq < text.size() && (text[eq] == ' ' || text[eq] == '\t'))
+                    eq++;
+                const size_t semi = text.find(';', eq);
+                const size_t newline = text.find('\n', eq);
+                if (constAt == std::string_view::npos || intAt == std::string_view::npos || eq >= text.size() ||
+                    text[eq] != '=' || semi == std::string::npos ||
+                    (newline != std::string::npos && newline < semi)) {
+                    at = end;
+                    continue;
+                }
+                text.replace(eq + 1, semi - eq - 1, " " + value);
+                at = eq + 1 + value.size() + 1;
+            }
+        }
+
         const char* kFullscreenVertex = "#version 120\nvarying vec2 texcoord;\nvoid main() { gl_Position = "
                                         "ftransform(); texcoord = gl_MultiTexCoord0.xy; }\n";
         // the engine's depth is reversed (1 near, 0 far): the pack's conventional depth goes back as 1 - d
@@ -539,6 +575,7 @@ namespace perlin::gpu {
     }
 
     void JavaPack::Pool::Loop() {
+        LowerThreadPriority();
         for (;;) {
             std::function<void()> job;
             {
@@ -852,6 +889,8 @@ namespace perlin::gpu {
     }
 
     void JavaPack::ScanUsage() {
+        depthTexUsed[0] = true;
+        depthTexUsed[1] = depthTexUsed[2] = false;
         std::set<std::string> names;
         for (const jshader::ProgramInfo& p : jshader::StandardPrograms())
             names.insert(p.name);
@@ -925,6 +964,16 @@ namespace perlin::gpu {
             for (int b : src->drawBuffers)
                 if (b >= 0 && b < jshader::kMaxColorTex)
                     bufs[static_cast<size_t>(b)].used = true;
+            const auto readsDepth = [&](const std::string& text) {
+                if (text.find("depthtex1") != std::string::npos)
+                    depthTexUsed[1] = true;
+                if (text.find("depthtex2") != std::string::npos)
+                    depthTexUsed[2] = true;
+            };
+            readsDepth(src->vertex.text);
+            readsDepth(src->fragment.text);
+            for (const jshader::ExpandedSource& c : src->compute)
+                readsDepth(c.text);
         }
         // a disabled shadow program (complementary at shadow quality -1) means no shadow pass, as in iris; the
         // shadow textures still exist when the pack samples them, so its fallback paths read something valid
@@ -1021,6 +1070,7 @@ namespace perlin::gpu {
         shadowDepth = {};
         shadowDepthNoTranslucents = {};
         shadowCleared = false;
+        shadowKept = shadowReuse = false;
         feedback.clear();
         shadowColor[0] = shadowColor[1] = {};
     }
@@ -1089,6 +1139,16 @@ namespace perlin::gpu {
         noSkyLight = cfg.dimension != "world0";
         name = instance->Name().empty() ? cfg.path : instance->Name();
         config = jshader::ParsePipelineConfig(*instance);
+        shadowResPatch = 0;
+        shadowInterval = std::clamp(cfg.shadowInterval, 1, 4);
+        shadowSkipState = -1;
+        shadowKept = shadowReuse = false;
+        if (cfg.shadowResolutionLimit >= 128 && config.shadowMapResolution > cfg.shadowResolutionLimit) {
+            Log("jshader", "shadow map {} capped to {} for this gpu and shadow quality", config.shadowMapResolution,
+                cfg.shadowResolutionLimit);
+            config.shadowMapResolution = cfg.shadowResolutionLimit;
+            shadowResPatch = cfg.shadowResolutionLimit;
+        }
         lap("parsed config");
         // the image table: slot i of set 2 is config.images[i]; the textures come with the render targets
         images.clear();
@@ -1113,9 +1173,10 @@ namespace perlin::gpu {
         setupDone = false;
         custom.Load(config.customUniformProps);
         table.SetCustom(&custom);
-        pool.Start(static_cast<int>(std::max(2u, std::min(6u, std::thread::hardware_concurrency() > 2
-                                                                  ? std::thread::hardware_concurrency() - 1
-                                                                  : 2u))));
+        {
+            const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+            pool.Start(static_cast<int>(cores > 4 ? std::min(6u, cores - 2) : std::max(1u, cores / 2)));
+        }
         if (!CreateLayouts()) {
             error = "could not create the shader pack's bind layouts";
             lastError = error;
@@ -1431,15 +1492,14 @@ namespace perlin::gpu {
                 // colour: in the alpha with separateAo, multiplied into the colour otherwise
                 const float ao = std::clamp((v[i].tangent - std::floor(v[i].tangent)) * 16.0f, 0.0f, 1.0f);
                 uint32_t abgr = v[i].rgba;
+                const uint32_t aoQ = static_cast<uint32_t>(ao * 255.0f + 0.5f);
                 if (config.separateAo) {
-                    abgr = (abgr & 0x00FFFFFFu) | (static_cast<uint32_t>(std::lround(ao * 255.0f)) << 24);
-                } else {
-                    uint32_t out = abgr & 0xFF000000u;
-                    for (int ch = 0; ch < 3; ch++) {
-                        const uint32_t c8 = (abgr >> (ch * 8)) & 0xFFu;
-                        out |= static_cast<uint32_t>(std::lround(static_cast<float>(c8) * ao)) << (ch * 8);
-                    }
-                    abgr = out;
+                    abgr = (abgr & 0x00FFFFFFu) | (aoQ << 24);
+                } else if (aoQ != 255u) {
+                    uint32_t mixed = abgr & 0xFF000000u;
+                    for (int ch = 0; ch < 3; ch++)
+                        mixed |= (((abgr >> (ch * 8)) & 0xFFu) * aoQ + 127u) / 255u << (ch * 8);
+                    abgr = mixed;
                 }
                 const float uv[2] = {au[i], av[i]};
                 const float light[2] = {static_cast<float>(v[i].light & 0xFF),
@@ -1750,6 +1810,10 @@ namespace perlin::gpu {
             } else {
                 vertex = source->vertex;
                 fragment = source->fragment;
+            }
+            if (shadowResPatch > 0) {
+                PatchShadowResolution(vertex.text, shadowResPatch);
+                PatchShadowResolution(fragment.text, shadowResPatch);
             }
             jshader::TransformOptions opts;
             opts.macros = instance->EngineMacros();
@@ -2118,13 +2182,21 @@ namespace perlin::gpu {
         ctx.frame = &frameState;
         ctx.draw = &draw;
         float natural[96];
-        for (const UniformSlot& s : p.slots) {
+        for (UniformSlot& s : p.slots) {
             if (perDrawOnly && !s.perDraw)
                 continue;
             std::memset(natural, 0, sizeof(natural));
             int comps = 0;
-            if (s.known)
-                table.Evaluate(s.decl.name, ctx, natural, comps);
+            if (s.known) {
+                if (!s.resolved) {
+                    s.entry = table.Lookup(s.decl.name);
+                    s.resolved = true;
+                }
+                if (s.entry)
+                    comps = jshader::UniformTable::EvaluateLookup(s.entry, ctx, natural);
+                else
+                    table.Evaluate(s.decl.name, ctx, natural, comps);
+            }
             float* dst = (perDrawOnly ? p.drawRegs : p.frameRegs).data() + s.decl.reg * 4;
             jshader::PackUniform(s.decl, natural, dst);
         }
@@ -2245,7 +2317,7 @@ namespace perlin::gpu {
                 break;
             }
             case Kind::Depth:
-                t = depth[s.index];
+                t = depthTexUsed[s.index] ? depth[s.index] : depth[0];
                 break;
             case Kind::ShadowDepth: {
                 const rhi::TextureHandle depthTex =
@@ -2508,7 +2580,10 @@ namespace perlin::gpu {
                                                 : api == rhi::Api::Metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;
             const jshader::DxbcCompiler dxbc = jshader::SystemDxbcCompiler();
-            auto fut = pool.Submit([text = source->compute[index], opts, kind, dxbc]() {
+            auto computeText = source->compute[index];
+            if (shadowResPatch > 0)
+                PatchShadowResolution(computeText.text, shadowResPatch);
+            auto fut = pool.Submit([text = std::move(computeText), opts, kind, dxbc]() {
                 auto c = std::make_shared<Converted>();
                 c->isCompute = true;
                 c->computeTransform = jshader::TransformCompute(text, opts);
@@ -2815,23 +2890,43 @@ namespace perlin::gpu {
         {
             const float shadowAngle = s.shadowAngle;
             const float skyAngle = shadowAngle < 0.25f ? shadowAngle + 0.75f : shadowAngle - 0.25f;
-            glm::mat4 mv(1.0f);
-            mv = glm::rotate(mv, glm::radians(90.0f), glm::vec3(1, 0, 0));
-            mv = glm::rotate(mv, glm::radians(skyAngle * -360.0f), glm::vec3(0, 0, 1));
-            mv = glm::rotate(mv, glm::radians(config.sunPathRotation), glm::vec3(1, 0, 0));
+            glm::mat4 rot(1.0f);
+            rot = glm::rotate(rot, glm::radians(90.0f), glm::vec3(1, 0, 0));
+            rot = glm::rotate(rot, glm::radians(skyAngle * -360.0f), glm::vec3(0, 0, 1));
+            rot = glm::rotate(rot, glm::radians(config.sunPathRotation), glm::vec3(1, 0, 0));
+            glm::vec3 offset(0.0f);
             const float interval = config.shadowIntervalSize;
             if (std::fabs(interval) > 0.0f) {
                 const float half = interval / 2.0f;
-                mv = glm::translate(mv, glm::vec3(std::fmod(static_cast<float>(camera.x), interval) - half,
-                                                  std::fmod(static_cast<float>(camera.y), interval) - half,
-                                                  std::fmod(static_cast<float>(camera.z), interval) - half));
+                offset = glm::vec3(std::fmod(static_cast<float>(camera.x), interval) - half,
+                                   std::fmod(static_cast<float>(camera.y), interval) - half,
+                                   std::fmod(static_cast<float>(camera.z), interval) - half);
             }
+            const glm::mat4 mv = glm::translate(rot, offset);
             FromMat(mv, shadowView);
             const float hpl = std::max(1.0f, config.shadowDistance);
             FromMat(glm::orthoRH_NO(-hpl, hpl, -hpl, hpl, config.shadowNearPlane, config.shadowFarPlane),
                     shadowProjection);
             // the shadow pass draws world positions: move them to the camera first
             FromMat(mv * glm::translate(glm::mat4(1.0f), -glm::vec3(camera)), shadowDrawView);
+            shadowReuse = false;
+            if (config.shadowEnabled && shadowInterval > 1 && shadowSkipState == 1 && shadowKept && shadowDepth) {
+                const double moved = glm::length(camera - keptShadowCamera);
+                const float turned = std::fabs(s.shadowAngle - keptShadowAngle);
+                shadowReuse = frameStamp % shadowInterval != 0 && moved < 4.0 &&
+                              turned < 0.01f;
+            }
+            if (shadowReuse) {
+                const glm::mat4 reused =
+                    glm::translate(keptShadowRot, keptShadowOffset + glm::vec3(camera - keptShadowCamera));
+                FromMat(reused, shadowView);
+            } else {
+                keptShadowRot = rot;
+                keptShadowOffset = offset;
+                keptShadowCamera = camera;
+                keptShadowAngle = s.shadowAngle;
+                shadowKept = config.shadowEnabled;
+            }
         }
         if (config.shadowEnabled) {
             std::memcpy(s.shadowModelView, shadowView, sizeof(shadowView));
@@ -3337,12 +3432,11 @@ namespace perlin::gpu {
                 if (d.kind != kind || d.count == 0)
                     continue;
                 if (shadowPass) {
-                    // iris ShadowRenderer: every entity with shadowEntities, else the player with shadowPlayer;
-                    // block entities with shadowBlockEntities
                     if (!d.castsShadow)
                         continue;
                     if (kind == K::Block ? !config.shadowBlockEntities
-                                         : !(config.shadowEntities || (d.player && config.shadowPlayer)))
+                                         : !(frame.shadowEntities &&
+                                             (config.shadowEntities || (d.player && config.shadowPlayer))))
                         continue;
                 } else if (d.shadowOnly) {
                     continue;
@@ -3451,8 +3545,12 @@ namespace perlin::gpu {
                 if (base)
                     break;
             }
-            if (!base)
+            if (!base) {
+                if (shadowPass && loggedMissing.insert(std::string("shadow-program:") + programName).second)
+                    Log("jshader", "{}: no program for the shadow pass, {} shadow draws skipped", programName,
+                        draws.size());
                 continue;
+            }
             std::vector<rhi::TextureHandle> colors;
             rhi::TextureHandle depthTarget;
             uint32_t w = width, h = height;
@@ -3472,8 +3570,11 @@ namespace perlin::gpu {
                 }
                 depthTarget = depth[0];
             }
-            if (!depthTarget || (colors.empty() && !shadowPass))
+            if (!depthTarget || (colors.empty() && !shadowPass)) {
+                if (shadowPass && loggedMissing.insert("shadow-target").second)
+                    Log("jshader", "entity shadows: the shadow map has no depth target");
                 continue;
+            }
             std::vector<rhi::TextureHandle> attached = colors;
             attached.push_back(depthTarget);
             const jshader::ProgramConfig* pc = BlendConfigFor(programName);
@@ -3487,16 +3588,36 @@ namespace perlin::gpu {
                 jshader::PackDrawState state;
             };
             std::vector<Ready> ready;
+            ready.reserve(draws.size());
+            std::map<std::pair<const Program*, uint64_t>, rhi::BindGroupHandle> textureGroups;
+            std::vector<std::pair<float, Program*>> programByAlpha;
+            const jshader::PackDrawState baseState = TerrainDraw();
             for (const ExternalDraw* d : draws) {
                 Ready r;
-                r.program = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
-                                       AlphaFor(programName, shadowPass ? 0.1f : d->alphaRef));
+                const float alphaRef = shadowPass ? 0.1f : d->alphaRef;
+                const auto known = std::find_if(programByAlpha.begin(), programByAlpha.end(),
+                                                [&](const auto& e) { return e.first == alphaRef; });
+                if (known != programByAlpha.end()) {
+                    r.program = known->second;
+                } else {
+                    r.program = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                                           AlphaFor(programName, alphaRef));
+                    programByAlpha.emplace_back(alphaRef, r.program);
+                }
                 if (!r.program)
                     continue;
                 Program& p = *r.program;
-                textureOverride = d->texture ? d->texture : white;
-                r.textures = Textures(list, p, attached);
-                textureOverride = {};
+                const rhi::TextureHandle skin = d->texture ? d->texture : white;
+                const auto texKey = std::make_pair(static_cast<const Program*>(r.program),
+                                                   static_cast<uint64_t>(skin.value));
+                auto cachedGroup = textureGroups.find(texKey);
+                if (cachedGroup == textureGroups.end()) {
+                    textureOverride = skin;
+                    const rhi::BindGroupHandle group = Textures(list, p, attached);
+                    textureOverride = {};
+                    cachedGroup = textureGroups.emplace(texKey, group).first;
+                }
+                r.textures = cachedGroup->second;
                 PipeState st;
                 st.colorCount = static_cast<uint32_t>(colors.size());
                 for (size_t i = 0; i < colors.size(); i++) {
@@ -3544,14 +3665,25 @@ namespace perlin::gpu {
                     }
                 }
                 r.pipe = PipelineFor(p, st);
-                if (!r.textures || !r.pipe)
+                if (!r.textures || !r.pipe) {
+                    if (loggedMissing.insert(std::string("draw-state:") + programName + (shadowPass ? ":s" : ":m"))
+                            .second)
+                        Log("jshader", "{}: {} unavailable, draws skipped", programName,
+                            !r.textures ? "texture bind group" : "pipeline");
                     continue;
-                r.slice = gpu.Ring(d->vertices.size(), 16);
+                }
+                if (d->ringStamp != frameStamp || !d->ring.data) {
+                    d->ring = gpu.Ring(d->vertices.size(), 16);
+                    if (d->ring.data) {
+                        std::memcpy(d->ring.data, d->vertices.data(), d->vertices.size());
+                        d->ringStamp = frameStamp;
+                    }
+                }
+                r.slice = d->ring;
                 if (!r.slice.data)
                     continue;
-                std::memcpy(r.slice.data, d->vertices.data(), d->vertices.size());
                 r.count = d->count;
-                r.state = TerrainDraw();
+                r.state = baseState;
                 if (shadowPass) {
                     std::memcpy(r.state.modelView, shadowDrawView, sizeof(r.state.modelView));
                     std::memcpy(r.state.projection, shadowProjection, sizeof(r.state.projection));
@@ -3577,12 +3709,17 @@ namespace perlin::gpu {
             }
             if (ready.empty())
                 continue;
+            if (shadowPass && loggedMissing.insert(std::string("shadow-drawn:") + programName).second)
+                Log("jshader", "{}: {} draws into the {}x{} shadow map", programName, ready.size(), w, h);
             BeginPass(list, colors, depthTarget, w, h, false, nullptr,
                       shadowPass ? "pack entity shadows" : programName);
             bool anyStorage = false;
             for (Ready& r : ready) {
-                if (!BindUniforms(list, *r.program, r.state))
+                if (!BindUniforms(list, *r.program, r.state)) {
+                    if (shadowPass && loggedMissing.insert(std::string("shadow-uniforms:") + programName).second)
+                        Log("jshader", "{}: uniform binding failed in the shadow pass", programName);
                     continue;
+                }
                 list.SetBindGroup(1, r.textures);
                 BindStorage(list, *r.program);
                 list.SetPipeline(r.pipe);
@@ -4102,6 +4239,12 @@ namespace perlin::gpu {
         }
         frame = params;
         lightmapTex = out.lightmap;
+        if (shadowSkipState < 0) {
+            bool plain = config.images.empty() && config.bufferObjects.empty();
+            for (const std::string& n : instance->PassChain("shadowcomp"))
+                plain = plain && !instance->ProgramEnabled(n);
+            shadowSkipState = plain ? 1 : 0;
+        }
         {
             // iris HandRenderer: the hand projection with its depth squeezed by MC_HAND_DEPTH (0.125)
             ToGlDepth(params.handProjection, handProjection);
@@ -4142,10 +4285,11 @@ namespace perlin::gpu {
         GpuMark(list, "begin");
         RunChain(list, "begin");
         GpuMark(list, "shadow");
-        DrawShadows(list);
-        // iris runs shadowcomp only with a shadow pass
-        if (config.shadowEnabled && shadowDepth)
-            RunChain(list, "shadowcomp");
+        if (!shadowReuse) {
+            DrawShadows(list);
+            if (config.shadowEnabled && shadowDepth)
+                RunChain(list, "shadowcomp");
+        }
         GpuMark(list, "prepare");
         RunChain(list, "prepare");
         GpuMark(list, "sky");
@@ -4163,9 +4307,11 @@ namespace perlin::gpu {
                      {K::Entity, K::Eyes, K::Glowing, K::Lightning, K::Glint, K::Block, K::Cracks, K::Line,
                       K::Particle},
                      false);
-        CopyDepth(list, depth[0], depth[2]);
+        if (depthTexUsed[2])
+            CopyDepth(list, depth[0], depth[2]);
         DrawExternal(list, {K::Hand, K::HandGlint}, false);
-        CopyDepth(list, depth[0], depth[1]);
+        if (depthTexUsed[1])
+            CopyDepth(list, depth[0], depth[1]);
         static const char* const debugTex = std::getenv("PERLIN_PACK_DEBUG_TEX");
         if (debugTex)
             DrawTranslucent(list);

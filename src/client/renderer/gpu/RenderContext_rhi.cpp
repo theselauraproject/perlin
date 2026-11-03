@@ -218,6 +218,11 @@ namespace perlin {
             settings = s;
             if (gpu.Init(s, pack, &error)) {
                 settings = gpu.Settings();
+                deviceTier = profile.tier;
+                if (api != profile.api || adapter != profile.adapterIndex)
+                    for (const rhi::Candidate& c : probe.candidates)
+                        if (c.adapter.api == api && c.adapter.index == adapter)
+                            deviceTier = std::min(profile.tier, rhi::TierFor(c));
                 break;
             }
             Log("render", "{} could not start: {}", rhi::ApiName(api), error);
@@ -415,6 +420,8 @@ namespace perlin {
     void RenderContext_rhi::DestroyStaticResources() {
         auto& dev = gpu.Dev();
         DestroyPostTargets();
+        DestroyFrameGenTargets();
+        fgenBlocked = false;
         post.failed = false;
         DestroyShadows();
         for (rhi::BufferHandle* b :
@@ -448,7 +455,7 @@ namespace perlin {
         td.format = rhi::Format::D32Float;
         td.width = w;
         td.height = h;
-        td.usage = rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled;
+        td.usage = rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled | rhi::TextureUsage::CopySrc;
         td.name = "screen depth";
         screenDepth = gpu.Dev().CreateTexture(td);
         screenDepthW = w;
@@ -633,16 +640,22 @@ namespace perlin {
         uint64_t vbo = 0, ibo = 0;
         rhi::IndexType it = rhi::IndexType::U32;
         uint32_t chunk = ~0u;
+        uint32_t boundOffset = ~0u;
         bool scissored = false;
         for (const DrawCall& dc : draws) {
+            bool pipelineChanged = false;
             if (dc.pipeline != pipeline) {
                 list.SetPipeline(dc.pipeline);
                 pipeline = dc.pipeline;
+                pipelineChanged = true;
             }
-            const uint32_t offset = dc.uniformOffset;
-            list.SetBindGroup(0, gpu.UniformGroup(dc.uniformChunk), std::span<const uint32_t>(&offset, 1));
-            chunk = dc.uniformChunk;
-            if (dc.textures != textures) {
+            if (pipelineChanged || dc.uniformChunk != chunk || dc.uniformOffset != boundOffset) {
+                const uint32_t offset = dc.uniformOffset;
+                list.SetBindGroup(0, gpu.UniformGroup(dc.uniformChunk), std::span<const uint32_t>(&offset, 1));
+                chunk = dc.uniformChunk;
+                boundOffset = offset;
+            }
+            if (pipelineChanged || dc.textures != textures) {
                 list.SetBindGroup(1, dc.textures);
                 textures = dc.textures;
             }
@@ -790,6 +803,7 @@ namespace perlin {
                 Log("javapack", "compiling shaders, {} left (using the normal renderer meanwhile)", left);
             }
         }
+        jpackShadowQuality = paramsIn.shadowQuality;
         // the pack does its own post processing, scaling and shadows
         FrameParams packParams;
         const FrameParams* chosen = &paramsIn;
@@ -798,9 +812,9 @@ namespace perlin {
             // iris renders packs at full resolution: only an upscaler the player turned on lowers it (the
             // automatic 75% for modest gpus made packs visibly softer)
             jpackScale = paramsIn.upscaler != 0 ? paramsIn.renderScale : 1.0f;
+            jpackUpscaler = paramsIn.upscaler;
             packParams.renderScale = 1.0f;
             packParams.upscaler = 0;
-            packParams.frameGen = 1;
             packParams.motionBlur = 0.0f;
             packParams.bloom = 0.0f;
             packParams.menuBlur = 0.0f;
@@ -993,6 +1007,8 @@ namespace perlin {
                 if (!stage.useScreenDepth)
                     stage.target.depth = {};
             }
+        const bool generate = FrameGenWanted(image.texture) &&
+                              EnsureFrameGenTargets(screen.w, screen.h, screen.colorFormat);
         if (PackRunning() && jpackGathered) {
             gpu::JavaPack::Output po;
             po.color = image.texture;
@@ -1005,8 +1021,24 @@ namespace perlin {
             po.sun = sunTex.handle;
             po.moon = moonTex.handle;
             po.endSky = endSkyTex.handle;
+            const gpu::JavaPack::Output full = po;
+            if (plan.packUpscale && post.packLow) {
+                po.color = post.packLow;
+                po.colorFormat = rhi::Format::RGBA8Unorm;
+                po.depth = {};
+                po.width = post.packLowW;
+                po.height = post.packLowH;
+                po.scale = 1.0f;
+            }
             // the pack wrote the whole picture and the depth: the world stage draws on top instead of clearing
             const bool recorded = jpack->Record(*list, frame, po);
+            if (recorded && plan.packUpscale && post.packLow) {
+                jpack->WriteEngineDepth(*list, full);
+                gpu.Transition(*list, post.packLow, rhi::State::ShaderRead);
+            } else if (plan.packUpscale) {
+                views[static_cast<size_t>(View::Up0)].draws.clear();
+                views[static_cast<size_t>(View::Up1)].draws.clear();
+            }
             jpack->DropQueued();
             if (std::getenv("JSHADER_TRACE"))
                 std::fprintf(stderr, "[jshader] pack frame recorded: %d (stages %zu, first views %zu)\n",
@@ -1019,10 +1051,51 @@ namespace perlin {
                         break;
                     }
         }
+        {
+            size_t firstOverlay = stages.size();
+            for (size_t i = 0; i < stages.size(); i++)
+                if (stages[i].kind == Stage::Kind::Pass && !stages[i].views.empty() &&
+                    stages[i].views.front() == View::Hand) {
+                    firstOverlay = i;
+                    break;
+                }
+            for (size_t i = 0; i < stages.size(); i++) {
+                Stage& s = stages[i];
+                s.discardDepth = false;
+                if (s.kind != Stage::Kind::Pass || !s.target.depth || (generate && i < firstOverlay))
+                    continue;
+                bool decided = false;
+                for (size_t j = i + 1; j < stages.size() && !decided; j++) {
+                    const Stage& n = stages[j];
+                    if (n.kind == Stage::Kind::Copy) {
+                        decided = n.copySrc == s.target.depth || n.copyDst == s.target.depth;
+                        continue;
+                    }
+                    if (n.target.depth == s.target.depth) {
+                        s.discardDepth = n.clearDepth;
+                        decided = true;
+                    } else if (s.target.depth != screenDepth) {
+                        decided = true;
+                    }
+                }
+                if (!decided && s.target.depth == screenDepth)
+                    s.discardDepth = true;
+            }
+        }
         for (const Stage& stage : shadowStages)
             RunStage(*list, stage);
-        for (const Stage& stage : stages)
+        fgen.valid = false;
+        bool hudlessTaken = false;
+        for (const Stage& stage : stages) {
+            if (generate && !hudlessTaken && stage.kind == Stage::Kind::Pass && !stage.views.empty() &&
+                stage.views.front() == View::Hand) {
+                CaptureHudless(*list, screen);
+                hudlessTaken = true;
+            }
             RunStage(*list, stage);
+        }
+        if (generate && hudlessTaken)
+            CaptureFinal(*list, screen);
 
         if (!pendingSinks.empty() || !pendingShots.empty())
             ResolveCapture(*list, screen);
@@ -1408,6 +1481,9 @@ namespace perlin {
                 config.options[kv.first] = kv.second;
             config.dimension = jpackDimension;
             config.blockName = blockNames;
+            config.blockEmission = blockEmission;
+            config.shadowResolutionLimit = PackShadowLimit();
+            config.shadowInterval = PackShadowInterval();
             std::string why;
             if (pack->Load(config, why)) {
                 pack->SetAtlas(atlasSource.data(), tileSize, atlasTiles);
