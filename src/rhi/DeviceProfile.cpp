@@ -394,7 +394,7 @@ namespace rhi {
         p.renderScale = 1.0f;
         if (p.tier <= Tier::Low && !p.upscalers.empty() && p.upscalers.front() != Upscaler::Native) {
             p.renderScale = 0.75f;
-            p.reasons.push_back("modest gpu: rendering at 75% and upscaling");
+            p.reasons.push_back("modest gpu: an upscaler at 75% would help (off until turned on in the options)");
         }
         p.reasons.push_back(std::string("tier ") + TierName(p.tier));
         return p;

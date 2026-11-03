@@ -31,7 +31,7 @@ namespace perlin::gpu {
         // converted programs are kept on disk: glslang, the cross compiler and fxc take seconds per program for a big pack,
         // and nothing about them changes between runs
         constexpr uint32_t kCacheMagic = 0x4a504b34u;
-        constexpr int kCacheVersion = 5;
+        constexpr int kCacheVersion = 6;
 
         struct CachedProgram {
             std::vector<jshader::UniformDecl> uniforms;
@@ -493,6 +493,7 @@ namespace perlin::gpu {
         const char* kReverseDepthFragment =
             "#version 120\nuniform sampler2D depthtex0;\nvarying vec2 texcoord;\nvoid main() { gl_FragDepth "
             "= 1.0 - texture2D(depthtex0, texcoord).r; }\n";
+        const char* kEmptyFragment = "#version 120\nvoid main() {}\n";
         const char* kCopyColorFragment =
             "#version 120\nuniform sampler2D colortex0;\nvarying vec2 texcoord;\n/* DRAWBUFFERS:0 */\nvoid "
             "main() { gl_FragData[0] = texture2D(colortex0, texcoord); }\n";
@@ -668,6 +669,7 @@ namespace perlin::gpu {
         for (rhi::TextureHandle t : owned)
             gpu.DestroyTexture(t);
         owned.clear();
+        staticTextures.clear();
         if (atlas)
             gpu.DestroyTexture(atlas);
         atlas = {};
@@ -791,9 +793,11 @@ namespace perlin::gpu {
             if (t) {
                 gpu.WriteTexture(t, 0, 0, 0, 1, 1, px);
                 owned.push_back(t);
+                staticTextures.push_back(t);
             }
             return t;
         };
+        staticTextures.clear();
         white = make(whitePx, "pack white");
         flatNormal = make(normalPx, "pack normal");
         blackTex = make(blackPx, "pack black");
@@ -820,6 +824,7 @@ namespace perlin::gpu {
             if (t) {
                 gpu.WriteTexture(t, 0, 0, 0, td.width, td.height, data);
                 owned.push_back(t);
+                staticTextures.push_back(t);
             }
             stbi_image_free(data);
             return t;
@@ -865,6 +870,7 @@ namespace perlin::gpu {
             if (const rhi::TextureHandle t = gpu.CreateSampled(td)) {
                 gpu.WriteTexture(t, 0, 0, 0, td.width, td.height, px.data());
                 owned.push_back(t);
+                staticTextures.push_back(t);
                 noise = t;
                 noiseSampler = SLinearRepeat;
             }
@@ -1019,8 +1025,8 @@ namespace perlin::gpu {
                 MakeTexture(res, res, rhi::Format::D32Float, kDepth, "pack shadow depth (no translucents)");
             for (int i = 0; i < 2; i++)
                 if (shadowColorUsed[i])
-                    shadowColor[i] = MakeTexture(res, res, ToFormat(config.shadowColorFormat[i]), kColor,
-                                                 "pack shadow color");
+                    shadowColor[i] = MakeTexture(res, res, ToFormat(config.shadowColorFormat[i]),
+                                                 kColor | rhi::TextureUsage::CopyDst, "pack shadow color");
             if (!shadowDepth)
                 return false;
         }
@@ -1034,7 +1040,8 @@ namespace perlin::gpu {
         groups.clear();
         std::vector<rhi::TextureHandle> keep;
         for (rhi::TextureHandle t : owned) {
-            bool persistent = t == white || t == flatNormal || t == blackTex || t == noise;
+            bool persistent = t == white || t == flatNormal || t == blackTex || t == noise ||
+                              std::find(staticTextures.begin(), staticTextures.end(), t) != staticTextures.end();
             for (auto& kv : customTextures)
                 persistent = persistent || kv.second == t;
             if (persistent) {
@@ -1071,6 +1078,8 @@ namespace perlin::gpu {
         shadowDepthNoTranslucents = {};
         shadowCleared = false;
         shadowKept = shadowReuse = false;
+        shadowPartial = shadowCacheValid = false;
+        shadowCacheDepth = shadowCacheColor[0] = shadowCacheColor[1] = {};
         feedback.clear();
         shadowColor[0] = shadowColor[1] = {};
     }
@@ -1142,7 +1151,10 @@ namespace perlin::gpu {
         shadowResPatch = 0;
         shadowInterval = std::clamp(cfg.shadowInterval, 1, 4);
         shadowSkipState = -1;
+        prepassState = -1;
         shadowKept = shadowReuse = false;
+        shadowCacheOn = cfg.shadowCache;
+        shadowPartial = shadowCacheValid = false;
         if (cfg.shadowResolutionLimit >= 128 && config.shadowMapResolution > cfg.shadowResolutionLimit) {
             Log("jshader", "shadow map {} capped to {} for this gpu and shadow quality", config.shadowMapResolution,
                 cfg.shadowResolutionLimit);
@@ -2103,12 +2115,13 @@ namespace perlin::gpu {
         *b++ = static_cast<uint8_t>(st.mask);
         for (uint32_t i = 0; i < st.colorCount && i < 8; i++)
             *b++ = static_cast<uint8_t>(st.colors[i]);
+        *b++ = fragmentOverride ? 1 : 0;
         const auto it = pipelines.find(k);
         if (it != pipelines.end())
             return it->second;
         rhi::GraphicsPipelineDesc gd;
         gd.vertex = p.vs;
-        gd.fragment = p.fs;
+        gd.fragment = fragmentOverride ? fragmentOverride : p.fs;
         gd.layout = pipelineLayout;
         using namespace jshader;
         if (st.scene) {
@@ -2363,6 +2376,9 @@ namespace perlin::gpu {
             if (t && isAttached(t)) {
                 // iris samples a buffer the pass also draws into (gbuffers_water reading colortex4 for its
                 // reflections sees the lit scene): a copy taken just before the pass reads the same
+                if (trace)
+                    std::fprintf(stderr, "[jshader] %s samples %s while drawing to it\n",
+                                 p.source ? p.source->name.c_str() : "?", s.name.c_str());
                 t = FeedbackCopy(list, t);
             }
             if (!t) {
@@ -2767,6 +2783,7 @@ namespace perlin::gpu {
         const bool dayLight = s.sunAngle < 0.5f;
         for (int i = 0; i < 3; i++)
             s.shadowLightPosition[i] = dayLight ? sunView[i] : moonView[i];
+        shadowLightWorld = dayLight ? sunDir : -sunDir;
         for (int i = 0; i < 3; i++) {
             s.skyColor[i] = params.sky.skyColor[i];
             s.fogColor[i] = params.fogColor[i];
@@ -2909,22 +2926,27 @@ namespace perlin::gpu {
                     shadowProjection);
             // the shadow pass draws world positions: move them to the camera first
             FromMat(mv * glm::translate(glm::mat4(1.0f), -glm::vec3(camera)), shadowDrawView);
-            shadowReuse = false;
-            if (config.shadowEnabled && shadowInterval > 1 && shadowSkipState == 1 && shadowKept && shadowDepth) {
+            shadowReuse = shadowPartial = false;
+            if (config.shadowEnabled && shadowSkipState == 1 && shadowKept && shadowDepth) {
                 const double moved = glm::length(camera - keptShadowCamera);
                 const float turned = std::fabs(s.shadowAngle - keptShadowAngle);
-                shadowReuse = frameStamp % shadowInterval != 0 && moved < 4.0 &&
-                              turned < 0.01f;
+                if (shadowInterval > 1)
+                    shadowReuse = frameStamp % shadowInterval != 0 && moved < 4.0 && turned < 0.01f;
+                if (!shadowReuse && shadowCacheOn && shadowCacheValid)
+                    shadowPartial = moved < 1.5 && turned < 0.0002f && shadowCacheAge < 300 &&
+                                    meshes.Generation() == shadowCacheGeneration;
             }
-            if (shadowReuse) {
+            if (shadowReuse || shadowPartial) {
                 const glm::mat4 reused =
                     glm::translate(keptShadowRot, keptShadowOffset + glm::vec3(camera - keptShadowCamera));
                 FromMat(reused, shadowView);
+                std::memcpy(shadowDrawView, keptShadowDrawView, sizeof(shadowDrawView));
             } else {
                 keptShadowRot = rot;
                 keptShadowOffset = offset;
                 keptShadowCamera = camera;
                 keptShadowAngle = s.shadowAngle;
+                std::memcpy(keptShadowDrawView, shadowDrawView, sizeof(shadowDrawView));
                 shadowKept = config.shadowEnabled;
             }
         }
@@ -2982,6 +3004,22 @@ namespace perlin::gpu {
             v.clear();
         if (!config.shadowEnabled)
             return;
+        const float lightLen = glm::length(shadowLightWorld);
+        const bool viewCull = haveViewFrustum && shadowSkipState == 1 && lightLen > 0.5f &&
+                              !std::getenv("PERLIN_PACK_NO_SHADOW_CULL");
+        const float sweepLen = std::clamp(config.shadowFarPlane - config.shadowNearPlane, 64.0f, 512.0f);
+        const glm::vec3 sweep = viewCull ? -shadowLightWorld / lightLen * sweepLen : glm::vec3(0.0f);
+        const auto castsIntoView = [&](float x0, float y0, float z0, float x1, float y1, float z1) {
+            for (const auto& p : viewFrustum.planes) {
+                const float far = p[0] * (p[0] >= 0 ? x1 : x0) + p[1] * (p[1] >= 0 ? y1 : y0) +
+                                  p[2] * (p[2] >= 0 ? z1 : z0) + p[3];
+                const float shift = p[0] * sweep.x + p[1] * sweep.y + p[2] * sweep.z;
+                if (far < 0.0f && far + shift < 0.0f)
+                    return false;
+            }
+            return true;
+        };
+        shadowCulled = shadowKeptChunks = 0;
         for (const auto& entry : meshes.ChunkMap()) {
             const ChunkMeshStore::Chunk& g = entry.second;
             if (g.page < 0)
@@ -3011,8 +3049,21 @@ namespace perlin::gpu {
                 if (outside[0] == 8 || outside[1] == 8 || outside[2] == 8 || outside[3] == 8)
                     continue;
             }
+            bool outOfView = false;
+            if (viewCull) {
+                const float x0 = static_cast<float>(g.cx) * static_cast<float>(g.size),
+                            z0 = static_cast<float>(g.cz) * static_cast<float>(g.size);
+                const float top = g.maxY > g.minY ? g.maxY : g.minY + 16.0f;
+                outOfView = !castsIntoView(x0, g.minY, z0, x0 + static_cast<float>(g.size), top,
+                                           z0 + static_cast<float>(g.size));
+            }
+            if (outOfView)
+                shadowCulled++;
+            else
+                shadowKeptChunks++;
             for (size_t slot = 0; slot < static_cast<size_t>(kRenderLayerCount); slot++)
-                if (g.layerCount[slot])
+                if (g.layerCount[slot] &&
+                    (!outOfView || (shadowCacheOn && slot == static_cast<size_t>(RenderLayer::Solid))))
                     shadowRuns[slot].push_back(
                         {static_cast<uint32_t>(g.page), g.iOff[slot], g.layerCount[slot]});
         }
@@ -3070,13 +3121,17 @@ namespace perlin::gpu {
             gpu.Transition(list, f.tex, rhi::State::ShaderRead);
             f.serial = passSerial;
             statCopies++;
+            if (trace)
+                std::fprintf(stderr, "[jshader] feedback copy %s %ux%u fmt %d\n", sd->name ? sd->name : "?", sd->width,
+                             sd->height, static_cast<int>(sd->format));
         }
         return f.tex;
     }
 
     void JavaPack::BeginPass(rhi::CommandList& list, const std::vector<rhi::TextureHandle>& colors,
                              rhi::TextureHandle depthTex, uint32_t w, uint32_t h, bool clearDepth,
-                             const std::vector<std::array<float, 4>>* clears, const char* passName) {
+                             const std::vector<std::array<float, 4>>* clears, const char* passName,
+                             bool overwrite) {
         passSerial++;
         statPasses++;
         rhi::RenderingDesc rd;
@@ -3085,7 +3140,7 @@ namespace perlin::gpu {
             gpu.Transition(list, colors[i], rhi::State::ColorTarget);
             rd.colors[i].texture = colors[i];
             const bool clear = clears && i < clears->size() && (*clears)[i][0] > -1e20f;
-            rd.colors[i].load = clear ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
+            rd.colors[i].load = clear ? rhi::LoadOp::Clear : overwrite ? rhi::LoadOp::DontCare : rhi::LoadOp::Load;
             rd.colors[i].store = rhi::StoreOp::Store;
             if (clear)
                 rd.colors[i].clear = (*clears)[i];
@@ -3224,7 +3279,6 @@ namespace perlin::gpu {
         st.depthWrite = true;
         st.depthOp = rhi::CompareOp::LessEqual;
         const jshader::ProgramConfig* pc = BlendConfigFor(programName);
-        BeginPass(list, colors, depthTarget, w, h, false, nullptr, shadow ? "pack shadow" : "pack scene");
 
         jshader::PackDrawState draw = TerrainDraw();
         if (shadow) {
@@ -3235,6 +3289,10 @@ namespace perlin::gpu {
                     draw.normalMatrix[c * 3 + r] = shadowDrawView[c * 4 + r];
         }
         draw.renderStage = stage;
+
+        const bool prepassed = !shadow && !translucent && layers.size() == 1 && layers[0] == RenderLayer::Solid &&
+                               DepthPrepass(list, *p, draw, textures, depthTarget, w, h);
+        BeginPass(list, colors, depthTarget, w, h, false, nullptr, shadow ? "pack shadow" : "pack scene");
         if (!BindUniforms(list, *p, draw)) {
             list.EndRendering();
             return false;
@@ -3251,7 +3309,7 @@ namespace perlin::gpu {
                                   layer == RenderLayer::TranslucentCull);
             const bool blendLayer = !shadow && translucent;
             ls.blend = blendLayer;
-            ls.depthWrite = true; // depthtex0 holds the translucent surfaces too
+            ls.depthWrite = !prepassed;
             if (blendLayer) {
                 ls.src = rhi::BlendFactor::SrcAlpha;
                 ls.dst = rhi::BlendFactor::InvSrcAlpha;
@@ -3304,13 +3362,104 @@ namespace perlin::gpu {
         return true;
     }
 
+    bool JavaPack::EnsureShadowCache() {
+        if (shadowCacheDepth)
+            return true;
+        const rhi::TextureDesc* dd = gpu.Dev().GetDesc(shadowDepth);
+        if (!dd)
+            return false;
+        constexpr rhi::TextureUsage kCopy = rhi::TextureUsage::CopySrc | rhi::TextureUsage::CopyDst |
+                                            rhi::TextureUsage::Sampled;
+        shadowCacheDepth = MakeTexture(dd->width, dd->height, dd->format, kCopy | rhi::TextureUsage::DepthTarget,
+                                       "pack shadow cache");
+        for (int i = 0; i < 2; i++)
+            if (shadowColor[i])
+                if (const rhi::TextureDesc* cd = gpu.Dev().GetDesc(shadowColor[i]))
+                    shadowCacheColor[i] = MakeTexture(cd->width, cd->height, cd->format,
+                                                      kCopy | rhi::TextureUsage::ColorTarget, "pack shadow cache");
+        if (!shadowCacheDepth || (shadowColor[0] && !shadowCacheColor[0]) ||
+            (shadowColor[1] && !shadowCacheColor[1])) {
+            shadowCacheOn = false;
+            return false;
+        }
+        return true;
+    }
+
+    bool JavaPack::DepthPrepass(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw,
+                                rhi::BindGroupHandle textures, rhi::TextureHandle depthTarget, uint32_t w,
+                                uint32_t h) {
+        if (prepassState < 0) {
+            prepassState = 0;
+            if (std::getenv("PERLIN_PACK_PREPASS") && !p.imageMask && config.bufferObjects.empty() && p.source &&
+                p.source->fragment.text.find("gl_FragDepth") == std::string::npos &&
+                p.source->vertex.text.find("imageStore") == std::string::npos)
+                prepassState = 1;
+        }
+        if (prepassState != 1)
+            return false;
+        static const jshader::ExpandedSource vs = MakeSource(kFullscreenVertex), fs = MakeSource(kEmptyFragment);
+        Program* empty = GetProgram("builtin_depth_only", false, &vs, &fs);
+        if (!empty || !empty->fs)
+            return false;
+        const auto& runList = layerRuns[static_cast<size_t>(RenderLayer::Solid)];
+        if (runList.empty())
+            return false;
+        PipeState ps;
+        ps.colorCount = 0;
+        ps.depth = rhi::Format::D32Float;
+        ps.depthTest = true;
+        ps.depthWrite = true;
+        ps.depthOp = rhi::CompareOp::LessEqual;
+        ps.cull = true;
+        ps.mask = rhi::ColorMask::None;
+        fragmentOverride = empty->fs;
+        const rhi::PipelineHandle pipe = PipelineFor(p, ps);
+        fragmentOverride = {};
+        if (!pipe)
+            return false;
+        BeginPass(list, {}, depthTarget, w, h, false, nullptr, "pack depth prepass");
+        if (!BindUniforms(list, p, draw)) {
+            list.EndRendering();
+            return false;
+        }
+        list.SetBindGroup(1, textures);
+        BindStorage(list, p);
+        list.SetPipeline(pipe);
+        rhi::BufferHandle boundVb, boundIb;
+        for (const ChunkMeshStore::Run& r : runList) {
+            const rhi::BufferHandle vb = meshes.Extension(r.page);
+            const rhi::BufferHandle ib = meshes.Indices(r.page, RenderLayer::Solid);
+            if (!vb || !ib)
+                continue;
+            if (vb != boundVb) {
+                list.SetVertexBuffer(0, vb);
+                boundVb = vb;
+            }
+            if (ib != boundIb) {
+                list.SetIndexBuffer(ib, rhi::IndexType::U32);
+                boundIb = ib;
+            }
+            list.DrawIndexed(r.count, 1, r.first, 0, 0);
+        }
+        list.EndRendering();
+        return true;
+    }
+
     void JavaPack::DrawShadows(rhi::CommandList& list) {
         if (!config.shadowEnabled || !shadowDepth)
             return;
         // iris ShadowRenderer: clear (depth to 1, colour buffers to their clear colour unless shadowcolorNClear is
         // off), solid and cutout terrain, entities, block entities, copy shadowtex0 to shadowtex1, translucent
         // terrain
-        {
+        const bool partial = shadowPartial && shadowCacheValid && shadowCacheDepth;
+        if (partial) {
+            GpuMark(list, "shadow cached");
+            CopyDepth(list, shadowCacheDepth, shadowDepth);
+            for (int i = 0; i < 2; i++)
+                if (shadowColor[i] && shadowCacheColor[i])
+                    CopyDepth(list, shadowCacheColor[i], shadowColor[i]);
+            shadowCacheAge++;
+        } else {
             std::vector<rhi::TextureHandle> colors;
             std::vector<std::array<float, 4>> clears;
             for (int i = 0; i < 2; i++)
@@ -3326,16 +3475,31 @@ namespace perlin::gpu {
             shadowCleared = true;
         }
         using K = ExternalDraw::Kind;
-        if (config.shadowTerrain) {
+        if (config.shadowTerrain && !partial) {
+            GpuMark(list, "shadow solid");
             DrawLayers(list, "shadow_solid", {RenderLayer::Solid}, false, true, 8, -1.0f);
+        }
+        if (!partial && shadowCacheOn && shadowSkipState == 1 && EnsureShadowCache()) {
+            CopyDepth(list, shadowDepth, shadowCacheDepth);
+            for (int i = 0; i < 2; i++)
+                if (shadowColor[i] && shadowCacheColor[i])
+                    CopyDepth(list, shadowColor[i], shadowCacheColor[i]);
+            shadowCacheValid = true;
+            shadowCacheGeneration = meshes.Generation();
+            shadowCacheAge = 0;
+        }
+        if (config.shadowTerrain) {
+            GpuMark(list, "shadow cutout");
             DrawLayers(list, "shadow_cutout", {RenderLayer::Cutout, RenderLayer::CutoutCull}, false, true, 10,
                        0.5f);
         }
-        // mobs and players cast shadows too (shadowEntities / shadowPlayer), then block entities
+        GpuMark(list, "shadow entities");
         DrawExternal(list, {K::Entity, K::EntityTranslucent, K::Lightning}, true);
         DrawExternal(list, {K::Block}, true);
+        GpuMark(list, "shadow copy");
         if (shadowDepthNoTranslucents)
             CopyDepth(list, shadowDepth, shadowDepthNoTranslucents);
+        GpuMark(list, "shadow water");
         if (config.shadowTerrain && config.shadowTranslucent)
             DrawLayers(list, "shadow_water", {RenderLayer::Translucent, RenderLayer::TranslucentCull}, false,
                        true, 17, -1.0f);
@@ -4119,7 +4283,11 @@ namespace perlin::gpu {
         std::vector<std::array<float, 4>> clears;
         if (toBackbuffer)
             clears.push_back({0, 0, 0, 1});
-        BeginPass(list, targets, {}, vw, vh, false, toBackbuffer ? &clears : nullptr, "pack pass");
+        const bool overwrite = !toBackbuffer && !st.blend && !(pc && !pc->blendPerBuffer.empty()) && vw == rw &&
+                               vh == rh && p->source &&
+                               p->source->fragment.text.find("discard") == std::string::npos &&
+                               !std::getenv("PERLIN_PACK_KEEP_LOADS");
+        BeginPass(list, targets, {}, vw, vh, false, toBackbuffer ? &clears : nullptr, "pack pass", overwrite);
         jshader::PackDrawState d;
         const float mv[16] = {2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, -1, -1, 0, 1};
         std::memcpy(d.modelView, mv, sizeof(mv));

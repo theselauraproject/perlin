@@ -28,7 +28,7 @@ namespace perlin {
     int RenderContext_rhi::PackShadowInterval() const {
         if (const char* forced = PERLIN_ENV("PERLIN_PACK_SHADOW_INTERVAL"))
             return std::max(1, std::atoi(forced));
-        return deviceTier <= rhi::Tier::Low && jpackShadowQuality <= 2 ? 2 : 1;
+        return 1;
     }
 
     bool RenderContext_rhi::AttachJavaPack() {
@@ -84,6 +84,7 @@ namespace perlin {
         config.blockEmission = blockEmission;
         config.shadowResolutionLimit = PackShadowLimit();
         config.shadowInterval = PackShadowInterval();
+        config.shadowCache = !PERLIN_ENV("PERLIN_PACK_NO_SHADOW_CACHE");
         if (!pack->Load(config, error)) {
             jpackError = error;
             jpackPath.clear();

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstring>
 #include <map>
+#include <set>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -122,6 +123,32 @@ namespace perlin::jshader {
             }
         }
 
+        bool SamplerNames(const std::vector<uint32_t>& spirv, std::set<std::string>& declared,
+                          std::set<std::string>& used) {
+            try {
+                spirv_cross::Compiler c(spirv);
+                const auto collect = [&](const spirv_cross::ShaderResources& res, std::set<std::string>& out) {
+                    for (const auto* list : {&res.sampled_images, &res.separate_images, &res.separate_samplers})
+                        for (const spirv_cross::Resource& r : *list) {
+                            out.insert(r.name);
+                            out.insert(c.get_name(r.id));
+                        }
+                };
+                collect(c.get_shader_resources(), declared);
+                collect(c.get_shader_resources(c.get_active_interface_variables()), used);
+                return true;
+            } catch (const std::exception&) {
+                return false;
+            }
+        }
+
+        bool NamedIn(const std::set<std::string>& names, const std::string& n) {
+            for (const std::string& x : names)
+                if (x == n || (x.size() > n.size() && x.compare(0, n.size(), n) == 0 && x[n.size()] == '_'))
+                    return true;
+            return false;
+        }
+
         std::vector<uint8_t> Bytes(const std::vector<uint32_t>& words) {
             std::vector<uint8_t> out(words.size() * 4);
             std::memcpy(out.data(), words.data(), out.size());
@@ -162,6 +189,8 @@ namespace perlin::jshader {
         const StageResult* stages[2] = {&program.vertex, &program.fragment};
         std::vector<uint8_t>* outputs[2] = {&result.vertex, &result.fragment};
         std::string* sources[2] = {&result.vertexSource, &result.fragmentSource};
+        std::set<std::string> declaredNames, usedNames;
+        bool namesKnown = true;
         for (int i = 0; i < 2; i++) {
             const bool fragment = i == 1;
             std::vector<uint32_t> spirv;
@@ -171,6 +200,8 @@ namespace perlin::jshader {
                     std::string(fragment ? "fragment" : "vertex") + " shader failed to compile: " + log;
                 return result;
             }
+            if (!SamplerNames(spirv, declaredNames, usedNames))
+                namesKnown = false;
             if (kind == RhiShaderKind::SpirV) {
                 *outputs[i] = Bytes(spirv);
                 continue;
@@ -207,6 +238,17 @@ namespace perlin::jshader {
                 hlsl.replace(at, 11, ".SampleCmpLevelZero(");
             *sources[i] = hlsl;
         }
+        if (std::getenv("JSHADER_SAMPLER_DEBUG")) {
+            std::string d, u;
+            for (const auto& x : declaredNames) d += x + " ";
+            for (const auto& x : usedNames) u += x + " ";
+            std::fprintf(stderr, "[jshader] samplers known=%d declared: %s\n  used: %s\n", namesKnown ? 1 : 0,
+                         d.c_str(), u.c_str());
+        }
+        if (namesKnown && !std::getenv("JSHADER_KEEP_UNUSED_SAMPLERS"))
+            result.samplers.erase(std::remove_if(result.samplers.begin(), result.samplers.end(),
+                                                 [&](const RhiSampler& r) { return !NamedIn(usedNames, r.name); }),
+                                  result.samplers.end());
         if (kind == RhiShaderKind::Hlsl || kind == RhiShaderKind::Dxbc) {
             MatchStageInterface(result.vertexSource, result.fragmentSource);
             for (int i = 0; i < 2; i++) {

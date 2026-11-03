@@ -419,6 +419,8 @@ namespace perlin {
             glm::dvec3 eye{0.0};
         } fgen;
         mutable bool fgenBlocked = false;
+        int presentApplied = -1;
+        void ApplyPresentMode(bool generating);
         bool EnsureFrameGenTargets(uint32_t w, uint32_t h, rhi::Format format);
         void DestroyFrameGenTargets();
         bool FrameGenWanted(rhi::TextureHandle image) const;
@@ -549,6 +551,7 @@ namespace perlin {
         int chunkCullRadius = 0;
         bool frameOpen = false;
         bool packActive = false;
+        bool shaderReloadPending = false;
         // converted java pack drives terrain through the baked java programs
         bool javaActive = false;
         std::string javaPackPath;

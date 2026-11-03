@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstdlib>
 #include <cmath>
 #include <cstdio>
 

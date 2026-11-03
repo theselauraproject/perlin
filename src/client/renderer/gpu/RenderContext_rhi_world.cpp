@@ -463,6 +463,7 @@ namespace perlin {
                       frame.timeSeconds);
         if (pack) {
             // the pack draws terrain, sky and shadows itself when the frame executes
+            jpack->SetViewFrustum(frustum);
             jpack->GatherGeometry(camX, camZ);
             jpackGathered = true;
             if (jpack->VanillaClouds())

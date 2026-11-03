@@ -7,7 +7,12 @@
 #include <SPIRV/GlslangToSpv.h>
 
 #include <cctype>
+#include <cstdlib>
 #include <mutex>
+
+#if PERLIN_SPIRV_OPT
+#include <spirv-tools/optimizer.hpp>
+#endif
 
 namespace perlin::jshader {
     namespace {
@@ -27,6 +32,24 @@ namespace perlin::jshader {
             default:
                 return EShLangFragment;
             }
+        }
+
+        void OptimizeSpirv(std::vector<uint32_t>& spirv) {
+#if PERLIN_SPIRV_OPT
+            static const bool off = std::getenv("PERLIN_JSHADER_NO_OPT") != nullptr;
+            if (off || spirv.empty())
+                return;
+            spvtools::Optimizer optimizer(SPV_ENV_VULKAN_1_1);
+            optimizer.SetMessageConsumer([](spv_message_level_t, const char*, const spv_position_t&, const char*) {});
+            optimizer.RegisterPerformancePasses();
+            spvtools::OptimizerOptions options;
+            options.set_run_validator(false);
+            std::vector<uint32_t> optimized;
+            if (optimizer.Run(spirv.data(), spirv.size(), &optimized, options) && !optimized.empty())
+                spirv.swap(optimized);
+#else
+            (void)spirv;
+#endif
         }
 
         class NoIncluder : public glslang::TShader::Includer {
@@ -81,6 +104,7 @@ namespace perlin::jshader {
         options.disableOptimizer = true;
         glslang::GlslangToSpv(*program.getIntermediate(Lang(stage)), spirv, &logger, &options);
         log = logger.getAllMessages();
+        OptimizeSpirv(spirv);
         return !spirv.empty();
     }
 

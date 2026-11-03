@@ -294,6 +294,14 @@ endif()
 # Java (OptiFine / Iris) shader packs: GLSL -> SPIR-V (glslang) -> GLSL / HLSL (SPIRV-Cross).
 CPMAddPackage(NAME glslang GITHUB_REPOSITORY KhronosGroup/glslang GIT_TAG e2bb10631198bc9d73daf752d9170608d5e2c8bd GIT_SHALLOW NO DOWNLOAD_ONLY YES)
 CPMAddPackage(NAME SPIRV-Cross GITHUB_REPOSITORY KhronosGroup/SPIRV-Cross GIT_TAG 300681bbcb8365a8d1eacdacdbdd0249bbf1d6b1 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
+option(PERLIN_SPIRV_OPT "Optimize converted java pack shaders with SPIRV-Tools" ON)
+if(EMSCRIPTEN)
+    set(PERLIN_SPIRV_OPT OFF)
+endif()
+if(PERLIN_SPIRV_OPT)
+    CPMAddPackage(NAME SPIRV-Headers GITHUB_REPOSITORY KhronosGroup/SPIRV-Headers GIT_TAG 496543121ce6419f23d6fa5d7194ba66c36212d2 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
+    CPMAddPackage(NAME SPIRV-Tools GITHUB_REPOSITORY KhronosGroup/SPIRV-Tools GIT_TAG ef96ed763b43b59b33b31b362f09a02b729fa1c9 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
+endif()
 option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 include(cmake/PerlinJavaShaders.cmake)
 
@@ -948,6 +956,17 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     # targets that start threads: freebsd links libpthread only when asked
     target_link_libraries(gpu_level_unload_selftest PRIVATE Threads::Threads)
+    option(PERLIN_BUILD_PACK_BENCH "Build tools/java_pack_bench: times a java shader pack headless" OFF)
+    if(PERLIN_BUILD_PACK_BENCH)
+        add_executable(java_pack_bench tools/java_pack_bench.cpp src/client/renderer/Tessellator.cpp
+            tests/gpu_context_stubs.cpp src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp
+            src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
+            src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
+            src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+        target_include_directories(java_pack_bench PRIVATE "${stb_SOURCE_DIR}")
+        target_include_directories(java_pack_bench BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
+        target_link_libraries(java_pack_bench PRIVATE perlin_gpu glaze::glaze miniz)
+    endif()
     # offline java shader pack checker: tools/jshader_check <pack> (not a ctest; packs are not in the tree)
     add_executable(jshader_check tools/jshader_check.cpp)
     target_include_directories(jshader_check PRIVATE src)

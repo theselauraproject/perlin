@@ -699,21 +699,14 @@ namespace perlin {
                      });
         }
         {
-            const bool autoGen = options.frameGen == "auto";
-            const int gen = autoGen                    ? 5
-                            : options.frameGen == "4x" ? 4
+            const int gen = options.frameGen == "4x"   ? 4
                             : options.frameGen == "3x" ? 3
                             : options.frameGen == "2x" ? 2
                                                        : 1;
-            const std::string label = autoGen ? "Auto (" +
-                                                    (fgActive > 1 ? std::to_string(fgActive) + "x"
-                                                                  : detail::TrOr("options.off", "OFF")) +
-                                                    ")"
-                                      : gen == 1 ? detail::TrOr("options.off", "OFF")
-                                                 : std::to_string(gen) + "x";
-            m.Slider("Frame Generation", label, static_cast<float>(gen - 1) / 4.0f, [this](float f) {
-                const int g = 1 + static_cast<int>(std::lround(std::clamp(f, 0.0f, 1.0f) * 4.0f));
-                options.frameGen = g == 5 ? "auto" : g == 4 ? "4x" : g == 3 ? "3x" : g == 2 ? "2x" : "off";
+            const std::string label = gen == 1 ? detail::TrOr("options.off", "OFF") : std::to_string(gen) + "x";
+            m.Slider("Frame Generation", label, static_cast<float>(gen - 1) / 3.0f, [this](float f) {
+                const int g = 1 + static_cast<int>(std::lround(std::clamp(f, 0.0f, 1.0f) * 3.0f));
+                options.frameGen = g == 4 ? "4x" : g == 3 ? "3x" : g == 2 ? "2x" : "off";
             });
         }
         {
@@ -1165,20 +1158,26 @@ namespace perlin {
                 break;
             case jshader::ScreenEntry::Kind::Profile: {
                 const std::string at = jshader::MatchingProfile(*inst, current);
-                m.rows.push_back({detail::TrOr("perlin.shaders.profile", "Profile"),
-                                  jshader::ProfileLabel(*inst, at), -1.0f,
-                                  [profiles, at, save](float, bool click) {
-                                      if (!click || profiles.empty())
-                                          return;
-                                      size_t next = 0;
-                                      for (size_t i = 0; i < profiles.size(); i++)
-                                          if (profiles[i].first == at)
-                                              next = (i + 1) % profiles.size();
-                                      for (const auto& [k, v] : profiles[next].second)
-                                          javaEdits[k] = v;
-                                      save();
-                                  }});
+                OptRow ph{detail::TrOr("perlin.shaders.profile", "Profile") + ": " + jshader::ProfileLabel(*inst, at),
+                          "", -1.0f, [](float, bool) {}};
+                ph.header = true;
+                m.rows.push_back(ph);
                 tip(jshader::StripFormatting(inst->Lang("profile.comment")));
+                for (const auto& [profileName, profileValues] : profiles) {
+                    const bool chosen = profileName == at;
+                    m.rows.push_back({(chosen ? "> " : "   ") + jshader::ProfileLabel(*inst, profileName),
+                                      chosen ? detail::TrOr("perlin.shaders.profile.active", "Active") : "", -1.0f,
+                                      [this, packPath, values = profileValues, save](float, bool click) {
+                                          if (!click)
+                                              return;
+                                          for (const auto& [k, v] : values)
+                                              javaEdits[k] = v;
+                                          save();
+                                          javaDirty = false;
+                                          javaPackPending = packPath;
+                                      }});
+                    tip(jshader::StripFormatting(inst->Lang("profile." + profileName + ".comment")));
+                }
                 break;
             }
             case jshader::ScreenEntry::Kind::Option: {

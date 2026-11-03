@@ -5,6 +5,7 @@
 #include "client/javashaders/ProgramSet.hpp"
 #include "client/javashaders/RhiBackend.hpp"
 #include "client/javashaders/UniformTable.hpp"
+#include "client/renderer/Frustum.hpp"
 #include "client/renderer/RenderContext.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
@@ -48,6 +49,7 @@ namespace perlin::gpu {
             std::function<int(uint16_t)> blockEmission;
             int shadowResolutionLimit = 0;
             int shadowInterval = 1;
+            bool shadowCache = true;
         };
 
         // what the engine hands over each frame
@@ -82,6 +84,10 @@ namespace perlin::gpu {
 
         // after the mesh store picked what is visible: remembers the index ranges the frame will draw
         void GatherGeometry(float camX, float camZ);
+        void SetViewFrustum(const Frustum& f) {
+            viewFrustum = f;
+            haveViewFrustum = true;
+        }
 
         // one frame. false when it could not be drawn (the caller then draws the normal way)
         bool Record(rhi::CommandList& list, const FrameParams& params, const Output& out);
@@ -356,7 +362,7 @@ namespace perlin::gpu {
         jshader::PackDrawState TerrainDraw() const;
         void BeginPass(rhi::CommandList& list, const std::vector<rhi::TextureHandle>& colors,
                        rhi::TextureHandle depth, uint32_t w, uint32_t h, bool clearDepth,
-                       const std::vector<std::array<float, 4>>* clears, const char* name);
+                       const std::vector<std::array<float, 4>>* clears, const char* name, bool overwrite = false);
         bool RunPass(rhi::CommandList& list, const std::string& name, bool toBackbuffer, const Output& out);
         void RunChain(rhi::CommandList& list, const char* base);
         void ClearBuffers(rhi::CommandList& list, const FrameParams& params);
@@ -378,10 +384,25 @@ namespace perlin::gpu {
         std::shared_ptr<jshader::ShaderPackInstance> instance;
         jshader::PipelineConfig config;
         int shadowResPatch = 0;
+        int prepassState = -1;
+        rhi::ShaderHandle fragmentOverride;
+        bool DepthPrepass(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw,
+                          rhi::BindGroupHandle textures, rhi::TextureHandle depthTarget, uint32_t w, uint32_t h);
+        Frustum viewFrustum{};
+        bool haveViewFrustum = false;
+        glm::vec3 shadowLightWorld{0.0f};
+        size_t shadowCulled = 0, shadowKeptChunks = 0;
+        std::vector<rhi::TextureHandle> staticTextures;
         bool depthTexUsed[3] = {true, true, true};
         int shadowInterval = 1;
         int shadowSkipState = -1;
         bool shadowKept = false, shadowReuse = false;
+        bool shadowCacheOn = true, shadowPartial = false, shadowCacheValid = false;
+        uint64_t shadowCacheGeneration = 0;
+        int shadowCacheAge = 0;
+        rhi::TextureHandle shadowCacheDepth, shadowCacheColor[2];
+        float keptShadowDrawView[16] = {};
+        bool EnsureShadowCache();
         glm::mat4 keptShadowRot{1.0f};
         glm::vec3 keptShadowOffset{0.0f};
         glm::dvec3 keptShadowCamera{0.0};

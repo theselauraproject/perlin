@@ -252,7 +252,8 @@ namespace perlin {
         o.upscaleSharpness = std::clamp(stored.upscaleSharpness, 0, 100);
         o.upscaleCustom = std::clamp(stored.upscaleCustom, 25, 100);
         o.upscaleTargetFps = std::clamp(stored.upscaleTargetFps, 0, 360);
-        o.frameGen = stored.frameGen;
+        o.frameGen = stored.frameGen == "2x" || stored.frameGen == "3x" || stored.frameGen == "4x" ? stored.frameGen
+                                                                                                 : "off";
         if (!o.enableLods)
             o.renderDistance = std::min(o.renderDistance, 32);
         o.skinParts = stored.skinParts;

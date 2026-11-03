@@ -329,8 +329,14 @@ namespace perlin {
         const bool want = ShaderPack::Instance().Active() && ShaderPack::Instance().Bundled();
         if (!initialized)
             return false;
+        if (frameOpen) {
+            shaderReloadPending = true;
+            return true;
+        }
+        shaderReloadPending = false;
         if (want != packActive) {
             packActive = want;
+            gpu.Dev().WaitIdle();
             gpu.ClearPipelines();
             if (!ResolvePrograms()) {
                 packActive = false;
@@ -472,10 +478,19 @@ namespace perlin {
 
     void RenderContext_rhi::SetVsync(bool enabled) {
         vsync = enabled;
-        if (initialized && !offscreen)
-            gpu.SetPresentMode(enabled ? rhi::PresentMode::Fifo
-                                       : (gpu.Caps().features.tearing ? rhi::PresentMode::Immediate
-                                                                      : rhi::PresentMode::Mailbox));
+        ApplyPresentMode(false);
+    }
+
+    void RenderContext_rhi::ApplyPresentMode(bool generating) {
+        if (!initialized || offscreen)
+            return;
+        const rhi::PresentMode want = vsync ? rhi::PresentMode::Fifo
+                                      : generating || !gpu.Caps().features.tearing ? rhi::PresentMode::Mailbox
+                                                                                   : rhi::PresentMode::Immediate;
+        if (presentApplied == static_cast<int>(want))
+            return;
+        presentApplied = static_cast<int>(want);
+        gpu.SetPresentMode(want);
     }
 
     bool RenderContext_rhi::QueryNativeHandles(NativeHandleInfo& out) const {
@@ -789,6 +804,8 @@ namespace perlin {
     void RenderContext_rhi::BeginFrame(const FrameParams& paramsIn) {
         if (!initialized)
             return;
+        if (shaderReloadPending)
+            ReloadShaders();
         if (jpack && !jpackReady && jpackError.empty()) {
             static uint32_t waitFrames = 0;
             const int left = jpack->WarmUp();
@@ -804,6 +821,7 @@ namespace perlin {
             }
         }
         jpackShadowQuality = paramsIn.shadowQuality;
+        ApplyPresentMode(paramsIn.frameGen > 1 && CanGenerateFrames());
         // the pack does its own post processing, scaling and shadows
         FrameParams packParams;
         const FrameParams* chosen = &paramsIn;
@@ -1484,6 +1502,7 @@ namespace perlin {
             config.blockEmission = blockEmission;
             config.shadowResolutionLimit = PackShadowLimit();
             config.shadowInterval = PackShadowInterval();
+            config.shadowCache = !PERLIN_ENV("PERLIN_PACK_NO_SHADOW_CACHE");
             std::string why;
             if (pack->Load(config, why)) {
                 pack->SetAtlas(atlasSource.data(), tileSize, atlasTiles);

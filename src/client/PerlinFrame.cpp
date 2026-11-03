@@ -9,14 +9,6 @@ namespace perlin {
     int Perlin::FrameGenMultiplier() {
         if (options.frameGen == "off" || !renderer || !renderer->CanGenerateFrames())
             return 1;
-        if (options.frameGen == "auto") {
-            double target = platform ? platform->DisplayRefreshHz() : 0.0;
-            if (target < 30.0)
-                target = 60.0;
-            if (options.maxFps > 0)
-                target = std::min(target, static_cast<double>(options.maxFps));
-            return fgPacer.AutoTotal(target, Clock::now());
-        }
         return options.frameGen == "4x" ? 4 : options.frameGen == "3x" ? 3 : options.frameGen == "2x" ? 2 : 1;
     }
 
