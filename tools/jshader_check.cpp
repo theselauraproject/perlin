@@ -89,6 +89,60 @@ namespace {
         return out;
     }
 
+    // semantic -> type of the members of an spirv-cross hlsl entry struct
+    std::map<std::string, std::string> HlslStruct(const std::string& src, const std::string& name) {
+        std::map<std::string, std::string> out;
+        const size_t at = src.find("struct " + name);
+        if (at == std::string::npos)
+            return out;
+        const size_t open = src.find('{', at), close = src.find("};", at);
+        if (open == std::string::npos || close == std::string::npos)
+            return out;
+        std::istringstream body(src.substr(open + 1, close - open - 1));
+        std::string line;
+        while (std::getline(body, line, ';')) {
+            const size_t colon = line.rfind(':');
+            if (colon == std::string::npos)
+                continue;
+            std::string sem = line.substr(colon + 1);
+            sem.erase(0, sem.find_first_not_of(" \t\r\n"));
+            sem.erase(sem.find_last_not_of(" \t\r\n") + 1);
+            std::istringstream words(line.substr(0, colon));
+            std::vector<std::string> w;
+            for (std::string x; words >> x;)
+                w.push_back(x);
+            if (w.size() >= 2)
+                out[sem] = w[w.size() - 2];
+        }
+        return out;
+    }
+
+    // what d3d12 checks when it links a pipeline: every vertex input is in the input layout, every pixel input is
+    // written by the vertex shader with the same type
+    bool HlslInterfaceMatches(const std::string& vs, const std::string& fs, const std::set<std::string>& layout,
+                              std::string& why) {
+        for (const auto& [sem, type] : HlslStruct(vs, "SPIRV_Cross_Input"))
+            if (sem.rfind("SV_", 0) != 0 && !layout.contains(sem)) {
+                why = "vertex input " + sem + " (" + type + ") is not in the input layout";
+                return false;
+            }
+        const auto outs = HlslStruct(vs, "SPIRV_Cross_Output");
+        for (const auto& [sem, type] : HlslStruct(fs, "SPIRV_Cross_Input")) {
+            if (sem.rfind("SV_", 0) == 0)
+                continue;
+            const auto it = outs.find(sem);
+            if (it == outs.end()) {
+                why = "pixel input " + sem + " is not written by the vertex shader";
+                return false;
+            }
+            if (it->second != type) {
+                why = "pixel input " + sem + " is " + type + ", the vertex shader writes " + it->second;
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool MslInterfaceMatches(const std::string& vs, const std::string& fs, std::string& why) {
         const auto outs = MslVaryings(vs, "main0_out");
         for (const auto& [loc, type] : MslVaryings(fs, "main0_in")) {
@@ -358,6 +412,16 @@ int main(int argc, char** argv) {
                     TransformOptions opts = baseOpts;
                     opts.flipVertexY = !toBack;
                     opts.flipFragCoordY = toBack;
+                    // as the renderer: full-screen passes get only a position and a uv
+                    {
+                        bool pass = false;
+                        for (const char* pre : {"composite", "deferred", "prepare", "final", "begin", "shadowcomp",
+                                                "setup"})
+                            pass = pass || name.rfind(pre, 0) == 0;
+                        if (pass && !std::getenv("JSHADER_ALLATTR"))
+                            opts.availableAttribs = (1u << perlin::jshader::kAttribPosition) |
+                                                    (1u << perlin::jshader::kAttribTexCoord0);
+                    }
                     opts.explicitLod =
                         name.compare(0, 8, "gbuffers") != 0 && name.compare(0, 6, "shadow") != 0;
                     // geometry passes get an alpha test as the renderer gives them (iris AlphaTests)
@@ -400,6 +464,21 @@ int main(int argc, char** argv) {
                             }
                         }
                         if (kind == RhiShaderKind::Hlsl) {
+                            // the renderer's vertex streams: a full-screen quad, or the scene vertex
+                            const bool fullscreen = opts.availableAttribs ==
+                                                    ((1u << perlin::jshader::kAttribPosition) |
+                                                     (1u << perlin::jshader::kAttribTexCoord0));
+                            std::set<std::string> layout = {"TEXCOORD0", "TEXCOORD10"};
+                            if (!fullscreen)
+                                for (const char* t : {"TEXCOORD1", "TEXCOORD2", "TEXCOORD4", "TEXCOORD12", "TEXCOORD13",
+                                                      "TEXCOORD14", "TEXCOORD15"})
+                                    layout.insert(t);
+                            std::string why;
+                            if (!HlslInterfaceMatches(rp.vertexSource, rp.fragmentSource, layout, why)) {
+                                pass = false;
+                                reasons["hlsl-interface"]++;
+                                std::printf("FAIL  %-40s hlsl interface: %s\n", tag.c_str(), why.c_str());
+                            }
                             std::string log;
                             if (!ValidateHlsl(rp.vertexSource, false, log) ||
                                 !ValidateHlsl(rp.fragmentSource, true, log)) {

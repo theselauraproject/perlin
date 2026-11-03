@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstdio>
 #include <sstream>
 #include <cstdlib>
@@ -315,16 +316,93 @@ namespace perlin::jshader {
             add += "    " + decl + " : " + sem + ";\n";
             init += "    stage_output." + decl.substr(sp + 1) + " = (" + decl.substr(0, sp) + ")0;\n";
         }
-        if (add.empty())
+        if (!add.empty()) {
+            vs.insert(ve, add);
+            size_t ret = vs.rfind("return stage_output;");
+            if (ret == std::string::npos)
+                ret = vs.rfind("return ");
+            if (ret != std::string::npos)
+                vs.insert(ret, init);
+            if (std::getenv("JSHADER_TRACE"))
+                std::fprintf(stderr, "[jshader] vertex shader padded with missing pixel inputs\n");
+        }
+
+        // d3d links the stages by register, and fxc packs registers in declaration order: a pixel shader that
+        // reads only some of the vertex outputs (or reads them in another order) gets other registers, and
+        // CreateGraphicsPipelineState refuses the pair (E_INVALIDARG). opengl and vulkan link by name /
+        // location, so packs never care. the pixel input struct becomes the vertex output struct, member for
+        // member, keeping the pixel shader's names for what it reads
+        if (!body(ps, "SPIRV_Cross_Input", pb, pe) || !body(vs, "SPIRV_Cross_Output", vb, ve))
             return;
-        vs.insert(ve, add);
-        size_t ret = vs.rfind("return stage_output;");
-        if (ret == std::string::npos)
-            ret = vs.rfind("return ");
-        if (ret != std::string::npos)
-            vs.insert(ret, init);
-        if (std::getenv("JSHADER_TRACE"))
-            std::fprintf(stderr, "[jshader] vertex shader padded with missing pixel inputs\n");
+        struct Member {
+            std::string line, name, semantic;
+            size_t nameAt = 0;
+        };
+        const auto parse = [](const std::string& text) {
+            std::vector<Member> out;
+            std::istringstream lines(text);
+            std::string l;
+            while (std::getline(lines, l)) {
+                while (!l.empty() && (l.back() == '\r' || l.back() == ' '))
+                    l.pop_back();
+                const size_t colon = l.rfind(" : ");
+                if (colon == std::string::npos || l.empty() || l.back() != ';')
+                    continue;
+                Member m;
+                m.line = l;
+                m.semantic = l.substr(colon + 3, l.size() - colon - 4);
+                size_t nameEnd = colon;
+                while (nameEnd > 0 && l[nameEnd - 1] == ' ')
+                    nameEnd--;
+                size_t nameBegin = nameEnd;
+                while (nameBegin > 0 && l[nameBegin - 1] != ' ' && l[nameBegin - 1] != '\t')
+                    nameBegin--;
+                m.name = l.substr(nameBegin, nameEnd - nameBegin);
+                m.nameAt = nameBegin;
+                // arrays: `float4 x[2] : TEXCOORD3` keeps its brackets on the name
+                out.push_back(std::move(m));
+            }
+            return out;
+        };
+        const std::vector<Member> outs = parse(vs.substr(vb + 1, ve - vb - 1));
+        const std::vector<Member> ins = parse(ps.substr(pb + 1, pe - pb - 1));
+        const auto upper = [](std::string t) {
+            for (char& c : t)
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            return t;
+        };
+        const auto find = [&](const std::vector<Member>& list, const std::string& sem) -> const Member* {
+            for (const Member& m : list)
+                if (upper(m.semantic) == upper(sem))
+                    return &m;
+            return nullptr;
+        };
+        const auto renamed = [](const Member& m, const std::string& name) {
+            std::string base = m.name;
+            const size_t bracket = base.find('[');
+            const std::string suffix = bracket == std::string::npos ? "" : base.substr(bracket);
+            std::string n = name;
+            if (n.find('[') == std::string::npos)
+                n += suffix;
+            return m.line.substr(0, m.nameAt) + n + m.line.substr(m.nameAt + m.name.size());
+        };
+        std::string rebuilt = "\n";
+        int unused = 0;
+        for (const Member& o : outs) {
+            if (const Member* in = find(ins, o.semantic)) {
+                const std::string inName = in->name.substr(0, in->name.find('['));
+                rebuilt += renamed(o, inName) + "\n";
+            } else {
+                rebuilt += renamed(o, "perlin_link_" + std::to_string(unused++)) + "\n";
+            }
+        }
+        // system values the rasterizer makes (front facing, sample index...) are not linked
+        for (const Member& in : ins)
+            if (!find(outs, in.semantic))
+                rebuilt += in.line + "\n";
+        if (std::getenv("JSHADER_TRACE") && rebuilt != ps.substr(pb + 1, pe - pb - 1))
+            std::fprintf(stderr, "[jshader] pixel inputs reordered to the vertex outputs\n");
+        ps.replace(pb + 1, pe - pb - 1, rebuilt);
     }
 
     DxbcCompiler SystemDxbcCompiler() {

@@ -815,7 +815,20 @@ namespace perlin {
                 std::lock_guard lock(switchMutex);
                 request.swap(requestedSwitch);
             }
-            if (!request.empty())
+            // developer testing: PERLIN_DEV_REBUILD_FRAMES=N rebuilds the device every N frames on the same api,
+            // which runs the whole renderer switch (save, tear down, bring up, restore) without a second api
+            static const int rebuildEvery = [] {
+                const char* v = std::getenv("PERLIN_DEV_REBUILD_FRAMES");
+                return v ? std::max(0, std::atoi(v)) : 0;
+            }();
+            static int rebuildCountdown = rebuildEvery;
+            // PERLIN_DEV_REBUILD_ONCE: only the first rebuild
+            static const bool rebuildOnce = std::getenv("PERLIN_DEV_REBUILD_ONCE") != nullptr;
+            if (rebuildEvery > 0 && --rebuildCountdown <= 0) {
+                rebuildCountdown = rebuildOnce ? INT32_MAX : rebuildEvery;
+                if (!RebuildDevice(rhi::ApiId(gpu.Api())))
+                    Log("render", "developer rebuild did not run (frame open: {})", frameOpen);
+            } else if (!request.empty())
                 ApplySwitchTo(request);
         }
         int w = 0, h = 0;
@@ -1317,6 +1330,11 @@ namespace perlin {
                     settings.width = static_cast<uint32_t>(fw);
                     settings.height = static_cast<uint32_t>(fh);
                 }
+            }
+            if (offscreen && width > 0 && height > 0) {
+                // the offscreen image keeps the size it had (the window path above reads the framebuffer)
+                settings.width = static_cast<uint32_t>(width);
+                settings.height = static_cast<uint32_t>(height);
             }
             settings.api = rhi::ApiFromId(api);
             const bool started = offscreen ? gpu.Init(settings, pack, nullptr) : StartDevice(api, pack, true);

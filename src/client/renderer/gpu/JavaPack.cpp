@@ -2830,6 +2830,7 @@ namespace perlin::gpu {
             list.CopyTexture(f.tex, src, std::span<const rhi::TextureCopy>(&c, 1));
             gpu.Transition(list, f.tex, rhi::State::ShaderRead);
             f.serial = passSerial;
+            statCopies++;
         }
         return f.tex;
     }
@@ -2838,6 +2839,7 @@ namespace perlin::gpu {
                              rhi::TextureHandle depthTex, uint32_t w, uint32_t h, bool clearDepth,
                              const std::vector<std::array<float, 4>>* clears, const char* passName) {
         passSerial++;
+        statPasses++;
         rhi::RenderingDesc rd;
         rd.colorCount = static_cast<uint32_t>(colors.size());
         for (size_t i = 0; i < colors.size(); i++) {
@@ -3942,6 +3944,11 @@ namespace perlin::gpu {
                 handProjection[c * 4 + 2] *= 0.125f;
         }
         frameStamp++;
+        // JSHADER_STATS: render passes and feedback copies per frame, every 60 frames
+        if (static const bool stats = std::getenv("JSHADER_STATS") != nullptr; stats && frameStamp % 60 == 0)
+            std::fprintf(stderr, "[jshader] frame %llu: %u passes, %u feedback copies\n",
+                         static_cast<unsigned long long>(frameStamp), statPasses, statCopies);
+        statPasses = statCopies = 0;
         BuildFrame(params, out);
 
         ClearImages(list, false);

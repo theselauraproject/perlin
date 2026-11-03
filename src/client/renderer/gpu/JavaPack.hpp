@@ -408,6 +408,7 @@ namespace perlin::gpu {
         bool noSkyLight = false;
         bool overrideRepeat = false; // the end sky's texture repeats
         bool resolvingFullscreen = false;
+        uint32_t statPasses = 0, statCopies = 0;
         static bool IsFullscreenPass(const std::string& progName);
 
         std::array<Buffer, jshader::kMaxColorTex> bufs;
