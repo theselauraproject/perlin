@@ -57,7 +57,7 @@ namespace perlin {
                                            platform->SetClipboard(text);
                                    });
         options = Options::Load();
-        runningRenderer = options.renderer;
+        runningRenderer = notifiedRenderer = options.renderer;
         // headless runs (tests, control port) never touch the installation
         update::Start(options.autoUpdate && !std::getenv("PERLIN_NO_UPDATE") && !args.hidden);
 #ifdef __EMSCRIPTEN__

@@ -366,7 +366,8 @@ namespace perlin {
         LaunchArgs args;
         AppPlatform* platform = nullptr;
         Options options;
-        std::string runningRenderer;
+        // the renderer the game started with; a new choice is saved and takes effect on the next launch
+        std::string runningRenderer, notifiedRenderer;
         Input input;
         InputManager inputManager{input, options};
         std::shared_ptr<ClientControl> control;

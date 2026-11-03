@@ -315,6 +315,10 @@ namespace perlin::gpu {
         Program* Finish(const std::string& key, const std::string& name, const Converted& c,
                         std::shared_ptr<jshader::ProgramSource> source);
         SamplerBind ResolveSampler(const jshader::RhiSampler& s);
+        std::vector<SamplerBind> ResolveAll(const std::string& progName,
+                                            const std::vector<jshader::RhiSampler>& samplerList);
+        int ChooseSampler(const SamplerBind& s) const;
+        std::string MergeHlslSamplers(const std::string& src, const std::vector<SamplerBind>& binds) const;
         rhi::PipelineHandle PipelineFor(Program& p, const PipeState& state);
         void FillUniforms(Program& p, const jshader::PackDrawState& draw, bool perDrawOnly);
         bool BindUniforms(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw);

@@ -81,6 +81,11 @@ Iris feeds packs live values, and so does Perlin:
 - the vanilla sky as Iris draws it: sky, sunrise fan, sun and moon fading in rain, stars only at night (coloured by
   their brightness through `gl_Color`), and the void disc below the horizon.
 
+Direct3D 11 has 16 sampler registers a stage; packs declare more, so textures read with the same sampler state
+share one sampler variable there. `jshader_check -b hlsl` checks that and the Direct3D 12 stage linkage.
+
+The renderer (Vulkan, Direct3D 12/11...) changes on the next launch; the options show "restart to apply".
+
 Full-screen passes (composite, deferred, final...) get Iris's quad: `gl_Color` is white, and `texture` /
 `gtexture` / unbound samplers read colortex0.
 

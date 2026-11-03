@@ -49,4 +49,9 @@ namespace perlin::jshader {
 
     // d3dcompiler_47 on windows, empty elsewhere
     DxbcCompiler SystemDxbcCompiler();
+
+    // d3d11 allows 16 sampler registers a stage: when an hlsl stage declares more, the samplers whose texture gets
+    // the same key (the sampler state it is read with) share the first one's variable. an empty key keeps a sampler
+    std::string MergeHlslSamplers(const std::string& hlsl,
+                                  const std::function<std::string(const std::string& texture)>& keyOf);
 }

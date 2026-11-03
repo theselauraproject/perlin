@@ -479,6 +479,30 @@ int main(int argc, char** argv) {
                                 reasons["hlsl-interface"]++;
                                 std::printf("FAIL  %-40s hlsl interface: %s\n", tag.c_str(), why.c_str());
                             }
+                            // direct3d 11: 16 sampler registers a stage once samplers that share a state are merged
+                            // (keyed by the texture's family here; the renderer keys by the exact sampler state)
+                            const auto family = [](const std::string& t) -> std::string {
+                                for (const char* f : {"colortex", "gaux", "depthtex", "shadowtex", "shadowcolor"})
+                                    if (t.rfind(f, 0) == 0)
+                                        return f;
+                                if (t == "gcolor" || t == "gdepth" || t == "gnormal" || t == "composite")
+                                    return "colortex";
+                                return t;
+                            };
+                            for (const std::string* src : {&rp.vertexSource, &rp.fragmentSource}) {
+                                const std::string merged = MergeHlslSamplers(*src, family);
+                                size_t count = 0;
+                                for (size_t at = 0; (at = merged.find("\nSampler", at)) != std::string::npos; at++)
+                                    count++;
+                                std::string mlog;
+                                if (count > 16 || !ValidateHlsl(merged, src == &rp.fragmentSource, mlog)) {
+                                    pass = false;
+                                    reasons["d3d11-samplers"]++;
+                                    std::printf("FAIL  %-40s d3d11: %zu samplers %s\n", tag.c_str(), count,
+                                                FirstError(mlog).c_str());
+                                    break;
+                                }
+                            }
                             std::string log;
                             if (!ValidateHlsl(rp.vertexSource, false, log) ||
                                 !ValidateHlsl(rp.fragmentSource, true, log)) {

@@ -538,4 +538,60 @@ namespace perlin::jshader {
         return {};
 #endif
     }
+
+    std::string MergeHlslSamplers(const std::string& src,
+                                  const std::function<std::string(const std::string& texture)>& keyOf) {
+        struct Decl {
+            size_t begin, end;
+            std::string var, type;
+        };
+        const auto word = [](char ch) { return std::isalnum(static_cast<unsigned char>(ch)) || ch == '_'; };
+        std::vector<Decl> decls;
+        for (const char* type : {"SamplerState ", "SamplerComparisonState "}) {
+            const std::string t = type;
+            for (size_t at = src.find(t); at != std::string::npos; at = src.find(t, at + 1)) {
+                if (at > 0 && src[at - 1] != '\n')
+                    continue;
+                const size_t nameAt = at + t.size();
+                size_t nameEnd = nameAt;
+                while (nameEnd < src.size() && word(src[nameEnd]))
+                    nameEnd++;
+                const size_t lineEnd = src.find('\n', nameEnd);
+                if (lineEnd == std::string::npos || src.find("register(", nameEnd) > lineEnd)
+                    continue;
+                decls.push_back({at, lineEnd + 1, src.substr(nameAt, nameEnd - nameAt), t});
+            }
+        }
+        if (decls.size() <= 16)
+            return src;
+        std::map<std::string, std::string> renameTo, groupHead;
+        std::vector<std::pair<size_t, size_t>> drop;
+        for (const Decl& d : decls) {
+            const size_t suffix = d.var.rfind("_iris_s");
+            const std::string texture = suffix == std::string::npos ? d.var : d.var.substr(0, suffix);
+            const std::string key = keyOf(texture);
+            if (key.empty())
+                continue;
+            const auto [it, first] = groupHead.emplace(d.type + key, d.var);
+            if (!first) {
+                renameTo[d.var] = it->second;
+                drop.emplace_back(d.begin, d.end);
+            }
+        }
+        std::string out = src;
+        std::sort(drop.begin(), drop.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+        for (const auto& [b, e] : drop)
+            out.erase(b, e - b);
+        for (const auto& [from, to] : renameTo)
+            for (size_t at = out.find(from); at != std::string::npos; at = out.find(from, at)) {
+                const size_t end = at + from.size();
+                if ((at > 0 && word(out[at - 1])) || (end < out.size() && word(out[end]))) {
+                    at = end;
+                    continue;
+                }
+                out.replace(at, from.size(), to);
+                at += to.size();
+            }
+        return out;
+    }
 }

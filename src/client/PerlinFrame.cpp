@@ -565,23 +565,16 @@ namespace perlin {
     }
 
     void Perlin::ApplyRendererSwitch() {
-        if (options.renderer != runningRenderer && optionsUi.drag < 0 && renderer) {
-            runningRenderer = options.renderer;
-            options.Save();
-            if (!renderer->RequestRendererSwitch(options.renderer))
-                chat.AddMessage("Renderer cannot be changed right now", hudAnim.ticks);
-        }
-        if (renderer && !renderer->RendererSwitchPending()) {
-            // a switch that fell back to the old api must not leave the options claiming the new one
-            const std::string active = renderer->ActiveRendererId();
-            if (!active.empty() && options.renderer != "auto" && options.renderer != active &&
-                options.renderer == runningRenderer) {
-                chat.AddMessage("Could not switch renderer; staying on " + renderer->RendererName(),
-                                hudAnim.ticks);
-                options.renderer = runningRenderer = active;
-                options.Save();
-            }
-        }
+        // swapping the graphics api under a running window is not reliable on every driver (the window can stop
+        // presenting), so a new renderer is saved and used from the next launch
+        if (options.renderer == notifiedRenderer || optionsUi.drag >= 0)
+            return;
+        notifiedRenderer = options.renderer;
+        options.Save();
+        if (options.renderer == runningRenderer)
+            chat.AddMessage("Renderer change cancelled", hudAnim.ticks);
+        else
+            chat.AddMessage("Restart the game to use the new renderer", hudAnim.ticks);
     }
 
     void Perlin::UpdateViewSettings(FrameContext& f) {

@@ -574,7 +574,10 @@ namespace perlin {
                 if (apis[i].first == options.renderer)
                     at = i;
             const size_t last = apis.size() - 1;
-            m.Slider("Renderer", apis[at].second,
+            // the renderer changes on the next launch: the label says so until then
+            const std::string label =
+                apis[at].second + (options.renderer != runningRenderer ? " (restart to apply)" : "");
+            m.Slider("Renderer", label,
                      last ? static_cast<float>(at) / static_cast<float>(last) : 0.0f,
                      [this, apis, last](float f) {
                          options.renderer = apis[static_cast<size_t>(std::lround(std::clamp(f, 0.0f, 1.0f) *

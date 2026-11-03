@@ -1558,6 +1558,19 @@ namespace perlin::gpu {
         return b;
     }
 
+    std::vector<JavaPack::SamplerBind> JavaPack::ResolveAll(const std::string& progName,
+                                                            const std::vector<jshader::RhiSampler>& samplerList) {
+        resolvingWaterShadow = false;
+        resolvingStage = TextureStageOf(progName);
+        resolvingFullscreen = IsFullscreenPass(progName);
+        for (const jshader::RhiSampler& s : samplerList)
+            resolvingWaterShadow = resolvingWaterShadow || s.name == "watershadow";
+        std::vector<SamplerBind> out;
+        for (const jshader::RhiSampler& s : samplerList)
+            out.push_back(ResolveSampler(s));
+        return out;
+    }
+
     void JavaPack::FillProgramResources(Program& p, const std::string& progName,
                                         const std::vector<jshader::RhiSampler>& samplerList,
                                         const std::vector<std::string>& imageNames,
@@ -1622,11 +1635,19 @@ namespace perlin::gpu {
         sd.name = progName.c_str();
         if (format == rhi::ShaderFormat::Msl)
             sd.entry = "main0"; // spirv-cross renames main, which msl reserves
+        std::vector<uint8_t> vsCode = rp.vertex, fsCode = rp.fragment;
+        if (format == rhi::ShaderFormat::Hlsl && gpu.Api() == rhi::Api::D3D11) {
+            const std::vector<SamplerBind> binds = ResolveAll(progName, rp.samplers);
+            for (std::vector<uint8_t>* code : {&vsCode, &fsCode}) {
+                const std::string merged = MergeHlslSamplers(std::string(code->begin(), code->end()), binds);
+                code->assign(merged.begin(), merged.end());
+            }
+        }
         sd.stage = rhi::ShaderStage::Vertex;
-        sd.code = rp.vertex;
+        sd.code = vsCode;
         p->vs = gpu.Dev().CreateShader(sd);
         sd.stage = rhi::ShaderStage::Fragment;
-        sd.code = rp.fragment;
+        sd.code = fsCode;
         p->fs = gpu.Dev().CreateShader(sd);
         p->valid = p->vs && p->fs;
         FillProgramResources(*p, progName, rp.samplers, rp.images, c.transform.uniforms, rp.uniformRegs);
@@ -2088,6 +2109,49 @@ namespace perlin::gpu {
         return g;
     }
 
+    // the sampler state a texture is read with (the same for every draw, apart from the end sky's repeating atlas)
+    int JavaPack::ChooseSampler(const SamplerBind& s) const {
+        switch (s.kind) {
+        case Kind::Color:
+            return config.color[static_cast<size_t>(s.index)].linear ? SLinearClamp : SPointClamp;
+        case Kind::Depth:
+            return SPointClamp;
+        case Kind::ShadowDepth: {
+            const size_t fi = s.index == 1 ? 1 : 0;
+            if (s.shadow)
+                return config.shadowFilterLinear[fi] ? SCompareLinear : SComparePoint;
+            return config.shadowFilterLinear[fi] ? SLinearClamp : SPointClamp;
+        }
+        case Kind::ShadowColor:
+            return config.shadowColorLinear[s.index] ? SLinearClamp : SPointClamp;
+        case Kind::Noise:
+            return noiseSampler;
+        case Kind::Atlas:
+            return textureOverride && overrideRepeat ? SPointRepeat : SAtlas;
+        case Kind::Custom: {
+            const auto it = customSamplers.find(s.customKey);
+            return it != customSamplers.end() ? it->second : SLinearClamp;
+        }
+        case Kind::Image:
+            // iris samples custom images with linear filtering, integer ones nearest
+            return images[static_cast<size_t>(s.index)].integer ? SPointClamp : SLinearClamp;
+        default:
+            return SLinearClamp;
+        }
+    }
+
+    // direct3d 11 has 16 sampler registers a stage, and packs read more textures than that, each with its own
+    // sampler: textures read with the same sampler state share one sampler variable there (the atlas stays apart,
+    // its state changes for the end sky)
+    std::string JavaPack::MergeHlslSamplers(const std::string& src, const std::vector<SamplerBind>& binds) const {
+        return jshader::MergeHlslSamplers(src, [&](const std::string& texture) -> std::string {
+            for (const SamplerBind& b : binds)
+                if (b.name == texture)
+                    return b.kind == Kind::Atlas ? std::string("atlas") : std::to_string(ChooseSampler(b));
+            return {};
+        });
+    }
+
     rhi::BindGroupHandle JavaPack::Textures(rhi::CommandList& list, Program& p,
                                             const std::vector<rhi::TextureHandle>& attached) {
         PackSet set;
@@ -2101,43 +2165,33 @@ namespace perlin::gpu {
         };
         for (const SamplerBind& s : p.samplers) {
             rhi::TextureHandle t = white;
-            int smp = SLinearClamp;
+            const int smp = ChooseSampler(s);
             switch (s.kind) {
             case Kind::Color: {
                 const Buffer& b = bufs[static_cast<size_t>(s.index)];
                 t = b.used ? b.tex[b.cur] : blackTex;
-                smp = config.color[static_cast<size_t>(s.index)].linear ? SLinearClamp : SPointClamp;
                 break;
             }
             case Kind::Depth:
                 t = depth[s.index];
-                smp = SPointClamp;
                 break;
             case Kind::ShadowDepth: {
                 const rhi::TextureHandle depthTex =
                     s.index == 1 && shadowDepthNoTranslucents ? shadowDepthNoTranslucents : shadowDepth;
-                const size_t fi = s.index == 1 ? 1 : 0;
                 t = depthTex ? depthTex : white;
-                if (s.shadow)
-                    smp = config.shadowFilterLinear[fi] ? SCompareLinear : SComparePoint;
-                else
-                    smp = config.shadowFilterLinear[fi] ? SLinearClamp : SPointClamp;
                 break;
             }
             case Kind::ShadowColor:
                 t = shadowColor[s.index] ? shadowColor[s.index] : white;
-                smp = config.shadowColorLinear[s.index] ? SLinearClamp : SPointClamp;
                 break;
             case Kind::Noise:
                 t = noise;
-                smp = noiseSampler;
                 break;
             case Kind::Atlas:
                 if (textureOverride)
                     t = textureOverride;
                 else if (atlas)
                     t = atlas;
-                smp = textureOverride && overrideRepeat ? SPointRepeat : SAtlas;
                 break;
             case Kind::Lightmap:
                 if (lightmapTex)
@@ -2152,13 +2206,10 @@ namespace perlin::gpu {
                 break;
             case Kind::Custom:
                 t = customTextures[s.customKey];
-                smp = customSamplers[s.customKey];
                 break;
             case Kind::Image: {
-                // iris samples custom images with linear filtering, integer ones nearest
                 const Image& img = images[static_cast<size_t>(s.index)];
                 t = img.tex;
-                smp = img.integer ? SPointClamp : SLinearClamp;
                 set.dim[static_cast<size_t>(s.slot)] = img.dim;
                 break;
             }
@@ -2430,7 +2481,13 @@ namespace perlin::gpu {
         if (sd.format == rhi::ShaderFormat::Msl)
             sd.entry = "main0";
         sd.stage = rhi::ShaderStage::Compute;
-        sd.code = rc.code;
+        std::vector<uint8_t> csCode = rc.code;
+        if (sd.format == rhi::ShaderFormat::Hlsl && gpu.Api() == rhi::Api::D3D11) {
+            const std::string merged =
+                MergeHlslSamplers(std::string(rc.code.begin(), rc.code.end()), ResolveAll(progName, rc.samplers));
+            csCode.assign(merged.begin(), merged.end());
+        }
+        sd.code = csCode;
         p->cs = gpu.Dev().CreateShader(sd);
         p->valid = static_cast<bool>(p->cs);
         FillProgramResources(*p, progName, rc.samplers, rc.images, c.computeTransform.stage.uniforms,
