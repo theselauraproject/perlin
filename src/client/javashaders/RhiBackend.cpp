@@ -540,7 +540,7 @@ namespace perlin::jshader {
     }
 
     std::string MergeHlslSamplers(const std::string& src,
-                                  const std::function<std::string(const std::string& texture)>& keyOf) {
+                                  const std::function<std::string(const std::string& texture, bool comparison)>& keyOf) {
         struct Decl {
             size_t begin, end;
             std::string var, type;
@@ -569,7 +569,7 @@ namespace perlin::jshader {
         for (const Decl& d : decls) {
             const size_t suffix = d.var.rfind("_iris_s");
             const std::string texture = suffix == std::string::npos ? d.var : d.var.substr(0, suffix);
-            const std::string key = keyOf(texture);
+            const std::string key = keyOf(texture, d.type == "SamplerComparisonState ");
             if (key.empty())
                 continue;
             const auto [it, first] = groupHead.emplace(d.type + key, d.var);

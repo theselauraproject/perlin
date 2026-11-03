@@ -111,6 +111,13 @@ Complementary Reimagined and Unbound r5.9.3 and Sildur's Vibrant 2.02 pass on al
 The only failures in random sweeps are option combinations the packs themselves do not compile in, such as
 Complementary with `RP_MODE=1` and `IPBR_EMISSIVE_MODE=1`.
 
+## Measuring
+
+`JSHADER_GPU_TIMES=1` logs, every 120 frames, the gpu milliseconds of each part of the pack's frame (shadow,
+terrain, translucent, every composite pass by name) and the cpu time spent recording it. `JSHADER_STATS=1` counts
+render passes and feedback copies. `JSHADER_VIA_HLSL=11` (or `12`) runs the hlsl the Direct3D 11 (12) backend
+gets on Vulkan, to check the Direct3D shader path on a machine without it.
+
 ## Settings
 
 Options > Shader Pack Settings follows the pack's own layout:

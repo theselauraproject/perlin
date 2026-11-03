@@ -96,7 +96,11 @@ namespace perlin::jshader {
         std::vector<ShaderOption> options;
         std::string dimension;
         std::string packName;
+        bool ProgramEnabledUncached(const std::string& name) const;
         std::map<std::string, std::shared_ptr<ProgramSource>> cache;
+        // the renderer asks these every frame: answered once per load and dimension
+        mutable std::map<std::string, bool> existsCache, enabledCache;
+        mutable std::map<std::string, std::vector<std::string>> chainCache;
         Directives directives;
         bool directivesLoaded = false;
         std::map<int, std::vector<std::string>> blockIds, entityIds, itemIds;

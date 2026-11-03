@@ -579,6 +579,12 @@ namespace perlin::gpu {
         rhi::Device& dev = gpu.Dev();
         dev.WaitIdle();
         DestroyTargets();
+        if (timing.queries)
+            dev.Destroy(timing.queries);
+        for (rhi::BufferHandle b : timing.readback)
+            if (b)
+                dev.Destroy(b);
+        timing = {};
         for (auto& kv : programs) {
             if (kv.second->vs)
                 dev.Destroy(kv.second->vs);
@@ -1636,7 +1642,11 @@ namespace perlin::gpu {
         if (format == rhi::ShaderFormat::Msl)
             sd.entry = "main0"; // spirv-cross renames main, which msl reserves
         std::vector<uint8_t> vsCode = rp.vertex, fsCode = rp.fragment;
-        if (format == rhi::ShaderFormat::Hlsl && gpu.Api() == rhi::Api::D3D11) {
+        // developer testing: JSHADER_VIA_HLSL=11 (or 12) runs the hlsl the direct3d 11 (12) backend would get on
+        // vulkan, through glslang
+        static const char* viaHlsl = std::getenv("JSHADER_VIA_HLSL");
+        const bool d3d11Samplers = gpu.Api() == rhi::Api::D3D11 || (viaHlsl && std::string(viaHlsl) == "11");
+        if (format == rhi::ShaderFormat::Hlsl && d3d11Samplers) {
             const std::vector<SamplerBind> binds = ResolveAll(progName, rp.samplers);
             for (std::vector<uint8_t>* code : {&vsCode, &fsCode}) {
                 const std::string merged = MergeHlslSamplers(std::string(code->begin(), code->end()), binds);
@@ -1768,17 +1778,46 @@ namespace perlin::gpu {
                                                 : api == rhi::Api::D3D12 ? jshader::RhiShaderKind::Dxbc
                                                 : api == rhi::Api::Metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;
-            const jshader::RhiShaderKind kindUsed = std::getenv("JSHADER_FORCE_HLSL")
+            const jshader::RhiShaderKind kindUsed = std::getenv("JSHADER_FORCE_HLSL") || std::getenv("JSHADER_VIA_HLSL")
                                                         ? jshader::RhiShaderKind::Hlsl
                                                         : kind; // conversion check without a d3d device
             const jshader::DxbcCompiler dxbc = jshader::SystemDxbcCompiler();
             const std::filesystem::path cacheFile =
-                CacheFile(vertex, fragment, opts, static_cast<int>(kind), progName);
+                CacheFile(vertex, fragment, opts, static_cast<int>(kindUsed), progName);
+            // developer testing (JSHADER_VIA_HLSL): the sampler key of every name a program can declare, for the
+            // direct3d 11 sampler merge done on the worker
+            std::map<std::string, std::string> viaKeys;
+            static const char* viaHlslEnv = std::getenv("JSHADER_VIA_HLSL");
+            const bool via = viaHlslEnv && gpu.Api() == rhi::Api::Vulkan;
+            if (via && std::string(viaHlslEnv) == "11") {
+                std::vector<jshader::RhiSampler> names;
+                const auto add = [&](const std::string& n) {
+                    for (bool sh : {false, true}) {
+                        jshader::RhiSampler r;
+                        r.name = n;
+                        r.shadow = sh;
+                        names.push_back(r);
+                    }
+                };
+                for (int i = 0; i < 16; i++)
+                    add("colortex" + std::to_string(i));
+                for (const char* n : {"gcolor", "gdepth", "gnormal", "composite", "gaux1", "gaux2", "gaux3", "gaux4",
+                                      "depthtex0", "depthtex1", "depthtex2", "gdepthtex", "shadowtex0", "shadowtex1",
+                                      "shadow", "watershadow", "shadowcolor", "shadowcolor0", "shadowcolor1",
+                                      "noisetex", "tex", "texture", "gtexture", "lightmap", "normals", "specular"})
+                    add(n);
+                for (const auto& [k, v] : customTextures)
+                    add(k.substr(k.find(':') + 1));
+                const std::vector<SamplerBind> binds = ResolveAll(progName, names);
+                for (const SamplerBind& b : binds)
+                    viaKeys[(b.shadow ? "S:" : "P:") + b.name] =
+                        b.kind == Kind::Atlas ? std::string("atlas") : std::to_string(ChooseSampler(b));
+            }
             auto fut = pool.Submit([vertex = std::move(vertex), fragment = std::move(fragment), opts,
-                                    kind = kindUsed, dxbc, cacheFile]() {
+                                    kind = kindUsed, dxbc, cacheFile, via, viaKeys]() {
                 auto c = std::make_shared<Converted>();
                 CachedProgram cached;
-                if (LoadCache(cacheFile, cached)) {
+                if (!via && LoadCache(cacheFile, cached)) {
                     c->transform.uniforms = std::move(cached.uniforms);
                     c->transform.fragment.drawBuffers = std::move(cached.drawBuffers);
                     c->program.ok = true;
@@ -1801,6 +1840,29 @@ namespace perlin::gpu {
                 }
                 c->program = jshader::BuildRhiProgram(c->transform, kind, dxbc);
                 c->ok = c->program.ok;
+                if (via && c->ok) {
+                    for (auto [code, stage] : {std::pair{&c->program.vertex, jshader::Stage::Vertex},
+                                               std::pair{&c->program.fragment, jshader::Stage::Fragment}}) {
+                        std::string text(code->begin(), code->end());
+                        if (!viaKeys.empty()) {
+                            const std::string plain = jshader::MergeHlslSamplers(text, [&](const std::string& t, bool cmp) {
+                                const auto it = viaKeys.find((cmp ? "S:" : "P:") + t);
+                                return it != viaKeys.end() ? it->second : std::string();
+                            });
+                            text = plain;
+                        }
+                        std::vector<uint32_t> spirv;
+                        std::string log;
+                        if (!jshader::HlslToSpirv(text, stage, spirv, log)) {
+                            c->ok = false;
+                            c->error = "hlsl for vulkan: " + log.substr(0, 800);
+                            break;
+                        }
+                        code->assign(reinterpret_cast<const uint8_t*>(spirv.data()),
+                                     reinterpret_cast<const uint8_t*>(spirv.data() + spirv.size()));
+                    }
+                    c->program.kind = jshader::RhiShaderKind::SpirV;
+                }
                 if (const char* dumpName = std::getenv("JSHADER_DUMP_HLSL")) {
                     // writes the converted hlsl of every program next to the given prefix
                     const std::string base = dumpName;
@@ -1811,7 +1873,7 @@ namespace perlin::gpu {
                 }
                 if (!c->ok) {
                     c->error = c->program.error;
-                } else {
+                } else if (!via) {
                     CachedProgram save;
                     save.uniforms = c->transform.uniforms;
                     save.drawBuffers = c->transform.fragment.drawBuffers;
@@ -1960,15 +2022,23 @@ namespace perlin::gpu {
     }
 
     rhi::PipelineHandle JavaPack::PipelineFor(Program& p, const PipeState& st) {
-        char key[256];
-        std::snprintf(key, sizeof(key), "%p|%d|%u|%d|%d%d|%d|%d|%d,%d,%d,%d|%d|", static_cast<void*>(&p),
-                      st.scene ? 1 : 0, st.colorCount, static_cast<int>(st.depth), st.depthTest,
-                      st.depthWrite, static_cast<int>(st.depthOp), st.blend ? 1 : 0, static_cast<int>(st.src),
-                      static_cast<int>(st.dst), static_cast<int>(st.srcA), static_cast<int>(st.dstA),
-                      static_cast<int>(st.mask));
-        std::string k = key;
-        for (uint32_t i = 0; i < st.colorCount; i++)
-            k += std::to_string(static_cast<int>(st.colors[i])) + ",";
+        // a flat key: this runs for every draw
+        PipeKey k{};
+        k.program = &p;
+        uint8_t* b = k.bytes.data();
+        *b++ = st.scene ? 1 : 0;
+        *b++ = static_cast<uint8_t>(st.colorCount);
+        *b++ = static_cast<uint8_t>(st.depth);
+        *b++ = static_cast<uint8_t>((st.depthTest ? 1 : 0) | (st.depthWrite ? 2 : 0) | (st.blend ? 4 : 0) |
+                                    (st.cull ? 8 : 0));
+        *b++ = static_cast<uint8_t>(st.depthOp);
+        *b++ = static_cast<uint8_t>(st.src);
+        *b++ = static_cast<uint8_t>(st.dst);
+        *b++ = static_cast<uint8_t>(st.srcA);
+        *b++ = static_cast<uint8_t>(st.dstA);
+        *b++ = static_cast<uint8_t>(st.mask);
+        for (uint32_t i = 0; i < st.colorCount && i < 8; i++)
+            *b++ = static_cast<uint8_t>(st.colors[i]);
         const auto it = pipelines.find(k);
         if (it != pipelines.end())
             return it->second;
@@ -1999,7 +2069,9 @@ namespace perlin::gpu {
             gd.attributes[1] = {static_cast<uint32_t>(kAttribTexCoord0), 0, rhi::Format::RG32Float, 12};
             gd.attributeCount = 2;
         }
-        gd.raster.cull = rhi::CullMode::None;
+        // offscreen targets are drawn upside down (flipVertexY), which turns the winding around
+        gd.raster.cull = st.cull ? rhi::CullMode::Back : rhi::CullMode::None;
+        gd.raster.frontFace = rhi::FrontFace::CounterClockwise;
         gd.depthStencil.depthTest = st.depthTest;
         gd.depthStencil.depthWrite = st.depthWrite;
         gd.depthStencil.depthCompare = st.depthOp;
@@ -2144,7 +2216,7 @@ namespace perlin::gpu {
     // sampler: textures read with the same sampler state share one sampler variable there (the atlas stays apart,
     // its state changes for the end sky)
     std::string JavaPack::MergeHlslSamplers(const std::string& src, const std::vector<SamplerBind>& binds) const {
-        return jshader::MergeHlslSamplers(src, [&](const std::string& texture) -> std::string {
+        return jshader::MergeHlslSamplers(src, [&](const std::string& texture, bool) -> std::string {
             for (const SamplerBind& b : binds)
                 if (b.name == texture)
                     return b.kind == Kind::Atlas ? std::string("atlas") : std::to_string(ChooseSampler(b));
@@ -2849,6 +2921,21 @@ namespace perlin::gpu {
                     shadowRuns[slot].push_back(
                         {static_cast<uint32_t>(g.page), g.iOff[slot], g.layerCount[slot]});
         }
+        // columns stored back to back in a page draw as one: far fewer draw calls in the shadow pass
+        for (auto& runs : shadowRuns) {
+            std::sort(runs.begin(), runs.end(), [](const ChunkMeshStore::Run& a, const ChunkMeshStore::Run& b) {
+                return a.page != b.page ? a.page < b.page : a.first < b.first;
+            });
+            size_t out = 0;
+            for (size_t i = 0; i < runs.size(); i++) {
+                if (out > 0 && runs[out - 1].page == runs[i].page &&
+                    runs[out - 1].first + runs[out - 1].count == runs[i].first)
+                    runs[out - 1].count += runs[i].count;
+                else
+                    runs[out++] = runs[i];
+            }
+            runs.resize(out);
+        }
     }
 
     // -- passes --------------------------------------------------------------------------------------------------------
@@ -3065,6 +3152,8 @@ namespace perlin::gpu {
             if (runList.empty())
                 continue;
             PipeState ls = st;
+            ls.cull = !shadow && (layer == RenderLayer::Solid || layer == RenderLayer::CutoutCull ||
+                                  layer == RenderLayer::TranslucentCull);
             const bool blendLayer = !shadow && translucent;
             ls.blend = blendLayer;
             ls.depthWrite = true; // depthtex0 holds the translucent surfaces too
@@ -3089,6 +3178,7 @@ namespace perlin::gpu {
                 continue;
             }
             list.SetPipeline(pipe);
+            rhi::BufferHandle boundVb, boundIb;
             for (const ChunkMeshStore::Run& r : runList) {
                 const rhi::BufferHandle vb = meshes.Extension(r.page);
                 const rhi::BufferHandle ib = meshes.Indices(r.page, layer);
@@ -3101,8 +3191,15 @@ namespace perlin::gpu {
                 if (trace)
                     std::fprintf(stderr, "[jshader] %s: draw %u indices from %u\n", programName, r.count,
                                  r.first);
-                list.SetVertexBuffer(0, vb);
-                list.SetIndexBuffer(ib, rhi::IndexType::U32);
+                // runs of one page share their buffers: bind them once
+                if (vb != boundVb) {
+                    list.SetVertexBuffer(0, vb);
+                    boundVb = vb;
+                }
+                if (ib != boundIb) {
+                    list.SetIndexBuffer(ib, rhi::IndexType::U32);
+                    boundIb = ib;
+                }
                 list.DrawIndexed(r.count, 1, r.first, 0, 0);
             }
         }
@@ -3834,6 +3931,7 @@ namespace perlin::gpu {
 
     bool JavaPack::RunPass(rhi::CommandList& list, const std::string& passName, bool toBackbuffer,
                            const Output& out) {
+        GpuMark(list, passName);
         Program* p = GetProgram(passName, toBackbuffer);
         if (!p)
             return false;
@@ -3979,6 +4077,16 @@ namespace perlin::gpu {
     bool JavaPack::Record(rhi::CommandList& list, const FrameParams& params, const Output& out) {
         if (!instance || !out.color || out.width == 0 || out.height == 0)
             return false;
+        const auto cpuStart = std::chrono::steady_clock::now();
+        struct CpuTime {
+            JavaPack& pack;
+            std::chrono::steady_clock::time_point start;
+            ~CpuTime() {
+                if (pack.timing.on)
+                    pack.timing.cpuMs +=
+                        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+            }
+        } cpuTime{*this, cpuStart};
         // the pack renders at the engine's render scale and its final pass scales up to the screen
         const float scale = std::max(0.4f, std::min(1.0f, out.scale));
         const uint32_t iw = std::max(1u, static_cast<uint32_t>(static_cast<float>(out.width) * scale));
@@ -4006,7 +4114,10 @@ namespace perlin::gpu {
             std::fprintf(stderr, "[jshader] frame %llu: %u passes, %u feedback copies\n",
                          static_cast<unsigned long long>(frameStamp), statPasses, statCopies);
         statPasses = statCopies = 0;
+        GpuTimesBegin(list);
+        GpuMark(list, "uniforms");
         BuildFrame(params, out);
+        GpuMark(list, "clears");
 
         ClearImages(list, false);
         ClearBuffers(list, params);
@@ -4028,17 +4139,23 @@ namespace perlin::gpu {
                 setupDone = true;
             }
         }
+        GpuMark(list, "begin");
         RunChain(list, "begin");
+        GpuMark(list, "shadow");
         DrawShadows(list);
         // iris runs shadowcomp only with a shadow pass
         if (config.shadowEnabled && shadowDepth)
             RunChain(list, "shadowcomp");
+        GpuMark(list, "prepare");
         RunChain(list, "prepare");
+        GpuMark(list, "sky");
         skySunTex = out.sun;
         skyMoonTex = out.moon;
         skyEndTex = out.endSky;
         DrawSky(list);
+        GpuMark(list, "terrain");
         DrawTerrain(list);
+        GpuMark(list, "entities+hand");
         using K = ExternalDraw::Kind;
         // iris order: opaque entities, block breaking and particles with the terrain; depthtex2 is the depth before
         // the hand; the solid hand; depthtex1 is the depth before translucents
@@ -4053,7 +4170,9 @@ namespace perlin::gpu {
         if (debugTex)
             DrawTranslucent(list);
         if (!debugTex) {
+            GpuMark(list, "deferred");
             RunChain(list, "deferred");
+            GpuMark(list, "translucent");
             // translucent terrain lands on the lit opaque picture, as in Iris, then translucent entities,
             // particles, weather and the translucent hand
             DrawTranslucent(list);
@@ -4064,6 +4183,7 @@ namespace perlin::gpu {
             DrawExternal(list, {K::HandTranslucent}, false);
             RunChain(list, "composite");
         }
+        GpuMark(list, "final");
 
         bool done = false;
         if (!debugTex && instance->ProgramExists("final"))
@@ -4102,7 +4222,108 @@ namespace perlin::gpu {
             }
             list.EndRendering();
         }
+        GpuMark(list, "depth to engine");
         DepthToEngine(list, out);
+        GpuTimesEnd(list);
         return true;
+    }
+
+    // JSHADER_GPU_TIMES: gpu milliseconds of each part of the pack's frame (composite passes by name), averaged
+    // and logged every 120 frames
+    void JavaPack::GpuTimesBegin(rhi::CommandList& list) {
+        static const bool on = std::getenv("JSHADER_GPU_TIMES") != nullptr;
+        timing.on = on && gpu.Caps().features.timestampQueries;
+        if (!timing.on)
+            return;
+        const uint32_t slots = std::max(1u, gpu.Frames());
+        if (!timing.queries) {
+            rhi::QuerySetDesc qd;
+            qd.count = kTimerMarks * slots;
+            qd.name = "pack gpu times";
+            timing.queries = gpu.Dev().CreateQuerySet(qd);
+            timing.readback.assign(slots, {});
+            timing.names.assign(slots, {});
+            for (auto& b : timing.readback) {
+                rhi::BufferDesc bd;
+                bd.size = kTimerMarks * sizeof(uint64_t);
+                bd.usage = rhi::BufferUsage::CopyDst;
+                bd.memory = rhi::MemoryClass::Readback;
+                bd.name = "pack gpu times";
+                b = gpu.Dev().CreateBuffer(bd);
+            }
+            if (!timing.queries) {
+                timing.on = false;
+                return;
+            }
+        }
+        timing.slot = gpu.FrameSlot() % slots;
+        // this slot's previous frame has retired: add its times up
+        std::vector<std::string>& names = timing.names[timing.slot];
+        if (names.size() >= 2) {
+            if (const uint8_t* data = gpu.Dev().Map(timing.readback[timing.slot])) {
+                const uint64_t* t = reinterpret_cast<const uint64_t*>(data);
+                const double ns = gpu.Dev().TimestampPeriodNs();
+                for (size_t i = 0; i + 1 < names.size(); i++)
+                    if (t[i + 1] >= t[i])
+                        timing.sum[names[i]] += static_cast<double>(t[i + 1] - t[i]) * ns * 1e-6;
+                timing.frames++;
+            }
+        }
+        static const int every = [] {
+            const char* v = std::getenv("JSHADER_GPU_TIMES");
+            return v && std::atoi(v) > 1 ? std::atoi(v) : 120;
+        }();
+        if (timing.frames >= every) {
+            std::vector<std::pair<double, std::string>> rows;
+            double total = 0;
+            for (const auto& [n, ms] : timing.sum) {
+                rows.emplace_back(ms / timing.frames, n);
+                total += ms / timing.frames;
+            }
+            std::sort(rows.rbegin(), rows.rend());
+            std::string line = "gpu ms per frame: total " + std::to_string(total).substr(0, 5) +
+                               " (cpu recording " + std::to_string(timing.cpuMs / timing.frames).substr(0, 5) + " ms)";
+            timing.cpuMs = 0;
+            for (const auto& [ms, n] : rows)
+                line += ", " + n + " " + std::to_string(ms).substr(0, 5);
+            Log("jshader", "{}", line.c_str());
+            std::vector<std::pair<double, std::string>> cpuRows;
+            for (const auto& [n, ms] : timing.cpuSum)
+                cpuRows.emplace_back(ms / timing.frames, n);
+            std::sort(cpuRows.rbegin(), cpuRows.rend());
+            std::string cpuLine = "cpu ms per frame:";
+            for (const auto& [ms, n] : cpuRows)
+                cpuLine += " " + n + " " + std::to_string(ms).substr(0, 5) + ",";
+            Log("jshader", "{}", cpuLine.c_str());
+            timing.cpuSum.clear();
+            timing.sum.clear();
+            timing.frames = 0;
+        }
+        names.clear();
+        GpuMark(list, "start");
+    }
+
+    void JavaPack::GpuMark(rhi::CommandList& list, const std::string& name) {
+        if (!timing.on)
+            return;
+        std::vector<std::string>& names = timing.names[timing.slot];
+        if (names.size() + 1 >= kTimerMarks)
+            return;
+        list.WriteTimestamp(timing.queries, timing.slot * kTimerMarks + static_cast<uint32_t>(names.size()));
+        const auto now = std::chrono::steady_clock::now();
+        if (!names.empty())
+            timing.cpuSum[names.back()] +=
+                std::chrono::duration<double, std::milli>(now - timing.cpuLast).count();
+        timing.cpuLast = now;
+        names.push_back(name);
+    }
+
+    void JavaPack::GpuTimesEnd(rhi::CommandList& list) {
+        if (!timing.on)
+            return;
+        GpuMark(list, "end");
+        std::vector<std::string>& names = timing.names[timing.slot];
+        list.ResolveQueries(timing.queries, timing.slot * kTimerMarks, static_cast<uint32_t>(names.size()),
+                            timing.readback[timing.slot], 0);
     }
 }

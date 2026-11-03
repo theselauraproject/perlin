@@ -8,6 +8,9 @@
 
 namespace perlin::jshader {
     std::string PreprocessGlsl(const std::string& text, Stage stage, std::string& error);
+    // developer testing: the hlsl the direct3d backends get, compiled for vulkan (registers become bindings and
+    // spaces sets; TEXCOORDn stage variables keep location n)
+    bool HlslToSpirv(const std::string& hlsl, Stage stage, std::vector<uint32_t>& spirv, std::string& log);
     bool CompileToSpirv(const std::string& glsl450, Stage stage, std::vector<uint32_t>& spirv,
                         std::string& log);
     // what the running renderer tells packs about itself (iris StandardMacros)

@@ -481,7 +481,7 @@ int main(int argc, char** argv) {
                             }
                             // direct3d 11: 16 sampler registers a stage once samplers that share a state are merged
                             // (keyed by the texture's family here; the renderer keys by the exact sampler state)
-                            const auto family = [](const std::string& t) -> std::string {
+                            const auto family = [](const std::string& t, bool) -> std::string {
                                 for (const char* f : {"colortex", "gaux", "depthtex", "shadowtex", "shadowcolor"})
                                     if (t.rfind(f, 0) == 0)
                                         return f;

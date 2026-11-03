@@ -84,6 +84,62 @@ namespace perlin::jshader {
         return !spirv.empty();
     }
 
+    bool HlslToSpirv(const std::string& hlslIn, Stage stage, std::vector<uint32_t>& spirv, std::string& log) {
+        Init();
+        // stage variables: TEXCOORDn is location n, as the d3d input layout and the pixel inputs match them
+        std::string hlsl;
+        hlsl.reserve(hlslIn.size() + 1024);
+        size_t at = 0;
+        bool inEntryStruct = false;
+        while (at < hlslIn.size()) {
+            size_t nl = hlslIn.find('\n', at);
+            if (nl == std::string::npos)
+                nl = hlslIn.size();
+            std::string line = hlslIn.substr(at, nl - at);
+            if (line.rfind("struct SPIRV_Cross_", 0) == 0)
+                inEntryStruct = true;
+            else if (inEntryStruct && line.rfind("};", 0) == 0)
+                inEntryStruct = false;
+            else if (inEntryStruct) {
+                const size_t sem = line.find(": TEXCOORD");
+                if (sem != std::string::npos) {
+                    const int loc = std::atoi(line.c_str() + sem + 10);
+                    const size_t first = line.find_first_not_of(" \t");
+                    line.insert(first, "[[vk::location(" + std::to_string(loc) + ")]] ");
+                }
+            }
+            hlsl += line;
+            hlsl += '\n';
+            at = nl + 1;
+        }
+        glslang::TShader shader(Lang(stage));
+        const char* src = hlsl.c_str();
+        shader.setStrings(&src, 1);
+        shader.setEnvInput(glslang::EShSourceHlsl, Lang(stage), glslang::EShClientVulkan, 100);
+        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
+        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+        shader.setEntryPoint("main");
+        shader.setSourceEntryPoint("main");
+        const EShMessages messages =
+            static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules | EShMsgReadHlsl);
+        if (!shader.parse(GetDefaultResources(), 450, false, messages)) {
+            log = shader.getInfoLog();
+            return false;
+        }
+        glslang::TProgram program;
+        program.addShader(&shader);
+        if (!program.link(messages) || !program.mapIO()) {
+            log = std::string(shader.getInfoLog()) + program.getInfoLog();
+            return false;
+        }
+        spv::SpvBuildLogger logger;
+        glslang::SpvOptions options;
+        options.disableOptimizer = true;
+        glslang::GlslangToSpv(*program.getIntermediate(Lang(stage)), spirv, &logger, &options);
+        log = logger.getAllMessages();
+        return !spirv.empty();
+    }
+
     const std::set<std::string>& BaseFeatureFlags() {
         static const std::set<std::string> flags = {
             // HIGHER_SHADOWCOLOR (shadowcolor2-7) is left out: there are two shadow colour buffers

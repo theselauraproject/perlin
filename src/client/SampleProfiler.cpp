@@ -61,12 +61,31 @@ namespace perlin {
         sev._sigev_un._tid = static_cast<int>(syscall(SYS_gettid));
         clockid_t clock;
         pthread_getcpuclockid(pthread_self(), &clock);
+        // PERLIN_SAMPLE_WALL: sample by wall time, so time spent waiting shows up too
+        if (std::getenv("PERLIN_SAMPLE_WALL"))
+            clock = CLOCK_MONOTONIC;
         if (timer_create(clock, &sev, &gTimer) != 0)
             return;
         struct itimerspec spec {};
         spec.it_interval.tv_nsec = 1000000;
         spec.it_value.tv_nsec = 1000000;
         timer_settime(gTimer, 0, &spec, nullptr);
+        // PERLIN_SAMPLE_SECONDS: write the samples that long after sampling starts, without waiting for the exit
+        if (const char* secs = std::getenv("PERLIN_SAMPLE_SECONDS")) {
+            static double stopAfter = 0;
+            stopAfter = std::atof(secs) + (gSince - Now());
+            pthread_t t;
+            pthread_create(
+                &t, nullptr,
+                [](void*) -> void* {
+                    timespec ts{static_cast<time_t>(stopAfter), 0};
+                    nanosleep(&ts, nullptr);
+                    StopSampleProfiler();
+                    return nullptr;
+                },
+                nullptr);
+            pthread_detach(t);
+        }
     }
 
     void StopSampleProfiler() {

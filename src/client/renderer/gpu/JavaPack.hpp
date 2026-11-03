@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include "client/javashaders/BlockStates.hpp"
 #include "client/javashaders/PipelineConfig.hpp"
 #include "client/javashaders/ProgramSet.hpp"
@@ -238,6 +239,7 @@ namespace perlin::gpu {
             uint32_t colorCount = 0;
             rhi::Format depth = rhi::Format::Unknown;
             bool depthTest = false, depthWrite = false;
+            bool cull = false; // back faces of terrain, as vanilla culls them
             rhi::CompareOp depthOp = rhi::CompareOp::LessEqual;
             bool blend = false;
             rhi::BlendFactor src = rhi::BlendFactor::One, dst = rhi::BlendFactor::Zero,
@@ -383,7 +385,20 @@ namespace perlin::gpu {
         std::unordered_map<std::string, std::shared_future<std::shared_ptr<Converted>>> pending;
         std::unordered_map<std::string, std::unique_ptr<Program>> programs;
         std::set<std::string> loggedMissing;
-        std::unordered_map<std::string, rhi::PipelineHandle> pipelines;
+        struct PipeKey {
+            const void* program = nullptr;
+            std::array<uint8_t, 24> bytes{};
+            bool operator==(const PipeKey&) const = default;
+        };
+        struct PipeKeyHash {
+            size_t operator()(const PipeKey& k) const {
+                uint64_t h = 1469598103934665603ull ^ reinterpret_cast<uintptr_t>(k.program);
+                for (uint8_t c : k.bytes)
+                    h = (h ^ c) * 1099511628211ull;
+                return static_cast<size_t>(h);
+            }
+        };
+        std::unordered_map<PipeKey, rhi::PipelineHandle, PipeKeyHash> pipelines;
         std::unordered_map<PackSet, rhi::BindGroupHandle, PackSetHash> groups;
 
         rhi::BindLayoutHandle textureLayout, imageLayout, bufferLayout;
@@ -413,6 +428,22 @@ namespace perlin::gpu {
         bool overrideRepeat = false; // the end sky's texture repeats
         bool resolvingFullscreen = false;
         uint32_t statPasses = 0, statCopies = 0;
+        static constexpr uint32_t kTimerMarks = 96;
+        struct GpuTiming {
+            bool on = false;
+            rhi::QuerySetHandle queries;
+            std::vector<rhi::BufferHandle> readback;
+            std::vector<std::vector<std::string>> names;
+            uint32_t slot = 0;
+            std::map<std::string, double> sum;
+            int frames = 0;
+            double cpuMs = 0;
+            std::map<std::string, double> cpuSum;
+            std::chrono::steady_clock::time_point cpuLast;
+        } timing;
+        void GpuTimesBegin(rhi::CommandList& list);
+        void GpuMark(rhi::CommandList& list, const std::string& name);
+        void GpuTimesEnd(rhi::CommandList& list);
         static bool IsFullscreenPass(const std::string& progName);
 
         std::array<Buffer, jshader::kMaxColorTex> bufs;

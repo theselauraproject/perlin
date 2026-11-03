@@ -287,6 +287,9 @@ namespace perlin::jshader {
     void ShaderPackInstance::Reload(OptionValues values) {
         overrides = std::move(values);
         cache.clear();
+        existsCache.clear();
+        enabledCache.clear();
+        chainCache.clear();
         directivesLoaded = false;
         directives = {};
         firstError.clear();
@@ -301,6 +304,9 @@ namespace perlin::jshader {
             return;
         dimension = folder;
         cache.clear();
+        existsCache.clear();
+        enabledCache.clear();
+        chainCache.clear();
         directivesLoaded = false;
     }
 
@@ -516,11 +522,23 @@ namespace perlin::jshader {
     }
 
     bool ShaderPackInstance::ProgramExists(const std::string& name) const {
-        return !FindFile(name, ".fsh").empty() || !FindFile(name, ".vsh").empty() ||
-               !FindFile(name, ".csh").empty();
+        if (const auto it = existsCache.find(name); it != existsCache.end())
+            return it->second;
+        const bool exists = !FindFile(name, ".fsh").empty() || !FindFile(name, ".vsh").empty() ||
+                            !FindFile(name, ".csh").empty();
+        existsCache[name] = exists;
+        return exists;
     }
 
     bool ShaderPackInstance::ProgramEnabled(const std::string& name) const {
+        if (const auto it = enabledCache.find(name); it != enabledCache.end())
+            return it->second;
+        const bool enabled = ProgramEnabledUncached(name);
+        enabledCache[name] = enabled;
+        return enabled;
+    }
+
+    bool ShaderPackInstance::ProgramEnabledUncached(const std::string& name) const {
         // iris: program.<dimension folder>/<name>.enabled, or program.<name>.enabled for every dimension
         auto it = dimension.empty() ? props.map.end()
                                     : props.map.find("program." + dimension + "/" + name + ".enabled");
@@ -537,7 +555,9 @@ namespace perlin::jshader {
     }
 
     std::vector<std::string> ShaderPackInstance::PassChain(const std::string& base) const {
-        std::vector<std::string> out;
+        if (const auto it = chainCache.find(base); it != chainCache.end())
+            return it->second;
+        std::vector<std::string>& out = chainCache[base];
         for (int i = 0; i < 100; i++) {
             const std::string name = i == 0 ? base : base + std::to_string(i);
             if (ProgramExists(name))
