@@ -415,6 +415,8 @@ namespace perlin::gpu {
         BufferDesc bd;
         bd.size = std::max(kRingChunk, AlignUp(minimum, 65536)) + uniformRangeBytes;
         bd.usage = BufferUsage::Vertex | BufferUsage::Index | BufferUsage::Uniform | BufferUsage::CopySrc;
+        if (Caps().features.multiDrawIndirect)
+            bd.usage = bd.usage | BufferUsage::Indirect;
         bd.memory = MemoryClass::Upload;
         bd.name = "frame ring";
         RingChunk ring;

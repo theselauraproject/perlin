@@ -1,6 +1,7 @@
 #pragma once
 #include "world/Generator.hpp"
 #include "world/vanilla/DensityFunction.hpp"
+#include "world/vanilla/JavaDecorator.hpp"
 #include "world/vanilla/VanillaFeatures.hpp"
 #include "world/vanilla/VanillaSurface.hpp"
 
@@ -21,6 +22,15 @@ namespace perlin::server::vanilla {
         bool LocateBiome(int biome, int fromX, int fromZ, int radius, const std::atomic<bool>& cancel, int& x,
                          int& y, int& z) override;
         bool HasBiomes() const override { return true; }
+        bool Decorates() const override { return decorator && decorator->Ok(); }
+        void Decorate(ChunkPos pos, const ChunkColumn* const region[9], ChunkColumn& out) const override {
+            decorator->Decorate(pos.x, pos.z, region, out);
+        }
+        const JavaDecorator* Decorator() const { return decorator.get(); }
+        const json::Value* Spawns(int tableIndex) const override {
+            const JavaBiome* b = decorator ? decorator->Biome(tableIndex) : nullptr;
+            return b ? b->spawns : nullptr;
+        }
         // the biome the generator puts in the column at (x, z): the ground found from the density, the climate there, the table
         // groundY, when given, receives the first free block above the ground
         int ColumnBiome(int x, int z, int* groundY = nullptr) const;
@@ -44,5 +54,6 @@ namespace perlin::server::vanilla {
         std::unique_ptr<VanillaClimate> climate;
         std::unique_ptr<VanillaSurface> surface;
         std::unique_ptr<VanillaFeatures> features;
+        std::unique_ptr<JavaDecorator> decorator;
     };
 }

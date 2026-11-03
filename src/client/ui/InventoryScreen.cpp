@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <vector>
 #include <cstdlib>
 #include <cstdio>
@@ -114,6 +115,12 @@ mcitem { display: block; position: absolute; }
 
     void InventorySlotPos(int addr, int& x, int& y, bool workbench, int chestRows) {
         x = y = 0;
+        if (addr >= kInvAddrChest && chestRows < 0) {
+            const int c = addr - kInvAddrChest;
+            x = c == 2 ? 115 : 55;
+            y = c == 0 ? 16 : c == 1 ? 52 : 34;
+            return;
+        }
         if (addr >= kInvAddrChest) {
             const int c = addr - kInvAddrChest;
             x = 7 + (c % 9) * 18;
@@ -171,7 +178,10 @@ mcitem { display: block; position: absolute; }
     }
 
     namespace {
-        std::string Chrome(bool workbench, bool horse = false, int chestRows = 0) {
+        std::string Chrome(bool workbench, bool horse = false, int chestRows = 0, int furnace = -1) {
+            if (furnace >= 0)
+                return SpriteRml(furnace == 1 ? "ui_blast_furnace.png" : furnace == 2 ? "ui_smoker.png" : "ui_furnace.png", 0,
+                                 0, 176, 166, 0, 0);
             if (chestRows > 0) {
                 const int top = 17 + chestRows * 18;
                 return SpriteRml("ui_chest.png", 0, 0, 176, top, 0, 0) +
@@ -256,7 +266,23 @@ mcitem { display: block; position: absolute; }
         const bool wb = v.workbench;
         const int rows = v.chestRows;
         std::string slots;
-        if (rows > 0) {
+        if (v.furnace >= 0) {
+            for (int i = 0; i < 3; i++)
+                slots += Cell("k" + std::to_string(i), px, py, kInvAddrChest + i, v.chestItems[static_cast<size_t>(i)],
+                              false, -1);
+            const int flame = static_cast<int>(std::ceil(v.burn * 13.0f));
+            if (flame > 0)
+                slots += "  <div style=\"left:" + std::to_string(px + 56) + "px;top:" + std::to_string(py + 36 + 14 - flame) +
+                         "px;width:14px;height:" + std::to_string(flame) + "px;z-index:3;\">" +
+                         SpriteRml("ui_furnace_progress.png", 0, 14 - flame, 14, flame, 0, 0) + "</div>\n";
+            const int arrow = static_cast<int>(std::floor(v.cook * 24.0f));
+            if (arrow > 0)
+                slots += "  <div style=\"left:" + std::to_string(px + 79) + "px;top:" + std::to_string(py + 34) +
+                         "px;width:" + std::to_string(arrow) + "px;height:16px;z-index:3;\">" +
+                         SpriteRml("ui_furnace_progress.png", 0, 14, arrow, 16, 0, 0) + "</div>\n";
+            slots += "  <div class=\"label\" style=\"left:" + std::to_string(px + 8) + "px;top:" + std::to_string(py + 72) +
+                     "px;z-index:3;\">" + EscapeRml(i18n::Tr("container.inventory")) + "</div>\n";
+        } else if (rows > 0) {
             for (int i = 0; i < rows * 9; i++)
                 slots += Cell("k" + std::to_string(i), px, py, kInvAddrChest + i,
                               v.chestItems[static_cast<size_t>(i)], false, rows);
@@ -290,7 +316,7 @@ mcitem { display: block; position: absolute; }
                 slots += Cell("w" + std::to_string(i), px, py, kInvAddrWork + i,
                               v.work[static_cast<size_t>(i)], wb);
         }
-        if (!v.horse && rows == 0)
+        if (!v.horse && rows == 0 && v.furnace < 0)
             slots += Cell("co", px, py, kInvAddrOutput, v.output, wb);
         for (int i = 0; i < 36; i++)
             slots += Cell("s" + std::to_string(i), px, py, i, v.slots[static_cast<size_t>(i)], wb, rows);
@@ -347,13 +373,13 @@ mcitem { display: block; position: absolute; }
         ReplaceAll(d, "h", std::to_string(guiH));
         ReplaceAll(d, "x", std::to_string(px));
         ReplaceAll(d, "y", std::to_string(py));
-        ReplaceAll(d, "lx", std::to_string(px + (v.horse || rows > 0 ? 8 : wb ? 28 : 97)));
-        ReplaceAll(d, "ly", std::to_string(py + (v.horse || rows > 0 ? 6 : wb ? 6 : 8)));
+        ReplaceAll(d, "lx", std::to_string(px + (v.furnace >= 0 ? 88 - static_cast<int>(v.title.size()) * 3 : v.horse || rows > 0 ? 8 : wb ? 28 : 97)));
+        ReplaceAll(d, "ly", std::to_string(py + (v.furnace >= 0 || v.horse || rows > 0 ? 6 : wb ? 6 : 8)));
         ReplaceAll(d, "title",
                    FormatCodesToRml(v.title.empty()
                                         ? i18n::Tr(v.horse ? "entity.minecraft.horse" : "container.crafting")
                                         : v.title));
-        ReplaceAll(d, "chrome", Chrome(wb, v.horse, rows));
+        ReplaceAll(d, "chrome", Chrome(wb, v.horse, rows, v.furnace));
         ReplaceAll(d, "book", book);
         ReplaceAll(d, "effects", effects);
         ReplaceAll(d, "bookbutton", bookButton);

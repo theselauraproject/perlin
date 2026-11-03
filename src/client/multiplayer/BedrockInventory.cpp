@@ -150,6 +150,7 @@ namespace perlin {
         }
 
         ContainerSlotType gChestSlotType = ContainerSlotType::Container;
+        int gFurnaceKind = -1;
 
         void Address(StackRequestSlotInfo& s, int a, const ItemV4& raw) {
             using C = ContainerSlotType;
@@ -173,6 +174,14 @@ namespace perlin {
             } else if (a == BedrockSession::kInvCursor) {
                 type = C::Cursor;
                 slot = 0;
+            } else if (a >= BedrockSession::kInvChest0 && a < BedrockSession::kInvChest0 + 3 && gFurnaceKind >= 0) {
+                const int f = a - BedrockSession::kInvChest0;
+                type = f == 1   ? C::FurnaceFuel
+                       : f == 2 ? C::FurnaceOutput
+                       : gFurnaceKind == 1 ? C::BlastFurnaceIngredient
+                       : gFurnaceKind == 2 ? C::SmokerIngredient
+                                           : C::FurnaceIngredient;
+                slot = f == 0 ? 0 : f == 1 ? 1 : 2;
             } else if (a >= BedrockSession::kInvChest0 && a < BedrockSession::kInvTotal) {
                 type = gChestSlotType;
                 slot = a - BedrockSession::kInvChest0;
@@ -363,6 +372,7 @@ namespace perlin {
                     std::copy(std::begin(chestRaw), std::end(chestRaw), std::begin(snapshot.chest));
                     std::copy(std::begin(horseRaw), std::end(horseRaw), std::begin(snapshot.horse));
                     gChestSlotType = chestSlotType;
+                    gFurnaceKind = inventory.furnaceKind;
                     if (legacyInventory) {
                         if (op(r) && !r.actions.empty()) {
                             Log("inventory", "legacy send {} actions", r.actions.size());
@@ -561,6 +571,9 @@ namespace perlin {
                 return true;
             }
             const bool cEmpty = C.Empty(), sEmpty = S.Empty();
+            if (inventory.furnaceKind >= 0 && addr == kInvChest0 + 2 && !cEmpty &&
+                (sEmpty || !SameStack(sRaw, cRaw)))
+                return false;
             if (!cEmpty) {
                 if (addr >= kInvArmor0 && addr < kInvOffhand && ArmorSlotOf(C.name) != addr - kInvArmor0)
                     return false;
@@ -640,6 +653,13 @@ namespace perlin {
             }
             if (addr >= kInvChest0) {
                 ok = QuickMove(m, addr, {{0, 8}, {9, 35}});
+            } else if (addr < 36 && inventory.furnaceKind >= 0) {
+                const std::string n = S.name.starts_with("minecraft:") ? S.name.substr(10) : S.name;
+                const bool fuel = n == "coal" || n == "charcoal" || n == "coal_block" || n == "lava_bucket" ||
+                                  n == "blaze_rod" || n == "stick" || n.ends_with("_planks") || n.contains("_log") ||
+                                  n == "dried_kelp_block" || n == "bamboo";
+                const int target = fuel ? kInvChest0 + 1 : kInvChest0;
+                ok = QuickMove(m, addr, {{target, target}});
             } else if (addr < 36 && inventory.chestOpen && inventory.chestSlots > 0) {
                 ok = QuickMove(m, addr, {{kInvChest0, kInvChest0 + inventory.chestSlots - 1}});
             } else if (addr >= kInvHorse0) {
@@ -681,6 +701,36 @@ namespace perlin {
             m.Swap(hotbar, addr);
             return true;
         });
+    }
+
+    void BedrockSession::InvSwapOffhand(int addr) {
+        if (addr < 0 || addr >= kInvTotal || addr == kInvOffhand || addr == kInvCursor || addr == kInvOutput)
+            return;
+        InvEnqueue([this, addr](ItemStackRequest& r) {
+            Mover m{*this, r, [this](int a) -> ItemStackInfo& { return InvInfoLocked(a); },
+                    [this](int a) -> ItemV4& { return InvRawLocked(a); }};
+            const auto& S = InvInfoLocked(addr);
+            const auto& O = InvInfoLocked(kInvOffhand);
+            if (S.Empty() && O.Empty())
+                return false;
+            if (!S.Empty() && !OffhandAllowed(S.name))
+                return false;
+            if (!O.Empty() && addr >= kInvArmor0 && addr < kInvOffhand && ArmorSlotOf(O.name) != addr - kInvArmor0)
+                return false;
+            m.Swap(addr, kInvOffhand);
+            if (IsCraftAddr(addr))
+                InvRecomputeOutputLocked();
+            return true;
+        });
+    }
+
+    void BedrockSession::SwapOffhand() {
+        int slot = 0;
+        {
+            std::lock_guard lock(statusMutex);
+            slot = std::clamp(inventory.selected, 0, 8);
+        }
+        InvSwapOffhand(slot);
     }
 
     BedrockSession::CreativeCatalog BedrockSession::Creative() const {
@@ -1003,6 +1053,31 @@ namespace perlin {
         if (pkt.transaction.actions.empty())
             return false;
         return Send(pkt);
+    }
+
+    BedrockSession::FurnaceProgress BedrockSession::Furnace() const {
+        FurnaceProgress out;
+        int window = -1, kind = -1;
+        {
+            std::lock_guard lock(statusMutex);
+            window = chestWindow;
+            kind = inventory.furnaceKind;
+        }
+        if (kind < 0 || window < 0)
+            return out;
+        std::lock_guard<std::mutex> lk(worldExtraMutex);
+        const auto it = windowData.find(window);
+        if (it == windowData.end())
+            return out;
+        const auto get = [&](int k) {
+            const auto v = it->second.find(k);
+            return v == it->second.end() ? 0 : v->second;
+        };
+        const float total = kind == 0 ? 200.0f : 100.0f;
+        out.cook = std::clamp(static_cast<float>(get(0)) / total, 0.0f, 1.0f);
+        const int max = get(2);
+        out.burn = max > 0 ? std::clamp(static_cast<float>(get(1)) / static_cast<float>(max), 0.0f, 1.0f) : 0.0f;
+        return out;
     }
 
     bool BedrockSession::TakeChestOpened() {

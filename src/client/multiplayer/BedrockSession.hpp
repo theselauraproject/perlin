@@ -670,7 +670,12 @@ namespace perlin {
             bool chestOpen = false;
             int chestSlots = 0;
             std::string chestTitle;
+            int furnaceKind = -1;
         };
+        struct FurnaceProgress {
+            float cook = 0, burn = 0;
+        };
+        FurnaceProgress Furnace() const;
         static constexpr int kInvArmor0 = 36, kInvOffhand = 40, kInvCraft0 = 41, kInvOutput = 45,
                              kInvCursor = 46, kInvWork0 = 47, kInvSlots = 56, kInvHorse0 = 56,
                              kInvHorseCount = 17, kInvChest0 = 73, kInvChestCount = 54, kInvTotal = 127;
@@ -699,6 +704,8 @@ namespace perlin {
         void InvClick(int addr, bool right);
         void InvShiftClick(int addr);
         void InvHotbarKey(int addr, int hotbar);
+        void InvSwapOffhand(int addr);
+        void SwapOffhand();
         void InvDropCursor(bool whole);
         void InvDropSlot(int addr, bool whole);
         void InvReturnCursor();

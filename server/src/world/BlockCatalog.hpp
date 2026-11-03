@@ -2,7 +2,9 @@
 #include "world/Blocks.hpp"
 
 #include <cstdint>
+#include <mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -40,6 +42,8 @@ namespace perlin::server {
         // the default state of a block by name ("stone" or "minecraft:stone"); falls back to the bare name when the catalog does not know it.
         // a block with required states (bedrock, logs, slabs) only exists to the client under one of its real states
         uint16_t DefaultBlock(const std::string& name) const;
+        uint16_t Resolve(std::string_view state) const;
+        std::string StateText(uint16_t id) const;
         bool KnownHash(int32_t hash) const { return states.contains(hash); }
         size_t StateCount() const { return states.size(); }
 
@@ -60,5 +64,8 @@ namespace perlin::server {
         std::unordered_map<int32_t, size_t> byHash;
         std::unordered_map<std::string, size_t> byName;
         bool fromFiles = false;
+        mutable std::mutex resolveMutex;
+        mutable std::unordered_map<std::string, uint16_t> resolved;
+        mutable std::unordered_map<std::string, std::vector<int32_t>> hashesByName;
     };
 }

@@ -61,6 +61,22 @@ namespace perlin::server::vanilla {
         return {(worldX >> 2) << 2, (worldTop >> 2) << 2, (worldZ >> 2) << 2};
     }
 
+    namespace {
+        constexpr uint8_t kNetworkBiome[] = {14, 47, 46, 45, 44, 24, 0, 43, 42, 40, 25, 6, 191, 184, 12, 26, 131, 185, 3, 30, 34, 5, 1, 186, 16, 4, 160, 132, 27, 29, 193, 36, 35, 21, 37, 2, 38, 182, 189, 11, 7, 140, 195, 32, 129, 155, 23, 48, 165, 163, 192, 183, 188, 187, 194, 190};
+    }
+
+    uint8_t NetworkBiome(int tableIndex) {
+        return tableIndex >= 0 && tableIndex < static_cast<int>(sizeof(kNetworkBiome)) ? kNetworkBiome[tableIndex] : 1;
+    }
+
+    void VanillaSurface::StoreBiomes(const uint8_t* biomes, ChunkColumn& column) {
+        for (int x = 0; x < 16; x++)
+            for (int z = 0; z < 16; z++) {
+                const uint8_t b = biomes[x * 16 + z];
+                column.SetBiome(x, z, b, NetworkBiome(b));
+            }
+    }
+
     VanillaSurface::VanillaSurface() {
         const BlockCatalog& c = BlockCatalog::Instance();
         stone = c.DefaultBlock("stone");
@@ -132,5 +148,6 @@ namespace perlin::server::vanilla {
         if (features)
             features->Apply(chunkX, chunkZ, biomes, blocks.data());
         Store(blocks.data(), column);
+        StoreBiomes(biomes, column);
     }
 }

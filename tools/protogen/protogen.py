@@ -107,6 +107,10 @@ class Generator:
         self.recursive = set()
         self.warnings = []
         self.opaque = []
+        self.by_name = {}
+        self.enums = {}
+        self.stack = []
+        self.slots = set()
 
     def unique(self, base):
         name = base
@@ -176,6 +180,8 @@ class Generator:
             result = self.make_bitfield(self.unique(pascal(hint)), expr[1])
         elif kind == "array":
             inner = self.cpp_type(args["type"], hint + "_entry")
+            if inner == "bool":
+                inner = "uint8_t"
             if "countType" in args:
                 result = f"std::vector<{inner}>"
             elif "count" in args and isinstance(args["count"], int):
@@ -280,7 +286,6 @@ class Generator:
         decl.extra = values
         decl.under = args["type"]
         self.decls.append(decl)
-        self.enums = getattr(self, "enums", {})
         self.enums[name] = decl
         return name
 
@@ -322,7 +327,10 @@ class Generator:
         codec.append(f"    s.bytes(raw, {nbytes});")
         codec.append("}")
         decl.codec = codec
+        decl.bits = [b[0] for b in body]
+        decl.bit_names = {f["name"]: camel_name for f, camel_name in zip(fields, decl.bits)}
         self.decls.append(decl)
+        self.by_name[name] = decl
         return name
 
     def switch_cases(self, args):
@@ -354,7 +362,47 @@ class Generator:
     def is_void(self, body):
         return body is None or body == "void"
 
+    def flag_condition(self, member, texpr, flag, key):
+        target = self.definition(self.resolve(texpr))
+        if not (isinstance(target, list) and target[0] == "bitflags"):
+            raise GenError(f"'{flag}' is not a flag")
+        args = target[1]
+        flags = args["flags"]
+        if isinstance(flags, list):
+            if flag not in flags:
+                raise GenError(f"flag '{flag}' not found")
+            bit = flags.index(flag)
+            mask = 1 << bit
+        else:
+            if flag not in flags:
+                raise GenError(f"flag '{flag}' not found")
+            mask = int(flags[flag])
+            bit = mask.bit_length() - 1
+        if args["type"] == "varint128":
+            test = f"((({member})[{bit // 64}] >> {bit % 64}) & 1ull) != 0"
+        else:
+            test = f"(static_cast<uint64_t>({member}) & {mask}ull) != 0"
+        return test if key == "true" else f"!({test})"
+
     def condition(self, scope, discriminator, key):
+        if discriminator.startswith("../"):
+            field = discriminator[3:]
+            if not self.stack:
+                raise GenError(f"switch discriminator '{discriminator}' has no parent")
+            pname, pscope, needs = self.stack[-1]
+            if field not in pscope:
+                raise GenError(f"switch discriminator '{discriminator}' not found")
+            slot = f"parentSlot{pascal(pname)}{pascal(field)}"
+            needs[field] = slot
+            self.slots.add(slot)
+            member, texpr = pscope[field]
+            cpp = self.cpp_type(texpr, field)
+            inner = self.condition({field: (f"static_cast<{cpp}>({slot})", texpr)}, field, key)
+            return inner
+        if "." in discriminator and discriminator.split(".", 1)[0] in scope:
+            base, flag = discriminator.split(".", 1)
+            member, texpr = scope[base]
+            return self.flag_condition(member, texpr, flag, key)
         if key.startswith("/"):
             if discriminator not in scope:
                 raise GenError(f"switch discriminator '{discriminator}' not found")
@@ -439,12 +487,18 @@ class Generator:
         scope = ctx["scope"]
         members = ctx["members"]
 
+        needs = {}
+        self.stack.append((name, scope, needs))
         member_lines = []
-        for mname, mtype, spec in members:
-            cpp = self.cpp_type(mtype, f"{name}_{spec}")
-            if cpp is None or cpp == "void":
-                continue
-            member_lines.append(f"    {cpp} {mname}{{}};")
+        try:
+            for mname, mtype, spec in members:
+                cpp = self.cpp_type(mtype, f"{name}_{spec}")
+                if cpp is None or cpp == "void":
+                    continue
+                member_lines.append(f"    {cpp} {mname}{{}};")
+        finally:
+            self.stack.pop()
+        self.needs = needs
         decl.lines.append(f"struct {name} {{")
         decl.lines.extend(member_lines)
         decl.lines.append("};")
@@ -457,15 +511,20 @@ class Generator:
                 ref = definition[1]["count"]
                 code.insert(0, f"if constexpr (!S::kReading) {scope[ref][0]} = static_cast<decltype({scope[ref][0]})>(v.{mname}.size());")
         decl.codec = code
+        decl.fields = [(spec, mname, mtype) for mname, mtype, spec in members]
         self.decls.append(decl)
+        self.by_name[name] = decl
         return decl
 
     def emit_steps(self, steps, scope, owner, depth=0):
         code = []
+        needs = self.needs
         for step in steps:
             if step[0] == "field":
                 _, mname, mtype, spec = step
                 code.extend(self.emit(mtype, f"v.{mname}", scope, f"{owner}_{spec}", "s", "S", depth, True))
+                if spec in needs:
+                    code.append(f"{needs[spec]} = static_cast<int64_t>(v.{mname});")
             else:
                 _, args, branches = step
                 code.extend(self.emit_anon_switch(args, branches, scope, owner, depth))
@@ -528,6 +587,9 @@ class Generator:
             lines += ["{", f"    {ctype} {n} = static_cast<{ctype}>({target}.size());", f"    {s}.{op}({n});",
                       f"    if constexpr ({S}::kReading) {{ if (!{s}.length({n})) return; }}",
                       f"    {s}.chars({target}, static_cast<size_t>({n}));", "}"]
+            return lines
+        if kind == "buffer" and "countType" not in args and isinstance(args.get("count"), int):
+            lines.append(f"{s}.bytes({target}, {args['count']});")
             return lines
         if kind == "buffer":
             ctype, op = PRIMITIVES[args["countType"]][0], PRIMITIVES[args["countType"]][1]
@@ -731,7 +793,7 @@ def build(gen):
         packets.append((info["id"], name, info["type"]))
     return packets
 
-def emit_codec(decl):
+def emit_codec(decl, bridged=False):
     name = decl.name
     out = []
     out.append(f"template <class S> static void Serialize(S& s, {name}& v) {{")
@@ -745,26 +807,20 @@ def emit_codec(decl):
         out.append(f"{name}::{name}({name}&&) noexcept = default;")
         out.append(f"{name}& {name}::operator=(const {name}&) = default;")
         out.append(f"{name}& {name}::operator=({name}&&) noexcept = default;")
-    out.append(f"void Write(WriteStream& s, const {name}& v) {{ Serialize(s, const_cast<{name}&>(v)); }}")
-    out.append(f"bool Read(ReadStream& s, {name}& v) {{ Serialize(s, v); return s.ok; }}")
+    if bridged:
+        out.append(f"void Write(WriteStream& s, const {name}& v) {{ if (BridgeWrite(s, v)) return; Serialize(s, const_cast<{name}&>(v)); }}")
+        out.append(f"bool Read(ReadStream& s, {name}& v) {{ const int r = BridgeRead(s, v); if (r >= 0) return r != 0; Serialize(s, v); return s.ok; }}")
+    else:
+        out.append(f"void Write(WriteStream& s, const {name}& v) {{ Serialize(s, const_cast<{name}&>(v)); }}")
+        out.append(f"bool Read(ReadStream& s, {name}& v) {{ Serialize(s, v); return s.ok; }}")
     return out
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--spec", required=True)
-    ap.add_argument("--overrides")
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--parts", type=int, default=6)
-    ap.add_argument("--list", action="store_true")
-    ap.add_argument("--namespace", default="proto2225", help="C++ namespace (inside perlin) for this protocol version, e.g. proto2225")
-    ap.add_argument("--no-current-alias", action="store_true", help="do not make perlin::proto an alias of this version")
-    opts = ap.parse_args()
+class Generated:
+    pass
 
-    spec = json.load(open(opts.spec))
-    overrides = json.load(open(opts.overrides)) if opts.overrides else {}
+def generate(spec, overrides):
     gen = Generator(spec, overrides)
     packets = build(gen)
-
     packet_decls = []
     registry = []
     opaque = []
@@ -785,9 +841,10 @@ def main():
                 raise GenError("packet body is not a container")
             decl = gen.make_struct(gen.unique(struct), body[1])
             decl.packet = (number, name)
+            decl.ptype = ptype
             packet_decls.append(decl)
             registry.append((number, name, decl.name, "generated", None))
-        except GenError as e:
+        except (GenError, KeyError) as e:
             del gen.decls[mark:]
             gen.names = names_before
             gen.named, gen.memo = saved
@@ -799,11 +856,358 @@ def main():
             packet_decls.append(decl)
             registry.append((number, name, decl.name, "opaque", str(e)))
             opaque.append((name, str(e)))
+    g = Generated()
+    g.gen = gen
+    g.registry = registry
+    g.packet_decls = packet_decls
+    g.opaque = opaque
+    g.by_packet = {d.packet[1]: d for d in packet_decls}
+    g.mode = {name: mode for _, name, _, mode, _ in registry}
+    return g
 
-    os.makedirs(opts.out, exist_ok=True)
+def legacy_overrides(spec, overrides):
+    out = {}
+    retype = {}
+    for path, expr in overrides.get("retype", {}).items():
+        owner, field = path.split(".")
+        body = spec["types"].get(owner)
+        if isinstance(body, list) and body[0] == "container" and any(e.get("name") == field for e in body[1]):
+            retype[path] = expr
+    out["retype"] = retype
+    return out
+
+def expand(types, expr, memo, stack):
+    if isinstance(expr, str):
+        if expr in types and types[expr] != "native":
+            if expr in memo:
+                return memo[expr]
+            if expr in stack:
+                return ["ref", expr]
+            value = expand(types, types[expr], memo, stack | {expr})
+            memo[expr] = value
+            return value
+        return expr
+    if isinstance(expr, list):
+        return [expand(types, e, memo, stack) for e in expr]
+    if isinstance(expr, dict):
+        return {k: expand(types, v, memo, stack) for k, v in expr.items()}
+    return expr
+
+class Shape:
+    def __init__(self, kind, cpp=None, args=None, expr=None):
+        self.kind = kind
+        self.cpp = cpp
+        self.args = args
+        self.expr = expr
+
+def shape(gen, expr, depth=0):
+    if depth > 32:
+        return Shape("unknown")
+    if isinstance(expr, str):
+        if expr == "void":
+            return Shape("void")
+        if expr in PRIMITIVES:
+            return Shape("prim", PRIMITIVES[expr][0], expr)
+        if expr in ("nbt", "lnbt"):
+            return Shape("nbt", "Nbt")
+        if expr == "nbtLoop":
+            return Shape("nbtloop", "std::vector<Nbt>")
+        if expr in gen.types and gen.types[expr] != "native":
+            body = gen.types[expr]
+            if isinstance(body, list) and body[0] in ("container", "bitfield"):
+                cpp = gen.named.get(expr)
+                return Shape("struct", cpp) if cpp else Shape("unknown")
+            if isinstance(body, list) and body[0] == "mapper":
+                cpp = gen.named.get(expr)
+                return Shape("enum", cpp, body[1]) if cpp else Shape("unknown")
+            return shape(gen, body, depth + 1)
+        return Shape("unknown")
+    if not isinstance(expr, list) or not expr:
+        return Shape("unknown")
+    kind = expr[0]
+    args = expr[1] if len(expr) > 1 else None
+    if kind in ("container", "bitfield"):
+        cpp = gen.memo.get(id(expr))
+        return Shape("struct", cpp) if cpp else Shape("unknown")
+    if kind == "mapper":
+        cpp = gen.memo.get(id(expr))
+        return Shape("enum", cpp, args) if cpp else Shape("unknown")
+    if kind in ("array", "maybeIncompleteArray"):
+        fixed = kind == "array" and "countType" not in args and isinstance(args.get("count"), int)
+        return Shape("array", None, args, "fixed" if fixed else "vector")
+    if kind == "option":
+        return Shape("option", None, args)
+    if kind == "optionalOnRemaining":
+        return Shape("option", None, args["type"])
+    if kind == "bitflags":
+        return Shape("flags", PRIMITIVES[args["type"]][0], args)
+    if kind == "pstring":
+        return Shape("string", "std::string")
+    if kind == "buffer":
+        return Shape("bytes", "std::vector<uint8_t>")
+    if kind == "encapsulated":
+        return shape(gen, args["type"], depth + 1)
+    if kind == "switch":
+        cpp = gen.memo.get(id(expr))
+        if not cpp:
+            return Shape("void")
+        return Shape("switch", cpp, args)
+    return Shape("unknown")
+
+def flag_masks(args):
+    flags = args.get("flags")
+    if isinstance(flags, list):
+        return {n: 1 << i for i, n in enumerate(flags)}
+    return {n: int(v) for n, v in flags.items()}
+
+def mask_literal(mask):
+    return f"{mask & ((1 << 64) - 1)}ull, {mask >> 64}ull"
+
+def switch_groups(args, is_void):
+    distinct = []
+    for key, body in args["fields"].items():
+        if not is_void(body) and body not in distinct:
+            distinct.append(body)
+    default = args.get("default")
+    if default is not None and not is_void(default) and default not in distinct:
+        distinct.append(default)
+    groups = []
+    for body in distinct:
+        keys = {k for k, b in args["fields"].items() if b == body}
+        if default is not None and body == default:
+            keys.add("__default")
+        groups.append((body, keys))
+    return groups
+
+class Bridge:
+    def __init__(self, old, new, old_ns, new_ns):
+        self.old = old
+        self.new = new
+        self.old_ns = old_ns
+        self.new_ns = new_ns
+        self.pairs = {}
+        self.order = []
+        self.bodies = {}
+        self.counter = 0
+
+    def ns(self, gen):
+        return self.old_ns if gen is self.old else self.new_ns
+
+    def struct_fn(self, fg, fcpp, tg, tcpp):
+        key = (id(fg), fcpp, tcpp)
+        if key in self.pairs:
+            return self.pairs[key]
+        fn = f"C{len(self.pairs)}"
+        self.pairs[key] = fn
+        self.order.append((key, fg, fcpp, tg, tcpp, fn))
+        return fn
+
+    def build_struct(self, key, fg, fcpp, tg, tcpp, fn):
+        fdecl = fg.by_name.get(fcpp)
+        tdecl = tg.by_name.get(tcpp)
+        lines = []
+        if fdecl is not None and tdecl is not None:
+            if hasattr(tdecl, "bit_names") and hasattr(fdecl, "bit_names"):
+                for spec, ident in tdecl.bit_names.items():
+                    if spec in fdecl.bit_names:
+                        lines.append(f"b.{ident} = static_cast<decltype(b.{ident})>(a.{fdecl.bit_names[spec]});")
+            elif hasattr(tdecl, "fields") and hasattr(fdecl, "fields"):
+                used = set()
+                for spec, tm, texpr in tdecl.fields:
+                    tsh = shape(tg, texpr)
+                    if tsh.kind in ("void", "unknown"):
+                        continue
+                    cands = [(s, m, e) for s, m, e in fdecl.fields if s == spec and m not in used]
+                    if not cands:
+                        continue
+                    pick = None
+                    for c in cands:
+                        if json.dumps(c[2], sort_keys=True, default=str) == json.dumps(texpr, sort_keys=True, default=str):
+                            pick = c
+                            break
+                    if pick is None:
+                        pick = cands[0]
+                    used.add(pick[1])
+                    fsh = shape(fg, pick[2])
+                    lines.extend(self.conv(fg, fsh, tg, tsh, f"a.{pick[1]}", f"b.{tm}", 0))
+        fq = f"{self.ns(fg)}::{fcpp}"
+        tq = f"{self.ns(tg)}::{tcpp}"
+        body = [f"void {fn}(const {fq}& a, {tq}& b) {{", "    (void)a; (void)b;"]
+        body.extend("    " + l for l in lines)
+        body.append("}")
+        self.bodies[fn] = (f"void {fn}(const {fq}& a, {tq}& b);", body)
+
+    def flush(self):
+        i = 0
+        while i < len(self.order):
+            self.build_struct(*self.order[i])
+            i += 1
+
+    def var(self):
+        self.counter += 1
+        return f"t{self.counter}"
+
+    def conv(self, fg, f, tg, t, src, dst, depth):
+        if depth > 24 or f.kind in ("void", "unknown") or t.kind in ("void", "unknown"):
+            return []
+        dtype = f"std::remove_cvref_t<decltype({dst})>"
+        if f.kind == "prim" and t.kind == "prim":
+            special = {"varint128", "uuid", "restBuffer"}
+            if f.args in special or t.args in special:
+                return [f"{dst} = {src};"] if f.cpp == t.cpp else []
+            return [f"{dst} = static_cast<{dtype}>({src});"]
+        if f.kind in ("prim", "enum", "flags") and t.kind in ("prim", "enum", "flags") and f.kind != t.kind:
+            if any(c.startswith("std::") or c == "Uuid" for c in (f.cpp, t.cpp)):
+                return []
+            return [f"{dst} = static_cast<{dtype}>({src});"]
+        if f.kind == "enum" and t.kind == "enum":
+            fe = fg.enums.get(f.cpp)
+            te = tg.enums.get(t.cpp)
+            if fe is None or te is None:
+                return [f"{dst} = static_cast<{dtype}>({src});"]
+            fmap = {label: (ident, number) for ident, number, label in fe.extra}
+            tmap = {label: (ident, number) for ident, number, label in te.extra}
+            if all(label in tmap and tmap[label][1] == fmap[label][1] for label in fmap):
+                return [f"{dst} = static_cast<{dtype}>({src});"]
+            fq = f"{self.ns(fg)}::{f.cpp}"
+            tq = f"{self.ns(tg)}::{t.cpp}"
+            lines = [f"switch ({src}) {{"]
+            for label, (ident, number) in fmap.items():
+                if label in tmap:
+                    lines.append(f"case {fq}::{ident}: {dst} = {tq}::{tmap[label][0]}; break;")
+            lines.append(f"default: {dst} = static_cast<{tq}>(static_cast<std::underlying_type_t<{tq}>>({src})); break;")
+            lines.append("}")
+            return lines
+        if f.kind == "flags" and t.kind == "flags":
+            fm = flag_masks(f.args)
+            tm = flag_masks(t.args)
+            if fm == tm and f.cpp == t.cpp:
+                return [f"{dst} = {src};"]
+            lines = [f"{dst} = {{}};"]
+            for name, mask in fm.items():
+                if name in tm:
+                    lines.append(f"if (TestMask({src}, {mask_literal(mask)})) SetMask({dst}, {mask_literal(tm[name])});")
+            return lines
+        if f.kind == "flags" and t.kind == "array":
+            el = shape(tg, t.args["type"])
+            if el.kind != "enum":
+                return []
+            te = tg.enums.get(el.cpp)
+            if te is None:
+                return []
+            tq = f"{self.ns(tg)}::{el.cpp}"
+            fm = flag_masks(f.args)
+            lines = [f"{dst}.clear();"]
+            for ident, number, label in te.extra:
+                if label in fm:
+                    lines.append(f"if (TestMask({src}, {mask_literal(fm[label])})) {dst}.push_back({tq}::{ident});")
+            return lines
+        if f.kind == "array" and t.kind == "flags":
+            el = shape(fg, f.args["type"])
+            if el.kind != "enum":
+                return []
+            fe = fg.enums.get(el.cpp)
+            if fe is None:
+                return []
+            fq = f"{self.ns(fg)}::{el.cpp}"
+            tm = flag_masks(t.args)
+            v = self.var()
+            lines = [f"{dst} = {{}};", f"for (const auto& {v} : {src}) {{", f"    switch ({v}) {{"]
+            for ident, number, label in fe.extra:
+                if label in tm:
+                    lines.append(f"    case {fq}::{ident}: SetMask({dst}, {mask_literal(tm[label])}); break;")
+            lines += ["    default: break;", "    }", "}"]
+            return lines
+        if f.kind == "struct" and t.kind == "struct":
+            fn = self.struct_fn(fg, f.cpp, tg, t.cpp)
+            return [f"{fn}({src}, {dst});"]
+        if f.kind == t.kind and f.kind in ("string", "bytes", "nbt", "nbtloop"):
+            return [f"{dst} = {src};"]
+        if f.kind == "string" and t.kind == "bytes" or f.kind == "bytes" and t.kind == "string":
+            return [f"{dst}.assign({src}.begin(), {src}.end());"]
+        if f.kind == "array" and t.kind == "array":
+            fe = shape(fg, f.args["type"])
+            te = shape(tg, t.args["type"])
+            i = self.var()
+            inner = self.conv(fg, fe, tg, te, f"{src}[{i}]", f"{dst}[{i}]", depth + 1)
+            if t.expr == "fixed":
+                lines = [f"for (size_t {i} = 0; {i} < {dst}.size() && {i} < {src}.size(); {i}++) {{"]
+            else:
+                lines = [f"{dst}.clear();", f"{dst}.resize({src}.size());", f"for (size_t {i} = 0; {i} < {src}.size(); {i}++) {{"]
+            lines.extend("    " + l for l in inner)
+            lines.append("}")
+            return lines
+        if f.kind == "option" and t.kind == "option":
+            inner = self.conv(fg, shape(fg, f.args), tg, shape(tg, t.args), f"(*{src})", f"(*{dst})", depth + 1)
+            return [f"if ({src}.has_value()) {{", f"    {dst}.emplace();"] + ["    " + l for l in inner] + ["} else {", f"    {dst}.reset();", "}"]
+        if f.kind == "option":
+            inner = self.conv(fg, shape(fg, f.args), tg, t, f"(*{src})", dst, depth + 1)
+            return [f"if ({src}.has_value()) {{"] + ["    " + l for l in inner] + ["}"]
+        if t.kind == "option":
+            inner = self.conv(fg, f, tg, shape(tg, t.args), src, f"(*{dst})", depth + 1)
+            return [f"{dst}.emplace();"] + inner
+        if f.kind == "switch" or t.kind == "switch":
+            return self.conv_switch(fg, f, tg, t, src, dst, depth)
+        return []
+
+    def alternatives(self, gen, sh):
+        if sh.kind != "switch":
+            return [(1, sh, {"__any"})]
+        groups = switch_groups(sh.args, gen.is_void)
+        return [(i + 1, shape(gen, body), keys) for i, (body, keys) in enumerate(groups)]
+
+    def conv_switch(self, fg, f, tg, t, src, dst, depth):
+        falts = self.alternatives(fg, f)
+        talts = self.alternatives(tg, t)
+        fsingle = f.kind != "switch" or len(falts) == 1
+        tsingle = t.kind != "switch" or len(talts) == 1
+        lines = []
+        for fi, fsh, fkeys in falts:
+            match = None
+            for ti, tsh, tkeys in talts:
+                if fkeys & tkeys or "__any" in fkeys or "__any" in tkeys:
+                    match = (ti, tsh)
+                    break
+            if match is None and len(talts) == 1:
+                match = (talts[0][0], talts[0][1])
+            if match is None:
+                continue
+            ti, tsh = match
+            if f.kind != "switch":
+                fval, test = src, None
+            elif fsingle:
+                fval, test = f"(*{src})", f"{src}.has_value()"
+            else:
+                fval, test = f"std::get<{fi}>({src})", f"{src}.index() == {fi}"
+            v = self.var()
+            if t.kind != "switch":
+                emplace, target = None, dst
+            elif tsingle:
+                emplace, target = f"auto& {v} = {dst}.emplace();", v
+            else:
+                emplace, target = f"auto& {v} = {dst}.template emplace<{ti}>();", v
+            inner = self.conv(fg, fsh, tg, tsh, fval, target, depth + 1)
+            body = ([emplace] if emplace else []) + inner
+            if test:
+                lines.append(f"if ({test}) {{")
+                lines.extend("    " + l for l in body)
+                lines.append("}")
+            else:
+                lines.extend(body)
+        return lines
+
+def emit_namespace(g, namespace, prefix, out_dir, parts, alias, bridged=set(), extra_decls=None, json_and_roundtrip=True):
+    gen = g.gen
+    registry = g.registry
+    packet_decls = g.packet_decls
+    os.makedirs(out_dir, exist_ok=True)
     hdr = ["#pragma once", '#include "network/Stream.hpp"', "", "#include <array>", "#include <cstdint>", "#include <optional>",
-           "#include <string>", "#include <variant>", "#include <vector>", "", "namespace perlin::" + opts.namespace + " {", "",
+           "#include <string>", "#include <variant>", "#include <vector>", "", "namespace perlin::" + namespace + " {", "",
            "using net::Nbt;", "using net::ReadStream;", "using net::Uuid;", "using net::WriteStream;", ""]
+    for slot in sorted(gen.slots):
+        hdr.append(f"inline thread_local int64_t {slot} = 0;")
+    if gen.slots:
+        hdr.append("")
     type_decls = order_decls([d for d in gen.decls if d.packet is None])
     defer_incomplete(type_decls)
     forward = sorted(d.name for d in type_decls if d.kind == "struct")
@@ -817,16 +1221,15 @@ def main():
             hdr.append(f"bool Read(ReadStream&, {decl.name}&);")
         hdr.append("")
     hdr.append("}")
-    if not opts.no_current_alias:
-        hdr += ["", "// The version the client is built against. Code says proto::; switching versions means pointing this at another",
-                "// generated namespace.", "namespace perlin {", f"namespace proto = {opts.namespace};", "}"]
-    write_if_changed(os.path.join(opts.out, "Types.hpp"), "\n".join(hdr) + "\n")
+    if alias:
+        hdr += ["", "namespace perlin {", f"namespace proto = {namespace};", "}"]
+    write_if_changed(os.path.join(out_dir, "Types.hpp"), "\n".join(hdr) + "\n")
 
-    pk = ["#pragma once", '#include "protocol/Types.hpp"', ""]
+    pk = ["#pragma once", f'#include "{prefix}/Types.hpp"', ""]
     for number, name, struct, mode, info in registry:
         if mode == "custom":
             pk.append(f'#include "{info}"')
-    pk += ["", "namespace perlin::" + opts.namespace + " {", ""]
+    pk += ["", "namespace perlin::" + namespace + " {", ""]
     by_name = {d.name: d for d in packet_decls}
     for number, name, struct, mode, info in registry:
         if mode == "custom":
@@ -838,6 +1241,9 @@ def main():
         pk.extend(lines)
         pk.append(f"void Write(WriteStream&, const {struct}&);")
         pk.append(f"bool Read(ReadStream&, {struct}&);")
+        if name in bridged:
+            pk.append(f"bool BridgeWrite(WriteStream&, const {struct}&);")
+            pk.append(f"int BridgeRead(ReadStream&, {struct}&);")
         pk.append("")
     pk.append("struct PacketInfo {")
     pk.append("    uint32_t id;")
@@ -848,25 +1254,25 @@ def main():
         pk.append(f'    {{{number}, "{name}"}},')
     pk.append("};")
     pk.append("const char* PacketName(uint32_t id);")
-    pk.append("// Decodes a packet body to JSON (PacketJson.cpp, compiled into the client with glaze). False if it doesn't decode.")
-    pk.append("bool PacketJson(uint32_t id, const uint8_t* data, size_t size, std::string& out);")
+    if json_and_roundtrip:
+        pk.append("bool PacketJson(uint32_t id, const uint8_t* data, size_t size, std::string& out);")
     pk.append("}")
-    write_if_changed(os.path.join(opts.out, "Packets.hpp"), "\n".join(pk) + "\n")
+    write_if_changed(os.path.join(out_dir, "Packets.hpp"), "\n".join(pk) + "\n")
 
     all_codec = [d for d in gen.decls if d.kind == "struct"]
-    parts = [[] for _ in range(opts.parts)]
-    weights = [0] * opts.parts
+    groups = [[] for _ in range(parts)]
+    weights = [0] * parts
     for decl in all_codec:
         if decl.packet is not None and decl.name not in by_name:
             continue
         i = weights.index(min(weights))
-        parts[i].append(decl)
+        groups[i].append(decl)
         weights[i] += len(decl.codec) + 3
-    for i, group in enumerate(parts):
-        src = ['#include "protocol/Packets.hpp"', "", "namespace perlin::" + opts.namespace + " {", "namespace {", "using net::Transfer;", "using net::Frame;",
+    for i, group in enumerate(groups):
+        src = [f'#include "{prefix}/Packets.hpp"', "", "namespace perlin::" + namespace + " {", "namespace {", "using net::Transfer;", "using net::Frame;",
                "using net::Pick;", "using net::PickAt;", "using net::Present;", "using net::PresentIfRemaining;", "}", ""]
         for decl in group:
-            src.extend(emit_codec(decl))
+            src.extend(emit_codec(decl, decl.packet is not None and decl.packet[1] in bridged))
             src.append("")
         if i == 0:
             src.append("const char* PacketName(uint32_t id) {")
@@ -877,9 +1283,12 @@ def main():
             src.append("    }")
             src.append("}")
         src.append("}")
-        write_if_changed(os.path.join(opts.out, f"Codec{i}.cpp"), "\n".join(src) + "\n")
+        write_if_changed(os.path.join(out_dir, f"Codec{i}.cpp"), "\n".join(src) + "\n")
 
-    rt = ['#include "protocol/Packets.hpp"', "", "#include <string>", "", "namespace perlin::" + opts.namespace + " {", "namespace {",
+    if not json_and_roundtrip:
+        return type_decls
+
+    rt = [f'#include "{prefix}/Packets.hpp"', "", "#include <string>", "", "namespace perlin::" + namespace + " {", "namespace {",
           "template <class P> int Check(std::string& failures, int& skipped) {",
           "    P value{};", "    std::vector<uint8_t> first;", "    net::WriteStream out(first);", "    Write(out, value);",
           "    if (!out.ok) {", "        skipped++;", "        return 0;", "    }",
@@ -893,10 +1302,10 @@ def main():
         if mode == "generated":
             rt.append(f"    bad += Check<{struct}>(failures, skipped);")
     rt += ["    return bad;", "}", "}"]
-    write_if_changed(os.path.join(opts.out, "RoundTrip.cpp"), "\n".join(rt) + "\n")
+    write_if_changed(os.path.join(out_dir, "RoundTrip.cpp"), "\n".join(rt) + "\n")
 
-    pj = ['#include "protocol/Packets.hpp"', "", "#include <glaze/glaze.hpp>", "", "#include <string>", "",
-          "namespace perlin::" + opts.namespace + " {", "namespace {",
+    pj = [f'#include "{prefix}/Packets.hpp"', "", "#include <glaze/glaze.hpp>", "", "#include <string>", "",
+          "namespace perlin::" + namespace + " {", "namespace {",
           "template <class P> bool Json(const uint8_t* data, size_t size, std::string& out) {",
           "    P packet{};", "    net::ReadStream in(data, size);",
           "    if (!Read(in, packet) || !in.ok)", "        return false;",
@@ -907,12 +1316,147 @@ def main():
         if mode == "generated" and struct not in no_json:
             pj.append(f"    case {number}: return Json<{struct}>(data, size, out);")
     pj += ["    default: return false;", "    }", "}", "}"]
-    write_if_changed(os.path.join(opts.out, "PacketJson.cpp"), "\n".join(pj) + "\n")
+    write_if_changed(os.path.join(out_dir, "PacketJson.cpp"), "\n".join(pj) + "\n")
+    return type_decls
 
-    report = [f"{len(registry)} packets, {len(type_decls)} shared types"]
-    if opaque:
-        report.append(f"{len(opaque)} opaque packets:")
-        report.extend(f"  {n}: {why}" for n, why in opaque)
+BRIDGE_SUPPORT = """namespace {
+inline bool TestMask(uint64_t v, uint64_t lo, uint64_t) { return (v & lo) != 0; }
+inline bool TestMask(uint32_t v, uint64_t lo, uint64_t) { return (v & lo) != 0; }
+inline bool TestMask(uint16_t v, uint64_t lo, uint64_t) { return (v & lo) != 0; }
+inline bool TestMask(uint8_t v, uint64_t lo, uint64_t) { return (v & lo) != 0; }
+inline bool TestMask(int64_t v, uint64_t lo, uint64_t) { return (static_cast<uint64_t>(v) & lo) != 0; }
+inline bool TestMask(int32_t v, uint64_t lo, uint64_t) { return (static_cast<uint64_t>(static_cast<uint32_t>(v)) & lo) != 0; }
+inline bool TestMask(const std::array<uint64_t, 2>& v, uint64_t lo, uint64_t hi) { return (v[0] & lo) != 0 || (v[1] & hi) != 0; }
+template <class T> inline void SetMask(T& v, uint64_t lo, uint64_t) { v = static_cast<T>(static_cast<uint64_t>(v) | lo); }
+inline void SetMask(std::array<uint64_t, 2>& v, uint64_t lo, uint64_t hi) { v[0] |= lo; v[1] |= hi; }
+}
+"""
+
+def emit_bridge(bridge, cur, legacy, version, cur_ns, old_ns, out_dir, packets):
+    lines_up = []
+    lines_down = []
+    entry = []
+    for name in packets:
+        nd = cur.by_packet[name]
+        od = legacy.by_packet[name]
+        up = bridge.struct_fn(legacy.gen, od.name, cur.gen, nd.name)
+        down = bridge.struct_fn(cur.gen, nd.name, legacy.gen, od.name)
+        entry.append(f"bool ReadInto(ReadStream& s, {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; const bool ok = Read(s, o); {up}(o, v); return ok; }}")
+        entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; {down}(v, o); Write(s, o); }}")
+    bridge.flush()
+    src = ['#include "protocol/Packets.hpp"', f'#include "protocol/v{version}/Packets.hpp"', '#include "protocol/Bridges.hpp"', "",
+           "#include <type_traits>", "", f"namespace perlin::bridge{version} {{", "using net::ReadStream;", "using net::WriteStream;", BRIDGE_SUPPORT]
+    src.append("namespace {")
+    for fn, (decl, body) in bridge.bodies.items():
+        src.append(decl)
+    src.append("")
+    for fn, (decl, body) in bridge.bodies.items():
+        src.extend(body)
+        src.append("")
+    src.append("}")
+    src.extend(entry)
+    src.append("}")
+    write_if_changed(os.path.join(out_dir, f"Bridge{version}.cpp"), "\n".join(src) + "\n")
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--spec", required=True)
+    ap.add_argument("--overrides")
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--parts", type=int, default=6)
+    ap.add_argument("--legacy-parts", type=int, default=2)
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--namespace", default="proto2225")
+    ap.add_argument("--version", type=int, default=2225)
+    ap.add_argument("--legacy", action="append", default=[], help="protocol=spec.json")
+    ap.add_argument("--no-current-alias", action="store_true")
+    opts = ap.parse_args()
+
+    spec = json.load(open(opts.spec))
+    overrides = json.load(open(opts.overrides)) if opts.overrides else {}
+    cur = generate(spec, overrides)
+    cur_types = spec["types"]
+
+    legacies = []
+    for item in opts.legacy:
+        version, path = item.split("=", 1)
+        version = int(version)
+        lspec = json.load(open(path))
+        legacies.append((version, lspec, generate(lspec, legacy_overrides(lspec, overrides))))
+    legacies.sort(key=lambda x: x[0])
+
+    cur_gen_types = cur.gen.types
+    cmemo = {}
+    differing = {}
+    bridged = set()
+    for version, lspec, lg in legacies:
+        lmemo = {}
+        names = []
+        for number, name, struct, mode, info in cur.registry:
+            if mode != "generated" or lg.mode.get(name) != "generated":
+                continue
+            a = expand(cur_gen_types, cur.by_packet[name].ptype, cmemo, frozenset())
+            b = expand(lg.gen.types, lg.by_packet[name].ptype, lmemo, frozenset())
+            if json.dumps(a, sort_keys=True) != json.dumps(b, sort_keys=True):
+                names.append(name)
+        differing[version] = names
+        bridged.update(names)
+
+    emit_namespace(cur, opts.namespace, "protocol", opts.out, opts.parts, not opts.no_current_alias, bridged)
+    for version, lspec, lg in legacies:
+        emit_namespace(lg, f"proto{version}", f"protocol/v{version}", os.path.join(opts.out, f"v{version}"),
+                       opts.legacy_parts, False, set(), None, False)
+        bridge = Bridge(lg.gen, cur.gen, f"perlin::proto{version}", f"perlin::{opts.namespace}")
+        emit_bridge(bridge, cur, lg, version, f"perlin::{opts.namespace}", f"perlin::proto{version}", opts.out, differing[version])
+
+    bh = ["#pragma once", '#include "network/Stream.hpp"', "", "namespace perlin {"]
+    for number, name, struct, mode, info in cur.registry:
+        if name in bridged:
+            bh.append(f"namespace {opts.namespace} {{ struct {struct}; }}")
+    for version, lspec, lg in legacies:
+        bh.append(f"namespace bridge{version} {{")
+        for name in differing[version]:
+            struct = cur.by_packet[name].name
+            bh.append(f"bool ReadInto(net::ReadStream&, {opts.namespace}::{struct}&);")
+            bh.append(f"void WriteFrom(net::WriteStream&, const {opts.namespace}::{struct}&);")
+        bh.append("}")
+    bh.append("}")
+    write_if_changed(os.path.join(opts.out, "Bridges.hpp"), "\n".join(bh) + "\n")
+
+    versions = [v for v, _, _ in legacies]
+    disp = ['#include "protocol/Packets.hpp"', '#include "protocol/Bridges.hpp"', "", f"namespace perlin::{opts.namespace} {{", "namespace {",
+            "int Band() {", "    const int p = net::context::Protocol();", f"    if (p <= 0 || p >= {opts.version})", "        return 0;"]
+    for v in reversed(versions[1:]):
+        disp.append(f"    if (p >= {v})")
+        disp.append(f"        return {v};")
+    if versions:
+        disp.append(f"    return {versions[0]};")
+    else:
+        disp.append("    return 0;")
+    disp += ["}", "}", ""]
+    for number, name, struct, mode, info in cur.registry:
+        if name not in bridged:
+            continue
+        rd = [f"int BridgeRead(ReadStream& s, {struct}& v) {{", "    switch (Band()) {"]
+        wr = [f"bool BridgeWrite(WriteStream& s, const {struct}& v) {{", "    switch (Band()) {"]
+        for version in versions:
+            if name in differing[version]:
+                rd.append(f"    case {version}: return bridge{version}::ReadInto(s, v) ? 1 : 0;")
+                wr.append(f"    case {version}: bridge{version}::WriteFrom(s, v); return true;")
+        rd += ["    default: return -1;", "    }", "}"]
+        wr += ["    default: return false;", "    }", "}"]
+        disp.extend(rd)
+        disp.extend(wr)
+        disp.append("")
+    disp.append("}")
+    write_if_changed(os.path.join(opts.out, "Bridge.cpp"), "\n".join(disp) + "\n")
+
+    report = [f"{len(cur.registry)} packets"]
+    for version, lspec, lg in legacies:
+        report.append(f"protocol {version}: {len(differing[version])} packets bridged, {len(lg.opaque)} opaque")
+    if cur.opaque:
+        report.append(f"{len(cur.opaque)} opaque packets:")
+        report.extend(f"  {n}: {why}" for n, why in cur.opaque)
     sys.stdout.write("\n".join(report) + "\n")
 
 CODEC_PATCHES = [(

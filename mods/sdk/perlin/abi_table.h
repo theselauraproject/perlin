@@ -44,6 +44,7 @@
     X(BlockEntityData, 0x0309, Raw, BlockEntityInfo, None, Client) \
     X(DisplayName, 0x030A, Raw, Raw, None, Client) \
     X(BreakProgress, 0x030B, Nothing, BreakState, None, Client) \
+    X(MapChunk, 0x030C, Raw, Raw, None, Client) \
     X(Entities, 0x0400, Raw, Raw, None, Client) \
     X(EntityById, 0x0401, Raw, Entity, None, Client) \
     X(PlayerList, 0x0402, Raw, Raw, None, Client) \

@@ -34,6 +34,16 @@ namespace perlin::net {
         inline void SetShieldItemID(int32_t id) {
             ShieldItemIdSlot().store(id, std::memory_order_relaxed);
         }
+        inline std::atomic<int32_t>& ProtocolSlot() {
+            static std::atomic<int32_t> slot{0};
+            return slot;
+        }
+        inline int32_t Protocol() {
+            return ProtocolSlot().load(std::memory_order_relaxed);
+        }
+        inline void SetProtocol(int32_t protocol) {
+            ProtocolSlot().store(protocol, std::memory_order_relaxed);
+        }
     }
 
     class ReadStream {
@@ -52,6 +62,10 @@ namespace perlin::net {
             uint8_t b = 0;
             u8(b);
             v = b != 0;
+        }
+        void boolean(uint8_t& v) {
+            u8(v);
+            v = v != 0 ? 1 : 0;
         }
         void u8(uint8_t& v) {
             if (!Need(1))
@@ -216,6 +230,7 @@ namespace perlin::net {
         bool more() const { return false; }
 
         void boolean(bool& v) { out.push_back(v ? 1 : 0); }
+        void boolean(uint8_t& v) { out.push_back(v ? 1 : 0); }
         void u8(uint8_t& v) { out.push_back(v); }
         void i8(int8_t& v) { out.push_back(static_cast<uint8_t>(v)); }
 

@@ -63,6 +63,11 @@ namespace perlin {
         void CollectSpecials(float camX, float camZ, float range, std::vector<SpecialBlock>& out) const;
 
     private:
+        double RemainingMs() const;
+        std::chrono::steady_clock::time_point lastUpdate{};
+        std::chrono::steady_clock::time_point maintenanceDeadline{};
+        double frameEma = 16.0;
+        double uploadBudgetMs = 1.5;
         struct ChunkInfo {
             uint64_t version = 0;
             uint64_t borderVersion = 0;

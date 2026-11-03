@@ -24,6 +24,7 @@
 #include <iterator>
 
 using namespace perlin::server;
+namespace abi = perlin::abi;
 
 static void TestJson() {
     json::Value v;

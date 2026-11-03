@@ -60,11 +60,12 @@ namespace perlin {
         bool BuildTile(int tileX, int tileZ, int stride, const std::function<bool(const ChunkPos&)>& hidden,
                        Tessellator& out) const;
 
-    private:
         struct Rgb {
             uint8_t r, g, b;
         };
         Rgb ColourOf(uint16_t id, int biome, bool top, const BlockLibrary& blocks, const BiomeTints& tints);
+
+    private:
         std::unordered_map<ChunkPos, LodColumn, ChunkPosHash> columns;
         std::unordered_map<uint32_t, Rgb> colours;
         std::unordered_map<int64_t, int> tiles;

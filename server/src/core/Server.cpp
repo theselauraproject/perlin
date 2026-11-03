@@ -1,4 +1,5 @@
 #include "core/Server.hpp"
+#include "inventory/Recipes.hpp"
 
 #include "core/Json.hpp"
 #include "core/Log.hpp"
@@ -33,6 +34,7 @@ namespace perlin::server {
         tickRateTarget = std::max<uint32_t>(1, config.tickRate);
         loopback = std::make_unique<LoopbackListener>();
         plugins = std::make_unique<PluginHost>(*this);
+        mobWorld = std::make_unique<MobWorld>(*this);
     }
 
     Server::~Server() {
@@ -85,6 +87,7 @@ namespace perlin::server {
                         std::to_string(catalog.Items().size()) + " items");
             }
             BuildItemPackets();
+        Recipes::Instance().Load();
         }
         BackendChoice choice = CreateTerrainBackend(config);
         if (!choice.backend) {
@@ -228,6 +231,10 @@ namespace perlin::server {
             if (frozen && stepRemaining > 0)
                 stepRemaining--;
             TickItems();
+            for (const ChunkPos& ready : chunks->TakeReady())
+                mobWorld->OnChunkReady(ready.x, ready.z);
+            mobWorld->Tick();
+            TickContainers();
             if (plugins->AnyoneListens(abi::Event::Tick))
                 plugins->Dispatch<abi::Event::Tick>({.dt = 0.05f, .tick = tick});
         }
@@ -618,6 +625,7 @@ namespace perlin::server {
         joined.ShowArmor(joined);
         for (const ItemEntity& item : itemEntities)
             joined.ShowItem(item);
+        mobWorld->Show(joined);
         SendWorldState(joined);
         plugins->Dispatch<abi::Event::PlayerJoin>({joined.Id(), joined.Name()});
         Broadcast("§e" + joined.Name() + " joined the game");
@@ -808,6 +816,7 @@ namespace perlin::server {
                 return false;
             }
         }
+        DropContainer(x, y, z);
         ApplyBlock(x, y, z, BlockRegistry::kAir);
         // survival: the block leaves an item where it stood, to be picked up
         if (!by.Creative())

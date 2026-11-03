@@ -711,7 +711,14 @@ namespace perlin {
             serverProtocol = protocolOverride;
             if (!versionOverride.empty())
                 gameVersion = versionOverride;
+        } else if (const int theirs = net->Info().advertisedProtocol;
+                   theirs >= kOldestBedrockProtocol && theirs < kBedrockProtocol) {
+            Log("bedrock", "speaking the server's protocol {} ({})", theirs, net->Info().advertisedVersion);
+            serverProtocol = theirs;
+            if (!net->Info().advertisedVersion.empty())
+                gameVersion = net->Info().advertisedVersion;
         }
+        net::context::SetProtocol(serverProtocol);
         if (!SendRequestNetworkSettings()) {
             lastError = "failed to send RequestNetworkSettings";
             state = State::Failed;

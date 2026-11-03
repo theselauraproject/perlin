@@ -78,6 +78,11 @@ namespace perlin::server {
                 return cpu->LocateBiome(biome, fromX, fromZ, radius, cancel, x, y, z);
             }
             bool HasBiomes() const override { return true; }
+            bool Decorates() const override { return cpu->Decorates(); }
+            const json::Value* Spawns(int tableIndex) const override { return cpu->Spawns(tableIndex); }
+            void Decorate(ChunkPos pos, const ChunkColumn* const region[9], ChunkColumn& out) const override {
+                cpu->Decorate(pos, region, out);
+            }
 
             bool Init(const ServerConfig& config, std::string& note) {
                 std::string error;
@@ -408,6 +413,7 @@ namespace perlin::server {
                             biomes[col] = static_cast<uint8_t>(b.columns[(i * 256 + col) * 2 + 1]);
                         cpu->Features().Apply(positions[i].x, positions[i].z, biomes.data(), blocks.data());
                         vanilla::VanillaSurface::Store(blocks.data(), out[i]);
+                        vanilla::VanillaSurface::StoreBiomes(biomes.data(), out[i]);
                         continue;
                     }
                     if (gpuBiome) {

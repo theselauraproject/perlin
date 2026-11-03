@@ -4,6 +4,7 @@
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "core/Server.hpp"
+#include "world/MobData.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
 #include "world/vanilla/BiomeData.hpp"
@@ -350,6 +351,73 @@ namespace perlin::server {
                     const std::string shown = c["item"].text.substr(c["item"].text.find(':') + 1);
                     say(c.source, "Gave " + std::to_string(stack - left) + " " + shown + " to " + s->Name() +
                                       (left ? " (inventory full)" : ""));
+                }
+            });
+        std::string mobNames;
+        for (int i = 0; i < kMobDefCount; i++) {
+            const std::string id = kMobDefs[i].id;
+            if (!mobNames.empty())
+                mobNames += '|';
+            mobNames += id.substr(id.find(':') + 1);
+        }
+        add({"summon"}, "Summons an entity", true,
+            {"<entityType:enum(" + mobNames + ")>", "<entityType:enum(" + mobNames + ")> <spawnPos:pos>"},
+            [this, say, fail](CommandCtx& c) {
+                double x = SpawnX() + 0.5, y = SpawnY(), z = SpawnZ() + 0.5;
+                if (c.source) {
+                    x = c.source->X();
+                    y = c.source->Y() - 1.62;
+                    z = c.source->Z();
+                }
+                if (c.Has("spawnPos")) {
+                    x = c["spawnPos"].pos[0];
+                    y = c["spawnPos"].pos[1];
+                    z = c["spawnPos"].pos[2];
+                }
+                Mob* m = Mobs().Spawn("minecraft:" + c["entityType"].text, x, y, z, true);
+                if (!m) {
+                    fail(c.source, "Unable to summon entity");
+                    return;
+                }
+                say(c.source, "Summoned new " + c["entityType"].text);
+            });
+        add({"kill"}, "Kills entities (players, mobs, etc.)", true, {"", "<selector:text>"},
+            [this, say, fail](CommandCtx& c) {
+                if (c.Has("selector")) {
+                    const std::string sel = c["selector"].text;
+                    if (!sel.starts_with("@e")) {
+                        std::vector<Session*> list;
+                        std::string error;
+                        if (!ResolveSelector(*this, c.source, sel, list, error) || list.empty()) {
+                            fail(c.source, error.empty() ? "No player was found" : error);
+                            return;
+                        }
+                        for (Session* s : list) {
+                            s->Hurt(1.0e6f, s->X(), s->Z());
+                            say(c.source, "Killed " + s->Name());
+                        }
+                        return;
+                    }
+                    std::string type;
+                    if (const size_t at = sel.find("type="); at != std::string::npos) {
+                        type = sel.substr(at + 5);
+                        type = type.substr(0, type.find_first_of(",]"));
+                        if (type.starts_with("minecraft:"))
+                            type = type.substr(10);
+                    }
+                    const int n = Mobs().KillAll(type);
+                    if (n == 0)
+                        fail(c.source, "No entity was found");
+                    else
+                        say(c.source, "Killed " + std::to_string(n) + " entities");
+                    return;
+                }
+                std::vector<Session*> list;
+                if (c.source)
+                    list.push_back(c.source);
+                for (Session* s : list) {
+                    s->Hurt(1.0e6f, s->X(), s->Z());
+                    say(c.source, "Killed " + s->Name());
                 }
             });
         add({"clear"}, "Remove items from player inventories", true,

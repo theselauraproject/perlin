@@ -121,6 +121,11 @@ namespace perlin {
             return false;
         Log("nethernet", "probe ok: '{}' protocol {} version {}", serverInfo.name, serverInfo.protocol,
             serverInfo.version);
+        serverInfo.advertisedProtocol = serverInfo.protocol;
+        serverInfo.advertisedVersion = serverInfo.version;
+        const bool older = serverInfo.protocol >= kOldestBedrockProtocol && serverInfo.protocol < kBedrockProtocol;
+        const std::string joinVersion = older && !serverInfo.version.empty() ? serverInfo.version : kBedrockVersion;
+        const int joinProtocol = older ? serverInfo.protocol : kBedrockProtocol;
 
         std::random_device rd;
         std::mt19937_64 rng((static_cast<uint64_t>(rd()) << 32) | rd());
@@ -254,8 +259,8 @@ namespace perlin {
 
         std::string netIdStr = std::to_string(netId);
         HttpRequest(host, port, "GET",
-                    "/v1/join?version=" + std::string(kBedrockVersion) +
-                        "&protocol=" + std::to_string(kBedrockProtocol) + "&platform=1&id=" + netIdStr,
+                    "/v1/join?version=" + joinVersion + "&protocol=" + std::to_string(joinProtocol) +
+                        "&platform=1&id=" + netIdStr,
                     "", "", 5);
         std::string wpath = "/v1/join/" + netIdStr;
         Log("nethernet", "offer ready ({} bytes), POSTing to /v1/join/{}...", offer.size(), netIdStr);

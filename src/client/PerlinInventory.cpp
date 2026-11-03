@@ -86,6 +86,8 @@ namespace perlin {
                 close = true;
             else if (typedIs(t, Action::Drop) && live && inventory.hoverAddr >= 0)
                 live->InvDropSlot(inventory.hoverAddr, t.ctrl);
+            else if (typedIs(t, Action::SwapOffhand) && live && inventory.hoverAddr >= 0)
+                live->InvSwapOffhand(inventory.hoverAddr);
             else if (live && inventory.hoverAddr >= 0) {
                 for (int h = 0; h < 9; h++)
                     if (typedIs(t, static_cast<Action>(static_cast<int>(Action::Hotbar1) + h))) {
@@ -132,7 +134,18 @@ namespace perlin {
             v.horseChest = inv.horseChestSlots;
             for (int i = 0; i < 17; i++)
                 v.horseItems[static_cast<size_t>(i)] = detail::ToHudItem(inv.horse[i]);
-            if (inv.chestOpen) {
+            if (inv.furnaceKind >= 0) {
+                v.furnace = inv.furnaceKind;
+                v.chestRows = -1;
+                for (int i = 0; i < 3; i++)
+                    v.chestItems[static_cast<size_t>(i)] = detail::ToHudItem(inv.chest[i]);
+                const auto progress = live->Furnace();
+                v.cook = progress.cook;
+                v.burn = progress.burn;
+                v.title = i18n::Tr(inv.furnaceKind == 1   ? "container.blast_furnace"
+                                   : inv.furnaceKind == 2 ? "container.smoker"
+                                                          : "container.furnace");
+            } else if (inv.chestOpen) {
                 v.chestRows = inv.chestSlots > 27 ? 6 : 3;
                 for (int i = 0; i < 54; i++)
                     v.chestItems[static_cast<size_t>(i)] = detail::ToHudItem(inv.chest[i]);
@@ -306,6 +319,9 @@ namespace perlin {
             for (const auto& it : v.chestItems)
                 sig(it);
         }
+        if (v.furnace >= 0)
+            signature += "F" + std::to_string(v.furnace) + ":" + std::to_string(static_cast<int>(v.cook * 24)) + ":" +
+                         std::to_string(static_cast<int>(v.burn * 13));
         if (v.horse) {
             signature += "H" + std::to_string(v.horseChest);
             for (const auto& it : v.horseItems)

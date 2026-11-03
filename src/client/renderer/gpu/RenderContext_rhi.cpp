@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -215,6 +216,15 @@ namespace perlin {
             s.framesInFlight = std::max(1u, profile.framesInFlight);
             s.hdr = profile.hdr;
             std::string error;
+            pipelineBlobPath = paths::DataDir() + "/cache/pipelines_" + std::string(rhi::ApiName(api)) + "_" +
+                               std::to_string(adapter) + ".bin";
+            pipelineBlob.clear();
+            if (!PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE")) {
+                std::ifstream in(pipelineBlobPath, std::ios::binary);
+                if (in)
+                    pipelineBlob.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            }
+            s.pipelineCache = pipelineBlob;
             settings = s;
             if (gpu.Init(s, pack, &error)) {
                 settings = gpu.Settings();
@@ -261,6 +271,7 @@ namespace perlin {
             cloudJobRunning = false;
         }
         gpu.Dev().WaitIdle();
+        SavePipelineCache();
         FinishReadbacks();
         {
             std::unique_lock jpackLock(jpackMutex);
@@ -639,6 +650,36 @@ namespace perlin {
         views[static_cast<size_t>(view)].draws.push_back(dc);
     }
 
+    bool RenderContext_rhi::UseMultiDraw() const {
+        static const bool off = PERLIN_ENV("PERLIN_NO_MDI") != nullptr;
+        return !off && gpu.Caps().features.multiDrawIndirect;
+    }
+
+    bool RenderContext_rhi::PushRuns(View view, const DrawCall& templ, rhi::BufferHandle vertexBuffer,
+                                     rhi::BufferHandle indexBuffer, const std::vector<gpu::ChunkMeshStore::Run>& list,
+                                     size_t begin, size_t end) {
+        const size_t n = end - begin;
+        if (n < 2)
+            return false;
+        const gpu::RingSlice slice = gpu.Ring(n * sizeof(rhi::DrawIndexedIndirectCommand), 16);
+        if (!slice.data)
+            return false;
+        auto* cmds = reinterpret_cast<rhi::DrawIndexedIndirectCommand*>(slice.data);
+        for (size_t i = 0; i < n; i++)
+            cmds[i] = {list[begin + i].count, 1, list[begin + i].first, 0, 0};
+        DrawCall dc = templ;
+        dc.vertices = vertexBuffer;
+        dc.vertexOffset = 0;
+        dc.indices = indexBuffer;
+        dc.indexOffset = 0;
+        dc.indexType = rhi::IndexType::U32;
+        dc.indirect = slice.buffer;
+        dc.indirectOffset = slice.offset;
+        dc.indirectDraws = static_cast<uint32_t>(n);
+        views[static_cast<size_t>(view)].draws.push_back(dc);
+        return true;
+    }
+
     void RenderContext_rhi::Submit(View view, const DrawState& state, const Source& vertices,
                                    const Source* indices, rhi::IndexType indexType, uint32_t first,
                                    uint32_t count, const rhi::Rect* scissor) {
@@ -694,7 +735,10 @@ namespace perlin {
                 list.SetScissor({0, 0, gpu.TargetWidth(), gpu.TargetHeight()});
                 scissored = false;
             }
-            if (dc.indices)
+            if (dc.indirectDraws)
+                list.DrawIndexedIndirect(dc.indirect, dc.indirectOffset, dc.indirectDraws,
+                                         sizeof(rhi::DrawIndexedIndirectCommand));
+            else if (dc.indices)
                 list.DrawIndexed(dc.count, 1, dc.first, 0, 0);
             else
                 list.Draw(dc.count, 1, dc.first, 0);
@@ -801,7 +845,29 @@ namespace perlin {
             FeedJavaUniforms(params);
     }
 
+    void RenderContext_rhi::SavePipelineCache() {
+        if (pipelineBlobPath.empty() || !gpu.Caps().features.pipelineCacheBlob || PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE"))
+            return;
+        const std::vector<uint8_t> blob = gpu.Dev().SerializePipelineCache();
+        if (blob.empty() || blob.size() == savedPipelineBytes)
+            return;
+        std::error_code ec;
+        std::filesystem::create_directories(std::filesystem::path(pipelineBlobPath).parent_path(), ec);
+        const std::string tmp = pipelineBlobPath + ".tmp";
+        {
+            std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+            if (!out)
+                return;
+            out.write(reinterpret_cast<const char*>(blob.data()), static_cast<std::streamsize>(blob.size()));
+        }
+        std::filesystem::rename(tmp, pipelineBlobPath, ec);
+        if (!ec)
+            savedPipelineBytes = blob.size();
+    }
+
     void RenderContext_rhi::BeginFrame(const FrameParams& paramsIn) {
+        if (++pipelineSaveCounter % 7200 == 1800)
+            SavePipelineCache();
         if (!initialized)
             return;
         if (shaderReloadPending)

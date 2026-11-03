@@ -1,5 +1,6 @@
 #pragma once
 #include "core/Config.hpp"
+#include "core/Json.hpp"
 #include "world/Chunk.hpp"
 
 #include <atomic>
@@ -43,6 +44,16 @@ namespace perlin::server {
         }
         // whether LocateBiome can answer at all
         virtual bool HasBiomes() const { return false; }
+        virtual bool Decorates() const { return false; }
+        virtual const json::Value* Spawns(int tableIndex) const {
+            (void)tableIndex;
+            return nullptr;
+        }
+        virtual void Decorate(ChunkPos pos, const ChunkColumn* const region[9], ChunkColumn& out) const {
+            (void)pos;
+            (void)region;
+            (void)out;
+        }
     };
 
     // flat layers on the cpu: also the reference the gpu backend is checked against

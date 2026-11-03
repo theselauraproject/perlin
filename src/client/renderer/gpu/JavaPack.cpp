@@ -3331,35 +3331,52 @@ namespace perlin::gpu {
                 continue;
             }
             list.SetPipeline(pipe);
-            rhi::BufferHandle boundVb, boundIb;
-            for (const ChunkMeshStore::Run& r : runList) {
-                const rhi::BufferHandle vb = meshes.Extension(r.page);
-                const rhi::BufferHandle ib = meshes.Indices(r.page, layer);
-                if (!vb || !ib) {
-                    if (trace)
-                        std::fprintf(stderr, "[jshader] %s: page %u has no %s\n", programName, r.page,
-                                     vb ? "indices" : "pack vertices");
-                    continue;
-                }
-                if (trace)
-                    std::fprintf(stderr, "[jshader] %s: draw %u indices from %u\n", programName, r.count,
-                                 r.first);
-                // runs of one page share their buffers: bind them once
-                if (vb != boundVb) {
-                    list.SetVertexBuffer(0, vb);
-                    boundVb = vb;
-                }
-                if (ib != boundIb) {
-                    list.SetIndexBuffer(ib, rhi::IndexType::U32);
-                    boundIb = ib;
-                }
-                list.DrawIndexed(r.count, 1, r.first, 0, 0);
-            }
+            DrawRunList(list, runList, layer);
         }
         list.EndRendering();
         if (p->imageMask || !config.bufferObjects.empty())
             StorageBarrier(list, *p); // shadow voxelization writes images from the vertex shader
         return true;
+    }
+
+    void JavaPack::DrawRunList(rhi::CommandList& list, const std::vector<ChunkMeshStore::Run>& runList, RenderLayer layer) {
+        static const bool noMulti = std::getenv("PERLIN_NO_MDI") != nullptr;
+        const bool multi = !noMulti && gpu.Caps().features.multiDrawIndirect;
+        rhi::BufferHandle boundVb, boundIb;
+        for (size_t i = 0; i < runList.size();) {
+            size_t j = i + 1;
+            while (j < runList.size() && runList[j].page == runList[i].page)
+                j++;
+            const rhi::BufferHandle vb = meshes.Extension(runList[i].page);
+            const rhi::BufferHandle ib = meshes.Indices(runList[i].page, layer);
+            if (!vb || !ib) {
+                i = j;
+                continue;
+            }
+            if (vb != boundVb) {
+                list.SetVertexBuffer(0, vb);
+                boundVb = vb;
+            }
+            if (ib != boundIb) {
+                list.SetIndexBuffer(ib, rhi::IndexType::U32);
+                boundIb = ib;
+            }
+            const size_t n = j - i;
+            RingSlice slice;
+            if (multi && n > 1)
+                slice = gpu.Ring(n * sizeof(rhi::DrawIndexedIndirectCommand), 16);
+            if (slice.data) {
+                auto* cmds = reinterpret_cast<rhi::DrawIndexedIndirectCommand*>(slice.data);
+                for (size_t k = 0; k < n; k++)
+                    cmds[k] = {runList[i + k].count, 1, runList[i + k].first, 0, 0};
+                list.DrawIndexedIndirect(slice.buffer, slice.offset, static_cast<uint32_t>(n),
+                                         sizeof(rhi::DrawIndexedIndirectCommand));
+            } else {
+                for (size_t k = i; k < j; k++)
+                    list.DrawIndexed(runList[k].count, 1, runList[k].first, 0, 0);
+            }
+            i = j;
+        }
     }
 
     bool JavaPack::EnsureShadowCache() {
@@ -3425,22 +3442,7 @@ namespace perlin::gpu {
         list.SetBindGroup(1, textures);
         BindStorage(list, p);
         list.SetPipeline(pipe);
-        rhi::BufferHandle boundVb, boundIb;
-        for (const ChunkMeshStore::Run& r : runList) {
-            const rhi::BufferHandle vb = meshes.Extension(r.page);
-            const rhi::BufferHandle ib = meshes.Indices(r.page, RenderLayer::Solid);
-            if (!vb || !ib)
-                continue;
-            if (vb != boundVb) {
-                list.SetVertexBuffer(0, vb);
-                boundVb = vb;
-            }
-            if (ib != boundIb) {
-                list.SetIndexBuffer(ib, rhi::IndexType::U32);
-                boundIb = ib;
-            }
-            list.DrawIndexed(r.count, 1, r.first, 0, 0);
-        }
+        DrawRunList(list, runList, RenderLayer::Solid);
         list.EndRendering();
         return true;
     }

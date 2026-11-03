@@ -5,6 +5,7 @@
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "core/Server.hpp"
+#include "inventory/Recipes.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
 
@@ -546,6 +547,8 @@ namespace perlin::server {
     void Session::SendWorldSetup() {
         Queue(proto::ItemRegistryPacket::kId, server.ItemRegistryBody());
         Queue(proto::CreativeContentPacket::kId, server.CreativeContentBody());
+        if (!Recipes::Instance().CraftingDataBody().empty())
+            Queue(proto::CraftingDataPacket::kId, Recipes::Instance().CraftingDataBody());
         Send(proto::BiomeDefinitionListPacket{});
         Send(proto::AvailableEntityIdentifiersPacket{});
 
@@ -594,7 +597,7 @@ namespace perlin::server {
             p.attributes.push_back(std::move(a));
         };
         // what a survival client's hud reads: without these it shows no hearts, hunger or experience
-        add("minecraft:health", 0.0f, 20.0f, 20.0f, 20.0f);
+        add("minecraft:health", 0.0f, 20.0f, std::max(0.0f, std::ceil(health)), 20.0f);
         add("minecraft:player.hunger", 0.0f, 20.0f, 20.0f, 20.0f);
         add("minecraft:player.saturation", 0.0f, 20.0f, 5.0f, 5.0f);
         add("minecraft:player.exhaustion", 0.0f, 4.0f, 0.0f, 0.0f);
@@ -822,8 +825,16 @@ namespace perlin::server {
             return;
         proto::ItemStackResponsePacket reply;
         bool armorChanged = false;
+        bool containerChanged = false;
         for (const proto::ItemStackRequest& r : p.requests) {
             const RequestResult result = ApplyStackRequest(inventory, r, creative);
+            if (result.ok)
+                for (const auto& [container, slot] : result.touched)
+                    if (container != proto::ContainerSlotType::HotbarAndInventory && container != proto::ContainerSlotType::Hotbar &&
+                        container != proto::ContainerSlotType::Inventory && container != proto::ContainerSlotType::Armor &&
+                        container != proto::ContainerSlotType::Offhand && container != proto::ContainerSlotType::Cursor &&
+                        container != proto::ContainerSlotType::CraftingInput)
+                        containerChanged = true;
             reply.responses.push_back(MakeResponse(inventory, r.requestId, result));
             if (result.ok)
                 for (const auto& [container, slot] : result.touched)
@@ -837,6 +848,8 @@ namespace perlin::server {
         }
         if (armorChanged)
             server.BroadcastArmor(*this);
+        if (containerChanged)
+            server.SyncContainer(*this);
         if (!reply.responses.empty())
             Send(reply);
     }
@@ -869,12 +882,13 @@ namespace perlin::server {
         proto::ContainerClosePacket c;
         if (!Decode(body, c) || state != State::InGame)
             return;
-        // closing returns the pointer stack to the player the way the game does: the client already moved it, nothing to undo
+        server.CloseContainer(*this);
         proto::ContainerClosePacket ack;
         ack.windowId = c.windowId;
-        ack.windowType = proto::WindowType::Inventory;
+        ack.windowType = openType;
         ack.server = false;
         Send(ack);
+        openType = proto::WindowType::Inventory;
     }
 
     void Session::OnPickBlock(std::span<const uint8_t> body) {
@@ -937,6 +951,38 @@ namespace perlin::server {
         proto::InventoryTransactionPacket t;
         if (!Decode(body, t) || state != State::InGame)
             return;
+        if (t.transaction.transactionType == proto::TransactionTransactionType::ItemUseOnEntity) {
+            const auto* on = std::get_if<proto::TransactionTransactionDataCase1>(&t.transaction.transactionData);
+            if (!on || isVisitor || gameMode == 6 || dead)
+                return;
+            lastActive = std::chrono::steady_clock::now();
+            if (on->actionType == proto::TransactionTransactionDataCase1ActionType::Attack) {
+                float damage = 1.0f;
+                const ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
+                if (!held.Empty())
+                    if (const CatalogItem* item = BlockCatalog::Instance().ItemById(held.networkId)) {
+                        const std::string& n = item->name;
+                        const float tier = n.contains("netherite") ? 4 : n.contains("diamond") ? 3 : n.contains("iron") ? 2 :
+                                           n.contains("stone") || n.contains("golden") ? 1 : 0;
+                        if (n.contains("_sword"))
+                            damage = 4.0f + tier;
+                        else if (n.contains("_axe"))
+                            damage = 7.0f + std::min(tier, 2.0f);
+                        else if (n.contains("_pickaxe"))
+                            damage = 2.0f + tier;
+                        else if (n.contains("_shovel"))
+                            damage = 2.5f + tier;
+                        else if (n.contains("trident"))
+                            damage = 9.0f;
+                        else if (n.contains("mace"))
+                            damage = 6.0f;
+                    }
+                server.Mobs().Attack(*this, on->entityRuntimeId, damage);
+            } else {
+                server.Mobs().Interact(*this, on->entityRuntimeId);
+            }
+            return;
+        }
         if (t.transaction.transactionType != proto::TransactionTransactionType::ItemUse)
             return;
         const auto* use = std::get_if<proto::TransactionUseItem>(&t.transaction.transactionData);
@@ -954,8 +1000,9 @@ namespace perlin::server {
             break;
         case proto::TransactionUseItemActionType::ClickBlock:
             // armor used on a block is put on, as in the game, rather than placed
-            if (!EquipHeldArmor())
-                server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
+            if ((sneaking && !inventory.Held().Empty()) || !server.UseBlock(*this, at.x, at.y, at.z))
+                if (!EquipHeldArmor())
+                    server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
             break;
         case proto::TransactionUseItemActionType::ClickAir:
             EquipHeldArmor();
@@ -1145,12 +1192,22 @@ namespace perlin::server {
         proto::RespawnPacket p;
         if (!Decode(body, p) || state != State::InGame)
             return;
-        // state 2 is the client saying it is ready after a respawn; there is no death here yet, so it only needs the spawn point back
+        const bool wasDead = dead;
+        if (dead) {
+            dead = false;
+            health = 20.0f;
+            posX = server.SpawnX() + 0.5;
+            posY = server.SpawnY() + 1.62;
+            posZ = server.SpawnZ() + 0.5;
+            SendAttributes();
+        }
         proto::RespawnPacket reply;
         reply.position = {static_cast<float>(posX), static_cast<float>(posY), static_cast<float>(posZ)};
         reply.state = 1;
         reply.runtimeEntityId = runtimeId;
         Send(reply);
+        if (wasDead)
+            Teleport(posX, posY, posZ);
     }
 
     void Session::OnCommand(std::span<const uint8_t> body) {
@@ -1185,6 +1242,7 @@ namespace perlin::server {
         if (!Decode(body, in) || (state != State::InGame && state != State::Loading))
             return;
         SetPosition(in.position.x, in.position.y, in.position.z, in.pitch, in.yaw);
+        sneaking = std::find(in.inputData.begin(), in.inputData.end(), proto::InputData::Sneaking) != in.inputData.end();
     }
 
     void Session::OnMovePlayer(std::span<const uint8_t> body) {
@@ -1351,6 +1409,179 @@ namespace perlin::server {
         Send(p);
     }
 
+    namespace {
+        uint8_t MobAngle(float degrees) {
+            return static_cast<uint8_t>(static_cast<int>(std::floor(degrees / 360.0f * 256.0f)) & 255);
+        }
+
+        proto::MetadataDictionaryEntry FloatEntry(proto::MetadataDictionaryEntryKey key, float value) {
+            proto::MetadataDictionaryEntry e;
+            e.key = key;
+            e.type = proto::MetadataDictionaryEntryType::Float;
+            auto& inner = e.value.template emplace<4>();
+            inner.template emplace<4>(value);
+            return e;
+        }
+
+        std::vector<proto::MetadataDictionaryEntry> MobMetadata(const Mob& mob) {
+            std::vector<proto::MetadataDictionaryEntry> out;
+            proto::MetadataDictionaryEntry flags;
+            flags.key = proto::MetadataDictionaryEntryKey::Flags;
+            flags.type = proto::MetadataDictionaryEntryType::Long;
+            flags.value.template emplace<1>(static_cast<int64_t>(MobWorld::Flags(mob)));
+            out.push_back(flags);
+            const float scale = mob.baby ? 0.5f : 1.0f;
+            out.push_back(FloatEntry(proto::MetadataDictionaryEntryKey::Scale, scale));
+            out.push_back(FloatEntry(proto::MetadataDictionaryEntryKey::BoundingboxWidth, mob.def->width * scale));
+            out.push_back(FloatEntry(proto::MetadataDictionaryEntryKey::BoundingboxHeight, mob.def->height * scale));
+            return out;
+        }
+    }
+
+    void Session::ShowMob(const Mob& mob) {
+        proto::AddEntityPacket p;
+        p.uniqueId = static_cast<int64_t>(mob.id);
+        p.runtimeId = mob.id;
+        p.entityType = mob.def->id;
+        p.position = {static_cast<float>(mob.x), static_cast<float>(mob.y), static_cast<float>(mob.z)};
+        p.velocity = {static_cast<float>(mob.vx), static_cast<float>(mob.vy), static_cast<float>(mob.vz)};
+        p.pitch = mob.pitch;
+        p.yaw = mob.yaw;
+        p.headYaw = mob.headYaw;
+        p.bodyYaw = mob.yaw;
+        proto::EntityAttributesEntry hp;
+        hp.name = "minecraft:health";
+        hp.min = 0;
+        hp.value = mob.health;
+        hp.max = mob.def->health;
+        p.attributes.push_back(hp);
+        proto::EntityAttributesEntry move;
+        move.name = "minecraft:movement";
+        move.min = 0;
+        move.value = mob.def->speed;
+        move.max = 3.4028235e38f;
+        p.attributes.push_back(move);
+        p.metadata = MobMetadata(mob);
+        Send(p);
+    }
+
+    void Session::MoveMob(const Mob& mob) {
+        proto::MoveEntityPacket p;
+        p.runtimeEntityId = mob.id;
+        p.flags = mob.onGround ? 1 : 0;
+        p.position = {static_cast<float>(mob.x), static_cast<float>(mob.y), static_cast<float>(mob.z)};
+        p.rotation.pitch = MobAngle(mob.pitch);
+        p.rotation.yaw = MobAngle(mob.yaw);
+        p.rotation.headYaw = MobAngle(mob.headYaw);
+        Send(p);
+    }
+
+    void Session::MobData(const Mob& mob) {
+        proto::SetEntityDataPacket p;
+        p.runtimeEntityId = mob.id;
+        p.metadata = MobMetadata(mob);
+        p.tick = server.TickCount();
+        Send(p);
+    }
+
+    void Session::MobMotion(const Mob& mob) {
+        proto::SetEntityMotionPacket p;
+        p.runtimeEntityId = mob.id;
+        p.velocity = {static_cast<float>(mob.vx), static_cast<float>(mob.vy), static_cast<float>(mob.vz)};
+        p.tick = server.TickCount();
+        Send(p);
+    }
+
+    void Session::MobEvent(uint64_t id, int event, int data) {
+        proto::EntityEventPacket p;
+        p.runtimeEntityId = id;
+        p.eventId = static_cast<proto::EntityEventPacketEventId>(event);
+        p.data = data;
+        Send(p);
+    }
+
+    void Session::OpenWindow(int window, proto::WindowType type, int x, int y, int z) {
+        openWindow = window;
+        openType = type;
+        proto::ContainerOpenPacket open;
+        open.windowId = static_cast<proto::WindowID>(window);
+        open.windowType = type;
+        open.coordinates = {x, y, z};
+        open.runtimeEntityId = -1;
+        Send(open);
+    }
+
+    void Session::SendWindowContents(proto::ContainerSlotType type, const std::vector<ItemStack>& slots) {
+        if (openWindow < 0)
+            return;
+        proto::InventoryContentPacket p;
+        p.windowId = static_cast<proto::WindowIDVarint>(openWindow);
+        p.container.containerId = type;
+        for (const ItemStack& s : slots)
+            p.input.push_back(ToWire(s));
+        Send(p);
+    }
+
+    void Session::SendWindowData(int property, int value) {
+        if (openWindow < 0)
+            return;
+        proto::ContainerSetDataPacket p;
+        p.windowId = static_cast<proto::WindowID>(openWindow);
+        p.property = property;
+        p.value = value;
+        Send(p);
+    }
+
+    void Session::CloseWindowFromServer() {
+        if (openWindow < 0)
+            return;
+        proto::ContainerClosePacket p;
+        p.windowId = static_cast<proto::WindowID>(openWindow);
+        p.windowType = openType;
+        p.server = true;
+        Send(p);
+        openWindow = -1;
+    }
+
+    void Session::Heal(float amount) {
+        if (dead || health >= 20.0f)
+            return;
+        health = std::min(20.0f, health + amount);
+        SendAttributes();
+    }
+
+    void Session::Hurt(float amount, double fromX, double fromZ) {
+        if (dead || gameMode == 1 || gameMode == 6 || hurtCooldown > 0 || amount <= 0)
+            return;
+        health -= amount;
+        hurtCooldown = 10;
+        regenTicks = 0;
+        SendAttributes();
+        for (Session* s : server.InGamePlayers())
+            s->MobEvent(runtimeId, 2, 0);
+        const double dx = posX - fromX, dz = posZ - fromZ;
+        const double len = std::max(0.01, std::sqrt(dx * dx + dz * dz));
+        proto::SetEntityMotionPacket kb;
+        kb.runtimeEntityId = runtimeId;
+        kb.velocity = {static_cast<float>(dx / len * 0.4), 0.36f, static_cast<float>(dz / len * 0.4)};
+        kb.tick = server.TickCount();
+        Send(kb);
+        if (health <= 0) {
+            dead = true;
+            health = 0;
+            for (Session* s : server.InGamePlayers())
+                if (s != this)
+                    s->MobEvent(runtimeId, 3, 0);
+            for (ItemStack& slot : inventory.main)
+                if (!slot.Empty() && !server.RuleValue("keepinventory")) {
+                    server.SpawnItem(slot, posX, posY - 1.0, posZ, 0.0, 0.2, 0.0, 40);
+                    slot = ItemStack{};
+                }
+            SendInventory();
+            server.Broadcast(name + " died");
+        }
+    }
+
     void Session::SendBlockUpdate(int x, int y, int z, int32_t networkId) {
         proto::UpdateBlockPacket u;
         u.position = {x, y, z};
@@ -1364,6 +1595,14 @@ namespace perlin::server {
     void Session::Tick(uint64_t) {
         if (state == State::Closed)
             return;
+        if (state == State::InGame) {
+            if (hurtCooldown > 0)
+                hurtCooldown--;
+            if (!dead && health < 20.0f && server.RuleValue("naturalregeneration") && ++regenTicks >= 80) {
+                regenTicks = 0;
+                Heal(1.0f);
+            }
+        }
         const auto now = std::chrono::steady_clock::now();
         if (!connection->Alive()) {
             Close();

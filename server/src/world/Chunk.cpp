@@ -86,6 +86,19 @@ namespace perlin::server {
         version++;
     }
 
+    ChunkColumn ChunkColumn::Clone() const {
+        ChunkColumn c;
+        for (size_t i = 0; i < sections.size(); i++) {
+            c.sections[i].uniform = sections[i].uniform;
+            if (sections[i].cells)
+                c.sections[i].cells = std::make_unique<std::array<uint16_t, kCells>>(*sections[i].cells);
+        }
+        c.genBiomes = genBiomes;
+        c.netBiomes = netBiomes;
+        c.version = version;
+        return c;
+    }
+
     void ChunkColumn::FillSection(int section, uint16_t block) {
         Section& s = sections[static_cast<size_t>(section)];
         s.cells.reset();
@@ -121,8 +134,10 @@ namespace perlin::server {
             }
             WriteStorage(out, values);
         }
-        // one biome storage per section, a single biome everywhere for now
-        values.fill(kDefaultBiome);
+        for (int x = 0; x < 16; x++)
+            for (int z = 0; z < 16; z++)
+                for (int y = 0; y < 16; y++)
+                    values[static_cast<size_t>(CellIndex(x, y, z))] = netBiomes[static_cast<size_t>(x * 16 + z)];
         for (int sec = 0; sec < kSections; sec++)
             WriteStorage(out, values);
         // border blocks (education edition), none

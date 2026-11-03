@@ -10,6 +10,7 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace perlin::server {
 
@@ -36,6 +37,7 @@ namespace perlin::server {
         std::shared_ptr<ChunkEntry> Peek(ChunkPos pos) const;
         // moves finished columns into the map; call once per tick
         void Pump();
+        std::vector<ChunkPos> TakeReady() { return std::exchange(ready, {}); }
 
         const std::vector<uint8_t>& Payload(ChunkEntry& entry) const;
 
@@ -48,16 +50,24 @@ namespace perlin::server {
 
     private:
         void Worker();
+        std::vector<std::shared_ptr<const ChunkColumn>> Raws(const std::vector<ChunkPos>& wanted);
+        void Finish(const std::vector<ChunkPos>& batch, std::vector<ChunkColumn>& columns);
 
         std::unique_ptr<TerrainBackend> backend;
         std::unordered_map<ChunkPos, std::shared_ptr<ChunkEntry>, ChunkPosHash> chunks;
         std::unordered_set<ChunkPos, ChunkPosHash> requested;
+        std::vector<ChunkPos> ready;
 
         mutable std::mutex mutex;
         std::condition_variable wake;
         std::deque<ChunkPos> queue;
         std::vector<std::pair<ChunkPos, std::shared_ptr<ChunkEntry>>> done;
         bool stopping = false;
+        std::unordered_map<ChunkPos, std::shared_ptr<const ChunkColumn>, ChunkPosHash> raw;
+        std::unordered_set<ChunkPos, ChunkPosHash> rawPending;
+        std::deque<ChunkPos> rawOrder;
+        std::condition_variable rawReady;
+        size_t rawCap = 512;
         // chunk generation scales with cores; the gpu backend serialises only its device section, so its cpu stages overlap across the workers
         std::vector<std::thread> workers;
     };

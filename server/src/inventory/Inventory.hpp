@@ -34,6 +34,9 @@ namespace perlin::server {
         ItemStack cursor;
         // creative menu result, only lives for the length of one request
         ItemStack output;
+        std::array<ItemStack, 13> craft;
+        std::vector<ItemStack> container;
+        int containerKind = -1;
         int selected = 0;
 
         // null when the client names a container this server does not model

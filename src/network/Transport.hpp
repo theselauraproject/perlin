@@ -7,12 +7,12 @@ namespace perlin {
 
     constexpr int kBedrockProtocol = 2225;
     constexpr const char* kBedrockVersion = "1.26.60";
+    constexpr int kOldestBedrockProtocol = 944;
 
     struct NetherNetServerInfo {
         std::string name;
         int protocol = 0;
         std::string version;
-        // what the server advertised in its ping reply (0 / empty if nothing)
         int advertisedProtocol = 0;
         std::string advertisedVersion;
         std::string level;

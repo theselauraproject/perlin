@@ -225,6 +225,42 @@ int main() {
     CHECK(std::string(PacketName(SetTimePacket::kId)) == "set_time");
     CHECK(std::string(PacketName(LevelChunkPacket::kId)) == "level_chunk");
 
+    {
+        net::context::SetProtocol(944);
+        ResourcePackClientResponsePacket p;
+        p.responseStatus = ResourcePackClientResponsePacketResponseStatus::HaveAllPacks;
+        p.responseStatusName = "downloadingfinished";
+        CHECK((net::Encode(p) == std::vector<uint8_t>{0x03, 0x00, 0x00}));
+        p.responseStatus = ResourcePackClientResponsePacketResponseStatus::Completed;
+        CHECK((net::Encode(p) == std::vector<uint8_t>{0x04, 0x00, 0x00}));
+        ResourcePackClientResponsePacket q;
+        CHECK(Decode(std::vector<uint8_t>{0x03, 0x00, 0x00}, q) &&
+              q.responseStatus == ResourcePackClientResponsePacketResponseStatus::HaveAllPacks);
+
+        PlayerAuthInputPacket in;
+        in.inputData = {InputData::Up, InputData::Sneaking, InputData::BlockAction};
+        PlayerAuthInputPacketBlockActionEntry e;
+        e.action = Action::StartBreak;
+        e.position = {1, 64, 2};
+        e.face = 1;
+        in.blockAction = std::vector<PlayerAuthInputPacketBlockActionEntry>{e};
+        in.tick = 7;
+        PlayerAuthInputPacket out;
+        CHECK(Decode(net::Encode(in), out));
+        CHECK(out.tick == 7 && out.inputData.size() == 3 && out.blockAction && out.blockAction->size() == 1 &&
+              (*out.blockAction)[0].position.y == 64);
+        net::context::SetProtocol(0);
+    }
+    for (const int version : {944, 975, 1001, 2168, 2193}) {
+        net::context::SetProtocol(version);
+        std::string failed;
+        int skipped = 0;
+        CHECK(RoundTripAll(failed, skipped) == 0);
+        if (!failed.empty())
+            std::printf("round trip failures at %d:\n%s", version, failed.c_str());
+    }
+    net::context::SetProtocol(0);
+
     std::printf(failures ? "%d FAILED\n" : "packet self-tests passed\n", failures);
     return failures ? 1 : 0;
 }

@@ -32,6 +32,8 @@ namespace perlin::ui {
         int horseChest = 0;
         std::array<HudItem, 17> horseItems;
         int chestRows = 0;
+        int furnace = -1;
+        float cook = 0, burn = 0;
         std::array<HudItem, 54> chestItems;
         bool advancedTooltips = false;
     };

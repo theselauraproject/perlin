@@ -85,6 +85,11 @@ set(PS_SOURCES
     src/world/Blocks.cpp
     src/world/Chunk.cpp
     src/world/ChunkManager.cpp
+    src/world/Mobs.cpp
+    src/core/ServerContainers.cpp
+    src/inventory/Recipes.cpp
+    src/inventory/RecipeData.cpp
+    src/world/MobData.cpp
     src/world/Generator.cpp
     src/world/vanilla/DataPack.cpp
     src/world/vanilla/DensityFunction.cpp
@@ -95,6 +100,8 @@ set(PS_SOURCES
     src/world/vanilla/VanillaSurface.cpp
     src/world/vanilla/VanillaFeatures.cpp
     src/world/vanilla/FeatureData.cpp
+    src/world/vanilla/JavaDecorator.cpp
+    src/world/vanilla/JavaFeatureData.cpp
     src/gpu/VanillaGpuProgram.cpp)
 
 # wasm runtime: wasm3 through the client's own wrapper (WasmRuntimeWasm3.cpp), so plugins behave the same.
@@ -293,6 +300,10 @@ if(PERLIN_SERVER_BUILD_TESTS)
     target_include_directories(vanilla_biome_test PRIVATE src)
     target_link_libraries(vanilla_biome_test PRIVATE perlin_server_core miniz OpenSSL::Crypto Threads::Threads)
     add_test(NAME vanilla_biome_test COMMAND vanilla_biome_test "${PERLIN_ROOT}/tools/javaref/biome_lookup_ref.txt")
+    add_executable(vanilla_decoration_test tests/vanilla_decoration_test.cpp)
+    target_include_directories(vanilla_decoration_test PRIVATE src)
+    target_link_libraries(vanilla_decoration_test PRIVATE perlin_server_core miniz OpenSSL::Crypto Threads::Threads)
+    add_test(NAME vanilla_decoration_test COMMAND vanilla_decoration_test "${PERLIN_ROOT}/resources")
 
     add_executable(vanilla_features_test tests/vanilla_features_test.cpp)
     target_include_directories(vanilla_features_test PRIVATE src)

@@ -559,6 +559,9 @@ namespace perlin {
                 live->SendPickEntity(picked.runtimeId);
         }
 
+        if (live && inputManager.Pressed(Action::SwapOffhand))
+            live->SwapOffhand();
+
         if (live && inputManager.Pressed(Action::Drop) && !held.Empty())
             live->SendDropSelected(inputManager.IsDown(Action::Sprint) ? 0 : 1);
     }

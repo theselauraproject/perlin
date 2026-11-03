@@ -1,6 +1,7 @@
 #include "world/ChunkManager.hpp"
 
 #include <algorithm>
+#include <span>
 
 #if defined(_WIN32)
 extern "C" {
@@ -43,6 +44,7 @@ namespace perlin::server {
             stopping = true;
         }
         wake.notify_all();
+        rawReady.notify_all();
         for (std::thread& w : workers)
             if (w.joinable())
                 w.join();
@@ -61,15 +63,98 @@ namespace perlin::server {
                 batch.assign(queue.begin(), queue.begin() + static_cast<std::ptrdiff_t>(take));
                 queue.erase(queue.begin(), queue.begin() + static_cast<std::ptrdiff_t>(take));
             }
-            std::vector<std::shared_ptr<ChunkEntry>> entries(batch.size());
             std::vector<ChunkColumn> columns(batch.size());
-            backend->Generate(batch, columns);
+            if (backend->Decorates())
+                Finish(batch, columns);
+            else
+                backend->Generate(batch, columns);
             std::lock_guard lock(mutex);
             for (size_t i = 0; i < batch.size(); i++) {
                 auto entry = std::make_shared<ChunkEntry>();
                 entry->column = std::move(columns[i]);
                 done.emplace_back(batch[i], std::move(entry));
             }
+        }
+    }
+
+    std::vector<std::shared_ptr<const ChunkColumn>> ChunkManager::Raws(const std::vector<ChunkPos>& wanted) {
+        std::vector<std::shared_ptr<const ChunkColumn>> out(wanted.size());
+        std::vector<ChunkPos> mine;
+        {
+            std::lock_guard lock(mutex);
+            for (const ChunkPos& p : wanted)
+                if (!raw.contains(p) && !rawPending.contains(p)) {
+                    rawPending.insert(p);
+                    mine.push_back(p);
+                }
+        }
+        const size_t step = std::max<size_t>(1, backend->PreferredBatch());
+        for (size_t i = 0; i < mine.size(); i += step) {
+            const size_t n = std::min(step, mine.size() - i);
+            std::vector<ChunkColumn> columns(n);
+            backend->Generate(std::span<const ChunkPos>(mine.data() + i, n), columns);
+            std::lock_guard lock(mutex);
+            for (size_t k = 0; k < n; k++) {
+                const ChunkPos p = mine[i + k];
+                raw[p] = std::make_shared<const ChunkColumn>(std::move(columns[k]));
+                rawOrder.push_back(p);
+                rawPending.erase(p);
+            }
+            while (raw.size() > rawCap && !rawOrder.empty()) {
+                raw.erase(rawOrder.front());
+                rawOrder.pop_front();
+            }
+            rawReady.notify_all();
+        }
+        std::unique_lock lock(mutex);
+        for (size_t i = 0; i < wanted.size(); i++) {
+            rawReady.wait(lock, [&] { return stopping || raw.contains(wanted[i]) || !rawPending.contains(wanted[i]); });
+            if (const auto it = raw.find(wanted[i]); it != raw.end()) {
+                out[i] = it->second;
+            } else if (!stopping) {
+                rawPending.insert(wanted[i]);
+                lock.unlock();
+                std::vector<ChunkColumn> one(1);
+                backend->Generate(std::span<const ChunkPos>(&wanted[i], 1), one);
+                auto made = std::make_shared<const ChunkColumn>(std::move(one[0]));
+                lock.lock();
+                raw[wanted[i]] = made;
+                rawOrder.push_back(wanted[i]);
+                rawPending.erase(wanted[i]);
+                rawReady.notify_all();
+                out[i] = made;
+            }
+        }
+        return out;
+    }
+
+    void ChunkManager::Finish(const std::vector<ChunkPos>& batch, std::vector<ChunkColumn>& columns) {
+        std::vector<ChunkPos> wanted;
+        for (const ChunkPos& p : batch)
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++) {
+                    const ChunkPos q{p.x + dx, p.z + dz};
+                    if (std::find(wanted.begin(), wanted.end(), q) == wanted.end())
+                        wanted.push_back(q);
+                }
+        std::sort(wanted.begin(), wanted.end(), [&](const ChunkPos& a, const ChunkPos& b) {
+            const bool ia = std::find(batch.begin(), batch.end(), a) != batch.end();
+            const bool ib = std::find(batch.begin(), batch.end(), b) != batch.end();
+            return ia > ib;
+        });
+        const auto raws = Raws(wanted);
+        for (size_t i = 0; i < batch.size(); i++) {
+            const ChunkColumn* region[9] = {};
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++) {
+                    const ChunkPos q{batch[i].x + dx, batch[i].z + dz};
+                    const size_t at = static_cast<size_t>(std::find(wanted.begin(), wanted.end(), q) - wanted.begin());
+                    region[(dz + 1) * 3 + dx + 1] = raws[at].get();
+                }
+            if (!region[4])
+                continue;
+            columns[i] = region[4]->Clone();
+            backend->Decorate(batch[i], region, columns[i]);
         }
     }
 
@@ -100,6 +185,7 @@ namespace perlin::server {
         for (auto& [pos, entry] : ready) {
             requested.erase(pos);
             chunks[pos] = std::move(entry);
+            this->ready.push_back(pos);
         }
     }
 

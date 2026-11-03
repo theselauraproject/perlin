@@ -397,10 +397,20 @@ namespace perlin {
                              static_cast<int>(layer), static_cast<int>(program), runs.size(),
                              ProgramIndex(program));
         }
-        for (const gpu::ChunkMeshStore::Run& r : runs) {
-            const Source vertices{meshes.Vertices(r.page), 0};
-            const Source indices{meshes.Indices(r.page, layer), 0};
-            Push(view, templ, vertices, &indices, rhi::IndexType::U32, r.first, r.count);
+        const bool multi = UseMultiDraw();
+        for (size_t i = 0; i < runs.size();) {
+            size_t j = i + 1;
+            while (multi && j < runs.size() && runs[j].page == runs[i].page)
+                j++;
+            const uint32_t page = runs[i].page;
+            if (!multi || !PushRuns(view, templ, meshes.Vertices(page), meshes.Indices(page, layer), runs, i, j)) {
+                for (size_t k = i; k < j; k++) {
+                    const Source vertices{meshes.Vertices(runs[k].page), 0};
+                    const Source indices{meshes.Indices(runs[k].page, layer), 0};
+                    Push(view, templ, vertices, &indices, rhi::IndexType::U32, runs[k].first, runs[k].count);
+                }
+            }
+            i = j;
         }
         if (javaActive && PERLIN_ENV("PERLIN_JAVA_DBG") && layer == RenderLayer::Solid && !runs.empty()) {
             static int q = 0;

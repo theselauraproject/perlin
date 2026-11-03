@@ -1,0 +1,35 @@
+{
+  "name": "Minimap",
+  "description": "A shaded minimap of the terrain around you: relief lighting, water depth, cave view, chunk grid and waypoints, drawn in a single draw call.",
+  "version": "1.0.0",
+  "author": "Perlin",
+  "permissions": [],
+  "settings": [
+    {"type": "header", "label": "General"},
+    {"id": "enabled", "type": "toggle", "label": "Show minimap", "default": true, "description": "Also bound to a key (Toggle minimap).", "icon": {"item": "minecraft:filled_map"}},
+    {"id": "corner", "type": "choice", "label": "Position", "default": "TopRight", "choices": [
+      {"value": "TopRight", "label": "Top right"},
+      {"value": "TopLeft", "label": "Top left"},
+      {"value": "BottomRight", "label": "Bottom right"},
+      {"value": "BottomLeft", "label": "Bottom left"}
+    ]},
+    {"id": "size", "type": "integer", "label": "Size", "default": 150, "min": 64, "max": 400, "description": "Width and height on screen, in gui pixels."},
+    {"id": "zoom", "type": "number", "label": "Zoom", "default": 1.0, "min": 0.5, "max": 4.0, "step": 0.25, "description": "Screen pixels per block, before the gui scale."},
+    {"id": "rotate", "type": "toggle", "label": "Rotate with player", "default": false, "description": "Keep where you look at the top instead of north.", "icon": {"item": "minecraft:compass"}},
+    {"id": "opacity", "type": "number", "label": "Opacity", "default": 1.0, "min": 0.2, "max": 1.0, "step": 0.05},
+    {"type": "header", "label": "Look"},
+    {"id": "relief", "type": "number", "label": "Relief lighting", "default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1, "description": "How strongly slopes facing the light are brightened and the others shaded.", "icon": {"item": "minecraft:glowstone"}},
+    {"id": "water_depth", "type": "toggle", "label": "Water depth", "default": true, "description": "Deeper water is darker.", "icon": {"item": "minecraft:water_bucket"}},
+    {"id": "day_night", "type": "toggle", "label": "Day and night", "default": true, "description": "The map darkens at night like the world does."},
+    {"id": "grid", "type": "toggle", "label": "Chunk grid", "default": true, "icon": {"item": "minecraft:iron_bars"}},
+    {"id": "cave_mode", "type": "choice", "label": "Cave view", "default": "Auto", "choices": [
+      {"value": "Auto", "label": "When underground"},
+      {"value": "Off", "label": "Off"},
+      {"value": "On", "label": "Always"}
+    ], "description": "Underground the map shows the floor of the layer you are in instead of the surface.", "icon": {"item": "minecraft:stone_pickaxe"}},
+    {"type": "header", "label": "Waypoints"},
+    {"id": "waypoints", "type": "toggle", "label": "Show waypoints", "default": true, "icon": {"item": "minecraft:lodestone"}},
+    {"id": "death_waypoint", "type": "toggle", "label": "Mark where you died", "default": true, "icon": {"item": "minecraft:skeleton_skull"}},
+    {"id": "clear_waypoints", "type": "button", "label": "Clear waypoints"}
+  ]
+}

@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 
 namespace perlin::clientassets {
     namespace {
-        constexpr const char* kMarker = ".ready7";
+        constexpr const char* kMarker = ".ready8";
         const std::string kBase = "assets/minecraft/textures/";
 
         struct Image {
@@ -223,6 +223,15 @@ namespace perlin::clientassets {
             emit("ui_horse_icons.png", icons);
         }
         emit("ui_crafting_table.png", Crop(gui("container/crafting_table.png"), 0, 0, 176, 166));
+        emit("ui_furnace.png", Crop(gui("container/furnace.png"), 0, 0, 176, 166));
+        emit("ui_blast_furnace.png", Crop(gui("container/blast_furnace.png"), 0, 0, 176, 166));
+        emit("ui_smoker.png", Crop(gui("container/smoker.png"), 0, 0, 176, 166));
+        {
+            Image progress = Blank(24, 30);
+            Paste(progress, gui("sprites/container/furnace/lit_progress.png"), 0, 0);
+            Paste(progress, gui("sprites/container/furnace/burn_progress.png"), 0, 14);
+            emit("ui_furnace_progress.png", progress);
+        }
         emit("ui_recipe_book.png", Crop(gui("recipe_book.png"), 1, 1, 147, 166));
         {
             Image btn = Blank(20, 36);

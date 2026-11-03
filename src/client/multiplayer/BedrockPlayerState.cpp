@@ -462,9 +462,9 @@ namespace perlin {
                                   type == ContainerSlotType::CreativeOutput;
             const bool horseWin =
                 inventory.horseOpen && horseWindow > 0 && static_cast<int>(window) == horseWindow;
-            const bool chestWin =
-                inventory.chestOpen && chestWindow >= 0 && static_cast<int>(window) == chestWindow;
-            if (chestWin && whole)
+            const bool chestWin = (inventory.chestOpen || inventory.furnaceKind >= 0) && chestWindow >= 0 &&
+                                  static_cast<int>(window) == chestWindow;
+            if (chestWin && whole && inventory.furnaceKind < 0)
                 inventory.chestSlots = std::clamp(static_cast<int>(items.size()), 0, kInvChestCount);
             for (size_t i = 0; i < items.size(); i++) {
                 if (chestWin) {
@@ -842,13 +842,30 @@ namespace perlin {
                 inventory.horseOpen = false;
             }
             inventory.chestOpen = false;
+            inventory.furnaceKind = -1;
             chestWindow = -1;
+            if (p.windowType == WindowType::Furnace || p.windowType == WindowType::BlastFurnace ||
+                p.windowType == WindowType::Smoker) {
+                inventory.furnaceKind = p.windowType == WindowType::Furnace        ? 0
+                                        : p.windowType == WindowType::BlastFurnace ? 1
+                                                                                   : 2;
+                inventory.chestSlots = 3;
+                chestWindow = static_cast<int>(p.windowId);
+                chestJustOpened = true;
+                for (int c = 0; c < 3; c++) {
+                    inventory.chest[c] = ItemStackInfo{};
+                    chestRaw[c] = ItemV4{};
+                }
+                std::lock_guard<std::mutex> lk(worldExtraMutex);
+                windowData.erase(chestWindow);
+            }
             // plain chests on boats and minecarts arrive as their own window types
             const auto wt = p.windowType;
             const bool plainContainer = wt == WindowType::Container || wt == WindowType::MinecartChest ||
                                         wt == WindowType::ChestBoat || wt == WindowType::Hopper ||
                                         wt == WindowType::Dropper || wt == WindowType::Dispenser;
-            if (wt != WindowType::Container && wt != WindowType::Horse && wt != WindowType::Workbench)
+            if (wt != WindowType::Container && wt != WindowType::Horse && wt != WindowType::Workbench &&
+                inventory.furnaceKind < 0)
                 Log("bedrock", "container open window {} type {} (unhandled)", static_cast<int>(p.windowId),
                     static_cast<int>(wt));
             if (plainContainer) {
@@ -888,6 +905,7 @@ namespace perlin {
             inventory.horseOpen = false;
             horseWindow = -1;
             inventory.chestOpen = false;
+            inventory.furnaceKind = -1;
             chestWindow = -1;
             for (auto& w : inventory.work)
                 w = ItemStackInfo{};

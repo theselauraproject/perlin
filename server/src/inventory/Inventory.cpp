@@ -1,4 +1,5 @@
 #include "inventory/Inventory.hpp"
+#include "inventory/Recipes.hpp"
 
 #include "world/BlockCatalog.hpp"
 
@@ -100,6 +101,22 @@ namespace perlin::server {
             return &cursor;
         case Container::CreativeOutput:
             return &output;
+        case Container::CraftingInput:
+            return slot >= 28 && slot < 41 ? &craft[static_cast<size_t>(slot - 28)] : nullptr;
+        case Container::Container:
+        case Container::Barrel:
+        case Container::Shulker:
+            return containerKind >= 0 && containerKind < 2 && slot >= 0 && slot < static_cast<int>(container.size())
+                       ? &container[static_cast<size_t>(slot)]
+                       : nullptr;
+        case Container::FurnaceIngredient:
+        case Container::BlastFurnaceIngredient:
+        case Container::SmokerIngredient:
+            return containerKind >= 2 && container.size() == 3 ? &container[0] : nullptr;
+        case Container::FurnaceFuel:
+            return containerKind >= 2 && container.size() == 3 ? &container[1] : nullptr;
+        case Container::FurnaceOutput:
+            return containerKind >= 2 && container.size() == 3 ? &container[2] : nullptr;
         default:
             return nullptr;
         }
@@ -213,6 +230,9 @@ namespace perlin::server {
         RequestResult result;
         PlayerInventory work = inv;
         std::vector<std::pair<Container, int>> touched;
+        const CraftRecipe* crafted = nullptr;
+        int craftTimes = 0;
+        std::vector<std::string> consumed;
 
         const auto note = [&](const proto::StackRequestSlotInfo& info) {
             const auto key = std::make_pair(info.slotType.containerId, static_cast<int>(info.slot));
@@ -228,6 +248,8 @@ namespace perlin::server {
                 ItemStack* src = work.Resolve(a.source.slotType.containerId, a.source.slot);
                 ItemStack* dst = work.Resolve(a.destination.slotType.containerId, a.destination.slot);
                 if (!src || !dst || src == dst || !StackIdMatches(*src, a.source.stackId))
+                    return result;
+                if (a.destination.slotType.containerId == Container::FurnaceOutput)
                     return result;
                 // armor slots take one wearable of their kind
                 if (a.destination.slotType.containerId == Container::Armor &&
@@ -286,12 +308,52 @@ namespace perlin::server {
                 work.output = work.MakeStack(item->networkId, MaxStack(item->networkId));
                 break;
             }
+            case Action::CraftRecipe:
+            case Action::CraftRecipeAuto: {
+                crafted = Recipes::Instance().ByNetId(a.recipeNetworkId);
+                if (!crafted)
+                    return result;
+                craftTimes = std::max<int>(1, a.timesCrafted);
+                work.output = work.MakeStack(crafted->outputId, crafted->outputCount * craftTimes);
+                break;
+            }
+            case Action::Consume: {
+                ItemStack* src = work.Resolve(a.source.slotType.containerId, a.source.slot);
+                if (!src || src->Empty() || src->count < a.count || a.count == 0)
+                    return result;
+                const CatalogItem* item = BlockCatalog::Instance().ItemById(src->networkId);
+                for (int k = 0; k < a.count; k++)
+                    consumed.push_back(item ? item->name : std::string());
+                src->count = static_cast<uint16_t>(src->count - a.count);
+                if (src->count == 0)
+                    *src = ItemStack{};
+                note(a.source);
+                break;
+            }
             case Action::Optional:
             case Action::NonImplemented:
             case Action::ResultsDeprecated:
                 break;
             default:
                 return result;
+            }
+        }
+        if (crafted) {
+            std::vector<std::string> need;
+            for (int t = 0; t < craftTimes; t++)
+                for (const auto& in : crafted->input)
+                    if (!in.item.empty())
+                        need.push_back(in.item);
+            if (need.size() != consumed.size())
+                return result;
+            std::vector<bool> used(consumed.size(), false);
+            for (const std::string& n : need) {
+                bool found = false;
+                for (size_t k = 0; k < consumed.size() && !found; k++)
+                    if (!used[k] && Recipes::Matches(n, consumed[k]))
+                        used[k] = found = true;
+                if (!found)
+                    return result;
             }
         }
         work.output = ItemStack{};

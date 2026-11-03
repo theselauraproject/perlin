@@ -67,6 +67,7 @@ namespace perlin::server::vanilla {
                   const class VanillaFeatures* features = nullptr, int chunkX = 0, int chunkZ = 0) const;
         // block ids already laid out [(x * 16 + z) * kHeight + y] into the chunk's sections (what the gpu surface stage returns)
         static void Store(const uint16_t* blocks, ChunkColumn& column);
+        static void StoreBiomes(const uint8_t* biomes, ChunkColumn& column);
 
     private:
         std::vector<SurfaceMaterial> materials;
@@ -78,4 +79,5 @@ namespace perlin::server::vanilla {
         int x, y, z;
     };
     BiomeSite SiteOf(int worldX, int worldZ, int top);
+    uint8_t NetworkBiome(int tableIndex);
 }

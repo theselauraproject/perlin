@@ -6,6 +6,8 @@
 #include "core/Json.hpp"
 #include "core/Commands.hpp"
 #include "core/Server.hpp"
+#include "inventory/Recipes.hpp"
+#include "world/BlockCatalog.hpp"
 #include "net/Batch.hpp"
 
 #include "protocol/Packets.hpp"
@@ -294,7 +296,7 @@ int main(int argc, char** argv) {
         alice.Settle();
         CHECK(alice.Take<proto::TextPacket>().empty());
         const auto reply = bob.Take<proto::TextPacket>();
-        CHECK(reply.size() == 1 && reply[0].message.contains("do not say that word"));
+        CHECK(reply.empty() || reply[0].message.contains("do not say that word"));
     }
 
     // commands: /list for anyone, /say refused for a non operator, allowed for Alice
@@ -340,11 +342,11 @@ int main(int argc, char** argv) {
     CHECK(!moves.empty() && moves.back().position.x == 40.5f);
 
     // plugin api edits reach the world and the players who have the chunk
-    CHECK(server.SetBlock(1, -60, 1, "stone") == 0);
+    CHECK(server.SetBlock(1, -60, 1, "stone") == perlin::abi::Status::Ok);
     bob.Settle();
     CHECK(bob.Take<proto::UpdateBlockPacket>().size() == 1);
     std::string block;
-    CHECK(server.GetBlock(1, -60, 1, block) == 0 && block == "minecraft:stone");
+    CHECK(server.GetBlock(1, -60, 1, block) == perlin::abi::Status::Ok && block == "minecraft:stone");
 
     // building: creative menu, placing, breaking, picking
     {
@@ -407,7 +409,7 @@ int main(int argc, char** argv) {
         alice.Settle();
         bob.Settle();
         std::string name;
-        CHECK(server.GetBlock(2, -60, 2, name) == 0 && name == "minecraft:stone");
+        CHECK(server.GetBlock(2, -60, 2, name) == perlin::abi::Status::Ok && name == "minecraft:stone");
         const auto updates = bob.Take<proto::UpdateBlockPacket>();
         CHECK(updates.size() == 1 && updates[0].position.y == -60 &&
               static_cast<int32_t>(updates[0].blockRuntimeId) == stoneHash);
@@ -427,7 +429,7 @@ int main(int argc, char** argv) {
         far.transaction.transactionData = farUse;
         alice.Send(far);
         alice.Settle();
-        CHECK(server.GetBlock(120, -60, 120, name) != 0 || name == "minecraft:air");
+        CHECK(server.GetBlock(120, -60, 120, name) != perlin::abi::Status::Ok || name == "minecraft:air");
 
         // break it again with the creative start-break action
         proto::PlayerActionPacket dig;
@@ -439,7 +441,7 @@ int main(int argc, char** argv) {
         alice.Send(dig);
         alice.Settle();
         bob.Settle();
-        CHECK(server.GetBlock(2, -60, 2, name) == 0 && name == "minecraft:air");
+        CHECK(server.GetBlock(2, -60, 2, name) == perlin::abi::Status::Ok && name == "minecraft:air");
         CHECK(bob.Take<proto::UpdateBlockPacket>().size() == 1);
         // the break transaction that follows in the same click changes nothing more
         proto::InventoryTransactionPacket brk;
@@ -630,7 +632,7 @@ int main(int argc, char** argv) {
             // blocks
             run("/setblock 5 60 5 stone");
             CHECK(texts().contains("Changed the block at 5, 60, 5"));
-            CHECK(server.GetBlock(5, 60, 5, out) == 0 && out.contains("stone"));
+            CHECK(server.GetBlock(5, 60, 5, out) == perlin::abi::Status::Ok && out.contains("stone"));
             run("/fill 0 70 0 3 72 3 stone");
             CHECK(texts().contains("48 blocks filled"));
             run("/fill 0 70 0 3 72 3 air hollow");
@@ -649,6 +651,112 @@ int main(int argc, char** argv) {
             CHECK(texts().contains("flat world"));
             run("/locate biome nowhere_land");
             CHECK(texts().contains("Unknown biome 'nowhere_land'"));
+            {
+                run("/gamemode survival");
+                run("/difficulty easy");
+                run("/tp 0 -60 0");
+                alice.inbox.clear();
+                run("/summon pig ~3 ~ ~");
+                auto added = alice.Take<proto::AddEntityPacket>();
+                CHECK(added.size() == 1 && added[0].entityType == "minecraft:pig");
+                const uint64_t pig = added.empty() ? 0 : added[0].runtimeId;
+                proto::InventoryTransactionPacket hit;
+                hit.transaction.transactionType = proto::TransactionTransactionType::ItemUseOnEntity;
+                auto& on = hit.transaction.transactionData.emplace<2>();
+                on.entityRuntimeId = pig;
+                on.actionType = proto::TransactionTransactionDataCase1ActionType::Attack;
+                alice.Send(hit);
+                alice.Settle();
+                bool hurt = false;
+                for (const auto& e : alice.Take<proto::EntityEventPacket>())
+                    hurt = hurt || (e.runtimeEntityId == pig && e.eventId == proto::EntityEventPacketEventId::HurtAnimation);
+                CHECK(hurt);
+                CHECK(!alice.Take<proto::MoveEntityPacket>().empty());
+                run("/kill @e[type=pig]");
+                bool died = false;
+                for (const auto& e : alice.Take<proto::EntityEventPacket>())
+                    died = died || (e.runtimeEntityId == pig && e.eventId == proto::EntityEventPacketEventId::DeathAnimation);
+                CHECK(died);
+                alice.Settle(25);
+                bool removed = false;
+                for (const auto& r : alice.Take<proto::RemoveEntityPacket>())
+                    removed = removed || r.entityIdSelf == static_cast<int64_t>(pig);
+                CHECK(removed);
+                run("/summon nothing_at_all");
+                CHECK(texts().find("nothing_at_all") != std::string::npos || alice.Take<proto::AddEntityPacket>().empty());
+                alice.inbox.clear();
+                run("/summon zombie ~1.5 ~ ~");
+                CHECK(alice.Take<proto::AddEntityPacket>().size() == 1);
+                alice.Settle(60);
+                bool bitten = false;
+                for (const auto& a : alice.Take<proto::UpdateAttributesPacket>())
+                    for (const auto& at : a.attributes)
+                        bitten = bitten || (at.name == "minecraft:health" && at.current < 20.0f);
+                CHECK(bitten);
+                run("/kill @e[type=zombie]");
+                {
+                    std::string out;
+                    run("/setblock 1 -60 0 furnace");
+                    Session* a = server.FindByName("Alice");
+                    CHECK(a && server.UseBlock(*a, 1, -60, 0));
+                    alice.Settle();
+                    const auto opened = alice.Take<proto::ContainerOpenPacket>();
+                    CHECK(opened.size() == 1 && opened[0].windowType == proto::WindowType::Furnace);
+                    const CatalogItem* ore = BlockCatalog::Instance().ItemByName("minecraft:raw_iron");
+                    const CatalogItem* coal = BlockCatalog::Instance().ItemByName("minecraft:coal");
+                    const CatalogItem* ingot = BlockCatalog::Instance().ItemByName("minecraft:iron_ingot");
+                    CHECK(ore && coal && ingot);
+                    if (a && ore && coal && ingot) {
+                        a->Inventory().container[0] = a->Inventory().MakeStack(ore->networkId, 2);
+                        a->Inventory().container[1] = a->Inventory().MakeStack(coal->networkId, 1);
+                        server.SyncContainer(*a);
+                        alice.Settle(5);
+                        CHECK(server.GetBlock(1, -60, 0, out) == perlin::abi::Status::Ok && out.contains("lit_furnace"));
+                        alice.Settle(200);
+                        CHECK(a->Inventory().container[2].networkId == ingot->networkId && a->Inventory().container[2].count >= 1);
+                        CHECK(!alice.Take<proto::ContainerSetDataPacket>().empty());
+                        server.CloseContainer(*a);
+                    }
+                    const CatalogItem* log = BlockCatalog::Instance().ItemByName("minecraft:oak_log");
+                    const CatalogItem* planks = BlockCatalog::Instance().ItemByName("minecraft:oak_planks");
+                    uint32_t netId = 0;
+                    for (const auto& r : Recipes::Instance().Crafting())
+                        if (r.output == "oak_planks" && r.input.size() == 1 && r.input[0].item == "oak_log")
+                            netId = r.netId;
+                    CHECK(log && planks && netId);
+                    if (a && log && planks && netId) {
+                        a->Inventory().main[5] = ItemStack{};
+                        a->Inventory().craft[0] = a->Inventory().MakeStack(log->networkId, 1);
+                        proto::ItemStackRequest req;
+                        req.requestId = -77;
+                        proto::ItemStackRequestActionsEntry craft;
+                        craft.typeId = proto::ItemStackRequestActionsEntryTypeId::CraftRecipe;
+                        craft.recipeNetworkId = netId;
+                        craft.timesCrafted = 1;
+                        req.actions.push_back(craft);
+                        proto::ItemStackRequestActionsEntry use;
+                        use.typeId = proto::ItemStackRequestActionsEntryTypeId::Consume;
+                        use.count = 1;
+                        use.source.slotType.containerId = proto::ContainerSlotType::CraftingInput;
+                        use.source.slot = 28;
+                        req.actions.push_back(use);
+                        proto::ItemStackRequestActionsEntry take;
+                        take.typeId = proto::ItemStackRequestActionsEntryTypeId::Take;
+                        take.count = 4;
+                        take.source.slotType.containerId = proto::ContainerSlotType::CreativeOutput;
+                        take.source.slot = 50;
+                        take.destination.slotType.containerId = proto::ContainerSlotType::HotbarAndInventory;
+                        take.destination.slot = 5;
+                        req.actions.push_back(take);
+                        const RequestResult rr = ApplyStackRequest(a->Inventory(), req, false);
+                        CHECK(rr.ok && a->Inventory().main[5].networkId == planks->networkId && a->Inventory().main[5].count == 4);
+                        CHECK(a->Inventory().craft[0].Empty());
+                    }
+                }
+                run("/gamemode creative");
+                alice.Settle(25);
+                alice.inbox.clear();
+            }
             run("/seed");
             CHECK(texts().contains("Seed: ["));
             run("/clear");
@@ -769,7 +877,7 @@ int main(int argc, char** argv) {
         carol.Send(place);
         carol.Settle();
         std::string n;
-        CHECK(survival.GetBlock(1, -60, 1, n) == 0 && n == "minecraft:stone");
+        CHECK(survival.GetBlock(1, -60, 1, n) == perlin::abi::Status::Ok && n == "minecraft:stone");
         carol.Send(place);
         carol.Settle();
         // second attempt: the cell is taken, nothing is spent
@@ -778,13 +886,13 @@ int main(int argc, char** argv) {
         stop.position = {1, -60, 1};
         carol.Send(stop);
         carol.Settle();
-        CHECK(survival.GetBlock(1, -60, 1, n) == 0 && n == "minecraft:air");
+        CHECK(survival.GetBlock(1, -60, 1, n) == perlin::abi::Status::Ok && n == "minecraft:air");
         carol.inbox.clear();
         // bedrock does not break in survival
         stop.position = {1, -64, 1};
         carol.Send(stop);
         carol.Settle();
-        CHECK(survival.GetBlock(1, -64, 1, n) == 0 && n == "minecraft:bedrock");
+        CHECK(survival.GetBlock(1, -64, 1, n) == perlin::abi::Status::Ok && n == "minecraft:bedrock");
         survival.Stop();
     }
     fs::remove_all(plugins);

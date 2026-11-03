@@ -224,8 +224,8 @@ namespace perlin {
         const auto uploadStart = std::chrono::steady_clock::now();
         size_t consumed = 0;
         for (MeshResult& r : finished) {
-            if (consumed > 0 &&
-                std::chrono::steady_clock::now() - uploadStart > std::chrono::microseconds(1500))
+            if (consumed > 0 && std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - uploadStart)
+                                        .count() > uploadBudgetMs)
                 break;
             consumed++;
             inFlight.erase(r.pos);
@@ -478,7 +478,7 @@ namespace perlin {
         };
 
         size_t taken = 0;
-        const double captureBudget = capQueue.size() > 200 ? 5.0 : 2.0;
+        const double captureBudget = std::max(capQueue.size() > 200 ? 0.5 : 0.25, RemainingMs() * 0.5);
         while (taken < capQueue.size() && elapsed() < captureBudget) {
             const ChunkPos pos = capQueue[taken++];
             capSet.erase(pos);
@@ -571,7 +571,7 @@ namespace perlin {
         }
         const size_t budget = std::min<size_t>(order.size(), 192);
         std::partial_sort(order.begin(), order.begin() + static_cast<std::ptrdiff_t>(budget), order.end());
-        for (size_t i = 0; i < budget && elapsed() < 4.0; i++) {
+        for (size_t i = 0; i < budget && (i == 0 || RemainingMs() > 0.0); i++) {
             const int64_t key = order[i].second;
             lodDirty.erase(key);
             const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
@@ -591,9 +591,29 @@ namespace perlin {
         }
     }
 
+    double LevelRenderer::RemainingMs() const {
+        return std::chrono::duration<double, std::milli>(maintenanceDeadline - std::chrono::steady_clock::now()).count();
+    }
+
     void LevelRenderer::Update(Level* level, float camX, float camZ, const Frustum& frustum) {
         if (!level)
             return;
+        {
+            const auto now = std::chrono::steady_clock::now();
+            if (lastUpdate.time_since_epoch().count() != 0) {
+                const double dt = std::chrono::duration<double, std::milli>(now - lastUpdate).count();
+                if (dt > 0 && dt < 250)
+                    frameEma = frameEma * 0.9 + dt * 0.1;
+            }
+            lastUpdate = now;
+            static const double scale = [] {
+                const char* v = PERLIN_ENV("PERLIN_WORLD_BUDGET");
+                return v ? std::max(0.02, std::atof(v)) : 0.16;
+            }();
+            const double budget = std::clamp(frameEma * scale, 0.6, 3.0);
+            maintenanceDeadline = now + std::chrono::microseconds(static_cast<int64_t>(budget * 1000.0));
+            uploadBudgetMs = std::max(0.4, budget * 0.55);
+        }
 
         UploadFinishedMeshes();
 

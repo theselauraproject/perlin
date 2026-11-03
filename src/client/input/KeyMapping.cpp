@@ -138,6 +138,8 @@ namespace perlin {
             return "key.playerlist";
         case Action::Fullscreen:
             return "key.fullscreen";
+        case Action::SwapOffhand:
+            return "key.swapOffhand";
         default:
             return "";
         }
@@ -171,6 +173,7 @@ namespace perlin {
         set(Action::Pause, Binding::KeyboardKey(Key::Escape));
         set(Action::PlayerList, Binding::KeyboardKey(Key::Tab));
         set(Action::Fullscreen, Binding::KeyboardKey(Key::F1 + 10));
+        set(Action::SwapOffhand, Binding::KeyboardKey('F'));
         return b;
     }
 
@@ -194,6 +197,7 @@ namespace perlin {
         set(Action::PlayerList, Pad::Back);
         set(Action::Pause, Pad::Start);
         set(Action::PickBlock, Pad::RightStick);
+        set(Action::SwapOffhand, Pad::DpadDown);
         return b;
     }
 }

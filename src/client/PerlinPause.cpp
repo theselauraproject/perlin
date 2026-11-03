@@ -283,6 +283,7 @@ namespace perlin {
                                       {Action::Use, "Use Item/Place Block"}}},
                                     {"Inventory",
                                      {{Action::Drop, "Drop Selected Item"},
+                                      {Action::SwapOffhand, "Swap Item With Offhand"},
                                       {Action::Hotbar1, "Hotbar Slot 1"},
                                       {Action::Hotbar2, "Hotbar Slot 2"},
                                       {Action::Hotbar3, "Hotbar Slot 3"},

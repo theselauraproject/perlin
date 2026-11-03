@@ -1472,6 +1472,7 @@ namespace perlin {
                                                                 {Action::PickBlock, "Pick Block"},
                                                                 {Action::Inventory, "Inventory"},
                                                                 {Action::Drop, "Drop Item"},
+                                                                {Action::SwapOffhand, "Swap Offhand"},
                                                                 {Action::Hotbar1, "Hotbar 1"},
                                                                 {Action::Hotbar2, "Hotbar 2"},
                                                                 {Action::Hotbar3, "Hotbar 3"},

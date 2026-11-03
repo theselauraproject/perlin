@@ -48,6 +48,14 @@ namespace perlin::server {
         const Section& SectionAt(int section) const { return sections[static_cast<size_t>(section)]; }
         bool IsUniform(int section) const { return !sections[static_cast<size_t>(section)].cells; }
 
+        uint8_t GenBiome(int x, int z) const { return genBiomes[static_cast<size_t>(x * 16 + z)]; }
+        uint8_t NetBiome(int x, int z) const { return netBiomes[static_cast<size_t>(x * 16 + z)]; }
+        void SetBiome(int x, int z, uint8_t tableIndex, uint8_t networkId) {
+            genBiomes[static_cast<size_t>(x * 16 + z)] = tableIndex;
+            netBiomes[static_cast<size_t>(x * 16 + z)] = networkId;
+        }
+        ChunkColumn Clone() const;
+
         uint64_t version = 0;
 
         // full LevelChunk payload for protocol 2225: sub chunks, biomes, border byte
@@ -55,5 +63,11 @@ namespace perlin::server {
 
     private:
         std::array<Section, kSections> sections;
+        std::array<uint8_t, 256> genBiomes{};
+        std::array<uint8_t, 256> netBiomes = [] {
+            std::array<uint8_t, 256> a{};
+            a.fill(kDefaultBiome);
+            return a;
+        }();
     };
 }

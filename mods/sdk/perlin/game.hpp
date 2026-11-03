@@ -1,4 +1,5 @@
 #pragma once
+#include <climits>
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -65,6 +66,42 @@ namespace perlin::game {
     inline std::string block_name(const BlockPos& pos) {
         auto b = block(pos);
         return b && b->loaded ? b->name : std::string{};
+    }
+
+    struct MapColumn {
+        uint32_t rgb = 0;
+        int16_t height = 0;
+        uint8_t depth = 0;
+        uint8_t flags = 0;
+    };
+    inline constexpr uint8_t kMapLoaded = 1, kMapWater = 2, kMapLava = 4, kMapLeaves = 8, kMapSnow = 16;
+    struct MapChunk {
+        bool loaded = false;
+        uint64_t version = 0;
+        std::array<MapColumn, 256> columns{};
+    };
+    inline constexpr int32_t kMapSurface = INT32_MIN;
+
+    inline Result<MapChunk> map_chunk(int chunkX, int chunkZ, int32_t caveY = kMapSurface) {
+        abi::Writer w;
+        w.put<int32_t>(chunkX).put<int32_t>(chunkZ).put<int32_t>(caveY);
+        auto bytes = detail::call(Op::MapChunk, w);
+        if (!bytes)
+            return unexpected(bytes.error());
+        abi::Reader r(bytes->data(), bytes->size());
+        MapChunk out;
+        out.loaded = r.boolean();
+        out.version = r.get<uint64_t>();
+        if (out.loaded)
+            for (MapColumn& c : out.columns) {
+                c.rgb = r.get<uint32_t>();
+                c.height = r.get<int16_t>();
+                c.depth = r.get<uint8_t>();
+                c.flags = r.get<uint8_t>();
+            }
+        if (!r.Ok())
+            return unexpected(Error{Status::Failed});
+        return out;
     }
 
     inline bool chunk_loaded(int chunkX, int chunkZ) {

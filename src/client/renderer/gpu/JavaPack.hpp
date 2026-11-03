@@ -64,6 +64,7 @@ namespace perlin::gpu {
         };
 
         JavaPack(Gpu& gpu, ChunkMeshStore& meshes);
+        void DrawRunList(rhi::CommandList& list, const std::vector<ChunkMeshStore::Run>& runList, RenderLayer layer);
         ~JavaPack();
         JavaPack(const JavaPack&) = delete;
         JavaPack& operator=(const JavaPack&) = delete;

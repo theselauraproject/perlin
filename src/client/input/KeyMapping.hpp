@@ -39,6 +39,7 @@ namespace perlin {
         Inventory,
         Pause,
         Fullscreen,
+        SwapOffhand,
         Count
     };
 

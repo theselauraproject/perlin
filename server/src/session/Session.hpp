@@ -4,6 +4,7 @@
 #include "net/Connection.hpp"
 #include "world/Chunk.hpp"
 #include "world/ItemEntity.hpp"
+#include "world/Mobs.hpp"
 
 #include <chrono>
 #include <memory>
@@ -13,9 +14,9 @@
 #include <unordered_set>
 #include <vector>
 
-namespace perlin::proto2225 {
-    struct Skin;
-}
+#include "protocol/Packets.hpp"
+
+#include <climits>
 
 namespace perlin::server {
 
@@ -80,6 +81,23 @@ namespace perlin::server {
         void HideItem(uint64_t id);
         void MoveItem(const ItemEntity& item);
         void TakeItem(uint64_t itemId, uint64_t takerRuntimeId);
+        void ShowMob(const Mob& mob);
+        void MoveMob(const Mob& mob);
+        void MobData(const Mob& mob);
+        void MobMotion(const Mob& mob);
+        void MobEvent(uint64_t id, int event, int data);
+        void Hurt(float amount, double fromX, double fromZ);
+        bool Dead() const { return dead; }
+        float Health() const { return health; }
+        void Heal(float amount);
+        void OpenWindow(int window, proto2225::WindowType type, int x, int y, int z);
+        void SendWindowContents(proto2225::ContainerSlotType type, const std::vector<ItemStack>& slots);
+        void SendWindowData(int property, int value);
+        void CloseWindowFromServer();
+        int OpenWindowId() const { return openWindow; }
+        void ClearWindow() { openWindow = -1; }
+        int64_t openContainer = INT64_MIN;
+        bool Sneaking() const { return sneaking; }
         float Yaw() const { return yaw; }
         float Pitch() const { return pitch; }
         void SendMove(const Session& other, uint8_t mode);
@@ -174,6 +192,13 @@ namespace perlin::server {
         bool creative = false;
         int gameMode = 0;
         PlayerInventory inventory;
+        float health = 20.0f;
+        bool sneaking = false;
+        int openWindow = -1;
+        proto2225::WindowType openType = proto2225::WindowType::Inventory;
+        bool dead = false;
+        int hurtCooldown = 0;
+        int regenTicks = 0;
 
         double posX = 0.5, posY = 0, posZ = 0.5;
         float pitch = 0, yaw = 0;

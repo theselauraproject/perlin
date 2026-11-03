@@ -8,6 +8,7 @@
 #include "plugin/PluginHost.hpp"
 #include "session/Session.hpp"
 #include "world/ChunkManager.hpp"
+#include "world/Mobs.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -134,6 +135,18 @@ namespace perlin::server {
         void SpawnItem(const ItemStack& stack, double x, double y, double z, double vx, double vy, double vz,
                        int pickupDelay);
         const std::vector<ItemEntity>& Items() const { return itemEntities; }
+        MobWorld& Mobs() { return *mobWorld; }
+        struct BlockContainer {
+            int kind = 0;
+            int x = 0, y = 0, z = 0;
+            std::vector<ItemStack> slots;
+            int burn = 0, burnMax = 0, cook = 0;
+            bool lit = false;
+        };
+        bool UseBlock(Session& by, int x, int y, int z);
+        void SyncContainer(Session& by);
+        void CloseContainer(Session& by);
+        static int ContainerKindOf(const std::string& blockName);
         const std::vector<uint8_t>& ItemRegistryBody() const { return itemRegistryBody; }
         const std::vector<uint8_t>& CreativeContentBody() const { return creativeBody; }
 
@@ -189,6 +202,11 @@ namespace perlin::server {
         std::map<std::string, CommandDef> commands;
         std::vector<uint8_t> itemRegistryBody, creativeBody;
         std::vector<ItemEntity> itemEntities;
+        std::unique_ptr<MobWorld> mobWorld;
+        std::unordered_map<int64_t, BlockContainer> containers;
+        void TickContainers();
+        void DropContainer(int x, int y, int z);
+        void PushContainer(BlockContainer& c, bool slotsChanged);
         uint64_t nextEntityId = 1'000'000;
         uint64_t tick = 0;
         // /tick: the game clock can be slowed, sped up, frozen and stepped. networking keeps running while frozen

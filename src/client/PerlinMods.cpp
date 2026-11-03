@@ -1,4 +1,6 @@
 #include "client/PerlinInternal.hpp"
+#include "client/renderer/chunk/LodStore.hpp"
+#include "client/renderer/LevelRenderer.hpp"
 #include "client/resources/ServerPacks.hpp"
 #include <filesystem>
 #include "client/Perlin.hpp"
@@ -28,6 +30,7 @@
 namespace perlin {
 
     namespace {
+        constexpr uint8_t kMapWaterFlag = 2, kMapLavaFlag = 4, kMapLeavesFlag = 8, kMapSnowFlag = 16;
         using abi::Status;
 
         constexpr const char* PlatformName() { return platform::kName; }
@@ -489,6 +492,101 @@ namespace perlin {
             out.z = state.z;
             out.progress = state.progress;
             w.write(out);
+            return Status::Ok;
+        });
+
+        mm.Register(Op::MapChunk, [this](CallContext&, abi::Reader& r, abi::Writer& w) {
+            const int32_t cx = r.get<int32_t>(), cz = r.get<int32_t>(), caveY = r.get<int32_t>();
+            if (!r.Ok())
+                return Status::BadArguments;
+            if (!modLevel || !levelRenderer)
+                return Status::Unavailable;
+            static LodStore colours;
+            static const void* atlasSeen = nullptr;
+            static size_t atlasSize = 0;
+            const BlockLibrary& blocks = levelRenderer->Blocks();
+            const BiomeTints& tints = levelRenderer->Tints();
+            if (blocks.AtlasPixels().data() != atlasSeen || blocks.AtlasPixels().size() != atlasSize) {
+                atlasSeen = blocks.AtlasPixels().data();
+                atlasSize = blocks.AtlasPixels().size();
+                colours.InvalidateColours();
+            }
+            std::lock_guard<std::mutex> lock(modLevel->mutex);
+            const auto it = modLevel->chunks.find({cx, cz});
+            int lo = 0, hi = 0;
+            if (it == modLevel->chunks.end() || !it->second.YRange(lo, hi)) {
+                w.boolean(false).put<uint64_t>(0);
+                return Status::Ok;
+            }
+            const Chunk& chunk = it->second;
+            w.boolean(true).put<uint64_t>(chunk.version * 31 + static_cast<uint64_t>(caveY == INT32_MIN ? 0 : caveY + 1000));
+            const auto rgb = [](const LodStore::Rgb& c) {
+                return static_cast<uint32_t>(c.r) << 16 | static_cast<uint32_t>(c.g) << 8 | c.b;
+            };
+            for (int z = 0; z < 16; z++)
+                for (int x = 0; x < 16; x++) {
+                    int y = hi;
+                    if (caveY != INT32_MIN) {
+                        y = std::min(hi, caveY);
+                        while (y >= lo && chunk.Get(x, y, z) != 0 && chunk.GetLiquid(x, y, z) == 0)
+                            y--;
+                    }
+                    int waterTop = Chunk::MIN_Y - 1;
+                    uint16_t waterId = 0, floorId = 0;
+                    int floorY = lo - 1;
+                    uint8_t flags = 1;
+                    for (; y >= lo; y--) {
+                        const uint16_t id = chunk.Get(x, y, z);
+                        const uint16_t liquid = chunk.GetLiquid(x, y, z);
+                        const std::string& name = BlockPalette::Instance().Name(liquid ? liquid : id);
+                        const bool water = liquid != 0 || (id != 0 && name.contains("water"));
+                        if (water) {
+                            if (waterTop < Chunk::MIN_Y) {
+                                waterTop = y;
+                                waterId = liquid ? liquid : id;
+                            }
+                            if (!liquid || id == 0)
+                                continue;
+                        }
+                        if (id == 0)
+                            continue;
+                        const BlockAppearance& look = blocks.Look(id);
+                        const std::string& solid = BlockPalette::Instance().Name(id);
+                        if (solid.contains("lava"))
+                            flags |= kMapLavaFlag;
+                        if (solid.contains("snow_layer"))
+                            flags |= kMapSnowFlag;
+                        else if (look.shape != BlockAppearance::Shape::Cube && !solid.contains("lava"))
+                            continue;
+                        if (solid.contains("leaves"))
+                            flags |= kMapLeavesFlag;
+                        floorY = y;
+                        floorId = id;
+                        break;
+                    }
+                    const int biome = chunk.GetBiome(x, std::max(floorY, Chunk::MIN_Y), z);
+                    uint32_t colour = 0;
+                    int16_t height = static_cast<int16_t>(floorY + 1);
+                    uint8_t depth = 0;
+                    if (waterTop >= Chunk::MIN_Y) {
+                        flags |= kMapWaterFlag;
+                        const LodStore::Rgb wc = colours.ColourOf(waterId, biome, true, blocks, tints);
+                        const LodStore::Rgb fc = floorId ? colours.ColourOf(floorId, biome, true, blocks, tints) : wc;
+                        const int d = floorId ? std::max(1, waterTop - floorY) : 32;
+                        depth = static_cast<uint8_t>(std::min(d, 255));
+                        const float a = std::min(0.92f, 0.55f + d * 0.05f);
+                        const LodStore::Rgb mix{static_cast<uint8_t>(wc.r * a + fc.r * (1 - a)),
+                                                static_cast<uint8_t>(wc.g * a + fc.g * (1 - a)),
+                                                static_cast<uint8_t>(wc.b * a + fc.b * (1 - a))};
+                        colour = rgb(mix);
+                        height = static_cast<int16_t>(waterTop + 1);
+                    } else if (floorId) {
+                        colour = rgb(colours.ColourOf(floorId, biome, true, blocks, tints));
+                    } else {
+                        flags = 0;
+                    }
+                    w.put<uint32_t>(colour).put<int16_t>(height).put<uint8_t>(depth).put<uint8_t>(flags);
+                }
             return Status::Ok;
         });
 

@@ -31,6 +31,8 @@ namespace perlin::server::vanilla {
         }
         b->surface = std::make_unique<VanillaSurface>();
         b->features = std::make_unique<VanillaFeatures>(static_cast<int64_t>(config.seed));
+        if (!std::getenv("PERLIN_NO_DECORATION"))
+            b->decorator = std::make_unique<JavaDecorator>(static_cast<int64_t>(config.seed));
         return b;
     }
 

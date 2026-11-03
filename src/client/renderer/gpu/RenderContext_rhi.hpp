@@ -240,7 +240,18 @@ namespace perlin {
             uint32_t count = 0;
             bool scissor = false;
             rhi::Rect rect;
+            rhi::BufferHandle indirect;
+            uint64_t indirectOffset = 0;
+            uint32_t indirectDraws = 0;
         };
+        bool PushRuns(View view, const DrawCall& templ, rhi::BufferHandle vertexBuffer, rhi::BufferHandle indexBuffer,
+                      const std::vector<gpu::ChunkMeshStore::Run>& list, size_t begin, size_t end);
+        bool UseMultiDraw() const;
+        void SavePipelineCache();
+        std::vector<uint8_t> pipelineBlob;
+        std::string pipelineBlobPath;
+        size_t savedPipelineBytes = 0;
+        uint64_t pipelineSaveCounter = 0;
 
         // everything a draw needs besides its uniforms and textures
         struct DrawState {

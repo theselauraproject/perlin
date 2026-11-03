@@ -63,6 +63,83 @@ namespace perlin::server {
     }
 
     namespace {
+        std::string ValueText(const StateValue& v) {
+            if (const bool* b = std::get_if<bool>(&v))
+                return *b ? "true" : "false";
+            if (const int32_t* i = std::get_if<int32_t>(&v))
+                return std::to_string(*i);
+            return std::get<std::string>(v);
+        }
+    }
+
+    std::string BlockCatalog::StateText(uint16_t id) const {
+        const BlockRegistry& r = BlockRegistry::Instance();
+        const auto it = states.find(r.Hash(id));
+        if (it == states.end())
+            return r.Name(id) + "[]";
+        std::string out = it->second.name + "[";
+        bool first = true;
+        for (const auto& [k, v] : it->second.list) {
+            if (!first)
+                out += ',';
+            first = false;
+            out += k + "=" + ValueText(v);
+        }
+        return out + "]";
+    }
+
+    uint16_t BlockCatalog::Resolve(std::string_view text) const {
+        std::lock_guard lock(resolveMutex);
+        const std::string key(text);
+        if (const auto it = resolved.find(key); it != resolved.end())
+            return it->second;
+        if (hashesByName.empty())
+            for (const auto& [hash, state] : states)
+                hashesByName[state.name].push_back(hash);
+        const size_t open = key.find('[');
+        std::string name = key.substr(0, open);
+        if (!name.contains(':'))
+            name = "minecraft:" + name;
+        std::vector<std::pair<std::string, std::string>> want;
+        if (open != std::string::npos) {
+            const std::string body = key.substr(open + 1, key.size() - open - 2);
+            size_t a = 0;
+            while (a < body.size()) {
+                size_t b = body.find(',', a);
+                if (b == std::string::npos)
+                    b = body.size();
+                const std::string part = body.substr(a, b - a);
+                if (const size_t eq = part.find('='); eq != std::string::npos)
+                    want.emplace_back(part.substr(0, eq), part.substr(eq + 1));
+                a = b + 1;
+            }
+        }
+        uint16_t id = 0;
+        int bestScore = -1;
+        int32_t bestHash = 0;
+        const int32_t fallback = defaultByName.contains(name) ? defaultByName.at(name) : 0;
+        if (const auto it = hashesByName.find(name); it != hashesByName.end()) {
+            for (const int32_t hash : it->second) {
+                const State& s = states.at(hash);
+                int score = 0;
+                for (const auto& [k, v] : want)
+                    for (const auto& [sk, sv] : s.list)
+                        if (sk == k && ValueText(sv) == v)
+                            score += 2;
+                if (hash == fallback)
+                    score += 1;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestHash = hash;
+                }
+            }
+        }
+        id = bestScore >= 0 ? RegistryId(bestHash) : DefaultBlock(name);
+        resolved.emplace(key, id);
+        return id;
+    }
+
+    namespace {
         // blocks the game keeps for itself: old lit/unlit variants, world-edge markers, signs that only exist as placed blocks, education leftovers.
         // none of them are in the creative menu of a normal bedrock world
         bool IsTechnicalBlock(const std::string& n) {
