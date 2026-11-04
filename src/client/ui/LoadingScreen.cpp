@@ -1,4 +1,5 @@
 #include "client/ui/LoadingScreen.hpp"
+#include "client/ui/McFont.hpp"
 
 #include "client/ui/RmlEmit.hpp"
 #include "client/ui/FormatCodes.hpp"
@@ -116,7 +117,12 @@ div { display: block; position: absolute; }
 
     std::string BuildDownloadScreenRml(const DownloadScreenText& t, int guiW, int guiH, double time) {
         const auto N = [](int v) { return std::to_string(v); };
-        const int barW = std::min(guiW - 40, 240);
+        // label and status share a line: widen the bar until both fit
+        int need = 240;
+        for (const DownloadRow& r : t.rows)
+            need = std::max(need, static_cast<int>(std::ceil(McFont::Instance().Width(r.label) +
+                                                              McFont::Instance().Width(r.status))) + 12);
+        const int barW = std::min(guiW - 40, need);
         const int x = (guiW - barW) / 2;
         const int rowsH = static_cast<int>(t.rows.size()) * 34;
         const bool buttons = !t.retry.empty() || !t.skip.empty();
