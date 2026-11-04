@@ -282,8 +282,8 @@ namespace perlin::ui {
             state = incoming;
 
         scale = JavaGuiScale(fbW, fbH, guiScaleOption);
-        const float newW = std::ceil(static_cast<float>(fbW) / scale),
-                    newH = std::ceil(static_cast<float>(fbH) / scale);
+        const float newW = std::floor(static_cast<float>(fbW) / scale),
+                    newH = std::floor(static_cast<float>(fbH) / scale);
         const bool resized = newW != guiW || newH != guiH || fbW != lastFbW || fbH != lastFbH;
         guiW = newW;
         guiH = newH;
@@ -402,8 +402,8 @@ namespace perlin::ui {
         if (!backend.Ready())
             return;
         const int s = JavaGuiScale(fbW, fbH, guiScaleOption);
-        backend.Resize(static_cast<int>(std::ceil(static_cast<float>(fbW) / static_cast<float>(s))),
-                       static_cast<int>(std::ceil(static_cast<float>(fbH) / static_cast<float>(s))), s);
+        backend.Resize(static_cast<int>(std::floor(static_cast<float>(fbW) / static_cast<float>(s))),
+                       static_cast<int>(std::floor(static_cast<float>(fbH) / static_cast<float>(s))), s);
         backend.Update();
     }
 

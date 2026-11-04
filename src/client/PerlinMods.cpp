@@ -3,6 +3,7 @@
 #include "client/renderer/LevelRenderer.hpp"
 #include "client/resources/ServerPacks.hpp"
 #include <filesystem>
+#include <thread>
 #include "client/Perlin.hpp"
 
 #include "client/i18n/Lang.hpp"
@@ -544,7 +545,9 @@ namespace perlin {
                 }
                 return t;
             };
-            std::unique_lock<std::mutex> lock(modLevel->mutex, std::try_to_lock);
+            std::unique_lock<std::mutex> lock(modLevel->mutex, std::defer_lock);
+            for (int attempt = 0; attempt < 64 && !lock.try_lock(); attempt++)
+                std::this_thread::yield();
             if (!lock.owns_lock())
                 return Status::Unavailable;
             const auto it = modLevel->chunks.find({cx, cz});

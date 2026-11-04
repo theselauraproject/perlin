@@ -227,7 +227,7 @@ namespace perlin::detail {
         return cache;
     }
 
-    // an overlay screen's size in gui pixels: the framebuffer over the overlay's integer scale, rounded up
+    // an overlay screen's size in gui pixels: the framebuffer over the overlay's integer scale, rounded down so nothing hangs off the bottom or right edge
     struct GuiViewport {
         int scale = 1;
         int w = 0, h = 0;
@@ -237,8 +237,8 @@ namespace perlin::detail {
     inline GuiViewport OverlayViewport(const ui::Hud& hud, int fbW, int fbH) {
         GuiViewport v;
         v.scale = hud.OverlayScale();
-        v.w = static_cast<int>(std::ceil(static_cast<float>(fbW) / static_cast<float>(v.scale)));
-        v.h = static_cast<int>(std::ceil(static_cast<float>(fbH) / static_cast<float>(v.scale)));
+        v.w = static_cast<int>(std::floor(static_cast<float>(fbW) / static_cast<float>(v.scale)));
+        v.h = static_cast<int>(std::floor(static_cast<float>(fbH) / static_cast<float>(v.scale)));
         return v;
     }
 

@@ -200,27 +200,16 @@ namespace perlin::ui {
 
         void Offhand(const HudState& s, const LNode& n, RmlWriter& w) {
             const float unit = n.w / 20.0f;
-            const float x = s.offhandRight ? n.ax + n.w + 6.0f * unit : n.ax - n.w - 6.0f * unit;
+            const float x = s.offhandRight ? n.ax + n.w + unit + 7.0f * unit : n.ax - unit - 29.0f * unit;
             const float y = n.ay;
-            ImageStyle left;
-            left.alpha = n.alpha;
-            ImageStyle right = left;
-            const int lw = s.hotbarLeftSize[0], lh = s.hotbarLeftSize[1];
-            const int rw = s.hotbarRightSize[0], rh = s.hotbarRightSize[1];
-            if (lw > 0 && lh > 0 && rw > 0 && rh > 0) {
-                left.uw = static_cast<float>(lw) * 0.5f;
-                left.vh = static_cast<float>(lh);
-                right.u = static_cast<float>(rw) * 0.5f;
-                right.uw = static_cast<float>(rw) * 0.5f;
-                right.vh = static_cast<float>(rh);
-                w.Image(x, y, n.w * 0.5f, n.h, n.layer, "textures/ui/hotbar_0", left);
-                w.Image(x + n.w * 0.5f, y, n.w * 0.5f, n.h, n.layer, "textures/ui/hotbar_8", right);
-            } else {
-                w.Image(x, y, n.w, n.h, n.layer, "textures/ui/hotbar_0", left);
-            }
+            ImageStyle st;
+            st.alpha = n.alpha;
+            w.Image(x, y, unit, n.h, n.layer, "textures/ui/hotbar_start_cap", st);
+            w.Image(x + unit, y, n.w, n.h, n.layer, "textures/ui/hotbar_0", st);
+            w.Image(x + unit + n.w, y, unit, n.h, n.layer, "textures/ui/hotbar_end_cap", st);
             const HudItem& item = s.offhand;
             const float itemSize = 16.0f * unit;
-            const float itemX = x + (n.w - itemSize) * 0.5f, itemY = y + (n.h - itemSize) * 0.5f;
+            const float itemX = x + 3.0f * unit, itemY = y + 3.0f * unit;
             w.Item(itemX, itemY, itemSize, itemSize, n.layer + 1, item.Key(), n.alpha, item.enchanted);
             if (item.count > 1) {
                 const std::string text = std::to_string(item.count);
@@ -228,7 +217,7 @@ namespace perlin::ui {
                 ts.shadow = true;
                 ts.scale = unit;
                 const float tw = McFont::Instance().Width(text) * unit;
-                w.Text(itemX + itemSize + unit - tw, itemY + 9.0f * unit, tw + unit, 9.0f * unit, n.layer + 2, {text},
+                w.Text(itemX + 17.0f * unit - tw, itemY + 9.0f * unit, tw + unit, 9.0f * unit, n.layer + 2, {text},
                        ts);
             }
         }

@@ -113,7 +113,7 @@ namespace perlin {
                 draw.scissorRect[1] = y0;
                 draw.scissorRect[2] = x1 - x0;
                 draw.scissorRect[3] = y1 - y0;
-                renderer->UiSubmit(UiLayer::Top, draw);
+                renderer->UiSubmit(hudBand ? UiLayer::Gui : UiLayer::Top, draw);
                 renderer->UiDestroyMesh(mesh);
             }
         }

@@ -13,15 +13,15 @@
 using namespace perlin;
 
 namespace {
-    constexpr int kRadius = 8;
+    constexpr int kRadius = 12;
     constexpr int kChunks = kRadius * 2 + 1;
     constexpr int kSlots = kChunks * kChunks;
     constexpr int kMapSize = kChunks * 16;
     constexpr int kTexW = kMapSize;
     constexpr int kWhiteRow = kMapSize;
-    constexpr int kIconRow = kMapSize + 2;
-    constexpr int kIconMax = 32;
-    constexpr int kTexH = kIconRow + kIconMax;
+    constexpr int kTexH = kMapSize + 2;
+    constexpr int kIconScale = 8;
+    constexpr int kRetryFrames = 20;
     constexpr double kPi = 3.14159265358979323846;
     constexpr int kFetchPerFrame = 6;
     constexpr int kPaintPerFrame = 24;
@@ -47,6 +47,7 @@ namespace {
         uint64_t version = 0;
         int32_t layer = 0;
         bool loaded = false;
+        uint64_t fetchedAt = 0;
         std::array<game::MapColumn, 256> columns{};
     };
 
@@ -135,7 +136,7 @@ struct Minimap : Plugin {
                 return;
             texture = std::move(*t);
         }
-        if (iconSize == 0 && iconRetry-- <= 0)
+        if (!iconTexture && iconRetry-- <= 0)
             loadIcon();
 
         const int dim = static_cast<int>(player->dimension);
@@ -156,7 +157,9 @@ struct Minimap : Plugin {
             layer = nextLayer;
             cursor = 0;
         }
+        frame++;
         Refresh();
+        Upload();
         Draw(*player, *disp);
     }
 
@@ -225,7 +228,8 @@ private:
             const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
             const int64_t key = ChunkKey(cx, cz);
             const auto it = cache.find(key);
-            if (it == cache.end() || it->second.layer != layer) {
+            if (it == cache.end() || it->second.layer != layer ||
+                (!it->second.loaded && frame - it->second.fetchedAt >= kRetryFrames)) {
                 if (fetched >= kFetchPerFrame || overBudget() || !Fetch(cx, cz))
                     return;
                 fetched++;
@@ -240,6 +244,23 @@ private:
             }
             cursor++;
         }
+        Poll(order, overBudget);
+        Repaint(order, painted, overBudget);
+        Trim();
+    }
+
+    template <class Budget> void Poll(const std::vector<int>& order, const Budget& overBudget) {
+        int retried = 0;
+        for (int n = 0; n < kSlots && retried < kPollPerFrame && !overBudget(); n++) {
+            const int i = order[static_cast<size_t>(n)];
+            const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
+            const auto it = cache.find(ChunkKey(cx, cz));
+            if (it == cache.end() || it->second.loaded || frame - it->second.fetchedAt < kRetryFrames)
+                continue;
+            if (!Fetch(cx, cz))
+                return;
+            retried++;
+        }
         for (int n = 0; n < kPollPerFrame && !overBudget(); n++) {
             const int next = (pollCursor + 1) % kSlots;
             const int i = order[static_cast<size_t>(next)];
@@ -247,6 +268,9 @@ private:
                 break;
             pollCursor = next;
         }
+    }
+
+    template <class Budget> void Repaint(const std::vector<int>& order, int painted, const Budget& overBudget) {
         for (int n = 0; n < kSlots && painted < kPaintPerFrame && !overBudget(); n++) {
             const int i = order[static_cast<size_t>(n)];
             const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
@@ -256,6 +280,9 @@ private:
                 painted++;
             }
         }
+    }
+
+    void Trim() {
         if (cache.size() > static_cast<size_t>(kSlots * 3))
             std::erase_if(cache, [&](const auto& e) {
                 const int cx = static_cast<int>(e.first >> 32), cz = static_cast<int>(static_cast<int32_t>(e.first));
@@ -268,7 +295,9 @@ private:
         if (!data)
             return false;
         Cached& c = cache[ChunkKey(cx, cz)];
-        if (c.layer == layer && c.loaded == data->loaded && c.version == data->version)
+        c.fetchedAt = frame;
+        if (c.layer == layer && c.loaded == data->loaded && c.version == data->version &&
+            slots[static_cast<size_t>(SlotOf(cx, cz))].owner == ChunkKey(cx, cz))
             return true;
         c.layer = layer;
         c.loaded = data->loaded;
@@ -371,7 +400,23 @@ private:
         for (int z = 0; z < 16; z++)
             std::copy_n(&tile[static_cast<size_t>(z * 16 * 4)], 16 * 4,
                         &pixels[(static_cast<size_t>(oz + z) * kTexW + static_cast<size_t>(ox)) * 4]);
-        (void)texture.update(ox, oz, 16, 16, tile);
+        dirtyX0 = std::min(dirtyX0, ox);
+        dirtyY0 = std::min(dirtyY0, oz);
+        dirtyX1 = std::max(dirtyX1, ox + 16);
+        dirtyY1 = std::max(dirtyY1, oz + 16);
+    }
+
+    void Upload() {
+        if (dirtyX1 <= dirtyX0 || dirtyY1 <= dirtyY0)
+            return;
+        const int w = dirtyX1 - dirtyX0, h = dirtyY1 - dirtyY0;
+        region.resize(static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
+        for (int y = 0; y < h; y++)
+            std::copy_n(&pixels[(static_cast<size_t>(dirtyY0 + y) * kTexW + static_cast<size_t>(dirtyX0)) * 4],
+                        static_cast<size_t>(w) * 4, &region[static_cast<size_t>(y) * static_cast<size_t>(w) * 4]);
+        (void)texture.update(dirtyX0, dirtyY0, w, h, region);
+        dirtyX0 = dirtyY0 = INT32_MAX;
+        dirtyX1 = dirtyY1 = INT32_MIN;
     }
 
     void Draw(const abi::PlayerState& p, const gfx::Display& d) {
@@ -488,12 +533,11 @@ private:
                 ox = cxs + ax * hc - ay * hs;
                 oy = cys + ax * hs + ay * hc;
             };
-            if (iconSize > 0) {
+            if (iconTexture) {
                 const float h = 5.0f * gs;
-                const float u0 = 0.0f, u1 = static_cast<float>(iconSize) / kTexW;
-                const float v0 = static_cast<float>(kIconRow) / kTexH, v1 = static_cast<float>(kIconRow + iconSize) / kTexH;
                 const float cornersX[4] = {-h, h, h, -h}, cornersY[4] = {-h, -h, h, h};
-                const float us[4] = {u0, u1, u1, u0}, vs[4] = {v0, v0, v1, v1};
+                const float us[4] = {0, 1, 1, 0}, vs[4] = {0, 0, 1, 1};
+                list.batch(iconTexture.id(), x0, y0, x0 + size, y0 + size);
                 uint32_t idx[4];
                 for (int i = 0; i < 4; i++) {
                     float sx, sy;
@@ -501,6 +545,7 @@ private:
                     idx[i] = list.vertex(sx, sy, us[i], vs[i], gfx::rgba8(255, 255, 255, 255));
                 }
                 list.triangle(idx[0], idx[1], idx[2]).triangle(idx[0], idx[2], idx[3]);
+                list.batch(texture.id(), x0, y0, x0 + size, y0 + size);
             } else {
                 const float s = 4.5f * gs;
                 float ax, ay, bx, by, cx2, cy2, dx, dy;
@@ -533,19 +578,21 @@ private:
         const auto image = gfx::load_image("textures/map/map_icons");
         if (!image)
             return;
-        const int cell = std::min(image->width / 4, kIconMax);
+        const int cell = image->width / 4;
         if (cell <= 0 || image->height < cell)
             return;
-        std::vector<uint8_t> icon(static_cast<size_t>(cell) * static_cast<size_t>(cell) * 4);
-        for (int y = 0; y < cell; y++)
-            std::copy_n(&image->rgba[static_cast<size_t>(y) * static_cast<size_t>(image->width) * 4],
-                        static_cast<size_t>(cell) * 4, &icon[static_cast<size_t>(y) * static_cast<size_t>(cell) * 4]);
-        for (int y = 0; y < cell; y++)
-            std::copy_n(&icon[static_cast<size_t>(y) * static_cast<size_t>(cell) * 4], static_cast<size_t>(cell) * 4,
-                        &pixels[(static_cast<size_t>(kIconRow + y) * kTexW) * 4]);
-        if (texture && !texture.update(0, kIconRow, cell, cell, icon))
-            return;
-        iconSize = cell;
+        const int big = cell * kIconScale;
+        std::vector<uint8_t> icon(static_cast<size_t>(big) * static_cast<size_t>(big) * 4);
+        for (int y = 0; y < big; y++)
+            for (int x = 0; x < big; x++) {
+                const uint8_t* src = &image->rgba[(static_cast<size_t>(y / kIconScale) * static_cast<size_t>(image->width) +
+                                                   static_cast<size_t>(x / kIconScale)) *
+                                                  4];
+                std::copy_n(src, 4, &icon[(static_cast<size_t>(y) * static_cast<size_t>(big) + static_cast<size_t>(x)) * 4]);
+            }
+        auto t = gfx::Texture::create(big, big, icon, gfx::Filter::Linear);
+        if (t)
+            iconTexture = std::move(*t);
     }
 
     void loadWaypoints() {
@@ -582,8 +629,11 @@ private:
     }
 
     gfx::Texture texture;
+    gfx::Texture iconTexture;
     gfx::DrawList list;
     std::vector<uint8_t> pixels;
+    std::vector<uint8_t> region;
+    int dirtyX0 = INT32_MAX, dirtyY0 = INT32_MAX, dirtyX1 = INT32_MIN, dirtyY1 = INT32_MIN;
     std::unordered_map<int64_t, Cached> cache;
     std::array<Slot, kSlots> slots{};
     std::vector<Waypoint> waypoints;
@@ -593,7 +643,8 @@ private:
     int cursor = 0, pollCursor = 0;
     int roofFrames = 0;
     bool underRoof = false;
-    int iconSize = 0, iconRetry = 0;
+    int iconRetry = 0;
+    uint64_t frame = 0;
     bool shown = false;
 };
 PERLIN_REGISTER(Minimap)
