@@ -81,7 +81,7 @@ namespace perlin::jshader {
                                                                             : spv::ExecutionModelFragment;
                 const spirv_cross::ShaderResources res = c.get_shader_resources();
                 // set 1 textures keep their binding (0..95); set 2 storage images go to 96 + binding and set 3
-                // storage buffers to 10 + binding, which the `perlin:msl-sets` line tells the rhi reflection
+                // storage buffers to 10 + binding, which the `conduit:msl-sets` line tells the rhi reflection
                 const auto bind = [&](const spirv_cross::Resource& r, bool buffer) {
                     spirv_cross::MSLResourceBinding b;
                     b.stage = model;
@@ -107,11 +107,11 @@ namespace perlin::jshader {
                     bind(r, false);
                 for (const auto& r : res.storage_images)
                     bind(r, false);
-                out = "// perlin:msl-sets texture " + std::to_string(kMslImageBase) + " 2 buffer " +
+                out = "// conduit:msl-sets texture " + std::to_string(kMslImageBase) + " 2 buffer " +
                       std::to_string(kMslStorageBufferBase) + " 3\n";
                 if (stage == Stage::Compute) {
                     const spirv_cross::SPIREntryPoint& ep = c.get_entry_point("main", model);
-                    out += "// perlin:threads " + std::to_string(std::max(1u, ep.workgroup_size.x)) + " " +
+                    out += "// conduit:threads " + std::to_string(std::max(1u, ep.workgroup_size.x)) + " " +
                            std::to_string(std::max(1u, ep.workgroup_size.y)) + " " +
                            std::to_string(std::max(1u, ep.workgroup_size.z)) + "\n";
                 }

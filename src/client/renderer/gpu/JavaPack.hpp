@@ -54,17 +54,17 @@ namespace perlin::gpu {
 
         // what the engine hands over each frame
         struct Output {
-            rhi::TextureHandle color;
-            rhi::Format colorFormat = rhi::Format::BGRA8Unorm;
-            rhi::TextureHandle depth;
+            conduit::texture_handle color;
+            conduit::format colorFormat = conduit::format::bgra8_unorm;
+            conduit::texture_handle depth;
             uint32_t width = 0, height = 0;
             float scale = 1.0f; // internal resolution against width / height
-            rhi::TextureHandle lightmap;
-            rhi::TextureHandle sun, moon, endSky;
+            conduit::texture_handle lightmap;
+            conduit::texture_handle sun, moon, endSky;
         };
 
         JavaPack(Gpu& gpu, ChunkMeshStore& meshes);
-        void DrawRunList(rhi::CommandList& list, const std::vector<ChunkMeshStore::Run>& runList, RenderLayer layer);
+        void DrawRunList(conduit::command_list& list, const std::vector<ChunkMeshStore::Run>& runList, RenderLayer layer);
         ~JavaPack();
         JavaPack(const JavaPack&) = delete;
         JavaPack& operator=(const JavaPack&) = delete;
@@ -91,7 +91,7 @@ namespace perlin::gpu {
         }
 
         // one frame. false when it could not be drawn (the caller then draws the normal way)
-        bool Record(rhi::CommandList& list, const FrameParams& params, const Output& out);
+        bool Record(conduit::command_list& list, const FrameParams& params, const Output& out);
 
         // the pack's vertex stream for one chunk mesh (kPackVertexBytes per vertex)
         void Convert(const Tessellator& tess, std::vector<uint8_t>& out);
@@ -124,7 +124,7 @@ namespace perlin::gpu {
             Kind kind = Kind::Entity;
             std::vector<uint8_t> vertices; // pack vertex stream, a plain triangle list
             uint32_t count = 0;
-            rhi::TextureHandle texture;
+            conduit::texture_handle texture;
             bool depthTest = true, depthWrite = true;
             bool blend = false, additive = false;
             float entityColor[4] = {0, 0, 0, 0};
@@ -159,7 +159,7 @@ namespace perlin::gpu {
             fluidTiles[3] = lavaFlow;
         }
         void DropQueued() { queued.clear(); }
-        void WriteEngineDepth(rhi::CommandList& list, const Output& out) { DepthToEngine(list, out); }
+        void WriteEngineDepth(conduit::command_list& list, const Output& out) { DepthToEngine(list, out); }
         // the pack has a shadow pass (iris draws entities into it)
         struct WarmProgress {
             int done = 0, total = 0;
@@ -172,7 +172,7 @@ namespace perlin::gpu {
 
     private:
         struct Buffer {
-            rhi::TextureHandle tex[2];
+            conduit::texture_handle tex[2];
             int cur = 0;
             bool used = false;
             uint32_t w = 0, h = 0;
@@ -203,9 +203,9 @@ namespace perlin::gpu {
         // an iris custom image: storage texture in set 2 at its slot, sampled through its sampler name
         struct Image {
             jshader::CustomImage info;
-            rhi::TextureHandle tex;
-            rhi::Format format = rhi::Format::Unknown;
-            rhi::TextureDim dim = rhi::TextureDim::Tex2D;
+            conduit::texture_handle tex;
+            conduit::format format = conduit::format::unknown;
+            conduit::texture_dim dim = conduit::texture_dim::tex2d;
             uint32_t w = 1, h = 1, d = 1;
             bool integer = false;
         };
@@ -217,7 +217,7 @@ namespace perlin::gpu {
             const void* entry = nullptr;
         };
         struct Program {
-            rhi::ShaderHandle vs, fs;
+            conduit::shader_handle vs, fs;
             int regs = 0;
             std::vector<SamplerBind> samplers;
             std::vector<UniformSlot> slots;
@@ -236,8 +236,8 @@ namespace perlin::gpu {
             uint32_t imageMask = 0;
             // compute programs (.csh)
             bool compute = false;
-            rhi::ShaderHandle cs;
-            rhi::PipelineHandle computePipeline;
+            conduit::shader_handle cs;
+            conduit::pipeline_handle computePipeline;
             jshader::ComputeResult dispatch;
         };
         struct Converted {
@@ -251,21 +251,21 @@ namespace perlin::gpu {
         };
         struct PipeState {
             bool scene = true;
-            std::array<rhi::Format, 8> colors{};
+            std::array<conduit::format, 8> colors{};
             uint32_t colorCount = 0;
-            rhi::Format depth = rhi::Format::Unknown;
+            conduit::format depth = conduit::format::unknown;
             bool depthTest = false, depthWrite = false;
             bool cull = false; // back faces of terrain, as vanilla culls them
-            rhi::CompareOp depthOp = rhi::CompareOp::LessEqual;
+            conduit::compare_op depthOp = conduit::compare_op::less_equal;
             bool blend = false;
-            rhi::BlendFactor src = rhi::BlendFactor::One, dst = rhi::BlendFactor::Zero,
-                             srcA = rhi::BlendFactor::One, dstA = rhi::BlendFactor::Zero;
-            rhi::ColorMask mask = rhi::ColorMask::All;
+            conduit::blend_factor src = conduit::blend_factor::one, dst = conduit::blend_factor::zero,
+                             srcA = conduit::blend_factor::one, dstA = conduit::blend_factor::zero;
+            conduit::color_mask mask = conduit::color_mask::all;
         };
         struct PackSet {
-            std::array<rhi::TextureHandle, kTextureSlots> texture{};
+            std::array<conduit::texture_handle, kTextureSlots> texture{};
             std::array<uint8_t, kTextureSlots> sampler{};
-            std::array<rhi::TextureDim, kTextureSlots> dim{};
+            std::array<conduit::texture_dim, kTextureSlots> dim{};
             bool operator==(const PackSet& o) const {
                 return texture == o.texture && sampler == o.sampler && dim == o.dim;
             }
@@ -299,9 +299,9 @@ namespace perlin::gpu {
         bool CreateTargets(uint32_t w, uint32_t h);
         void DestroyTargets();
         void ReleaseAll();
-        rhi::TextureHandle MakeTexture(uint32_t w, uint32_t h, rhi::Format format, rhi::TextureUsage usage,
+        conduit::texture_handle MakeTexture(uint32_t w, uint32_t h, conduit::format format, conduit::texture_usage usage,
                                        const char* name);
-        rhi::SamplerHandle SamplerFor(int id);
+        conduit::sampler_handle SamplerFor(int id);
         void BuildBlockMap();
         int PackBlockId(uint16_t palette);
         // entity.properties / item.properties / block.properties ids (0 when the pack does not list it)
@@ -321,7 +321,7 @@ namespace perlin::gpu {
         Program* GetProgram(const std::string& name, bool toBackbuffer,
                             const jshader::ExpandedSource* vs = nullptr,
                             const jshader::ExpandedSource* fs = nullptr,
-                            rhi::Format backFormat = rhi::Format::Unknown, const std::string& alpha = {});
+                            conduit::format backFormat = conduit::format::unknown, const std::string& alpha = {});
         // the alpha test a program runs with: the pack's alphaTest.<program> or iris's for the render type
         // (defaultRef < 0: none)
         std::string AlphaFor(const std::string& progName, float defaultRef) const;
@@ -337,22 +337,22 @@ namespace perlin::gpu {
                                             const std::vector<jshader::RhiSampler>& samplerList);
         int ChooseSampler(const SamplerBind& s) const;
         std::string MergeHlslSamplers(const std::string& src, const std::vector<SamplerBind>& binds) const;
-        rhi::PipelineHandle PipelineFor(Program& p, const PipeState& state);
+        conduit::pipeline_handle PipelineFor(Program& p, const PipeState& state);
         void FillUniforms(Program& p, const jshader::PackDrawState& draw, bool perDrawOnly);
-        bool BindUniforms(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw);
-        rhi::BindGroupHandle Textures(rhi::CommandList& list, Program& p,
-                                      const std::vector<rhi::TextureHandle>& attached);
-        rhi::BindGroupHandle GroupFor(const PackSet& set);
+        bool BindUniforms(conduit::command_list& list, Program& p, const jshader::PackDrawState& draw);
+        conduit::bind_group_handle Textures(conduit::command_list& list, Program& p,
+                                      const std::vector<conduit::texture_handle>& attached);
+        conduit::bind_group_handle GroupFor(const PackSet& set);
         // custom images and storage buffers (sets 2 and 3)
         bool CreateStorage();
-        void ClearImages(rhi::CommandList& list, bool all);
-        rhi::BindGroupHandle ImageGroup(uint32_t mask);
-        void BindStorage(rhi::CommandList& list, const Program& p);
-        void StorageBarrier(rhi::CommandList& list, const Program& p);
+        void ClearImages(conduit::command_list& list, bool all);
+        conduit::bind_group_handle ImageGroup(uint32_t mask);
+        void BindStorage(conduit::command_list& list, const Program& p);
+        void StorageBarrier(conduit::command_list& list, const Program& p);
         Program* GetCompute(const std::string& name, size_t index);
         Program* FinishCompute(const std::string& key, const std::string& name, const Converted& c);
         // the compute shaders of a pass, before its fragment program; false while one still compiles
-        bool RunCompute(rhi::CommandList& list, const std::string& name, uint32_t renderW, uint32_t renderH);
+        bool RunCompute(conduit::command_list& list, const std::string& name, uint32_t renderW, uint32_t renderH);
         void FillProgramResources(Program& p, const std::string& name,
                                   const std::vector<jshader::RhiSampler>& samplerList,
                                   const std::vector<std::string>& imageNames,
@@ -361,24 +361,24 @@ namespace perlin::gpu {
         // frame
         void BuildFrame(const FrameParams& params, const Output& out);
         jshader::PackDrawState TerrainDraw() const;
-        void BeginPass(rhi::CommandList& list, const std::vector<rhi::TextureHandle>& colors,
-                       rhi::TextureHandle depth, uint32_t w, uint32_t h, bool clearDepth,
+        void BeginPass(conduit::command_list& list, const std::vector<conduit::texture_handle>& colors,
+                       conduit::texture_handle depth, uint32_t w, uint32_t h, bool clearDepth,
                        const std::vector<std::array<float, 4>>* clears, const char* name, bool overwrite = false);
-        bool RunPass(rhi::CommandList& list, const std::string& name, bool toBackbuffer, const Output& out);
-        void RunChain(rhi::CommandList& list, const char* base);
-        void ClearBuffers(rhi::CommandList& list, const FrameParams& params);
-        void DrawShadows(rhi::CommandList& list);
-        void DrawSky(rhi::CommandList& list);
-        void DrawSkyObjects(rhi::CommandList& list, const char* program, int stage, rhi::BufferHandle vb,
-                            uint32_t first, uint32_t count, rhi::BufferHandle ring, uint64_t ringOffset,
-                            const float* modelView, rhi::TextureHandle texture, bool additive,
+        bool RunPass(conduit::command_list& list, const std::string& name, bool toBackbuffer, const Output& out);
+        void RunChain(conduit::command_list& list, const char* base);
+        void ClearBuffers(conduit::command_list& list, const FrameParams& params);
+        void DrawShadows(conduit::command_list& list);
+        void DrawSky(conduit::command_list& list);
+        void DrawSkyObjects(conduit::command_list& list, const char* program, int stage, conduit::buffer_handle vb,
+                            uint32_t first, uint32_t count, conduit::buffer_handle ring, uint64_t ringOffset,
+                            const float* modelView, conduit::texture_handle texture, bool additive,
                             const float* colorModulator = nullptr);
-        void DrawTranslucent(rhi::CommandList& list);
-        void DrawTerrain(rhi::CommandList& list);
-        bool DrawLayers(rhi::CommandList& list, const char* program, const std::vector<RenderLayer>& layers,
+        void DrawTranslucent(conduit::command_list& list);
+        void DrawTerrain(conduit::command_list& list);
+        bool DrawLayers(conduit::command_list& list, const char* program, const std::vector<RenderLayer>& layers,
                         bool translucent, bool shadow, int stage, float alphaRef);
-        void DepthToEngine(rhi::CommandList& list, const Output& out);
-        void CopyDepth(rhi::CommandList& list, rhi::TextureHandle src, rhi::TextureHandle dst);
+        void DepthToEngine(conduit::command_list& list, const Output& out);
+        void CopyDepth(conduit::command_list& list, conduit::texture_handle src, conduit::texture_handle dst);
 
         Gpu& gpu;
         ChunkMeshStore& meshes;
@@ -386,14 +386,14 @@ namespace perlin::gpu {
         jshader::PipelineConfig config;
         int shadowResPatch = 0;
         int prepassState = -1;
-        rhi::ShaderHandle fragmentOverride;
-        bool DepthPrepass(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw,
-                          rhi::BindGroupHandle textures, rhi::TextureHandle depthTarget, uint32_t w, uint32_t h);
+        conduit::shader_handle fragmentOverride;
+        bool DepthPrepass(conduit::command_list& list, Program& p, const jshader::PackDrawState& draw,
+                          conduit::bind_group_handle textures, conduit::texture_handle depthTarget, uint32_t w, uint32_t h);
         Frustum viewFrustum{};
         bool haveViewFrustum = false;
         glm::vec3 shadowLightWorld{0.0f};
         size_t shadowCulled = 0, shadowKeptChunks = 0;
-        std::vector<rhi::TextureHandle> staticTextures;
+        std::vector<conduit::texture_handle> staticTextures;
         bool depthTexUsed[3] = {true, true, true};
         int shadowInterval = 1;
         int shadowSkipState = -1;
@@ -401,7 +401,7 @@ namespace perlin::gpu {
         bool shadowCacheOn = true, shadowPartial = false, shadowCacheValid = false;
         uint64_t shadowCacheGeneration = 0;
         int shadowCacheAge = 0;
-        rhi::TextureHandle shadowCacheDepth, shadowCacheColor[2];
+        conduit::texture_handle shadowCacheDepth, shadowCacheColor[2];
         float keptShadowDrawView[16] = {};
         bool EnsureShadowCache();
         glm::mat4 keptShadowRot{1.0f};
@@ -438,31 +438,31 @@ namespace perlin::gpu {
                 return static_cast<size_t>(h);
             }
         };
-        std::unordered_map<PipeKey, rhi::PipelineHandle, PipeKeyHash> pipelines;
-        std::unordered_map<PackSet, rhi::BindGroupHandle, PackSetHash> groups;
+        std::unordered_map<PipeKey, conduit::pipeline_handle, PipeKeyHash> pipelines;
+        std::unordered_map<PackSet, conduit::bind_group_handle, PackSetHash> groups;
 
-        rhi::BindLayoutHandle textureLayout, imageLayout, bufferLayout;
+        conduit::bind_layout_handle textureLayout, imageLayout, bufferLayout;
         std::vector<Image> images;
         std::map<std::string, int> imageSlotOf, imageSamplerOf;
-        rhi::TextureHandle dummyStorage;
-        std::array<rhi::BufferHandle, 16> ssbo{};
-        rhi::BufferHandle dummySsbo, zeroBuffer;
+        conduit::texture_handle dummyStorage;
+        std::array<conduit::buffer_handle, 16> ssbo{};
+        conduit::buffer_handle dummySsbo, zeroBuffer;
         uint64_t zeroBytes = 0;
         bool storageFresh = true;
-        rhi::BindGroupHandle bufferGroup;
-        std::unordered_map<uint32_t, rhi::BindGroupHandle> imageGroups;
+        conduit::bind_group_handle bufferGroup;
+        std::unordered_map<uint32_t, conduit::bind_group_handle> imageGroups;
         bool setupDone = false;
         std::vector<ExternalDraw> queued;
         // read by the mesh threads that convert chunks
         std::array<std::atomic<int>, 4> fluidTiles{-1, -1, -1, -1};
-        void DrawExternal(rhi::CommandList& list, std::initializer_list<ExternalDraw::Kind> kinds,
+        void DrawExternal(conduit::command_list& list, std::initializer_list<ExternalDraw::Kind> kinds,
                           bool shadowPass);
-        rhi::PipelineLayoutHandle pipelineLayout;
-        std::array<rhi::SamplerHandle, 16> samplers{};
-        rhi::BufferHandle quad;
-        rhi::BufferHandle skyStatic;
+        conduit::pipeline_layout_handle pipelineLayout;
+        std::array<conduit::sampler_handle, 16> samplers{};
+        conduit::buffer_handle quad;
+        conduit::buffer_handle skyStatic;
         uint32_t starVertexCount = 0;
-        rhi::TextureHandle textureOverride, skySunTex, skyMoonTex, skyEndTex;
+        conduit::texture_handle textureOverride, skySunTex, skyMoonTex, skyEndTex;
         // java gives only the overworld skylight: elsewhere every lightmap coordinate has sky 0
         bool noSkyLight = false;
         bool overrideRepeat = false; // the end sky's texture repeats
@@ -471,8 +471,8 @@ namespace perlin::gpu {
         static constexpr uint32_t kTimerMarks = 96;
         struct GpuTiming {
             bool on = false;
-            rhi::QuerySetHandle queries;
-            std::vector<rhi::BufferHandle> readback;
+            conduit::query_set_handle queries;
+            std::vector<conduit::buffer_handle> readback;
             std::vector<std::vector<std::string>> names;
             uint32_t slot = 0;
             std::map<std::string, double> sum;
@@ -481,42 +481,42 @@ namespace perlin::gpu {
             std::map<std::string, double> cpuSum;
             std::chrono::steady_clock::time_point cpuLast;
         } timing;
-        void GpuTimesBegin(rhi::CommandList& list);
-        void GpuMark(rhi::CommandList& list, const std::string& name);
-        void GpuTimesEnd(rhi::CommandList& list);
+        void GpuTimesBegin(conduit::command_list& list);
+        void GpuMark(conduit::command_list& list, const std::string& name);
+        void GpuTimesEnd(conduit::command_list& list);
         static bool IsFullscreenPass(const std::string& progName);
 
         std::array<Buffer, jshader::kMaxColorTex> bufs;
-        rhi::TextureHandle depth[3];
-        rhi::TextureHandle shadowDepth;
-        rhi::TextureHandle
+        conduit::texture_handle depth[3];
+        conduit::texture_handle shadowDepth;
+        conduit::texture_handle
             shadowDepthNoTranslucents; // shadowtex1: the shadow depth before translucent terrain
         bool shadowCleared = false;
         bool resolvingWaterShadow = false;
         float fogClock = 0.0f, waterVisionTicks = 0.0f;
         // copies of attachments a pass also samples (see FeedbackCopy)
         struct Feedback {
-            rhi::TextureHandle tex;
+            conduit::texture_handle tex;
             uint64_t serial = 0;
         };
         std::unordered_map<uint32_t, Feedback> feedback;
         uint64_t passSerial = 1;
-        rhi::TextureHandle FeedbackCopy(rhi::CommandList& list, rhi::TextureHandle src);
+        conduit::texture_handle FeedbackCopy(conduit::command_list& list, conduit::texture_handle src);
         mutable std::mutex progressMutex;
         WarmProgress warmProgress;
-        rhi::TextureHandle shadowColor[2];
+        conduit::texture_handle shadowColor[2];
         bool shadowColorUsed[2] = {false, false};
         bool shadowUsed = false;
-        rhi::TextureHandle white, flatNormal, blackTex, noise;
-        std::map<std::string, rhi::TextureHandle> customTextures; // "<stage>:<sampler>"
+        conduit::texture_handle white, flatNormal, blackTex, noise;
+        std::map<std::string, conduit::texture_handle> customTextures; // "<stage>:<sampler>"
         std::map<std::string, int> customSamplers;
         int noiseSampler = 2; // linear repeat
         std::string resolvingStage;
-        std::vector<rhi::TextureHandle> owned;
+        std::vector<conduit::texture_handle> owned;
         uint32_t width = 0, height = 0;
         int frameStamp = 0;
 
-        rhi::TextureHandle atlas;
+        conduit::texture_handle atlas;
         int atlasTilePx = 16, atlasTiles = 0, gridCols = 1, gridRows = 1, atlasWidth = 0, atlasLevels = 1;
 
         // camera history for the previous-frame uniforms
@@ -532,7 +532,7 @@ namespace perlin::gpu {
         float shadowView[16] = {}, shadowProjection[16] = {}, shadowDrawView[16] = {};
         float handProjection[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         FrameParams frame{};
-        rhi::TextureHandle lightmapTex;
+        conduit::texture_handle lightmapTex;
         std::array<std::vector<ChunkMeshStore::Run>, kRenderLayerCount> layerRuns;
         std::array<std::vector<ChunkMeshStore::Run>, kRenderLayerCount> shadowRuns;
         bool trace = false;

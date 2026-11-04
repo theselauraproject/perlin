@@ -116,7 +116,7 @@ namespace perlin {
             return mips;
         }
 
-        constexpr rhi::ColorMask kRgbA = rhi::ColorMask::All;
+        constexpr conduit::color_mask kRgbA = conduit::color_mask::all;
     }
 
     // -- textures ---------------------------------------------------------------------------------------------------
@@ -124,7 +124,7 @@ namespace perlin {
     int RenderContext_rhi::MaxAtlasLayers(int tilePx) const {
         const int limit =
             initialized ? std::max<int>(
-                              1, static_cast<int>(const_cast<gpu::Gpu&>(gpu).Caps().limits.maxTextureLayers))
+                              1, static_cast<int>(const_cast<gpu::Gpu&>(gpu).Caps().limits.max_texture_layers))
                         : 2048;
         const double perLayer =
             static_cast<double>(std::max(1, tilePx)) * std::max(1, tilePx) * 4.0 * 4.0 / 3.0;
@@ -136,12 +136,12 @@ namespace perlin {
         if (!initialized || !rgba || tilePx <= 0 || tiles <= 0)
             return;
         animatedTiles.clear();
-        const int limit = std::max<int>(1, static_cast<int>(gpu.Caps().limits.maxTextureLayers));
+        const int limit = std::max<int>(1, static_cast<int>(gpu.Caps().limits.max_texture_layers));
         const int layers = std::min(limit, (tiles + 255) / 256 * 256);
         TexRec tex;
         if (!MakeTexture(tex, static_cast<uint32_t>(tilePx), static_cast<uint32_t>(tilePx),
                          static_cast<uint32_t>(layers), static_cast<uint32_t>(MipCount(tilePx)),
-                         rhi::Format::RGBA8Unorm, gpu::SamplerKind::PointMipClamp, "block atlas")) {
+                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipClamp, "block atlas")) {
             Log("render", "atlas upload failed ({} layers of {}px)", layers, tilePx);
             return;
         }
@@ -199,7 +199,7 @@ namespace perlin {
             if (texture.width <= 0 || texture.height <= 0)
                 return;
             if (MakeTexture(rec, static_cast<uint32_t>(texture.width), static_cast<uint32_t>(texture.height),
-                            1, 1, rhi::Format::RGBA8Unorm, sampler, name))
+                            1, 1, conduit::format::rgba8_unorm, sampler, name))
                 gpu.WriteTexture(rec.handle, 0, 0, 0, rec.w, rec.h, texture.pixels.data());
         };
         sunSource = sun;
@@ -226,7 +226,7 @@ namespace perlin {
         if (endSky.width <= 0 || endSky.height <= 0)
             return;
         if (MakeTexture(endSkyTex, static_cast<uint32_t>(endSky.width), static_cast<uint32_t>(endSky.height), 1, 1,
-                        rhi::Format::RGBA8Unorm, gpu::SamplerKind::PointRepeat, "end sky"))
+                        conduit::format::rgba8_unorm, gpu::SamplerKind::PointRepeat, "end sky"))
             gpu.WriteTexture(endSkyTex.handle, 0, 0, 0, endSkyTex.w, endSkyTex.h, endSky.pixels.data());
     }
 
@@ -239,7 +239,7 @@ namespace perlin {
         for (size_t i = 0; i < flags.size() && i < static_cast<size_t>(kW) * kH; i++)
             rgba[i * 4] = flags[i];
         if (!tileFlagsTex.used)
-            MakeTexture(tileFlagsTex, kW, kH, 1, 1, rhi::Format::RGBA8Unorm, gpu::SamplerKind::PointClamp,
+            MakeTexture(tileFlagsTex, kW, kH, 1, 1, conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp,
                         "tile flags");
         if (tileFlagsTex.used)
             gpu.WriteTexture(tileFlagsTex.handle, 0, 0, 0, kW, kH, rgba.data());
@@ -256,7 +256,7 @@ namespace perlin {
                         icons.pixels.data() + static_cast<size_t>(y) * icons.width * 4,
                         static_cast<size_t>(size) * 4);
         if (MakeTexture(crosshair, static_cast<uint32_t>(size), static_cast<uint32_t>(size), 1, 1,
-                        rhi::Format::RGBA8Unorm, gpu::SamplerKind::PointClamp, "crosshair")) {
+                        conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp, "crosshair")) {
             gpu.WriteTexture(crosshair.handle, 0, 0, 0, crosshair.w, crosshair.h, crop.data());
             crosshairPx = size;
         }
@@ -306,15 +306,15 @@ namespace perlin {
     // -- world ------------------------------------------------------------------------------------------------------
 
     RenderContext_rhi::DrawState RenderContext_rhi::PassState(RenderLayer layer) const {
-        DrawState s = Base(Program::TerrainSolid, true, true, rhi::CompareOp::Less);
+        DrawState s = Base(Program::TerrainSolid, true, true, conduit::compare_op::less);
         s.layout = gpu::VertexLayout::Terrain;
-        s.mask = rhi::ColorMask::RGB;
+        s.mask = conduit::color_mask::rgb;
         const auto blend = [&] {
             s.blend = true;
-            s.srcColor = rhi::BlendFactor::SrcAlpha;
-            s.dstColor = rhi::BlendFactor::InvSrcAlpha;
-            s.srcAlpha = rhi::BlendFactor::One;
-            s.dstAlpha = rhi::BlendFactor::InvSrcAlpha;
+            s.srcColor = conduit::blend_factor::src_alpha;
+            s.dstColor = conduit::blend_factor::inv_src_alpha;
+            s.srcAlpha = conduit::blend_factor::one;
+            s.dstAlpha = conduit::blend_factor::inv_src_alpha;
         };
         switch (layer) {
         case RenderLayer::Solid:
@@ -322,11 +322,11 @@ namespace perlin {
             s.cull = cullMode;
             break;
         case RenderLayer::Cutout:
-            s.depthOp = rhi::CompareOp::LessEqual;
+            s.depthOp = conduit::compare_op::less_equal;
             s.mask = kRgbA;
             break;
         case RenderLayer::CutoutCull:
-            s.depthOp = rhi::CompareOp::LessEqual;
+            s.depthOp = conduit::compare_op::less_equal;
             s.mask = kRgbA;
             s.cull = cullMode;
             break;
@@ -407,7 +407,7 @@ namespace perlin {
                 for (size_t k = i; k < j; k++) {
                     const Source vertices{meshes.Vertices(runs[k].page), 0};
                     const Source indices{meshes.Indices(runs[k].page, layer), 0};
-                    Push(view, templ, vertices, &indices, rhi::IndexType::U32, runs[k].first, runs[k].count);
+                    Push(view, templ, vertices, &indices, conduit::index_type::u32, runs[k].first, runs[k].count);
                 }
             }
             i = j;
@@ -430,15 +430,15 @@ namespace perlin {
         if (t[3] <= 0.001f || !screenTri)
             return;
         uni.Vec4("u_modulator", t[0], t[1], t[2], t[3]);
-        DrawState state = Base(Program::Screen, false, false, rhi::CompareOp::LessEqual);
+        DrawState state = Base(Program::Screen, false, false, conduit::compare_op::less_equal);
         state.layout = gpu::VertexLayout::Position;
-        state.mask = rhi::ColorMask::RGB;
+        state.mask = conduit::color_mask::rgb;
         state.blend = true;
-        state.srcColor = rhi::BlendFactor::SrcAlpha;
-        state.dstColor = rhi::BlendFactor::InvSrcAlpha;
-        state.srcAlpha = rhi::BlendFactor::One;
-        state.dstAlpha = rhi::BlendFactor::InvSrcAlpha;
-        Submit(View::Late, state, {screenTri, 0}, nullptr, rhi::IndexType::U32, 0, 3);
+        state.srcColor = conduit::blend_factor::src_alpha;
+        state.dstColor = conduit::blend_factor::inv_src_alpha;
+        state.srcAlpha = conduit::blend_factor::one;
+        state.dstAlpha = conduit::blend_factor::inv_src_alpha;
+        Submit(View::Late, state, {screenTri, 0}, nullptr, conduit::index_type::u32, 0, 3);
     }
 
     void RenderContext_rhi::DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) {
@@ -507,7 +507,7 @@ namespace perlin {
         constexpr float kHalfPi = 1.57079632679489661923f;
         const auto matrix = [&](const glm::mat4& m) { SetMatrix(glm::value_ptr(m)); };
         const auto drawState = [&](Program program, gpu::VertexLayout layout) {
-            DrawState s = Base(program, false, false, rhi::CompareOp::LessEqual);
+            DrawState s = Base(program, false, false, conduit::compare_op::less_equal);
             s.layout = layout;
             s.mask = kRgbA;
             return s;
@@ -521,14 +521,14 @@ namespace perlin {
             BindShadowSampling();
             BindJavaExtras();
             Submit(View::World, drawState(Program::Sky, gpu::VertexLayout::Position), {screenTri, 0}, nullptr,
-                   rhi::IndexType::U32, 0, 3);
+                   conduit::index_type::u32, 0, 3);
             ResetBindings();
             return;
         }
         {
             const Source indices{fanIdx, 0};
             Submit(View::World, drawState(Program::Sky, gpu::VertexLayout::Terrain), {topSky, 0}, &indices,
-                   rhi::IndexType::U16, 0, skyFanIndexCount);
+                   conduit::index_type::u16, 0, skyFanIndexCount);
         }
 
         // converted pack draws its own horizon glow
@@ -541,12 +541,12 @@ namespace perlin {
             uni.Vec4("u_modulator", sky.sunrise[0], sky.sunrise[1], sky.sunrise[2], sky.sunrise[3]);
             DrawState s = drawState(Program::Sunrise, gpu::VertexLayout::Color);
             s.blend = true;
-            s.srcColor = rhi::BlendFactor::SrcAlpha;
-            s.dstColor = rhi::BlendFactor::InvSrcAlpha;
-            s.srcAlpha = rhi::BlendFactor::One;
-            s.dstAlpha = rhi::BlendFactor::InvSrcAlpha;
+            s.srcColor = conduit::blend_factor::src_alpha;
+            s.dstColor = conduit::blend_factor::inv_src_alpha;
+            s.srcAlpha = conduit::blend_factor::one;
+            s.dstAlpha = conduit::blend_factor::inv_src_alpha;
             const Source indices{sunriseIdx, 0};
-            Submit(View::World, s, {sunriseVerts, 0}, &indices, rhi::IndexType::U16, 0, sunriseIndexCount);
+            Submit(View::World, s, {sunriseVerts, 0}, &indices, conduit::index_type::u16, 0, sunriseIndexCount);
         }
 
         const glm::mat4 celestial = glm::rotate(view, -kHalfPi, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -562,7 +562,7 @@ namespace perlin {
             BindTexture("s_sky", sunTex.handle, gpu::SamplerKind::PointClamp);
             DrawState s = drawState(Program::Celestial, gpu::VertexLayout::Texture);
             ApplyMaterial(s, "sun_moon");
-            Submit(View::World, s, {sunVerts, 0}, &quad, rhi::IndexType::U16, 0, 6);
+            Submit(View::World, s, {sunVerts, 0}, &quad, conduit::index_type::u16, 0, 6);
         }
         if (!javaActive && moonTex.used) {
             matrix(body(sky.moonAngle, 20.0f));
@@ -572,7 +572,7 @@ namespace perlin {
             ApplyMaterial(s, "sun_moon");
             Submit(View::World, s,
                    {moonVerts, static_cast<uint64_t>(sky.moonPhase) * 4 * sizeof(TextureVertex)}, &quad,
-                   rhi::IndexType::U16, 0, 6);
+                   conduit::index_type::u16, 0, 6);
         }
         if (!javaActive && sky.starBrightness > 0.0f) {
             matrix(glm::rotate(celestial, sky.starAngle, glm::vec3(1.0f, 0.0f, 0.0f)));
@@ -581,14 +581,14 @@ namespace perlin {
             DrawState s = drawState(Program::Star, gpu::VertexLayout::Position);
             ApplyMaterial(s, "stars");
             const Source indices{starIdx, 0};
-            Submit(View::World, s, {starVerts, 0}, &indices, rhi::IndexType::U16, 0, starIndexCount);
+            Submit(View::World, s, {starVerts, 0}, &indices, conduit::index_type::u16, 0, starIndexCount);
         }
         if (sky.darkDisc) {
             matrix(glm::translate(view, glm::vec3(0.0f, 12.0f, 0.0f)));
             uni.Vec4("u_modulator", 0.0f, 0.0f, 0.0f, 1.0f);
             const Source indices{fanIdx, 0};
             Submit(View::World, drawState(Program::Sky, gpu::VertexLayout::Terrain), {bottomSky, 0}, &indices,
-                   rhi::IndexType::U16, 0, skyFanIndexCount);
+                   conduit::index_type::u16, 0, skyFanIndexCount);
         }
         SetMatrix(mvp);
     }
@@ -625,12 +625,12 @@ namespace perlin {
                 cloudVb.Destroy(gpu.Dev());
                 cloudVertexCapacity = vertexCount + vertexCount / 4;
                 cloudVb.Create(gpu.Dev(), cloudVertexCapacity, sizeof(TextureVertex),
-                               rhi::BufferUsage::Vertex, "cloud vertices");
+                               conduit::buffer_usage::vertex, "cloud vertices");
             }
             if (indexCount > cloudIndexCapacity) {
                 cloudIb.Destroy(gpu.Dev());
                 cloudIndexCapacity = indexCount + indexCount / 4;
-                cloudIb.Create(gpu.Dev(), cloudIndexCapacity, sizeof(uint32_t), rhi::BufferUsage::Index,
+                cloudIb.Create(gpu.Dev(), cloudIndexCapacity, sizeof(uint32_t), conduit::buffer_usage::index,
                                "cloud indices");
             }
             if (vertexCount && indexCount) {
@@ -729,16 +729,16 @@ namespace perlin {
                  0.0f);
         uni.Set("u_cloudColor", clouds.color, 4);
         SetMatrix(skyMvp);
-        DrawState s = Base(Program::Cloud, true, true, rhi::CompareOp::LessEqual);
+        DrawState s = Base(Program::Cloud, true, true, conduit::compare_op::less_equal);
         s.layout = gpu::VertexLayout::Texture;
-        s.mask = rhi::ColorMask::RGB;
+        s.mask = conduit::color_mask::rgb;
         ApplyMaterial(s, "clouds");
         if (clouds.fancy)
-            s.cull = cullMode == rhi::CullMode::Back    ? rhi::CullMode::Front
-                     : cullMode == rhi::CullMode::Front ? rhi::CullMode::Back
-                                                        : rhi::CullMode::None;
+            s.cull = cullMode == conduit::cull_mode::back    ? conduit::cull_mode::front
+                     : cullMode == conduit::cull_mode::front ? conduit::cull_mode::back
+                                                        : conduit::cull_mode::none;
         const Source indices{cloudIb.Buffer(), 0};
-        Submit(View::Late, s, {cloudVb.Buffer(), 0}, &indices, rhi::IndexType::U32, 0, cloudIndexCount);
+        Submit(View::Late, s, {cloudVb.Buffer(), 0}, &indices, conduit::index_type::u32, 0, cloudIndexCount);
         SetMatrix(mvp);
     }
 }

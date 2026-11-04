@@ -12,54 +12,54 @@
 
 namespace perlin {
     namespace {
-        rhi::BlendFactor ToRhi(BlendFactor f) {
+        conduit::blend_factor ToRhi(BlendFactor f) {
             switch (f) {
             case BlendFactor::Zero:
-                return rhi::BlendFactor::Zero;
+                return conduit::blend_factor::zero;
             case BlendFactor::One:
-                return rhi::BlendFactor::One;
+                return conduit::blend_factor::one;
             case BlendFactor::SrcColor:
-                return rhi::BlendFactor::SrcColor;
+                return conduit::blend_factor::src_color;
             case BlendFactor::InvSrcColor:
-                return rhi::BlendFactor::InvSrcColor;
+                return conduit::blend_factor::inv_src_color;
             case BlendFactor::SrcAlpha:
-                return rhi::BlendFactor::SrcAlpha;
+                return conduit::blend_factor::src_alpha;
             case BlendFactor::InvSrcAlpha:
-                return rhi::BlendFactor::InvSrcAlpha;
+                return conduit::blend_factor::inv_src_alpha;
             case BlendFactor::DstColor:
-                return rhi::BlendFactor::DstColor;
+                return conduit::blend_factor::dst_color;
             case BlendFactor::InvDstColor:
-                return rhi::BlendFactor::InvDstColor;
+                return conduit::blend_factor::inv_dst_color;
             case BlendFactor::DstAlpha:
-                return rhi::BlendFactor::DstAlpha;
+                return conduit::blend_factor::dst_alpha;
             case BlendFactor::InvDstAlpha:
-                return rhi::BlendFactor::InvDstAlpha;
+                return conduit::blend_factor::inv_dst_alpha;
             case BlendFactor::SrcAlphaSaturate:
-                return rhi::BlendFactor::SrcAlphaSaturate;
+                return conduit::blend_factor::src_alpha_saturate;
             }
-            return rhi::BlendFactor::One;
+            return conduit::blend_factor::one;
         }
 
-        rhi::CompareOp ToRhi(DepthFunc f) {
+        conduit::compare_op ToRhi(DepthFunc f) {
             switch (f) {
             case DepthFunc::Less:
-                return rhi::CompareOp::Less;
+                return conduit::compare_op::less;
             case DepthFunc::Equal:
-                return rhi::CompareOp::Equal;
+                return conduit::compare_op::equal;
             case DepthFunc::Always:
-                return rhi::CompareOp::Always;
+                return conduit::compare_op::always;
             case DepthFunc::Greater:
-                return rhi::CompareOp::Greater;
+                return conduit::compare_op::greater;
             case DepthFunc::GreaterEqual:
-                return rhi::CompareOp::GreaterEqual;
+                return conduit::compare_op::greater_equal;
             case DepthFunc::NotEqual:
-                return rhi::CompareOp::NotEqual;
+                return conduit::compare_op::not_equal;
             case DepthFunc::Never:
-                return rhi::CompareOp::Never;
+                return conduit::compare_op::never;
             case DepthFunc::LessEqual:
                 break;
             }
-            return rhi::CompareOp::LessEqual;
+            return conduit::compare_op::less_equal;
         }
 
         constexpr uint32_t kUiPageVerts = 1u << 18;
@@ -67,16 +67,16 @@ namespace perlin {
     }
 
     RenderContext_rhi::DrawState RenderContext_rhi::Base(Program program, bool depth, bool depthWrite,
-                                                         rhi::CompareOp op) const {
+                                                         conduit::compare_op op) const {
         DrawState s;
         s.program = program;
         s.layout = programLayouts[static_cast<size_t>(program)];
         s.depthTest = depth;
         s.depthWrite = depth && depthWrite;
         s.depthOp = op;
-        s.cull = rhi::CullMode::None;
+        s.cull = conduit::cull_mode::none;
         s.front = frontFace;
-        s.mask = rhi::ColorMask::None;
+        s.mask = conduit::color_mask::none;
         return s;
     }
 
@@ -85,11 +85,11 @@ namespace perlin {
         if (!def)
             return;
         const bool hadDepthWrite = state.depthWrite;
-        state.mask = rhi::ColorMask::None;
+        state.mask = conduit::color_mask::none;
         if (def->ColorWrite())
-            state.mask = state.mask | rhi::ColorMask::RGB;
+            state.mask = state.mask | conduit::color_mask::rgb;
         if (def->AlphaWrite())
-            state.mask = state.mask | rhi::ColorMask::A;
+            state.mask = state.mask | conduit::color_mask::a;
         state.depthWrite = def->DepthWrite() && hadDepthWrite;
         state.blend = def->Blending();
         if (state.blend) {
@@ -110,7 +110,7 @@ namespace perlin {
             linear ? (repeat ? gpu::SamplerKind::LinearRepeat : gpu::SamplerKind::LinearClamp)
                    : (repeat ? gpu::SamplerKind::PointRepeat : gpu::SamplerKind::PointClamp);
         if (!MakeTexture(rec, static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1, 1,
-                         rhi::Format::RGBA8Unorm, sampler, "ui texture"))
+                         conduit::format::rgba8_unorm, sampler, "ui texture"))
             return 0;
         gpu.WriteTexture(rec.handle, 0, 0, 0, static_cast<uint32_t>(w), static_cast<uint32_t>(h), rgba);
         rec.backup.assign(rgba, rgba + static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
@@ -198,8 +198,8 @@ namespace perlin {
         }
         UiPage page;
         const uint32_t vCap = std::max(kUiPageVerts, vertices), iCap = std::max(kUiPageIndices, indices);
-        if (!page.vb.Create(gpu.Dev(), vCap, sizeof(UiVertex), rhi::BufferUsage::Vertex, "ui vertices") ||
-            !page.ib.Create(gpu.Dev(), iCap, sizeof(uint32_t), rhi::BufferUsage::Index, "ui indices")) {
+        if (!page.vb.Create(gpu.Dev(), vCap, sizeof(UiVertex), conduit::buffer_usage::vertex, "ui vertices") ||
+            !page.ib.Create(gpu.Dev(), iCap, sizeof(uint32_t), conduit::buffer_usage::index, "ui indices")) {
             page.vb.Destroy(gpu.Dev());
             page.ib.Destroy(gpu.Dev());
             return false;
@@ -311,7 +311,7 @@ namespace perlin {
     // -- drawing ----------------------------------------------------------------------------------------------------
 
     bool RenderContext_rhi::RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
-                                            rhi::TextureHandle texture, bool glint) {
+                                            conduit::texture_handle texture, bool glint) {
         if (layer != UiLayer::World && layer != UiLayer::WorldLate && layer != UiLayer::Hand)
             return false;
         // name tags and colour-masked overlays stay with the engine (iris draws text outside the pack too)
@@ -419,7 +419,7 @@ namespace perlin {
         if (PackRunning() && jpackGathered &&
             RouteToJavaPack(layer, draw, mesh,
                             glint ? uiTextures[draw.glintTexture - 1].handle
-                                  : (texture ? texture->handle : rhi::TextureHandle{}),
+                                  : (texture ? texture->handle : conduit::texture_handle{}),
                             glint))
             return;
         if (mesh.transient && mesh.lazyRing) {
@@ -462,11 +462,11 @@ namespace perlin {
                         texture ? texture->sampler : gpu::SamplerKind::LinearRepeat);
             SetMatrix(shadow.rasterE);
             uni.Mat4("u_shadowMtx", shadow.sampleE);
-            DrawState ss = Base(Program::EntityShadow, true, true, rhi::CompareOp::Less);
+            DrawState ss = Base(Program::EntityShadow, true, true, conduit::compare_op::less);
             ss.layout = gpu::VertexLayout::Ui;
-            ss.cull = rhi::CullMode::None;
-            ss.mask = rhi::ColorMask::All;
-            Submit(View::ShadowEntity, ss, vertices, &indices, rhi::IndexType::U32, 0, count);
+            ss.cull = conduit::cull_mode::none;
+            ss.mask = conduit::color_mask::all;
+            Submit(View::ShadowEntity, ss, vertices, &indices, conduit::index_type::u32, 0, count);
             SetMatrix(mvp);
         }
         if (draw.shadowOnly)
@@ -511,22 +511,22 @@ namespace perlin {
         DrawState state = Base(program, draw.depth && !glint, draw.depthWrite, ToRhi(draw.depthFunc));
         state.layout = gpu::VertexLayout::Ui;
         if (draw.colorWrite)
-            state.mask = state.mask | rhi::ColorMask::RGB;
+            state.mask = state.mask | conduit::color_mask::rgb;
         if (draw.alphaWrite)
-            state.mask = state.mask | rhi::ColorMask::A;
+            state.mask = state.mask | conduit::color_mask::a;
         if (glint) {
-            state.mask = rhi::ColorMask::RGB;
+            state.mask = conduit::color_mask::rgb;
             state.blend = true;
-            state.srcColor = state.srcAlpha = rhi::BlendFactor::One;
-            state.dstColor = state.dstAlpha = rhi::BlendFactor::One;
+            state.srcColor = state.srcAlpha = conduit::blend_factor::one;
+            state.dstColor = state.dstAlpha = conduit::blend_factor::one;
             if (draw.depth) {
                 state.depthTest = true;
-                state.depthOp = rhi::CompareOp::LessEqual;
+                state.depthOp = conduit::compare_op::less_equal;
             }
         } else if (draw.premultiplied) {
             state.blend = true;
-            state.srcColor = state.srcAlpha = rhi::BlendFactor::One;
-            state.dstColor = state.dstAlpha = rhi::BlendFactor::InvSrcAlpha;
+            state.srcColor = state.srcAlpha = conduit::blend_factor::one;
+            state.dstColor = state.dstAlpha = conduit::blend_factor::inv_src_alpha;
         } else if (draw.customBlend) {
             state.blend = true;
             state.srcColor = ToRhi(draw.blendSrc);
@@ -535,22 +535,22 @@ namespace perlin {
             state.dstAlpha = ToRhi(draw.blendDst);
         } else if (draw.blend == 1) {
             state.blend = true;
-            state.srcColor = rhi::BlendFactor::SrcAlpha;
-            state.dstColor = rhi::BlendFactor::InvSrcAlpha;
-            state.srcAlpha = rhi::BlendFactor::One;
-            state.dstAlpha = rhi::BlendFactor::InvSrcAlpha;
+            state.srcColor = conduit::blend_factor::src_alpha;
+            state.dstColor = conduit::blend_factor::inv_src_alpha;
+            state.srcAlpha = conduit::blend_factor::one;
+            state.dstAlpha = conduit::blend_factor::inv_src_alpha;
         } else if (draw.blend == 2) {
             state.blend = true;
-            state.srcColor = state.srcAlpha = rhi::BlendFactor::SrcAlpha;
-            state.dstColor = state.dstAlpha = rhi::BlendFactor::One;
+            state.srcColor = state.srcAlpha = conduit::blend_factor::src_alpha;
+            state.dstColor = state.dstAlpha = conduit::blend_factor::one;
         }
-        state.cull = draw.cull == CullMode::Back    ? rhi::CullMode::Back
-                     : draw.cull == CullMode::Front ? rhi::CullMode::Front
-                                                    : rhi::CullMode::None;
+        state.cull = draw.cull == CullMode::Back    ? conduit::cull_mode::back
+                     : draw.cull == CullMode::Front ? conduit::cull_mode::front
+                                                    : conduit::cull_mode::none;
         state.alphaToCoverage = draw.alphaToCoverage;
 
-        rhi::Rect rect;
-        const rhi::Rect* scissor = nullptr;
+        conduit::rect rect;
+        const conduit::rect* scissor = nullptr;
         if (draw.scissor) {
             rect.x = std::max(0, draw.scissorRect[0]);
             rect.y = std::max(0, draw.scissorRect[1]);
@@ -559,7 +559,7 @@ namespace perlin {
             scissor = &rect;
         }
 
-        Submit(view, state, vertices, &indices, rhi::IndexType::U32, 0, count, scissor);
+        Submit(view, state, vertices, &indices, conduit::index_type::u32, 0, count, scissor);
     }
 
     void RenderContext_rhi::DrawHudCursor(float x, float y, float w, float h) {
@@ -583,12 +583,12 @@ namespace perlin {
         uni.Vec4("u_modulator", 1.0f, 1.0f, 1.0f, 1.0f);
         BindTexture("s_sky", crosshair.handle, gpu::SamplerKind::PointClamp);
         DrawState state = Base(ProgramIndex(Program::SpriteUi) >= 0 ? Program::SpriteUi : Program::Celestial,
-                               false, false, rhi::CompareOp::LessEqual);
+                               false, false, conduit::compare_op::less_equal);
         state.layout = gpu::VertexLayout::Texture;
-        state.mask = rhi::ColorMask::RGB;
+        state.mask = conduit::color_mask::rgb;
         ApplyMaterial(state, "ui_crosshair");
         const Source vertices{tv.buffer, tv.offset};
         const Source indices{quadIdx, 0};
-        Submit(View::Gui, state, vertices, &indices, rhi::IndexType::U16, 0, 6);
+        Submit(View::Gui, state, vertices, &indices, conduit::index_type::u16, 0, 6);
     }
 }

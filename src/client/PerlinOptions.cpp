@@ -567,8 +567,8 @@ namespace perlin {
         m.Toggle("Better Grass", options.betterGrass);
         {
             std::vector<std::pair<std::string, std::string>> apis = {{"auto", "Auto"}};
-            for (rhi::Api api : rhi::CompiledApis())
-                apis.emplace_back(rhi::ApiId(api), rhi::ApiName(api));
+            for (conduit::api api : conduit::compiled_apis())
+                apis.emplace_back(conduit::api_id(api), conduit::api_name(api));
             size_t at = 0;
             for (size_t i = 0; i < apis.size(); i++)
                 if (apis[i].first == options.renderer)

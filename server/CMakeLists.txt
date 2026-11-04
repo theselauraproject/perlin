@@ -18,7 +18,7 @@ else()
 endif()
 
 option(PERLIN_SERVER_NETHERNET "NetherNet listener (libdatachannel + http signalling); without it only loopback connections work" ON)
-option(PERLIN_SERVER_GPU "GPU terrain generation through the RHI (needs src/rhi)" OFF)
+option(PERLIN_SERVER_GPU "GPU terrain generation through conduit" OFF)
 option(PERLIN_SERVER_EMBED "also build perlin_server_embed: the core without a wasm runtime, linked into the client (which brings its own)" OFF)
 option(PERLIN_SERVER_BUILD_SHARED "build the perlin_server shared library" ON)
 option(PERLIN_SERVER_BUILD_EXE "build the perlin-server executable" ON)
@@ -149,11 +149,10 @@ endif()
 
 if(PERLIN_SERVER_GPU)
     list(APPEND PS_SOURCES src/gpu/GpuTerrainRhi.cpp src/gpu/GpuVanillaRhi.cpp "${CMAKE_CURRENT_BINARY_DIR}/gpu/terrain_pack.cpp")
-    # the rhi (vulkan / d3d12 / metal behind one interface) is the client's own
-    if(NOT TARGET perlin_rhi)
-        set(PERLIN_RHI_D3D12 OFF CACHE BOOL "" FORCE)
-        set(PERLIN_RHI_STREAMLINE OFF CACHE BOOL "" FORCE)
-        add_subdirectory("${PERLIN_ROOT}/src/rhi" rhi)
+    if(NOT TARGET conduit::conduit)
+        set(CONDUIT_D3D12 OFF CACHE BOOL "" FORCE)
+        set(CONDUIT_STREAMLINE OFF CACHE BOOL "" FORCE)
+        include("${PERLIN_ROOT}/cmake/PerlinConduit.cmake")
     endif()
     # compute shader -> shader pack (spir-v for now) -> a byte array in the library
     set(PERLIN_SLANGC "" CACHE FILEPATH "slangc to compile the terrain shader with; fetched when empty")
@@ -182,13 +181,13 @@ if(PERLIN_SERVER_GPU)
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/gpu/slots.json" "{}")
     add_custom_command(
         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/gpu/terrain.pack" "${CMAKE_CURRENT_BINARY_DIR}/gpu/terrain_pack.cpp"
-        COMMAND "${Python3_EXECUTABLE}" -I "${PERLIN_ROOT}/tools/pack_shaders.py" --slangc "${PERLIN_SLANGC}"
+        COMMAND "${Python3_EXECUTABLE}" -I "${CONDUIT_PACK_SHADERS}" --slangc "${PERLIN_SLANGC}"
                 --slots "${CMAKE_CURRENT_BINARY_DIR}/gpu/slots.json" --targets spirv
                 -o "${CMAKE_CURRENT_BINARY_DIR}/gpu/terrain.pack" "${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/shaders/terrain_flat.slang"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/shaders/terrain_vanilla.slang"
         COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_bytes.py" "${CMAKE_CURRENT_BINARY_DIR}/gpu/terrain.pack"
                 "${CMAKE_CURRENT_BINARY_DIR}/gpu/terrain_pack.cpp" kTerrainShaderPack
-        DEPENDS src/gpu/shaders/terrain_flat.slang src/gpu/shaders/terrain_vanilla.slang tools/embed_bytes.py "${PERLIN_ROOT}/tools/pack_shaders.py"
+        DEPENDS src/gpu/shaders/terrain_flat.slang src/gpu/shaders/terrain_vanilla.slang tools/embed_bytes.py "${CONDUIT_PACK_SHADERS}"
         COMMENT "Compiling the terrain compute shader" VERBATIM)
 else()
     list(APPEND PS_SOURCES src/gpu/GpuTerrainStub.cpp)
@@ -222,7 +221,7 @@ foreach(t perlin_server_objects ${PS_LIBS})
         target_compile_definitions(${t} PRIVATE CPPHTTPLIB_THREAD_POOL_COUNT=16)
     endif()
     if(PERLIN_SERVER_GPU)
-        target_link_libraries(${t} PUBLIC perlin_rhi)
+        target_link_libraries(${t} PUBLIC conduit::conduit)
         target_compile_definitions(${t} PRIVATE PERLIN_SERVER_GPU=1)
     endif()
     if(WIN32)

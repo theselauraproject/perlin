@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     std::ifstream in(argv[1], std::ios::binary);
     const std::vector<uint8_t> pack{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
     gpu::GpuSettings settings;
-    settings.api = argc > 2 ? rhi::ApiFromId(argv[2]) : rhi::Api::Vulkan;
+    settings.api = argc > 2 ? conduit::api_from_id(argv[2]) : conduit::api::vulkan;
     settings.width = 128;
     settings.height = 96;
     settings.offscreen = true;
@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
     // everything on the gpu survives a device rebuild: mesh pages, atlas, lightmap
     // rebuild onto another api when asked, so the frames after it prove the switch
     const char* switchTo = std::getenv("PERLIN_TEST_SWITCH_TO");
-    Check(ctx.RebuildDevice(switchTo ? switchTo : rhi::ApiId(settings.api)), "device rebuilt");
+    Check(ctx.RebuildDevice(switchTo ? switchTo : conduit::api_id(settings.api)), "device rebuilt");
     Check(Frame(ctx, MakeFrame({0, 3, 0}, {0, 0, 0}, {0, 0, -1}, 128, 96), rgba, w, h),
           "frame after rebuild");
     if (!rgba.empty()) {

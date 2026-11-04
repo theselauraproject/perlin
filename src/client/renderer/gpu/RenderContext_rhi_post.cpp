@@ -15,8 +15,8 @@
 
 namespace perlin {
     namespace {
-        constexpr rhi::Format kPostColor = rhi::Format::RGBA8Unorm;
-        constexpr rhi::Format kPostDepth = rhi::Format::D32Float;
+        constexpr conduit::format kPostColor = conduit::format::rgba8_unorm;
+        constexpr conduit::format kPostDepth = conduit::format::d32_float;
 
         float Halton(uint32_t index, uint32_t base) {
             float f = 1.0f, r = 0.0f;
@@ -48,22 +48,22 @@ namespace perlin {
     // -- targets ----------------------------------------------------------------------------------------------------
 
     namespace {
-        rhi::TextureHandle MakeTarget(gpu::Gpu& gpu, uint32_t w, uint32_t h, rhi::Format format,
-                                      rhi::TextureUsage usage, const char* name) {
-            rhi::TextureDesc td;
+        conduit::texture_handle MakeTarget(gpu::Gpu& gpu, uint32_t w, uint32_t h, conduit::format format,
+                                      conduit::texture_usage usage, const char* name) {
+            conduit::texture_desc td;
             td.format = format;
             td.width = std::max(1u, w);
             td.height = std::max(1u, h);
             td.usage = usage;
             td.name = name;
-            const rhi::TextureHandle t = gpu.Dev().CreateTexture(td);
+            const conduit::texture_handle t = gpu.Dev().create_texture(td);
             if (t)
-                gpu.SetState(t, rhi::State::Undefined);
+                gpu.SetState(t, conduit::state::undefined);
             return t;
         }
 
-        constexpr rhi::TextureUsage kColorRt = rhi::TextureUsage::ColorTarget | rhi::TextureUsage::Sampled |
-                                               rhi::TextureUsage::CopySrc | rhi::TextureUsage::CopyDst;
+        constexpr conduit::texture_usage kColorRt = conduit::texture_usage::color_target | conduit::texture_usage::sampled |
+                                               conduit::texture_usage::copy_src | conduit::texture_usage::copy_dst;
     }
 
     bool RenderContext_rhi::JavaChainReady() const {
@@ -78,21 +78,21 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::EnsureJavaChainTargets(uint32_t w, uint32_t h) {
-        const rhi::Format kPostColor = javaActive ? rhi::Format::RGBA16Float : rhi::Format::RGBA8Unorm;
+        const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         if (post.javaC1 && post.javaChainW == w && post.javaChainH == h)
             return true;
-        gpu.Dev().WaitIdle();
-        for (rhi::TextureHandle* t : {&post.javaC1, &post.javaC2, &post.javaC3, &post.javaC4, &post.javaC5,
+        gpu.Dev().wait_idle();
+        for (conduit::texture_handle* t : {&post.javaC1, &post.javaC2, &post.javaC3, &post.javaC4, &post.javaC5,
                                       &post.javaC7, &post.javaTempA, &post.javaTempB, &post.javaTempC}) {
             if (*t)
                 gpu.DestroyTexture(*t);
             *t = {};
         }
         postTextures.erase(
-            std::remove_if(postTextures.begin(), postTextures.end(), [](rhi::TextureHandle t) { return !t; }),
+            std::remove_if(postTextures.begin(), postTextures.end(), [](conduit::texture_handle t) { return !t; }),
             postTextures.end());
         const auto make = [&](const char* name) {
-            rhi::TextureHandle t = MakeTarget(gpu, w, h, kPostColor, kColorRt, name);
+            conduit::texture_handle t = MakeTarget(gpu, w, h, kPostColor, kColorRt, name);
             if (t)
                 postTextures.push_back(t);
             return t;
@@ -118,7 +118,7 @@ namespace perlin {
     }
 
     void RenderContext_rhi::BuildJavaChainStages() {
-        const rhi::Format kPostColor = javaActive ? rhi::Format::RGBA16Float : rhi::Format::RGBA8Unorm;
+        const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         const uint32_t w = static_cast<uint32_t>(plan.w), h = static_cast<uint32_t>(plan.h);
         if (post.javaChainClear) {
             for (auto texture : {post.javaC1, post.javaC2, post.javaC3, post.javaC5, post.javaC7}) {
@@ -134,7 +134,7 @@ namespace perlin {
         }
         // each program renders into temps, then copies land in the colortex
         // buffers: passes both read and write the same buffers
-        const auto pushCopy = [&](rhi::TextureHandle src, rhi::TextureHandle dst) {
+        const auto pushCopy = [&](conduit::texture_handle src, conduit::texture_handle dst) {
             Stage c;
             c.kind = Stage::Kind::Copy;
             c.copySrc = src;
@@ -182,7 +182,7 @@ namespace perlin {
         const struct {
             Program program;
             View view;
-            rhi::TextureHandle d0, d1;
+            conduit::texture_handle d0, d1;
         } rest[] = {
             {Program::JavaComposite, View::JavaComposite, post.javaC7, post.javaC1},
             {Program::JavaComposite1, View::JavaComposite1, post.worldColor, post.javaC5},
@@ -217,12 +217,12 @@ namespace perlin {
         {
             ViewData& vd = views[static_cast<size_t>(View::JavaFinal)];
             vd.colorFormat = gpu.TargetFormat();
-            vd.depthFormat = rhi::Format::Unknown;
+            vd.depthFormat = conduit::format::unknown;
         }
     }
 
     void RenderContext_rhi::DestroyPostTargets() {
-        for (rhi::TextureHandle* t :
+        for (conduit::texture_handle* t :
              {&post.worldColor, &post.worldDepth, &post.hist[0],    &post.hist[1], &post.bloom[0],
               &post.bloom[1],   &post.bloom[2],   &post.bloom[3],   &post.up[0],   &post.up[1],
               &post.up[2],      &post.sceneColor, &post.sceneDepth, &post.javaAux, &post.javaC1,
@@ -239,16 +239,16 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::EnsureWorldTargets(uint32_t w, uint32_t h, bool, bool history) {
-        const rhi::Format kPostColor = javaActive ? rhi::Format::RGBA16Float : rhi::Format::RGBA8Unorm;
+        const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         if (post.worldColor && post.worldW == w && post.worldH == h && (!history || post.hist[0]))
             return true;
         // a size change drops everything built for the old size
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         DestroyPostTargets();
         post.worldColor = MakeTarget(gpu, w, h, kPostColor, kColorRt, "world color");
         post.worldDepth = MakeTarget(gpu, w, h, kPostDepth,
-                                     rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled |
-                                         rhi::TextureUsage::CopySrc,
+                                     conduit::texture_usage::depth_target | conduit::texture_usage::sampled |
+                                         conduit::texture_usage::copy_src,
                                      "world depth");
         post.worldW = w;
         post.worldH = h;
@@ -266,7 +266,7 @@ namespace perlin {
         }
         postTextures = {post.worldColor, post.worldDepth, post.hist[0], post.hist[1]};
         postTextures.erase(
-            std::remove_if(postTextures.begin(), postTextures.end(), [](rhi::TextureHandle t) { return !t; }),
+            std::remove_if(postTextures.begin(), postTextures.end(), [](conduit::texture_handle t) { return !t; }),
             postTextures.end());
         return true;
     }
@@ -297,14 +297,14 @@ namespace perlin {
         if (post.up[0] && post.upW == static_cast<uint32_t>(width) &&
             post.upH == static_cast<uint32_t>(height))
             return true;
-        for (rhi::TextureHandle& t : post.up)
+        for (conduit::texture_handle& t : post.up)
             if (t) {
-                gpu.Dev().WaitIdle();
+                gpu.Dev().wait_idle();
                 gpu.DestroyTexture(t);
                 t = {};
             }
         postTextures.erase(std::remove_if(postTextures.begin(), postTextures.end(),
-                                          [&](rhi::TextureHandle t) {
+                                          [&](conduit::texture_handle t) {
                                               return t == post.up[0] || t == post.up[1] || t == post.up[2];
                                           }),
                            postTextures.end());
@@ -312,7 +312,7 @@ namespace perlin {
             i = MakeTarget(gpu, static_cast<uint32_t>(width), static_cast<uint32_t>(height), kPostColor,
                            kColorRt, "upscaled");
             if (!i) {
-                for (rhi::TextureHandle& t : post.up)
+                for (conduit::texture_handle& t : post.up)
                     if (t) {
                         gpu.DestroyTexture(t);
                         t = {};
@@ -329,19 +329,19 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::EnsureSceneTargets() {
-        const rhi::Format kPostColor = javaActive ? rhi::Format::RGBA16Float : rhi::Format::RGBA8Unorm;
+        const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         if (post.sceneColor && post.sceneColor && post.worldW)
             return true;
         post.sceneColor =
             MakeTarget(gpu, post.worldW, post.worldH, kPostColor,
-                       rhi::TextureUsage::Sampled | rhi::TextureUsage::CopyDst | rhi::TextureUsage::CopySrc,
+                       conduit::texture_usage::sampled | conduit::texture_usage::copy_dst | conduit::texture_usage::copy_src,
                        "scene color");
         post.sceneDepth = MakeTarget(gpu, post.worldW, post.worldH, kPostDepth,
-                                     rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled |
-                                         rhi::TextureUsage::CopyDst,
+                                     conduit::texture_usage::depth_target | conduit::texture_usage::sampled |
+                                         conduit::texture_usage::copy_dst,
                                      "scene depth");
         if (!post.sceneColor || !post.sceneDepth) {
-            for (rhi::TextureHandle* t : {&post.sceneColor, &post.sceneDepth})
+            for (conduit::texture_handle* t : {&post.sceneColor, &post.sceneDepth})
                 if (*t) {
                     gpu.DestroyTexture(*t);
                     *t = {};
@@ -356,7 +356,7 @@ namespace perlin {
     // -- planning ---------------------------------------------------------------------------------------------------
 
     void RenderContext_rhi::PlanPost(const FrameParams& params) {
-        const rhi::Format kPostColor = javaActive ? rhi::Format::RGBA16Float : rhi::Format::RGBA8Unorm;
+        const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         plan = PostPlan{};
         stages.clear();
         shadowStages.clear();
@@ -415,7 +415,7 @@ namespace perlin {
 
         if (!plan.active) {
             if (post.worldColor) {
-                gpu.Dev().WaitIdle();
+                gpu.Dev().wait_idle();
                 DestroyPostTargets();
             }
             PlanPackUpscale(params);
@@ -434,8 +434,8 @@ namespace perlin {
         const bool bloomRun = plan.bloom && EnsureBloomTargets();
         plan.bloom = bloomRun;
         if (!plan.bloom && post.bloom[0]) {
-            gpu.Dev().WaitIdle();
-            for (rhi::TextureHandle& t : post.bloom) {
+            gpu.Dev().wait_idle();
+            for (conduit::texture_handle& t : post.bloom) {
                 postTextures.erase(std::remove(postTextures.begin(), postTextures.end(), t),
                                    postTextures.end());
                 gpu.DestroyTexture(t);
@@ -564,7 +564,7 @@ namespace perlin {
                 stages.push_back(s);
                 ViewData& vd = views[static_cast<size_t>(pass.view)];
                 vd.colorFormat = kPostColor;
-                vd.depthFormat = rhi::Format::Unknown;
+                vd.depthFormat = conduit::format::unknown;
             }
         }
 
@@ -580,7 +580,7 @@ namespace perlin {
             stages.push_back(s);
             ViewData& vd = views[static_cast<size_t>(View::Blur)];
             vd.colorFormat = kPostColor;
-            vd.depthFormat = rhi::Format::Unknown;
+            vd.depthFormat = conduit::format::unknown;
         }
 
         const bool spatial = !plan.temporal && plan.scaled && params.upscaler != 0 && !noUpscale &&
@@ -600,7 +600,7 @@ namespace perlin {
             stages.push_back(s);
             ViewData& vd = views[static_cast<size_t>(View::Up0)];
             vd.colorFormat = kPostColor;
-            vd.depthFormat = rhi::Format::Unknown;
+            vd.depthFormat = conduit::format::unknown;
             if (params.upscaleSharpness > 0.001f && ProgramIndex(Program::Upscale) >= 0) {
                 Stage sharp;
                 sharp.target.color = post.up[plan.temporal ? 2 : 1];
@@ -612,7 +612,7 @@ namespace perlin {
                 stages.push_back(sharp);
                 ViewData& v1 = views[static_cast<size_t>(View::Up1)];
                 v1.colorFormat = kPostColor;
-                v1.depthFormat = rhi::Format::Unknown;
+                v1.depthFormat = conduit::format::unknown;
             }
         }
         if (!upscaled && plan.scaled) {
@@ -627,7 +627,7 @@ namespace perlin {
         {
             ViewData& vd = views[static_cast<size_t>(View::BlurOut)];
             vd.colorFormat = gpu.TargetFormat();
-            vd.depthFormat = rhi::Format::Unknown;
+            vd.depthFormat = conduit::format::unknown;
         }
         overlays();
     }
@@ -640,7 +640,7 @@ namespace perlin {
                           ProgramIndex(Program::Upscale) >= 0 && width > 0 && height > 0;
         if (!want) {
             if (post.packLow) {
-                gpu.Dev().WaitIdle();
+                gpu.Dev().wait_idle();
                 postTextures.erase(std::remove(postTextures.begin(), postTextures.end(), post.packLow),
                                    postTextures.end());
                 gpu.DestroyTexture(post.packLow);
@@ -653,12 +653,12 @@ namespace perlin {
         const uint32_t ih = std::max(1u, static_cast<uint32_t>(static_cast<float>(height) * scale));
         if (!post.packLow || post.packLowW != iw || post.packLowH != ih) {
             if (post.packLow) {
-                gpu.Dev().WaitIdle();
+                gpu.Dev().wait_idle();
                 postTextures.erase(std::remove(postTextures.begin(), postTextures.end(), post.packLow),
                                    postTextures.end());
                 gpu.DestroyTexture(post.packLow);
             }
-            post.packLow = MakeTarget(gpu, iw, ih, rhi::Format::RGBA8Unorm, kColorRt, "pack low resolution");
+            post.packLow = MakeTarget(gpu, iw, ih, conduit::format::rgba8_unorm, kColorRt, "pack low resolution");
             post.packLowW = post.packLow ? iw : 0;
             post.packLowH = post.packLow ? ih : 0;
             if (!post.packLow)
@@ -696,8 +696,8 @@ namespace perlin {
         const uint32_t W = static_cast<uint32_t>(width), H = static_cast<uint32_t>(height);
         const float sharp = std::clamp(params.upscaleSharpness, 0.0f, 1.0f);
         const float mode = jpackUpscaler == 1 ? 0.0f : 1.0f;
-        const auto pass = [&](View view, rhi::TextureHandle from, float m, uint32_t fromW, uint32_t fromH,
-                              rhi::Format format) {
+        const auto pass = [&](View view, conduit::texture_handle from, float m, uint32_t fromW, uint32_t fromH,
+                              conduit::format format) {
             uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
             uni.Vec4("u_up", m, sharp, 0.0f, 0.0f);
             uni.Vec4("u_upSize", static_cast<float>(fromW), static_cast<float>(fromH), static_cast<float>(W),
@@ -716,30 +716,30 @@ namespace perlin {
 
     // -- recording --------------------------------------------------------------------------------------------------
 
-    void RenderContext_rhi::FullscreenPass(View view, Program program, rhi::Format colorFormat, uint32_t w,
+    void RenderContext_rhi::FullscreenPass(View view, Program program, conduit::format colorFormat, uint32_t w,
                                            uint32_t h, bool additive) {
         ViewData& vd = views[static_cast<size_t>(view)];
         vd.x = vd.y = 0;
         vd.w = w;
         vd.h = h;
         vd.colorFormat = colorFormat;
-        vd.depthFormat = rhi::Format::Unknown;
-        DrawState s = Base(program, false, false, rhi::CompareOp::Always);
+        vd.depthFormat = conduit::format::unknown;
+        DrawState s = Base(program, false, false, conduit::compare_op::always);
         s.layout = gpu::VertexLayout::Position;
-        s.mask = rhi::ColorMask::All;
-        s.cull = rhi::CullMode::None;
+        s.mask = conduit::color_mask::all;
+        s.cull = conduit::cull_mode::none;
         if (additive) {
             s.blend = true;
-            s.srcColor = s.srcAlpha = rhi::BlendFactor::One;
-            s.dstColor = s.dstAlpha = rhi::BlendFactor::One;
+            s.srcColor = s.srcAlpha = conduit::blend_factor::one;
+            s.dstColor = s.dstAlpha = conduit::blend_factor::one;
         }
-        Submit(view, s, {screenTri, 0}, nullptr, rhi::IndexType::U32, 0, 3);
+        Submit(view, s, {screenTri, 0}, nullptr, conduit::index_type::u32, 0, 3);
     }
 
     void RenderContext_rhi::RecordBloom(float strength) {
         const float threshold = 0.82f - 0.12f * std::clamp(strength, 0.0f, 1.0f);
         const float W = static_cast<float>(std::max(1, width)), H = static_cast<float>(std::max(1, height));
-        const auto pass = [&](View view, int target, rhi::TextureHandle source, float sourceScale, float mode,
+        const auto pass = [&](View view, int target, conduit::texture_handle source, float sourceScale, float mode,
                               bool additive) {
             uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
             uni.Vec4("u_bloomParams", mode, threshold, 0.18f, 0.0f);
@@ -761,13 +761,13 @@ namespace perlin {
         pass(View::Bloom6, 0, post.bloom[1], 4.0f, 2.0f, true);
     }
 
-    rhi::TextureHandle RenderContext_rhi::RecordUpscale(rhi::TextureHandle source, uint32_t sourceW,
+    conduit::texture_handle RenderContext_rhi::RecordUpscale(conduit::texture_handle source, uint32_t sourceW,
                                                         uint32_t sourceH) {
         const FrameParams& params = frame;
         const float sharp = std::clamp(params.upscaleSharpness, 0.0f, 1.0f);
         const bool sharpen = sharp > 0.001f && ProgramIndex(Program::Upscale) >= 0;
         const uint32_t W = static_cast<uint32_t>(width), H = static_cast<uint32_t>(height);
-        const auto spatialPass = [&](View view, rhi::TextureHandle from, float mode, uint32_t fromW,
+        const auto spatialPass = [&](View view, conduit::texture_handle from, float mode, uint32_t fromW,
                                      uint32_t fromH) {
             uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
             uni.Vec4("u_up", mode, sharp, 0.0f, 0.0f);
@@ -846,8 +846,8 @@ namespace perlin {
             weight = 0.0f;
         const int write = 1 - post.read;
 
-        const auto fullscreen = [&](View view, rhi::TextureHandle cur, rhi::TextureHandle hist, float w,
-                                    float dir, uint32_t outW, uint32_t outH, rhi::Format fmt) {
+        const auto fullscreen = [&](View view, conduit::texture_handle cur, conduit::texture_handle hist, float w,
+                                    float dir, uint32_t outW, uint32_t outH, conduit::format fmt) {
             uni.Vec4("u_post", w, kOrigin, menuPx, dir);
             const bool underwater = view == View::BlurOut && packActive && params.cameraMedium == 1;
             uni.Vec4("u_postFx", underwater ? 1.0f : 0.0f, std::fmod(params.timeSeconds, 3600.0f), 0.0f,
@@ -862,7 +862,7 @@ namespace perlin {
             ResetBindings();
         };
 
-        rhi::TextureHandle shown = post.worldColor;
+        conduit::texture_handle shown = post.worldColor;
         if (plan.blur) {
             fullscreen(View::Blur, post.worldColor, post.hist[post.read], weight, 0.0f, worldW, worldH,
                        kPostColor);
@@ -885,7 +885,7 @@ namespace perlin {
     }
 
     void RenderContext_rhi::DestroyFrameGenTargets() {
-        for (rhi::TextureHandle* t : {&fgen.final, &fgen.hudless, &fgen.depth})
+        for (conduit::texture_handle* t : {&fgen.final, &fgen.hudless, &fgen.depth})
             if (*t) {
                 gpu.DestroyTexture(*t);
                 *t = {};
@@ -895,18 +895,18 @@ namespace perlin {
         fgen.valid = false;
     }
 
-    bool RenderContext_rhi::EnsureFrameGenTargets(uint32_t w, uint32_t h, rhi::Format format) {
+    bool RenderContext_rhi::EnsureFrameGenTargets(uint32_t w, uint32_t h, conduit::format format) {
         if (fgen.final && fgen.w == w && fgen.h == h && fgen.format == format)
             return true;
         if (fgen.final)
-            gpu.Dev().WaitIdle();
+            gpu.Dev().wait_idle();
         DestroyFrameGenTargets();
-        const rhi::TextureUsage colorUsage = rhi::TextureUsage::Sampled | rhi::TextureUsage::CopyDst;
+        const conduit::texture_usage colorUsage = conduit::texture_usage::sampled | conduit::texture_usage::copy_dst;
         fgen.final = MakeTarget(gpu, w, h, format, colorUsage, "framegen final");
         fgen.hudless = MakeTarget(gpu, w, h, format, colorUsage, "framegen hudless");
         fgen.depth = MakeTarget(gpu, w, h, kPostDepth,
-                                rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled |
-                                    rhi::TextureUsage::CopyDst,
+                                conduit::texture_usage::depth_target | conduit::texture_usage::sampled |
+                                    conduit::texture_usage::copy_dst,
                                 "framegen depth");
         fgen.w = w;
         fgen.h = h;
@@ -919,14 +919,14 @@ namespace perlin {
         return true;
     }
 
-    bool RenderContext_rhi::FrameGenWanted(rhi::TextureHandle image) const {
+    bool RenderContext_rhi::FrameGenWanted(conduit::texture_handle image) const {
         if (frame.frameGen < 2 || !CanGenerateFrames() || !image)
             return false;
-        const rhi::TextureDesc* d = const_cast<gpu::Gpu&>(gpu).Dev().GetDesc(image);
+        const conduit::texture_desc* d = const_cast<gpu::Gpu&>(gpu).Dev().get_desc(image);
         if (!d)
             return false;
-        const bool copyable = rhi::Has(d->usage, rhi::TextureUsage::CopySrc) ||
-                              const_cast<gpu::Gpu&>(gpu).Api() == rhi::Api::D3D12;
+        const bool copyable = conduit::has(d->usage, conduit::texture_usage::copy_src) ||
+                              const_cast<gpu::Gpu&>(gpu).Api() == conduit::api::d3d12;
         if (!copyable && !fgenBlocked) {
             fgenBlocked = true;
             Log("render", "frame generation needs a swapchain that can be copied from; it stays off here");
@@ -934,15 +934,15 @@ namespace perlin {
         return copyable;
     }
 
-    void RenderContext_rhi::CaptureHudless(rhi::CommandList& list, const Target& screen) {
-        const auto copy = [&](rhi::TextureHandle src, rhi::TextureHandle dst, uint32_t w, uint32_t h) {
-            gpu.Transition(list, src, rhi::State::CopySrc);
-            gpu.Transition(list, dst, rhi::State::CopyDst);
-            rhi::TextureCopy c;
+    void RenderContext_rhi::CaptureHudless(conduit::command_list& list, const Target& screen) {
+        const auto copy = [&](conduit::texture_handle src, conduit::texture_handle dst, uint32_t w, uint32_t h) {
+            gpu.Transition(list, src, conduit::state::copy_src);
+            gpu.Transition(list, dst, conduit::state::copy_dst);
+            conduit::texture_copy c;
             c.width = w;
             c.height = h;
-            list.CopyTexture(dst, src, std::span<const rhi::TextureCopy>(&c, 1));
-            gpu.Transition(list, dst, rhi::State::ShaderRead);
+            list.copy_texture(dst, src, std::span<const conduit::texture_copy>(&c, 1));
+            gpu.Transition(list, dst, conduit::state::shader_read);
         };
         copy(screen.color, fgen.hudless, fgen.w, fgen.h);
         if (plan.active && post.worldDepth) {
@@ -955,16 +955,16 @@ namespace perlin {
         }
     }
 
-    void RenderContext_rhi::CaptureFinal(rhi::CommandList& list, const Target& screen) {
+    void RenderContext_rhi::CaptureFinal(conduit::command_list& list, const Target& screen) {
         if (!fgen.depthSource)
             return;
-        gpu.Transition(list, screen.color, rhi::State::CopySrc);
-        gpu.Transition(list, fgen.final, rhi::State::CopyDst);
-        rhi::TextureCopy c;
+        gpu.Transition(list, screen.color, conduit::state::copy_src);
+        gpu.Transition(list, fgen.final, conduit::state::copy_dst);
+        conduit::texture_copy c;
         c.width = fgen.w;
         c.height = fgen.h;
-        list.CopyTexture(fgen.final, screen.color, std::span<const rhi::TextureCopy>(&c, 1));
-        gpu.Transition(list, fgen.final, rhi::State::ShaderRead);
+        list.copy_texture(fgen.final, screen.color, std::span<const conduit::texture_copy>(&c, 1));
+        gpu.Transition(list, fgen.final, conduit::state::shader_read);
         fgen.view = cam.view;
         fgen.prevView = cam.prevView;
         fgen.proj = cam.proj;
@@ -1020,7 +1020,7 @@ namespace perlin {
         float nearZ = 0.05f, farZ = 1.0e5f;
         DepthPlanes(fgen.proj, nearZ, farZ);
 
-        rhi::Device& dev = gpu.Dev();
+        conduit::device& dev = gpu.Dev();
         gpu.BeginFrame();
         uniformCache.assign(uniformCache.size(), {});
         for (ViewData& v : views)
@@ -1039,13 +1039,13 @@ namespace perlin {
         frameOpen = false;
 
         bool shown = false;
-        rhi::Swapchain::Image image;
+        conduit::swapchain::image image;
         if (!views[static_cast<size_t>(View::Top)].draws.empty() && gpu.AcquireImage(image)) {
-            if (rhi::CommandList* list = dev.AcquireCommandList(rhi::QueueType::Graphics)) {
-                gpu.SetState(image.texture, rhi::State::Undefined);
+            if (conduit::command_list* list = dev.acquire_command_list(conduit::queue_type::graphics)) {
+                gpu.SetState(image.texture, conduit::state::undefined);
                 gpu.Flush(*list);
-                for (rhi::TextureHandle tex : {fgen.hudless, fgen.final, fgen.depthSource})
-                    gpu.Transition(*list, tex, rhi::State::ShaderRead);
+                for (conduit::texture_handle tex : {fgen.hudless, fgen.final, fgen.depthSource})
+                    gpu.Transition(*list, tex, conduit::state::shader_read);
                 Stage s;
                 s.toScreen = true;
                 s.overwrite = true;
@@ -1055,27 +1055,27 @@ namespace perlin {
                 s.target.h = gpu.TargetHeight();
                 s.target.colorFormat = gpu.TargetFormat();
                 RunStage(*list, s);
-                gpu.Transition(*list, image.texture, rhi::State::Present);
+                gpu.Transition(*list, image.texture, conduit::state::present);
                 gpu.FlushRings();
-                dev.Submit(rhi::QueueType::Graphics, list);
+                dev.submit(conduit::queue_type::graphics, list);
                 gpu.PresentImage();
                 shown = true;
             }
         }
-        dev.EndFrame();
+        dev.end_frame();
         views[static_cast<size_t>(View::Top)].draws.clear();
         return shown;
     }
 
     // -- execution --------------------------------------------------------------------------------------------------
 
-    void RenderContext_rhi::ReadyForSampling(rhi::CommandList& list, rhi::TextureHandle except0,
-                                             rhi::TextureHandle except1) {
-        const auto ready = [&](rhi::TextureHandle t) {
-            if (t && t != except0 && t != except1 && gpu.StateOf(t) != rhi::State::Undefined)
-                gpu.Transition(list, t, rhi::State::ShaderRead);
+    void RenderContext_rhi::ReadyForSampling(conduit::command_list& list, conduit::texture_handle except0,
+                                             conduit::texture_handle except1) {
+        const auto ready = [&](conduit::texture_handle t) {
+            if (t && t != except0 && t != except1 && gpu.StateOf(t) != conduit::state::undefined)
+                gpu.Transition(list, t, conduit::state::shader_read);
         };
-        for (rhi::TextureHandle t : postTextures)
+        for (conduit::texture_handle t : postTextures)
             ready(t);
         for (const ShadowMap& m : shadow.maps) {
             ready(m.color);
@@ -1084,17 +1084,17 @@ namespace perlin {
         ready(shadow.entityColor);
     }
 
-    void RenderContext_rhi::RunStage(rhi::CommandList& list, const Stage& stage) {
+    void RenderContext_rhi::RunStage(conduit::command_list& list, const Stage& stage) {
         if (stage.kind == Stage::Kind::Copy) {
             if (!stage.copySrc || !stage.copyDst)
                 return;
-            gpu.Transition(list, stage.copySrc, rhi::State::CopySrc);
-            gpu.Transition(list, stage.copyDst, rhi::State::CopyDst);
-            rhi::TextureCopy c;
+            gpu.Transition(list, stage.copySrc, conduit::state::copy_src);
+            gpu.Transition(list, stage.copyDst, conduit::state::copy_dst);
+            conduit::texture_copy c;
             c.width = stage.copyW;
             c.height = stage.copyH;
-            list.CopyTexture(stage.copyDst, stage.copySrc, std::span<const rhi::TextureCopy>(&c, 1));
-            gpu.Transition(list, stage.copyDst, rhi::State::ShaderRead);
+            list.copy_texture(stage.copyDst, stage.copySrc, std::span<const conduit::texture_copy>(&c, 1));
+            gpu.Transition(list, stage.copyDst, conduit::state::shader_read);
             return;
         }
         size_t draws = 0;
@@ -1109,49 +1109,49 @@ namespace perlin {
         }
         const Target& target = stage.target;
         ReadyForSampling(list, target.color, target.depth);
-        gpu.Transition(list, target.color, rhi::State::ColorTarget);
+        gpu.Transition(list, target.color, conduit::state::color_target);
         if (target.color1)
-            gpu.Transition(list, target.color1, rhi::State::ColorTarget);
+            gpu.Transition(list, target.color1, conduit::state::color_target);
         if (target.color2)
-            gpu.Transition(list, target.color2, rhi::State::ColorTarget);
+            gpu.Transition(list, target.color2, conduit::state::color_target);
         if (target.depth)
-            gpu.Transition(list, target.depth, rhi::State::DepthWrite);
-        rhi::RenderingDesc rd;
-        rd.colorCount = target.color2 ? 3 : target.color1 ? 2 : 1;
+            gpu.Transition(list, target.depth, conduit::state::depth_write);
+        conduit::rendering_desc rd;
+        rd.color_count = target.color2 ? 3 : target.color1 ? 2 : 1;
         rd.colors[0].texture = target.color;
-        const rhi::LoadOp keep = stage.overwrite ? rhi::LoadOp::DontCare : rhi::LoadOp::Load;
-        rd.colors[0].load = stage.clearColor ? rhi::LoadOp::Clear : keep;
-        rd.colors[0].store = rhi::StoreOp::Store;
+        const conduit::load_op keep = stage.overwrite ? conduit::load_op::dont_care : conduit::load_op::load;
+        rd.colors[0].load = stage.clearColor ? conduit::load_op::clear : keep;
+        rd.colors[0].store = conduit::store_op::store;
         rd.colors[0].clear = {stage.clear[0], stage.clear[1], stage.clear[2], stage.clear[3]};
         if (target.color1) {
             rd.colors[1].texture = target.color1;
-            rd.colors[1].load = stage.clearColor ? rhi::LoadOp::Clear : keep;
-            rd.colors[1].store = rhi::StoreOp::Store;
+            rd.colors[1].load = stage.clearColor ? conduit::load_op::clear : keep;
+            rd.colors[1].store = conduit::store_op::store;
             rd.colors[1].clear = {0.0f, 0.0f, 0.0f, 1.0f};
         }
         if (target.color2) {
             rd.colors[2].texture = target.color2;
-            rd.colors[2].load = stage.clearColor ? rhi::LoadOp::Clear : keep;
-            rd.colors[2].store = rhi::StoreOp::Store;
+            rd.colors[2].load = stage.clearColor ? conduit::load_op::clear : keep;
+            rd.colors[2].store = conduit::store_op::store;
             rd.colors[2].clear = {0.0f, 0.0f, 0.0f, 1.0f};
         }
         if (target.depth) {
             rd.depth.texture = target.depth;
-            rd.depth.load = stage.clearDepth ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
-            rd.depth.store = stage.discardDepth ? rhi::StoreOp::DontCare : rhi::StoreOp::Store;
-            rd.depth.clearDepth = StageReversed(stage) ? 0.0f : 1.0f;
+            rd.depth.load = stage.clearDepth ? conduit::load_op::clear : conduit::load_op::load;
+            rd.depth.store = stage.discardDepth ? conduit::store_op::dont_care : conduit::store_op::store;
+            rd.depth.clear_depth = StageReversed(stage) ? 0.0f : 1.0f;
         }
         rd.name = "pass";
-        list.BeginRendering(rd);
+        list.begin_rendering(rd);
         for (View v : stage.views) {
             ViewData& vd = views[static_cast<size_t>(v)];
             if (vd.draws.empty())
                 continue;
-            list.SetViewport({static_cast<float>(vd.x), static_cast<float>(vd.y), static_cast<float>(vd.w),
+            list.set_viewport({static_cast<float>(vd.x), static_cast<float>(vd.y), static_cast<float>(vd.w),
                               static_cast<float>(vd.h), 0.0f, 1.0f});
-            list.SetScissor({static_cast<int32_t>(vd.x), static_cast<int32_t>(vd.y), vd.w, vd.h});
+            list.set_scissor({static_cast<int32_t>(vd.x), static_cast<int32_t>(vd.y), vd.w, vd.h});
             Replay(list, vd.draws);
         }
-        list.EndRendering();
+        list.end_rendering();
     }
 }

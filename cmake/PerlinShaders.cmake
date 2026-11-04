@@ -45,19 +45,19 @@ endif()
 
 # only what the enabled backends read: spirv (vulkan), dxil (d3d12), hlsl (d3d11), msl (metal), wgsl (webgpu)
 set(PERLIN_SHADER_TARGETS)
-if(PERLIN_RHI_VULKAN)
+if(CONDUIT_VULKAN)
     list(APPEND PERLIN_SHADER_TARGETS spirv)
 endif()
-if(PERLIN_RHI_D3D11)
+if(CONDUIT_D3D11)
     list(APPEND PERLIN_SHADER_TARGETS hlsl)
 endif()
-if(PERLIN_RHI_METAL)
+if(CONDUIT_METAL)
     list(APPEND PERLIN_SHADER_TARGETS msl)
 endif()
-if(PERLIN_RHI_WEBGPU)
+if(CONDUIT_WEBGPU)
     list(APPEND PERLIN_SHADER_TARGETS wgsl)
 endif()
-if(PERLIN_RHI_D3D12 AND NOT PERLIN_DXC_LIBS)
+if(CONDUIT_D3D12 AND NOT PERLIN_DXC_LIBS)
     if(CMAKE_HOST_WIN32)
         CPMAddPackage(NAME dxc
             URL "https://github.com/microsoft/DirectXShaderCompiler/releases/download/${PERLIN_DXC_RELEASE}/dxc_${PERLIN_DXC_STAMP}.zip"
@@ -71,7 +71,7 @@ if(PERLIN_RHI_D3D12 AND NOT PERLIN_DXC_LIBS)
     endif()
 endif()
 set(_dxc_args)
-if(PERLIN_RHI_D3D12)
+if(CONDUIT_D3D12)
     if(PERLIN_DXC_LIBS)
         list(APPEND PERLIN_SHADER_TARGETS dxil)
         set(_dxc_args --library-path "${PERLIN_DXC_LIBS}")
@@ -80,7 +80,7 @@ if(PERLIN_RHI_D3D12)
     endif()
 endif()
 if(NOT PERLIN_SHADER_TARGETS)
-    message(FATAL_ERROR "Perlin: no graphics backend enabled (PERLIN_RHI_VULKAN / D3D12 / D3D11 / METAL / WEBGPU)")
+    message(FATAL_ERROR "Perlin: no graphics backend enabled (CONDUIT_VULKAN / D3D12 / D3D11 / METAL / WEBGPU)")
 endif()
 list(JOIN PERLIN_SHADER_TARGETS "," _targets)
 
@@ -91,12 +91,12 @@ set(PERLIN_SHADER_PACK "${CMAKE_CURRENT_BINARY_DIR}/shaders/perlin_shaders.pack"
 add_custom_command(
     OUTPUT "${PERLIN_SHADER_PACK}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/shaders"
-    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/pack_shaders.py"
+    COMMAND "${Python3_EXECUTABLE}" "${CONDUIT_PACK_SHADERS}"
             --slangc "${PERLIN_SLANGC}" -I "${PERLIN_SLANG_ROOT}" -I "${PERLIN_RD_SHADER_DIR}" ${_dxc_args}
             --slots "${PERLIN_SLANG_ROOT}/texture_slots.json" --targets "${_targets}"
             --cache "${CMAKE_CURRENT_BINARY_DIR}/shaders/cache"
             -o "${PERLIN_SHADER_PACK}" "${PERLIN_SLANG_ROOT}/programs" "${PERLIN_RD_SHADER_DIR}"
-    DEPENDS ${PERLIN_SLANG_SOURCES} "${PERLIN_SLANG_ROOT}/texture_slots.json" "${CMAKE_CURRENT_SOURCE_DIR}/tools/pack_shaders.py"
+    DEPENDS ${PERLIN_SLANG_SOURCES} "${PERLIN_SLANG_ROOT}/texture_slots.json" "${CONDUIT_PACK_SHADERS}"
     COMMENT "Compiling slang shaders (${_targets})"
     VERBATIM)
 add_custom_target(perlin_shader_pack DEPENDS "${PERLIN_SHADER_PACK}")

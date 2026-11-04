@@ -1,5 +1,5 @@
 #pragma once
-#include "rhi/ShaderLibrary.hpp"
+#include <conduit/shader_library.hpp>
 
 #include <array>
 #include <cstdint>
@@ -73,13 +73,13 @@ namespace perlin::gpu {
             uint32_t bytes = 0;
         };
 
-        const Binder& For(const rhi::ProgramInfo& program, int index) {
+        const Binder& For(const conduit::program_info& program, int index) {
             if (binders.size() <= static_cast<size_t>(index))
                 binders.resize(static_cast<size_t>(index) + 1);
             Binder& b = binders[static_cast<size_t>(index)];
-            if (b.bytes == 0 && b.entries.empty() && program.uniformBytes) {
-                b.bytes = program.uniformBytes;
-                for (const rhi::UniformMember& m : program.uniforms) {
+            if (b.bytes == 0 && b.entries.empty() && program.uniform_bytes) {
+                b.bytes = program.uniform_bytes;
+                for (const conduit::uniform_member& m : program.uniforms) {
                     // arrays of vec4 / mat4 are all packed in the 32 float value slot
                     const uint32_t bytes = std::min<uint32_t>(m.bytes, kMaxFloats * 4);
                     b.entries.push_back({Id(m.name), m.offset, bytes});

@@ -5,7 +5,7 @@
 #include "client/resources/ShaderPack.hpp"
 #include "client/renderer/MaterialDb.hpp"
 #include "client/renderer/Tessellator.hpp"
-#include "rhi/DeviceProfile.hpp"
+#include <conduit/render_profile.hpp>
 #include "util/Env.hpp"
 #include "util/Paths.hpp"
 #include "util/Resources.hpp"
@@ -104,17 +104,17 @@ namespace perlin {
             return paths::DataDir() + "/render_failures.txt";
         }
 
-        std::vector<rhi::KnownFailure> ReadFailures() {
+        std::vector<conduit::known_failure> ReadFailures() {
             std::ifstream in(FailureFile());
             if (!in)
                 return {};
-            return rhi::ParseFailures(
+            return conduit::parse_failures(
                 std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()));
         }
 
-        void WriteFailures(const std::vector<rhi::KnownFailure>& failures) {
+        void WriteFailures(const std::vector<conduit::known_failure>& failures) {
             std::ofstream out(FailureFile(), std::ios::trunc);
-            out << rhi::SerializeFailures(failures);
+            out << conduit::serialize_failures(failures);
         }
     }
 
@@ -128,7 +128,7 @@ namespace perlin {
     }
 
     std::string RenderContext_rhi::GpuVendor() const {
-        return initialized ? rhi::VendorName(const_cast<gpu::Gpu&>(gpu).Caps().adapter.vendorId)
+        return initialized ? conduit::vendor_name(const_cast<gpu::Gpu&>(gpu).Caps().adapter.vendor_id)
                            : std::string();
     }
 
@@ -158,7 +158,7 @@ namespace perlin {
         nativeWindow = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(native.window));
         nativeDisplay = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(native.display));
         adapterName = gpu.Caps().adapter.name;
-        rendererName = rhi::ApiName(gpu.Api());
+        rendererName = conduit::api_name(gpu.Api());
         caveCulling = !PERLIN_ENV("PERLIN_NO_CAVECULL");
         Log("render", "{} on {}", rendererName, adapterName);
         meshes.Init(gpu);
@@ -170,10 +170,10 @@ namespace perlin {
     bool RenderContext_rhi::StartDevice(const std::string& forced, std::span<const uint8_t> pack,
                                         bool strict) {
         NativeWindowInfo native = platform->GetNativeWindowInfo();
-        rhi::UserChoice user;
-        user.api = forced == "auto" || forced.empty() ? rhi::Api::None : rhi::ApiFromId(forced);
+        conduit::user_choice user;
+        user.api = forced == "auto" || forced.empty() ? conduit::api::none : conduit::api_from_id(forced);
         if (forced == "opengl" || forced == "gl")
-            user.api = rhi::Api::None;
+            user.api = conduit::api::none;
 #if defined(_WIN32)
         constexpr bool kWindows = true, kApple = false;
 #elif defined(__APPLE__)
@@ -181,25 +181,25 @@ namespace perlin {
 #else
         constexpr bool kWindows = false, kApple = false;
 #endif
-        rhi::ProbeOptions probeOptions;
-        probeOptions.readCaps = true;
-        const rhi::Probe probe = rhi::ProbeSystem(probeOptions);
-        std::vector<rhi::KnownFailure> failures = ReadFailures();
-        const rhi::RenderProfile profile = rhi::ChooseProfile(probe, user, failures, kWindows, kApple);
+        conduit::probe_options probeOptions;
+        probeOptions.read_caps = true;
+        const conduit::probe probe = conduit::probe_system(probeOptions);
+        std::vector<conduit::known_failure> failures = ReadFailures();
+        const conduit::render_profile profile = conduit::choose_profile(probe, user, failures, kWindows, kApple);
         for (const std::string& reason : profile.reasons)
             Log("gpu", "{}", reason);
 
-        std::vector<std::pair<rhi::Api, uint32_t>> order;
-        if (profile.api != rhi::Api::None)
-            order.emplace_back(profile.api, profile.adapterIndex);
-        for (const rhi::Candidate& c : profile.fallbacks)
+        std::vector<std::pair<conduit::api, uint32_t>> order;
+        if (profile.api != conduit::api::none)
+            order.emplace_back(profile.api, profile.adapter_index);
+        for (const conduit::candidate& c : profile.fallbacks)
             order.emplace_back(c.adapter.api, c.adapter.index);
         if (strict)
             order.erase(std::remove_if(order.begin(), order.end(),
                                        [&](const auto& o) { return o.first != user.api; }),
                         order.end());
         else if (order.empty())
-            order.emplace_back(rhi::Api::Vulkan, 0);
+            order.emplace_back(conduit::api::vulkan, 0);
 
         for (const auto& [api, adapter] : order) {
             gpu::GpuSettings s;
@@ -211,12 +211,12 @@ namespace perlin {
             s.window = {native.window, native.display, native.wayland};
             s.width = static_cast<uint32_t>(std::max(1, width));
             s.height = static_cast<uint32_t>(std::max(1, height));
-            s.present = vsync ? rhi::PresentMode::Fifo
-                              : (profile.tearing ? rhi::PresentMode::Immediate : rhi::PresentMode::Mailbox);
-            s.framesInFlight = std::max(1u, profile.framesInFlight);
+            s.present = vsync ? conduit::present_mode::fifo
+                              : (profile.tearing ? conduit::present_mode::immediate : conduit::present_mode::mailbox);
+            s.framesInFlight = std::max(1u, profile.frames_in_flight);
             s.hdr = profile.hdr;
             std::string error;
-            pipelineBlobPath = paths::DataDir() + "/cache/pipelines_" + std::string(rhi::ApiName(api)) + "_" +
+            pipelineBlobPath = paths::DataDir() + "/cache/pipelines_" + std::string(conduit::api_name(api)) + "_" +
                                std::to_string(adapter) + ".bin";
             pipelineBlob.clear();
             if (!PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE")) {
@@ -229,17 +229,17 @@ namespace perlin {
             if (gpu.Init(s, pack, &error)) {
                 settings = gpu.Settings();
                 deviceTier = profile.tier;
-                if (api != profile.api || adapter != profile.adapterIndex)
-                    for (const rhi::Candidate& c : probe.candidates)
+                if (api != profile.api || adapter != profile.adapter_index)
+                    for (const conduit::candidate& c : probe.candidates)
                         if (c.adapter.api == api && c.adapter.index == adapter)
-                            deviceTier = std::min(profile.tier, rhi::TierFor(c));
+                            deviceTier = std::min(profile.tier, conduit::tier_for(c));
                 break;
             }
-            Log("render", "{} could not start: {}", rhi::ApiName(api), error);
+            Log("render", "{} could not start: {}", conduit::api_name(api), error);
             gpu.Shutdown();
-            for (const rhi::Candidate& c : probe.candidates)
+            for (const conduit::candidate& c : probe.candidates)
                 if (c.adapter.api == api && c.adapter.index == adapter)
-                    rhi::RecordFailure(failures, c.adapter);
+                    conduit::record_failure(failures, c.adapter);
             WriteFailures(failures);
         }
         return gpu.Chain() || gpu.OffscreenTexture();
@@ -257,7 +257,7 @@ namespace perlin {
         initialized = true;
         width = static_cast<int>(settings.width);
         height = static_cast<int>(settings.height);
-        rendererName = rhi::ApiName(gpu.Api());
+        rendererName = conduit::api_name(gpu.Api());
         adapterName = gpu.Caps().adapter.name;
         meshes.Init(gpu);
         return CreateStaticResources();
@@ -270,7 +270,7 @@ namespace perlin {
             cloudJob.wait();
             cloudJobRunning = false;
         }
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         SavePipelineCache();
         FinishReadbacks();
         {
@@ -289,14 +289,14 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::MakeTexture(TexRec& rec, uint32_t w, uint32_t h, uint32_t layers, uint32_t mips,
-                                        rhi::Format format, gpu::SamplerKind sampler, const char* name) {
+                                        conduit::format format, gpu::SamplerKind sampler, const char* name) {
         FreeTexture(rec);
-        rhi::TextureDesc td;
-        td.dim = layers > 1 ? rhi::TextureDim::Tex2DArray : rhi::TextureDim::Tex2D;
+        conduit::texture_desc td;
+        td.dim = layers > 1 ? conduit::texture_dim::tex2d_array : conduit::texture_dim::tex2d;
         td.format = format;
         td.width = w;
         td.height = h;
-        td.depthOrLayers = layers;
+        td.depth_or_layers = layers;
         td.mips = mips;
         td.name = name;
         rec.handle = gpu.CreateSampled(td);
@@ -347,7 +347,7 @@ namespace perlin {
         shaderReloadPending = false;
         if (want != packActive) {
             packActive = want;
-            gpu.Dev().WaitIdle();
+            gpu.Dev().wait_idle();
             gpu.ClearPipelines();
             if (!ResolvePrograms()) {
                 packActive = false;
@@ -364,11 +364,11 @@ namespace perlin {
 
         const auto upload = [&](const auto& vertices, const char* name) {
             return gpu.CreateStatic(vertices.data(), vertices.size() * sizeof(vertices[0]),
-                                    rhi::BufferUsage::Vertex, name);
+                                    conduit::buffer_usage::vertex, name);
         };
         const auto uploadIndices = [&](const std::vector<uint16_t>& indices, const char* name) {
             return gpu.CreateStatic(indices.data(), indices.size() * sizeof(uint16_t),
-                                    rhi::BufferUsage::Index, name);
+                                    conduit::buffer_usage::index, name);
         };
         const std::vector<PositionVertex> topSkyV = BuildSkyDisc(16.0f);
         // sky discs ride the terrain layout so converted java sky programs
@@ -426,7 +426,7 @@ namespace perlin {
         moonVerts = upload(BuildMoonQuads(), "moon");
         quadIdx = uploadIndices(QuadIndices(1), "quad");
 
-        if (!MakeTexture(lightmap, kLightmapSize, kLightmapSize, 1, 1, rhi::Format::RGBA8Unorm,
+        if (!MakeTexture(lightmap, kLightmapSize, kLightmapSize, 1, 1, conduit::format::rgba8_unorm,
                          gpu::SamplerKind::LinearClamp, "lightmap"))
             return false;
         const std::vector<uint8_t> blank(kLightmapBytes, 0);
@@ -441,12 +441,12 @@ namespace perlin {
         fgenBlocked = false;
         post.failed = false;
         DestroyShadows();
-        for (rhi::BufferHandle* b :
+        for (conduit::buffer_handle* b :
              {&topSky, &bottomSky, &skyBox, &skyBoxIdx, &screenTri, &starVerts, &starIdx, &sunriseVerts,
               &sunriseIdx, &sunVerts, &moonVerts, &quadIdx, &fanIdx}) {
             if (*b) {
                 gpu.ForgetBuffer(*b);
-                dev.Destroy(*b);
+                dev.destroy(*b);
             }
             *b = {};
         }
@@ -468,13 +468,13 @@ namespace perlin {
         if (screenDepth && screenDepthW == w && screenDepthH == h)
             return true;
         DestroyScreenTargets();
-        rhi::TextureDesc td;
-        td.format = rhi::Format::D32Float;
+        conduit::texture_desc td;
+        td.format = conduit::format::d32_float;
         td.width = w;
         td.height = h;
-        td.usage = rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled | rhi::TextureUsage::CopySrc;
+        td.usage = conduit::texture_usage::depth_target | conduit::texture_usage::sampled | conduit::texture_usage::copy_src;
         td.name = "screen depth";
-        screenDepth = gpu.Dev().CreateTexture(td);
+        screenDepth = gpu.Dev().create_texture(td);
         screenDepthW = w;
         screenDepthH = h;
         return static_cast<bool>(screenDepth);
@@ -495,9 +495,9 @@ namespace perlin {
     void RenderContext_rhi::ApplyPresentMode(bool generating) {
         if (!initialized || offscreen)
             return;
-        const rhi::PresentMode want = vsync ? rhi::PresentMode::Fifo
-                                      : generating || !gpu.Caps().features.tearing ? rhi::PresentMode::Mailbox
-                                                                                   : rhi::PresentMode::Immediate;
+        const conduit::present_mode want = vsync ? conduit::present_mode::fifo
+                                      : generating || !gpu.Caps().features.tearing ? conduit::present_mode::mailbox
+                                                                                   : conduit::present_mode::immediate;
         if (presentApplied == static_cast<int>(want))
             return;
         presentApplied = static_cast<int>(want);
@@ -511,7 +511,7 @@ namespace perlin {
         out.adapter = adapterName;
         out.window = nativeWindow;
         out.display = nativeDisplay;
-        const rhi::NativeHandles h = const_cast<gpu::Gpu&>(gpu).Dev().Native();
+        const conduit::native_handles h = const_cast<gpu::Gpu&>(gpu).Dev().native();
         out.device = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(h.device));
         return true;
     }
@@ -558,9 +558,9 @@ namespace perlin {
         uni.Mat4("u_mvp", columnMajor);
     }
 
-    void RenderContext_rhi::BindTexture(const char* name, rhi::TextureHandle texture,
+    void RenderContext_rhi::BindTexture(const char* name, conduit::texture_handle texture,
                                         gpu::SamplerKind sampler) {
-        const rhi::TextureSlot* slot = gpu.Library().FindTexture(name);
+        const conduit::texture_slot* slot = gpu.Library().find_texture(name);
         if (!slot || !texture)
             return;
         bound.texture[slot->slot] = texture;
@@ -573,7 +573,7 @@ namespace perlin {
             return false;
         ViewData& vd = views[static_cast<size_t>(view)];
         const gpu::PipelineKey key = KeyFor(vd, state);
-        const rhi::PipelineHandle pipeline = gpu.Pipeline(key);
+        const conduit::pipeline_handle pipeline = gpu.Pipeline(key);
         if (!pipeline)
             return false;
 
@@ -600,8 +600,8 @@ namespace perlin {
 
         dc = {};
         dc.pipeline = pipeline;
-        const rhi::ProgramInfo& info = gpu.ProgramInfo(program);
-        if (info.uniformBytes) {
+        const conduit::program_info& info = gpu.ProgramInfo(program);
+        if (info.uniform_bytes) {
             if (uniformCache.size() <= static_cast<size_t>(program))
                 uniformCache.resize(static_cast<size_t>(program) + 1);
             UniformCache& cache = uniformCache[static_cast<size_t>(program)];
@@ -611,7 +611,7 @@ namespace perlin {
                 dc.uniformOffset = cache.offset;
             } else {
                 const gpu::UniformStore::Binder& binder = uni.For(info, program);
-                const gpu::RingSlice slice = gpu.Ring(info.uniformBytes, 256);
+                const gpu::RingSlice slice = gpu.Ring(info.uniform_bytes, 256);
                 if (!slice.data)
                     return false;
                 uni.Write(binder, slice.data);
@@ -631,8 +631,8 @@ namespace perlin {
     }
 
     void RenderContext_rhi::Push(View view, const DrawCall& templ, const Source& vertices,
-                                 const Source* indices, rhi::IndexType indexType, uint32_t first,
-                                 uint32_t count, const rhi::Rect* scissor) {
+                                 const Source* indices, conduit::index_type indexType, uint32_t first,
+                                 uint32_t count, const conduit::rect* scissor) {
         DrawCall dc = templ;
         dc.vertices = vertices.buffer;
         dc.vertexOffset = vertices.offset;
@@ -652,19 +652,19 @@ namespace perlin {
 
     bool RenderContext_rhi::UseMultiDraw() const {
         static const bool off = PERLIN_ENV("PERLIN_NO_MDI") != nullptr;
-        return !off && gpu.Caps().features.multiDrawIndirect;
+        return !off && gpu.Caps().features.multi_draw_indirect;
     }
 
-    bool RenderContext_rhi::PushRuns(View view, const DrawCall& templ, rhi::BufferHandle vertexBuffer,
-                                     rhi::BufferHandle indexBuffer, const std::vector<gpu::ChunkMeshStore::Run>& list,
+    bool RenderContext_rhi::PushRuns(View view, const DrawCall& templ, conduit::buffer_handle vertexBuffer,
+                                     conduit::buffer_handle indexBuffer, const std::vector<gpu::ChunkMeshStore::Run>& list,
                                      size_t begin, size_t end) {
         const size_t n = end - begin;
         if (n < 2)
             return false;
-        const gpu::RingSlice slice = gpu.Ring(n * sizeof(rhi::DrawIndexedIndirectCommand), 16);
+        const gpu::RingSlice slice = gpu.Ring(n * sizeof(conduit::draw_indexed_indirect_command), 16);
         if (!slice.data)
             return false;
-        auto* cmds = reinterpret_cast<rhi::DrawIndexedIndirectCommand*>(slice.data);
+        auto* cmds = reinterpret_cast<conduit::draw_indexed_indirect_command*>(slice.data);
         for (size_t i = 0; i < n; i++)
             cmds[i] = {list[begin + i].count, 1, list[begin + i].first, 0, 0};
         DrawCall dc = templ;
@@ -672,7 +672,7 @@ namespace perlin {
         dc.vertexOffset = 0;
         dc.indices = indexBuffer;
         dc.indexOffset = 0;
-        dc.indexType = rhi::IndexType::U32;
+        dc.indexType = conduit::index_type::u32;
         dc.indirect = slice.buffer;
         dc.indirectOffset = slice.offset;
         dc.indirectDraws = static_cast<uint32_t>(n);
@@ -681,67 +681,67 @@ namespace perlin {
     }
 
     void RenderContext_rhi::Submit(View view, const DrawState& state, const Source& vertices,
-                                   const Source* indices, rhi::IndexType indexType, uint32_t first,
-                                   uint32_t count, const rhi::Rect* scissor) {
+                                   const Source* indices, conduit::index_type indexType, uint32_t first,
+                                   uint32_t count, const conduit::rect* scissor) {
         DrawCall dc;
         if (count && vertices.buffer && (!indices || indices->buffer) && Prepare(view, state, dc))
             Push(view, dc, vertices, indices, indexType, first, count, scissor);
         ResetBindings();
     }
 
-    void RenderContext_rhi::Replay(rhi::CommandList& list, const std::vector<DrawCall>& draws) {
-        rhi::PipelineHandle pipeline;
-        rhi::BindGroupHandle textures;
-        rhi::BufferHandle vb, ib;
+    void RenderContext_rhi::Replay(conduit::command_list& list, const std::vector<DrawCall>& draws) {
+        conduit::pipeline_handle pipeline;
+        conduit::bind_group_handle textures;
+        conduit::buffer_handle vb, ib;
         uint64_t vbo = 0, ibo = 0;
-        rhi::IndexType it = rhi::IndexType::U32;
+        conduit::index_type it = conduit::index_type::u32;
         uint32_t chunk = ~0u;
         uint32_t boundOffset = ~0u;
         bool scissored = false;
         for (const DrawCall& dc : draws) {
             bool pipelineChanged = false;
             if (dc.pipeline != pipeline) {
-                list.SetPipeline(dc.pipeline);
+                list.set_pipeline(dc.pipeline);
                 pipeline = dc.pipeline;
                 pipelineChanged = true;
             }
             if (pipelineChanged || dc.uniformChunk != chunk || dc.uniformOffset != boundOffset) {
                 const uint32_t offset = dc.uniformOffset;
-                list.SetBindGroup(0, gpu.UniformGroup(dc.uniformChunk), std::span<const uint32_t>(&offset, 1));
+                list.set_bind_group(0, gpu.UniformGroup(dc.uniformChunk), std::span<const uint32_t>(&offset, 1));
                 chunk = dc.uniformChunk;
                 boundOffset = offset;
             }
             if (pipelineChanged || dc.textures != textures) {
-                list.SetBindGroup(1, dc.textures);
+                list.set_bind_group(1, dc.textures);
                 textures = dc.textures;
             }
             if (dc.vertices != vb || dc.vertexOffset != vbo) {
-                list.SetVertexBuffer(0, dc.vertices, dc.vertexOffset);
+                list.set_vertex_buffer(0, dc.vertices, dc.vertexOffset);
                 vb = dc.vertices;
                 vbo = dc.vertexOffset;
             }
             if (dc.indices) {
                 if (dc.indices != ib || dc.indexOffset != ibo || dc.indexType != it) {
-                    list.SetIndexBuffer(dc.indices, dc.indexType, dc.indexOffset);
+                    list.set_index_buffer(dc.indices, dc.indexType, dc.indexOffset);
                     ib = dc.indices;
                     ibo = dc.indexOffset;
                     it = dc.indexType;
                 }
             }
             if (dc.scissor) {
-                list.SetScissor(dc.rect);
+                list.set_scissor(dc.rect);
                 scissored = true;
             } else if (scissored) {
-                list.SetScissor({0, 0, gpu.TargetWidth(), gpu.TargetHeight()});
+                list.set_scissor({0, 0, gpu.TargetWidth(), gpu.TargetHeight()});
                 scissored = false;
             }
             if (dc.indirectDraws)
-                list.DrawIndexedIndirect(dc.indirect, dc.indirectOffset, dc.indirectDraws,
-                                         sizeof(rhi::DrawIndexedIndirectCommand));
+                list.draw_indexed_indirect(dc.indirect, dc.indirectOffset, dc.indirectDraws,
+                                         sizeof(conduit::draw_indexed_indirect_command));
             else if (dc.indices)
-                list.DrawIndexed(dc.count, 1, dc.first, 0, 0);
+                list.draw_indexed(dc.count, 1, dc.first, 0, 0);
             else
-                list.Draw(dc.count, 1, dc.first, 0);
+                list.draw(dc.count, 1, dc.first, 0);
         }
         (void)chunk;
     }
@@ -756,16 +756,16 @@ namespace perlin {
         return r;
     }
 
-    rhi::CompareOp RenderContext_rhi::ReverseOp(rhi::CompareOp op) {
+    conduit::compare_op RenderContext_rhi::ReverseOp(conduit::compare_op op) {
         switch (op) {
-        case rhi::CompareOp::Less:
-            return rhi::CompareOp::Greater;
-        case rhi::CompareOp::LessEqual:
-            return rhi::CompareOp::GreaterEqual;
-        case rhi::CompareOp::Greater:
-            return rhi::CompareOp::Less;
-        case rhi::CompareOp::GreaterEqual:
-            return rhi::CompareOp::LessEqual;
+        case conduit::compare_op::less:
+            return conduit::compare_op::greater;
+        case conduit::compare_op::less_equal:
+            return conduit::compare_op::greater_equal;
+        case conduit::compare_op::greater:
+            return conduit::compare_op::less;
+        case conduit::compare_op::greater_equal:
+            return conduit::compare_op::less_equal;
         default:
             return op;
         }
@@ -793,7 +793,7 @@ namespace perlin {
             v.proj = glm::mat4(1.0f);
             v.reversedZ = true;
             v.colorFormat = gpu.TargetFormat();
-            v.depthFormat = rhi::Format::D32Float;
+            v.depthFormat = conduit::format::d32_float;
         }
         for (View v : {View::ShadowBuild, View::ShadowGlass, View::ShadowEntity})
             views[static_cast<size_t>(v)].reversedZ = false;
@@ -846,9 +846,9 @@ namespace perlin {
     }
 
     void RenderContext_rhi::SavePipelineCache() {
-        if (pipelineBlobPath.empty() || !gpu.Caps().features.pipelineCacheBlob || PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE"))
+        if (pipelineBlobPath.empty() || !gpu.Caps().features.pipeline_cache_blob || PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE"))
             return;
-        const std::vector<uint8_t> blob = gpu.Dev().SerializePipelineCache();
+        const std::vector<uint8_t> blob = gpu.Dev().serialize_pipeline_cache();
         if (blob.empty() || blob.size() == savedPipelineBytes)
             return;
         std::error_code ec;
@@ -924,7 +924,7 @@ namespace perlin {
             static const bool rebuildOnce = std::getenv("PERLIN_DEV_REBUILD_ONCE") != nullptr;
             if (rebuildEvery > 0 && --rebuildCountdown <= 0) {
                 rebuildCountdown = rebuildOnce ? INT32_MAX : rebuildEvery;
-                if (!RebuildDevice(rhi::ApiId(gpu.Api())))
+                if (!RebuildDevice(conduit::api_id(gpu.Api())))
                     Log("render", "developer rebuild did not run (frame open: {})", frameOpen);
             } else if (!request.empty())
                 ApplySwitchTo(request);
@@ -1042,13 +1042,13 @@ namespace perlin {
         RecordPost();
         frameOpen = false;
         ExecuteFrame();
-        gpu.Dev().EndFrame();
+        gpu.Dev().end_frame();
         for (ViewData& v : views)
             v.draws.clear();
     }
 
     void RenderContext_rhi::ExecuteFrame() {
-        rhi::Swapchain::Image image;
+        conduit::swapchain::image image;
         if (!gpu.AcquireImage(image)) {
             if (!offscreen && platform) {
                 const uint32_t failures = gpu.AcquireFailures();
@@ -1071,11 +1071,11 @@ namespace perlin {
             }
             return;
         }
-        rhi::Device& dev = gpu.Dev();
-        rhi::CommandList* list = dev.AcquireCommandList(rhi::QueueType::Graphics);
+        conduit::device& dev = gpu.Dev();
+        conduit::command_list* list = dev.acquire_command_list(conduit::queue_type::graphics);
         if (!list)
             return;
-        gpu.SetState(image.texture, rhi::State::Undefined);
+        gpu.SetState(image.texture, conduit::state::undefined);
         gpu.Flush(*list);
 
         Target screen;
@@ -1108,7 +1108,7 @@ namespace perlin {
             const gpu::JavaPack::Output full = po;
             if (plan.packUpscale && post.packLow) {
                 po.color = post.packLow;
-                po.colorFormat = rhi::Format::RGBA8Unorm;
+                po.colorFormat = conduit::format::rgba8_unorm;
                 po.depth = {};
                 po.width = post.packLowW;
                 po.height = post.packLowH;
@@ -1118,7 +1118,7 @@ namespace perlin {
             const bool recorded = jpack->Record(*list, frame, po);
             if (recorded && plan.packUpscale && post.packLow) {
                 jpack->WriteEngineDepth(*list, full);
-                gpu.Transition(*list, post.packLow, rhi::State::ShaderRead);
+                gpu.Transition(*list, post.packLow, conduit::state::shader_read);
             } else if (plan.packUpscale) {
                 views[static_cast<size_t>(View::Up0)].draws.clear();
                 views[static_cast<size_t>(View::Up1)].draws.clear();
@@ -1183,9 +1183,9 @@ namespace perlin {
 
         if (!pendingSinks.empty() || !pendingShots.empty())
             ResolveCapture(*list, screen);
-        gpu.Transition(*list, image.texture, offscreen ? rhi::State::CopySrc : rhi::State::Present);
+        gpu.Transition(*list, image.texture, offscreen ? conduit::state::copy_src : conduit::state::present);
         gpu.FlushRings();
-        dev.Submit(rhi::QueueType::Graphics, list);
+        dev.submit(conduit::queue_type::graphics, list);
         gpu.PresentImage();
     }
 
@@ -1213,7 +1213,7 @@ namespace perlin {
         pendingSinks.push_back(std::move(sink));
     }
 
-    void RenderContext_rhi::ResolveCapture(rhi::CommandList& list, const Target& target) {
+    void RenderContext_rhi::ResolveCapture(conduit::command_list& list, const Target& target) {
         std::vector<CaptureSink> sinks;
         std::vector<std::string> shots;
         {
@@ -1227,29 +1227,29 @@ namespace perlin {
             return;
         const uint32_t w = target.w, h = target.h;
         const uint32_t pitch = static_cast<uint32_t>(
-            (static_cast<uint64_t>(w) * 4 + gpu.Caps().limits.copyRowPitchAlignment - 1) /
-            gpu.Caps().limits.copyRowPitchAlignment * gpu.Caps().limits.copyRowPitchAlignment);
-        rhi::BufferDesc bd;
+            (static_cast<uint64_t>(w) * 4 + gpu.Caps().limits.copy_row_pitch_alignment - 1) /
+            gpu.Caps().limits.copy_row_pitch_alignment * gpu.Caps().limits.copy_row_pitch_alignment);
+        conduit::buffer_desc bd;
         bd.size = static_cast<uint64_t>(pitch) * h;
-        bd.usage = rhi::BufferUsage::CopyDst;
-        bd.memory = rhi::MemoryClass::Readback;
+        bd.usage = conduit::buffer_usage::copy_dst;
+        bd.memory = conduit::memory_class::readback;
         bd.name = "capture";
-        const rhi::BufferHandle buffer = gpu.Dev().CreateBuffer(bd);
+        const conduit::buffer_handle buffer = gpu.Dev().create_buffer(bd);
         if (!buffer)
             return;
-        gpu.Transition(list, target.color, rhi::State::CopySrc);
-        rhi::BufferTextureCopy c;
-        c.bufferRowPitch = pitch;
+        gpu.Transition(list, target.color, conduit::state::copy_src);
+        conduit::buffer_texture_copy c;
+        c.buffer_row_pitch = pitch;
         c.width = w;
         c.height = h;
-        list.CopyTextureToBuffer(buffer, target.color, std::span<const rhi::BufferTextureCopy>(&c, 1));
+        list.copy_texture_to_buffer(buffer, target.color, std::span<const conduit::buffer_texture_copy>(&c, 1));
         Readback r;
         r.buffer = buffer;
         r.w = w;
         r.h = h;
         r.pitch = pitch;
         r.bgra =
-            target.colorFormat == rhi::Format::BGRA8Unorm || target.colorFormat == rhi::Format::BGRA8Srgb;
+            target.colorFormat == conduit::format::bgra8_unorm || target.colorFormat == conduit::format::bgra8_srgb;
         r.frame = gpu.FrameNumber();
         r.sinks = std::move(sinks);
         r.paths = std::move(shots);
@@ -1263,8 +1263,8 @@ namespace perlin {
                 i++;
                 continue;
             }
-            gpu.Dev().Invalidate(r.buffer, 0, static_cast<uint64_t>(r.pitch) * r.h);
-            const uint8_t* data = gpu.Dev().Map(r.buffer);
+            gpu.Dev().invalidate(r.buffer, 0, static_cast<uint64_t>(r.pitch) * r.h);
+            const uint8_t* data = gpu.Dev().map(r.buffer);
             if (data) {
                 std::vector<uint8_t> swapped;
                 const uint8_t* bgra = data;
@@ -1282,7 +1282,7 @@ namespace perlin {
                     SaveBmp(path, r.w, r.h, r.pitch, bgra);
             }
             gpu.ForgetBuffer(r.buffer);
-            gpu.Dev().Destroy(r.buffer);
+            gpu.Dev().destroy(r.buffer);
             readbacks.erase(readbacks.begin() + static_cast<std::ptrdiff_t>(i));
         }
     }
@@ -1323,40 +1323,40 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::ReadBackFrame(std::vector<uint8_t>& rgba, uint32_t& w, uint32_t& h) {
-        const rhi::TextureHandle image = gpu.OffscreenTexture();
+        const conduit::texture_handle image = gpu.OffscreenTexture();
         if (!image)
             return false;
-        rhi::Device& dev = gpu.Dev();
-        dev.WaitIdle();
+        conduit::device& dev = gpu.Dev();
+        dev.wait_idle();
         w = gpu.TargetWidth();
         h = gpu.TargetHeight();
-        const uint32_t align = gpu.Caps().limits.copyRowPitchAlignment;
+        const uint32_t align = gpu.Caps().limits.copy_row_pitch_alignment;
         const uint32_t pitch = (w * 4 + align - 1) / align * align;
-        rhi::BufferDesc bd;
+        conduit::buffer_desc bd;
         bd.size = static_cast<uint64_t>(pitch) * h;
-        bd.usage = rhi::BufferUsage::CopyDst;
-        bd.memory = rhi::MemoryClass::Readback;
+        bd.usage = conduit::buffer_usage::copy_dst;
+        bd.memory = conduit::memory_class::readback;
         bd.name = "frame readback";
-        const rhi::BufferHandle buffer = dev.CreateBuffer(bd);
+        const conduit::buffer_handle buffer = dev.create_buffer(bd);
         if (!buffer)
             return false;
-        rhi::CommandList* list = dev.AcquireCommandList(rhi::QueueType::Graphics);
-        gpu.Transition(*list, image, rhi::State::CopySrc);
-        rhi::BufferTextureCopy c;
-        c.bufferRowPitch = pitch;
+        conduit::command_list* list = dev.acquire_command_list(conduit::queue_type::graphics);
+        gpu.Transition(*list, image, conduit::state::copy_src);
+        conduit::buffer_texture_copy c;
+        c.buffer_row_pitch = pitch;
         c.width = w;
         c.height = h;
-        list->CopyTextureToBuffer(buffer, image, std::span<const rhi::BufferTextureCopy>(&c, 1));
-        dev.Submit(rhi::QueueType::Graphics, list);
-        dev.WaitIdle();
-        dev.Invalidate(buffer, 0, bd.size);
-        const uint8_t* data = dev.Map(buffer);
+        list->copy_texture_to_buffer(buffer, image, std::span<const conduit::buffer_texture_copy>(&c, 1));
+        dev.submit(conduit::queue_type::graphics, list);
+        dev.wait_idle();
+        dev.invalidate(buffer, 0, bd.size);
+        const uint8_t* data = dev.map(buffer);
         rgba.resize(static_cast<size_t>(w) * h * 4);
         for (uint32_t y = 0; y < h; y++)
             std::memcpy(rgba.data() + static_cast<size_t>(y) * w * 4, data + static_cast<size_t>(y) * pitch,
                         static_cast<size_t>(w) * 4);
         gpu.ForgetBuffer(buffer);
-        dev.Destroy(buffer);
+        dev.destroy(buffer);
         return true;
     }
 
@@ -1376,7 +1376,7 @@ namespace perlin {
     }
 
     // what the device policy would pick on this machine right now
-    rhi::Api RenderContext_rhi::AutoApi() {
+    conduit::api RenderContext_rhi::AutoApi() {
 #if defined(_WIN32)
         constexpr bool kWindows = true, kApple = false;
 #elif defined(__APPLE__)
@@ -1384,40 +1384,40 @@ namespace perlin {
 #else
         constexpr bool kWindows = false, kApple = false;
 #endif
-        rhi::ProbeOptions probeOptions;
-        probeOptions.readCaps = true;
-        const rhi::Probe probe = rhi::ProbeSystem(probeOptions);
-        return rhi::ChooseProfile(probe, rhi::UserChoice{}, ReadFailures(), kWindows, kApple).api;
+        conduit::probe_options probeOptions;
+        probeOptions.read_caps = true;
+        const conduit::probe probe = conduit::probe_system(probeOptions);
+        return conduit::choose_profile(probe, conduit::user_choice{}, ReadFailures(), kWindows, kApple).api;
     }
 
     void RenderContext_rhi::ApplySwitchTo(const std::string& id) {
-        const rhi::Api target = id == "auto" ? AutoApi() : rhi::ApiFromId(id);
-        if (target == rhi::Api::None || target == gpu.Api()) {
+        const conduit::api target = id == "auto" ? AutoApi() : conduit::api_from_id(id);
+        if (target == conduit::api::none || target == gpu.Api()) {
             Log("render", "staying on {}", rendererName);
             return;
         }
-        RebuildDevice(rhi::ApiId(target));
+        RebuildDevice(conduit::api_id(target));
     }
 
     bool RenderContext_rhi::RebuildDevice(const std::string& id) {
         if (!initialized || frameOpen)
             return false;
-        const rhi::Api target = rhi::ApiFromId(id);
-        const rhi::Api previous = gpu.Api();
-        if (target == rhi::Api::None)
+        const conduit::api target = conduit::api_from_id(id);
+        const conduit::api previous = gpu.Api();
+        if (target == conduit::api::none)
             return false;
         const std::vector<uint8_t>& pack = packData;
         if (pack.empty()) {
             Log("render", "cannot switch: the shader pack is missing");
             return false;
         }
-        Log("render", "switching {} to {}", rendererName, rhi::ApiName(target));
+        Log("render", "switching {} to {}", rendererName, conduit::api_name(target));
 
         if (cloudJobRunning) {
             cloudJob.wait();
             cloudJobRunning = false;
         }
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         FinishReadbacks();
         ReleaseFrameMeshes();
         // the pack holds device objects; it is built again on the new device (the meshes keep their extra stream)
@@ -1460,7 +1460,7 @@ namespace perlin {
             for (gpu::Arena* a : {&p.vb, &p.ib}) {
                 if (a->Buffer()) {
                     gpu.ForgetBuffer(a->Buffer());
-                    gpu.Dev().Destroy(a->Buffer());
+                    gpu.Dev().destroy(a->Buffer());
                 }
                 a->Detach();
             }
@@ -1493,7 +1493,7 @@ namespace perlin {
                 settings.width = static_cast<uint32_t>(width);
                 settings.height = static_cast<uint32_t>(height);
             }
-            settings.api = rhi::ApiFromId(api);
+            settings.api = conduit::api_from_id(api);
             const bool started = offscreen ? gpu.Init(settings, pack, nullptr) : StartDevice(api, pack, true);
             if (!started) {
                 gpu.Shutdown();
@@ -1510,8 +1510,8 @@ namespace perlin {
         };
         bool ok = bringUp(id);
         if (!ok) {
-            Log("render", "{} failed; returning to {}", rhi::ApiName(target), rhi::ApiName(previous));
-            ok = bringUp(rhi::ApiId(previous));
+            Log("render", "{} failed; returning to {}", conduit::api_name(target), conduit::api_name(previous));
+            ok = bringUp(conduit::api_id(previous));
         }
         if (!ok) {
             Log("render", "no renderer could be restored");
@@ -1519,7 +1519,7 @@ namespace perlin {
         }
 
         adapterName = gpu.Caps().adapter.name;
-        rendererName = rhi::ApiName(gpu.Api());
+        rendererName = conduit::api_name(gpu.Api());
         // temporal filters must not reproject from the other device's frames, and the first frame must not stall on shader compiles
         cam = CameraHistory{};
         frameOpen = false;
@@ -1579,7 +1579,7 @@ namespace perlin {
                 AttachJavaPack();
             } else {
                 jpackError = why;
-                Log("javapack", "not available on {}: {}", rhi::ApiName(gpu.Api()), why);
+                Log("javapack", "not available on {}: {}", conduit::api_name(gpu.Api()), why);
             }
         }
         Log("render", "now on {} ({})", rendererName, adapterName);

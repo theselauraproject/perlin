@@ -13,21 +13,21 @@
 
 namespace perlin {
     namespace {
-        rhi::TextureHandle MakeShadowTarget(gpu::Gpu& gpu, uint32_t size, rhi::Format format,
-                                            rhi::TextureUsage usage, const char* name) {
-            rhi::TextureDesc td;
+        conduit::texture_handle MakeShadowTarget(gpu::Gpu& gpu, uint32_t size, conduit::format format,
+                                            conduit::texture_usage usage, const char* name) {
+            conduit::texture_desc td;
             td.format = format;
             td.width = td.height = std::max(1u, size);
             td.usage = usage;
             td.name = name;
-            const rhi::TextureHandle t = gpu.Dev().CreateTexture(td);
+            const conduit::texture_handle t = gpu.Dev().create_texture(td);
             if (t)
-                gpu.SetState(t, rhi::State::Undefined);
+                gpu.SetState(t, conduit::state::undefined);
             return t;
         }
 
-        constexpr rhi::TextureUsage kSampledTarget =
-            rhi::TextureUsage::ColorTarget | rhi::TextureUsage::Sampled;
+        constexpr conduit::texture_usage kSampledTarget =
+            conduit::texture_usage::color_target | conduit::texture_usage::sampled;
         constexpr RenderLayer kShadowLayers[5] = {RenderLayer::Solid, RenderLayer::Cutout,
                                                   RenderLayer::CutoutCull, RenderLayer::Translucent,
                                                   RenderLayer::TranslucentCull};
@@ -48,12 +48,12 @@ namespace perlin {
 
     void RenderContext_rhi::DestroyShadows() {
         for (ShadowMap& m : shadow.maps)
-            for (rhi::TextureHandle* t : {&m.color, &m.tint})
+            for (conduit::texture_handle* t : {&m.color, &m.tint})
                 if (*t) {
                     gpu.DestroyTexture(*t);
                     *t = {};
                 }
-        for (rhi::TextureHandle* t : {&shadow.buildDepth, &shadow.entityColor, &shadow.entityDepth})
+        for (conduit::texture_handle* t : {&shadow.buildDepth, &shadow.entityColor, &shadow.entityDepth})
             if (*t) {
                 gpu.DestroyTexture(*t);
                 *t = {};
@@ -66,7 +66,7 @@ namespace perlin {
     void RenderContext_rhi::InitShadows(int quality, int distance) {
         if (!initialized && !gpu.Chain() && !gpu.OffscreenTexture())
             return;
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         DestroyShadows();
         // the destroy marks the config stale; this call is the one that handles it
         shadowConfigDirty = false;
@@ -74,22 +74,22 @@ namespace perlin {
             return;
         if (ProgramIndex(Program::Shadow) < 0 || ProgramIndex(Program::ShadowCutout) < 0)
             return;
-        const rhi::DeviceCaps& caps = gpu.Caps();
+        const conduit::device_caps& caps = gpu.Caps();
         static constexpr int kSizes[5] = {0, 1024, 2048, 3072, 4096};
         int size = kSizes[std::clamp(quality, 1, 4)];
-        if (caps.limits.maxTexture2D > 0)
-            size = std::min<int>(size, static_cast<int>(caps.limits.maxTexture2D));
+        if (caps.limits.max_texture2d > 0)
+            size = std::min<int>(size, static_cast<int>(caps.limits.max_texture2d));
         shadow.size = size;
         shadow.distance = std::clamp(distance > 0 ? static_cast<float>(distance) : 80.0f, 24.0f, 256.0f);
 
         const uint32_t s = static_cast<uint32_t>(size);
         shadow.buildDepth =
-            MakeShadowTarget(gpu, s, rhi::Format::D32Float, rhi::TextureUsage::DepthTarget, "shadow depth");
+            MakeShadowTarget(gpu, s, conduit::format::d32_float, conduit::texture_usage::depth_target, "shadow depth");
         bool ok = static_cast<bool>(shadow.buildDepth);
         for (ShadowMap& m : shadow.maps) {
             if (!ok)
                 break;
-            m.color = MakeShadowTarget(gpu, s, rhi::Format::R32Float, kSampledTarget, "shadow map");
+            m.color = MakeShadowTarget(gpu, s, conduit::format::r32_float, kSampledTarget, "shadow map");
             ok = static_cast<bool>(m.color);
         }
         if (!ok) {
@@ -101,7 +101,7 @@ namespace perlin {
         if (ProgramIndex(Program::ShadowGlass) >= 0) {
             bool tintOk = true;
             for (ShadowMap& m : shadow.maps) {
-                m.tint = MakeShadowTarget(gpu, std::max(1u, s / 2), rhi::Format::RGBA16Float, kSampledTarget,
+                m.tint = MakeShadowTarget(gpu, std::max(1u, s / 2), conduit::format::rgba16_float, kSampledTarget,
                                           "shadow tint");
                 tintOk = tintOk && m.tint;
             }
@@ -125,11 +125,11 @@ namespace perlin {
             return false;
         const uint32_t s = static_cast<uint32_t>(shadow.size);
         shadow.entityColor =
-            MakeShadowTarget(gpu, s, rhi::Format::R32Float, kSampledTarget, "mob shadow map");
-        shadow.entityDepth = MakeShadowTarget(gpu, s, rhi::Format::D32Float, rhi::TextureUsage::DepthTarget,
+            MakeShadowTarget(gpu, s, conduit::format::r32_float, kSampledTarget, "mob shadow map");
+        shadow.entityDepth = MakeShadowTarget(gpu, s, conduit::format::d32_float, conduit::texture_usage::depth_target,
                                               "mob shadow depth");
         if (!shadow.entityColor || !shadow.entityDepth) {
-            for (rhi::TextureHandle* t : {&shadow.entityColor, &shadow.entityDepth})
+            for (conduit::texture_handle* t : {&shadow.entityColor, &shadow.entityDepth})
                 if (*t) {
                     gpu.DestroyTexture(*t);
                     *t = {};
@@ -143,7 +143,7 @@ namespace perlin {
 
     void RenderContext_rhi::BindShadowSampling() {
         const gpu::SamplerKind point = gpu::SamplerKind::PointClamp;
-        const rhi::TextureHandle white = gpu.White2D();
+        const conduit::texture_handle white = gpu.White2D();
         if (!shadow.active) {
             for (const char* name : {"u_shadowInfo", "u_shadowInfoB", "u_shadowInfoE"})
                 uni.Vec4(name, 0, 0, 0, 0);
@@ -295,17 +295,17 @@ namespace perlin {
             shadow.buildSlices = shadow.front < 0 ? 1 : 4;
         }
 
-        const rhi::Format mapFormat = rhi::Format::R32Float;
+        const conduit::format mapFormat = conduit::format::r32_float;
         for (View v : {View::ShadowBuild, View::ShadowEntity}) {
             ViewData& vd = views[static_cast<size_t>(v)];
             vd.colorFormat = mapFormat;
-            vd.depthFormat = rhi::Format::D32Float;
+            vd.depthFormat = conduit::format::d32_float;
             vd.w = vd.h = static_cast<uint32_t>(shadow.size);
         }
         {
             ViewData& vd = views[static_cast<size_t>(View::ShadowGlass)];
-            vd.colorFormat = rhi::Format::RGBA16Float;
-            vd.depthFormat = rhi::Format::Unknown;
+            vd.colorFormat = conduit::format::rgba16_float;
+            vd.depthFormat = conduit::format::unknown;
             vd.w = vd.h = std::max(1u, static_cast<uint32_t>(shadow.size) / 2);
         }
 
@@ -321,18 +321,18 @@ namespace perlin {
                 const bool glass = pass >= 3;
                 const Program program =
                     glass ? Program::ShadowGlass : (pass == 0 ? Program::Shadow : Program::ShadowCutout);
-                DrawState state = Base(program, !glass, !glass, rhi::CompareOp::Less);
+                DrawState state = Base(program, !glass, !glass, conduit::compare_op::less);
                 state.layout = gpu::VertexLayout::Terrain;
-                state.cull = rhi::CullMode::None;
-                state.mask = rhi::ColorMask::All;
+                state.cull = conduit::cull_mode::none;
+                state.mask = conduit::color_mask::all;
                 if (glass) {
                     // tint multiplies, alpha keeps the nearest glass depth
                     state.blend = true;
-                    state.srcColor = rhi::BlendFactor::DstColor;
-                    state.dstColor = rhi::BlendFactor::Zero;
-                    state.srcAlpha = rhi::BlendFactor::One;
-                    state.dstAlpha = rhi::BlendFactor::One;
-                    state.alphaOp = rhi::BlendOp::Min;
+                    state.srcColor = conduit::blend_factor::dst_color;
+                    state.dstColor = conduit::blend_factor::zero;
+                    state.srcAlpha = conduit::blend_factor::one;
+                    state.dstAlpha = conduit::blend_factor::one;
+                    state.alphaOp = conduit::blend_op::minimum;
                 }
                 SetMatrix(m.raster);
                 uni.Mat4("u_shadowMtx", m.sample);
@@ -382,7 +382,7 @@ namespace perlin {
                     queued.back().count += g.layerCount[slot];
                     continue;
                 }
-                Push(target, templ, vertices, &indices, rhi::IndexType::U32, g.iOff[slot], g.layerCount[slot]);
+                Push(target, templ, vertices, &indices, conduit::index_type::u32, g.iOff[slot], g.layerCount[slot]);
             }
 
             const float one[4] = {1, 1, 1, 1};
@@ -399,7 +399,7 @@ namespace perlin {
                 Stage glass;
                 glass.target.color = m.tint;
                 glass.target.w = glass.target.h = std::max(1u, static_cast<uint32_t>(shadow.size) / 2);
-                glass.target.colorFormat = rhi::Format::RGBA16Float;
+                glass.target.colorFormat = conduit::format::rgba16_float;
                 glass.views = {View::ShadowGlass};
                 glass.clearColor = firstSlice;
                 std::memcpy(glass.clear, one, sizeof(one));

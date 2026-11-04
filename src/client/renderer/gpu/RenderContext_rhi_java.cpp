@@ -65,7 +65,7 @@ namespace perlin {
         }
         // milestone: the baked converted programs stand in for the zip until
         // load-time conversion lands; the zip only selects the mode for now
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         DestroyPostTargets();
         javaMaterialRules.clear();
         javaMaterialCount = 0;
@@ -121,7 +121,7 @@ namespace perlin {
     void RenderContext_rhi::ClearBakedJavaShaderPack() {
         if (!javaActive)
             return;
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         DestroyPostTargets();
         javaActive = false;
         shadowConfigDirty = true;
@@ -134,7 +134,7 @@ namespace perlin {
         if (javaTexReady)
             return true;
         const auto flat = [&](TexRec& rec, uint8_t r, uint8_t g, uint8_t b, uint8_t a, const char* name) {
-            if (!MakeTexture(rec, 1, 1, 1, 1, rhi::Format::RGBA8Unorm, gpu::SamplerKind::LinearClamp, name))
+            if (!MakeTexture(rec, 1, 1, 1, 1, conduit::format::rgba8_unorm, gpu::SamplerKind::LinearClamp, name))
                 return false;
             const uint8_t px[4] = {r, g, b, a};
             gpu.WriteTexture(rec.handle, 0, 0, 0, 1, 1, px);
@@ -144,7 +144,7 @@ namespace perlin {
             !flat(javaNormalDef, 128, 128, 255, 255, "java flat normal") ||
             !flat(javaSpecDef, 0, 0, 0, 255, "java rough specular"))
             return false;
-        if (!MakeTexture(javaNoise, 128, 128, 1, 1, rhi::Format::RGBA8Unorm, gpu::SamplerKind::LinearRepeat,
+        if (!MakeTexture(javaNoise, 128, 128, 1, 1, conduit::format::rgba8_unorm, gpu::SamplerKind::LinearRepeat,
                          "java noise"))
             return false;
         std::vector<uint8_t> noise(128 * 128 * 4);
@@ -159,7 +159,7 @@ namespace perlin {
                 if (source->Read(path, bytes) &&
                     LoadTextureMemory(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(),
                                       image) &&
-                    MakeTexture(rec, image.width, image.height, 1, 1, rhi::Format::RGBA8Unorm,
+                    MakeTexture(rec, image.width, image.height, 1, 1, conduit::format::rgba8_unorm,
                                 gpu::SamplerKind::LinearRepeat, path))
                     gpu.WriteTexture(rec.handle, 0, 0, 0, image.width, image.height, image.pixels.data());
             };
@@ -175,7 +175,7 @@ namespace perlin {
         const size_t count = palette.Count();
         if (javaMaterials.used && count == javaMaterialCount)
             return true;
-        if (!javaMaterials.used && !MakeTexture(javaMaterials, 256, 256, 1, 1, rhi::Format::R32Float,
+        if (!javaMaterials.used && !MakeTexture(javaMaterials, 256, 256, 1, 1, conduit::format::r32_float,
                                                 gpu::SamplerKind::PointClamp, "java material ids"))
             return false;
         std::vector<float> ids(65536, 0.0f);
@@ -224,7 +224,7 @@ namespace perlin {
         BindTexture("s_noise", javaNoise.handle, gpu::SamplerKind::LinearRepeat);
         BindTexture("s_normals", javaNormalDef.handle, gpu::SamplerKind::LinearClamp);
         BindTexture("s_specular", javaSpecDef.handle, gpu::SamplerKind::LinearClamp);
-        const rhi::TextureHandle white = gpu.White2D();
+        const conduit::texture_handle white = gpu.White2D();
         BindTexture("s_gaux2", white, gpu::SamplerKind::LinearClamp);
         BindTexture("s_gaux4", javaCloudWater.used ? javaCloudWater.handle : white,
                     gpu::SamplerKind::LinearRepeat);
@@ -264,9 +264,9 @@ namespace perlin {
                 BindTexture("s_colortex3", javaCloudWater.handle, gpu::SamplerKind::LinearRepeat);
             ViewData& vd = views[static_cast<size_t>(view)];
             vd.colorCount = static_cast<uint32_t>(outs);
-            vd.colorFormat1 = rhi::Format::RGBA16Float;
-            vd.colorFormat2 = rhi::Format::RGBA16Float;
-            FullscreenPass(view, program, rhi::Format::RGBA16Float, w, h, false);
+            vd.colorFormat1 = conduit::format::rgba16_float;
+            vd.colorFormat2 = conduit::format::rgba16_float;
+            FullscreenPass(view, program, conduit::format::rgba16_float, w, h, false);
         };
         pass(View::JavaDeferred, Program::JavaDeferred, 3);
         pass(View::JavaComposite, Program::JavaComposite, 2);

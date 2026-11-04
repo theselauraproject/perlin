@@ -19,7 +19,7 @@ namespace perlin {
         case 1:
             return 1024;
         case 2:
-            return deviceTier <= rhi::Tier::Low ? 1024 : 0;
+            return deviceTier <= conduit::tier::low ? 1024 : 0;
         default:
             return 0;
         }

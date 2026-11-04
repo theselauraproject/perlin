@@ -62,7 +62,7 @@
 #include "network/RakNet.hpp"
 #include "network/Realms.hpp"
 #include "network/XboxAuth.hpp"
-#include "rhi/Device.hpp"
+#include <conduit/device.hpp>
 #include "util/Env.hpp"
 #include "util/FileIo.hpp"
 #include "util/Paths.hpp"

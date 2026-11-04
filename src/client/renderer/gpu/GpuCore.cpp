@@ -5,7 +5,7 @@
 #include <cstdio>
 
 namespace perlin::gpu {
-    using namespace rhi;
+    using namespace conduit;
 
     namespace {
         constexpr uint64_t kRingChunk = 4ull << 20;
@@ -21,20 +21,20 @@ namespace perlin::gpu {
         const VertexLayoutInfo kLayouts[static_cast<size_t>(VertexLayout::Count)] = {
             // terrain: position, packed colour, uv, packed light, packed normal, entity, mid uv, tangent
             {48,
-             {{{0, 0, Format::RGB32Float, 0},
-               {2, 0, Format::RGBA8Unorm, 12},
-               {4, 0, Format::RG32Float, 16},
-               {5, 0, Format::RGBA8Unorm, 24},
-               {1, 0, Format::RGBA8Unorm, 28},
-               {8, 0, Format::R32Float, 32},
-               {9, 0, Format::RG32Float, 36},
-               {10, 0, Format::R32Float, 44}}},
+             {{{0, 0, format::rgb32_float, 0},
+               {2, 0, format::rgba8_unorm, 12},
+               {4, 0, format::rg32_float, 16},
+               {5, 0, format::rgba8_unorm, 24},
+               {1, 0, format::rgba8_unorm, 28},
+               {8, 0, format::r32_float, 32},
+               {9, 0, format::rg32_float, 36},
+               {10, 0, format::r32_float, 44}}},
              8},
-            {12, {{{0, 0, Format::RGB32Float, 0}}}, 1},
-            {16, {{{0, 0, Format::RGB32Float, 0}, {2, 0, Format::RGBA8Unorm, 12}}}, 2},
-            {20, {{{0, 0, Format::RGB32Float, 0}, {4, 0, Format::RG32Float, 12}}}, 2},
+            {12, {{{0, 0, format::rgb32_float, 0}}}, 1},
+            {16, {{{0, 0, format::rgb32_float, 0}, {2, 0, format::rgba8_unorm, 12}}}, 2},
+            {20, {{{0, 0, format::rgb32_float, 0}, {4, 0, format::rg32_float, 12}}}, 2},
             {24,
-             {{{0, 0, Format::RGB32Float, 0}, {2, 0, Format::RGBA8Unorm, 12}, {4, 0, Format::RG32Float, 16}}},
+             {{{0, 0, format::rgb32_float, 0}, {2, 0, format::rgba8_unorm, 12}, {4, 0, format::rg32_float, 16}}},
              3},
         };
     }
@@ -43,8 +43,8 @@ namespace perlin::gpu {
         return kLayouts[static_cast<size_t>(layout)];
     }
 
-    uint32_t FormatBytes(Format format) {
-        return GetFormatInfo(format).bytesPerBlock;
+    uint32_t FormatBytes(conduit::format format) {
+        return get_format_info(format).bytes_per_block;
     }
 
     std::array<uint64_t, 4> PipelineKey::Pack() const {
@@ -77,37 +77,37 @@ namespace perlin::gpu {
         return h;
     }
 
-    bool Arena::Create(Device& device, uint32_t elements, uint32_t bytes, BufferUsage usage,
+    bool Arena::Create(conduit::device& device, uint32_t elements, uint32_t bytes, buffer_usage usage,
                        const char* name) {
-        BufferDesc bd;
+        buffer_desc bd;
         bd.size = static_cast<uint64_t>(elements) * bytes;
-        bd.usage = usage | BufferUsage::CopyDst | BufferUsage::CopySrc;
-        bd.memory = MemoryClass::GpuOnly;
+        bd.usage = usage | buffer_usage::copy_dst | buffer_usage::copy_src;
+        bd.memory = memory_class::gpu_only;
         bd.name = name;
-        buffer = device.CreateBuffer(bd);
+        buffer = device.create_buffer(bd);
         if (!buffer)
             return false;
         this->usage = usage;
         this->name = name;
         elementBytes = bytes;
-        state = Has(usage, BufferUsage::Index) ? State::IndexBuffer : State::VertexBuffer;
+        state = has(usage, buffer_usage::index) ? state::index_buffer : state::vertex_buffer;
         ranges.Reset(elements);
         return true;
     }
 
-    bool Arena::Rebuild(Device& device) {
-        BufferDesc bd;
+    bool Arena::Rebuild(conduit::device& device) {
+        buffer_desc bd;
         bd.size = Bytes();
-        bd.usage = usage | BufferUsage::CopyDst | BufferUsage::CopySrc;
-        bd.memory = MemoryClass::GpuOnly;
+        bd.usage = usage | buffer_usage::copy_dst | buffer_usage::copy_src;
+        bd.memory = memory_class::gpu_only;
         bd.name = name;
-        buffer = device.CreateBuffer(bd);
+        buffer = device.create_buffer(bd);
         return static_cast<bool>(buffer);
     }
 
-    void Arena::Destroy(Device& device) {
+    void Arena::Destroy(conduit::device& device) {
         if (buffer)
-            device.Destroy(buffer);
+            device.destroy(buffer);
         buffer = {};
         ranges.Reset(0);
     }
@@ -123,52 +123,53 @@ namespace perlin::gpu {
             return false;
         };
         settings = s;
-        InstanceOptions io;
+        instance_options io;
+        io.app_name = "Perlin";
         io.validation = s.validation;
         io.hooks = s.hooks;
-        instance = CreateInstance(s.api, io);
-        if (!instance || instance->Adapters().empty())
-            return fail(std::string(ApiName(s.api)) + " is not available on this machine");
+        instance = create_instance(s.api, io);
+        if (!instance || instance->adapters().empty())
+            return fail(std::string(api_name(s.api)) + " is not available on this machine");
 
-        DeviceOptions dop;
-        dop.adapterIndex = s.adapterIndex;
+        device_options dop;
+        dop.adapter_index = s.adapterIndex;
         dop.validation = s.validation;
-        dop.framesInFlight = std::max(1u, s.framesInFlight);
+        dop.frames_in_flight = std::max(1u, s.framesInFlight);
         dop.hooks = s.hooks;
-        dop.pipelineCacheData = s.pipelineCache;
-        dop.asyncPipelines = !s.offscreen;
-        device = instance->CreateDevice(dop);
+        dop.pipeline_cache_data = s.pipelineCache;
+        dop.async_pipelines = !s.offscreen;
+        device = instance->create_device(dop);
         if (!device)
-            return fail("could not create a " + std::string(ApiName(s.api)) + " device");
-        settings.framesInFlight = dop.framesInFlight;
+            return fail("could not create a " + std::string(api_name(s.api)) + " device");
+        settings.framesInFlight = dop.frames_in_flight;
 
         packBytes.assign(shaderPack.begin(), shaderPack.end());
         std::string packError;
-        if (!library.Load(packBytes, &packError))
+        if (!library.load(packBytes, &packError))
             return fail("shader pack: " + packError);
-        target = ShaderLibrary::TargetFor(s.api);
+        target = shader_library::target_for(s.api);
 
-        const auto& programs = library.Programs();
+        const auto& programs = library.programs();
         vertexShaders.assign(programs.size(), {});
         fragmentShaders.assign(programs.size(), {});
         for (size_t i = 0; i < programs.size(); i++) {
             uniformRangeBytes =
-                std::max(uniformRangeBytes, static_cast<uint32_t>(AlignUp(programs[i].uniformBytes, 256)));
-            for (ShaderStage stage : {ShaderStage::Vertex, ShaderStage::Fragment}) {
-                const auto code = library.Code(programs[i], stage, target);
+                std::max(uniformRangeBytes, static_cast<uint32_t>(AlignUp(programs[i].uniform_bytes, 256)));
+            for (shader_stage stage : {shader_stage::vertex, shader_stage::fragment}) {
+                const auto code = library.code(programs[i], stage, target);
                 if (code.empty())
                     continue;
-                ShaderDesc sd;
+                shader_desc sd;
                 sd.stage = stage;
-                sd.format = ShaderLibrary::FormatFor(target);
+                sd.format = shader_library::format_for(target);
                 sd.code = code;
-                sd.entry = ShaderLibrary::EntryFor(stage, target);
+                sd.entry = shader_library::entry_for(stage, target);
                 sd.name = programs[i].name.c_str();
-                (stage == ShaderStage::Vertex ? vertexShaders : fragmentShaders)[i] =
-                    device->CreateShader(sd);
+                (stage == shader_stage::vertex ? vertexShaders : fragmentShaders)[i] =
+                    device->create_shader(sd);
             }
         }
-        if (library.TextureSlots().size() > kTextureSlots)
+        if (library.texture_slots().size() > kTextureSlots)
             return fail("shader pack has more texture slots than the renderer binds");
         if (!BuildLayouts())
             return fail("could not create the bind layouts");
@@ -177,15 +178,15 @@ namespace perlin::gpu {
         // defaults bound wherever a draw has no texture of its own
         {
             const uint32_t pixel[2] = {0xFFFFFFFFu, 0xFFFFFFFFu};
-            TextureDesc td;
-            td.format = Format::RGBA8Unorm;
+            texture_desc td;
+            td.format = format::rgba8_unorm;
             td.width = td.height = 1;
-            td.usage = TextureUsage::Sampled | TextureUsage::CopyDst;
+            td.usage = texture_usage::sampled | texture_usage::copy_dst;
             td.name = "white";
             white2d = CreateSampled(td);
             WriteTexture(white2d, 0, 0, 0, 1, 1, pixel);
-            td.dim = TextureDim::Tex2DArray;
-            td.depthOrLayers = 2;
+            td.dim = texture_dim::tex2d_array;
+            td.depth_or_layers = 2;
             td.name = "whiteArray";
             whiteArray = CreateSampled(td);
             WriteTexture(whiteArray, 0, 0, 0, 1, 1, pixel);
@@ -199,27 +200,27 @@ namespace perlin::gpu {
         targetWidth = std::max(1u, s.width);
         targetHeight = std::max(1u, s.height);
         if (s.offscreen) {
-            targetFormat = Format::RGBA8Unorm;
-            TextureDesc td;
+            targetFormat = format::rgba8_unorm;
+            texture_desc td;
             td.format = targetFormat;
             td.width = targetWidth;
             td.height = targetHeight;
-            td.usage = TextureUsage::ColorTarget | TextureUsage::CopySrc | TextureUsage::Sampled;
+            td.usage = texture_usage::color_target | texture_usage::copy_src | texture_usage::sampled;
             td.name = "offscreen target";
-            offscreen = device->CreateTexture(td);
+            offscreen = device->create_texture(td);
         } else {
-            SwapchainDesc sc;
+            swapchain_desc sc;
             sc.window = s.window;
             sc.width = targetWidth;
             sc.height = targetHeight;
-            sc.imageCount = std::max(2u, settings.framesInFlight + 1);
+            sc.image_count = std::max(2u, settings.framesInFlight + 1);
             sc.present = s.present;
             sc.hdr = s.hdr;
-            sc.allowSampling = true;
-            swapchain = device->CreateSwapchain(sc);
+            sc.allow_sampling = true;
+            swapchain = device->create_swapchain(sc);
             if (!swapchain)
                 return fail("could not create the swapchain");
-            targetFormat = swapchain->GetFormat();
+            targetFormat = swapchain->get_format();
         }
         return true;
     }
@@ -227,37 +228,37 @@ namespace perlin::gpu {
     void Gpu::Shutdown() {
         if (!device)
             return;
-        device->WaitIdle();
+        device->wait_idle();
         ClearPipelines();
         for (auto& [set, group] : textureGroups)
-            device->Destroy(group);
+            device->destroy(group);
         textureGroups.clear();
         ReleaseRings();
-        for (SamplerHandle& s : samplers)
+        for (sampler_handle& s : samplers)
             if (s)
-                device->Destroy(s);
+                device->destroy(s);
         samplers = {};
         for (auto* list : {&vertexShaders, &fragmentShaders}) {
-            for (ShaderHandle h : *list)
+            for (shader_handle h : *list)
                 if (h)
-                    device->Destroy(h);
+                    device->destroy(h);
             list->clear();
         }
-        for (TextureHandle* t : {&white2d, &whiteArray, &offscreen})
+        for (texture_handle* t : {&white2d, &whiteArray, &offscreen})
             if (*t) {
-                device->Destroy(*t);
+                device->destroy(*t);
                 *t = {};
             }
         if (pipelineLayout)
-            device->Destroy(pipelineLayout);
+            device->destroy(pipelineLayout);
         if (uniformLayout)
-            device->Destroy(uniformLayout);
+            device->destroy(uniformLayout);
         if (textureLayout)
-            device->Destroy(textureLayout);
+            device->destroy(textureLayout);
         pipelineLayout = {};
         uniformLayout = textureLayout = {};
         swapchain.reset();
-        device->WaitIdle();
+        device->wait_idle();
         device.reset();
         instance.reset();
         textureStates.clear();
@@ -268,63 +269,63 @@ namespace perlin::gpu {
     }
 
     bool Gpu::BuildLayouts() {
-        std::vector<BindLayoutEntry> uniformEntries{
-            {0, BindingType::UniformBufferDynamic, ShaderStage::All, 1, TextureDim::Tex2D}};
-        std::vector<BindLayoutEntry> textureEntries;
-        for (const TextureSlot& s : library.TextureSlots()) {
-            textureEntries.push_back({s.slot * 2, BindingType::SampledTexture,
-                                      ShaderStage::Fragment | ShaderStage::Vertex, 1,
-                                      s.array ? TextureDim::Tex2DArray : TextureDim::Tex2D, !s.unfilterable});
-            textureEntries.push_back({s.slot * 2 + 1, BindingType::Sampler,
-                                      ShaderStage::Fragment | ShaderStage::Vertex, 1, TextureDim::Tex2D,
+        std::vector<bind_layout_entry> uniformEntries{
+            {0, binding_type::uniform_buffer_dynamic, shader_stage::all, 1, texture_dim::tex2d}};
+        std::vector<bind_layout_entry> textureEntries;
+        for (const texture_slot& s : library.texture_slots()) {
+            textureEntries.push_back({s.slot * 2, binding_type::sampled_texture,
+                                      shader_stage::fragment | shader_stage::vertex, 1,
+                                      s.array ? texture_dim::tex2d_array : texture_dim::tex2d, !s.unfilterable});
+            textureEntries.push_back({s.slot * 2 + 1, binding_type::sampler,
+                                      shader_stage::fragment | shader_stage::vertex, 1, texture_dim::tex2d,
                                       !s.unfilterable});
         }
-        BindLayoutDesc uld;
+        bind_layout_desc uld;
         uld.entries = uniformEntries;
         uld.name = "uniforms";
-        BindLayoutDesc tld;
+        bind_layout_desc tld;
         tld.entries = textureEntries;
         tld.name = "textures";
-        uniformLayout = device->CreateBindLayout(uld);
-        textureLayout = device->CreateBindLayout(tld);
-        PipelineLayoutDesc pld;
+        uniformLayout = device->create_bind_layout(uld);
+        textureLayout = device->create_bind_layout(tld);
+        pipeline_layout_desc pld;
         pld.sets[0] = uniformLayout;
         pld.sets[1] = textureLayout;
         pld.name = "standard";
-        pipelineLayout = device->CreatePipelineLayout(pld);
+        pipelineLayout = device->create_pipeline_layout(pld);
         return uniformLayout && textureLayout && pipelineLayout;
     }
 
     void Gpu::BuildSamplers() {
-        const auto make = [&](Filter f, AddressMode a, bool mips) {
-            SamplerDesc sd;
+        const auto make = [&](filter f, address_mode a, bool mips) {
+            sampler_desc sd;
             sd.min = sd.mag = f;
-            sd.mip = mips ? Filter::Linear : Filter::Nearest;
+            sd.mip = mips ? filter::linear : filter::nearest;
             sd.u = sd.v = sd.w = a;
-            sd.maxLod = mips ? 1000.0f : 0.0f;
-            return device->CreateSampler(sd);
+            sd.max_lod = mips ? 1000.0f : 0.0f;
+            return device->create_sampler(sd);
         };
         samplers[static_cast<size_t>(SamplerKind::PointClamp)] =
-            make(Filter::Nearest, AddressMode::Clamp, false);
+            make(filter::nearest, address_mode::clamp, false);
         samplers[static_cast<size_t>(SamplerKind::PointRepeat)] =
-            make(Filter::Nearest, AddressMode::Repeat, false);
+            make(filter::nearest, address_mode::repeat, false);
         samplers[static_cast<size_t>(SamplerKind::LinearClamp)] =
-            make(Filter::Linear, AddressMode::Clamp, false);
+            make(filter::linear, address_mode::clamp, false);
         samplers[static_cast<size_t>(SamplerKind::LinearRepeat)] =
-            make(Filter::Linear, AddressMode::Repeat, false);
+            make(filter::linear, address_mode::repeat, false);
         samplers[static_cast<size_t>(SamplerKind::LinearMipRepeat)] =
-            make(Filter::Linear, AddressMode::Repeat, true);
+            make(filter::linear, address_mode::repeat, true);
         {
-            SamplerDesc sd;
-            sd.min = sd.mag = Filter::Nearest;
-            sd.mip = Filter::Linear;
-            sd.u = sd.v = sd.w = AddressMode::Clamp;
-            samplers[static_cast<size_t>(SamplerKind::PointMipClamp)] = device->CreateSampler(sd);
+            sampler_desc sd;
+            sd.min = sd.mag = filter::nearest;
+            sd.mip = filter::linear;
+            sd.u = sd.v = sd.w = address_mode::clamp;
+            samplers[static_cast<size_t>(SamplerKind::PointMipClamp)] = device->create_sampler(sd);
         }
     }
 
     int Gpu::Program(std::string_view name) const {
-        const auto& programs = library.Programs();
+        const auto& programs = library.programs();
         for (size_t i = 0; i < programs.size(); i++)
             if (programs[i].name == name)
                 return static_cast<int>(i);
@@ -344,59 +345,59 @@ namespace perlin::gpu {
         return Pipeline(key).value != 0;
     }
 
-    PipelineHandle Gpu::Pipeline(const PipelineKey& key) {
+    pipeline_handle Gpu::Pipeline(const PipelineKey& key) {
         if (const auto it = pipelines.find(key); it != pipelines.end())
             return it->second;
-        PipelineHandle handle;
+        pipeline_handle handle;
         const size_t program = key.program;
         if (program < vertexShaders.size() && vertexShaders[program] && fragmentShaders[program]) {
-            GraphicsPipelineDesc gd;
+            graphics_pipeline_desc gd;
             gd.vertex = vertexShaders[program];
             gd.fragment = fragmentShaders[program];
             gd.layout = pipelineLayout;
             const VertexLayoutInfo& layout = LayoutInfo(key.layout);
-            gd.streams[0] = {layout.stride, VertexStep::Vertex};
-            gd.streamCount = 1;
+            gd.streams[0] = {layout.stride, vertex_step::vertex};
+            gd.stream_count = 1;
             for (uint32_t i = 0; i < layout.attributeCount; i++)
                 gd.attributes[i] = layout.attributes[i];
-            gd.attributeCount = layout.attributeCount;
+            gd.attribute_count = layout.attributeCount;
             gd.raster.cull = key.cull;
-            gd.raster.frontFace = key.front;
-            gd.raster.depthBiasConstant = key.biasConstant / 100.0f;
-            gd.raster.depthBiasSlope = key.biasSlope / 100.0f;
-            gd.depthStencil.depthTest = key.depthTest;
-            gd.depthStencil.depthWrite = key.depthWrite;
-            gd.depthStencil.depthCompare = key.depthOp;
-            gd.blend.alphaToCoverage = key.alphaToCoverage;
-            BlendTarget& bt = gd.blend.targets[0];
+            gd.raster.front_face = key.front;
+            gd.raster.depth_bias_constant = key.biasConstant / 100.0f;
+            gd.raster.depth_bias_slope = key.biasSlope / 100.0f;
+            gd.depth_stencil.depth_test = key.depthTest;
+            gd.depth_stencil.depth_write = key.depthWrite;
+            gd.depth_stencil.depth_compare = key.depthOp;
+            gd.blend.alpha_to_coverage = key.alphaToCoverage;
+            blend_target& bt = gd.blend.targets[0];
             bt.enable = key.blend;
-            bt.srcColor = key.srcColor;
-            bt.dstColor = key.dstColor;
-            bt.srcAlpha = key.srcAlpha;
-            bt.dstAlpha = key.dstAlpha;
-            bt.alphaOp = key.alphaOp;
-            bt.writeMask = key.mask;
-            if (key.color != Format::Unknown) {
-                gd.colorFormats[0] = key.color;
-                gd.colorCount = 1;
+            bt.src_color = key.srcColor;
+            bt.dst_color = key.dstColor;
+            bt.src_alpha = key.srcAlpha;
+            bt.dst_alpha = key.dstAlpha;
+            bt.alpha_op = key.alphaOp;
+            bt.write_mask = key.mask;
+            if (key.color != format::unknown) {
+                gd.color_formats[0] = key.color;
+                gd.color_count = 1;
             }
             // extra MRT attachments take no blending: they carry data, not color
-            if (key.colorCount > 1 && key.color1 != Format::Unknown) {
-                gd.colorFormats[1] = key.color1;
-                gd.colorCount = 2;
+            if (key.colorCount > 1 && key.color1 != format::unknown) {
+                gd.color_formats[1] = key.color1;
+                gd.color_count = 2;
             }
-            if (key.colorCount > 2 && key.color2 != Format::Unknown) {
-                gd.colorFormats[2] = key.color2;
-                gd.colorCount = 3;
+            if (key.colorCount > 2 && key.color2 != format::unknown) {
+                gd.color_formats[2] = key.color2;
+                gd.color_count = 3;
             }
-            if (library.Programs()[program].name == "java_gbuffers_water")
+            if (library.programs()[program].name == "java_gbuffers_water")
                 gd.blend.targets[1] = bt;
-            gd.depthFormat = key.depth;
-            gd.name = library.Programs()[program].name.c_str();
+            gd.depth_format = key.depth;
+            gd.name = library.programs()[program].name.c_str();
             // driver-side compiler crashes give no callback: name the program first
             if (std::getenv("PERLIN_JAVA_DBG") && !std::strncmp(gd.name, "java_", 5))
-                std::fprintf(stderr, "[gpu] pipeline %s colors=%u\n", gd.name, gd.colorCount);
-            handle = device->CreateGraphicsPipeline(gd);
+                std::fprintf(stderr, "[gpu] pipeline %s colors=%u\n", gd.name, gd.color_count);
+            handle = device->create_graphics_pipeline(gd);
         }
         pipelines.emplace(key, handle);
         return handle;
@@ -407,42 +408,42 @@ namespace perlin::gpu {
             return;
         for (auto& [key, handle] : pipelines)
             if (handle)
-                device->Destroy(handle);
+                device->destroy(handle);
         pipelines.clear();
     }
 
     bool Gpu::CreateRing(uint32_t slot, uint64_t minimum) {
-        BufferDesc bd;
+        buffer_desc bd;
         bd.size = std::max(kRingChunk, AlignUp(minimum, 65536)) + uniformRangeBytes;
-        bd.usage = BufferUsage::Vertex | BufferUsage::Index | BufferUsage::Uniform | BufferUsage::CopySrc;
-        if (Caps().features.multiDrawIndirect)
-            bd.usage = bd.usage | BufferUsage::Indirect;
-        bd.memory = MemoryClass::Upload;
+        bd.usage = buffer_usage::vertex | buffer_usage::index | buffer_usage::uniform | buffer_usage::copy_src;
+        if (Caps().features.multi_draw_indirect)
+            bd.usage = bd.usage | buffer_usage::indirect;
+        bd.memory = memory_class::upload;
         bd.name = "frame ring";
         RingChunk ring;
-        ring.buffer = device->CreateBuffer(bd);
+        ring.buffer = device->create_buffer(bd);
         if (!ring.buffer)
             return false;
-        ring.data = device->Map(ring.buffer);
+        ring.data = device->map(ring.buffer);
         ring.size = bd.size - uniformRangeBytes;
-        BindGroupEntry entry;
+        bind_group_entry entry;
         entry.binding = 0;
         entry.buffer = {ring.buffer, 0, uniformRangeBytes};
-        BindGroupDesc gd;
+        bind_group_desc gd;
         gd.layout = uniformLayout;
-        gd.entries = std::span<const BindGroupEntry>(&entry, 1);
+        gd.entries = std::span<const bind_group_entry>(&entry, 1);
         gd.name = "uniform ring";
         rings[slot].push_back(ring);
-        ringGroups[slot].push_back(device->CreateBindGroup(gd));
+        ringGroups[slot].push_back(device->create_bind_group(gd));
         return ring.data != nullptr;
     }
 
     void Gpu::ReleaseRings() {
         for (size_t s = 0; s < rings.size(); s++) {
             for (RingChunk& r : rings[s])
-                device->Destroy(r.buffer);
-            for (BindGroupHandle g : ringGroups[s])
-                device->Destroy(g);
+                device->destroy(r.buffer);
+            for (bind_group_handle g : ringGroups[s])
+                device->destroy(g);
         }
         rings.clear();
         ringGroups.clear();
@@ -473,18 +474,18 @@ namespace perlin::gpu {
             return;
         for (RingChunk& r : rings[FrameSlot()])
             if (r.used)
-                device->Flush(r.buffer, 0, r.used);
+                device->flush(r.buffer, 0, r.used);
     }
 
     void Gpu::BeginFrame() {
-        device->BeginFrame();
+        device->begin_frame();
         const uint32_t slot = FrameSlot();
         for (RingChunk& r : rings[slot])
             r.used = 0;
         ringCursor[slot] = 0;
     }
 
-    bool Gpu::AcquireImage(Swapchain::Image& out) {
+    bool Gpu::AcquireImage(swapchain::image& out) {
         if (offscreen) {
             out.texture = offscreen;
             out.index = 0;
@@ -494,22 +495,22 @@ namespace perlin::gpu {
             acquireFailures++;
             return false;
         }
-        if (!swapchain->Acquire(out)) {
+        if (!swapchain->acquire(out)) {
             acquireFailures++;
             return false;
         }
         acquireFailures = 0;
         // the chain may have settled on another size than asked for (clamping, a window that moved on): draw to what it really is
-        if (swapchain->Width() && swapchain->Height()) {
-            targetWidth = swapchain->Width();
-            targetHeight = swapchain->Height();
+        if (swapchain->width() && swapchain->height()) {
+            targetWidth = swapchain->width();
+            targetHeight = swapchain->height();
         }
         return true;
     }
 
     void Gpu::PresentImage() {
         if (swapchain)
-            swapchain->Present();
+            swapchain->present();
     }
 
     bool Gpu::Resize(uint32_t w, uint32_t h) {
@@ -520,24 +521,24 @@ namespace perlin::gpu {
         targetWidth = w;
         targetHeight = h;
         if (offscreen) {
-            device->WaitIdle();
-            device->Destroy(offscreen);
-            TextureDesc td;
+            device->wait_idle();
+            device->destroy(offscreen);
+            texture_desc td;
             td.format = targetFormat;
             td.width = w;
             td.height = h;
-            td.usage = TextureUsage::ColorTarget | TextureUsage::CopySrc | TextureUsage::Sampled;
+            td.usage = texture_usage::color_target | texture_usage::copy_src | texture_usage::sampled;
             td.name = "offscreen target";
-            offscreen = device->CreateTexture(td);
+            offscreen = device->create_texture(td);
             textureStates.erase(offscreen.value);
             return true;
         }
         if (!swapchain)
             return false;
-        const bool ok = swapchain->Resize(w, h);
-        if (swapchain->Width() && swapchain->Height()) {
-            targetWidth = swapchain->Width();
-            targetHeight = swapchain->Height();
+        const bool ok = swapchain->resize(w, h);
+        if (swapchain->width() && swapchain->height()) {
+            targetWidth = swapchain->width();
+            targetHeight = swapchain->height();
         }
         return ok;
     }
@@ -545,64 +546,64 @@ namespace perlin::gpu {
     bool Gpu::RecreateSurface(uint32_t w, uint32_t h) {
         if (offscreen || w == 0 || h == 0)
             return false;
-        device->WaitIdle();
+        device->wait_idle();
         swapchain.reset();
         targetWidth = w;
         targetHeight = h;
-        SwapchainDesc sc;
+        swapchain_desc sc;
         sc.window = settings.window;
         sc.width = w;
         sc.height = h;
-        sc.imageCount = std::max(2u, settings.framesInFlight + 1);
+        sc.image_count = std::max(2u, settings.framesInFlight + 1);
         sc.present = settings.present;
         sc.hdr = settings.hdr;
-        sc.allowSampling = true;
-        swapchain = device->CreateSwapchain(sc);
+        sc.allow_sampling = true;
+        swapchain = device->create_swapchain(sc);
         if (swapchain)
-            targetFormat = swapchain->GetFormat();
+            targetFormat = swapchain->get_format();
         return static_cast<bool>(swapchain);
     }
 
-    void Gpu::SetPresentMode(PresentMode mode) {
+    void Gpu::SetPresentMode(present_mode mode) {
         settings.present = mode;
         if (swapchain)
-            swapchain->SetPresentMode(mode);
+            swapchain->set_present_mode(mode);
     }
 
-    BindGroupHandle Gpu::TextureGroup(const TextureSet& set) {
+    bind_group_handle Gpu::TextureGroup(const TextureSet& set) {
         if (const auto it = textureGroups.find(set); it != textureGroups.end())
             return it->second;
-        std::vector<BindGroupEntry> entries;
-        for (const TextureSlot& slot : library.TextureSlots()) {
-            TextureHandle tex = set.texture[slot.slot];
+        std::vector<bind_group_entry> entries;
+        for (const texture_slot& slot : library.texture_slots()) {
+            texture_handle tex = set.texture[slot.slot];
             if (!tex)
                 tex = slot.array ? whiteArray : white2d;
-            BindGroupEntry t;
+            bind_group_entry t;
             t.binding = slot.slot * 2;
             t.texture.texture = tex;
-            t.texture.viewDim = slot.array ? TextureDim::Tex2DArray : TextureDim::Tex2D;
+            t.texture.view_dim = slot.array ? texture_dim::tex2d_array : texture_dim::tex2d;
             entries.push_back(t);
-            BindGroupEntry s;
+            bind_group_entry s;
             s.binding = slot.slot * 2 + 1;
             s.sampler = samplers[static_cast<size_t>(set.sampler[slot.slot])];
             entries.push_back(s);
         }
-        BindGroupDesc gd;
+        bind_group_desc gd;
         gd.layout = textureLayout;
         gd.entries = entries;
         gd.name = "textures";
-        const BindGroupHandle group = device->CreateBindGroup(gd);
+        const bind_group_handle group = device->create_bind_group(gd);
         textureGroups.emplace(set, group);
         return group;
     }
 
-    void Gpu::ForgetTexture(TextureHandle texture) {
+    void Gpu::ForgetTexture(texture_handle texture) {
         for (auto it = textureGroups.begin(); it != textureGroups.end();) {
             bool uses = false;
-            for (const TextureHandle& t : it->first.texture)
+            for (const texture_handle& t : it->first.texture)
                 uses |= t == texture;
             if (uses) {
-                device->Destroy(it->second);
+                device->destroy(it->second);
                 it = textureGroups.erase(it);
             } else {
                 ++it;
@@ -611,15 +612,15 @@ namespace perlin::gpu {
         textureStates.erase(texture.value);
     }
 
-    TextureHandle Gpu::CreateSampled(TextureDesc desc) {
-        desc.usage = desc.usage | TextureUsage::Sampled | TextureUsage::CopyDst;
-        const TextureHandle h = device->CreateTexture(desc);
+    texture_handle Gpu::CreateSampled(texture_desc desc) {
+        desc.usage = desc.usage | texture_usage::sampled | texture_usage::copy_dst;
+        const texture_handle h = device->create_texture(desc);
         if (h)
-            textureStates[h.value] = State::Undefined;
+            textureStates[h.value] = state::undefined;
         return h;
     }
 
-    void Gpu::DestroyTexture(TextureHandle texture) {
+    void Gpu::DestroyTexture(texture_handle texture) {
         if (!texture)
             return;
         // pending writes to a dying texture are dropped
@@ -627,10 +628,10 @@ namespace perlin::gpu {
                                          [&](const ImageWrite& w) { return w.texture == texture; }),
                           imageWrites.end());
         ForgetTexture(texture);
-        device->Destroy(texture);
+        device->destroy(texture);
     }
 
-    void Gpu::WriteBuffer(BufferHandle buffer, State resting, uint64_t byteOffset, const void* data,
+    void Gpu::WriteBuffer(buffer_handle buffer, state resting, uint64_t byteOffset, const void* data,
                           uint64_t bytes) {
         if (!bytes || !buffer)
             return;
@@ -640,28 +641,28 @@ namespace perlin::gpu {
         bufferWrites.push_back({buffer, resting, byteOffset, bytes, at});
     }
 
-    BufferHandle Gpu::CreateStatic(const void* data, uint64_t bytes, BufferUsage usage, const char* name) {
-        BufferDesc bd;
+    buffer_handle Gpu::CreateStatic(const void* data, uint64_t bytes, buffer_usage usage, const char* name) {
+        buffer_desc bd;
         bd.size = AlignUp(bytes, 4);
-        bd.usage = usage | BufferUsage::CopyDst;
-        bd.memory = MemoryClass::GpuOnly;
+        bd.usage = usage | buffer_usage::copy_dst;
+        bd.memory = memory_class::gpu_only;
         bd.name = name;
-        const BufferHandle h = device->CreateBuffer(bd);
-        WriteBuffer(h, Has(usage, BufferUsage::Index) ? State::IndexBuffer : State::VertexBuffer, 0, data,
+        const buffer_handle h = device->create_buffer(bd);
+        WriteBuffer(h, has(usage, buffer_usage::index) ? state::index_buffer : state::vertex_buffer, 0, data,
                     bytes);
         return h;
     }
 
-    void Gpu::WriteTexture(TextureHandle texture, uint32_t layer, uint32_t x, uint32_t y, uint32_t width,
+    void Gpu::WriteTexture(texture_handle texture, uint32_t layer, uint32_t x, uint32_t y, uint32_t width,
                            uint32_t height, const void* data, uint32_t rowBytes, uint32_t mip) {
-        const TextureDesc* td = device->GetDesc(texture);
+        const texture_desc* td = device->get_desc(texture);
         if (!td || !width || !height)
             return;
         const uint32_t packed = width * FormatBytes(td->format);
         const uint32_t srcPitch = rowBytes ? rowBytes : packed;
-        const uint32_t pitch = static_cast<uint32_t>(AlignUp(packed, Caps().limits.copyRowPitchAlignment));
+        const uint32_t pitch = static_cast<uint32_t>(AlignUp(packed, Caps().limits.copy_row_pitch_alignment));
         const uint64_t at =
-            AlignUp(pendingBytes.size(), std::max<uint64_t>(16, Caps().limits.copyOffsetAlignment));
+            AlignUp(pendingBytes.size(), std::max<uint64_t>(16, Caps().limits.copy_offset_alignment));
         pendingBytes.resize(at + static_cast<uint64_t>(pitch) * height);
         for (uint32_t row = 0; row < height; row++)
             std::memcpy(pendingBytes.data() + at + static_cast<uint64_t>(row) * pitch,
@@ -669,34 +670,34 @@ namespace perlin::gpu {
         imageWrites.push_back({texture, mip, layer, x, y, width, height, at, pitch});
     }
 
-    State Gpu::StateOf(TextureHandle texture) const {
+    state Gpu::StateOf(texture_handle texture) const {
         const auto it = textureStates.find(texture.value);
-        return it == textureStates.end() ? State::Undefined : it->second;
+        return it == textureStates.end() ? state::undefined : it->second;
     }
 
-    void Gpu::SetState(TextureHandle texture, State state) {
+    void Gpu::SetState(texture_handle texture, conduit::state state) {
         textureStates[texture.value] = state;
     }
 
-    void Gpu::Transition(CommandList& list, TextureHandle texture, State to) {
-        const State from = StateOf(texture);
+    void Gpu::Transition(command_list& list, texture_handle texture, state to) {
+        const state from = StateOf(texture);
         if (from == to)
             return;
-        TextureBarrier b;
+        texture_barrier b;
         b.texture = texture;
         b.before = from;
         b.after = to;
-        list.Barrier(b);
+        list.barrier(b);
         textureStates[texture.value] = to;
     }
 
-    void Gpu::Flush(CommandList& list) {
+    void Gpu::Flush(command_list& list) {
         if (bufferWrites.empty() && imageWrites.empty()) {
             pendingBytes.clear();
             return;
         }
         const RingSlice staging =
-            Ring(pendingBytes.size(), std::max<uint64_t>(256, Caps().limits.copyOffsetAlignment));
+            Ring(pendingBytes.size(), std::max<uint64_t>(256, Caps().limits.copy_offset_alignment));
         if (!staging.data) {
             bufferWrites.clear();
             imageWrites.clear();
@@ -705,15 +706,15 @@ namespace perlin::gpu {
         }
         std::memcpy(staging.data, pendingBytes.data(), pendingBytes.size());
 
-        std::vector<BufferBarrier> toCopy, toUse;
-        std::vector<TextureBarrier> texToCopy, texToUse;
+        std::vector<buffer_barrier> toCopy, toUse;
+        std::vector<texture_barrier> texToCopy, texToUse;
         bufferWrites.erase(
             std::remove_if(bufferWrites.begin(), bufferWrites.end(),
-                           [&](const BufferWrite& w) { return device->GetDesc(w.buffer) == nullptr; }),
+                           [&](const BufferWrite& w) { return device->get_desc(w.buffer) == nullptr; }),
             bufferWrites.end());
         imageWrites.erase(
             std::remove_if(imageWrites.begin(), imageWrites.end(),
-                           [&](const ImageWrite& w) { return device->GetDesc(w.texture) == nullptr; }),
+                           [&](const ImageWrite& w) { return device->get_desc(w.texture) == nullptr; }),
             imageWrites.end());
         std::unordered_set<uint32_t> seenBuffers;
         seenBuffers.reserve(16);
@@ -723,44 +724,44 @@ namespace perlin::gpu {
                 continue;
             const auto known = bufferStates.find(w.buffer.value);
             toCopy.push_back(
-                {w.buffer, known == bufferStates.end() ? State::Undefined : known->second, State::CopyDst});
-            toUse.push_back({w.buffer, State::CopyDst, w.state});
+                {w.buffer, known == bufferStates.end() ? state::undefined : known->second, state::copy_dst});
+            toUse.push_back({w.buffer, state::copy_dst, w.state});
             bufferStates[w.buffer.value] = w.state;
         }
-        std::vector<TextureHandle> touched;
+        std::vector<texture_handle> touched;
         std::unordered_set<uint32_t> seenTextures;
         for (const ImageWrite& w : imageWrites) {
             if (!seenTextures.insert(w.texture.value).second)
                 continue;
             touched.push_back(w.texture);
-            const State from = StateOf(w.texture);
-            TextureBarrier b;
+            const state from = StateOf(w.texture);
+            texture_barrier b;
             b.texture = w.texture;
             b.before = from;
-            b.after = State::CopyDst;
+            b.after = state::copy_dst;
             texToCopy.push_back(b);
-            b.before = State::CopyDst;
-            b.after = State::ShaderRead;
+            b.before = state::copy_dst;
+            b.after = state::shader_read;
             texToUse.push_back(b);
         }
-        list.Barrier(texToCopy, toCopy);
+        list.barrier(texToCopy, toCopy);
         for (const BufferWrite& w : bufferWrites)
-            list.CopyBuffer(w.buffer, w.offset, staging.buffer, staging.offset + w.source, w.bytes);
+            list.copy_buffer(w.buffer, w.offset, staging.buffer, staging.offset + w.source, w.bytes);
         for (const ImageWrite& w : imageWrites) {
-            BufferTextureCopy c;
-            c.bufferOffset = staging.offset + w.source;
-            c.bufferRowPitch = w.rowBytes;
+            buffer_texture_copy c;
+            c.buffer_offset = staging.offset + w.source;
+            c.buffer_row_pitch = w.rowBytes;
             c.mip = w.mip;
             c.layer = w.layer;
             c.x = w.x;
             c.y = w.y;
             c.width = w.width;
             c.height = w.height;
-            list.CopyBufferToTexture(w.texture, staging.buffer, std::span<const BufferTextureCopy>(&c, 1));
+            list.copy_buffer_to_texture(w.texture, staging.buffer, std::span<const buffer_texture_copy>(&c, 1));
         }
-        list.Barrier(texToUse, toUse);
-        for (const TextureHandle& t : touched)
-            textureStates[t.value] = State::ShaderRead;
+        list.barrier(texToUse, toUse);
+        for (const texture_handle& t : touched)
+            textureStates[t.value] = state::shader_read;
         bufferWrites.clear();
         imageWrites.clear();
         pendingBytes.clear();
@@ -777,44 +778,44 @@ namespace perlin::gpu {
         std::vector<uint64_t> at(sources.size());
         for (size_t i = 0; i < sources.size(); i++) {
             at[i] = total;
-            if (sources[i].buffer && device->GetDesc(sources[i].buffer))
+            if (sources[i].buffer && device->get_desc(sources[i].buffer))
                 total += (sources[i].bytes + 255) & ~255ull;
         }
         if (!total)
             return out;
-        BufferDesc bd;
+        buffer_desc bd;
         bd.size = total;
-        bd.usage = BufferUsage::CopyDst;
-        bd.memory = MemoryClass::Readback;
+        bd.usage = buffer_usage::copy_dst;
+        bd.memory = memory_class::readback;
         bd.name = "snapshot";
-        const BufferHandle readback = device->CreateBuffer(bd);
+        const buffer_handle readback = device->create_buffer(bd);
         if (!readback)
             return out;
-        CommandList* list = device->AcquireCommandList(QueueType::Graphics);
+        command_list* list = device->acquire_command_list(queue_type::graphics);
         Flush(*list);
-        std::vector<BufferBarrier> toRead, back;
+        std::vector<buffer_barrier> toRead, back;
         for (const BufferSource& s : sources) {
-            if (!s.buffer || !device->GetDesc(s.buffer))
+            if (!s.buffer || !device->get_desc(s.buffer))
                 continue;
             const auto known = bufferStates.find(s.buffer.value);
-            const State from = known == bufferStates.end() ? s.resting : known->second;
-            toRead.push_back({s.buffer, from, State::CopySrc});
-            back.push_back({s.buffer, State::CopySrc, from});
+            const state from = known == bufferStates.end() ? s.resting : known->second;
+            toRead.push_back({s.buffer, from, state::copy_src});
+            back.push_back({s.buffer, state::copy_src, from});
         }
-        list->Barrier({}, toRead);
+        list->barrier({}, toRead);
         for (size_t i = 0; i < sources.size(); i++)
-            if (sources[i].buffer && device->GetDesc(sources[i].buffer))
-                list->CopyBuffer(readback, at[i], sources[i].buffer, 0, sources[i].bytes);
-        list->Barrier({}, back);
+            if (sources[i].buffer && device->get_desc(sources[i].buffer))
+                list->copy_buffer(readback, at[i], sources[i].buffer, 0, sources[i].bytes);
+        list->barrier({}, back);
         FlushRings();
-        device->Submit(QueueType::Graphics, list);
-        device->WaitIdle();
-        device->Invalidate(readback, 0, total);
-        if (const uint8_t* mapped = device->Map(readback))
+        device->submit(queue_type::graphics, list);
+        device->wait_idle();
+        device->invalidate(readback, 0, total);
+        if (const uint8_t* mapped = device->map(readback))
             for (size_t i = 0; i < sources.size(); i++)
                 if (sources[i].buffer && sources[i].bytes && at[i] + sources[i].bytes <= total)
                     out[i].assign(mapped + at[i], mapped + at[i] + sources[i].bytes);
-        device->Destroy(readback);
+        device->destroy(readback);
         return out;
     }
 }

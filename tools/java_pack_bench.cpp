@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
 
     gpu::Gpu gpu;
     gpu::GpuSettings s;
-    s.api = rhi::Api::Vulkan;
+    s.api = conduit::api::vulkan;
     s.offscreen = true;
     s.width = W;
     s.height = H;
@@ -216,13 +216,13 @@ int main(int argc, char** argv) {
         }
     std::printf("terrain: %d chunks, %zu vertices\n", (2 * radius + 1) * (2 * radius + 1), verts);
 
-    rhi::TextureDesc dd;
-    dd.format = rhi::Format::D32Float;
+    conduit::texture_desc dd;
+    dd.format = conduit::format::d32_float;
     dd.width = W;
     dd.height = H;
-    dd.usage = rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled | rhi::TextureUsage::CopySrc;
+    dd.usage = conduit::texture_usage::depth_target | conduit::texture_usage::sampled | conduit::texture_usage::copy_src;
     dd.name = "bench depth";
-    const rhi::TextureHandle depth = gpu.Dev().CreateTexture(dd);
+    const conduit::texture_handle depth = gpu.Dev().create_texture(dd);
 
     const auto t0 = std::chrono::steady_clock::now();
     int left = 1;
@@ -274,9 +274,9 @@ int main(int argc, char** argv) {
         meshes.Select(frustum, eye.x, eye.y, eye.z, 0, false, f.timeSeconds);
         pack.SetViewFrustum(frustum);
         pack.GatherGeometry(eye.x, eye.z);
-        rhi::Swapchain::Image image;
+        conduit::swapchain::image image;
         gpu.AcquireImage(image);
-        rhi::CommandList* list = gpu.Dev().AcquireCommandList(rhi::QueueType::Graphics);
+        conduit::command_list* list = gpu.Dev().acquire_command_list(conduit::queue_type::graphics);
         gpu.Flush(*list);
         gpu::JavaPack::Output out;
         out.color = image.texture;
@@ -294,36 +294,36 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "frame %d submit\n", frame);
         const auto c1 = std::chrono::steady_clock::now();
         pack.DropQueued();
-        gpu.Transition(*list, image.texture, rhi::State::CopySrc);
+        gpu.Transition(*list, image.texture, conduit::state::copy_src);
         const char* savePath = std::getenv("BENCH_SAVE");
-        rhi::BufferHandle readback;
+        conduit::buffer_handle readback;
         const uint32_t pitch = (W * 4 + 255) / 256 * 256;
         if (savePath && frame == frames + 9) {
-            rhi::BufferDesc bd;
+            conduit::buffer_desc bd;
             bd.size = static_cast<uint64_t>(pitch) * H;
-            bd.usage = rhi::BufferUsage::CopyDst;
-            bd.memory = rhi::MemoryClass::Readback;
+            bd.usage = conduit::buffer_usage::copy_dst;
+            bd.memory = conduit::memory_class::readback;
             bd.name = "bench readback";
-            readback = gpu.Dev().CreateBuffer(bd);
-            rhi::BufferTextureCopy c;
-            c.bufferRowPitch = pitch;
+            readback = gpu.Dev().create_buffer(bd);
+            conduit::buffer_texture_copy c;
+            c.buffer_row_pitch = pitch;
             c.width = W;
             c.height = H;
-            list->CopyTextureToBuffer(readback, image.texture, std::span<const rhi::BufferTextureCopy>(&c, 1));
+            list->copy_texture_to_buffer(readback, image.texture, std::span<const conduit::buffer_texture_copy>(&c, 1));
         }
         gpu.FlushRings();
-        gpu.Dev().Submit(rhi::QueueType::Graphics, list);
-        gpu.Dev().EndFrame();
+        gpu.Dev().submit(conduit::queue_type::graphics, list);
+        gpu.Dev().end_frame();
         const auto g0 = std::chrono::steady_clock::now();
-        gpu.Dev().WaitIdle();
+        gpu.Dev().wait_idle();
         if (trace)
             std::fprintf(stderr, "frame %d done\n", frame);
         const auto g1 = std::chrono::steady_clock::now();
         if (!ok)
             std::printf("frame %d not recorded: %s\n", frame, pack.Error().c_str());
         if (readback) {
-            gpu.Dev().Invalidate(readback, 0, static_cast<uint64_t>(pitch) * H);
-            if (const uint8_t* px = gpu.Dev().Map(readback)) {
+            gpu.Dev().invalidate(readback, 0, static_cast<uint64_t>(pitch) * H);
+            if (const uint8_t* px = gpu.Dev().map(readback)) {
                 if (FILE* fp = std::fopen(savePath, "wb")) {
                     std::fprintf(fp, "P6\n%u %u\n255\n", W, H);
                     for (uint32_t y = 0; y < H; y++)
@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
                     std::fclose(fp);
                 }
             }
-            gpu.Dev().Destroy(readback);
+            gpu.Dev().destroy(readback);
         }
         if (frame >= 10) {
             cpuRecord += std::chrono::duration<double, std::milli>(c1 - c0).count();
@@ -342,6 +342,6 @@ int main(int argc, char** argv) {
     }
     std::printf("RESULT frames %d: record %.3f ms/frame, gpu %.2f ms/frame\n", measured, cpuRecord / measured,
                 gpuWall / measured);
-    gpu.Dev().Destroy(depth);
+    gpu.Dev().destroy(depth);
     return 0;
 }

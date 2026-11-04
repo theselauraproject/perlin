@@ -71,10 +71,10 @@ namespace perlin::gpu {
         using ExtendFn = std::function<void(const Tessellator&, std::vector<uint8_t>&)>;
         void SetExtension(uint32_t bytesPerVertex, ExtendFn convert);
         uint32_t ExtensionBytes() const { return extBytes; }
-        rhi::BufferHandle Extension(uint32_t page) const { return pages[page].ext.Buffer(); }
+        conduit::buffer_handle Extension(uint32_t page) const { return pages[page].ext.Buffer(); }
 
-        rhi::BufferHandle Vertices(uint32_t page) const { return pages[page].vb.Buffer(); }
-        rhi::BufferHandle Indices(uint32_t page, RenderLayer layer) const {
+        conduit::buffer_handle Vertices(uint32_t page) const { return pages[page].vb.Buffer(); }
+        conduit::buffer_handle Indices(uint32_t page, RenderLayer layer) const {
             return pages[page].ib[static_cast<size_t>(layer)].Buffer();
         }
         size_t Pages() const { return pages.size(); }

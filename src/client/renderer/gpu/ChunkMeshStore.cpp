@@ -35,7 +35,7 @@ namespace perlin::gpu {
         visible.clear();
         visibleSections.clear();
         if (gpu) {
-            gpu->Dev().WaitIdle();
+            gpu->Dev().wait_idle();
             for (Page& p : pages) {
                 if (!p.live)
                     continue;
@@ -89,7 +89,7 @@ namespace perlin::gpu {
         const auto drop = [&](Arena& a) {
             if (a.Buffer()) {
                 gpu->ForgetBuffer(a.Buffer());
-                gpu->Dev().Destroy(a.Buffer());
+                gpu->Dev().destroy(a.Buffer());
             }
             a.Detach();
         };
@@ -132,12 +132,12 @@ namespace perlin::gpu {
     int ChunkMeshStore::CreatePage(uint32_t vCap, const std::array<uint32_t, kRenderLayerCount>& iCap) {
         Page p;
         bool ok = p.vb.Create(gpu->Dev(), vCap, sizeof(Vertex),
-                              rhi::BufferUsage::Vertex | rhi::BufferUsage::Storage, "chunk vertices");
+                              conduit::buffer_usage::vertex | conduit::buffer_usage::storage, "chunk vertices");
         if (ok && extBytes)
-            ok = p.ext.Create(gpu->Dev(), vCap, extBytes, rhi::BufferUsage::Vertex, "chunk vertex extras");
+            ok = p.ext.Create(gpu->Dev(), vCap, extBytes, conduit::buffer_usage::vertex, "chunk vertex extras");
         for (size_t l = 0; l < kRenderLayerCount && ok; l++)
             ok = p.ib[l].Create(gpu->Dev(), std::max(1u, iCap[l]), sizeof(uint32_t),
-                                rhi::BufferUsage::Index | rhi::BufferUsage::Storage, "chunk indices");
+                                conduit::buffer_usage::index | conduit::buffer_usage::storage, "chunk indices");
         if (!ok) {
             p.vb.Destroy(gpu->Dev());
             p.ext.Destroy(gpu->Dev());

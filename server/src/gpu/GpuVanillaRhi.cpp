@@ -10,9 +10,9 @@
 #include "world/Blocks.hpp"
 #include "world/vanilla/VanillaTerrain.hpp"
 
-#include "rhi/Device.hpp"
-#include "rhi/DeviceProfile.hpp"
-#include "rhi/ShaderLibrary.hpp"
+#include <conduit/device.hpp>
+#include <conduit/render_profile.hpp>
+#include <conduit/shader_library.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -51,19 +51,19 @@ namespace perlin::server {
             ~GpuVanillaBackend() override {
                 if (!device)
                     return;
-                device->WaitIdle();
-                device->Destroy(bindGroup);
-                device->Destroy(pipeline);
-                device->Destroy(pipelineLayout);
-                device->Destroy(bindLayout);
-                device->Destroy(shader);
-                device->Destroy(tableBuffer);
-                device->Destroy(chunkBuffer);
-                device->Destroy(scratchBuffer);
-                device->Destroy(densityBuffer);
-                device->Destroy(readback);
-                device->Destroy(readbackColumns);
-                device->Destroy(fence);
+                device->wait_idle();
+                device->destroy(bindGroup);
+                device->destroy(pipeline);
+                device->destroy(pipelineLayout);
+                device->destroy(bindLayout);
+                device->destroy(shader);
+                device->destroy(tableBuffer);
+                device->destroy(chunkBuffer);
+                device->destroy(scratchBuffer);
+                device->destroy(densityBuffer);
+                device->destroy(readback);
+                device->destroy(readbackColumns);
+                device->destroy(fence);
             }
 
             const char* Name() const override { return failed ? "vanilla/cpu (gpu failed)" : name.c_str(); }
@@ -98,149 +98,150 @@ namespace perlin::server {
                 }
                 tables = vanilla::PackTables(*program, cpu->Surface());
 
-                rhi::ProbeOptions po;
-                po.readCaps = false;
-                po.allowSoftware = config.terrainBackend == "gpu";
-                const rhi::Probe probe = rhi::ProbeSystem(po);
-                rhi::ShaderLibrary library;
+                conduit::probe_options po;
+                po.read_caps = false;
+                po.allow_software = config.terrainBackend == "gpu";
+                const conduit::probe probe = conduit::probe_system(po);
+                conduit::shader_library library;
                 std::string packError;
-                if (!library.Load(std::span<const uint8_t>(kTerrainShaderPack, kTerrainShaderPackSize),
+                if (!library.load(std::span<const uint8_t>(kTerrainShaderPack, kTerrainShaderPackSize),
                                   &packError)) {
                     note = "terrain shader pack: " + packError;
                     return false;
                 }
-                const rhi::ProgramInfo* info = library.Find("terrain_vanilla");
+                const conduit::program_info* info = library.find("terrain_vanilla");
                 if (!info) {
                     note = "terrain shader pack has no terrain_vanilla program";
                     return false;
                 }
-                const rhi::Candidate* pick = nullptr;
-                for (const rhi::Candidate& c : probe.candidates) {
+                const conduit::candidate* pick = nullptr;
+                for (const conduit::candidate& c : probe.candidates) {
                     if (!c.adapter.usable)
                         continue;
                     if (library
-                            .Code(*info, rhi::ShaderStage::Compute,
-                                  rhi::ShaderLibrary::TargetFor(c.adapter.api))
+                            .code(*info, conduit::shader_stage::compute,
+                                  conduit::shader_library::target_for(c.adapter.api))
                             .empty())
                         continue;
                     pick = &c;
                     break;
                 }
                 if (!pick) {
-                    note = po.allowSoftware
+                    note = po.allow_software
                                ? "no graphics device with a compute shader for it"
                                : "no hardware graphics device (software devices are skipped in auto mode)";
                     return false;
                 }
-                rhi::InstanceOptions io;
-                instance = rhi::CreateInstance(pick->adapter.api, io);
+                conduit::instance_options io;
+                io.app_name = "Perlin";
+                instance = conduit::create_instance(pick->adapter.api, io);
                 if (!instance) {
                     note = "cannot create a graphics instance";
                     return false;
                 }
-                rhi::DeviceOptions dopts;
-                dopts.adapterIndex = pick->adapter.index;
-                dopts.allowAsyncCompute = false;
-                device = instance->CreateDevice(dopts);
+                conduit::device_options dopts;
+                dopts.adapter_index = pick->adapter.index;
+                dopts.allow_async_compute = false;
+                device = instance->create_device(dopts);
                 if (!device) {
                     note = "cannot create a device on " + pick->adapter.name;
                     return false;
                 }
                 // the kernel does its coordinate math in double precision, to match the cpu exactly
-                if (!device->Caps().features.shaderFloat64) {
+                if (!device->caps().features.shader_float64) {
                     note = pick->adapter.name + " has no 64-bit floats in shaders";
                     return false;
                 }
-                const rhi::Api api = pick->adapter.api;
+                const conduit::api api = pick->adapter.api;
                 const auto code =
-                    library.Code(*info, rhi::ShaderStage::Compute, rhi::ShaderLibrary::TargetFor(api));
-                rhi::ShaderDesc sd;
-                sd.stage = rhi::ShaderStage::Compute;
-                sd.format = rhi::ShaderLibrary::FormatFor(rhi::ShaderLibrary::TargetFor(api));
+                    library.code(*info, conduit::shader_stage::compute, conduit::shader_library::target_for(api));
+                conduit::shader_desc sd;
+                sd.stage = conduit::shader_stage::compute;
+                sd.format = conduit::shader_library::format_for(conduit::shader_library::target_for(api));
                 sd.code = code;
-                sd.entry = rhi::ShaderLibrary::EntryFor(rhi::ShaderStage::Compute,
-                                                        rhi::ShaderLibrary::TargetFor(api));
+                sd.entry = conduit::shader_library::entry_for(conduit::shader_stage::compute,
+                                                        conduit::shader_library::target_for(api));
                 sd.name = "terrain_vanilla";
-                shader = device->CreateShader(sd);
+                shader = device->create_shader(sd);
 
-                const rhi::BindLayoutEntry entries[] = {
-                    {0, rhi::BindingType::StorageBuffer, rhi::ShaderStage::Compute},
-                    {1, rhi::BindingType::StorageBuffer, rhi::ShaderStage::Compute},
-                    {2, rhi::BindingType::StorageBufferRW, rhi::ShaderStage::Compute},
-                    {3, rhi::BindingType::StorageBufferRW, rhi::ShaderStage::Compute},
+                const conduit::bind_layout_entry entries[] = {
+                    {0, conduit::binding_type::storage_buffer, conduit::shader_stage::compute},
+                    {1, conduit::binding_type::storage_buffer, conduit::shader_stage::compute},
+                    {2, conduit::binding_type::storage_buffer_rw, conduit::shader_stage::compute},
+                    {3, conduit::binding_type::storage_buffer_rw, conduit::shader_stage::compute},
                 };
-                rhi::BindLayoutDesc bl;
+                conduit::bind_layout_desc bl;
                 bl.entries = entries;
                 bl.name = "vanilla terrain bindings";
-                bindLayout = device->CreateBindLayout(bl);
-                rhi::PipelineLayoutDesc pl;
+                bindLayout = device->create_bind_layout(bl);
+                conduit::pipeline_layout_desc pl;
                 pl.sets[0] = bindLayout;
-                pl.pushConstantBytes = sizeof(PushParams);
-                pl.pushConstantStages = rhi::ShaderStage::Compute;
+                pl.push_constant_bytes = sizeof(PushParams);
+                pl.push_constant_stages = conduit::shader_stage::compute;
                 pl.name = "vanilla terrain layout";
-                pipelineLayout = device->CreatePipelineLayout(pl);
-                rhi::ComputePipelineDesc cp;
+                pipelineLayout = device->create_pipeline_layout(pl);
+                conduit::compute_pipeline_desc cp;
                 cp.compute = shader;
                 cp.layout = pipelineLayout;
                 cp.name = "terrain_vanilla";
-                pipeline = device->CreateComputePipeline(cp);
+                pipeline = device->create_compute_pipeline(cp);
 
                 interpCount = static_cast<uint32_t>(program->interpolatedInputs.size());
                 columnBase =
                     static_cast<uint32_t>(kBatch * kCornersPerChunk * std::max<uint32_t>(1, interpCount));
-                rhi::BufferDesc b;
+                conduit::buffer_desc b;
                 b.size = static_cast<uint64_t>(tables.size()) * 4;
-                b.usage = rhi::BufferUsage::Storage;
-                b.memory = rhi::MemoryClass::Upload;
+                b.usage = conduit::buffer_usage::storage;
+                b.memory = conduit::memory_class::upload;
                 b.stride = 4;
                 b.name = "vanilla tables";
-                tableBuffer = device->CreateBuffer(b);
+                tableBuffer = device->create_buffer(b);
                 b.size = static_cast<uint64_t>(kBatch) * 8;
                 b.stride = 8;
                 b.name = "vanilla chunks";
-                chunkBuffer = device->CreateBuffer(b);
+                chunkBuffer = device->create_buffer(b);
                 // corners first, then the per-column results
                 b.size = (static_cast<uint64_t>(columnBase) + kBatch * 256 * kColumnWords) * 4;
-                b.usage = rhi::BufferUsage::Storage | rhi::BufferUsage::CopySrc;
-                b.memory = rhi::MemoryClass::GpuOnly;
+                b.usage = conduit::buffer_usage::storage | conduit::buffer_usage::copy_src;
+                b.memory = conduit::memory_class::gpu_only;
                 b.stride = 4;
                 b.name = "vanilla scratch";
-                scratchBuffer = device->CreateBuffer(b);
+                scratchBuffer = device->create_buffer(b);
                 b.size = static_cast<uint64_t>(kBatch) * kBlocksPerChunk * 4;
                 b.name = "vanilla density";
-                densityBuffer = device->CreateBuffer(b);
-                b.usage = rhi::BufferUsage::CopyDst;
-                b.memory = rhi::MemoryClass::Readback;
+                densityBuffer = device->create_buffer(b);
+                b.usage = conduit::buffer_usage::copy_dst;
+                b.memory = conduit::memory_class::readback;
                 b.stride = 0;
                 b.name = "vanilla readback";
-                readback = device->CreateBuffer(b);
+                readback = device->create_buffer(b);
                 b.size = static_cast<uint64_t>(kBatch) * 256 * kColumnWords * 4;
                 b.name = "vanilla column readback";
-                readbackColumns = device->CreateBuffer(b);
-                fence = device->CreateFence(0);
+                readbackColumns = device->create_buffer(b);
+                fence = device->create_fence(0);
 
-                uint8_t* t = device->Map(tableBuffer);
-                if (!t || !device->Map(chunkBuffer) || !device->Map(readback) ||
-                    !device->Map(readbackColumns) || !pipeline || !fence || !scratchBuffer ||
+                uint8_t* t = device->map(tableBuffer);
+                if (!t || !device->map(chunkBuffer) || !device->map(readback) ||
+                    !device->map(readbackColumns) || !pipeline || !fence || !scratchBuffer ||
                     !densityBuffer) {
                     note = "terrain pipeline or buffers could not be created on " + pick->adapter.name;
                     return false;
                 }
                 std::memcpy(t, tables.data(), tables.size() * 4);
-                device->Flush(tableBuffer, 0, tables.size() * 4);
+                device->flush(tableBuffer, 0, tables.size() * 4);
 
-                const rhi::BindGroupEntry groupEntries[] = {
+                const conduit::bind_group_entry groupEntries[] = {
                     {0, 0, {tableBuffer, 0, 0}, {}, {}},
                     {1, 0, {chunkBuffer, 0, 0}, {}, {}},
                     {2, 0, {scratchBuffer, 0, 0}, {}, {}},
                     {3, 0, {densityBuffer, 0, 0}, {}, {}},
                 };
-                rhi::BindGroupDesc bg;
+                conduit::bind_group_desc bg;
                 bg.layout = bindLayout;
                 bg.entries = groupEntries;
                 bg.name = "vanilla terrain group";
-                bindGroup = device->CreateBindGroup(bg);
-                deviceName = std::string(rhi::ApiName(api)) + ", " + pick->adapter.name;
+                bindGroup = device->create_bind_group(bg);
+                deviceName = std::string(conduit::api_name(api)) + ", " + pick->adapter.name;
                 return true;
             }
 
@@ -435,29 +436,29 @@ namespace perlin::server {
                 if (failed)
                     return false;
                 const uint32_t count = static_cast<uint32_t>(positions.size());
-                uint8_t* chunkMem = device->Map(chunkBuffer);
+                uint8_t* chunkMem = device->map(chunkBuffer);
                 for (uint32_t i = 0; i < count; i++) {
                     const int32_t xz[2] = {positions[i].x, positions[i].z};
                     std::memcpy(chunkMem + i * 8, xz, 8);
                 }
-                device->Flush(chunkBuffer, 0, static_cast<uint64_t>(count) * 8);
+                device->flush(chunkBuffer, 0, static_cast<uint64_t>(count) * 8);
 
-                rhi::CommandList* cmd = device->AcquireCommandList(rhi::QueueType::Graphics);
-                cmd->SetPipeline(pipeline);
-                cmd->SetBindGroup(0, bindGroup);
+                conduit::command_list* cmd = device->acquire_command_list(conduit::queue_type::graphics);
+                cmd->set_pipeline(pipeline);
+                cmd->set_bind_group(0, bindGroup);
                 const auto run = [&](uint32_t phase, uint32_t begin, uint32_t number, uint64_t threads) {
                     PushParams push{count, phase, begin, number, program->root, interpCount, columnBase, 0};
-                    cmd->PushConstants(&push, sizeof push);
-                    cmd->Dispatch(static_cast<uint32_t>((threads + 63) / 64), 1, 1);
+                    cmd->push_constants(&push, sizeof push);
+                    cmd->dispatch(static_cast<uint32_t>((threads + 63) / 64), 1, 1);
                     // the next phase reads what this one wrote
-                    rhi::BufferBarrier scratch;
+                    conduit::buffer_barrier scratch;
                     scratch.buffer = scratchBuffer;
-                    scratch.before = rhi::State::ShaderWrite;
-                    scratch.after = rhi::State::ShaderWrite;
-                    cmd->Barrier(scratch);
-                    rhi::BufferBarrier dens = scratch;
+                    scratch.before = conduit::state::shader_write;
+                    scratch.after = conduit::state::shader_write;
+                    cmd->barrier(scratch);
+                    conduit::buffer_barrier dens = scratch;
                     dens.buffer = densityBuffer;
-                    cmd->Barrier(dens);
+                    cmd->barrier(dens);
                 };
                 run(0, 0, program->innerCount, static_cast<uint64_t>(count) * kCornersPerChunk);
                 run(1, program->innerCount, program->outerCount,
@@ -469,39 +470,39 @@ namespace perlin::server {
 
                 const uint64_t bytes = static_cast<uint64_t>(count) * kBlocksPerChunk * 4;
                 const uint64_t columnBytes = static_cast<uint64_t>(count) * 256 * kColumnWords * 4;
-                rhi::BufferBarrier toCopy;
+                conduit::buffer_barrier toCopy;
                 toCopy.buffer = densityBuffer;
-                toCopy.before = rhi::State::ShaderWrite;
-                toCopy.after = rhi::State::CopySrc;
-                cmd->Barrier(toCopy);
-                cmd->CopyBuffer(readback, 0, densityBuffer, 0, bytes);
+                toCopy.before = conduit::state::shader_write;
+                toCopy.after = conduit::state::copy_src;
+                cmd->barrier(toCopy);
+                cmd->copy_buffer(readback, 0, densityBuffer, 0, bytes);
                 if (wantColumns) {
-                    rhi::BufferBarrier cols;
+                    conduit::buffer_barrier cols;
                     cols.buffer = scratchBuffer;
-                    cols.before = rhi::State::ShaderWrite;
-                    cols.after = rhi::State::CopySrc;
-                    cmd->Barrier(cols);
-                    cmd->CopyBuffer(readbackColumns, 0, scratchBuffer, static_cast<uint64_t>(columnBase) * 4,
+                    cols.before = conduit::state::shader_write;
+                    cols.after = conduit::state::copy_src;
+                    cmd->barrier(cols);
+                    cmd->copy_buffer(readbackColumns, 0, scratchBuffer, static_cast<uint64_t>(columnBase) * 4,
                                     columnBytes);
                 }
-                const rhi::FenceOp signal{fence, ++fenceValue};
-                rhi::SubmitDesc sd;
-                rhi::CommandList* lists[] = {cmd};
+                const conduit::fence_op signal{fence, ++fenceValue};
+                conduit::submit_desc sd;
+                conduit::command_list* lists[] = {cmd};
                 sd.lists = lists;
-                sd.signals = std::span<const rhi::FenceOp>(&signal, 1);
-                device->Submit(rhi::QueueType::Graphics, sd);
+                sd.signals = std::span<const conduit::fence_op>(&signal, 1);
+                device->submit(conduit::queue_type::graphics, sd);
                 // a wedged or lost device must not hang the server: a generous bound, then the caller hands over to the cpu
-                if (!device->WaitFence(fence, fenceValue, 30ull * 1000 * 1000 * 1000)) {
+                if (!device->wait_fence(fence, fenceValue, 30ull * 1000 * 1000 * 1000)) {
                     failed = true;
                     return false;
                 }
-                device->Invalidate(readback, 0, bytes);
+                device->invalidate(readback, 0, bytes);
                 out.density.resize(static_cast<size_t>(count) * kBlocksPerChunk);
-                std::memcpy(out.density.data(), device->Map(readback), bytes);
+                std::memcpy(out.density.data(), device->map(readback), bytes);
                 if (wantColumns) {
-                    device->Invalidate(readbackColumns, 0, columnBytes);
+                    device->invalidate(readbackColumns, 0, columnBytes);
                     out.columns.resize(static_cast<size_t>(count) * 256 * kColumnWords);
-                    std::memcpy(out.columns.data(), device->Map(readbackColumns), columnBytes);
+                    std::memcpy(out.columns.data(), device->map(readbackColumns), columnBytes);
                 }
                 return true;
             }
@@ -516,16 +517,16 @@ namespace perlin::server {
             std::unique_ptr<vanilla::GpuProgram> program;
             std::vector<uint32_t> tables;
             uint32_t interpCount = 0, columnBase = 0;
-            std::unique_ptr<rhi::Instance> instance;
-            std::unique_ptr<rhi::Device> device;
-            rhi::ShaderHandle shader;
-            rhi::BindLayoutHandle bindLayout;
-            rhi::BindGroupHandle bindGroup;
-            rhi::PipelineLayoutHandle pipelineLayout;
-            rhi::PipelineHandle pipeline;
-            rhi::BufferHandle tableBuffer, chunkBuffer, scratchBuffer, densityBuffer, readback,
+            std::unique_ptr<conduit::instance> instance;
+            std::unique_ptr<conduit::device> device;
+            conduit::shader_handle shader;
+            conduit::bind_layout_handle bindLayout;
+            conduit::bind_group_handle bindGroup;
+            conduit::pipeline_layout_handle pipelineLayout;
+            conduit::pipeline_handle pipeline;
+            conduit::buffer_handle tableBuffer, chunkBuffer, scratchBuffer, densityBuffer, readback,
                 readbackColumns;
-            rhi::FenceHandle fence;
+            conduit::fence_handle fence;
             uint64_t fenceValue = 0;
         };
     }

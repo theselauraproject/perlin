@@ -333,114 +333,114 @@ namespace perlin::gpu {
         }
 
         // iris internal format names of custom images; integer formats sample nearest
-        rhi::Format ImageFormat(const std::string& internal, bool& integer) {
-            static const std::map<std::string, std::pair<rhi::Format, bool>> formats = {
-                {"rgba8", {rhi::Format::RGBA8Unorm, false}},
-                {"rgba", {rhi::Format::RGBA8Unorm, false}},
-                {"rgb8", {rhi::Format::RGBA8Unorm, false}},
-                {"rg8", {rhi::Format::RG8Unorm, false}},
-                {"r8", {rhi::Format::R8Unorm, false}},
-                {"rgba16f", {rhi::Format::RGBA16Float, false}},
-                {"rgb16f", {rhi::Format::RGBA16Float, false}},
-                {"rg16f", {rhi::Format::RG16Float, false}},
-                {"r16f", {rhi::Format::R16Float, false}},
-                {"rgba32f", {rhi::Format::RGBA32Float, false}},
-                {"rgb32f", {rhi::Format::RGBA32Float, false}},
-                {"rg32f", {rhi::Format::RG32Float, false}},
-                {"r32f", {rhi::Format::R32Float, false}},
-                {"rgba16", {rhi::Format::RGBA16Unorm, false}},
-                {"rg16", {rhi::Format::RG16Unorm, false}},
-                {"rgb10_a2", {rhi::Format::RGB10A2Unorm, false}},
-                {"r11f_g11f_b10f", {rhi::Format::R11G11B10Float, false}},
-                {"r8ui", {rhi::Format::R8Uint, true}},
-                {"r16ui", {rhi::Format::R16Uint, true}},
-                {"r32ui", {rhi::Format::R32Uint, true}},
-                {"rg32ui", {rhi::Format::RG32Uint, true}},
-                {"rgba32ui", {rhi::Format::RGBA32Uint, true}},
-                {"r32i", {rhi::Format::R32Uint, true}},
-                {"rgba32i", {rhi::Format::RGBA32Uint, true}}};
+        conduit::format ImageFormat(const std::string& internal, bool& integer) {
+            static const std::map<std::string, std::pair<conduit::format, bool>> formats = {
+                {"rgba8", {conduit::format::rgba8_unorm, false}},
+                {"rgba", {conduit::format::rgba8_unorm, false}},
+                {"rgb8", {conduit::format::rgba8_unorm, false}},
+                {"rg8", {conduit::format::rg8_unorm, false}},
+                {"r8", {conduit::format::r8_unorm, false}},
+                {"rgba16f", {conduit::format::rgba16_float, false}},
+                {"rgb16f", {conduit::format::rgba16_float, false}},
+                {"rg16f", {conduit::format::rg16_float, false}},
+                {"r16f", {conduit::format::r16_float, false}},
+                {"rgba32f", {conduit::format::rgba32_float, false}},
+                {"rgb32f", {conduit::format::rgba32_float, false}},
+                {"rg32f", {conduit::format::rg32_float, false}},
+                {"r32f", {conduit::format::r32_float, false}},
+                {"rgba16", {conduit::format::rgba16_unorm, false}},
+                {"rg16", {conduit::format::rg16_unorm, false}},
+                {"rgb10_a2", {conduit::format::rgb10a2_unorm, false}},
+                {"r11f_g11f_b10f", {conduit::format::r11g11b10_float, false}},
+                {"r8ui", {conduit::format::r8_uint, true}},
+                {"r16ui", {conduit::format::r16_uint, true}},
+                {"r32ui", {conduit::format::r32_uint, true}},
+                {"rg32ui", {conduit::format::rg32_uint, true}},
+                {"rgba32ui", {conduit::format::rgba32_uint, true}},
+                {"r32i", {conduit::format::r32_uint, true}},
+                {"rgba32i", {conduit::format::rgba32_uint, true}}};
             const auto it = formats.find(jshader::ImageFormatQualifier(internal));
             if (it == formats.end()) {
                 integer = false;
-                return rhi::Format::Unknown;
+                return conduit::format::unknown;
             }
             integer = it->second.second;
             return it->second.first;
         }
 
-        rhi::Format ToFormat(jshader::BufferFormat f) {
+        conduit::format ToFormat(jshader::BufferFormat f) {
             using B = jshader::BufferFormat;
             switch (f) {
             case B::RGBA8:
-                return rhi::Format::RGBA8Unorm;
+                return conduit::format::rgba8_unorm;
             case B::RGBA16:
-                return rhi::Format::RGBA16Unorm;
+                return conduit::format::rgba16_unorm;
             case B::RGBA16F:
-                return rhi::Format::RGBA16Float;
+                return conduit::format::rgba16_float;
             case B::RGBA32F:
-                return rhi::Format::RGBA32Float;
+                return conduit::format::rgba32_float;
             case B::R8:
-                return rhi::Format::R8Unorm;
+                return conduit::format::r8_unorm;
             case B::RG8:
-                return rhi::Format::RG8Unorm;
+                return conduit::format::rg8_unorm;
             case B::R16F:
-                return rhi::Format::R16Float;
+                return conduit::format::r16_float;
             case B::RG16F:
-                return rhi::Format::RG16Float;
+                return conduit::format::rg16_float;
             case B::R32F:
-                return rhi::Format::R32Float;
+                return conduit::format::r32_float;
             // no three-channel render targets, no signed or integer ones: the nearest wider format keeps the values
             case B::RGB8:
-                return rhi::Format::RGBA8Unorm;
+                return conduit::format::rgba8_unorm;
             case B::RGB16F:
-                return rhi::Format::RGBA16Float;
+                return conduit::format::rgba16_float;
             case B::R11F_G11F_B10F:
-                return rhi::Format::R11G11B10Float;
+                return conduit::format::r11g11b10_float;
             case B::RGB10_A2:
-                return rhi::Format::RGB10A2Unorm;
+                return conduit::format::rgb10a2_unorm;
             case B::RG16:
-                return rhi::Format::RG16Unorm;
+                return conduit::format::rg16_unorm;
             case B::R16:
-                return rhi::Format::R16Float;
+                return conduit::format::r16_float;
             case B::RGBA8_SNORM:
-                return rhi::Format::RGBA16Float;
+                return conduit::format::rgba16_float;
             case B::RGB16:
-                return rhi::Format::RGBA16Unorm;
+                return conduit::format::rgba16_unorm;
             case B::RGBA32I:
-                return rhi::Format::RGBA32Float;
+                return conduit::format::rgba32_float;
             case B::RG32F:
-                return rhi::Format::RG32Float;
+                return conduit::format::rg32_float;
             }
-            return rhi::Format::RGBA8Unorm;
+            return conduit::format::rgba8_unorm;
         }
 
-        rhi::BlendFactor GlFactor(int gl) {
-            using F = rhi::BlendFactor;
+        conduit::blend_factor GlFactor(int gl) {
+            using F = conduit::blend_factor;
             switch (gl) {
             case 0:
-                return F::Zero;
+                return F::zero;
             case 1:
-                return F::One;
+                return F::one;
             case 0x300:
-                return F::SrcColor;
+                return F::src_color;
             case 0x301:
-                return F::InvSrcColor;
+                return F::inv_src_color;
             case 0x302:
-                return F::SrcAlpha;
+                return F::src_alpha;
             case 0x303:
-                return F::InvSrcAlpha;
+                return F::inv_src_alpha;
             case 0x304:
-                return F::DstAlpha;
+                return F::dst_alpha;
             case 0x305:
-                return F::InvDstAlpha;
+                return F::inv_dst_alpha;
             case 0x306:
-                return F::DstColor;
+                return F::dst_color;
             case 0x307:
-                return F::InvDstColor;
+                return F::inv_dst_color;
             case 0x308:
-                return F::SrcAlphaSaturate;
+                return F::src_alpha_saturate;
             }
-            return F::One;
+            return F::one;
         }
 
         jshader::ExpandedSource MakeSource(const char* text) {
@@ -614,59 +614,59 @@ namespace perlin::gpu {
     }
 
     void JavaPack::ReleaseAll() {
-        rhi::Device& dev = gpu.Dev();
-        dev.WaitIdle();
+        conduit::device& dev = gpu.Dev();
+        dev.wait_idle();
         DestroyTargets();
         if (timing.queries)
-            dev.Destroy(timing.queries);
-        for (rhi::BufferHandle b : timing.readback)
+            dev.destroy(timing.queries);
+        for (conduit::buffer_handle b : timing.readback)
             if (b)
-                dev.Destroy(b);
+                dev.destroy(b);
         timing = {};
         for (auto& kv : programs) {
             if (kv.second->vs)
-                dev.Destroy(kv.second->vs);
+                dev.destroy(kv.second->vs);
             if (kv.second->fs)
-                dev.Destroy(kv.second->fs);
+                dev.destroy(kv.second->fs);
             if (kv.second->cs)
-                dev.Destroy(kv.second->cs);
+                dev.destroy(kv.second->cs);
             if (kv.second->computePipeline)
-                dev.Destroy(kv.second->computePipeline);
+                dev.destroy(kv.second->computePipeline);
         }
         programs.clear();
         for (auto& kv : pipelines)
             if (kv.second)
-                dev.Destroy(kv.second);
+                dev.destroy(kv.second);
         pipelines.clear();
         for (auto& kv : groups)
-            dev.Destroy(kv.second);
+            dev.destroy(kv.second);
         groups.clear();
-        for (rhi::SamplerHandle& s : samplers)
+        for (conduit::sampler_handle& s : samplers)
             if (s) {
-                dev.Destroy(s);
+                dev.destroy(s);
                 s = {};
             }
         if (pipelineLayout)
-            dev.Destroy(pipelineLayout);
+            dev.destroy(pipelineLayout);
         if (textureLayout)
-            dev.Destroy(textureLayout);
+            dev.destroy(textureLayout);
         if (imageLayout)
-            dev.Destroy(imageLayout);
+            dev.destroy(imageLayout);
         if (bufferLayout)
-            dev.Destroy(bufferLayout);
+            dev.destroy(bufferLayout);
         pipelineLayout = {};
         textureLayout = imageLayout = bufferLayout = {};
         if (skyStatic) {
             gpu.ForgetBuffer(skyStatic);
-            dev.Destroy(skyStatic);
+            dev.destroy(skyStatic);
             skyStatic = {};
         }
         if (quad) {
             gpu.ForgetBuffer(quad);
-            dev.Destroy(quad);
+            dev.destroy(quad);
             quad = {};
         }
-        for (rhi::TextureHandle t : owned)
+        for (conduit::texture_handle t : owned)
             gpu.DestroyTexture(t);
         owned.clear();
         staticTextures.clear();
@@ -678,106 +678,106 @@ namespace perlin::gpu {
         customSamplers.clear();
     }
 
-    rhi::TextureHandle JavaPack::MakeTexture(uint32_t w, uint32_t h, rhi::Format format,
-                                             rhi::TextureUsage usage, const char* texName) {
-        rhi::TextureDesc td;
+    conduit::texture_handle JavaPack::MakeTexture(uint32_t w, uint32_t h, conduit::format format,
+                                             conduit::texture_usage usage, const char* texName) {
+        conduit::texture_desc td;
         td.format = format;
         td.width = std::max(1u, w);
         td.height = std::max(1u, h);
         td.usage = usage;
         td.name = texName;
-        const rhi::TextureHandle t = gpu.Dev().CreateTexture(td);
+        const conduit::texture_handle t = gpu.Dev().create_texture(td);
         if (t) {
-            gpu.SetState(t, rhi::State::Undefined);
+            gpu.SetState(t, conduit::state::undefined);
             owned.push_back(t);
         }
         return t;
     }
 
-    rhi::SamplerHandle JavaPack::SamplerFor(int id) {
-        rhi::SamplerHandle& slot = samplers[static_cast<size_t>(id)];
+    conduit::sampler_handle JavaPack::SamplerFor(int id) {
+        conduit::sampler_handle& slot = samplers[static_cast<size_t>(id)];
         if (slot)
             return slot;
-        rhi::SamplerDesc sd;
-        sd.maxAnisotropy = 1.0f;
-        const auto point = [&] { sd.min = sd.mag = rhi::Filter::Nearest; };
+        conduit::sampler_desc sd;
+        sd.max_anisotropy = 1.0f;
+        const auto point = [&] { sd.min = sd.mag = conduit::filter::nearest; };
         switch (id) {
         case SPointClamp:
             point();
-            sd.mip = rhi::Filter::Nearest;
+            sd.mip = conduit::filter::nearest;
             break;
         case SLinearClamp:
             break;
         case SLinearRepeat:
-            sd.u = sd.v = sd.w = rhi::AddressMode::Repeat;
+            sd.u = sd.v = sd.w = conduit::address_mode::repeat;
             break;
         case SPointRepeat:
             point();
-            sd.mip = rhi::Filter::Nearest;
-            sd.u = sd.v = sd.w = rhi::AddressMode::Repeat;
+            sd.mip = conduit::filter::nearest;
+            sd.u = sd.v = sd.w = conduit::address_mode::repeat;
             break;
         case SAtlas:
             point();
-            sd.u = sd.v = sd.w = rhi::AddressMode::Repeat;
+            sd.u = sd.v = sd.w = conduit::address_mode::repeat;
             break;
         case SCompareLinear:
             sd.compare = true;
-            sd.compareOp = rhi::CompareOp::LessEqual;
-            sd.mip = rhi::Filter::Nearest;
+            sd.compare_op = conduit::compare_op::less_equal;
+            sd.mip = conduit::filter::nearest;
             break;
         case SComparePoint:
             point();
-            sd.mip = rhi::Filter::Nearest;
+            sd.mip = conduit::filter::nearest;
             sd.compare = true;
-            sd.compareOp = rhi::CompareOp::LessEqual;
+            sd.compare_op = conduit::compare_op::less_equal;
             break;
         }
-        slot = gpu.Dev().CreateSampler(sd);
+        slot = gpu.Dev().create_sampler(sd);
         return slot;
     }
 
     bool JavaPack::CreateLayouts() {
-        rhi::Device& dev = gpu.Dev();
-        std::vector<rhi::BindLayoutEntry> entries;
+        conduit::device& dev = gpu.Dev();
+        std::vector<conduit::bind_layout_entry> entries;
         for (uint32_t s = 0; s < kTextureSlots; s++) {
-            entries.push_back({s * 2, rhi::BindingType::SampledTexture,
-                               rhi::ShaderStage::Fragment | rhi::ShaderStage::Vertex, 1,
-                               rhi::TextureDim::Tex2D, true});
-            entries.push_back({s * 2 + 1, rhi::BindingType::Sampler,
-                               rhi::ShaderStage::Fragment | rhi::ShaderStage::Vertex, 1,
-                               rhi::TextureDim::Tex2D, true});
+            entries.push_back({s * 2, conduit::binding_type::sampled_texture,
+                               conduit::shader_stage::fragment | conduit::shader_stage::vertex, 1,
+                               conduit::texture_dim::tex2d, true});
+            entries.push_back({s * 2 + 1, conduit::binding_type::sampler,
+                               conduit::shader_stage::fragment | conduit::shader_stage::vertex, 1,
+                               conduit::texture_dim::tex2d, true});
         }
         for (auto& e : entries)
-            e.stages = rhi::ShaderStage::All;
-        rhi::BindLayoutDesc bl;
+            e.stages = conduit::shader_stage::all;
+        conduit::bind_layout_desc bl;
         bl.entries = entries;
         bl.name = "java pack textures";
-        textureLayout = dev.CreateBindLayout(bl);
+        textureLayout = dev.create_bind_layout(bl);
         // set 2: the pack's custom images for load / store, set 3: its shader storage buffers
-        std::vector<rhi::BindLayoutEntry> imageEntries, bufferEntries;
+        std::vector<conduit::bind_layout_entry> imageEntries, bufferEntries;
         for (uint32_t i = 0; i < kImageSlots; i++)
-            imageEntries.push_back({i, rhi::BindingType::StorageTextureRW, rhi::ShaderStage::All, 1,
-                                    rhi::TextureDim::Tex2D, false});
+            imageEntries.push_back({i, conduit::binding_type::storage_texture_rw, conduit::shader_stage::all, 1,
+                                    conduit::texture_dim::tex2d, false});
         for (uint32_t i = 0; i < kSsboSlots; i++)
-            bufferEntries.push_back({i, rhi::BindingType::StorageBufferRW, rhi::ShaderStage::All, 1,
-                                     rhi::TextureDim::Tex2D, false});
+            bufferEntries.push_back({i, conduit::binding_type::storage_buffer_rw, conduit::shader_stage::all, 1,
+                                     conduit::texture_dim::tex2d, false});
         bl.entries = imageEntries;
         bl.name = "java pack images";
-        imageLayout = dev.CreateBindLayout(bl);
+        imageLayout = dev.create_bind_layout(bl);
         bl.entries = bufferEntries;
         bl.name = "java pack buffers";
-        bufferLayout = dev.CreateBindLayout(bl);
-        rhi::PipelineLayoutDesc pl;
+        bufferLayout = dev.create_bind_layout(bl);
+        conduit::pipeline_layout_desc pl;
         pl.sets[0] = gpu.UniformLayout();
         pl.sets[1] = textureLayout;
         pl.sets[2] = imageLayout;
         pl.sets[3] = bufferLayout;
         pl.name = "java pack";
-        pipelineLayout = dev.CreatePipelineLayout(pl);
+        pipelineLayout = dev.create_pipeline_layout(pl);
 
         const QuadVertex verts[6] = {{0, 0, 0, 0, 0}, {1, 0, 0, 1, 0}, {1, 1, 0, 1, 1},
                                      {0, 0, 0, 0, 0}, {1, 1, 0, 1, 1}, {0, 1, 0, 0, 1}};
-        quad = gpu.CreateStatic(verts, sizeof(verts), rhi::BufferUsage::Vertex, "java pack quad");
+        quad = gpu.CreateStatic(verts, sizeof(verts), conduit::buffer_usage::vertex, "java pack quad");
         return textureLayout && imageLayout && bufferLayout && pipelineLayout && quad;
     }
 
@@ -785,11 +785,11 @@ namespace perlin::gpu {
         const uint8_t whitePx[4] = {255, 255, 255, 255}, normalPx[4] = {128, 128, 255, 255},
                       blackPx[4] = {0, 0, 0, 0};
         const auto make = [&](const uint8_t* px, const char* texName) {
-            rhi::TextureDesc td;
-            td.format = rhi::Format::RGBA8Unorm;
+            conduit::texture_desc td;
+            td.format = conduit::format::rgba8_unorm;
             td.width = td.height = 1;
             td.name = texName;
-            const rhi::TextureHandle t = gpu.CreateSampled(td);
+            const conduit::texture_handle t = gpu.CreateSampled(td);
             if (t) {
                 gpu.WriteTexture(t, 0, 0, 0, 1, 1, px);
                 owned.push_back(t);
@@ -803,7 +803,7 @@ namespace perlin::gpu {
         blackTex = make(blackPx, "pack black");
         noise = make(whitePx, "pack noise");
 
-        const auto load = [&](const std::string& file) -> rhi::TextureHandle {
+        const auto load = [&](const std::string& file) -> conduit::texture_handle {
             std::string clean = file;
             while (!clean.empty() && clean[0] == '/')
                 clean.erase(0, 1);
@@ -815,12 +815,12 @@ namespace perlin::gpu {
                                                         static_cast<int>(bytes.size()), &w, &h, &n, 4);
             if (!data)
                 return {};
-            rhi::TextureDesc td;
-            td.format = rhi::Format::RGBA8Unorm;
+            conduit::texture_desc td;
+            td.format = conduit::format::rgba8_unorm;
             td.width = static_cast<uint32_t>(w);
             td.height = static_cast<uint32_t>(h);
             td.name = "pack texture";
-            const rhi::TextureHandle t = gpu.CreateSampled(td);
+            const conduit::texture_handle t = gpu.CreateSampled(td);
             if (t) {
                 gpu.WriteTexture(t, 0, 0, 0, td.width, td.height, data);
                 owned.push_back(t);
@@ -863,11 +863,11 @@ namespace perlin::gpu {
                 state ^= state << 17;
                 px[i] = (i % 4 == 3) ? 255 : static_cast<uint8_t>(state >> 56);
             }
-            rhi::TextureDesc td;
-            td.format = rhi::Format::RGBA8Unorm;
+            conduit::texture_desc td;
+            td.format = conduit::format::rgba8_unorm;
             td.width = td.height = static_cast<uint32_t>(res);
             td.name = "pack noise";
-            if (const rhi::TextureHandle t = gpu.CreateSampled(td)) {
+            if (const conduit::texture_handle t = gpu.CreateSampled(td)) {
                 gpu.WriteTexture(t, 0, 0, 0, td.width, td.height, px.data());
                 owned.push_back(t);
                 staticTextures.push_back(t);
@@ -876,7 +876,7 @@ namespace perlin::gpu {
             }
         }
         if (!config.noiseTexture.empty()) {
-            const rhi::TextureHandle t = load(config.noiseTexture);
+            const conduit::texture_handle t = load(config.noiseTexture);
             if (t) {
                 noise = t;
                 noiseSampler = samplerFor(config.noiseTexture);
@@ -886,7 +886,7 @@ namespace perlin::gpu {
             const std::string key = ct.stage + ":" + CanonicalSamplerName(ct.sampler);
             if (customTextures.contains(key))
                 continue;
-            const rhi::TextureHandle t = load(ct.path);
+            const conduit::texture_handle t = load(ct.path);
             if (t) {
                 customTextures[key] = t;
                 customSamplers[key] = samplerFor(ct.path);
@@ -991,8 +991,8 @@ namespace perlin::gpu {
     bool JavaPack::CreateTargets(uint32_t w, uint32_t h) {
         width = w;
         height = h;
-        constexpr rhi::TextureUsage kColor =
-            rhi::TextureUsage::ColorTarget | rhi::TextureUsage::Sampled | rhi::TextureUsage::CopySrc;
+        constexpr conduit::texture_usage kColor =
+            conduit::texture_usage::color_target | conduit::texture_usage::sampled | conduit::texture_usage::copy_src;
         for (int i = 0; i < jshader::kMaxColorTex; i++) {
             Buffer& b = bufs[static_cast<size_t>(i)];
             if (!b.used)
@@ -1011,22 +1011,22 @@ namespace perlin::gpu {
             }
             b.cur = 0;
         }
-        constexpr rhi::TextureUsage kDepth = rhi::TextureUsage::DepthTarget | rhi::TextureUsage::Sampled |
-                                             rhi::TextureUsage::CopySrc | rhi::TextureUsage::CopyDst;
+        constexpr conduit::texture_usage kDepth = conduit::texture_usage::depth_target | conduit::texture_usage::sampled |
+                                             conduit::texture_usage::copy_src | conduit::texture_usage::copy_dst;
         for (auto& k : depth) {
-            k = MakeTexture(w, h, rhi::Format::D32Float, kDepth, "pack depth");
+            k = MakeTexture(w, h, conduit::format::d32_float, kDepth, "pack depth");
             if (!k)
                 return false;
         }
         if (shadowUsed) {
             const uint32_t res = static_cast<uint32_t>(config.shadowMapResolution);
-            shadowDepth = MakeTexture(res, res, rhi::Format::D32Float, kDepth, "pack shadow depth");
+            shadowDepth = MakeTexture(res, res, conduit::format::d32_float, kDepth, "pack shadow depth");
             shadowDepthNoTranslucents =
-                MakeTexture(res, res, rhi::Format::D32Float, kDepth, "pack shadow depth (no translucents)");
+                MakeTexture(res, res, conduit::format::d32_float, kDepth, "pack shadow depth (no translucents)");
             for (int i = 0; i < 2; i++)
                 if (shadowColorUsed[i])
                     shadowColor[i] = MakeTexture(res, res, ToFormat(config.shadowColorFormat[i]),
-                                                 kColor | rhi::TextureUsage::CopyDst, "pack shadow color");
+                                                 kColor | conduit::texture_usage::copy_dst, "pack shadow color");
             if (!shadowDepth)
                 return false;
         }
@@ -1034,12 +1034,12 @@ namespace perlin::gpu {
     }
 
     void JavaPack::DestroyTargets() {
-        rhi::Device& dev = gpu.Dev();
+        conduit::device& dev = gpu.Dev();
         for (auto& kv : groups)
-            dev.Destroy(kv.second);
+            dev.destroy(kv.second);
         groups.clear();
-        std::vector<rhi::TextureHandle> keep;
-        for (rhi::TextureHandle t : owned) {
+        std::vector<conduit::texture_handle> keep;
+        for (conduit::texture_handle t : owned) {
             bool persistent = t == white || t == flatNormal || t == blackTex || t == noise ||
                               std::find(staticTextures.begin(), staticTextures.end(), t) != staticTextures.end();
             for (auto& kv : customTextures)
@@ -1052,19 +1052,19 @@ namespace perlin::gpu {
         }
         owned = keep;
         for (auto& kv : imageGroups)
-            dev.Destroy(kv.second);
+            dev.destroy(kv.second);
         imageGroups.clear();
         if (bufferGroup)
-            dev.Destroy(bufferGroup);
+            dev.destroy(bufferGroup);
         bufferGroup = {};
-        for (rhi::BufferHandle& b : ssbo)
+        for (conduit::buffer_handle& b : ssbo)
             if (b) {
-                dev.Destroy(b);
+                dev.destroy(b);
                 b = {};
             }
-        for (rhi::BufferHandle* b : {&dummySsbo, &zeroBuffer})
+        for (conduit::buffer_handle* b : {&dummySsbo, &zeroBuffer})
             if (*b) {
-                dev.Destroy(*b);
+                dev.destroy(*b);
                 *b = {};
             }
         zeroBytes = 0;
@@ -1087,21 +1087,21 @@ namespace perlin::gpu {
     std::vector<std::string> JavaPack::ExtraFeatures() const {
         // storage images and buffers in every stage: vulkan, d3d12 and metal. d3d11 binds pixel shader uavs
         // against the render targets, which the rhi does not do, so packs take their fallback paths there
-        const rhi::Api api = gpu.Api();
-        if (api == rhi::Api::Vulkan || api == rhi::Api::D3D12 || api == rhi::Api::Metal)
+        const conduit::api api = gpu.Api();
+        if (api == conduit::api::vulkan || api == conduit::api::d3d12 || api == conduit::api::metal)
             return {"CUSTOM_IMAGES", "COMPUTE_SHADERS", "SSBO"};
         return {};
     }
 
     bool JavaPack::Load(const Config& cfg, std::string& error) {
         alphaCache.clear();
-        const rhi::Api api = gpu.Api();
-        if (api != rhi::Api::Vulkan && api != rhi::Api::D3D12 && api != rhi::Api::D3D11 &&
-            api != rhi::Api::Metal) {
+        const conduit::api api = gpu.Api();
+        if (api != conduit::api::vulkan && api != conduit::api::d3d12 && api != conduit::api::d3d11 &&
+            api != conduit::api::metal) {
             error =
                 std::string("Java shader packs need the Vulkan, Direct3D 12, Direct3D 11 or Metal renderer "
                             "(this one is ") +
-                rhi::ApiName(api) + ")";
+                conduit::api_name(api) + ")";
             lastError = error;
             return false;
         }
@@ -1124,12 +1124,12 @@ namespace perlin::gpu {
         blockEmission = cfg.blockEmission;
         jshader::EngineEnvironment env;
         {
-            const rhi::AdapterInfo& adapter = gpu.Dev().Caps().adapter;
+            const conduit::adapter_info& adapter = gpu.Dev().caps().adapter;
             env.renderer = adapter.name;
-            env.vendor = adapter.vendorId == 0x10DE   ? "NVIDIA Corporation"
-                         : adapter.vendorId == 0x1002 ? "AMD"
-                         : adapter.vendorId == 0x8086 ? "Intel"
-                         : adapter.vendorId == 0x106B ? "Apple"
+            env.vendor = adapter.vendor_id == 0x10DE   ? "NVIDIA Corporation"
+                         : adapter.vendor_id == 0x1002 ? "AMD"
+                         : adapter.vendor_id == 0x8086 ? "Intel"
+                         : adapter.vendor_id == 0x106B ? "Apple"
                                                       : adapter.name;
             env.features = jshader::BaseFeatureFlags();
             for (const std::string& f : ExtraFeatures())
@@ -1170,8 +1170,8 @@ namespace perlin::gpu {
             Image img;
             img.info = info;
             img.format = ImageFormat(info.internalFormat, img.integer);
-            img.dim = info.dims == 3 ? rhi::TextureDim::Tex3D : rhi::TextureDim::Tex2D;
-            if (img.format == rhi::Format::Unknown || info.dims == 1) {
+            img.dim = info.dims == 3 ? conduit::texture_dim::tex3d : conduit::texture_dim::tex2d;
+            if (img.format == conduit::format::unknown || info.dims == 1) {
                 Log("jshader", "image {}: format {} / {}D is not supported", info.name.c_str(),
                     info.internalFormat.c_str(), info.dims);
                 continue;
@@ -1309,14 +1309,14 @@ namespace perlin::gpu {
         if (!rgba || tilePx <= 0 || tiles <= 0)
             return;
         if (atlas) {
-            gpu.Dev().WaitIdle();
+            gpu.Dev().wait_idle();
             owned.erase(std::remove(owned.begin(), owned.end(), atlas), owned.end());
             gpu.DestroyTexture(atlas);
             atlas = {};
         }
         atlasTilePx = tilePx;
         atlasTiles = tiles;
-        const int maxTex = static_cast<int>(gpu.Caps().limits.maxTexture2D);
+        const int maxTex = static_cast<int>(gpu.Caps().limits.max_texture2d);
         gridCols = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(tiles)))));
         gridCols = std::min(gridCols, std::max(1, maxTex / tilePx));
         gridRows = (tiles + gridCols - 1) / gridCols;
@@ -1366,8 +1366,8 @@ namespace perlin::gpu {
                         lw * 4);
             }
         }
-        rhi::TextureDesc td;
-        td.format = rhi::Format::RGBA8Unorm;
+        conduit::texture_desc td;
+        td.format = conduit::format::rgba8_unorm;
         td.width = static_cast<uint32_t>(W);
         td.height = static_cast<uint32_t>(H);
         td.mips = static_cast<uint32_t>(levels.size());
@@ -1704,33 +1704,33 @@ namespace perlin::gpu {
         auto p = std::make_unique<Program>();
         p->source = std::move(source);
         const jshader::RhiProgram& rp = c.program;
-        const rhi::ShaderFormat format = rp.kind == jshader::RhiShaderKind::SpirV  ? rhi::ShaderFormat::SpirV
-                                         : rp.kind == jshader::RhiShaderKind::Dxbc ? rhi::ShaderFormat::Dxbc
-                                         : rp.kind == jshader::RhiShaderKind::Msl  ? rhi::ShaderFormat::Msl
-                                                                                   : rhi::ShaderFormat::Hlsl;
-        rhi::ShaderDesc sd;
+        const conduit::shader_format format = rp.kind == jshader::RhiShaderKind::SpirV  ? conduit::shader_format::spirv
+                                         : rp.kind == jshader::RhiShaderKind::Dxbc ? conduit::shader_format::dxbc
+                                         : rp.kind == jshader::RhiShaderKind::Msl  ? conduit::shader_format::msl
+                                                                                   : conduit::shader_format::hlsl;
+        conduit::shader_desc sd;
         sd.format = format;
         sd.name = progName.c_str();
-        if (format == rhi::ShaderFormat::Msl)
+        if (format == conduit::shader_format::msl)
             sd.entry = "main0"; // spirv-cross renames main, which msl reserves
         std::vector<uint8_t> vsCode = rp.vertex, fsCode = rp.fragment;
         // developer testing: JSHADER_VIA_HLSL=11 (or 12) runs the hlsl the direct3d 11 (12) backend would get on
         // vulkan, through glslang
         static const char* viaHlsl = std::getenv("JSHADER_VIA_HLSL");
-        const bool d3d11Samplers = gpu.Api() == rhi::Api::D3D11 || (viaHlsl && std::string(viaHlsl) == "11");
-        if (format == rhi::ShaderFormat::Hlsl && d3d11Samplers) {
+        const bool d3d11Samplers = gpu.Api() == conduit::api::d3d11 || (viaHlsl && std::string(viaHlsl) == "11");
+        if (format == conduit::shader_format::hlsl && d3d11Samplers) {
             const std::vector<SamplerBind> binds = ResolveAll(progName, rp.samplers);
             for (std::vector<uint8_t>* code : {&vsCode, &fsCode}) {
                 const std::string merged = MergeHlslSamplers(std::string(code->begin(), code->end()), binds);
                 code->assign(merged.begin(), merged.end());
             }
         }
-        sd.stage = rhi::ShaderStage::Vertex;
+        sd.stage = conduit::shader_stage::vertex;
         sd.code = vsCode;
-        p->vs = gpu.Dev().CreateShader(sd);
-        sd.stage = rhi::ShaderStage::Fragment;
+        p->vs = gpu.Dev().create_shader(sd);
+        sd.stage = conduit::shader_stage::fragment;
         sd.code = fsCode;
-        p->fs = gpu.Dev().CreateShader(sd);
+        p->fs = gpu.Dev().create_shader(sd);
         p->valid = p->vs && p->fs;
         FillProgramResources(*p, progName, rp.samplers, rp.images, c.transform.uniforms, rp.uniformRegs);
         int maxLoc = -1;
@@ -1799,7 +1799,7 @@ namespace perlin::gpu {
 
     JavaPack::Program* JavaPack::GetProgram(const std::string& progName, bool toBackbuffer,
                                             const jshader::ExpandedSource* vs,
-                                            const jshader::ExpandedSource* fs, rhi::Format,
+                                            const jshader::ExpandedSource* fs, conduit::format,
                                             const std::string& alpha) {
         const std::string key = KeyFor(progName, toBackbuffer) + (alpha.empty() ? "" : "@" + alpha);
         const auto ready = programs.find(key);
@@ -1849,10 +1849,10 @@ namespace perlin::gpu {
                 opts.imageFormats[imgName] =
                     jshader::ImageFormatQualifier(images[static_cast<size_t>(slot)].info.internalFormat);
             }
-            const rhi::Api api = gpu.Api();
-            const jshader::RhiShaderKind kind = api == rhi::Api::Vulkan  ? jshader::RhiShaderKind::SpirV
-                                                : api == rhi::Api::D3D12 ? jshader::RhiShaderKind::Dxbc
-                                                : api == rhi::Api::Metal ? jshader::RhiShaderKind::Msl
+            const conduit::api api = gpu.Api();
+            const jshader::RhiShaderKind kind = api == conduit::api::vulkan  ? jshader::RhiShaderKind::SpirV
+                                                : api == conduit::api::d3d12 ? jshader::RhiShaderKind::Dxbc
+                                                : api == conduit::api::metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;
             const jshader::RhiShaderKind kindUsed = std::getenv("JSHADER_FORCE_HLSL") || std::getenv("JSHADER_VIA_HLSL")
                                                         ? jshader::RhiShaderKind::Hlsl
@@ -1864,7 +1864,7 @@ namespace perlin::gpu {
             // direct3d 11 sampler merge done on the worker
             std::map<std::string, std::string> viaKeys;
             static const char* viaHlslEnv = std::getenv("JSHADER_VIA_HLSL");
-            const bool via = viaHlslEnv && gpu.Api() == rhi::Api::Vulkan;
+            const bool via = viaHlslEnv && gpu.Api() == conduit::api::vulkan;
             if (via && std::string(viaHlslEnv) == "11") {
                 std::vector<jshader::RhiSampler> names;
                 const auto add = [&](const std::string& n) {
@@ -2067,7 +2067,7 @@ namespace perlin::gpu {
                     current = w.name;
                 continue;
             }
-            GetProgram(w.name, w.back, nullptr, nullptr, rhi::Format::Unknown, alpha);
+            GetProgram(w.name, w.back, nullptr, nullptr, conduit::format::unknown, alpha);
             if (programs.contains(key)) {
                 done++;
             } else {
@@ -2097,7 +2097,7 @@ namespace perlin::gpu {
         return it != programs.end() && it->second->valid;
     }
 
-    rhi::PipelineHandle JavaPack::PipelineFor(Program& p, const PipeState& st) {
+    conduit::pipeline_handle JavaPack::PipelineFor(Program& p, const PipeState& st) {
         // a flat key: this runs for every draw
         PipeKey k{};
         k.program = &p;
@@ -2119,48 +2119,48 @@ namespace perlin::gpu {
         const auto it = pipelines.find(k);
         if (it != pipelines.end())
             return it->second;
-        rhi::GraphicsPipelineDesc gd;
+        conduit::graphics_pipeline_desc gd;
         gd.vertex = p.vs;
         gd.fragment = fragmentOverride ? fragmentOverride : p.fs;
         gd.layout = pipelineLayout;
         using namespace jshader;
         if (st.scene) {
-            gd.streams[0] = {kPackVertexBytes, rhi::VertexStep::Vertex};
-            gd.streamCount = 1;
-            const rhi::VertexAttributeDesc attrs[] = {
-                {static_cast<uint32_t>(kAttribPosition), 0, rhi::Format::RGB32Float, kPos},
-                {static_cast<uint32_t>(kAttribColor0), 0, rhi::Format::RGBA8Unorm, kColor},
-                {static_cast<uint32_t>(kAttribTexCoord0), 0, rhi::Format::RG32Float, kUv},
-                {static_cast<uint32_t>(kAttribTexCoord5), 0, rhi::Format::RG32Float, kLight},
-                {static_cast<uint32_t>(kAttribNormal), 0, rhi::Format::RGBA16Float, kNormal},
-                {static_cast<uint32_t>(kAttribTexCoord2), 0, rhi::Format::RG32Float, kEntity},
-                {static_cast<uint32_t>(kAttribTexCoord3), 0, rhi::Format::RG32Float, kMid},
-                {static_cast<uint32_t>(kAttribTexCoord4), 0, rhi::Format::RGBA16Float, kMidBlock},
-                {static_cast<uint32_t>(kAttribTangent), 0, rhi::Format::RGBA16Float, kTangent}};
-            for (const rhi::VertexAttributeDesc& a : attrs)
-                gd.attributes[gd.attributeCount++] = a;
+            gd.streams[0] = {kPackVertexBytes, conduit::vertex_step::vertex};
+            gd.stream_count = 1;
+            const conduit::vertex_attribute_desc attrs[] = {
+                {static_cast<uint32_t>(kAttribPosition), 0, conduit::format::rgb32_float, kPos},
+                {static_cast<uint32_t>(kAttribColor0), 0, conduit::format::rgba8_unorm, kColor},
+                {static_cast<uint32_t>(kAttribTexCoord0), 0, conduit::format::rg32_float, kUv},
+                {static_cast<uint32_t>(kAttribTexCoord5), 0, conduit::format::rg32_float, kLight},
+                {static_cast<uint32_t>(kAttribNormal), 0, conduit::format::rgba16_float, kNormal},
+                {static_cast<uint32_t>(kAttribTexCoord2), 0, conduit::format::rg32_float, kEntity},
+                {static_cast<uint32_t>(kAttribTexCoord3), 0, conduit::format::rg32_float, kMid},
+                {static_cast<uint32_t>(kAttribTexCoord4), 0, conduit::format::rgba16_float, kMidBlock},
+                {static_cast<uint32_t>(kAttribTangent), 0, conduit::format::rgba16_float, kTangent}};
+            for (const conduit::vertex_attribute_desc& a : attrs)
+                gd.attributes[gd.attribute_count++] = a;
         } else {
-            gd.streams[0] = {sizeof(QuadVertex), rhi::VertexStep::Vertex};
-            gd.streamCount = 1;
-            gd.attributes[0] = {static_cast<uint32_t>(kAttribPosition), 0, rhi::Format::RGB32Float, 0};
-            gd.attributes[1] = {static_cast<uint32_t>(kAttribTexCoord0), 0, rhi::Format::RG32Float, 12};
-            gd.attributeCount = 2;
+            gd.streams[0] = {sizeof(QuadVertex), conduit::vertex_step::vertex};
+            gd.stream_count = 1;
+            gd.attributes[0] = {static_cast<uint32_t>(kAttribPosition), 0, conduit::format::rgb32_float, 0};
+            gd.attributes[1] = {static_cast<uint32_t>(kAttribTexCoord0), 0, conduit::format::rg32_float, 12};
+            gd.attribute_count = 2;
         }
         // offscreen targets are drawn upside down (flipVertexY), which turns the winding around
-        gd.raster.cull = st.cull ? rhi::CullMode::Back : rhi::CullMode::None;
-        gd.raster.frontFace = rhi::FrontFace::CounterClockwise;
-        gd.depthStencil.depthTest = st.depthTest;
-        gd.depthStencil.depthWrite = st.depthWrite;
-        gd.depthStencil.depthCompare = st.depthOp;
+        gd.raster.cull = st.cull ? conduit::cull_mode::back : conduit::cull_mode::none;
+        gd.raster.front_face = conduit::front_face::counter_clockwise;
+        gd.depth_stencil.depth_test = st.depthTest;
+        gd.depth_stencil.depth_write = st.depthWrite;
+        gd.depth_stencil.depth_compare = st.depthOp;
         for (uint32_t i = 0; i < st.colorCount; i++) {
-            gd.colorFormats[i] = st.colors[i];
-            rhi::BlendTarget& bt = gd.blend.targets[i];
+            gd.color_formats[i] = st.colors[i];
+            conduit::blend_target& bt = gd.blend.targets[i];
             bt.enable = st.blend;
-            bt.srcColor = st.src;
-            bt.dstColor = st.dst;
-            bt.srcAlpha = st.srcA;
-            bt.dstAlpha = st.dstA;
-            bt.writeMask = st.mask;
+            bt.src_color = st.src;
+            bt.dst_color = st.dst;
+            bt.src_alpha = st.srcA;
+            bt.dst_alpha = st.dstA;
+            bt.write_mask = st.mask;
         }
         // iris PER_BUFFER_BLENDING: blend.<program>.<buffer> overrides the draw buffer writing that colortex
         if (p.source) {
@@ -2170,20 +2170,20 @@ namespace perlin::gpu {
                     const auto it = pc->blendPerBuffer.find(p.attachments[i]);
                     if (it == pc->blendPerBuffer.end() || !it->second.set)
                         continue;
-                    rhi::BlendTarget& bt = gd.blend.targets[i];
+                    conduit::blend_target& bt = gd.blend.targets[i];
                     bt.enable = !it->second.off;
                     if (bt.enable) {
-                        bt.srcColor = GlFactor(it->second.src);
-                        bt.dstColor = GlFactor(it->second.dst);
-                        bt.srcAlpha = GlFactor(it->second.srcA);
-                        bt.dstAlpha = GlFactor(it->second.dstA);
+                        bt.src_color = GlFactor(it->second.src);
+                        bt.dst_color = GlFactor(it->second.dst);
+                        bt.src_alpha = GlFactor(it->second.srcA);
+                        bt.dst_alpha = GlFactor(it->second.dstA);
                     }
                 }
         }
-        gd.colorCount = st.colorCount;
-        gd.depthFormat = st.depth;
+        gd.color_count = st.colorCount;
+        gd.depth_format = st.depth;
         gd.name = "java pack";
-        const rhi::PipelineHandle h = gpu.Dev().CreateGraphicsPipeline(gd);
+        const conduit::pipeline_handle h = gpu.Dev().create_graphics_pipeline(gd);
         pipelines.emplace(k, h);
         return h;
     }
@@ -2215,7 +2215,7 @@ namespace perlin::gpu {
         }
     }
 
-    bool JavaPack::BindUniforms(rhi::CommandList& list, Program& p, const jshader::PackDrawState& drawIn) {
+    bool JavaPack::BindUniforms(conduit::command_list& list, Program& p, const jshader::PackDrawState& drawIn) {
         jshader::PackDrawState draw = drawIn;
         draw.alphaTestRef = p.alphaRef;
         if (p.frameStamp != frameStamp) {
@@ -2232,36 +2232,36 @@ namespace perlin::gpu {
         }
         const uint64_t bytes = static_cast<uint64_t>(std::max(1, p.regs)) * 16;
         const RingSlice slice =
-            gpu.Ring(bytes, std::max<uint32_t>(256, gpu.Caps().limits.uniformBufferAlignment));
+            gpu.Ring(bytes, std::max<uint32_t>(256, gpu.Caps().limits.uniform_buffer_alignment));
         if (!slice.data)
             return false;
         std::memcpy(slice.data, p.drawRegs.data(), static_cast<size_t>(bytes));
         const uint32_t offset = static_cast<uint32_t>(slice.offset);
-        list.SetBindGroup(0, gpu.UniformGroup(slice.chunk), std::span<const uint32_t>(&offset, 1));
+        list.set_bind_group(0, gpu.UniformGroup(slice.chunk), std::span<const uint32_t>(&offset, 1));
         return true;
     }
 
-    rhi::BindGroupHandle JavaPack::GroupFor(const PackSet& set) {
+    conduit::bind_group_handle JavaPack::GroupFor(const PackSet& set) {
         const auto it = groups.find(set);
         if (it != groups.end())
             return it->second;
-        std::vector<rhi::BindGroupEntry> entries;
+        std::vector<conduit::bind_group_entry> entries;
         for (uint32_t s = 0; s < kTextureSlots; s++) {
-            rhi::BindGroupEntry t;
+            conduit::bind_group_entry t;
             t.binding = s * 2;
             t.texture.texture = set.texture[s] ? set.texture[s] : gpu.White2D();
-            t.texture.viewDim = set.texture[s] ? set.dim[s] : rhi::TextureDim::Tex2D;
+            t.texture.view_dim = set.texture[s] ? set.dim[s] : conduit::texture_dim::tex2d;
             entries.push_back(t);
-            rhi::BindGroupEntry smp;
+            conduit::bind_group_entry smp;
             smp.binding = s * 2 + 1;
             smp.sampler = SamplerFor(set.sampler[s]);
             entries.push_back(smp);
         }
-        rhi::BindGroupDesc gd;
+        conduit::bind_group_desc gd;
         gd.layout = textureLayout;
         gd.entries = entries;
         gd.name = "java pack textures";
-        const rhi::BindGroupHandle g = gpu.Dev().CreateBindGroup(gd);
+        const conduit::bind_group_handle g = gpu.Dev().create_bind_group(gd);
         groups.emplace(set, g);
         return g;
     }
@@ -2309,19 +2309,19 @@ namespace perlin::gpu {
         });
     }
 
-    rhi::BindGroupHandle JavaPack::Textures(rhi::CommandList& list, Program& p,
-                                            const std::vector<rhi::TextureHandle>& attached) {
+    conduit::bind_group_handle JavaPack::Textures(conduit::command_list& list, Program& p,
+                                            const std::vector<conduit::texture_handle>& attached) {
         PackSet set;
         for (size_t i = 0; i < kTextureSlots; i++) {
             set.texture[i] = white;
             set.sampler[i] = SLinearClamp;
-            set.dim[i] = rhi::TextureDim::Tex2D;
+            set.dim[i] = conduit::texture_dim::tex2d;
         }
-        const auto isAttached = [&](rhi::TextureHandle t) {
+        const auto isAttached = [&](conduit::texture_handle t) {
             return std::find(attached.begin(), attached.end(), t) != attached.end();
         };
         for (const SamplerBind& s : p.samplers) {
-            rhi::TextureHandle t = white;
+            conduit::texture_handle t = white;
             const int smp = ChooseSampler(s);
             switch (s.kind) {
             case Kind::Color: {
@@ -2333,7 +2333,7 @@ namespace perlin::gpu {
                 t = depthTexUsed[s.index] ? depth[s.index] : depth[0];
                 break;
             case Kind::ShadowDepth: {
-                const rhi::TextureHandle depthTex =
+                const conduit::texture_handle depthTex =
                     s.index == 1 && shadowDepthNoTranslucents ? shadowDepthNoTranslucents : shadowDepth;
                 t = depthTex ? depthTex : white;
                 break;
@@ -2383,13 +2383,13 @@ namespace perlin::gpu {
             }
             if (!t) {
                 t = white;
-                set.dim[static_cast<size_t>(s.slot)] = rhi::TextureDim::Tex2D;
+                set.dim[static_cast<size_t>(s.slot)] = conduit::texture_dim::tex2d;
             }
             set.texture[static_cast<size_t>(s.slot)] = t;
             set.sampler[static_cast<size_t>(s.slot)] = static_cast<uint8_t>(smp);
         }
         // images the program stores to stay writable for the whole pass (sampling them too reads that state)
-        const auto stored = [&](rhi::TextureHandle t) {
+        const auto stored = [&](conduit::texture_handle t) {
             for (int slot : p.imageSlots)
                 if (images[static_cast<size_t>(slot)].tex == t)
                     return true;
@@ -2397,18 +2397,18 @@ namespace perlin::gpu {
         };
         for (size_t i = 0; i < kTextureSlots; i++)
             if (set.texture[i] && !stored(set.texture[i]))
-                gpu.Transition(list, set.texture[i], rhi::State::ShaderRead);
+                gpu.Transition(list, set.texture[i], conduit::state::shader_read);
         for (int slot : p.imageSlots)
-            gpu.Transition(list, images[static_cast<size_t>(slot)].tex, rhi::State::ShaderWrite);
+            gpu.Transition(list, images[static_cast<size_t>(slot)].tex, conduit::state::shader_write);
         return GroupFor(set);
     }
 
     // -- custom images, storage buffers and compute ----------------------------------------------------------------------
 
     bool JavaPack::CreateStorage() {
-        rhi::Device& dev = gpu.Dev();
-        constexpr rhi::TextureUsage kImage =
-            rhi::TextureUsage::Sampled | rhi::TextureUsage::Storage | rhi::TextureUsage::CopyDst;
+        conduit::device& dev = gpu.Dev();
+        constexpr conduit::texture_usage kImage =
+            conduit::texture_usage::sampled | conduit::texture_usage::storage | conduit::texture_usage::copy_dst;
         uint64_t zero = 256;
         for (Image& img : images) {
             const jshader::CustomImage& info = img.info;
@@ -2419,40 +2419,40 @@ namespace perlin::gpu {
                 info.relative
                     ? std::max(1u, static_cast<uint32_t>(static_cast<float>(height) * info.relativeHeight))
                     : static_cast<uint32_t>(info.height);
-            img.d = img.dim == rhi::TextureDim::Tex3D ? static_cast<uint32_t>(info.depth) : 1u;
-            rhi::TextureDesc td;
+            img.d = img.dim == conduit::texture_dim::tex3d ? static_cast<uint32_t>(info.depth) : 1u;
+            conduit::texture_desc td;
             td.dim = img.dim;
             td.format = img.format;
             td.width = img.w;
             td.height = img.h;
-            td.depthOrLayers = img.d;
+            td.depth_or_layers = img.d;
             td.usage = kImage;
             td.name = info.name.c_str();
-            img.tex = dev.CreateTexture(td);
+            img.tex = dev.create_texture(td);
             if (!img.tex) {
                 Log("jshader", "image {} ({}x{}x{}) could not be created", info.name.c_str(), img.w, img.h,
                     img.d);
                 continue;
             }
-            gpu.SetState(img.tex, rhi::State::Undefined);
+            gpu.SetState(img.tex, conduit::state::undefined);
             owned.push_back(img.tex);
             const uint64_t pitch =
-                (static_cast<uint64_t>(img.w) * rhi::GetFormatInfo(img.format).bytesPerBlock + 255) &
+                (static_cast<uint64_t>(img.w) * conduit::get_format_info(img.format).bytes_per_block + 255) &
                 ~uint64_t(255);
             zero = std::max(zero, pitch * img.h * img.d);
         }
         // a 1x1 storage texture fills the image slots a program does not use
-        rhi::TextureDesc dd;
-        dd.format = rhi::Format::RGBA8Unorm;
-        dd.usage = rhi::TextureUsage::Storage | rhi::TextureUsage::Sampled;
+        conduit::texture_desc dd;
+        dd.format = conduit::format::rgba8_unorm;
+        dd.usage = conduit::texture_usage::storage | conduit::texture_usage::sampled;
         dd.name = "pack dummy image";
-        dummyStorage = dev.CreateTexture(dd);
+        dummyStorage = dev.create_texture(dd);
         if (dummyStorage) {
-            gpu.SetState(dummyStorage, rhi::State::Undefined);
+            gpu.SetState(dummyStorage, conduit::state::undefined);
             owned.push_back(dummyStorage);
         }
-        rhi::BufferDesc bd;
-        bd.usage = rhi::BufferUsage::Storage | rhi::BufferUsage::CopyDst;
+        conduit::buffer_desc bd;
+        bd.usage = conduit::buffer_usage::storage | conduit::buffer_usage::copy_dst;
         for (const jshader::BufferObject& b : config.bufferObjects) {
             bd.size =
                 b.relative
@@ -2460,111 +2460,111 @@ namespace perlin::gpu {
                                                                    (width * b.scaleX) * (height * b.scaleY)))
                     : std::max<uint64_t>(16, b.size);
             bd.name = "pack ssbo";
-            ssbo[static_cast<size_t>(b.index)] = dev.CreateBuffer(bd);
+            ssbo[static_cast<size_t>(b.index)] = dev.create_buffer(bd);
             zero = std::max(zero, bd.size);
         }
         bd.size = 256;
         bd.name = "pack dummy ssbo";
-        dummySsbo = dev.CreateBuffer(bd);
-        rhi::BufferDesc zd;
+        dummySsbo = dev.create_buffer(bd);
+        conduit::buffer_desc zd;
         zd.size = zero;
-        zd.usage = rhi::BufferUsage::CopySrc | rhi::BufferUsage::CopyDst;
+        zd.usage = conduit::buffer_usage::copy_src | conduit::buffer_usage::copy_dst;
         zd.name = "pack zeroes";
-        zeroBuffer = dev.CreateBuffer(zd);
+        zeroBuffer = dev.create_buffer(zd);
         zeroBytes = zero;
         storageFresh = true;
         if (!dummyStorage || !dummySsbo || !zeroBuffer)
             return false;
-        std::vector<rhi::BindGroupEntry> entries;
+        std::vector<conduit::bind_group_entry> entries;
         for (uint32_t i = 0; i < kSsboSlots; i++) {
-            rhi::BindGroupEntry e;
+            conduit::bind_group_entry e;
             e.binding = i;
             e.buffer.buffer = ssbo[i] ? ssbo[i] : dummySsbo;
             entries.push_back(e);
         }
-        rhi::BindGroupDesc gd;
+        conduit::bind_group_desc gd;
         gd.layout = bufferLayout;
         gd.entries = entries;
         gd.name = "java pack buffers";
-        bufferGroup = dev.CreateBindGroup(gd);
+        bufferGroup = dev.create_bind_group(gd);
         return static_cast<bool>(bufferGroup);
     }
 
     // fresh storage is zeroed (iris clears images and buffers when it creates them); clear=true images every frame
-    void JavaPack::ClearImages(rhi::CommandList& list, bool all) {
+    void JavaPack::ClearImages(conduit::command_list& list, bool all) {
         if (!zeroBuffer)
             return;
         if (storageFresh) {
-            list.Barrier(rhi::BufferBarrier{zeroBuffer, rhi::State::Undefined, rhi::State::CopyDst});
-            list.FillBuffer(zeroBuffer, 0, zeroBytes, 0);
-            list.Barrier(rhi::BufferBarrier{zeroBuffer, rhi::State::CopyDst, rhi::State::CopySrc});
-            for (rhi::BufferHandle b : ssbo) {
+            list.barrier(conduit::buffer_barrier{zeroBuffer, conduit::state::undefined, conduit::state::copy_dst});
+            list.fill_buffer(zeroBuffer, 0, zeroBytes, 0);
+            list.barrier(conduit::buffer_barrier{zeroBuffer, conduit::state::copy_dst, conduit::state::copy_src});
+            for (conduit::buffer_handle b : ssbo) {
                 if (!b)
                     continue;
-                const rhi::BufferDesc* d = gpu.Dev().GetDesc(b);
-                list.Barrier(rhi::BufferBarrier{b, rhi::State::Undefined, rhi::State::CopyDst});
+                const conduit::buffer_desc* d = gpu.Dev().get_desc(b);
+                list.barrier(conduit::buffer_barrier{b, conduit::state::undefined, conduit::state::copy_dst});
                 if (d)
-                    list.CopyBuffer(b, 0, zeroBuffer, 0, std::min(d->size, zeroBytes));
-                list.Barrier(rhi::BufferBarrier{b, rhi::State::CopyDst, rhi::State::ShaderWrite});
+                    list.copy_buffer(b, 0, zeroBuffer, 0, std::min(d->size, zeroBytes));
+                list.barrier(conduit::buffer_barrier{b, conduit::state::copy_dst, conduit::state::shader_write});
             }
-            list.Barrier(rhi::BufferBarrier{dummySsbo, rhi::State::Undefined, rhi::State::ShaderWrite});
-            gpu.Transition(list, dummyStorage, rhi::State::ShaderWrite);
+            list.barrier(conduit::buffer_barrier{dummySsbo, conduit::state::undefined, conduit::state::shader_write});
+            gpu.Transition(list, dummyStorage, conduit::state::shader_write);
         }
         for (Image& img : images) {
             if (!img.tex || !(all || storageFresh || img.info.clear))
                 continue;
-            gpu.Transition(list, img.tex, rhi::State::CopyDst);
-            rhi::BufferTextureCopy c;
-            c.bufferRowPitch = static_cast<uint32_t>(
-                (static_cast<uint64_t>(img.w) * rhi::GetFormatInfo(img.format).bytesPerBlock + 255) &
+            gpu.Transition(list, img.tex, conduit::state::copy_dst);
+            conduit::buffer_texture_copy c;
+            c.buffer_row_pitch = static_cast<uint32_t>(
+                (static_cast<uint64_t>(img.w) * conduit::get_format_info(img.format).bytes_per_block + 255) &
                 ~uint64_t(255));
             c.width = img.w;
             c.height = img.h;
             c.depth = img.d;
-            list.CopyBufferToTexture(img.tex, zeroBuffer, std::span<const rhi::BufferTextureCopy>(&c, 1));
-            gpu.Transition(list, img.tex, rhi::State::ShaderRead);
+            list.copy_buffer_to_texture(img.tex, zeroBuffer, std::span<const conduit::buffer_texture_copy>(&c, 1));
+            gpu.Transition(list, img.tex, conduit::state::shader_read);
         }
         storageFresh = false;
     }
 
-    rhi::BindGroupHandle JavaPack::ImageGroup(uint32_t mask) {
+    conduit::bind_group_handle JavaPack::ImageGroup(uint32_t mask) {
         const auto it = imageGroups.find(mask);
         if (it != imageGroups.end())
             return it->second;
-        std::vector<rhi::BindGroupEntry> entries;
+        std::vector<conduit::bind_group_entry> entries;
         for (uint32_t i = 0; i < kImageSlots; i++) {
-            rhi::BindGroupEntry e;
+            conduit::bind_group_entry e;
             e.binding = i;
             const bool used = (mask >> i) & 1u && i < images.size() && images[i].tex;
             e.texture.texture = used ? images[i].tex : dummyStorage;
-            e.texture.viewDim = used ? images[i].dim : rhi::TextureDim::Tex2D;
+            e.texture.view_dim = used ? images[i].dim : conduit::texture_dim::tex2d;
             entries.push_back(e);
         }
-        rhi::BindGroupDesc gd;
+        conduit::bind_group_desc gd;
         gd.layout = imageLayout;
         gd.entries = entries;
         gd.name = "java pack images";
-        const rhi::BindGroupHandle g = gpu.Dev().CreateBindGroup(gd);
+        const conduit::bind_group_handle g = gpu.Dev().create_bind_group(gd);
         imageGroups.emplace(mask, g);
         return g;
     }
 
-    void JavaPack::BindStorage(rhi::CommandList& list, const Program& p) {
-        const rhi::BindGroupHandle g = ImageGroup(p.imageMask);
+    void JavaPack::BindStorage(conduit::command_list& list, const Program& p) {
+        const conduit::bind_group_handle g = ImageGroup(p.imageMask);
         if (g)
-            list.SetBindGroup(2, g);
+            list.set_bind_group(2, g);
         if (bufferGroup)
-            list.SetBindGroup(3, bufferGroup);
+            list.set_bind_group(3, bufferGroup);
     }
 
     // writes of one pass become visible to the next (images stay writable, storage buffers always are)
-    void JavaPack::StorageBarrier(rhi::CommandList& list, const Program& p) {
+    void JavaPack::StorageBarrier(conduit::command_list& list, const Program& p) {
         for (int slot : p.imageSlots)
-            list.UavBarrier(images[static_cast<size_t>(slot)].tex);
+            list.uav_barrier(images[static_cast<size_t>(slot)].tex);
         if (!config.bufferObjects.empty())
-            for (rhi::BufferHandle b : ssbo)
+            for (conduit::buffer_handle b : ssbo)
                 if (b)
-                    list.UavBarrier(b);
+                    list.uav_barrier(b);
     }
 
     JavaPack::Program* JavaPack::GetCompute(const std::string& progName, size_t index) {
@@ -2590,10 +2590,10 @@ namespace perlin::gpu {
                 opts.imageFormats[imgName] =
                     jshader::ImageFormatQualifier(images[static_cast<size_t>(slot)].info.internalFormat);
             }
-            const rhi::Api api = gpu.Api();
-            const jshader::RhiShaderKind kind = api == rhi::Api::Vulkan  ? jshader::RhiShaderKind::SpirV
-                                                : api == rhi::Api::D3D12 ? jshader::RhiShaderKind::Dxbc
-                                                : api == rhi::Api::Metal ? jshader::RhiShaderKind::Msl
+            const conduit::api api = gpu.Api();
+            const jshader::RhiShaderKind kind = api == conduit::api::vulkan  ? jshader::RhiShaderKind::SpirV
+                                                : api == conduit::api::d3d12 ? jshader::RhiShaderKind::Dxbc
+                                                : api == conduit::api::metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;
             const jshader::DxbcCompiler dxbc = jshader::SystemDxbcCompiler();
             auto computeText = source->compute[index];
@@ -2635,32 +2635,32 @@ namespace perlin::gpu {
         p->compute = true;
         p->dispatch = c.computeTransform;
         const jshader::RhiCompute& rc = c.computeProgram;
-        rhi::ShaderDesc sd;
-        sd.format = rc.kind == jshader::RhiShaderKind::SpirV  ? rhi::ShaderFormat::SpirV
-                    : rc.kind == jshader::RhiShaderKind::Dxbc ? rhi::ShaderFormat::Dxbc
-                    : rc.kind == jshader::RhiShaderKind::Msl  ? rhi::ShaderFormat::Msl
-                                                              : rhi::ShaderFormat::Hlsl;
+        conduit::shader_desc sd;
+        sd.format = rc.kind == jshader::RhiShaderKind::SpirV  ? conduit::shader_format::spirv
+                    : rc.kind == jshader::RhiShaderKind::Dxbc ? conduit::shader_format::dxbc
+                    : rc.kind == jshader::RhiShaderKind::Msl  ? conduit::shader_format::msl
+                                                              : conduit::shader_format::hlsl;
         sd.name = progName.c_str();
-        if (sd.format == rhi::ShaderFormat::Msl)
+        if (sd.format == conduit::shader_format::msl)
             sd.entry = "main0";
-        sd.stage = rhi::ShaderStage::Compute;
+        sd.stage = conduit::shader_stage::compute;
         std::vector<uint8_t> csCode = rc.code;
-        if (sd.format == rhi::ShaderFormat::Hlsl && gpu.Api() == rhi::Api::D3D11) {
+        if (sd.format == conduit::shader_format::hlsl && gpu.Api() == conduit::api::d3d11) {
             const std::string merged =
                 MergeHlslSamplers(std::string(rc.code.begin(), rc.code.end()), ResolveAll(progName, rc.samplers));
             csCode.assign(merged.begin(), merged.end());
         }
         sd.code = csCode;
-        p->cs = gpu.Dev().CreateShader(sd);
+        p->cs = gpu.Dev().create_shader(sd);
         p->valid = static_cast<bool>(p->cs);
         FillProgramResources(*p, progName, rc.samplers, rc.images, c.computeTransform.stage.uniforms,
                              rc.uniformRegs);
         if (p->valid) {
-            rhi::ComputePipelineDesc cd;
+            conduit::compute_pipeline_desc cd;
             cd.compute = p->cs;
             cd.layout = pipelineLayout;
             cd.name = progName.c_str();
-            p->computePipeline = gpu.Dev().CreateComputePipeline(cd);
+            p->computePipeline = gpu.Dev().create_compute_pipeline(cd);
             p->valid = static_cast<bool>(p->computePipeline);
         }
         Program* raw = p.get();
@@ -2668,7 +2668,7 @@ namespace perlin::gpu {
         return raw;
     }
 
-    bool JavaPack::RunCompute(rhi::CommandList& list, const std::string& progName, uint32_t renderW,
+    bool JavaPack::RunCompute(conduit::command_list& list, const std::string& progName, uint32_t renderW,
                               uint32_t renderH) {
         const std::shared_ptr<jshader::ProgramSource> source = instance->Program(progName);
         if (!source)
@@ -2683,15 +2683,15 @@ namespace perlin::gpu {
                     allReady = false;
                 continue;
             }
-            const rhi::BindGroupHandle textures = Textures(list, *p, {});
+            const conduit::bind_group_handle textures = Textures(list, *p, {});
             if (!textures)
                 continue;
-            list.SetPipeline(p->computePipeline);
+            list.set_pipeline(p->computePipeline);
             jshader::PackDrawState d;
             d.viewHeight = static_cast<int>(renderH);
             if (!BindUniforms(list, *p, d))
                 continue;
-            list.SetBindGroup(1, textures);
+            list.set_bind_group(1, textures);
             BindStorage(list, *p);
             const jshader::ComputeResult& cr = p->dispatch;
             uint32_t groups[3] = {1, 1, 1};
@@ -2709,7 +2709,7 @@ namespace perlin::gpu {
             const uint32_t limit = 65535;
             if (groups[0] && groups[1] && groups[2] && groups[0] <= limit && groups[1] <= limit &&
                 groups[2] <= limit)
-                list.Dispatch(groups[0], groups[1], groups[2]);
+                list.dispatch(groups[0], groups[1], groups[2]);
             StorageBarrier(list, *p);
             if (trace)
                 std::fprintf(stderr, "[jshader] compute %s #%zu groups %ux%ux%u\n", progName.c_str(), i,
@@ -3086,25 +3086,25 @@ namespace perlin::gpu {
 
     // -- passes --------------------------------------------------------------------------------------------------------
 
-    rhi::TextureHandle JavaPack::FeedbackCopy(rhi::CommandList& list, rhi::TextureHandle src) {
-        const rhi::TextureDesc* sd = gpu.Dev().GetDesc(src);
+    conduit::texture_handle JavaPack::FeedbackCopy(conduit::command_list& list, conduit::texture_handle src) {
+        const conduit::texture_desc* sd = gpu.Dev().get_desc(src);
         if (!sd)
             return {};
         Feedback& f = feedback[src.value];
         if (f.tex) {
-            const rhi::TextureDesc* fd = gpu.Dev().GetDesc(f.tex);
+            const conduit::texture_desc* fd = gpu.Dev().get_desc(f.tex);
             if (!fd || fd->width != sd->width || fd->height != sd->height || fd->format != sd->format) {
-                gpu.Dev().WaitIdle();
+                gpu.Dev().wait_idle();
                 owned.erase(std::remove(owned.begin(), owned.end(), f.tex), owned.end());
                 gpu.DestroyTexture(f.tex);
                 f.tex = {};
             }
         }
         if (!f.tex) {
-            const bool isDepth = sd->format == rhi::Format::D32Float;
+            const bool isDepth = sd->format == conduit::format::d32_float;
             f.tex = MakeTexture(sd->width, sd->height, sd->format,
-                                (isDepth ? rhi::TextureUsage::DepthTarget : rhi::TextureUsage::ColorTarget) |
-                                    rhi::TextureUsage::Sampled | rhi::TextureUsage::CopyDst,
+                                (isDepth ? conduit::texture_usage::depth_target : conduit::texture_usage::color_target) |
+                                    conduit::texture_usage::sampled | conduit::texture_usage::copy_dst,
                                 "pack feedback copy");
             f.serial = ~0ull;
             if (!f.tex)
@@ -3112,13 +3112,13 @@ namespace perlin::gpu {
         }
         // once per pass: the attachment does not change between the draws recorded before it begins
         if (f.serial != passSerial) {
-            gpu.Transition(list, src, rhi::State::CopySrc);
-            gpu.Transition(list, f.tex, rhi::State::CopyDst);
-            rhi::TextureCopy c;
+            gpu.Transition(list, src, conduit::state::copy_src);
+            gpu.Transition(list, f.tex, conduit::state::copy_dst);
+            conduit::texture_copy c;
             c.width = sd->width;
             c.height = sd->height;
-            list.CopyTexture(f.tex, src, std::span<const rhi::TextureCopy>(&c, 1));
-            gpu.Transition(list, f.tex, rhi::State::ShaderRead);
+            list.copy_texture(f.tex, src, std::span<const conduit::texture_copy>(&c, 1));
+            gpu.Transition(list, f.tex, conduit::state::shader_read);
             f.serial = passSerial;
             statCopies++;
             if (trace)
@@ -3128,44 +3128,44 @@ namespace perlin::gpu {
         return f.tex;
     }
 
-    void JavaPack::BeginPass(rhi::CommandList& list, const std::vector<rhi::TextureHandle>& colors,
-                             rhi::TextureHandle depthTex, uint32_t w, uint32_t h, bool clearDepth,
+    void JavaPack::BeginPass(conduit::command_list& list, const std::vector<conduit::texture_handle>& colors,
+                             conduit::texture_handle depthTex, uint32_t w, uint32_t h, bool clearDepth,
                              const std::vector<std::array<float, 4>>* clears, const char* passName,
                              bool overwrite) {
         passSerial++;
         statPasses++;
-        rhi::RenderingDesc rd;
-        rd.colorCount = static_cast<uint32_t>(colors.size());
+        conduit::rendering_desc rd;
+        rd.color_count = static_cast<uint32_t>(colors.size());
         for (size_t i = 0; i < colors.size(); i++) {
-            gpu.Transition(list, colors[i], rhi::State::ColorTarget);
+            gpu.Transition(list, colors[i], conduit::state::color_target);
             rd.colors[i].texture = colors[i];
             const bool clear = clears && i < clears->size() && (*clears)[i][0] > -1e20f;
-            rd.colors[i].load = clear ? rhi::LoadOp::Clear : overwrite ? rhi::LoadOp::DontCare : rhi::LoadOp::Load;
-            rd.colors[i].store = rhi::StoreOp::Store;
+            rd.colors[i].load = clear ? conduit::load_op::clear : overwrite ? conduit::load_op::dont_care : conduit::load_op::load;
+            rd.colors[i].store = conduit::store_op::store;
             if (clear)
                 rd.colors[i].clear = (*clears)[i];
         }
         if (depthTex) {
-            gpu.Transition(list, depthTex, rhi::State::DepthWrite);
+            gpu.Transition(list, depthTex, conduit::state::depth_write);
             rd.depth.texture = depthTex;
-            rd.depth.load = clearDepth ? rhi::LoadOp::Clear : rhi::LoadOp::Load;
-            rd.depth.store = rhi::StoreOp::Store;
-            rd.depth.clearDepth = 1.0f;
+            rd.depth.load = clearDepth ? conduit::load_op::clear : conduit::load_op::load;
+            rd.depth.store = conduit::store_op::store;
+            rd.depth.clear_depth = 1.0f;
         }
         rd.name = passName;
-        list.BeginRendering(rd);
-        list.SetViewport({0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h), 0.0f, 1.0f});
-        list.SetScissor({0, 0, w, h});
+        list.begin_rendering(rd);
+        list.set_viewport({0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h), 0.0f, 1.0f});
+        list.set_scissor({0, 0, w, h});
     }
 
-    void JavaPack::ClearBuffers(rhi::CommandList& list, const FrameParams& params) {
+    void JavaPack::ClearBuffers(conduit::command_list& list, const FrameParams& params) {
         // iris ClearPassCreator: a buffer that clears has both its textures (main and alt) cleared at the start of the
         // frame, colortex0 to the fog colour, colortex1 to white, the rest to transparent black, unless the pack
         // names a colour. a pass that writes part of a buffer (scaled passes, bloom tiles) then sees the clear
         // colour around what it wrote, not last frame's picture
         constexpr float kKeep = -1e30f;
         struct Target {
-            rhi::TextureHandle tex;
+            conduit::texture_handle tex;
             std::array<float, 4> color;
             uint32_t w, h;
         };
@@ -3184,11 +3184,11 @@ namespace perlin::gpu {
                 instance->GetDirectives().Text("gdepthClearColor").empty())
                 c = {1.0f, 1.0f, 1.0f, 1.0f};
             for (int k = 0; k < 2; k++) {
-                const rhi::TextureHandle t = b.tex[k];
+                const conduit::texture_handle t = b.tex[k];
                 if (!t)
                     continue;
                 // a texture never written yet is cleared whatever the pack says, so it holds no garbage
-                const bool clear = cfg.clear || gpu.StateOf(t) == rhi::State::Undefined;
+                const bool clear = cfg.clear || gpu.StateOf(t) == conduit::state::undefined;
                 if (!clear && k != b.cur)
                     continue;
                 targets.push_back({t, clear ? c : std::array<float, 4>{kKeep, 0, 0, 0}, b.w, b.h});
@@ -3198,7 +3198,7 @@ namespace perlin::gpu {
         bool depthCleared = false;
         while (!targets.empty()) {
             const uint32_t w = targets.front().w, h = targets.front().h;
-            std::vector<rhi::TextureHandle> tex;
+            std::vector<conduit::texture_handle> tex;
             std::vector<std::array<float, 4>> clears;
             for (auto it = targets.begin(); it != targets.end() && tex.size() < 8;) {
                 if (it->w == w && it->h == h) {
@@ -3211,20 +3211,20 @@ namespace perlin::gpu {
             }
             const bool withDepth = !depthCleared && w == width && h == height;
             depthCleared = depthCleared || withDepth;
-            BeginPass(list, tex, withDepth ? depth[0] : rhi::TextureHandle{}, w, h, withDepth, &clears,
+            BeginPass(list, tex, withDepth ? depth[0] : conduit::texture_handle{}, w, h, withDepth, &clears,
                       "pack clear");
-            list.EndRendering();
+            list.end_rendering();
         }
         if (!depthCleared) {
             BeginPass(list, {}, depth[0], width, height, true, nullptr, "pack depth clear");
-            list.EndRendering();
+            list.end_rendering();
         }
     }
 
-    bool JavaPack::DrawLayers(rhi::CommandList& list, const char* programName,
+    bool JavaPack::DrawLayers(conduit::command_list& list, const char* programName,
                               const std::vector<RenderLayer>& layers, bool translucent, bool shadow,
                               int stage, float alphaRef) {
-        Program* p = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+        Program* p = GetProgram(programName, false, nullptr, nullptr, conduit::format::unknown,
                                 AlphaFor(programName, alphaRef));
         if (!p)
             return false;
@@ -3241,8 +3241,8 @@ namespace perlin::gpu {
         if (!any)
             return true;
 
-        std::vector<rhi::TextureHandle> colors;
-        rhi::TextureHandle depthTarget;
+        std::vector<conduit::texture_handle> colors;
+        conduit::texture_handle depthTarget;
         uint32_t w = width, h = height;
         PipeState st;
         if (shadow) {
@@ -3264,20 +3264,20 @@ namespace perlin::gpu {
         }
         if (colors.empty() && !shadow)
             return true;
-        std::vector<rhi::TextureHandle> attached = colors;
+        std::vector<conduit::texture_handle> attached = colors;
         attached.push_back(depthTarget);
-        const rhi::BindGroupHandle textures = Textures(list, *p, attached);
+        const conduit::bind_group_handle textures = Textures(list, *p, attached);
         if (!textures)
             return false;
         st.colorCount = static_cast<uint32_t>(colors.size());
         for (size_t i = 0; i < colors.size(); i++) {
-            const rhi::TextureDesc* td = gpu.Dev().GetDesc(colors[i]);
-            st.colors[i] = td ? td->format : rhi::Format::RGBA8Unorm;
+            const conduit::texture_desc* td = gpu.Dev().get_desc(colors[i]);
+            st.colors[i] = td ? td->format : conduit::format::rgba8_unorm;
         }
-        st.depth = rhi::Format::D32Float;
+        st.depth = conduit::format::d32_float;
         st.depthTest = true;
         st.depthWrite = true;
-        st.depthOp = rhi::CompareOp::LessEqual;
+        st.depthOp = conduit::compare_op::less_equal;
         const jshader::ProgramConfig* pc = BlendConfigFor(programName);
 
         jshader::PackDrawState draw = TerrainDraw();
@@ -3294,10 +3294,10 @@ namespace perlin::gpu {
                                DepthPrepass(list, *p, draw, textures, depthTarget, w, h);
         BeginPass(list, colors, depthTarget, w, h, false, nullptr, shadow ? "pack shadow" : "pack scene");
         if (!BindUniforms(list, *p, draw)) {
-            list.EndRendering();
+            list.end_rendering();
             return false;
         }
-        list.SetBindGroup(1, textures);
+        list.set_bind_group(1, textures);
         BindStorage(list, *p);
         for (RenderLayer layer : layers) {
             const auto& runList =
@@ -3311,10 +3311,10 @@ namespace perlin::gpu {
             ls.blend = blendLayer;
             ls.depthWrite = !prepassed;
             if (blendLayer) {
-                ls.src = rhi::BlendFactor::SrcAlpha;
-                ls.dst = rhi::BlendFactor::InvSrcAlpha;
-                ls.srcA = rhi::BlendFactor::One;
-                ls.dstA = rhi::BlendFactor::InvSrcAlpha;
+                ls.src = conduit::blend_factor::src_alpha;
+                ls.dst = conduit::blend_factor::inv_src_alpha;
+                ls.srcA = conduit::blend_factor::one;
+                ls.dstA = conduit::blend_factor::inv_src_alpha;
             }
             if (!shadow && pc && pc->blend.set) {
                 ls.blend = !pc->blend.off;
@@ -3325,55 +3325,55 @@ namespace perlin::gpu {
                     ls.dstA = GlFactor(pc->blend.dstA);
                 }
             }
-            const rhi::PipelineHandle pipe = PipelineFor(*p, ls);
+            const conduit::pipeline_handle pipe = PipelineFor(*p, ls);
             if (!pipe) {
                 Log("jshader", "{}: pipeline creation failed", programName);
                 continue;
             }
-            list.SetPipeline(pipe);
+            list.set_pipeline(pipe);
             DrawRunList(list, runList, layer);
         }
-        list.EndRendering();
+        list.end_rendering();
         if (p->imageMask || !config.bufferObjects.empty())
             StorageBarrier(list, *p); // shadow voxelization writes images from the vertex shader
         return true;
     }
 
-    void JavaPack::DrawRunList(rhi::CommandList& list, const std::vector<ChunkMeshStore::Run>& runList, RenderLayer layer) {
+    void JavaPack::DrawRunList(conduit::command_list& list, const std::vector<ChunkMeshStore::Run>& runList, RenderLayer layer) {
         static const bool noMulti = std::getenv("PERLIN_NO_MDI") != nullptr;
-        const bool multi = !noMulti && gpu.Caps().features.multiDrawIndirect;
-        rhi::BufferHandle boundVb, boundIb;
+        const bool multi = !noMulti && gpu.Caps().features.multi_draw_indirect;
+        conduit::buffer_handle boundVb, boundIb;
         for (size_t i = 0; i < runList.size();) {
             size_t j = i + 1;
             while (j < runList.size() && runList[j].page == runList[i].page)
                 j++;
-            const rhi::BufferHandle vb = meshes.Extension(runList[i].page);
-            const rhi::BufferHandle ib = meshes.Indices(runList[i].page, layer);
+            const conduit::buffer_handle vb = meshes.Extension(runList[i].page);
+            const conduit::buffer_handle ib = meshes.Indices(runList[i].page, layer);
             if (!vb || !ib) {
                 i = j;
                 continue;
             }
             if (vb != boundVb) {
-                list.SetVertexBuffer(0, vb);
+                list.set_vertex_buffer(0, vb);
                 boundVb = vb;
             }
             if (ib != boundIb) {
-                list.SetIndexBuffer(ib, rhi::IndexType::U32);
+                list.set_index_buffer(ib, conduit::index_type::u32);
                 boundIb = ib;
             }
             const size_t n = j - i;
             RingSlice slice;
             if (multi && n > 1)
-                slice = gpu.Ring(n * sizeof(rhi::DrawIndexedIndirectCommand), 16);
+                slice = gpu.Ring(n * sizeof(conduit::draw_indexed_indirect_command), 16);
             if (slice.data) {
-                auto* cmds = reinterpret_cast<rhi::DrawIndexedIndirectCommand*>(slice.data);
+                auto* cmds = reinterpret_cast<conduit::draw_indexed_indirect_command*>(slice.data);
                 for (size_t k = 0; k < n; k++)
                     cmds[k] = {runList[i + k].count, 1, runList[i + k].first, 0, 0};
-                list.DrawIndexedIndirect(slice.buffer, slice.offset, static_cast<uint32_t>(n),
-                                         sizeof(rhi::DrawIndexedIndirectCommand));
+                list.draw_indexed_indirect(slice.buffer, slice.offset, static_cast<uint32_t>(n),
+                                         sizeof(conduit::draw_indexed_indirect_command));
             } else {
                 for (size_t k = i; k < j; k++)
-                    list.DrawIndexed(runList[k].count, 1, runList[k].first, 0, 0);
+                    list.draw_indexed(runList[k].count, 1, runList[k].first, 0, 0);
             }
             i = j;
         }
@@ -3382,18 +3382,18 @@ namespace perlin::gpu {
     bool JavaPack::EnsureShadowCache() {
         if (shadowCacheDepth)
             return true;
-        const rhi::TextureDesc* dd = gpu.Dev().GetDesc(shadowDepth);
+        const conduit::texture_desc* dd = gpu.Dev().get_desc(shadowDepth);
         if (!dd)
             return false;
-        constexpr rhi::TextureUsage kCopy = rhi::TextureUsage::CopySrc | rhi::TextureUsage::CopyDst |
-                                            rhi::TextureUsage::Sampled;
-        shadowCacheDepth = MakeTexture(dd->width, dd->height, dd->format, kCopy | rhi::TextureUsage::DepthTarget,
+        constexpr conduit::texture_usage kCopy = conduit::texture_usage::copy_src | conduit::texture_usage::copy_dst |
+                                            conduit::texture_usage::sampled;
+        shadowCacheDepth = MakeTexture(dd->width, dd->height, dd->format, kCopy | conduit::texture_usage::depth_target,
                                        "pack shadow cache");
         for (int i = 0; i < 2; i++)
             if (shadowColor[i])
-                if (const rhi::TextureDesc* cd = gpu.Dev().GetDesc(shadowColor[i]))
+                if (const conduit::texture_desc* cd = gpu.Dev().get_desc(shadowColor[i]))
                     shadowCacheColor[i] = MakeTexture(cd->width, cd->height, cd->format,
-                                                      kCopy | rhi::TextureUsage::ColorTarget, "pack shadow cache");
+                                                      kCopy | conduit::texture_usage::color_target, "pack shadow cache");
         if (!shadowCacheDepth || (shadowColor[0] && !shadowCacheColor[0]) ||
             (shadowColor[1] && !shadowCacheColor[1])) {
             shadowCacheOn = false;
@@ -3402,8 +3402,8 @@ namespace perlin::gpu {
         return true;
     }
 
-    bool JavaPack::DepthPrepass(rhi::CommandList& list, Program& p, const jshader::PackDrawState& draw,
-                                rhi::BindGroupHandle textures, rhi::TextureHandle depthTarget, uint32_t w,
+    bool JavaPack::DepthPrepass(conduit::command_list& list, Program& p, const jshader::PackDrawState& draw,
+                                conduit::bind_group_handle textures, conduit::texture_handle depthTarget, uint32_t w,
                                 uint32_t h) {
         if (prepassState < 0) {
             prepassState = 0;
@@ -3423,31 +3423,31 @@ namespace perlin::gpu {
             return false;
         PipeState ps;
         ps.colorCount = 0;
-        ps.depth = rhi::Format::D32Float;
+        ps.depth = conduit::format::d32_float;
         ps.depthTest = true;
         ps.depthWrite = true;
-        ps.depthOp = rhi::CompareOp::LessEqual;
+        ps.depthOp = conduit::compare_op::less_equal;
         ps.cull = true;
-        ps.mask = rhi::ColorMask::None;
+        ps.mask = conduit::color_mask::none;
         fragmentOverride = empty->fs;
-        const rhi::PipelineHandle pipe = PipelineFor(p, ps);
+        const conduit::pipeline_handle pipe = PipelineFor(p, ps);
         fragmentOverride = {};
         if (!pipe)
             return false;
         BeginPass(list, {}, depthTarget, w, h, false, nullptr, "pack depth prepass");
         if (!BindUniforms(list, p, draw)) {
-            list.EndRendering();
+            list.end_rendering();
             return false;
         }
-        list.SetBindGroup(1, textures);
+        list.set_bind_group(1, textures);
         BindStorage(list, p);
-        list.SetPipeline(pipe);
+        list.set_pipeline(pipe);
         DrawRunList(list, runList, RenderLayer::Solid);
-        list.EndRendering();
+        list.end_rendering();
         return true;
     }
 
-    void JavaPack::DrawShadows(rhi::CommandList& list) {
+    void JavaPack::DrawShadows(conduit::command_list& list) {
         if (!config.shadowEnabled || !shadowDepth)
             return;
         // iris ShadowRenderer: clear (depth to 1, colour buffers to their clear colour unless shadowcolorNClear is
@@ -3462,7 +3462,7 @@ namespace perlin::gpu {
                     CopyDepth(list, shadowCacheColor[i], shadowColor[i]);
             shadowCacheAge++;
         } else {
-            std::vector<rhi::TextureHandle> colors;
+            std::vector<conduit::texture_handle> colors;
             std::vector<std::array<float, 4>> clears;
             for (int i = 0; i < 2; i++)
                 if (shadowColor[i] && (config.shadowColorClear[i] || !shadowCleared)) {
@@ -3473,7 +3473,7 @@ namespace perlin::gpu {
                 }
             const uint32_t res = static_cast<uint32_t>(config.shadowMapResolution);
             BeginPass(list, colors, shadowDepth, res, res, true, &clears, "pack shadow clear");
-            list.EndRendering();
+            list.end_rendering();
             shadowCleared = true;
         }
         using K = ExternalDraw::Kind;
@@ -3589,7 +3589,7 @@ namespace perlin::gpu {
         out.resize(written * kPackVertexBytes);
     }
 
-    void JavaPack::DrawExternal(rhi::CommandList& list, std::initializer_list<ExternalDraw::Kind> kinds,
+    void JavaPack::DrawExternal(conduit::command_list& list, std::initializer_list<ExternalDraw::Kind> kinds,
                                 bool shadowPass) {
         using K = ExternalDraw::Kind;
         for (const K kind : kinds) {
@@ -3706,7 +3706,7 @@ namespace perlin::gpu {
             // the targets come from the program's source, the same for every alpha variant
             Program* base = nullptr;
             for (const ExternalDraw* d : draws) {
-                base = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                base = GetProgram(programName, false, nullptr, nullptr, conduit::format::unknown,
                                   AlphaFor(programName, shadowPass ? 0.1f : d->alphaRef));
                 if (base)
                     break;
@@ -3717,8 +3717,8 @@ namespace perlin::gpu {
                         draws.size());
                 continue;
             }
-            std::vector<rhi::TextureHandle> colors;
-            rhi::TextureHandle depthTarget;
+            std::vector<conduit::texture_handle> colors;
+            conduit::texture_handle depthTarget;
             uint32_t w = width, h = height;
             if (shadowPass) {
                 for (auto t : shadowColor)
@@ -3741,21 +3741,21 @@ namespace perlin::gpu {
                     Log("jshader", "entity shadows: the shadow map has no depth target");
                 continue;
             }
-            std::vector<rhi::TextureHandle> attached = colors;
+            std::vector<conduit::texture_handle> attached = colors;
             attached.push_back(depthTarget);
             const jshader::ProgramConfig* pc = BlendConfigFor(programName);
 
             struct Ready {
                 Program* program = nullptr;
-                rhi::BindGroupHandle textures;
-                rhi::PipelineHandle pipe;
+                conduit::bind_group_handle textures;
+                conduit::pipeline_handle pipe;
                 gpu::RingSlice slice;
                 uint32_t count = 0;
                 jshader::PackDrawState state;
             };
             std::vector<Ready> ready;
             ready.reserve(draws.size());
-            std::map<std::pair<const Program*, uint64_t>, rhi::BindGroupHandle> textureGroups;
+            std::map<std::pair<const Program*, uint64_t>, conduit::bind_group_handle> textureGroups;
             std::vector<std::pair<float, Program*>> programByAlpha;
             const jshader::PackDrawState baseState = TerrainDraw();
             for (const ExternalDraw* d : draws) {
@@ -3766,20 +3766,20 @@ namespace perlin::gpu {
                 if (known != programByAlpha.end()) {
                     r.program = known->second;
                 } else {
-                    r.program = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+                    r.program = GetProgram(programName, false, nullptr, nullptr, conduit::format::unknown,
                                            AlphaFor(programName, alphaRef));
                     programByAlpha.emplace_back(alphaRef, r.program);
                 }
                 if (!r.program)
                     continue;
                 Program& p = *r.program;
-                const rhi::TextureHandle skin = d->texture ? d->texture : white;
+                const conduit::texture_handle skin = d->texture ? d->texture : white;
                 const auto texKey = std::make_pair(static_cast<const Program*>(r.program),
                                                    static_cast<uint64_t>(skin.value));
                 auto cachedGroup = textureGroups.find(texKey);
                 if (cachedGroup == textureGroups.end()) {
                     textureOverride = skin;
-                    const rhi::BindGroupHandle group = Textures(list, p, attached);
+                    const conduit::bind_group_handle group = Textures(list, p, attached);
                     textureOverride = {};
                     cachedGroup = textureGroups.emplace(texKey, group).first;
                 }
@@ -3787,38 +3787,38 @@ namespace perlin::gpu {
                 PipeState st;
                 st.colorCount = static_cast<uint32_t>(colors.size());
                 for (size_t i = 0; i < colors.size(); i++) {
-                    const rhi::TextureDesc* td = gpu.Dev().GetDesc(colors[i]);
-                    st.colors[i] = td ? td->format : rhi::Format::RGBA8Unorm;
+                    const conduit::texture_desc* td = gpu.Dev().get_desc(colors[i]);
+                    st.colors[i] = td ? td->format : conduit::format::rgba8_unorm;
                 }
-                st.depth = rhi::Format::D32Float;
+                st.depth = conduit::format::d32_float;
                 st.depthTest = shadowPass || d->depthTest;
                 st.depthWrite = shadowPass || d->depthWrite;
-                st.depthOp = rhi::CompareOp::LessEqual;
+                st.depthOp = conduit::compare_op::less_equal;
                 st.blend = !shadowPass && (d->blend || d->additive || d->glintBlend);
-                st.src = rhi::BlendFactor::SrcAlpha;
-                st.dst = d->additive ? rhi::BlendFactor::One : rhi::BlendFactor::InvSrcAlpha;
-                st.srcA = rhi::BlendFactor::One;
-                st.dstA = rhi::BlendFactor::InvSrcAlpha;
+                st.src = conduit::blend_factor::src_alpha;
+                st.dst = d->additive ? conduit::blend_factor::one : conduit::blend_factor::inv_src_alpha;
+                st.srcA = conduit::blend_factor::one;
+                st.dstA = conduit::blend_factor::inv_src_alpha;
                 if (!shadowPass && kind == K::Eyes) {
                     // iris ProgramId.SpiderEyes: src alpha, one / zero, one
                     st.blend = true;
-                    st.src = rhi::BlendFactor::SrcAlpha;
-                    st.dst = rhi::BlendFactor::One;
-                    st.srcA = rhi::BlendFactor::Zero;
-                    st.dstA = rhi::BlendFactor::One;
+                    st.src = conduit::blend_factor::src_alpha;
+                    st.dst = conduit::blend_factor::one;
+                    st.srcA = conduit::blend_factor::zero;
+                    st.dstA = conduit::blend_factor::one;
                 }
                 if (!shadowPass && kind == K::Lightning) {
                     st.blend = true;
-                    st.src = rhi::BlendFactor::SrcAlpha;
-                    st.dst = rhi::BlendFactor::One;
+                    st.src = conduit::blend_factor::src_alpha;
+                    st.dst = conduit::blend_factor::one;
                 }
                 if (!shadowPass && d->glintBlend) {
                     // vanilla GLINT transparency and depth: src colour, one / zero, one; depth equal, no write
-                    st.src = rhi::BlendFactor::SrcColor;
-                    st.dst = rhi::BlendFactor::One;
-                    st.srcA = rhi::BlendFactor::Zero;
-                    st.dstA = rhi::BlendFactor::One;
-                    st.depthOp = rhi::CompareOp::Equal;
+                    st.src = conduit::blend_factor::src_color;
+                    st.dst = conduit::blend_factor::one;
+                    st.srcA = conduit::blend_factor::zero;
+                    st.dstA = conduit::blend_factor::one;
+                    st.depthOp = conduit::compare_op::equal;
                     st.depthWrite = false;
                 }
                 if (!shadowPass && pc && pc->blend.set) {
@@ -3886,14 +3886,14 @@ namespace perlin::gpu {
                         Log("jshader", "{}: uniform binding failed in the shadow pass", programName);
                     continue;
                 }
-                list.SetBindGroup(1, r.textures);
+                list.set_bind_group(1, r.textures);
                 BindStorage(list, *r.program);
-                list.SetPipeline(r.pipe);
-                list.SetVertexBuffer(0, r.slice.buffer, r.slice.offset);
-                list.Draw(r.count, 1, 0, 0);
+                list.set_pipeline(r.pipe);
+                list.set_vertex_buffer(0, r.slice.buffer, r.slice.offset);
+                list.draw(r.count, 1, 0, 0);
                 anyStorage = anyStorage || r.program->imageMask;
             }
-            list.EndRendering();
+            list.end_rendering();
             if (anyStorage || !config.bufferObjects.empty())
                 StorageBarrier(list, *base);
         }
@@ -3910,13 +3910,13 @@ namespace perlin::gpu {
 
     // iris (sodium) terrain passes: gbuffers_terrain_solid with no alpha test, gbuffers_terrain_cutout at 0.5,
     // gbuffers_water above zero
-    void JavaPack::DrawTerrain(rhi::CommandList& list) {
+    void JavaPack::DrawTerrain(conduit::command_list& list) {
         DrawLayers(list, "gbuffers_terrain_solid", {RenderLayer::Solid}, false, false, 8, -1.0f);
         DrawLayers(list, "gbuffers_terrain_cutout", {RenderLayer::Cutout, RenderLayer::CutoutCull}, false,
                    false, 10, 0.5f);
     }
 
-    void JavaPack::DrawTranslucent(rhi::CommandList& list) {
+    void JavaPack::DrawTranslucent(conduit::command_list& list) {
         DrawLayers(list, "gbuffers_water", {RenderLayer::Translucent, RenderLayer::TranslucentCull}, true,
                    false, 17, 0.0001f);
     }
@@ -3952,15 +3952,15 @@ namespace perlin::gpu {
         };
     }
 
-    void JavaPack::DrawSkyObjects(rhi::CommandList& list, const char* programName, int stage,
-                                  rhi::BufferHandle vb, uint32_t first, uint32_t count,
-                                  rhi::BufferHandle ring, uint64_t ringOffset, const float* modelView,
-                                  rhi::TextureHandle texture, bool additive, const float* colorModulator) {
-        Program* p = GetProgram(programName, false, nullptr, nullptr, rhi::Format::Unknown,
+    void JavaPack::DrawSkyObjects(conduit::command_list& list, const char* programName, int stage,
+                                  conduit::buffer_handle vb, uint32_t first, uint32_t count,
+                                  conduit::buffer_handle ring, uint64_t ringOffset, const float* modelView,
+                                  conduit::texture_handle texture, bool additive, const float* colorModulator) {
+        Program* p = GetProgram(programName, false, nullptr, nullptr, conduit::format::unknown,
                                 AlphaFor(programName, -1.0f));
         if (!p || count == 0)
             return;
-        std::vector<rhi::TextureHandle> colors;
+        std::vector<conduit::texture_handle> colors;
         for (int idx : p->attachments) {
             if (idx < 0 || idx >= jshader::kMaxColorTex)
                 idx = 0;
@@ -3971,27 +3971,27 @@ namespace perlin::gpu {
         if (colors.empty())
             return;
         textureOverride = texture;
-        std::vector<rhi::TextureHandle> attached = colors;
+        std::vector<conduit::texture_handle> attached = colors;
         attached.push_back(depth[0]);
-        const rhi::BindGroupHandle textures = Textures(list, *p, attached);
+        const conduit::bind_group_handle textures = Textures(list, *p, attached);
         textureOverride = {};
         if (!textures)
             return;
         PipeState st;
         st.colorCount = static_cast<uint32_t>(colors.size());
         for (size_t i = 0; i < colors.size(); i++) {
-            const rhi::TextureDesc* td = gpu.Dev().GetDesc(colors[i]);
-            st.colors[i] = td ? td->format : rhi::Format::RGBA8Unorm;
+            const conduit::texture_desc* td = gpu.Dev().get_desc(colors[i]);
+            st.colors[i] = td ? td->format : conduit::format::rgba8_unorm;
         }
-        st.depth = rhi::Format::D32Float;
+        st.depth = conduit::format::d32_float;
         st.depthTest = false;
         st.depthWrite = false;
         const jshader::ProgramConfig* pc = config.Find(programName);
         st.blend = additive || stage == 5;
-        st.src = rhi::BlendFactor::SrcAlpha;
-        st.dst = additive ? rhi::BlendFactor::One : rhi::BlendFactor::InvSrcAlpha;
-        st.srcA = rhi::BlendFactor::One;
-        st.dstA = rhi::BlendFactor::InvSrcAlpha;
+        st.src = conduit::blend_factor::src_alpha;
+        st.dst = additive ? conduit::blend_factor::one : conduit::blend_factor::inv_src_alpha;
+        st.srcA = conduit::blend_factor::one;
+        st.dstA = conduit::blend_factor::inv_src_alpha;
         if (pc && pc->blend.set) {
             st.blend = !pc->blend.off;
             if (st.blend) {
@@ -4001,7 +4001,7 @@ namespace perlin::gpu {
                 st.dstA = GlFactor(pc->blend.dstA);
             }
         }
-        const rhi::PipelineHandle pipe = PipelineFor(*p, st);
+        const conduit::pipeline_handle pipe = PipelineFor(*p, st);
         if (!pipe)
             return;
         BeginPass(list, colors, depth[0], width, height, false, nullptr, "pack sky");
@@ -4011,19 +4011,19 @@ namespace perlin::gpu {
         if (colorModulator)
             std::memcpy(d.colorModulator, colorModulator, sizeof(d.colorModulator));
         if (!BindUniforms(list, *p, d)) {
-            list.EndRendering();
+            list.end_rendering();
             return;
         }
-        list.SetBindGroup(1, textures);
+        list.set_bind_group(1, textures);
         BindStorage(list, *p);
-        list.SetPipeline(pipe);
-        list.SetVertexBuffer(0, ring ? ring : vb,
+        list.set_pipeline(pipe);
+        list.set_vertex_buffer(0, ring ? ring : vb,
                              ring ? ringOffset : static_cast<uint64_t>(first) * kPackVertexBytes);
-        list.Draw(count, 1, 0, 0);
-        list.EndRendering();
+        list.draw(count, 1, 0, 0);
+        list.end_rendering();
     }
 
-    void JavaPack::DrawSky(rhi::CommandList& list) {
+    void JavaPack::DrawSky(conduit::command_list& list) {
         if (!instance)
             return;
         const float rot[16] = {frameState.modelView[0],
@@ -4107,7 +4107,7 @@ namespace perlin::gpu {
             starVertexCount = sb.count;
             sb.Quad(glm::vec3(0, 100, 0), glm::vec3(0, 0, 30), glm::vec3(30, 0, 0), white, 0, 0, 1, 1);
             skyStatic =
-                gpu.CreateStatic(sb.bytes.data(), sb.bytes.size(), rhi::BufferUsage::Vertex, "java pack sky");
+                gpu.CreateStatic(sb.bytes.data(), sb.bytes.size(), conduit::buffer_usage::vertex, "java pack sky");
         }
         if (!skyStatic)
             return;
@@ -4232,7 +4232,7 @@ namespace perlin::gpu {
         }
     }
 
-    bool JavaPack::RunPass(rhi::CommandList& list, const std::string& passName, bool toBackbuffer,
+    bool JavaPack::RunPass(conduit::command_list& list, const std::string& passName, bool toBackbuffer,
                            const Output& out) {
         GpuMark(list, passName);
         Program* p = GetProgram(passName, toBackbuffer);
@@ -4241,7 +4241,7 @@ namespace perlin::gpu {
         const jshader::ProgramConfig* pc = config.Find(passName);
         const float scale = pc && pc->hasScale ? pc->scale : 1.0f;
         uint32_t rw = width, rh = height;
-        std::vector<rhi::TextureHandle> targets;
+        std::vector<conduit::texture_handle> targets;
         PipeState st;
         st.scene = false;
         if (toBackbuffer) {
@@ -4258,8 +4258,8 @@ namespace perlin::gpu {
                 if (!b.used)
                     b.used = true;
                 targets.push_back(b.tex[1 - b.cur]);
-                const rhi::TextureDesc* td = gpu.Dev().GetDesc(b.tex[1 - b.cur]);
-                st.colors[st.colorCount++] = td ? td->format : rhi::Format::RGBA8Unorm;
+                const conduit::texture_desc* td = gpu.Dev().get_desc(b.tex[1 - b.cur]);
+                st.colors[st.colorCount++] = td ? td->format : conduit::format::rgba8_unorm;
             }
             if (targets.empty())
                 return true;
@@ -4277,8 +4277,8 @@ namespace perlin::gpu {
             st.srcA = GlFactor(pc->blend.srcA);
             st.dstA = GlFactor(pc->blend.dstA);
         }
-        const rhi::BindGroupHandle textures = Textures(list, *p, targets);
-        const rhi::PipelineHandle pipe = PipelineFor(*p, st);
+        const conduit::bind_group_handle textures = Textures(list, *p, targets);
+        const conduit::pipeline_handle pipe = PipelineFor(*p, st);
         if (!textures || !pipe)
             return false;
         // only the buffers a pass writes keep their old contents under a blend; the rest are fully overwritten
@@ -4295,15 +4295,15 @@ namespace perlin::gpu {
         std::memcpy(d.modelView, mv, sizeof(mv));
         d.viewHeight = static_cast<int>(rh);
         if (!BindUniforms(list, *p, d)) {
-            list.EndRendering();
+            list.end_rendering();
             return false;
         }
-        list.SetBindGroup(1, textures);
+        list.set_bind_group(1, textures);
         BindStorage(list, *p);
-        list.SetPipeline(pipe);
-        list.SetVertexBuffer(0, quad);
-        list.Draw(6, 1, 0, 0);
-        list.EndRendering();
+        list.set_pipeline(pipe);
+        list.set_vertex_buffer(0, quad);
+        list.draw(6, 1, 0, 0);
+        list.end_rendering();
         if (p->imageMask || !config.bufferObjects.empty())
             StorageBarrier(list, *p);
         if (trace)
@@ -4318,7 +4318,7 @@ namespace perlin::gpu {
         return true;
     }
 
-    void JavaPack::RunChain(rhi::CommandList& list, const char* base) {
+    void JavaPack::RunChain(conduit::command_list& list, const char* base) {
         const bool shadowChain = std::strcmp(base, "shadowcomp") == 0;
         const uint32_t res = static_cast<uint32_t>(config.shadowMapResolution);
         for (const std::string& n : instance->PassChain(base)) {
@@ -4334,18 +4334,18 @@ namespace perlin::gpu {
         }
     }
 
-    void JavaPack::CopyDepth(rhi::CommandList& list, rhi::TextureHandle src, rhi::TextureHandle dst) {
-        gpu.Transition(list, src, rhi::State::CopySrc);
-        gpu.Transition(list, dst, rhi::State::CopyDst);
-        rhi::TextureCopy c;
-        const rhi::TextureDesc* sd = gpu.Dev().GetDesc(src);
+    void JavaPack::CopyDepth(conduit::command_list& list, conduit::texture_handle src, conduit::texture_handle dst) {
+        gpu.Transition(list, src, conduit::state::copy_src);
+        gpu.Transition(list, dst, conduit::state::copy_dst);
+        conduit::texture_copy c;
+        const conduit::texture_desc* sd = gpu.Dev().get_desc(src);
         c.width = sd ? sd->width : width;
         c.height = sd ? sd->height : height;
-        list.CopyTexture(dst, src, std::span<const rhi::TextureCopy>(&c, 1));
-        gpu.Transition(list, dst, rhi::State::ShaderRead);
+        list.copy_texture(dst, src, std::span<const conduit::texture_copy>(&c, 1));
+        gpu.Transition(list, dst, conduit::state::shader_read);
     }
 
-    void JavaPack::DepthToEngine(rhi::CommandList& list, const Output& out) {
+    void JavaPack::DepthToEngine(conduit::command_list& list, const Output& out) {
         if (!out.depth)
             return;
         static const jshader::ExpandedSource vs = MakeSource(kFullscreenVertex),
@@ -4357,13 +4357,13 @@ namespace perlin::gpu {
         st.scene = false;
         st.colors[0] = out.colorFormat;
         st.colorCount = 1;
-        st.mask = rhi::ColorMask::None;
-        st.depth = rhi::Format::D32Float;
+        st.mask = conduit::color_mask::none;
+        st.depth = conduit::format::d32_float;
         st.depthTest = true;
         st.depthWrite = true;
-        st.depthOp = rhi::CompareOp::Always;
-        const rhi::BindGroupHandle textures = Textures(list, *p, {out.color, out.depth});
-        const rhi::PipelineHandle pipe = PipelineFor(*p, st);
+        st.depthOp = conduit::compare_op::always;
+        const conduit::bind_group_handle textures = Textures(list, *p, {out.color, out.depth});
+        const conduit::pipeline_handle pipe = PipelineFor(*p, st);
         if (!textures || !pipe)
             return;
         BeginPass(list, {out.color}, out.depth, out.width, out.height, false, nullptr, "pack depth");
@@ -4372,16 +4372,16 @@ namespace perlin::gpu {
         std::memcpy(d.modelView, mv, sizeof(mv));
         d.viewHeight = static_cast<int>(out.height);
         if (BindUniforms(list, *p, d)) {
-            list.SetBindGroup(1, textures);
+            list.set_bind_group(1, textures);
             BindStorage(list, *p);
-            list.SetPipeline(pipe);
-            list.SetVertexBuffer(0, quad);
-            list.Draw(6, 1, 0, 0);
+            list.set_pipeline(pipe);
+            list.set_vertex_buffer(0, quad);
+            list.draw(6, 1, 0, 0);
         }
-        list.EndRendering();
+        list.end_rendering();
     }
 
-    bool JavaPack::Record(rhi::CommandList& list, const FrameParams& params, const Output& out) {
+    bool JavaPack::Record(conduit::command_list& list, const FrameParams& params, const Output& out) {
         if (!instance || !out.color || out.width == 0 || out.height == 0)
             return false;
         const auto cpuStart = std::chrono::steady_clock::now();
@@ -4399,7 +4399,7 @@ namespace perlin::gpu {
         const uint32_t iw = std::max(1u, static_cast<uint32_t>(static_cast<float>(out.width) * scale));
         const uint32_t ih = std::max(1u, static_cast<uint32_t>(static_cast<float>(out.height) * scale));
         if (width != iw || height != ih || !depth[0]) {
-            gpu.Dev().WaitIdle();
+            gpu.Dev().wait_idle();
             DestroyTargets();
             if (!CreateTargets(iw, ih)) {
                 lastError = "could not create the shader pack's render targets";
@@ -4519,8 +4519,8 @@ namespace perlin::gpu {
             st.scene = false;
             st.colors[0] = out.colorFormat;
             st.colorCount = 1;
-            const rhi::BindGroupHandle textures = Textures(list, *p, {out.color});
-            const rhi::PipelineHandle pipe = PipelineFor(*p, st);
+            const conduit::bind_group_handle textures = Textures(list, *p, {out.color});
+            const conduit::pipeline_handle pipe = PipelineFor(*p, st);
             if (!textures || !pipe)
                 return false;
             const std::vector<std::array<float, 4>> clears = {{0, 0, 0, 1}};
@@ -4530,13 +4530,13 @@ namespace perlin::gpu {
             std::memcpy(d.modelView, mv, sizeof(mv));
             d.viewHeight = static_cast<int>(out.height);
             if (BindUniforms(list, *p, d)) {
-                list.SetBindGroup(1, textures);
+                list.set_bind_group(1, textures);
                 BindStorage(list, *p);
-                list.SetPipeline(pipe);
-                list.SetVertexBuffer(0, quad);
-                list.Draw(6, 1, 0, 0);
+                list.set_pipeline(pipe);
+                list.set_vertex_buffer(0, quad);
+                list.draw(6, 1, 0, 0);
             }
-            list.EndRendering();
+            list.end_rendering();
         }
         GpuMark(list, "depth to engine");
         DepthToEngine(list, out);
@@ -4546,26 +4546,26 @@ namespace perlin::gpu {
 
     // JSHADER_GPU_TIMES: gpu milliseconds of each part of the pack's frame (composite passes by name), averaged
     // and logged every 120 frames
-    void JavaPack::GpuTimesBegin(rhi::CommandList& list) {
+    void JavaPack::GpuTimesBegin(conduit::command_list& list) {
         static const bool on = std::getenv("JSHADER_GPU_TIMES") != nullptr;
-        timing.on = on && gpu.Caps().features.timestampQueries;
+        timing.on = on && gpu.Caps().features.timestamp_queries;
         if (!timing.on)
             return;
         const uint32_t slots = std::max(1u, gpu.Frames());
         if (!timing.queries) {
-            rhi::QuerySetDesc qd;
+            conduit::query_set_desc qd;
             qd.count = kTimerMarks * slots;
             qd.name = "pack gpu times";
-            timing.queries = gpu.Dev().CreateQuerySet(qd);
+            timing.queries = gpu.Dev().create_query_set(qd);
             timing.readback.assign(slots, {});
             timing.names.assign(slots, {});
             for (auto& b : timing.readback) {
-                rhi::BufferDesc bd;
+                conduit::buffer_desc bd;
                 bd.size = kTimerMarks * sizeof(uint64_t);
-                bd.usage = rhi::BufferUsage::CopyDst;
-                bd.memory = rhi::MemoryClass::Readback;
+                bd.usage = conduit::buffer_usage::copy_dst;
+                bd.memory = conduit::memory_class::readback;
                 bd.name = "pack gpu times";
-                b = gpu.Dev().CreateBuffer(bd);
+                b = gpu.Dev().create_buffer(bd);
             }
             if (!timing.queries) {
                 timing.on = false;
@@ -4576,9 +4576,9 @@ namespace perlin::gpu {
         // this slot's previous frame has retired: add its times up
         std::vector<std::string>& names = timing.names[timing.slot];
         if (names.size() >= 2) {
-            if (const uint8_t* data = gpu.Dev().Map(timing.readback[timing.slot])) {
+            if (const uint8_t* data = gpu.Dev().map(timing.readback[timing.slot])) {
                 const uint64_t* t = reinterpret_cast<const uint64_t*>(data);
-                const double ns = gpu.Dev().TimestampPeriodNs();
+                const double ns = gpu.Dev().timestamp_period_ns();
                 for (size_t i = 0; i + 1 < names.size(); i++)
                     if (t[i + 1] >= t[i])
                         timing.sum[names[i]] += static_cast<double>(t[i + 1] - t[i]) * ns * 1e-6;
@@ -4619,13 +4619,13 @@ namespace perlin::gpu {
         GpuMark(list, "start");
     }
 
-    void JavaPack::GpuMark(rhi::CommandList& list, const std::string& name) {
+    void JavaPack::GpuMark(conduit::command_list& list, const std::string& name) {
         if (!timing.on)
             return;
         std::vector<std::string>& names = timing.names[timing.slot];
         if (names.size() + 1 >= kTimerMarks)
             return;
-        list.WriteTimestamp(timing.queries, timing.slot * kTimerMarks + static_cast<uint32_t>(names.size()));
+        list.write_timestamp(timing.queries, timing.slot * kTimerMarks + static_cast<uint32_t>(names.size()));
         const auto now = std::chrono::steady_clock::now();
         if (!names.empty())
             timing.cpuSum[names.back()] +=
@@ -4634,12 +4634,12 @@ namespace perlin::gpu {
         names.push_back(name);
     }
 
-    void JavaPack::GpuTimesEnd(rhi::CommandList& list) {
+    void JavaPack::GpuTimesEnd(conduit::command_list& list) {
         if (!timing.on)
             return;
         GpuMark(list, "end");
         std::vector<std::string>& names = timing.names[timing.slot];
-        list.ResolveQueries(timing.queries, timing.slot * kTimerMarks, static_cast<uint32_t>(names.size()),
+        list.resolve_queries(timing.queries, timing.slot * kTimerMarks, static_cast<uint32_t>(names.size()),
                             timing.readback[timing.slot], 0);
     }
 }

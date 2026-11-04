@@ -6,7 +6,7 @@
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/UniformStore.hpp"
-#include "rhi/DeviceProfile.hpp"
+#include <conduit/render_profile.hpp>
 
 #include <shared_mutex>
 #include <array>
@@ -103,7 +103,7 @@ namespace perlin {
     };
 
     struct RendererChoice {
-        rhi::Api api = rhi::Api::Vulkan;
+        conduit::api api = conduit::api::vulkan;
         uint32_t adapter = 0;
     };
 
@@ -216,7 +216,7 @@ namespace perlin {
         // tears the device down and rebuilds every resource on it (api switch, or recovery on the same api); between frames only
         bool RebuildDevice(const std::string& id);
         std::string ActiveRendererId() const override {
-            return initialized ? rhi::ApiId(gpu.Api()) : std::string();
+            return initialized ? conduit::api_id(gpu.Api()) : std::string();
         }
         // headless init for tests: renders into an owned image instead of a window
         bool InitializeOffscreen(const gpu::GpuSettings& settings, std::span<const uint8_t> pack,
@@ -227,24 +227,24 @@ namespace perlin {
 
     private:
         struct DrawCall {
-            rhi::PipelineHandle pipeline;
+            conduit::pipeline_handle pipeline;
             uint32_t uniformChunk = 0;
             uint32_t uniformOffset = 0;
-            rhi::BindGroupHandle textures;
-            rhi::BufferHandle vertices;
+            conduit::bind_group_handle textures;
+            conduit::buffer_handle vertices;
             uint64_t vertexOffset = 0;
-            rhi::BufferHandle indices;
+            conduit::buffer_handle indices;
             uint64_t indexOffset = 0;
-            rhi::IndexType indexType = rhi::IndexType::U32;
+            conduit::index_type indexType = conduit::index_type::u32;
             uint32_t first = 0;
             uint32_t count = 0;
             bool scissor = false;
-            rhi::Rect rect;
-            rhi::BufferHandle indirect;
+            conduit::rect rect;
+            conduit::buffer_handle indirect;
             uint64_t indirectOffset = 0;
             uint32_t indirectDraws = 0;
         };
-        bool PushRuns(View view, const DrawCall& templ, rhi::BufferHandle vertexBuffer, rhi::BufferHandle indexBuffer,
+        bool PushRuns(View view, const DrawCall& templ, conduit::buffer_handle vertexBuffer, conduit::buffer_handle indexBuffer,
                       const std::vector<gpu::ChunkMeshStore::Run>& list, size_t begin, size_t end);
         bool UseMultiDraw() const;
         void SavePipelineCache();
@@ -257,21 +257,21 @@ namespace perlin {
         struct DrawState {
             Program program = Program::Ui;
             gpu::VertexLayout layout = gpu::VertexLayout::Ui;
-            rhi::CullMode cull = rhi::CullMode::None;
-            rhi::FrontFace front = rhi::FrontFace::Clockwise;
+            conduit::cull_mode cull = conduit::cull_mode::none;
+            conduit::front_face front = conduit::front_face::clockwise;
             bool depthTest = false;
             bool depthWrite = false;
-            rhi::CompareOp depthOp = rhi::CompareOp::LessEqual;
+            conduit::compare_op depthOp = conduit::compare_op::less_equal;
             bool blend = false;
-            rhi::BlendFactor srcColor = rhi::BlendFactor::One, dstColor = rhi::BlendFactor::Zero;
-            rhi::BlendFactor srcAlpha = rhi::BlendFactor::One, dstAlpha = rhi::BlendFactor::Zero;
-            rhi::ColorMask mask = rhi::ColorMask::All;
-            rhi::BlendOp alphaOp = rhi::BlendOp::Add;
+            conduit::blend_factor srcColor = conduit::blend_factor::one, dstColor = conduit::blend_factor::zero;
+            conduit::blend_factor srcAlpha = conduit::blend_factor::one, dstAlpha = conduit::blend_factor::zero;
+            conduit::color_mask mask = conduit::color_mask::all;
+            conduit::blend_op alphaOp = conduit::blend_op::add;
             bool alphaToCoverage = false;
         };
 
         struct Source {
-            rhi::BufferHandle buffer;
+            conduit::buffer_handle buffer;
             uint64_t offset = 0;
         };
 
@@ -282,30 +282,30 @@ namespace perlin {
             bool reversedZ = true;
             uint32_t x = 0, y = 0, w = 0, h = 0;
             // attachments the draws of this view render into; the pipelines are built for them
-            rhi::Format colorFormat = rhi::Format::BGRA8Unorm;
-            rhi::Format depthFormat = rhi::Format::D32Float;
+            conduit::format colorFormat = conduit::format::bgra8_unorm;
+            conduit::format depthFormat = conduit::format::d32_float;
             // second MRT attachment for java gbuffer passes; 1 keeps single-target
             uint32_t colorCount = 1;
-            rhi::Format colorFormat1 = rhi::Format::RGBA8Unorm;
-            rhi::Format colorFormat2 = rhi::Format::RGBA8Unorm;
+            conduit::format colorFormat1 = conduit::format::rgba8_unorm;
+            conduit::format colorFormat2 = conduit::format::rgba8_unorm;
             std::vector<DrawCall> draws;
         };
 
         struct Target {
-            rhi::TextureHandle color;
-            rhi::TextureHandle depth;
+            conduit::texture_handle color;
+            conduit::texture_handle depth;
             // optional second MRT color attachment (java colortex1)
-            rhi::TextureHandle color1;
+            conduit::texture_handle color1;
             // optional third MRT color attachment (java deferred colortex4)
-            rhi::TextureHandle color2;
+            conduit::texture_handle color2;
             uint32_t w = 0, h = 0;
-            rhi::Format colorFormat = rhi::Format::RGBA8Unorm;
+            conduit::format colorFormat = conduit::format::rgba8_unorm;
         };
 
         struct TexRec {
-            rhi::TextureHandle handle;
+            conduit::texture_handle handle;
             uint32_t w = 0, h = 0, layers = 1, mips = 1;
-            rhi::Format format = rhi::Format::RGBA8Unorm;
+            conduit::format format = conduit::format::rgba8_unorm;
             gpu::SamplerKind sampler = gpu::SamplerKind::LinearClamp;
             bool used = false;
             // pixels kept only for textures nothing else can regenerate (ui sheets), so a renderer switch can re-upload them
@@ -332,7 +332,7 @@ namespace perlin {
         // a world, late world or hand draw handed to the running java pack instead of drawn here (iris draws
         // entities, the hand, particles and weather through the pack)
         bool RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
-                             rhi::TextureHandle texture, bool glint);
+                             conduit::texture_handle texture, bool glint);
 
         // one step of a frame: a render pass over some views, or a texture copy between passes
         struct Stage {
@@ -343,7 +343,7 @@ namespace perlin {
             std::vector<View> views;
             bool clearColor = false, clearDepth = false;
             float clear[4] = {0, 0, 0, 1};
-            rhi::TextureHandle copySrc, copyDst;
+            conduit::texture_handle copySrc, copyDst;
             bool copyDepth = false;
             bool discardDepth = false;
             bool overwrite = false;
@@ -377,32 +377,32 @@ namespace perlin {
         } plan;
         // offscreen targets of the post chain; recreated when the output size or the feature set changes
         struct PostTargets {
-            rhi::TextureHandle worldColor, worldDepth;
+            conduit::texture_handle worldColor, worldDepth;
             uint32_t worldW = 0, worldH = 0;
             bool worldSampledDepth = false;
-            rhi::TextureHandle hist[2];
+            conduit::texture_handle hist[2];
             int read = 0;
             bool histValid = false;
             float lastTime = 0.0f;
-            rhi::TextureHandle bloom[4];
+            conduit::texture_handle bloom[4];
             uint32_t bloomW[4] = {}, bloomH[4] = {};
-            rhi::TextureHandle up[3];
+            conduit::texture_handle up[3];
             uint32_t upW = 0, upH = 0;
             int upHistory = 0;
             bool upHistoryValid = false;
             uint32_t frameIndex = 0;
-            rhi::TextureHandle sceneColor, sceneDepth;
+            conduit::texture_handle sceneColor, sceneDepth;
             bool sceneValid = false;
             bool failed = false;
             // second MRT attachment for java gbuffer passes (colortex1 content)
-            rhi::TextureHandle javaAux;
+            conduit::texture_handle javaAux;
             // java composite chain ping-pong buffers (colortex1-5,7) and
             // temps; colortex0 is worldColor, colortex6 is javaAux
-            rhi::TextureHandle javaC1, javaC2, javaC3, javaC4, javaC5, javaC7;
-            rhi::TextureHandle javaTempA, javaTempB, javaTempC;
+            conduit::texture_handle javaC1, javaC2, javaC3, javaC4, javaC5, javaC7;
+            conduit::texture_handle javaTempA, javaTempB, javaTempC;
             bool javaChainClear = false;
             uint32_t javaChainW = 0, javaChainH = 0;
-            rhi::TextureHandle packLow;
+            conduit::texture_handle packLow;
             uint32_t packLowW = 0, packLowH = 0;
         } post;
         bool PlanPackUpscale(const FrameParams& params);
@@ -414,16 +414,16 @@ namespace perlin {
         bool EnsureSceneTargets();
         void DestroyPostTargets();
         void RecordPost();
-        void FullscreenPass(View view, Program program, rhi::Format colorFormat, uint32_t w, uint32_t h,
+        void FullscreenPass(View view, Program program, conduit::format colorFormat, uint32_t w, uint32_t h,
                             bool additive);
-        rhi::TextureHandle RecordUpscale(rhi::TextureHandle source, uint32_t sourceW, uint32_t sourceH);
+        conduit::texture_handle RecordUpscale(conduit::texture_handle source, uint32_t sourceW, uint32_t sourceH);
         void RecordBloom(float strength);
-        void RunStage(rhi::CommandList& list, const Stage& stage);
+        void RunStage(conduit::command_list& list, const Stage& stage);
         struct FrameGenState {
-            rhi::TextureHandle final, hudless, depth;
-            rhi::TextureHandle depthSource;
+            conduit::texture_handle final, hudless, depth;
+            conduit::texture_handle depthSource;
             uint32_t w = 0, h = 0;
-            rhi::Format format = rhi::Format::Unknown;
+            conduit::format format = conduit::format::unknown;
             bool valid = false;
             bool havePrev = false;
             glm::dmat4 view{1.0}, prevView{1.0}, proj{1.0};
@@ -432,17 +432,17 @@ namespace perlin {
         mutable bool fgenBlocked = false;
         int presentApplied = -1;
         void ApplyPresentMode(bool generating);
-        bool EnsureFrameGenTargets(uint32_t w, uint32_t h, rhi::Format format);
+        bool EnsureFrameGenTargets(uint32_t w, uint32_t h, conduit::format format);
         void DestroyFrameGenTargets();
-        bool FrameGenWanted(rhi::TextureHandle image) const;
-        void CaptureHudless(rhi::CommandList& list, const Target& screen);
-        void CaptureFinal(rhi::CommandList& list, const Target& screen);
-        void ReadyForSampling(rhi::CommandList& list, rhi::TextureHandle except0, rhi::TextureHandle except1);
-        std::vector<rhi::TextureHandle> postTextures;
+        bool FrameGenWanted(conduit::texture_handle image) const;
+        void CaptureHudless(conduit::command_list& list, const Target& screen);
+        void CaptureFinal(conduit::command_list& list, const Target& screen);
+        void ReadyForSampling(conduit::command_list& list, conduit::texture_handle except0, conduit::texture_handle except1);
+        std::vector<conduit::texture_handle> postTextures;
 
         // sun shadow maps: two are kept so a finished rebuild fades in over the old one
         struct ShadowMap {
-            rhi::TextureHandle color, tint;
+            conduit::texture_handle color, tint;
             float sample[16] = {}, raster[16] = {}, info[4] = {};
         };
         struct ShadowState {
@@ -450,7 +450,7 @@ namespace perlin {
             bool building = false, fading = false, haveKey = false;
             int size = 0;
             float distance = 80.0f;
-            rhi::TextureHandle buildDepth, entityColor, entityDepth;
+            conduit::texture_handle buildDepth, entityColor, entityDepth;
             ShadowMap maps[2];
             int front = -1;
             int64_t key[6] = {};
@@ -487,23 +487,23 @@ namespace perlin {
         // snapshots uniforms and textures for a draw; Push then adds as many ranges as needed against that snapshot
         bool Prepare(View view, const DrawState& state, DrawCall& out);
         void Push(View view, const DrawCall& templ, const Source& vertices, const Source* indices,
-                  rhi::IndexType indexType, uint32_t first, uint32_t count,
-                  const rhi::Rect* scissor = nullptr);
+                  conduit::index_type indexType, uint32_t first, uint32_t count,
+                  const conduit::rect* scissor = nullptr);
         void Submit(View view, const DrawState& state, const Source& vertices, const Source* indices,
-                    rhi::IndexType indexType, uint32_t first, uint32_t count,
-                    const rhi::Rect* scissor = nullptr);
+                    conduit::index_type indexType, uint32_t first, uint32_t count,
+                    const conduit::rect* scissor = nullptr);
         void ApplyMaterial(DrawState& state, const char* material) const;
-        DrawState Base(Program program, bool depth, bool depthWrite, rhi::CompareOp op) const;
+        DrawState Base(Program program, bool depth, bool depthWrite, conduit::compare_op op) const;
         void SetTransform(const glm::mat4& model);
         void SetMatrix(const float columnMajor[16]);
-        void BindTexture(const char* name, rhi::TextureHandle texture, gpu::SamplerKind sampler);
+        void BindTexture(const char* name, conduit::texture_handle texture, gpu::SamplerKind sampler);
         void ResetBindings();
         int ProgramIndex(Program program) const;
         void SetFrameUniforms(const FrameParams& params);
         void ExecuteFrame();
-        void Replay(rhi::CommandList& list, const std::vector<DrawCall>& draws);
+        void Replay(conduit::command_list& list, const std::vector<DrawCall>& draws);
         void FinishReadbacks();
-        void ResolveCapture(rhi::CommandList& list, const Target& target);
+        void ResolveCapture(conduit::command_list& list, const Target& target);
         static void SaveBmp(const std::string& path, uint32_t w, uint32_t h, uint32_t pitch,
                             const uint8_t* bgra);
 
@@ -521,18 +521,18 @@ namespace perlin {
         void DrawScreenTint();
         void DrawLayer(RenderLayer layer, Program program, View view);
         DrawState PassState(RenderLayer layer) const;
-        rhi::CullMode cullMode = rhi::CullMode::Back;
-        rhi::FrontFace frontFace = rhi::FrontFace::Clockwise;
+        conduit::cull_mode cullMode = conduit::cull_mode::back;
+        conduit::front_face frontFace = conduit::front_face::clockwise;
         std::vector<gpu::ChunkMeshStore::Run> runs;
         gpu::PipelineKey KeyFor(const ViewData& view, const DrawState& state) const;
 
         void ConvertDepth(const float in[16], float out[16]) const;
         static glm::mat4 ReverseDepth(const glm::mat4& clipFromWorld);
-        static rhi::CompareOp ReverseOp(rhi::CompareOp op);
+        static conduit::compare_op ReverseOp(conduit::compare_op op);
         static bool StageReversed(const Stage& stage);
         void UploadLightmap(const uint8_t* pixels);
         bool MakeTexture(TexRec& rec, uint32_t w, uint32_t h, uint32_t layers, uint32_t mips,
-                         rhi::Format format, gpu::SamplerKind sampler, const char* name);
+                         conduit::format format, gpu::SamplerKind sampler, const char* name);
         void FreeTexture(TexRec& rec);
 
         // state
@@ -550,7 +550,7 @@ namespace perlin {
         uint64_t nativeWindow = 0, nativeDisplay = 0;
         std::string requestedSwitch;
         mutable std::mutex switchMutex;
-        rhi::Api AutoApi();
+        conduit::api AutoApi();
         std::vector<uint8_t> packData;
 
         int width = 0, height = 0;
@@ -602,7 +602,7 @@ namespace perlin {
         float jpackScale = 1.0f;
         int jpackUpscaler = 0;
         int jpackShadowQuality = 2;
-        rhi::Tier deviceTier = rhi::Tier::Medium;
+        conduit::tier deviceTier = conduit::tier::medium;
         int PackShadowLimit() const;
         int PackShadowInterval() const;
         std::function<std::string(uint16_t)> blockNames;
@@ -627,7 +627,7 @@ namespace perlin {
         uint64_t uniformCacheFrame = 0;
 
         // targets
-        rhi::TextureHandle screenDepth;
+        conduit::texture_handle screenDepth;
         uint32_t screenDepthW = 0, screenDepthH = 0;
 
         // textures
@@ -646,7 +646,7 @@ namespace perlin {
         Texture sunSource, moonSource, endSkySource, cloudSource, iconSource;
 
         // static geometry
-        rhi::BufferHandle topSky, bottomSky, skyBox, skyBoxIdx, screenTri, starVerts, starIdx, sunriseVerts,
+        conduit::buffer_handle topSky, bottomSky, skyBox, skyBoxIdx, screenTri, starVerts, starIdx, sunriseVerts,
             sunriseIdx, sunVerts, moonVerts, quadIdx, fanIdx;
         uint32_t starIndexCount = 0, skyFanIndexCount = 0, sunriseIndexCount = 0;
 
@@ -674,7 +674,7 @@ namespace perlin {
 
         // capture: one readback buffer per frame serves every request made for it
         struct Readback {
-            rhi::BufferHandle buffer;
+            conduit::buffer_handle buffer;
             uint32_t w = 0, h = 0, pitch = 0;
             bool bgra = true;
             uint64_t frame = 0;
