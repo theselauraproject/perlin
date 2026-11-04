@@ -358,60 +358,18 @@ namespace perlin {
             return false;
         }
         const auto now = Clock::now();
-        if (!asset.shown)
-            BeginAssetScreen(now);
-        int indeterminate = 0;
-        const ui::DownloadScreenText t = AssetDownloadText(now, busy, failed, indeterminate);
-
-        const auto [scale, guiW, guiH] = detail::OverlayViewport(hud, fbW, fbH);
-        const double time = std::chrono::duration<double>(now - asset.openedAt).count();
-        std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.subtitle;
-        for (const ui::DownloadRow& r : t.rows)
-            signature += "|" + r.status + "|" + std::to_string(static_cast<int>(r.progress * 1000.0f));
-        if (indeterminate)
-            signature += "|" + std::to_string(static_cast<int>(time * 30.0));
-        if (signature != asset.signature || !hud.Overlay().HasOverlay()) {
-            asset.signature = signature;
-            std::string error;
-            if (!hud.Overlay().SetOverlay(ui::BuildDownloadScreenRml(t, guiW, guiH, time), error))
-                Log("ui", "download screen: {}", error);
-        }
-        const glm::vec2 pointer = detail::PointerOrPreview(input);
-        float mx = pointer.x, my = pointer.y;
-        hud.Overlay().MouseMove(mx / static_cast<float>(scale), my / static_cast<float>(scale));
-        hud.UpdateOverlay(fbW, fbH, options.guiScale);
-
-        const bool down = input.IsMouseDown(0);
-        if (!down && asset.leftDown && now - asset.openedAt > std::chrono::milliseconds(300)) {
-            const std::string hover = hud.Overlay().OverlayHover();
-            if (hover == ui::kDownloadRetryId) {
-                Log("ui", "download screen: retry");
-                StartAssetDownloads();
-            } else if (hover == ui::kDownloadSkipId) {
-                asset.skip = true;
+        if (!asset.shown) {
+            asset.shown = true;
+            asset.openedAt = now;
+            asset.sampleAt = now;
+            asset.leftDown = true;
+            asset.signature.clear();
+            for (int i = 0; i < 2; i++) {
+                asset.lastBytes[i] = jobs[i]->bytes.done.load();
+                asset.speed[i] = 0.0;
             }
+            input.SetTextMode(true);
         }
-        asset.leftDown = down;
-        return true;
-    }
-
-    void Perlin::BeginAssetScreen(TimePoint now) {
-        asset.shown = true;
-        asset.openedAt = now;
-        asset.sampleAt = now;
-        asset.leftDown = true;
-        asset.signature.clear();
-        const assets::Job* jobs[2] = {&assets::Samples(), &assets::Client()};
-        for (int i = 0; i < 2; i++) {
-            asset.lastBytes[i] = jobs[i]->bytes.done.load();
-            asset.speed[i] = 0.0;
-        }
-        input.SetTextMode(true);
-    }
-
-    ui::DownloadScreenText Perlin::AssetDownloadText(TimePoint now, bool busy, bool failed, int& indeterminate) {
-        assets::Job* jobs[2] = {&assets::Samples(), &assets::Client()};
-        const bool preview = PERLIN_ENV("PERLIN_PREVIEW_DOWNLOAD") != nullptr;
         const double dt = std::chrono::duration<double>(now - asset.sampleAt).count();
         if (dt >= 0.25) {
             for (int i = 0; i < 2; i++) {
@@ -429,6 +387,7 @@ namespace perlin {
         t.title = "Downloading game assets";
         t.subtitle = "This only happens the first time Perlin starts.";
         const char* labels[2] = {"Minecraft resources", "Fonts and menu art"};
+        int indeterminate = 0;
         for (int i = 0; i < 2; i++) {
             assets::Job& j = *jobs[i];
             ui::DownloadRow row;
@@ -494,136 +453,36 @@ namespace perlin {
             t.skip = "Continue anyway";
         }
 
-        return t;
-    }
-
-    // the hud itself needs the vanilla pack being downloaded: plain quads and the built-in font until then
-    void Perlin::DrawBootScreen(int fbW, int fbH) {
-        const auto now = Clock::now();
-        bool busy = false, failed = false;
-        for (const assets::Job* j : {&assets::Samples(), &assets::Client()}) {
-            busy = busy || assets::Busy(*j);
-            failed = failed || j->stage.load() == assets::Stage::Failed;
-        }
-        if (!asset.shown)
-            BeginAssetScreen(now);
-        int indeterminate = 0;
-        ui::DownloadScreenText t = AssetDownloadText(now, busy, failed, indeterminate);
-        if (!busy && !failed) {
-            t.title = "Loading...";
-            t.subtitle.clear();
-            t.rows.clear();
-        }
-
-        const ui::McFont& font = ui::McFont::Instance();
-        if (!asset.white) {
-            const uint8_t white[4] = {255, 255, 255, 255};
-            asset.white = renderer->UiCreateTexture(1, 1, white, false);
-        }
-        if (!asset.font || asset.fontVersion != font.Version()) {
-            if (asset.font)
-                renderer->UiDestroyTexture(asset.font);
-            std::vector<uint8_t> atlas = font.Atlas();
-            for (size_t i = 0; i + 3 < atlas.size(); i += 4)
-                for (size_t c = 0; c < 3; c++)
-                    atlas[i + c] = static_cast<uint8_t>((atlas[i + c] * atlas[i + 3] + 127) / 255);
-            asset.font = renderer->UiCreateTexture(font.AtlasWidth(), font.AtlasHeight(), atlas.data(), false);
-            asset.fontVersion = font.Version();
-        }
-
-        struct Batch {
-            std::vector<UiVertex> v;
-            std::vector<uint32_t> i;
-            void Quad(float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint32_t c) {
-                const uint32_t b = static_cast<uint32_t>(v.size());
-                v.push_back({x0, y0, 0.0f, c, u0, v0});
-                v.push_back({x1, y0, 0.0f, c, u1, v0});
-                v.push_back({x1, y1, 0.0f, c, u1, v1});
-                v.push_back({x0, y1, 0.0f, c, u0, v1});
-                i.insert(i.end(), {b, b + 1, b + 2, b, b + 2, b + 3});
-            }
-        } rects, text;
-        // premultiplied abgr, as the touch controls pack it
-        const auto rgba = [](uint32_t rgb, float a) {
-            const auto ch = [&](int shift) {
-                return static_cast<uint32_t>(static_cast<float>((rgb >> shift) & 0xFF) * a + 0.5f);
-            };
-            return (static_cast<uint32_t>(a * 255.0f + 0.5f) << 24) | (ch(0) << 16) | (ch(8) << 8) | ch(16);
-        };
-        const auto rect = [&](float x0, float y0, float x1, float y1, uint32_t c) {
-            rects.Quad(x0, y0, x1, y1, 0.0f, 0.0f, 1.0f, 1.0f, c);
-        };
-        const auto width = [&](const std::string& s, float scale) { return font.Width(s, scale); };
-        const auto label = [&](const std::string& s, float x, float y, float scale, uint32_t c) {
-            size_t k = 0;
-            uint32_t cp = 0;
-            while (k < s.size() && ui::McFont::Next(s, k, cp)) {
-                const ui::McFont::Glyph& g = font.Get(cp);
-                if (g.width > 0)
-                    text.Quad(x + g.left * scale, y + g.top * scale, x + (g.left + g.width) * scale,
-                              y + (g.top + g.height) * scale, g.u0, g.v0, g.u1, g.v1, c);
-                x += g.advance * scale;
-            }
-        };
-
-        const float w = static_cast<float>(fbW), h = static_cast<float>(fbH);
-        const float s = std::max(1.0f, std::floor(std::min(w, h) / 240.0f));
-        rect(0.0f, 0.0f, w, h, rgba(0x18181C, 1.0f));
-        float colW = std::min(w * 0.8f, 300.0f * s);
-        for (const ui::DownloadRow& r : t.rows)
-            colW = std::max(colW, width(r.label, s) + width(r.status, s) + 12.0f * s);
-        colW = std::min(colW, w - 32.0f);
-        const float x0 = (w - colW) * 0.5f, x1 = x0 + colW;
-        float y = h * 0.28f;
-        label(t.title, (w - width(t.title, 2.0f * s)) * 0.5f, y, 2.0f * s, rgba(0xFFFFFF, 1.0f));
-        y += 24.0f * s;
-        if (!t.subtitle.empty()) {
-            label(t.subtitle, (w - width(t.subtitle, s)) * 0.5f, y, s, rgba(0xA0A0A0, 1.0f));
-            y += 22.0f * s;
-        }
+        const auto [scale, guiW, guiH] = detail::OverlayViewport(hud, fbW, fbH);
         const double time = std::chrono::duration<double>(now - asset.openedAt).count();
-        for (const ui::DownloadRow& r : t.rows) {
-            label(r.label, x0, y, s, rgba(0xFFFFFF, 1.0f));
-            label(r.status, x1 - width(r.status, s), y, s, rgba(r.failed ? 0xFF5555 : 0xC0C0C0, 1.0f));
-            y += 11.0f * s;
-            rect(x0, y, x1, y + 2.0f * s, rgba(0x3A3A40, 1.0f));
-            if (r.progress >= 0.0f) {
-                rect(x0, y, x0 + colW * std::clamp(r.progress, 0.0f, 1.0f), y + 2.0f * s,
-                     rgba(r.failed ? 0xD03030 : 0x3CB043, 1.0f));
-            } else {
-                const float f = static_cast<float>(std::fmod(time * 0.6, 1.0));
-                rect(x0 + colW * std::max(0.0f, f - 0.25f), y, x0 + colW * f, y + 2.0f * s,
-                     rgba(0x3CB043, 1.0f));
-            }
-            y += 14.0f * s;
+        std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.subtitle;
+        for (const ui::DownloadRow& r : t.rows)
+            signature += "|" + r.status + "|" + std::to_string(static_cast<int>(r.progress * 1000.0f));
+        if (indeterminate)
+            signature += "|" + std::to_string(static_cast<int>(time * 30.0));
+        if (signature != asset.signature || !hud.Overlay().HasOverlay()) {
+            asset.signature = signature;
+            std::string error;
+            if (!hud.Overlay().SetOverlay(ui::BuildDownloadScreenRml(t, guiW, guiH, time), error))
+                Log("ui", "download screen: {}", error);
         }
-        const bool canRetry = failed && !busy;
-        if (canRetry) {
-            const std::string retry = "Tap to retry";
-            label(retry, (w - width(retry, s)) * 0.5f, y + 6.0f * s, s, rgba(0xFFFF55, 1.0f));
-        }
-
-        for (auto [batch, texture] : {std::pair{&rects, asset.white}, std::pair{&text, asset.font}}) {
-            if (batch->v.empty() || !texture)
-                continue;
-            const uint32_t mesh = renderer->UiCreateFrameMesh(batch->v.data(), static_cast<uint32_t>(batch->v.size()),
-                                                              batch->i.data(), static_cast<uint32_t>(batch->i.size()));
-            if (!mesh)
-                continue;
-            UiDraw draw;
-            draw.mesh = mesh;
-            draw.texture = texture;
-            draw.premultiplied = true;
-            renderer->UiSubmit(UiLayer::Gui, draw);
-            renderer->UiDestroyMesh(mesh);
-        }
+        const glm::vec2 pointer = detail::PointerOrPreview(input);
+        float mx = pointer.x, my = pointer.y;
+        hud.Overlay().MouseMove(mx / static_cast<float>(scale), my / static_cast<float>(scale));
+        hud.UpdateOverlay(fbW, fbH, options.guiScale);
 
         const bool down = input.IsMouseDown(0);
-        if (canRetry && !down && asset.leftDown && now - asset.openedAt > std::chrono::milliseconds(300)) {
-            Log("ui", "boot screen: retry");
-            StartAssetDownloads();
+        if (!down && asset.leftDown && now - asset.openedAt > std::chrono::milliseconds(300)) {
+            const std::string hover = hud.Overlay().OverlayHover();
+            if (hover == ui::kDownloadRetryId) {
+                Log("ui", "download screen: retry");
+                StartAssetDownloads();
+            } else if (hover == ui::kDownloadSkipId) {
+                asset.skip = true;
+            }
         }
         asset.leftDown = down;
+        return true;
     }
 
     bool Perlin::UpdateTitleScreen(ui::Hud& hud, int fbW, int fbH) {

@@ -1664,11 +1664,6 @@ namespace perlin {
                     candidate->Shutdown();
             }
         }
-        if (!hud && titleScreen.active) {
-            int fbW = 0, fbH = 0;
-            renderer->FramebufferSize(fbW, fbH);
-            DrawBootScreen(fbW, fbH);
-        }
         if (hud) {
             int fbW = 0, fbH = 0;
             renderer->FramebufferSize(fbW, fbH);
@@ -1835,7 +1830,7 @@ namespace perlin {
             previewControls.SetState(touchState);
             previewControls.Draw(*renderer, true);
         } else if (optionsUi.touchEditing || (!death.shown && !pause.shown && !inventory.shown &&
-                                              !disconnect.shown && !loading.shown && !titleScreen.active)) {
+                                              !disconnect.shown && !loading.shown && !titleScreen.shown)) {
             platform->DrawTouchOverlay(*renderer);
         }
         platform->DrawPointerOverlay(*renderer);

@@ -36,7 +36,6 @@
 #include "client/ui/FormScreen.hpp"
 #include "client/ui/Hud.hpp"
 #include "client/ui/InventoryScreen.hpp"
-#include "client/ui/LoadingScreen.hpp"
 #include "client/ui/TitleScreen.hpp"
 #include "client/ui/UiTemplate.hpp"
 #include "network/FriendWorld.hpp"
@@ -234,9 +233,6 @@ namespace perlin {
         // title, loading and disconnect screens (PerlinTitle.cpp)
         bool UpdateTitleScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateAssetScreen(ui::Hud& hud, int fbW, int fbH);
-        void BeginAssetScreen(TimePoint now);
-        ui::DownloadScreenText AssetDownloadText(TimePoint now, bool busy, bool failed, int& indeterminate);
-        void DrawBootScreen(int fbW, int fbH);
         bool UpdateLoadingScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateDisconnectScreen(ui::Hud& hud, int fbW, int fbH);
         void DrawTitlePanorama(int fbW, int fbH);
@@ -637,7 +633,6 @@ namespace perlin {
             TimePoint sampleAt;
             uint64_t lastBytes[2] = {0, 0};
             double speed[2] = {0.0, 0.0};
-            uint32_t white = 0, font = 0, fontVersion = 0;
         } asset;
 
         struct LoadingScreen : OverlayState {
