@@ -89,6 +89,9 @@ namespace perlin::ui {
         int selectedSlot = 0;
         HudItem hotbar[9];
         HudItem offhand;
+        bool offhandRight = false;
+        int hotbarLeftSize[2] = {0, 0};
+        int hotbarRightSize[2] = {0, 0};
         HudItem armorItems[4];
 
         uint64_t tick = 0;

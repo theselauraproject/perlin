@@ -198,12 +198,49 @@ namespace perlin::ui {
             }
         }
 
-        void Hotbar(const HudState&, const LNode& n, RmlWriter& w) {
+        void Offhand(const HudState& s, const LNode& n, RmlWriter& w) {
+            const float unit = n.w / 20.0f;
+            const float x = s.offhandRight ? n.ax + n.w + 6.0f * unit : n.ax - n.w - 6.0f * unit;
+            const float y = n.ay;
+            ImageStyle left;
+            left.alpha = n.alpha;
+            ImageStyle right = left;
+            const int lw = s.hotbarLeftSize[0], lh = s.hotbarLeftSize[1];
+            const int rw = s.hotbarRightSize[0], rh = s.hotbarRightSize[1];
+            if (lw > 0 && lh > 0 && rw > 0 && rh > 0) {
+                left.uw = static_cast<float>(lw) * 0.5f;
+                left.vh = static_cast<float>(lh);
+                right.u = static_cast<float>(rw) * 0.5f;
+                right.uw = static_cast<float>(rw) * 0.5f;
+                right.vh = static_cast<float>(rh);
+                w.Image(x, y, n.w * 0.5f, n.h, n.layer, "textures/ui/hotbar_0", left);
+                w.Image(x + n.w * 0.5f, y, n.w * 0.5f, n.h, n.layer, "textures/ui/hotbar_8", right);
+            } else {
+                w.Image(x, y, n.w, n.h, n.layer, "textures/ui/hotbar_0", left);
+            }
+            const HudItem& item = s.offhand;
+            const float itemSize = 16.0f * unit;
+            const float itemX = x + (n.w - itemSize) * 0.5f, itemY = y + (n.h - itemSize) * 0.5f;
+            w.Item(itemX, itemY, itemSize, itemSize, n.layer + 1, item.Key(), n.alpha, item.enchanted);
+            if (item.count > 1) {
+                const std::string text = std::to_string(item.count);
+                TextStyle ts;
+                ts.shadow = true;
+                ts.scale = unit;
+                const float tw = McFont::Instance().Width(text) * unit;
+                w.Text(itemX + itemSize + unit - tw, itemY + 9.0f * unit, tw + unit, 9.0f * unit, n.layer + 2, {text},
+                       ts);
+            }
+        }
+
+        void Hotbar(const HudState& s, const LNode& n, RmlWriter& w) {
             if (n.index < 0 || n.index > 8)
                 return;
             ImageStyle st;
             st.alpha = n.alpha;
             w.Image(n.ax, n.ay, n.w, n.h, n.layer, "textures/ui/hotbar_" + std::to_string(n.index), st);
+            if (!s.offhand.Empty() && n.index == (s.offhandRight ? 8 : 0))
+                Offhand(s, n, w);
         }
 
         void InventoryItem(const HudState& s, const LNode& n, RmlWriter& w) {

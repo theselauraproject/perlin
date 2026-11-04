@@ -1713,8 +1713,9 @@ namespace perlin {
                 uiClickWasDown = pressed;
             }
             DrawModTint(fbW, fbH);
+            DrawModGfx(fbW, fbH, true);
             hud->Render();
-            DrawModGfx(fbW, fbH);
+            DrawModGfx(fbW, fbH, false);
             const bool creativeUi =
                 hudState.mode == ui::GameMode::Creative || PERLIN_ENV("PERLIN_PREVIEW_CREATIVE");
             if (inventory.shown && dollSelf && !inventory.workbench && !inventory.horse && !inventory.chest &&

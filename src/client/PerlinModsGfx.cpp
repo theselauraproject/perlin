@@ -9,12 +9,12 @@
 #include <unordered_set>
 
 namespace perlin {
-    void Perlin::DrawModGfx(int fbW, int fbH) {
+    void Perlin::DrawModGfx(int fbW, int fbH, bool hudBand) {
         auto& mm = mods::ModManager::Instance();
         if (!renderer)
             return;
 
-        {
+        if (hudBand) {
             std::unordered_set<std::string> seen;
             for (const mods::GfxTexture& t : mm.GfxTextures()) {
                 if (!t.rgba ||
@@ -46,6 +46,8 @@ namespace perlin {
         static std::vector<UiVertex> vertices;
         static std::vector<uint32_t> indices;
         for (const mods::GfxLayer& layer : mm.GfxLayers()) {
+            if ((layer.z < abi::kGfxScreenZ) != hudBand)
+                continue;
             if (!layer.data || layer.data->size() < sizeof(abi::GfxHeader))
                 continue;
             const uint8_t* base = layer.data->data();

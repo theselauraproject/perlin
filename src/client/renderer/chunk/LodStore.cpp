@@ -46,6 +46,15 @@ namespace perlin {
                 c[i] = sum[i] / weight / 255.0f;
 
         const std::string name = BlockPalette::Instance().Name(id);
+        if (top && Has(name, "red_mushroom_block")) {
+            c[0] = 0.71f;
+            c[1] = 0.16f;
+            c[2] = 0.15f;
+        } else if (top && Has(name, "brown_mushroom_block")) {
+            c[0] = 0.58f;
+            c[1] = 0.44f;
+            c[2] = 0.32f;
+        }
         std::array<float, 3> tint = {1, 1, 1};
         const std::string biomeName = tints.Ready() ? tints.NameForId(biome) : std::string();
         if (Has(name, "water")) {

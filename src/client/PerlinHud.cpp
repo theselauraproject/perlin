@@ -395,7 +395,12 @@ namespace perlin {
         s.selectedSlot = std::clamp(inv.selected, 0, 8);
         for (int i = 0; i < 9; i++)
             s.hotbar[i] = detail::ToHudItem(inv.hotbar[i]);
-        s.offhand = detail::ToHudItem(inv.offhand);
+        s.offhand = options.hand.showOffhand ? detail::ToHudItem(inv.offhand) : ui::HudItem{};
+        s.offhandRight = options.hand.leftHanded;
+        if (!s.offhand.Empty()) {
+            ui::UiAssets::Instance().ImageSize("textures/ui/hotbar_0", s.hotbarLeftSize[0], s.hotbarLeftSize[1]);
+            ui::UiAssets::Instance().ImageSize("textures/ui/hotbar_8", s.hotbarRightSize[0], s.hotbarRightSize[1]);
+        }
         int armor = 0;
         for (int i = 0; i < 4; i++) {
             s.armorItems[i] = detail::ToHudItem(inv.armor[i]);

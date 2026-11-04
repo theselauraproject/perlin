@@ -71,10 +71,12 @@ namespace perlin::game {
     struct MapColumn {
         uint32_t rgb = 0;
         int16_t height = 0;
+        int16_t top = 0;
         uint8_t depth = 0;
         uint8_t flags = 0;
     };
-    inline constexpr uint8_t kMapLoaded = 1, kMapWater = 2, kMapLava = 4, kMapLeaves = 8, kMapSnow = 16;
+    inline constexpr uint8_t kMapLoaded = 1, kMapWater = 2, kMapLava = 4, kMapLeaves = 8, kMapSnow = 16,
+                             kMapRock = 32;
     struct MapChunk {
         bool loaded = false;
         uint64_t version = 0;
@@ -96,6 +98,7 @@ namespace perlin::game {
             for (MapColumn& c : out.columns) {
                 c.rgb = r.get<uint32_t>();
                 c.height = r.get<int16_t>();
+                c.top = r.get<int16_t>();
                 c.depth = r.get<uint8_t>();
                 c.flags = r.get<uint8_t>();
             }

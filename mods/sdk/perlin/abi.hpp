@@ -1166,6 +1166,7 @@ namespace perlin::abi {
     inline constexpr uint32_t kGfxMaxBytes = 8u << 20;
     inline constexpr uint32_t kGfxMaxVertices = 1u << 20;
     inline constexpr uint32_t kGfxMaxLayers = 8;
+    inline constexpr int kGfxScreenZ = 100;
     inline constexpr uint32_t kGfxMaxTextures = 64;
     inline constexpr uint32_t kGfxMaxTextureSide = 4096;
     inline constexpr uint64_t kGfxMaxTextureBytes = 128ull << 20;

@@ -323,7 +323,7 @@ namespace perlin {
         bool DispatchModToast(const std::string& title, const std::string& body);
         std::vector<std::string> ModTooltipLines(const ui::HudItem& item);
         void PumpModInput(mods::ModManager& mm);
-        void DrawModGfx(int fbW, int fbH);
+        void DrawModGfx(int fbW, int fbH, bool hudBand);
 
         // replay recording, playback and the timeline editor (PerlinReplay.cpp, PerlinEditor.cpp)
         void ToggleReplayRecording(bool start);

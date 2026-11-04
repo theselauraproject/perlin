@@ -30,7 +30,7 @@
 namespace perlin {
 
     namespace {
-        constexpr uint8_t kMapWaterFlag = 2, kMapLavaFlag = 4, kMapLeavesFlag = 8, kMapSnowFlag = 16;
+        constexpr uint8_t kMapWaterFlag = 2, kMapLavaFlag = 4, kMapLeavesFlag = 8, kMapSnowFlag = 16, kMapRockFlag = 32;
         using abi::Status;
 
         constexpr const char* PlatformName() { return platform::kName; }
@@ -560,17 +560,40 @@ namespace perlin {
             };
             for (int z = 0; z < 16; z++)
                 for (int x = 0; x < 16; x++) {
+                    int16_t top = static_cast<int16_t>(lo - 1);
+                    for (int ty = hi; ty >= lo; ty--) {
+                        const uint16_t id = chunk.Get(x, ty, z);
+                        if (id == 0)
+                            continue;
+                        const uint8_t t = traitsOf(id);
+                        if ((t & cube) && !(t & leaves) && !(t & water)) {
+                            top = static_cast<int16_t>(ty);
+                            break;
+                        }
+                    }
                     int y = hi;
+                    int bottom = lo;
+                    bool rock = false;
                     if (caveY != INT32_MIN) {
                         y = std::min(hi, caveY);
-                        while (y >= lo && chunk.Get(x, y, z) != 0 && chunk.GetLiquid(x, y, z) == 0)
+                        int ceiling = 0;
+                        while (y >= lo && chunk.Get(x, y, z) != 0 && chunk.GetLiquid(x, y, z) == 0 && ceiling < 4) {
                             y--;
+                            ceiling++;
+                        }
+                        rock = ceiling >= 4;
+                        bottom = std::max(lo, y - 64);
                     }
                     int waterTop = Chunk::MIN_Y - 1;
                     uint16_t waterId = 0, floorId = 0;
                     int floorY = lo - 1;
                     uint8_t flags = 1;
-                    for (; y >= lo; y--) {
+                    if (rock) {
+                        w.put<uint32_t>(0x1A1A1Eu).put<int16_t>(static_cast<int16_t>(caveY)).put<int16_t>(top);
+                        w.put<uint8_t>(0).put<uint8_t>(static_cast<uint8_t>(1 | kMapRockFlag));
+                        continue;
+                    }
+                    for (; y >= bottom; y--) {
                         const uint16_t id = chunk.Get(x, y, z);
                         const uint16_t liquid = chunk.GetLiquid(x, y, z);
                         if (id == 0 && liquid == 0)
@@ -620,7 +643,7 @@ namespace perlin {
                     } else {
                         flags = 0;
                     }
-                    w.put<uint32_t>(colour).put<int16_t>(height).put<uint8_t>(depth).put<uint8_t>(flags);
+                    w.put<uint32_t>(colour).put<int16_t>(height).put<int16_t>(top).put<uint8_t>(depth).put<uint8_t>(flags);
                 }
             return Status::Ok;
         });
