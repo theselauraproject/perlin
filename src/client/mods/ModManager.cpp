@@ -2106,6 +2106,23 @@ namespace perlin::mods {
     }
 
     void ModManager::RegisterGfxOps() {
+        Register(abi::Op::GfxImageLoad, [this](CallContext&, abi::Reader& r, abi::Writer& w) {
+            const std::string path = r.str();
+            if (!r.Ok() || path.empty() || path.contains(".."))
+                return abi::Status::BadArguments;
+            if (!imageLoader)
+                return abi::Status::Unavailable;
+            int width = 0, height = 0;
+            std::vector<uint8_t> rgba;
+            if (!imageLoader(path, width, height, rgba) || width <= 0 || height <= 0 ||
+                width > static_cast<int32_t>(abi::kGfxMaxTextureSide) ||
+                height > static_cast<int32_t>(abi::kGfxMaxTextureSide) ||
+                rgba.size() != static_cast<size_t>(width) * static_cast<size_t>(height) * 4)
+                return abi::Status::NotFound;
+            w.put<int32_t>(width).put<int32_t>(height).bytes(rgba.data(), rgba.size());
+            return abi::Status::Ok;
+        });
+
         Register(abi::Op::GfxTextureCreate, [this](CallContext& ctx, abi::Reader& r, abi::Writer& w) {
             const int32_t width = r.get<int32_t>(), height = r.get<int32_t>();
             const bool linear = r.boolean();

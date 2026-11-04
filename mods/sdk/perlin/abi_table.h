@@ -92,6 +92,7 @@
     X(GfxSubmit, 0x0913, Raw, Nothing, None, Client) \
     X(GfxClear, 0x0914, Raw, Nothing, None, Client) \
     X(GfxDisplay, 0x0915, Nothing, Raw, None, Client) \
+    X(GfxImageLoad, 0x0916, Raw, Raw, None, Client) \
     X(InputGrab, 0x0920, Raw, Nothing, Control, Client) \
     X(NativeInfo, 0x0930, Nothing, NativeHandles, Native, Client) \
     X(StorageRead, 0x0A00, Raw, Raw, Storage, Client) \

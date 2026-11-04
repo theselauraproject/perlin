@@ -25,6 +25,29 @@ namespace perlin::gfx {
         return detail::call_as<Display>(Op::GfxDisplay);
     }
 
+    struct Image {
+        int width = 0;
+        int height = 0;
+        std::vector<uint8_t> rgba;
+    };
+
+    inline Result<Image> load_image(std::string_view path) {
+        abi::Writer a;
+        a.str(path);
+        auto bytes = detail::call(Op::GfxImageLoad, a);
+        if (!bytes)
+            return unexpected(bytes.error());
+        abi::Reader r(bytes->data(), bytes->size());
+        Image image;
+        image.width = r.get<int32_t>();
+        image.height = r.get<int32_t>();
+        image.rgba = r.bytes();
+        if (!r.Ok() || image.width <= 0 || image.height <= 0 ||
+            image.rgba.size() != static_cast<size_t>(image.width) * static_cast<size_t>(image.height) * 4)
+            return unexpected(Error{Status::Failed});
+        return image;
+    }
+
     class Texture {
     public:
         Texture() = default;

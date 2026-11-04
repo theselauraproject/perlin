@@ -13,7 +13,7 @@
       {"value": "BottomRight", "label": "Bottom right"},
       {"value": "BottomLeft", "label": "Bottom left"}
     ]},
-    {"id": "size", "type": "integer", "label": "Size", "default": 150, "min": 64, "max": 400, "description": "Width and height on screen, in gui pixels."},
+    {"id": "size", "type": "integer", "label": "Size", "default": 128, "min": 64, "max": 400, "description": "Width and height on screen, in gui pixels."},
     {"id": "zoom", "type": "number", "label": "Zoom", "default": 1.0, "min": 0.5, "max": 4.0, "step": 0.25, "description": "Screen pixels per block, before the gui scale."},
     {"id": "rotate", "type": "toggle", "label": "Rotate with player", "default": false, "description": "Keep where you look at the top instead of north.", "icon": {"item": "minecraft:compass"}},
     {"id": "opacity", "type": "number", "label": "Opacity", "default": 1.0, "min": 0.2, "max": 1.0, "step": 0.05},
@@ -21,7 +21,7 @@
     {"id": "relief", "type": "number", "label": "Relief lighting", "default": 1.0, "min": 0.0, "max": 2.0, "step": 0.1, "description": "How strongly slopes facing the light are brightened and the others shaded.", "icon": {"item": "minecraft:glowstone"}},
     {"id": "water_depth", "type": "toggle", "label": "Water depth", "default": true, "description": "Deeper water is darker.", "icon": {"item": "minecraft:water_bucket"}},
     {"id": "day_night", "type": "toggle", "label": "Day and night", "default": true, "description": "The map darkens at night like the world does."},
-    {"id": "grid", "type": "toggle", "label": "Chunk grid", "default": true, "icon": {"item": "minecraft:iron_bars"}},
+    {"id": "grid", "type": "toggle", "label": "Chunk grid", "default": false, "icon": {"item": "minecraft:iron_bars"}},
     {"id": "cave_mode", "type": "choice", "label": "Cave view", "default": "Auto", "choices": [
       {"value": "Auto", "label": "When underground"},
       {"value": "Off", "label": "Off"},

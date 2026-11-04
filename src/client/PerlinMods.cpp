@@ -495,6 +495,16 @@ namespace perlin {
             return Status::Ok;
         });
 
+        mm.imageLoader = [](const std::string& path, int& width, int& height, std::vector<uint8_t>& rgba) {
+            Texture t;
+            if (!ui::UiAssets::Instance().Image(path, t) || t.width <= 0 || t.height <= 0)
+                return false;
+            width = t.width;
+            height = t.height;
+            rgba.assign(t.pixels.begin(), t.pixels.end());
+            return true;
+        };
+
         mm.Register(Op::MapChunk, [this](CallContext&, abi::Reader& r, abi::Writer& w) {
             const int32_t cx = r.get<int32_t>(), cz = r.get<int32_t>(), caveY = r.get<int32_t>();
             if (!r.Ok())
@@ -504,14 +514,39 @@ namespace perlin {
             static LodStore colours;
             static const void* atlasSeen = nullptr;
             static size_t atlasSize = 0;
+            static std::vector<uint8_t> traits;
+            enum : uint8_t { known = 1, water = 2, lava = 4, snow = 8, leaves = 16, cube = 32 };
             const BlockLibrary& blocks = levelRenderer->Blocks();
             const BiomeTints& tints = levelRenderer->Tints();
             if (blocks.AtlasPixels().data() != atlasSeen || blocks.AtlasPixels().size() != atlasSize) {
                 atlasSeen = blocks.AtlasPixels().data();
                 atlasSize = blocks.AtlasPixels().size();
                 colours.InvalidateColours();
+                traits.clear();
             }
-            std::lock_guard<std::mutex> lock(modLevel->mutex);
+            const auto traitsOf = [&](uint16_t id) -> uint8_t {
+                if (id >= traits.size())
+                    traits.resize(static_cast<size_t>(id) + 1, 0);
+                uint8_t& t = traits[id];
+                if (!(t & known)) {
+                    const std::string& name = BlockPalette::Instance().Name(id);
+                    t = known;
+                    if (name.contains("water"))
+                        t |= water;
+                    if (name.contains("lava"))
+                        t |= lava;
+                    if (name.contains("snow_layer"))
+                        t |= snow;
+                    if (name.contains("leaves"))
+                        t |= leaves;
+                    if (id != 0 && blocks.Look(id).shape == BlockAppearance::Shape::Cube)
+                        t |= cube;
+                }
+                return t;
+            };
+            std::unique_lock<std::mutex> lock(modLevel->mutex, std::try_to_lock);
+            if (!lock.owns_lock())
+                return Status::Unavailable;
             const auto it = modLevel->chunks.find({cx, cz});
             int lo = 0, hi = 0;
             if (it == modLevel->chunks.end() || !it->second.YRange(lo, hi)) {
@@ -538,9 +573,10 @@ namespace perlin {
                     for (; y >= lo; y--) {
                         const uint16_t id = chunk.Get(x, y, z);
                         const uint16_t liquid = chunk.GetLiquid(x, y, z);
-                        const std::string& name = BlockPalette::Instance().Name(liquid ? liquid : id);
-                        const bool water = liquid != 0 || (id != 0 && name.contains("water"));
-                        if (water) {
+                        if (id == 0 && liquid == 0)
+                            continue;
+                        const bool isWater = liquid != 0 || (traitsOf(id) & water);
+                        if (isWater) {
                             if (waterTop < Chunk::MIN_Y) {
                                 waterTop = y;
                                 waterId = liquid ? liquid : id;
@@ -550,15 +586,14 @@ namespace perlin {
                         }
                         if (id == 0)
                             continue;
-                        const BlockAppearance& look = blocks.Look(id);
-                        const std::string& solid = BlockPalette::Instance().Name(id);
-                        if (solid.contains("lava"))
+                        const uint8_t t = traitsOf(id);
+                        if (t & lava)
                             flags |= kMapLavaFlag;
-                        if (solid.contains("snow_layer"))
+                        if (t & snow)
                             flags |= kMapSnowFlag;
-                        else if (look.shape != BlockAppearance::Shape::Cube && !solid.contains("lava"))
+                        else if (!(t & cube) && !(t & lava))
                             continue;
-                        if (solid.contains("leaves"))
+                        if (t & leaves)
                             flags |= kMapLeavesFlag;
                         floorY = y;
                         floorId = id;

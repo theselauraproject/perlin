@@ -17,11 +17,15 @@ namespace {
     constexpr int kChunks = kRadius * 2 + 1;
     constexpr int kMapSize = kChunks * 16;
     constexpr int kTexW = kMapSize;
-    constexpr int kTexH = kMapSize + 2;
     constexpr int kWhiteRow = kMapSize;
+    constexpr int kIconRow = kMapSize + 2;
+    constexpr int kIconMax = 32;
+    constexpr int kTexH = kIconRow + kIconMax;
     constexpr double kPi = 3.14159265358979323846;
-    constexpr int kPollPerFrame = 6;
-    constexpr int kFillPerFrame = 24;
+    constexpr int kPaintPerFrame = 48;
+    constexpr int kFetchPerFrame = 6;
+    constexpr int kPollPerFrame = 4;
+    constexpr int64_t kBudgetMs = 3;
 
     int64_t ChunkKey(int cx, int cz) {
         return (static_cast<int64_t>(cx) << 32) ^ static_cast<uint32_t>(cz);
@@ -65,6 +69,7 @@ struct Minimap : Plugin {
             uint8_t* p = &pixels[(static_cast<size_t>(kWhiteRow) * kTexW + x) * 4];
             p[0] = p[1] = p[2] = p[3] = 255;
         }
+        loadIcon();
         loadWaypoints();
     }
 
@@ -107,7 +112,7 @@ struct Minimap : Plugin {
         const int pcz = static_cast<int>(std::floor(player->z / 16.0));
         const int32_t cave = CaveLayer(*player);
         if (pcx != centerX || pcz != centerZ || cave != caveY || static_cast<int>(player->dimension) != dimension) {
-            if (static_cast<int>(player->dimension) != dimension)
+            if (static_cast<int>(player->dimension) != dimension || cave != caveY)
                 cache.clear();
             centerX = pcx;
             centerZ = pcz;
@@ -171,21 +176,33 @@ private:
     }
 
     void Refresh() {
-        int fetched = 0;
-        while (fillCursor < kChunks * kChunks && fetched < kFillPerFrame) {
-            const int i = Spiral(fillCursor++);
+        const int64_t started = game::now_ms();
+        const auto overBudget = [&] { return game::now_ms() - started >= kBudgetMs; };
+        int painted = 0, fetched = 0;
+        while (fillCursor < kChunks * kChunks && painted < kPaintPerFrame) {
+            const int i = Spiral(fillCursor);
             const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
-            Cached& c = cache[ChunkKey(cx, cz)];
-            if (!c.painted || !c.loaded) {
-                Fetch(cx, cz, c);
+            const auto it = cache.find(ChunkKey(cx, cz));
+            if (it == cache.end()) {
+                if (fetched >= kFetchPerFrame || overBudget() || !Fetch(cx, cz))
+                    return;
                 fetched++;
+            } else if (!it->second.painted) {
+                Paint(cx, cz);
             }
+            fillCursor++;
+            painted++;
+            if (overBudget())
+                return;
         }
-        for (int n = 0; n < kPollPerFrame; n++) {
-            pollCursor = (pollCursor + 1) % (kChunks * kChunks);
-            const int i = Spiral(pollCursor);
-            const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
-            Fetch(cx, cz, cache[ChunkKey(cx, cz)]);
+        if (fillCursor < kChunks * kChunks)
+            return;
+        for (int n = 0; n < kPollPerFrame && !overBudget(); n++) {
+            const int next = (pollCursor + 1) % (kChunks * kChunks);
+            const int i = Spiral(next);
+            if (!Fetch(centerX - kRadius + i % kChunks, centerZ - kRadius + i / kChunks))
+                break;
+            pollCursor = next;
         }
         if (cache.size() > static_cast<size_t>(kChunks * kChunks * 3))
             std::erase_if(cache, [&](const auto& e) {
@@ -209,30 +226,23 @@ private:
         return order[static_cast<size_t>(n)];
     }
 
-    void Fetch(int cx, int cz, Cached& c) {
+    bool Fetch(int cx, int cz) {
         auto data = game::map_chunk(cx, cz, caveY);
         if (!data)
-            return;
-        if (c.loaded == data->loaded && c.version == data->version && c.painted)
-            return;
+            return false;
+        Cached& c = cache[ChunkKey(cx, cz)];
+        if (c.painted && c.loaded == data->loaded && c.version == data->version)
+            return true;
+        const bool changed = c.painted;
         c.loaded = data->loaded;
         c.version = data->version;
         c.columns = data->columns;
         Paint(cx, cz);
-        for (int dz = 0; dz <= 1; dz++)
-            for (int dx = 0; dx <= 1; dx++)
-                if (dx || dz) {
-                    const auto it = cache.find(ChunkKey(cx + dx, cz + dz));
-                    if (it != cache.end() && it->second.painted)
-                        Paint(cx + dx, cz + dz);
-                }
-    }
-
-    const game::MapColumn* Column(int wx, int wz) const {
-        const auto it = cache.find(ChunkKey(wx >> 4, wz >> 4));
-        if (it == cache.end() || !it->second.loaded)
-            return nullptr;
-        return &it->second.columns[static_cast<size_t>((wz & 15) * 16 + (wx & 15))];
+        if (changed)
+            for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{0, 1}, std::pair{1, 1}})
+                if (const auto it = cache.find(ChunkKey(cx + dx, cz + dz)); it != cache.end() && it->second.painted)
+                    Paint(cx + dx, cz + dz);
+        return true;
     }
 
     void Paint(int cx, int cz) {
@@ -241,6 +251,25 @@ private:
             return;
         Cached& c = cache[ChunkKey(cx, cz)];
         c.painted = true;
+        const auto find = [&](int x, int z) -> const Cached* {
+            const auto it = cache.find(ChunkKey(x, z));
+            return it != cache.end() && it->second.loaded ? &it->second : nullptr;
+        };
+        const Cached* west = find(cx - 1, cz);
+        const Cached* north = find(cx, cz - 1);
+        const Cached* northWest = find(cx - 1, cz - 1);
+        const auto Column = [&](int x, int z) -> const game::MapColumn* {
+            const Cached* from = &c;
+            if (x < 0 && z < 0)
+                from = northWest;
+            else if (x < 0)
+                from = west;
+            else if (z < 0)
+                from = north;
+            if (!from)
+                return nullptr;
+            return &from->columns[static_cast<size_t>(((z + 16) & 15) * 16 + ((x + 16) & 15))];
+        };
         const float relief = static_cast<float>(settings::relief);
         const bool depthShade = settings::water_depth;
         std::array<uint8_t, 16 * 16 * 4> tile{};
@@ -252,26 +281,25 @@ private:
                     out[3] = 0;
                     continue;
                 }
-                const int wx = cx * 16 + x, wz = cz * 16 + z;
                 float r = static_cast<float>((col.rgb >> 16) & 255), g = static_cast<float>((col.rgb >> 8) & 255),
                       b = static_cast<float>(col.rgb & 255);
                 float shade = 1.0f;
                 if (col.flags & game::kMapWater) {
                     if (depthShade)
                         shade -= std::min<float>(col.depth, 14.0f) * 0.022f;
-                    if (const game::MapColumn* w = Column(wx - 1, wz - 1); w && !(w->flags & game::kMapWater))
+                    if (const game::MapColumn* w = Column(x - 1, z - 1); w && !(w->flags & game::kMapWater))
                         shade += 0.12f * relief;
                 } else {
-                    const game::MapColumn* west = Column(wx - 1, wz);
-                    const game::MapColumn* north = Column(wx, wz - 1);
-                    const game::MapColumn* nw = Column(wx - 1, wz - 1);
+                    const game::MapColumn* left = Column(x - 1, z);
+                    const game::MapColumn* up = Column(x, z - 1);
+                    const game::MapColumn* corner = Column(x - 1, z - 1);
                     float dh = 0;
-                    if (west)
-                        dh += static_cast<float>(col.height - west->height);
-                    if (north)
-                        dh += static_cast<float>(col.height - north->height);
-                    if (nw)
-                        dh += 0.5f * static_cast<float>(col.height - nw->height);
+                    if (left)
+                        dh += static_cast<float>(col.height - left->height);
+                    if (up)
+                        dh += static_cast<float>(col.height - up->height);
+                    if (corner)
+                        dh += 0.5f * static_cast<float>(col.height - corner->height);
                     shade += std::clamp(dh, -6.0f, 6.0f) * 0.055f * relief;
                     if (col.flags & game::kMapLeaves)
                         shade -= 0.04f;
@@ -399,21 +427,35 @@ private:
                 ox = cxs + ax * hc - ay * hs;
                 oy = cys + ax * hs + ay * hc;
             };
-            const float s = 4.5f * gs;
-            float ax, ay, bx, by, cx2, cy2, dx, dy;
-            rot(0, -s * 1.2f, ax, ay);
-            rot(s * 0.8f, s, bx, by);
-            rot(0, s * 0.45f, cx2, cy2);
-            rot(-s * 0.8f, s, dx, dy);
-            const uint32_t outline = gfx::rgba8(0, 0, 0, 230);
-            const float o = 1.0f * gs;
-            float oax, oay, obx, oby, ocx, ocy, odx, ody;
-            rot(0, -s * 1.2f - o * 1.6f, oax, oay);
-            rot(s * 0.8f + o, s + o, obx, oby);
-            rot(0, s * 0.45f + o, ocx, ocy);
-            rot(-s * 0.8f - o, s + o, odx, ody);
-            solid(oax, oay, obx, oby, ocx, ocy, odx, ody, outline);
-            solid(ax, ay, bx, by, cx2, cy2, dx, dy, gfx::rgba8(255, 255, 255, 255));
+            if (iconSize > 0) {
+                const float h = 5.0f * gs;
+                const float u0 = 0.0f, u1 = static_cast<float>(iconSize) / kTexW;
+                const float v0 = static_cast<float>(kIconRow) / kTexH, v1 = static_cast<float>(kIconRow + iconSize) / kTexH;
+                const float cornersX[4] = {-h, h, h, -h}, cornersY[4] = {-h, -h, h, h};
+                const float us[4] = {u0, u1, u1, u0}, vs[4] = {v0, v0, v1, v1};
+                uint32_t idx[4];
+                for (int i = 0; i < 4; i++) {
+                    float sx, sy;
+                    rot(cornersX[i], cornersY[i], sx, sy);
+                    idx[i] = list.vertex(sx, sy, us[i], vs[i], gfx::rgba8(255, 255, 255, 255));
+                }
+                list.triangle(idx[0], idx[1], idx[2]).triangle(idx[0], idx[2], idx[3]);
+            } else {
+                const float s = 4.5f * gs;
+                float ax, ay, bx, by, cx2, cy2, dx, dy;
+                rot(0, -s * 1.2f, ax, ay);
+                rot(s * 0.8f, s, bx, by);
+                rot(0, s * 0.45f, cx2, cy2);
+                rot(-s * 0.8f, s, dx, dy);
+                const float o = 1.0f * gs;
+                float oax, oay, obx, oby, ocx, ocy, odx, ody;
+                rot(0, -s * 1.2f - o * 1.6f, oax, oay);
+                rot(s * 0.8f + o, s + o, obx, oby);
+                rot(0, s * 0.45f + o, ocx, ocy);
+                rot(-s * 0.8f - o, s + o, odx, ody);
+                solid(oax, oay, obx, oby, ocx, ocy, odx, ody, gfx::rgba8(0, 0, 0, 230));
+                solid(ax, ay, bx, by, cx2, cy2, dx, dy, gfx::rgba8(255, 255, 255, 255));
+            }
         }
         const uint32_t frame = gfx::rgba8(20, 20, 20, la);
         const float fw = std::max(1.0f, gs);
@@ -423,6 +465,20 @@ private:
         solid(x0 + size - fw, y0, x0 + size, y0, x0 + size, y0 + size, x0 + size - fw, y0 + size, frame);
         (void)gfx::submit("minimap", 50, list);
         shown = true;
+    }
+
+    void loadIcon() {
+        const auto image = gfx::load_image("textures/map/map_icons");
+        if (!image)
+            return;
+        const int cell = std::min(image->width / 4, kIconMax);
+        if (cell <= 0 || image->height < cell)
+            return;
+        for (int y = 0; y < cell; y++)
+            std::copy_n(&image->rgba[static_cast<size_t>(y) * static_cast<size_t>(image->width) * 4],
+                        static_cast<size_t>(cell) * 4,
+                        &pixels[(static_cast<size_t>(kIconRow + y) * kTexW) * 4]);
+        iconSize = cell;
     }
 
     void loadWaypoints() {
@@ -467,6 +523,7 @@ private:
     int32_t caveY = game::kMapSurface;
     int dimension = -1;
     int fillCursor = 0, pollCursor = 0;
+    int iconSize = 0;
     bool repaintAll = true, fullUpload = true, dirtyDraw = true, shown = false;
 };
 PERLIN_REGISTER(Minimap)

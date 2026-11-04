@@ -132,6 +132,7 @@ namespace perlin::mods {
         void SettingsClosed(const std::string& plugin);
 
         void PostMain(std::function<void()> task);
+        std::function<bool(const std::string& path, int& width, int& height, std::vector<uint8_t>& rgba)> imageLoader;
         // thread-safe: delivered on main thread at next Pump if a mod wants it
         void Queue(abi::Event event, abi::Writer payload);
         bool Wants(abi::Event event) const { return (wanted.load() >> static_cast<uint32_t>(event)) & 1; }
