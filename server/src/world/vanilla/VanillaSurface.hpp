@@ -64,14 +64,15 @@ namespace perlin::server::vanilla {
         // blocks of a chunk from [(x * 16 + z) * kHeight + y] densities and one biome per column [x * 16 + z]
         // `features`, when given, places its ores into the blocks of chunk (chunkX, chunkZ) before they are stored
         void Fill(const float* density, const uint8_t* biomes, ChunkColumn& column,
-                  const class VanillaFeatures* features = nullptr, int chunkX = 0, int chunkZ = 0) const;
+                  const class VanillaFeatures* features = nullptr, int chunkX = 0, int chunkZ = 0,
+                  const struct AquiferFunctions* aquifers = nullptr) const;
         // block ids already laid out [(x * 16 + z) * kHeight + y] into the chunk's sections (what the gpu surface stage returns)
         static void Store(const uint16_t* blocks, ChunkColumn& column);
         static void StoreBiomes(const uint8_t* biomes, ChunkColumn& column);
 
     private:
         std::vector<SurfaceMaterial> materials;
-        uint16_t stone, deepslate, bedrock, dirt, grass;
+        uint16_t stone, deepslate, bedrock, dirt, grass, water, lava;
     };
 
     // the block position the biome of a column is sampled at: its quart cell, at the height of the ground

@@ -14,10 +14,14 @@ namespace perlin::server::vanilla {
     // while a chunk is generated on a thread, interpolated nodes remember their cell corners: each is shared by up to eight cells
     class DfCacheScope {
     public:
-        DfCacheScope();
+        explicit DfCacheScope(bool keep = false);
         ~DfCacheScope();
         DfCacheScope(const DfCacheScope&) = delete;
         DfCacheScope& operator=(const DfCacheScope&) = delete;
+
+    private:
+        bool owner = false;
+        bool kept = false;
     };
 
     struct DfNode;
@@ -79,8 +83,11 @@ namespace perlin::server::vanilla {
         std::shared_ptr<const SplineNode> spline;
         std::shared_ptr<const BlendedNoise> blended;
         std::string unsupported;
+        uint8_t cacheKind = 0;
+        bool yDependent = true;
 
         float Eval(int x, int y, int z) const;
+        float EvalUncached(int x, int y, int z) const;
     };
 
     // loads named functions from a data pack for one world seed
@@ -89,6 +96,8 @@ namespace perlin::server::vanilla {
         DensityGraph(const DataPack& pack, int64_t seed);
         // "minecraft:overworld/final_density"; null when the file is missing
         DfPtr Load(const std::string& id);
+        DfPtr Inline(const json::Value& v) { return Build(v); }
+        const Xoroshiro::Factory& Positional() const { return positional; }
         // node types the evaluator does not know yet, found while loading (empty when everything loaded is supported)
         const std::vector<std::string>& Unsupported() const { return unsupported; }
 

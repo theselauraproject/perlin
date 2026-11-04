@@ -395,7 +395,8 @@ namespace perlin::server {
         private:
             // one submit's worth of chunks through every stage that runs on the gpu, then the cpu stages
             bool Batch(std::span<const ChunkPos> positions, std::span<ChunkColumn> out) {
-                const int last = gpuSurface ? 3 : (gpuBiome ? 2 : 1);
+                const bool surfaceStage = gpuSurface && !cpu->Aquifers();
+                const int last = surfaceStage ? 3 : (gpuBiome ? 2 : 1);
                 BatchOut b;
                 // the columns come back whenever the biome stage ran on the gpu: the features need each column's biome
                 if (!Dispatch(positions, last, gpuBiome, b))
@@ -404,7 +405,7 @@ namespace perlin::server {
                 std::array<uint8_t, 256> biomes;
                 for (size_t i = 0; i < positions.size(); i++) {
                     const float* density = b.density.data() + i * kBlocksPerChunk;
-                    if (gpuSurface) {
+                    if (surfaceStage) {
                         blocks.resize(kBlocksPerChunk);
                         const uint32_t* ids = reinterpret_cast<const uint32_t*>(density);
                         for (size_t k = 0; k < kBlocksPerChunk; k++)
@@ -424,7 +425,7 @@ namespace perlin::server {
                         cpu->BiomesOf(density, positions[i].x, positions[i].z, biomes.data());
                     }
                     cpu->Surface().Fill(density, biomes.data(), out[i], &cpu->Features(), positions[i].x,
-                                        positions[i].z);
+                                        positions[i].z, cpu->Aquifers());
                 }
                 return true;
             }

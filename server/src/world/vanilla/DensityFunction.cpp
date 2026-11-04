@@ -3,24 +3,89 @@
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
+#include <vector>
 
 namespace perlin::server::vanilla {
     namespace {
-        struct CornerKey {
-            const DfNode* node;
-            int x, y, z;
-            bool operator==(const CornerKey&) const = default;
-        };
-        struct CornerHash {
-            size_t operator()(const CornerKey& k) const {
-                uint64_t h = reinterpret_cast<uintptr_t>(k.node) * 0x9E3779B97F4A7C15ull;
-                h ^= (static_cast<uint64_t>(static_cast<uint32_t>(k.x)) << 32 | static_cast<uint32_t>(k.z)) *
+        struct CornerMap {
+            struct Entry {
+                const DfNode* node = nullptr;
+                int x = 0, y = 0, z = 0;
+                float value = 0;
+            };
+            std::vector<Entry> table = std::vector<Entry>(1 << 16);
+            size_t used = 0;
+            static size_t Hash(const DfNode* node, int x, int y, int z) {
+                uint64_t h = reinterpret_cast<uintptr_t>(node) * 0x9E3779B97F4A7C15ull;
+                h ^= (static_cast<uint64_t>(static_cast<uint32_t>(x)) << 32 | static_cast<uint32_t>(z)) *
                      0xC2B2AE3D27D4EB4Full;
-                h ^= static_cast<uint64_t>(static_cast<uint32_t>(k.y)) * 0x165667B19E3779F9ull;
+                h ^= static_cast<uint64_t>(static_cast<uint32_t>(y)) * 0x165667B19E3779F9ull;
                 return static_cast<size_t>(h ^ (h >> 29));
             }
+            Entry* Find(const DfNode* node, int x, int y, int z, bool& found) {
+                if (used * 2 >= table.size()) {
+                    if (table.size() >= (size_t{1} << 20)) {
+                        std::fill(table.begin(), table.end(), Entry{});
+                        used = 0;
+                    } else {
+                        Grow();
+                    }
+                }
+                const size_t mask = table.size() - 1;
+                for (size_t i = Hash(node, x, y, z) & mask;; i = (i + 1) & mask) {
+                    Entry& e = table[i];
+                    if (!e.node) {
+                        found = false;
+                        return &e;
+                    }
+                    if (e.node == node && e.x == x && e.y == y && e.z == z) {
+                        found = true;
+                        return &e;
+                    }
+                }
+            }
+            void Grow() {
+                std::vector<Entry> old(table.size() * 2);
+                old.swap(table);
+                const size_t mask = table.size() - 1;
+                for (const Entry& e : old)
+                    if (e.node) {
+                        size_t i = Hash(e.node, e.x, e.y, e.z) & mask;
+                        while (table[i].node)
+                            i = (i + 1) & mask;
+                        table[i] = e;
+                    }
+            }
         };
-        thread_local std::unordered_map<CornerKey, float, CornerHash>* t_corners = nullptr;
+        thread_local CornerMap* t_corners = nullptr;
+
+        struct FlatSlot {
+            const DfNode* node = nullptr;
+            int x = 0, z = 0;
+            float value = 0;
+        };
+        struct OnceSlot {
+            const DfNode* node = nullptr;
+            int x = 0, y = 0, z = 0;
+            float value = 0;
+        };
+        struct CellSlot {
+            const DfNode* node = nullptr;
+            int x = 0, y = 0, z = 0;
+            float v[8] = {};
+        };
+        constexpr size_t kFlatSlots = 1 << 14, kOnceSlots = 1 << 8, kCellSlots = 1 << 7;
+        struct Memo {
+            std::vector<FlatSlot> flat = std::vector<FlatSlot>(kFlatSlots);
+            std::vector<OnceSlot> once = std::vector<OnceSlot>(kOnceSlots);
+            std::vector<CellSlot> cells = std::vector<CellSlot>(kCellSlots);
+        };
+        thread_local Memo* t_memo = nullptr;
+
+        size_t PtrHash(const void* p) {
+            const uint64_t h = reinterpret_cast<uintptr_t>(p) * 0x9E3779B97F4A7C15ull;
+            return static_cast<size_t>(h >> 40);
+        }
 
         float Lerp(float t, float a, float b) {
             return a + t * (b - a);
@@ -50,13 +115,37 @@ namespace perlin::server::vanilla {
         }
     }
 
-    DfCacheScope::DfCacheScope() {
-        t_corners = new std::unordered_map<CornerKey, float, CornerHash>();
-        t_corners->reserve(1 << 16);
+    namespace {
+        thread_local CornerMap* t_keptCorners = nullptr;
+        thread_local Memo* t_keptMemo = nullptr;
+    }
+
+    DfCacheScope::DfCacheScope(bool keep) {
+        if (t_corners)
+            return;
+        owner = true;
+        kept = keep;
+        if (keep) {
+            if (!t_keptCorners) {
+                t_keptCorners = new CornerMap();
+                t_keptMemo = new Memo();
+            }
+            t_corners = t_keptCorners;
+            t_memo = t_keptMemo;
+            return;
+        }
+        t_corners = new CornerMap();
+        t_memo = new Memo();
     }
     DfCacheScope::~DfCacheScope() {
-        delete t_corners;
+        if (!owner)
+            return;
+        if (!kept) {
+            delete t_corners;
+            delete t_memo;
+        }
         t_corners = nullptr;
+        t_memo = nullptr;
     }
 
     float SplineNode::Eval(int x, int y, int z) const {
@@ -95,6 +184,28 @@ namespace perlin::server::vanilla {
     }
 
     float DfNode::Eval(int x, int y, int z) const {
+        if (cacheKind == 0 || !t_memo)
+            return EvalUncached(x, y, z);
+        if (cacheKind == 1) {
+            const uint64_t h = (PtrHash(this) * 0x100000001B3ull) ^
+                               (static_cast<uint64_t>(static_cast<uint32_t>(x)) * 0xC2B2AE3D27D4EB4Full) ^
+                               (static_cast<uint64_t>(static_cast<uint32_t>(z)) * 0x165667B19E3779F9ull);
+            FlatSlot& slot = t_memo->flat[static_cast<size_t>((h ^ (h >> 31)) & (kFlatSlots - 1))];
+            if (slot.node == this && slot.x == x && slot.z == z)
+                return slot.value;
+            const float v = EvalUncached(x, y, z);
+            slot = {this, x, z, v};
+            return v;
+        }
+        OnceSlot& slot = t_memo->once[PtrHash(this) & (kOnceSlots - 1)];
+        if (slot.node == this && slot.x == x && slot.y == y && slot.z == z)
+            return slot.value;
+        const float v = EvalUncached(x, y, z);
+        slot = {this, x, y, z, v};
+        return v;
+    }
+
+    float DfNode::EvalUncached(int x, int y, int z) const {
         using O = Op;
         switch (op) {
         case O::Constant:
@@ -207,18 +318,39 @@ namespace perlin::server::vanilla {
             const auto corner = [&](int cx, int cy, int cz) {
                 if (!t_corners)
                     return in[0]->Eval(cx, cy, cz);
-                const CornerKey key{this, cx, cy, cz};
-                if (const auto it = t_corners->find(key); it != t_corners->end())
-                    return it->second;
+                bool found = false;
+                CornerMap::Entry* e = t_corners->Find(this, cx, cy, cz, found);
+                if (found)
+                    return e->value;
                 const float v = in[0]->Eval(cx, cy, cz);
-                t_corners->emplace(key, v);
+                e = t_corners->Find(this, cx, cy, cz, found);
+                *e = {this, cx, cy, cz, v};
+                t_corners->used++;
                 return v;
             };
-            const float v000 = corner(x0, y0, z0), v100 = corner(x0 + cellXz, y0, z0),
-                        v010 = corner(x0, y0 + cellY, z0), v110 = corner(x0 + cellXz, y0 + cellY, z0);
-            const float v001 = corner(x0, y0, z0 + cellXz), v101 = corner(x0 + cellXz, y0, z0 + cellXz),
-                        v011 = corner(x0, y0 + cellY, z0 + cellXz),
-                        v111 = corner(x0 + cellXz, y0 + cellY, z0 + cellXz);
+            float c[8];
+            CellSlot* cell = t_memo ? &t_memo->cells[PtrHash(this) & (kCellSlots - 1)] : nullptr;
+            if (cell && cell->node == this && cell->x == x0 && cell->y == y0 && cell->z == z0) {
+                std::copy_n(cell->v, 8, c);
+            } else {
+                c[0] = corner(x0, y0, z0);
+                c[1] = corner(x0 + cellXz, y0, z0);
+                c[2] = corner(x0, y0 + cellY, z0);
+                c[3] = corner(x0 + cellXz, y0 + cellY, z0);
+                c[4] = corner(x0, y0, z0 + cellXz);
+                c[5] = corner(x0 + cellXz, y0, z0 + cellXz);
+                c[6] = corner(x0, y0 + cellY, z0 + cellXz);
+                c[7] = corner(x0 + cellXz, y0 + cellY, z0 + cellXz);
+                if (cell) {
+                    cell->node = this;
+                    cell->x = x0;
+                    cell->y = y0;
+                    cell->z = z0;
+                    std::copy_n(c, 8, cell->v);
+                }
+            }
+            const float v000 = c[0], v100 = c[1], v010 = c[2], v110 = c[3], v001 = c[4], v101 = c[5],
+                        v011 = c[6], v111 = c[7];
             const float a = Lerp(ty, Lerp(tx, v000, v100), Lerp(tx, v010, v110));
             const float b = Lerp(ty, Lerp(tx, v001, v101), Lerp(tx, v011, v111));
             return Lerp(tz, a, b);
@@ -282,6 +414,45 @@ namespace perlin::server::vanilla {
             }
         }
         return s;
+    }
+
+    namespace {
+        bool SplineYDependent(const SplineNode& s) {
+            if (s.coordinate && s.coordinate->yDependent)
+                return true;
+            for (const auto& n : s.nested)
+                if (n && SplineYDependent(*n))
+                    return true;
+            return false;
+        }
+        bool YDependent(const DfNode& n) {
+            using O = DfNode::Op;
+            switch (n.op) {
+            case O::Constant:
+            case O::Unsupported:
+            case O::ShiftA:
+            case O::ShiftB:
+                return false;
+            case O::Gradient:
+                return n.axis == 1;
+            case O::Shift:
+            case O::Interpolated:
+            case O::OldBlendedNoise:
+                return true;
+            case O::Spline:
+                return !n.spline || SplineYDependent(*n.spline);
+            case O::Noise:
+                if (n.yScale != 0.0)
+                    return true;
+                break;
+            default:
+                break;
+            }
+            for (const DfPtr& c : n.in)
+                if (c && c->yDependent)
+                    return true;
+            return false;
+        }
     }
 
     DfPtr DensityGraph::Build(const json::Value& v) {
@@ -378,9 +549,9 @@ namespace perlin::server::vanilla {
             node->cellY = static_cast<int>(v["cell_size_y"].Int(8));
         } else if (type == "cache" || type == "flat_cache" || type == "cache_2d" || type == "cache_once" ||
                    type == "cache_all_in_cell") {
-            // caches only remember values; interpolation across cells is not applied when sampling single blocks
             node->op = O::Pass;
             node->in = {child("input")};
+            node->cacheKind = type == "flat_cache" || type == "cache_2d" ? 1 : 2;
         } else if (type == "blend_density") {
             node->op = O::Pass;
             node->in = {child("input")};
@@ -402,6 +573,9 @@ namespace perlin::server::vanilla {
             node->unsupported = type;
             unsupported.push_back(type);
         }
+        node->yDependent = YDependent(*node);
+        if (node->cacheKind == 1 && node->yDependent)
+            node->cacheKind = 2;
         return node;
     }
 }

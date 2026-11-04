@@ -1,10 +1,12 @@
 #include "world/vanilla/VanillaSurface.hpp"
 
 #include "world/BlockCatalog.hpp"
+#include "world/vanilla/VanillaAquifer.hpp"
 #include "world/vanilla/VanillaFeatures.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace perlin::server::vanilla {
 
@@ -84,6 +86,8 @@ namespace perlin::server::vanilla {
         bedrock = c.DefaultBlock("bedrock");
         dirt = c.DefaultBlock("dirt");
         grass = c.DefaultBlock("grass_block");
+        water = c.DefaultBlock("water");
+        lava = c.DefaultBlock("lava");
         for (int i = 0; i < kBiomeCount; i++) {
             const BiomeMaterials& b = kBiomes[i];
             materials.push_back({c.DefaultBlock(b.top), c.DefaultBlock(b.mid), c.DefaultBlock(b.foundation),
@@ -134,16 +138,42 @@ namespace perlin::server::vanilla {
     }
 
     void VanillaSurface::Fill(const float* density, const uint8_t* biomes, ChunkColumn& column,
-                              const VanillaFeatures* features, int chunkX, int chunkZ) const {
+                              const VanillaFeatures* features, int chunkX, int chunkZ,
+                              const AquiferFunctions* aquifers) const {
         std::vector<uint16_t> blocks(static_cast<size_t>(16 * 16 * kHeight), 0);
+        std::unique_ptr<VanillaAquifer> aquifer;
+        if (aquifers && aquifers->ok)
+            aquifer = std::make_unique<VanillaAquifer>(*aquifers, chunkX, chunkZ, kMinY, kHeight);
+        std::vector<VanillaAquifer::Substance> kinds(static_cast<size_t>(kHeight));
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++) {
                 const float* d = density + static_cast<size_t>((x * 16 + z) * kHeight);
                 const SurfaceMaterial& m = materials[biomes[x * 16 + z]];
-                const int top = TopOf(d);
                 uint16_t* out = blocks.data() + static_cast<size_t>((x * 16 + z) * kHeight);
-                for (int y = 0; y < kHeight; y++)
-                    out[y] = BlockAt(m, y, top, d[y] > 0.0f);
+                if (!aquifer) {
+                    const int top = TopOf(d);
+                    for (int y = 0; y < kHeight; y++)
+                        out[y] = BlockAt(m, y, top, d[y] > 0.0f);
+                    continue;
+                }
+                const int wx = chunkX * 16 + x, wz = chunkZ * 16 + z;
+                int top = -1;
+                for (int y = kHeight - 1; y >= 0; y--) {
+                    kinds[static_cast<size_t>(y)] = aquifer->Compute(wx, kMinY + y, wz, static_cast<double>(d[y]));
+                    if (top < 0 && kinds[static_cast<size_t>(y)] == VanillaAquifer::Substance::Solid)
+                        top = y;
+                }
+                for (int y = 0; y < kHeight; y++) {
+                    const VanillaAquifer::Substance k = kinds[static_cast<size_t>(y)];
+                    if (k == VanillaAquifer::Substance::Solid || y == 0)
+                        out[y] = BlockAt(m, y, top, true);
+                    else if (k == VanillaAquifer::Substance::Water)
+                        out[y] = kMinY + y <= kSeaLevel && y > top ? m.sea : water;
+                    else if (k == VanillaAquifer::Substance::Lava)
+                        out[y] = lava;
+                    else
+                        out[y] = 0;
+                }
             }
         if (features)
             features->Apply(chunkX, chunkZ, biomes, blocks.data());

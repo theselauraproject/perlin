@@ -1,6 +1,7 @@
 #pragma once
 #include "world/Generator.hpp"
 #include "world/vanilla/DensityFunction.hpp"
+#include "world/vanilla/VanillaAquifer.hpp"
 #include "world/vanilla/JavaDecorator.hpp"
 #include "world/vanilla/VanillaFeatures.hpp"
 #include "world/vanilla/VanillaSurface.hpp"
@@ -43,6 +44,7 @@ namespace perlin::server::vanilla {
         const VanillaSurface& Surface() const { return *surface; }
         const VanillaFeatures& Features() const { return *features; }
         DensityGraph& Graph() const { return *graph; }
+        const AquiferFunctions* Aquifers() const { return aquifers.ok ? &aquifers : nullptr; }
         // the biome stage on its own: one biome index per column [x * 16 + z] from a chunk's densities
         void BiomesOf(const float* density, int chunkX, int chunkZ, uint8_t* biomes) const;
 
@@ -55,5 +57,6 @@ namespace perlin::server::vanilla {
         std::unique_ptr<VanillaSurface> surface;
         std::unique_ptr<VanillaFeatures> features;
         std::unique_ptr<JavaDecorator> decorator;
+        AquiferFunctions aquifers;
     };
 }

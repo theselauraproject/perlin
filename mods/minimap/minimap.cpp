@@ -29,6 +29,11 @@ namespace {
     constexpr int64_t kBudgetMs = 3;
     constexpr int kRoofFrames = 8;
     constexpr int64_t kNoSlot = INT64_MIN;
+    constexpr std::array<double, 7> kZoomSteps{0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+    constexpr double kZoomScale = 2.0;
+    constexpr double kZoomEase = 0.8;
+    constexpr double kZoomStepMs = 1000.0 / 60.0;
+    constexpr int kSunSteps = 192;
 
     int64_t ChunkKey(int cx, int cz) {
         return (static_cast<int64_t>(cx) << 32) ^ static_cast<uint32_t>(cz);
@@ -157,6 +162,7 @@ struct Minimap : Plugin {
             layer = nextLayer;
             cursor = 0;
         }
+        UpdateSun();
         frame++;
         Refresh();
         Upload();
@@ -165,12 +171,24 @@ struct Minimap : Plugin {
 
     void toggle() { (void)settings::enabled.set(!settings::enabled); }
     void zoomIn(bool down) {
-        if (down)
-            (void)settings::zoom.set(std::min(4.0, static_cast<double>(settings::zoom) * 2.0));
+        if (!down)
+            return;
+        const double current = static_cast<double>(settings::zoom);
+        for (const double step : kZoomSteps)
+            if (step > current + 1e-6) {
+                (void)settings::zoom.set(step);
+                return;
+            }
     }
     void zoomOut(bool down) {
-        if (down)
-            (void)settings::zoom.set(std::max(0.5, static_cast<double>(settings::zoom) / 2.0));
+        if (!down)
+            return;
+        const double current = static_cast<double>(settings::zoom);
+        for (auto it = kZoomSteps.rbegin(); it != kZoomSteps.rend(); ++it)
+            if (*it < current - 1e-6) {
+                (void)settings::zoom.set(*it);
+                return;
+            }
     }
     void addWaypoint(bool down) {
         if (!down)
@@ -216,6 +234,57 @@ private:
         if (layer != game::kMapSurface && std::abs(want - layer) < 2)
             return layer;
         return want;
+    }
+
+    double TargetZoom() const {
+        double target = std::clamp(static_cast<double>(settings::zoom), kZoomSteps.front(), kZoomSteps.back());
+        if (layer != game::kMapSurface)
+            target = std::round(target * static_cast<double>(std::max(1, static_cast<int>(settings::cave_zoom))));
+        return std::min(target, kZoomSteps.back());
+    }
+
+    double AnimatedZoom() {
+        const double target = TargetZoom();
+        const int64_t now = game::now_ms();
+        if (shownZoom <= 0.0) {
+            shownZoom = target;
+        } else {
+            const double steps = static_cast<double>(std::clamp<int64_t>(now - zoomClock, 0, 250)) / kZoomStepMs;
+            double off = target - shownZoom;
+            off = std::abs(off) > 0.01 ? off * std::pow(kZoomEase, steps) : 0.0;
+            shownZoom = target - off;
+        }
+        zoomClock = now;
+        return shownZoom;
+    }
+
+    void UpdateSun() {
+        int bucket = -1;
+        float lx = -0.55f, ly = 0.75f, lz = -0.37f, strength = 1.0f;
+        if (settings::sun_shadows && layer == game::kMapSurface && dimension == 0)
+            if (const auto w = game::world()) {
+                const int t = static_cast<int>(((w->timeOfDay % 24000) + 24000) % 24000);
+                bucket = t * kSunSteps / 24000;
+                const double a = (static_cast<double>(bucket) + 0.5) / kSunSteps * 2.0 * kPi;
+                double sx = std::cos(a), sy = std::sin(a);
+                if (sy < 0.06) {
+                    sx = -sx;
+                    sy = -sy;
+                    strength = 0.55f;
+                }
+                lx = static_cast<float>(sx);
+                ly = static_cast<float>(std::max(sy, 0.06));
+                lz = 0.28f;
+            }
+        if (bucket == sunBucket)
+            return;
+        sunBucket = bucket;
+        const float len = std::sqrt(lx * lx + ly * ly + lz * lz);
+        sun = {lx / len, ly / len, lz / len};
+        sunStrength = strength;
+        for (Slot& slot : slots)
+            if (slot.owner != kNoSlot)
+                slot.dirty = true;
     }
 
     void Refresh() {
@@ -372,25 +441,28 @@ private:
                     if (const game::MapColumn* w = column(x - 1, z - 1); w && !(w->flags & game::kMapWater))
                         shade += 0.12f * relief;
                 } else {
-                    const game::MapColumn* left = column(x - 1, z);
-                    const game::MapColumn* up = column(x, z - 1);
-                    const game::MapColumn* corner = column(x - 1, z - 1);
-                    float dh = 0;
-                    if (left && !(left->flags & game::kMapRock))
-                        dh += static_cast<float>(col.height - left->height);
-                    if (up && !(up->flags & game::kMapRock))
-                        dh += static_cast<float>(col.height - up->height);
-                    if (corner && !(corner->flags & game::kMapRock))
-                        dh += 0.5f * static_cast<float>(col.height - corner->height);
-                    shade += std::clamp(dh, -6.0f, 6.0f) * 0.055f * relief;
+                    const auto heightOf = [&](const game::MapColumn* n) {
+                        return n && !(n->flags & game::kMapRock) && (n->flags & game::kMapLoaded)
+                                   ? static_cast<float>(n->height)
+                                   : static_cast<float>(col.height);
+                    };
+                    const float h = static_cast<float>(col.height);
+                    const float gx = h - heightOf(column(x - 1, z)), gz = h - heightOf(column(x, z - 1));
+                    const float nl = std::sqrt(gx * gx + 1.0f + gz * gz);
+                    const float lit = (-gx * sun[0] + sun[1] - gz * sun[2]) / nl;
+                    const float flat = sun[1];
+                    float direct = (lit - flat) / std::max(flat, 0.3f) * 0.6f;
+                    if (lit <= 0.0f)
+                        direct -= 0.25f;
+                    shade += std::clamp(direct * sunStrength, -0.55f, 0.5f) * relief;
                     if (col.flags & game::kMapLeaves)
                         shade -= 0.04f;
                     if (cave)
                         shade -= std::clamp(static_cast<float>(c.layer - col.height) / 24.0f, 0.0f, 0.45f);
                     else
-                        shade += std::clamp((static_cast<float>(col.height) - 64.0f) / 192.0f, -0.4f, 0.6f) * 0.12f;
+                        shade *= 1.0f + std::clamp((h - 63.0f) / 160.0f, -0.3f, 0.35f);
                 }
-                shade = std::clamp(shade, 0.35f, 1.45f);
+                shade = std::clamp(shade, 0.3f, 1.6f);
                 out[0] = Clamp8(r * shade);
                 out[1] = Clamp8(g * shade);
                 out[2] = Clamp8(b * shade);
@@ -438,7 +510,7 @@ private:
         default:
             break;
         }
-        const float zoom = static_cast<float>(static_cast<double>(settings::zoom)) * gs;
+        const float zoom = static_cast<float>(AnimatedZoom() * kZoomScale) * gs;
         const float span = size / zoom;
         const bool rotate = settings::rotate;
         const float yaw = rotate ? static_cast<float>((180.0f - p.yaw) * kPi / 180.0) : 0.0f;
@@ -643,6 +715,11 @@ private:
     int cursor = 0, pollCursor = 0;
     int roofFrames = 0;
     bool underRoof = false;
+    double shownZoom = 0.0;
+    int sunBucket = -2;
+    std::array<float, 3> sun{-0.55f, 0.75f, -0.37f};
+    float sunStrength = 1.0f;
+    int64_t zoomClock = 0;
     int iconRetry = 0;
     uint64_t frame = 0;
     bool shown = false;

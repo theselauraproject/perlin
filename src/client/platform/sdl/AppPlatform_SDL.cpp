@@ -1381,8 +1381,12 @@ void AppPlatform_SDL::PumpFrame() {
 }
 
 void AppPlatform_SDL::Run() {
-    while (isRunning)
+    while (isRunning) {
         PumpFrame();
+        SDL_Event e;
+        if (isRunning && SDL_WaitEventTimeout(&e, 2))
+            HandleEvent(e);
+    }
 }
 
 void AppPlatform_SDL::Shutdown() {

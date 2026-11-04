@@ -1,4 +1,5 @@
 #include "world/vanilla/JavaDecorator.hpp"
+#include <atomic>
 
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
@@ -165,16 +166,12 @@ namespace perlin::server::vanilla {
         Simplex temperatureNoise{1234};
         Simplex frozenNoise{3456};
         uint16_t water = 0, ice = 0, snow = 0, vine = 0, air = 0;
-        mutable std::mutex flagMutex;
-        mutable std::vector<uint8_t> flags;
+        mutable std::unique_ptr<std::atomic<uint8_t>[]> flags{new std::atomic<uint8_t>[65536]()};
         mutable std::vector<std::string> names;
 
         uint8_t Flags(uint16_t id) const {
-            {
-                std::lock_guard lock(flagMutex);
-                if (id < flags.size() && flags[id])
-                    return flags[id];
-            }
+            if (const uint8_t known = flags[id].load(std::memory_order_relaxed))
+                return known;
             const std::string name = BlockRegistry::Instance().Name(id);
             uint8_t f = kKnown;
             const auto in = [&](const char* tag) {
@@ -209,10 +206,7 @@ namespace perlin::server::vanilla {
                 if (!plant)
                     f |= kSolid;
             }
-            std::lock_guard lock(flagMutex);
-            if (flags.size() <= id)
-                flags.resize(static_cast<size_t>(id) + 1, 0);
-            flags[id] = f;
+            flags[id].store(f, std::memory_order_relaxed);
             return f;
         }
 
