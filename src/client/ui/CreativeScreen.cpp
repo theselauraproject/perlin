@@ -74,23 +74,23 @@ mcimg { display: block; position: absolute; }
             return;
         const int v = id.size() > 1 ? std::atoi(id.c_str() + 1) : 0;
         if (id[0] == 'g') {
-            x = 9 + (v % 9) * 18;
-            y = 18 + (v / 9) * 18;
+            x = 8 + (v % 9) * 18;
+            y = 17 + (v / 9) * 18;
         } else if (id[0] == 's' && v < 9) {
-            x = 9 + v * 18;
-            y = 112;
+            x = 8 + v * 18;
+            y = 111;
         } else if (id[0] == 's') {
-            x = 9 + ((v - 9) % 9) * 18;
-            y = 54 + ((v - 9) / 9) * 18;
+            x = 8 + ((v - 9) % 9) * 18;
+            y = 53 + ((v - 9) / 9) * 18;
         } else if (id[0] == 'a') {
-            x = v < 2 ? 54 : 108;
-            y = v % 2 == 0 ? 6 : 33;
+            x = v < 2 ? 53 : 107;
+            y = v % 2 == 0 ? 5 : 32;
         } else if (id == "off") {
-            x = 35;
-            y = 20;
+            x = 34;
+            y = 19;
         } else if (id == "del") {
-            x = 173;
-            y = 112;
+            x = 172;
+            y = 111;
         }
         (void)survival;
     }

@@ -1,4 +1,5 @@
 #include "client/renderer/gpu/RenderContext_rhi.hpp"
+#include "util/GraphicsDebugger.hpp"
 
 #include "client/Options.hpp"
 #include "client/platform/AppPlatform.hpp"
@@ -181,10 +182,15 @@ namespace perlin {
 #else
         constexpr bool kWindows = false, kApple = false;
 #endif
+        const char* debugger = gfxdebug::Attached();
         conduit::probe_options probeOptions;
-        probeOptions.read_caps = true;
+        probeOptions.read_caps = !debugger;
+        if (debugger && user.api != conduit::api::none)
+            probeOptions.apis = {user.api};
         const conduit::probe probe = conduit::probe_system(probeOptions);
-        std::vector<conduit::known_failure> failures = ReadFailures();
+        std::vector<conduit::known_failure> failures = debugger ? std::vector<conduit::known_failure>{} : ReadFailures();
+        if (debugger)
+            Log("gpu", "{} attached: probing without throwaway devices", debugger);
         const conduit::render_profile profile = conduit::choose_profile(probe, user, failures, kWindows, kApple);
         for (const std::string& reason : profile.reasons)
             Log("gpu", "{}", reason);
@@ -219,7 +225,9 @@ namespace perlin {
             pipelineBlobPath = paths::DataDir() + "/cache/pipelines_" + std::string(conduit::api_name(api)) + "_" +
                                std::to_string(adapter) + ".bin";
             pipelineBlob.clear();
-            if (!PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE")) {
+            if (debugger)
+                pipelineBlobPath.clear();
+            else if (!PERLIN_ENV("PERLIN_NO_PIPELINE_CACHE")) {
                 std::ifstream in(pipelineBlobPath, std::ios::binary);
                 if (in)
                     pipelineBlob.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
@@ -240,7 +248,8 @@ namespace perlin {
             for (const conduit::candidate& c : probe.candidates)
                 if (c.adapter.api == api && c.adapter.index == adapter)
                     conduit::record_failure(failures, c.adapter);
-            WriteFailures(failures);
+            if (!debugger)
+                WriteFailures(failures);
         }
         return gpu.Chain() || gpu.OffscreenTexture();
     }
@@ -1384,10 +1393,14 @@ namespace perlin {
 #else
         constexpr bool kWindows = false, kApple = false;
 #endif
+        const bool debugger = gfxdebug::Attached() != nullptr;
         conduit::probe_options probeOptions;
-        probeOptions.read_caps = true;
+        probeOptions.read_caps = !debugger;
         const conduit::probe probe = conduit::probe_system(probeOptions);
-        return conduit::choose_profile(probe, conduit::user_choice{}, ReadFailures(), kWindows, kApple).api;
+        return conduit::choose_profile(probe, conduit::user_choice{},
+                                       debugger ? std::vector<conduit::known_failure>{} : ReadFailures(), kWindows,
+                                       kApple)
+            .api;
     }
 
     void RenderContext_rhi::ApplySwitchTo(const std::string& id) {

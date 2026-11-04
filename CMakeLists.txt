@@ -491,6 +491,7 @@ list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/network/Nbt\\.cpp")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/rhi/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/(bgfx|shader)/") # stale leftovers from the pre-RHI tree
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/gpu/")
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/util/GraphicsDebugger\\.cpp$")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/render/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/javashaders/") # built into perlin_gpu
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/mods/")

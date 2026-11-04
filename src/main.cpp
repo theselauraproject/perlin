@@ -2,6 +2,7 @@
 #include "client/EmbeddedProvider.hpp"
 #include "client/Perlin.hpp"
 #include "client/platform/sdl/AppPlatform_SDL.hpp"
+#include "util/GraphicsDebugger.hpp"
 #include "util/Paths.hpp"
 
 #include <SDL3/SDL_main.h>
@@ -256,7 +257,8 @@ namespace {
                     "  --stun <urls>        comma separated STUN servers for NetherNet\n"
                     "  --benchmark [secs]   fly through a fixed world, write the frame times and quit\n"
                     "  --benchmark-seed <n> world seed for the benchmark (default 8675309)\n"
-                    "  --benchmark-out <f>  where the benchmark json goes (default <data>/benchmarks)\n");
+                    "  --benchmark-out <f>  where the benchmark json goes (default <data>/benchmarks)\n"
+                    "  --renderdoc          load RenderDoc in-process (F12 captures, attach from the RenderDoc UI)\n");
         }
         return args;
     }
@@ -280,6 +282,12 @@ int main(int argc, char** argv) {
 #ifndef __EMSCRIPTEN__
     StartLogCapture({dataDir + "/perlin.log"});
 #endif
+    if (perlin::gfxdebug::WantsRenderDoc(argc, argv)) {
+        perlin::paths::EnsureDir(dataDir + "/captures");
+        perlin::gfxdebug::LoadRenderDoc(dataDir + "/captures");
+    }
+    if (const char* tool = perlin::gfxdebug::Attached())
+        std::printf("[perlin] %s is attached: single device, no pipeline cache, no failure records\n", tool);
 #ifdef _WIN32
     SetUnhandledExceptionFilter(CrashFilter);
 #endif

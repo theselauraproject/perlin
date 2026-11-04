@@ -147,13 +147,13 @@ mcitem { display: block; position: absolute; }
             return;
         }
         if (addr >= kInvAddrWork) {
-            x = 30 + ((addr - kInvAddrWork) % 3) * 18;
-            y = 17 + ((addr - kInvAddrWork) / 3) * 18;
+            x = 29 + ((addr - kInvAddrWork) % 3) * 18;
+            y = 16 + ((addr - kInvAddrWork) / 3) * 18;
             return;
         }
         if (addr == kInvAddrOutput && workbench) {
-            x = 124;
-            y = 35;
+            x = 123;
+            y = 34;
             return;
         }
         if (addr < 9) {

@@ -40,11 +40,12 @@ if(NOT TARGET perlin_gpu)
         RenderContext_rhi_post.cpp
         RenderContext_rhi_shadow.cpp
         RenderContext_rhi_ui.cpp
-        RenderContext_rhi_world.cpp)
+        RenderContext_rhi_world.cpp
+        ../../../util/GraphicsDebugger.cpp)
     target_include_directories(perlin_gpu PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
     # the shader compile pool and cloud meshing use std::thread / std::async (freebsd needs libpthread spelled out)
     find_package(Threads REQUIRED)
-    target_link_libraries(perlin_gpu PUBLIC conduit::conduit perlin_glslang perlin_spirv_cross miniz Threads::Threads)
+    target_link_libraries(perlin_gpu PUBLIC conduit::conduit perlin_glslang perlin_spirv_cross miniz Threads::Threads ${CMAKE_DL_LIBS})
     if(CMAKE_SYSTEM_NAME MATCHES "BSD")
         # some cmake versions resolve Threads::Threads to nothing there; the libc++ thread code still needs libthr
         target_compile_options(perlin_gpu PUBLIC -pthread)

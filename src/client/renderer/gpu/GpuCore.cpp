@@ -1,4 +1,5 @@
 #include "client/renderer/gpu/GpuCore.hpp"
+#include "util/GraphicsDebugger.hpp"
 
 #include <algorithm>
 #include <unordered_set>
@@ -137,7 +138,7 @@ namespace perlin::gpu {
         dop.frames_in_flight = std::max(1u, s.framesInFlight);
         dop.hooks = s.hooks;
         dop.pipeline_cache_data = s.pipelineCache;
-        dop.async_pipelines = !s.offscreen;
+        dop.async_pipelines = !s.offscreen && !gfxdebug::Attached();
         device = instance->create_device(dop);
         if (!device)
             return fail("could not create a " + std::string(api_name(s.api)) + " device");
