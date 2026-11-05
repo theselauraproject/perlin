@@ -516,7 +516,7 @@ namespace perlin {
             static const void* atlasSeen = nullptr;
             static size_t atlasSize = 0;
             static std::vector<uint8_t> traits;
-            enum : uint8_t { known = 1, water = 2, lava = 4, snow = 8, leaves = 16, cube = 32 };
+            enum : uint8_t { known = 1, water = 2, lava = 4, snow = 8, leaves = 16, cube = 32, tree = 64 };
             const BlockLibrary& blocks = levelRenderer->Blocks();
             const BiomeTints& tints = levelRenderer->Tints();
             struct MapEntry {
@@ -550,6 +550,12 @@ namespace perlin {
                         t |= snow;
                     if (name.contains("leaves"))
                         t |= leaves;
+                    if (name.contains("leaves") || name.ends_with("_log") || name.ends_with("_wood") ||
+                        name.ends_with("_stem") || name.ends_with("_hyphae") || name.contains("mushroom_block") ||
+                        name.contains("mushroom_stem") || name.contains("bamboo") || name.contains("vine") ||
+                        name.contains("azalea") || name.contains("mangrove_roots") || name.contains("wart_block") ||
+                        name.contains("shroomlight") || name.contains("bee_nest") || name.contains("cocoa"))
+                        t |= tree;
                     if (id != 0 && blocks.Look(id).shape == BlockAppearance::Shape::Cube)
                         t |= cube;
                 }
@@ -589,7 +595,7 @@ namespace perlin {
                         if (id == 0)
                             continue;
                         const uint8_t t = traitsOf(id);
-                        if ((t & cube) && !(t & leaves) && !(t & water)) {
+                        if ((t & cube) && !(t & tree) && !(t & water)) {
                             top = static_cast<int16_t>(ty);
                             break;
                         }

@@ -839,6 +839,29 @@ bool AppPlatform_SDL::Initialize() {
         return false;
     }
     ApplyWindowIcon(window);
+#if defined(SDL_PLATFORM_WIN32)
+    if (HWND hwnd = static_cast<HWND>(
+            SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr))) {
+        using SetAttribute = HRESULT(WINAPI*)(HWND, DWORD, LPCVOID, DWORD);
+        if (HMODULE dwm = LoadLibraryW(L"dwmapi.dll")) {
+            if (auto set = reinterpret_cast<SetAttribute>(reinterpret_cast<void*>(GetProcAddress(dwm, "DwmSetWindowAttribute")))) {
+                const BOOL dark = TRUE;
+                if (FAILED(set(hwnd, 20, &dark, sizeof dark)))
+                    set(hwnd, 19, &dark, sizeof dark);
+                const COLORREF caption = RGB(24, 24, 27);
+                set(hwnd, 35, &caption, sizeof caption);
+            }
+        }
+        if (HDC dc = GetDC(hwnd)) {
+            RECT r{};
+            GetClientRect(hwnd, &r);
+            HBRUSH brush = CreateSolidBrush(RGB(19, 20, 22));
+            FillRect(dc, &r, brush);
+            DeleteObject(brush);
+            ReleaseDC(hwnd, dc);
+        }
+    }
+#endif
 #if defined(SDL_PLATFORM_LINUX) && !defined(SDL_PLATFORM_ANDROID)
     RegisterDesktopEntry();
 #endif

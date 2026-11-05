@@ -1421,8 +1421,21 @@ namespace perlin::server {
             return e;
         }
 
+        proto::MetadataDictionaryEntry IntEntry(proto::MetadataDictionaryEntryKey key, int32_t value) {
+            proto::MetadataDictionaryEntry e;
+            e.key = key;
+            e.type = proto::MetadataDictionaryEntryType::Int;
+            auto& inner = e.value.template emplace<4>();
+            inner.template emplace<3>(value);
+            return e;
+        }
+
         std::vector<proto::MetadataDictionaryEntry> MobMetadata(const Mob& mob) {
             std::vector<proto::MetadataDictionaryEntry> out;
+            if (mob.kind == 1)
+                out.push_back(IntEntry(proto::MetadataDictionaryEntryKey::Variant, BlockRegistry::Instance().Hash(mob.block)));
+            if (mob.kind == 2)
+                out.push_back(IntEntry(proto::MetadataDictionaryEntryKey::FuseLength, std::max(0, mob.fuse)));
             proto::MetadataDictionaryEntry flags;
             flags.key = proto::MetadataDictionaryEntryKey::Flags;
             flags.type = proto::MetadataDictionaryEntryType::Long;
@@ -1460,6 +1473,24 @@ namespace perlin::server {
         move.max = 3.4028235e38f;
         p.attributes.push_back(move);
         p.metadata = MobMetadata(mob);
+        Send(p);
+    }
+
+    void Session::PlaySound(const std::string& sound, double x, double y, double z, int extra) {
+        proto::LevelSoundEventPacket p;
+        p.soundId = sound;
+        p.position = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+        p.extraData = extra;
+        p.entityType = ":";
+        p.entityUniqueId = -1;
+        Send(p);
+    }
+
+    void Session::SendLevelEvent(int event, double x, double y, double z, int data) {
+        proto::LevelEventPacket p;
+        p.event = static_cast<proto::LevelEventPacketEvent>(event);
+        p.position = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+        p.data = data;
         Send(p);
     }
 

@@ -779,6 +779,13 @@ namespace perlin {
         std::copy_n(glm::value_ptr(cloudColor), 4, params.cloud.color);
         params.cloud.height = env.cloudHeight;
         params.cloud.gameTicks = std::chrono::duration<double>(frameStart - startedAt).count() * 20.0;
+        if (!f.live && !loop->preview) {
+            static constexpr float kIdle[4] = {0.075f, 0.078f, 0.086f, 1.0f};
+            params.sky.enabled = false;
+            params.cloud.enabled = false;
+            std::copy_n(kIdle, 3, params.sky.skyColor);
+            std::copy_n(kIdle, 4, params.fogColor);
+        }
 
         params.crosshair = false;
         {

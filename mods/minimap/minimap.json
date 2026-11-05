@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "author": "Perlin",
   "permissions": [],
+  "frame_rate": 120,
   "settings": [
     {"type": "header", "label": "General"},
     {"id": "enabled", "type": "toggle", "label": "Show minimap", "default": true, "description": "Also bound to a key (Toggle minimap).", "icon": {"item": "minecraft:filled_map"}},

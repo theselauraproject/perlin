@@ -16,6 +16,8 @@ namespace perlin::server {
 
     bool BlockSolid(uint16_t id);
     bool BlockLiquid(uint16_t id);
+    bool FallsWithGravity(uint16_t id);
+    bool FallingFree(uint16_t id);
 
     struct Mob {
         uint64_t id = 0;
@@ -43,6 +45,8 @@ namespace perlin::server {
         int burnTicks = 0;
         int shootCooldown = 0;
         bool projectile = false;
+        int kind = 0;
+        uint16_t block = 0;
         uint64_t owner = 0;
         float lastX = 0, lastY = 0, lastZ = 0, lastYaw = 0, lastHead = 0;
         uint64_t lastFlags = 0;
@@ -54,6 +58,9 @@ namespace perlin::server {
 
         void Tick();
         Mob* Spawn(const std::string& identifier, double x, double y, double z, bool persistent = true);
+        Mob* SpawnFallingBlock(double x, double y, double z, uint16_t block);
+        Mob* SpawnPrimedTnt(double x, double y, double z, int fuse);
+        void Explosion(double x, double y, double z, float power, uint64_t source, bool breakBlocks = true);
         bool Kill(uint64_t id);
         int KillAll(const std::string& identifier);
         void Show(Session& to) const;
@@ -80,6 +87,7 @@ namespace perlin::server {
         Session* Nearest(const Mob& m, double range, bool survivalOnly);
         void Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by);
         void Explode(Mob& m);
+        bool TickSpecial(Mob& m);
         void Shoot(Mob& m, Session& at);
 
         Server& server;

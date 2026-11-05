@@ -6,6 +6,7 @@
 #include "core/Log.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "world/Mobs.hpp"
 #include "gpu/GpuTerrain.hpp"
 #include "world/vanilla/VanillaDimension.hpp"
 
@@ -266,6 +267,7 @@ namespace perlin::server {
             mobWorld->Tick();
             TickContainers();
             TickPortals();
+            TickGravity();
             if (plugins->AnyoneListens(abi::Event::Tick))
                 plugins->Dispatch<abi::Event::Tick>({.dt = 0.05f, .tick = tick});
         }
@@ -834,6 +836,11 @@ namespace perlin::server {
 
     void Server::ApplyBlock(int dimension, int x, int y, int z, uint16_t block) {
         World(dimension).SetBlock(x, y, z, block);
+        if (dimension == kOverworld && gravityQueue.size() < 65536) {
+            const int due = static_cast<int>(TickCount()) + 2;
+            gravityQueue.push_back({x, y, z, due});
+            gravityQueue.push_back({x, y + 1, z, due});
+        }
         const int32_t hash = BlockRegistry::Instance().Hash(block);
         for (Session* s : PlayersIn(dimension))
             if (s->HasSent({x >> 4, z >> 4}))
@@ -841,6 +848,27 @@ namespace perlin::server {
         if (plugins->AnyoneListens(abi::Event::BlockChanged))
             plugins->Dispatch<abi::Event::BlockChanged>(
                 {.x = x, .y = y, .z = z, .to = BlockRegistry::Instance().Name(block)});
+    }
+
+    void Server::TickGravity() {
+        if (gravityQueue.empty())
+            return;
+        const int now = static_cast<int>(TickCount());
+        std::vector<std::array<int, 4>> due;
+        std::vector<std::array<int, 4>> later;
+        for (const auto& e : gravityQueue)
+            (e[3] <= now ? due : later).push_back(e);
+        gravityQueue = std::move(later);
+        for (const auto& e : due) {
+            const int x = e[0], y = e[1], z = e[2];
+            if (y <= kMinY || y >= kMinY + kHeight || !chunks->Peek({x >> 4, z >> 4}))
+                continue;
+            const uint16_t id = chunks->GetBlock(x, y, z);
+            if (!FallsWithGravity(id) || !FallingFree(chunks->GetBlock(x, y - 1, z)))
+                continue;
+            ApplyBlock(kOverworld, x, y, z, BlockRegistry::kAir);
+            mobWorld->SpawnFallingBlock(x + 0.5, y, z + 0.5, id);
+        }
     }
 
     void Server::SendBlockTo(Session& to, int x, int y, int z) {

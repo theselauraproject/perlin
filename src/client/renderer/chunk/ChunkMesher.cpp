@@ -1137,7 +1137,8 @@ namespace perlin {
                             if (app) {
                                 static const char* kGrassKeys[] = {
                                     "grass_top",   "grass_carried",      "tallgrass", "tall_grass",
-                                    "short_grass", "double_plant_grass", "fern",      "large_fern"};
+                                    "short_grass", "double_plant_grass", "fern",      "large_fern",
+                                    "reeds",       "sugar_cane"};
                                 std::string tpath = library ? library->TilePathOf(tile) : std::string();
                                 bool grassLike = false;
                                 for (const char* k : kGrassKeys)
@@ -1174,6 +1175,11 @@ namespace perlin {
                             }
                             if (library && library->SaturationOf(tile) > 0.25f)
                                 return {1, 1, 1, 1};
+                            if (TexHas(tex, "vine") && !TexHas(tex, "cave_vines") && !TexHas(tex, "twisting") &&
+                                !TexHas(tex, "weeping")) {
+                                auto c = tints->Foliage(biomeName);
+                                return {c[0], c[1], c[2], 1};
+                            }
                             if (TexHas(tex, "leaves") || TexHas(tex, "leaf")) {
                                 if (TexHas(tex, "birch"))
                                     return {tints->MapAverage("birch")[0], tints->MapAverage("birch")[1],
@@ -1472,8 +1478,6 @@ namespace perlin {
                                 }
 
                                 float base[3] = {1, 1, 1};
-                                // Custom geometry has a direct atlas tile and tex=0xFFFF.
-                                // It must never index the Java model texture table.
                                 const std::string tintTexture = q.tile || q.tex >= bm.Textures().size()
                                                                     ? library->TilePathOf(tile)
                                                                     : bm.Textures()[q.tex];

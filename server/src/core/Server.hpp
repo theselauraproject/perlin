@@ -208,6 +208,8 @@ namespace perlin::server {
         bool PlacePortalNear(int dimension, int x, int y, int z, PortalFrame& out);
         std::vector<PortalFrame> portals;
         void TickPortals();
+        void TickGravity();
+        std::vector<std::array<int, 4>> gravityQueue;
         void TravelThroughPortal(Session& who, bool endPortal);
         void BuildEndPlatform();
         bool endPlatformBuilt = false;

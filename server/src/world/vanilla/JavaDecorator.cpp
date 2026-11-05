@@ -1631,28 +1631,53 @@ namespace perlin::server::vanilla {
                     out.push_back({q.Up(), 0, false});
                     return out;
                 }
-                for (int i = 0; i < height; i++)
-                    Log(c, pos.Up(i));
                 if (Is(tp, "cherry_trunk_placer")) {
-                    const int branches = std::max(1, SampleInt(tp["branch_count"]));
-                    const int startOff = SampleInt(tp["branch_start_offset_from_top"].members.contains("type")
-                                                       ? tp["branch_start_offset_from_top"]
-                                                       : tp["branch_start_offset_from_top"]);
-                    for (int b = 0; b < branches; b++) {
-                        const int dir = r.NextInt(4);
-                        const int len = SampleInt(tp["branch_horizontal_length"]);
-                        const int endOff = SampleInt(tp["branch_end_offset_from_top"]);
-                        Pos q = pos.Up(std::max(1, height + std::min(startOff, -1)));
-                        for (int k = 1; k <= len; k++) {
-                            q = q.Off(kDirX[dir], k > len / 2 ? 1 : 0, kDirZ[dir]);
-                            Log(c, q, kDirX[dir] ? "x" : "z");
+                    static const int kHx[4] = {0, 1, 0, -1}, kHz[4] = {-1, 0, 1, 0};
+                    const json::Value& startOffset = tp["branch_start_offset_from_top"];
+                    const int lo = static_cast<int>(startOffset["min_inclusive"].Int(-4)),
+                              hi = static_cast<int>(startOffset["max_inclusive"].Int(-3));
+                    const int first = std::max(0, height - 1 + SampleInt(startOffset));
+                    int second = std::max(0, height - 1 + (lo + r.NextInt(std::max(1, hi - 1 - lo + 1))));
+                    if (second >= first)
+                        second++;
+                    const int count = SampleInt(tp["branch_count"]);
+                    const bool three = count == 3, two = count >= 2;
+                    const int trunk = three ? height : two ? std::max(first, second) + 1 : first + 1;
+                    for (int i = 0; i < trunk; i++)
+                        Log(c, pos.Up(i));
+                    if (three)
+                        out.push_back({pos.Up(trunk), 0, false});
+                    const int dir = r.NextInt(4);
+                    const auto branch = [&](int d, int startAt, bool middleContinues) {
+                        Pos m = pos.Up(startAt);
+                        const int endY = height - 1 + SampleInt(tp["branch_end_offset_from_top"]);
+                        const bool extend = middleContinues || endY < startAt;
+                        const int length = SampleInt(tp["branch_horizontal_length"]) + (extend ? 1 : 0);
+                        const Pos target = pos.Off(kHx[d] * length, endY, kHz[d] * length);
+                        const char* axis = kHx[d] ? "x" : "z";
+                        for (int l = 0; l < (extend ? 2 : 1); l++) {
+                            m = m.Off(kHx[d], 0, kHz[d]);
+                            Log(c, m, axis);
                         }
-                        out.push_back({q.Up(1 + std::max(0, endOff)), 0, false});
-                    }
-                    if (branches < 3)
-                        out.push_back({pos.Up(height), 0, false});
+                        const int vertical = target.y > m.y ? 1 : -1;
+                        for (int guard = 0; guard < 64; guard++) {
+                            const int dist = std::abs(target.x - m.x) + std::abs(target.y - m.y) + std::abs(target.z - m.z);
+                            if (dist == 0)
+                                break;
+                            const float f = static_cast<float>(std::abs(target.y - m.y)) / static_cast<float>(dist);
+                            const bool up = r.NextFloat() < f;
+                            m = up ? m.Up(vertical) : m.Off(kHx[d], 0, kHz[d]);
+                            Log(c, m, up ? "y" : axis);
+                        }
+                        return Attachment{target.Up(), 0, false};
+                    };
+                    out.push_back(branch(dir, first, first < trunk - 1));
+                    if (two)
+                        out.push_back(branch((dir + 2) & 3, second, second < trunk - 1));
                     return out;
                 }
+                for (int i = 0; i < height; i++)
+                    Log(c, pos.Up(i));
                 if (Is(tp, "upwards_branching_trunk_placer")) {
                     const float chance = static_cast<float>(tp["place_branch_per_log_probability"].Number(0.5));
                     for (int i = 2; i < height - 1; i++)
@@ -1711,9 +1736,63 @@ namespace perlin::server::vanilla {
                     }
             }
 
+            bool PlacedLeaf(const Pos& p) const {
+                for (const Pos& q : w.leaves)
+                    if (q.x == p.x && q.y == p.y && q.z == p.z)
+                        return true;
+                return false;
+            }
+
+            bool TryLeaf(const json::Value& c, const Pos& p) {
+                if (!ValidTree(p))
+                    return false;
+                const uint16_t id = Provide(c["foliage_provider"], p);
+                if (id == kNone)
+                    return false;
+                w.Set(p, id);
+                return true;
+            }
+
+            void HangingRow(const json::Value& c, const json::Value& fp, const Pos& center, int range, int localY, bool large,
+                            float hanging, float extension) {
+                Row(c, fp, center, range, localY, large);
+                static const int kHx[4] = {0, 1, 0, -1}, kHz[4] = {-1, 0, 1, 0};
+                const int extra = large ? 1 : 0;
+                const Pos below = center.Down();
+                const auto tryExtension = [&](float chance, const Pos& q) {
+                    const int dist = std::abs(q.x - below.x) + std::abs(q.y - below.y) + std::abs(q.z - below.z);
+                    if (dist >= 7)
+                        return false;
+                    if (r.NextFloat() > chance)
+                        return false;
+                    return TryLeaf(c, q);
+                };
+                for (int d = 0; d < 4; d++) {
+                    const int cw = (d + 1) & 3;
+                    const bool positive = kHx[cw] > 0 || kHz[cw] > 0;
+                    const int j = positive ? range + extra : range;
+                    Pos m = center.Off(kHx[cw] * j - kHx[d] * range, localY - 1, kHz[cw] * j - kHz[d] * range);
+                    for (int k = -range; k < range + extra; k++) {
+                        if (PlacedLeaf(m.Up()) && tryExtension(hanging, m))
+                            tryExtension(extension, m.Down());
+                        m = m.Off(kHx[d], 0, kHz[d]);
+                    }
+                }
+            }
+
             bool Skip(const json::Value& fp, int dx, int localY, int dz, int range) {
                 const TypeView fpType(fp);
-                if (Is(fpType, "blob_foliage_placer") || Is(fpType, "poplar_foliage_placer") || Is(fpType, "cherry_foliage_placer"))
+                if (Is(fpType, "cherry_foliage_placer")) {
+                    if (localY == -1 && (dx == range || dz == range) &&
+                        r.NextFloat() < static_cast<float>(fp["wide_bottom_layer_hole_chance"].Number(0)))
+                        return true;
+                    const bool corner = dx == range && dz == range;
+                    if (range > 2)
+                        return corner || (dx + dz > range * 2 - 2 &&
+                                          r.NextFloat() < static_cast<float>(fp["corner_hole_chance"].Number(0)));
+                    return corner && r.NextFloat() < static_cast<float>(fp["corner_hole_chance"].Number(0));
+                }
+                if (Is(fpType, "blob_foliage_placer") || Is(fpType, "poplar_foliage_placer"))
                     return dx == range && dz == range && (r.NextInt(2) == 0 || localY == 0);
                 if (Is(fpType, "fancy_foliage_placer"))
                     return (dx + 0.5f) * (dx + 0.5f) + (dz + 0.5f) * (dz + 0.5f) > static_cast<float>(range * range);
@@ -1739,7 +1818,18 @@ namespace perlin::server::vanilla {
                 if (Is(fp, "blob_foliage_placer") || Is(fp, "poplar_foliage_placer")) {
                     for (int y = offset; y >= offset - foliageHeight; y--)
                         Row(c, fp, p, std::max(rr - 1 - y / 2, 0), y, a.doubleTrunk);
-                } else if (Is(fp, "fancy_foliage_placer") || Is(fp, "cherry_foliage_placer")) {
+                } else if (Is(fp, "cherry_foliage_placer")) {
+                    const Pos q = p.Up(offset);
+                    const int i = radius + a.radiusOffset - 1;
+                    Row(c, fp, q, i - 2, foliageHeight - 3, a.doubleTrunk);
+                    Row(c, fp, q, i - 1, foliageHeight - 4, a.doubleTrunk);
+                    for (int j = foliageHeight - 5; j >= 0; j--)
+                        Row(c, fp, q, i, j, a.doubleTrunk);
+                    const float hanging = static_cast<float>(fp["hanging_leaves_chance"].Number(0));
+                    const float extension = static_cast<float>(fp["hanging_leaves_extension_chance"].Number(0));
+                    HangingRow(c, fp, q, i, -1, a.doubleTrunk, hanging, extension);
+                    HangingRow(c, fp, q, i - 1, -2, a.doubleTrunk, hanging, extension);
+                } else if (Is(fp, "fancy_foliage_placer")) {
                     for (int y = offset; y >= offset - foliageHeight; y--)
                         Row(c, fp, p, rr + (y != offset && y != offset - foliageHeight ? 1 : 0), y, a.doubleTrunk);
                 } else if (Is(fp, "spruce_foliage_placer")) {

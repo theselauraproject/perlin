@@ -32,6 +32,7 @@ namespace perlin::mods {
         uint32_t requested = 0;
         bool needsApproval = false;
         int priority = 0;
+        double frameRate = 0;
     };
 
     struct PluginCommand {

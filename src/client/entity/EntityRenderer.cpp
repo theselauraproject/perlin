@@ -1,4 +1,5 @@
 #include "client/entity/EntityRenderer.hpp"
+#include "world/level/block/BlockPalette.hpp"
 #include "client/entity/CapeGeometry.inc"
 #include "client/entity/CapePhysics.hpp"
 
@@ -72,8 +73,6 @@ namespace perlin::entity {
                 const float b = std::asin(std::clamp(-fit[0][2], -1.0f, 1.0f));
                 const float cc = std::atan2(fit[1][2], fit[2][2]);
                 const float a = std::atan2(fit[0][1], fit[0][0]);
-                // fit = Rz(a) Ry(b) Rx(cc); EulerZYX(v) is Rz(zs * v.z) Ry(v.y) Rx(-v.x), so v.y is +b. (The
-                // sign was flipped before, which mirrored the head's yaw while crouching: the "weird turn".)
                 const glm::vec3 euler(-glm::degrees(cc), glm::degrees(b), glm::degrees(a) / zs);
                 x.rotation = euler - restOf(name);
                 const glm::mat3 r(attachable::EulerZYX(euler));
@@ -281,7 +280,6 @@ namespace perlin::entity {
 
     std::pair<float, float> EntityRenderer::HitBox(const Entity& e) const {
         const float scale = e.scale > 0.0f ? e.scale : 1.0f;
-        // server's bounding box wins: metadata BOUNDINGBOX_WIDTH/HEIGHT is what it collides and raycasts with
         if (e.boxWidth > 0.0f && e.boxHeight > 0.0f)
             return {e.boxWidth * scale, e.boxHeight * scale};
         if (e.isPlayer)
@@ -439,7 +437,6 @@ namespace perlin::entity {
     }
 
     void EntityRenderer::TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw) {
-        // v.yaw holds the server yaw here: what a ridden vehicle turns the body toward
         v.yaw =
             v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
         v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / std::max(dt, 0.001f);
@@ -536,7 +533,6 @@ namespace perlin::entity {
             v.headYaw = turn(v.headYaw, e.headYaw);
             v.pitch = v.pitch + WrapDegrees(e.pitch - v.pitch) * static_cast<float>(follow);
         }
-        // velocity-aligned flight: arrows, tridents and lobbed bottles alike
         if (projectile) {
             const double len = glm::length(d);
             if (len > 0.04) {
@@ -656,7 +652,6 @@ namespace perlin::entity {
         }
         if (static const char* forced = PERLIN_ENV("PERLIN_PREVIEW_ATTACK"); forced && e.isSelf)
             v.attackTime = static_cast<float>(std::atof(forced));
-        // own swing: the hand state, stepped per tick like Mob::updateAttackAnim 0x142c2d060
         else if (e.isSelf && in.ownAttackTime >= 0.0f)
             v.attackTime = in.ownAttackTime;
         else if (v.attackTime > 0) {
@@ -1304,9 +1299,6 @@ namespace perlin::entity {
                 bool haveRoot = false;
                 if (bindGeometry && e.isPlayer)
                     haveRoot = attachable::BoneWorld(*bindGeometry, pose, "root", rootWorld, rootPivot);
-                // Java's armour models copy the wearer's part poses (HumanoidArmorLayer): each armour bone takes the
-                // world matrix of the player's bone of the same name. The armour files parent their legs to the
-                // body, so through their own chain a crouch tipped the leggings and boots forward with the torso
                 if (bindGeometry && e.isPlayer && wornBones.empty())
                     attachable::ComputeBoneWorlds(*bindGeometry, pose, wornBones);
                 const bool attach = !wornBones.empty() && item != "minecraft:elytra";
@@ -1388,7 +1380,6 @@ namespace perlin::entity {
             model = glm::rotate(model, (90.0f + v.pitch) * kDeg, glm::vec3(1, 0, 0));
             model = glm::translate(model, glm::vec3(0.0f, -12.0f / 16.0f * scale, 0.0f));
         }
-        // lobbed items tumble around x/z instead of holding a fixed pose
         if (e.type == "minecraft:xp_bottle" || e.type == "minecraft:splash_potion" ||
             e.type == "minecraft:lingering_potion" || e.type == "minecraft:snowball" ||
             e.type == "minecraft:egg" || e.type == "minecraft:ender_pearl") {
@@ -1399,7 +1390,6 @@ namespace perlin::entity {
         glm::vec3 light(1.0f);
         if (in.light)
             light = in.light(v.pos + glm::dvec3(0.0, 1.0, 0.0));
-        // a java pack lights the model itself (lightmap coordinates, normals): it gets the plain tint
         const bool packLit = renderer->JavaPackDrawing() && !dollModel;
         glm::ivec2 levels(-1, -1);
         if (packLit && in.lightLevels)
@@ -1423,7 +1413,6 @@ namespace perlin::entity {
         std::stable_sort(ordered.begin(), ordered.end(), [](const Layer* a, const Layer* b) {
             return static_cast<int>(a->material.blend) < static_cast<int>(b->material.blend);
         });
-        // invisibility hides the body (players and mobs); armor and held items stay, as in both editions
         const bool hideBody = e.Has(flag::Invisible) && !v.fp && !dollModel;
         for (const Layer* layerPtr : ordered) {
             const Layer& layer = *layerPtr;
@@ -1745,7 +1734,7 @@ namespace perlin::entity {
         struct Batch {
             std::vector<UiVertex> vertices;
             std::vector<uint32_t> indices;
-            std::vector<int8_t> light; // block, sky per vertex (java packs)
+            std::vector<int8_t> light;
         };
         const auto pushLight = [](std::vector<int8_t>& light, int8_t block, int8_t sky) {
             for (int k = 0; k < 4; k++) {
@@ -2123,8 +2112,6 @@ namespace perlin::entity {
             const glm::dvec3 delta = v.pos - in.camera;
             if (glm::dot(delta, delta) > static_cast<double>(in.maxDistance) * in.maxDistance)
                 continue;
-            // server holograms hide the model, keep the name: entity scaled to zero, or invisible mob/armor stand with no gear
-            // (with armor or held items only those show; Draw hides the body)
             const bool gearless = e.mainHand.empty() && e.offHand.empty() &&
                                   std::all_of(std::begin(e.armor), std::end(e.armor),
                                               [](const std::string& a) { return a.empty(); });
@@ -2145,7 +2132,6 @@ namespace perlin::entity {
                     culled++;
                     continue;
                 }
-                // behind walls: no model; names still show through walls
                 if (in.sectionReached && !e.isSelf && !e.isPlayer && e.nameTag.empty() &&
                     !in.sectionReached(static_cast<int>(std::floor(x)) >> 4,
                                        static_cast<int>(std::floor(y)) >> 4,
@@ -2164,10 +2150,7 @@ namespace perlin::entity {
                                in);
                 }
             }
-            // invisible players hide their name; invisible holograms (armor stands, mobs) keep an always-shown name
             const bool nameHidden = e.Has(flag::Invisible) && (e.isPlayer || !e.Has(flag::AlwaysShowName));
-            // name shown only when the server allows it (can-show / always-show flags); fake-player npcs leave both off
-            // text: name tag, falling back to a player's username
             const bool nameAllowed =
                 e.isSelf || e.Has(flag::CanShowName) || e.Has(flag::AlwaysShowName) || !e.isPlayer;
             if (in.nametags && !e.isItem && !nameHidden && nameAllowed &&
@@ -2206,6 +2189,44 @@ namespace perlin::entity {
             }
             if (modelHidden)
                 continue;
+            if ((e.type == "minecraft:falling_block" || e.type == "minecraft:tnt") && itemRenderer) {
+                ui::HudItem item;
+                if (e.type == "minecraft:tnt") {
+                    item.name = "minecraft:tnt";
+                } else {
+                    BlockPalette& palette = BlockPalette::Instance();
+                    const uint16_t local = palette.Intern(e.variant);
+                    item.name = palette.Name(local);
+                    item.blockRuntimeId = e.variant;
+                }
+                item.count = 1;
+                if (!item.name.empty() && item.name != "minecraft:air") {
+                    glm::vec3 light(1.0f);
+                    if (in.light)
+                        light = in.light(v.pos + glm::dvec3(0.0, 0.5, 0.0));
+                    float scale = 1.0f;
+                    if (e.type == "minecraft:tnt") {
+                        const double ticks = (in.time - v.born) * 20.0;
+                        const double left = 80.0 - ticks;
+                        if (left < 10.0) {
+                            const float grow = static_cast<float>(std::clamp(1.0 - left / 10.0, 0.0, 1.0));
+                            scale = 1.0f + grow * grow * grow * grow * 0.3f;
+                        }
+                        if ((static_cast<int>(ticks) / 5) % 2 == 0)
+                            light = glm::min(light * 1.8f + glm::vec3(0.35f), glm::vec3(2.0f));
+                    }
+                    if (renderer->JavaPackDrawing() && in.lightLevels) {
+                        const glm::ivec2 l = in.lightLevels(v.pos + glm::dvec3(0.0, 0.5, 0.0));
+                        itemRenderer->SetPackLight(l.x, l.y);
+                    }
+                    itemRenderer->SetPackEntity(e.type.c_str());
+                    itemRenderer->DrawWorldBlock(item, v.pos, scale, light);
+                    itemRenderer->SetPackEntity(nullptr);
+                    itemRenderer->SetPackLight(-1, -1);
+                    drawn++;
+                }
+                continue;
+            }
             if (e.isItem) {
                 if (itemRenderer) {
                     ui::HudItem item;
@@ -2602,7 +2623,7 @@ namespace perlin::entity {
                              static_cast<float>(in.camera.z), 1.0f);
         std::copy_n(&model[0][0], 16, draw.model);
         draw.shadowOnly = shadowOnlyPass;
-        draw.packKind = UiDraw::PackKind::Line; // iris: gbuffers_line
+        draw.packKind = UiDraw::PackKind::Line;
         renderer->UiSubmit(UiLayer::World, draw);
     }
 
@@ -3029,7 +3050,6 @@ namespace perlin::entity {
             fontTextureVersion = font.Version();
         }
         const bool packLit = renderer->JavaPackDrawing();
-        // java packs: per vertex light levels, kept beside each batch's vertices
         std::unordered_map<const std::vector<UiVertex>*, std::vector<int8_t>> batchLight;
         glm::ivec2 curLevels(-1, -1);
         const auto syncLight = [&](const std::vector<UiVertex>& vv) {
@@ -3466,7 +3486,6 @@ namespace perlin::entity {
         for (auto& [color, batch] : beds)
             submit(batch.first, batch.second, TextureByPath(std::string("bed_") + kDyeNames[color] + ".png"),
                    0.0f, kBedBlocks[color]);
-        // iris TEXT_BE: sign text draws with gbuffers_block_translucent
         submit(text.first, text.second, fontTexture, 0.1f, "minecraft:oak_sign", true);
     }
 }

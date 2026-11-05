@@ -47,13 +47,11 @@ namespace perlin {
                 return false;
         }
         u.actionType = TransactionUseItemActionType::ClickBlock;
-        // GameMode::buildBlock 0x14376B290 writes trigger = simulated + 1: startBuildBlock passes false, continueBuildBlock true
         u.triggerType = repeat ? TransactionUseItemTriggerType::SimulationTick : TransactionUseItemTriggerType::PlayerInput;
         u.blockPosition = {bx, by, bz};
         u.face = static_cast<uint8_t>(face);
         u.hotbarSlot = selected;
         u.hand = TransactionUseItemHand::MainHand;
-        // the actor's tick position (eye level, the same one PlayerAuthInput carries), not the interpolated camera
         u.playerPos = haveLastAuthPos ? Vec3F{lastAuthPos[0], lastAuthPos[1] + kPlayerEyeHeight, lastAuthPos[2]} : V(eye);
         u.clickPos = V(click);
         {
@@ -97,8 +95,8 @@ namespace perlin {
             itemUseDest[2] = dest[2];
         }
         if (use == 2) {
-            // the game spends one block up front; the server corrects us if it disagrees
-            const bool creative = World().worldGameMode == 1;
+            const int mode = GameType() == 5 ? World().worldGameMode : GameType();
+            const bool creative = mode == 1 || mode == 6;
             if (!creative) {
                 std::lock_guard lock(statusMutex);
                 const int held = std::clamp(inventory.selected, 0, 8);
@@ -132,7 +130,6 @@ namespace perlin {
         }
         if (held)
             QueueInputFlag(InputFlag::StartUsingItem);
-        // the game sends click-air with no trigger and a success prediction; player input reads as a scaffold to anticheats
         u.actionType = TransactionUseItemActionType::ClickAir;
         u.triggerType = TransactionUseItemTriggerType::Unknown;
         u.clientPrediction = TransactionUseItemClientPrediction::Success;
@@ -334,7 +331,6 @@ namespace perlin {
         if (face < 0 || face > 5 || !std::isfinite(click[1]))
             return false;
         const bool upper = blockuse::IsUpperSlabPlacement(face, click[1]);
-        // pillar_axis values by index: y, x, z
         static const char* const kAxis[3] = {"y", "x", "z"};
         int resolved = 0;
         for (auto& [key, value] : states) {
@@ -350,7 +346,6 @@ namespace perlin {
                 value.i = blockuse::IsUpsideDownStairPlacement(face, click[1], value.i != 0) ? 1 : 0;
                 resolved++;
             } else if (stairs && bare == "weirdo_direction" && !text) {
-                // the actor yaw of the last tick, as PlayerAuthInput sent it
                 value.i = blockuse::StairDirection(pose.yaw);
                 resolved++;
             } else if (pillar && text) {
@@ -358,7 +353,6 @@ namespace perlin {
                 resolved++;
             }
         }
-        // every state set by the rules above: an unknown extra state would be guessed
         if (resolved == 0 || resolved != static_cast<int>(states.size())) return false;
         std::sort(states.begin(), states.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
         const uint16_t placed = palette.Intern(BlockPalette::HashState(name, states));
@@ -386,7 +380,6 @@ namespace perlin {
                                                  "turtle_egg", "snow_layer", "pointed_dripstone", "amethyst_cluster", "bud", "coral", "kelp", "seagrass"};
         static const char* const kSkipStates[] = {"facing_direction", "direction", "cardinal_direction", "vertical_half", "upside_down_bit",
                                                   "top_slot_bit", "pillar_axis", "attached_bit", "hanging", "open_bit", "powered_bit"};
-        // a resolved state already went through the game's getPlacementBlock rules (PredictBridgePlace)
         if (!resolved) {
             for (const char* skip : kSkipNames)
                 if (name.contains(skip))

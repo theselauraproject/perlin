@@ -28,7 +28,6 @@ namespace {
     constexpr int kPaintPerFrame = 24;
     constexpr int kPollPerFrame = 4;
     constexpr int64_t kBudgetMs = 2;
-    constexpr int kRoofFrames = 8;
     constexpr int64_t kNoSlot = INT64_MIN;
     constexpr std::array<double, 7> kZoomSteps{0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
     constexpr double kZoomScale = 2.0;
@@ -152,8 +151,7 @@ struct Minimap : Plugin {
             cache.clear();
             for (Slot& s : slots)
                 s = Slot{};
-            roofFrames = 0;
-            underRoof = false;
+            underRoof = roofCandidate = false;
         }
         const int pcx = static_cast<int>(std::floor(player->x / 16.0));
         const int pcz = static_cast<int>(std::floor(player->z / 16.0));
@@ -218,15 +216,28 @@ private:
         bool cave = mode == settings::CaveMode::On;
         if (mode == settings::CaveMode::Auto) {
             const int wx = static_cast<int>(std::floor(p.x)), wz = static_cast<int>(std::floor(p.z));
-            const auto it = cache.find(ChunkKey(wx >> 4, wz >> 4));
-            if (it != cache.end() && it->second.loaded) {
-                const game::MapColumn& col = it->second.columns[static_cast<size_t>((wz & 15) * 16 + (wx & 15))];
-                const bool roof = col.top >= feet + 2;
-                roofFrames = roof ? std::min(roofFrames + 1, kRoofFrames) : std::max(roofFrames - 1, -kRoofFrames);
-                if (roofFrames >= kRoofFrames)
-                    underRoof = true;
-                else if (roofFrames <= -kRoofFrames)
-                    underRoof = false;
+            int seen = 0, roofs = 0;
+            for (const auto [ox, oz] : {std::pair{0, 0}, std::pair{3, 0}, std::pair{-3, 0}, std::pair{0, 3}, std::pair{0, -3}}) {
+                const int x = wx + ox, z = wz + oz;
+                const auto it = cache.find(ChunkKey(x >> 4, z >> 4));
+                if (it == cache.end() || !it->second.loaded)
+                    continue;
+                const game::MapColumn& col = it->second.columns[static_cast<size_t>((z & 15) * 16 + (x & 15))];
+                if (!(col.flags & game::kMapLoaded))
+                    continue;
+                seen++;
+                if (col.top >= feet + 3)
+                    roofs++;
+            }
+            if (seen > 0) {
+                const bool roof = roofs * 5 >= seen * 4;
+                const int64_t now = game::now_ms();
+                if (roof != roofCandidate) {
+                    roofCandidate = roof;
+                    roofSince = now;
+                }
+                if (roofCandidate != underRoof && now - roofSince >= (roofCandidate ? 600 : 300))
+                    underRoof = roofCandidate;
             }
             cave = underRoof;
         }
@@ -760,8 +771,9 @@ private:
     int32_t layer = game::kMapSurface;
     int dimension = -1;
     int cursor = 0, pollCursor = 0;
-    int roofFrames = 0;
     bool underRoof = false;
+    bool roofCandidate = false;
+    int64_t roofSince = 0;
     double shownZoom = 0.0;
     int sunBucket = -2;
     std::array<float, 3> sun{-0.55f, 0.75f, -0.37f};

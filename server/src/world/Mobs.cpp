@@ -6,6 +6,10 @@
 #include "world/Blocks.hpp"
 
 #include <algorithm>
+#include <vector>
+#include <random>
+#include <unordered_set>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <mutex>
@@ -207,7 +211,7 @@ namespace perlin::server {
     int MobWorld::KillAll(const std::string& identifier) {
         int n = 0;
         for (Mob& m : mobs)
-            if (m.deathTime == 0 && !m.projectile && (identifier.empty() || identifier == m.def->id ||
+            if (m.deathTime == 0 && !m.projectile && m.kind == 0 && (identifier.empty() || identifier == m.def->id ||
                                                       "minecraft:" + identifier == m.def->id)) {
                 m.health = 0;
                 Die(m, nullptr);
@@ -331,42 +335,311 @@ namespace perlin::server {
         (void)killer;
     }
 
-    void MobWorld::Explode(Mob& m) {
-        const int r = 3;
-        const int cx = static_cast<int>(std::floor(m.x)), cy = static_cast<int>(std::floor(m.y)), cz = static_cast<int>(std::floor(m.z));
-        if (server.RuleValue("mobgriefing"))
-            for (int x = -r; x <= r; x++)
-                for (int y = -r; y <= r; y++)
-                    for (int z = -r; z <= r; z++) {
-                        if (x * x + y * y + z * z > r * r + static_cast<int>(rng() % 3))
+    bool FallsWithGravity(uint16_t id) {
+        if (id == 0)
+            return false;
+        static std::vector<int8_t> memo;
+        static std::mutex memoMutex;
+        std::lock_guard lock(memoMutex);
+        if (id >= memo.size())
+            memo.resize(static_cast<size_t>(id) + 1, -1);
+        int8_t& v = memo[id];
+        if (v < 0) {
+            const std::string& name = BlockRegistry::Instance().Name(id);
+            v = name == "minecraft:sand" || name == "minecraft:red_sand" || name == "minecraft:gravel" ||
+                        name == "minecraft:suspicious_sand" || name == "minecraft:suspicious_gravel" ||
+                        name.ends_with("concrete_powder") || name.ends_with("anvil") || name == "minecraft:dragon_egg"
+                    ? 1
+                    : 0;
+        }
+        return v == 1;
+    }
+
+    bool FallingFree(uint16_t id) {
+        if (id == 0 || BlockLiquid(id))
+            return true;
+        static std::vector<int8_t> memo;
+        static std::mutex memoMutex;
+        std::lock_guard lock(memoMutex);
+        if (id >= memo.size())
+            memo.resize(static_cast<size_t>(id) + 1, -1);
+        int8_t& v = memo[id];
+        if (v < 0) {
+            const std::string& name = BlockRegistry::Instance().Name(id);
+            v = name == "minecraft:air" || name == "minecraft:fire" || name == "minecraft:soul_fire" ||
+                        name == "minecraft:short_grass" || name == "minecraft:tall_grass" || name == "minecraft:fern" ||
+                        name == "minecraft:large_fern" || name == "minecraft:dead_bush" || name == "minecraft:seagrass" ||
+                        name == "minecraft:tall_seagrass" || name == "minecraft:vine" || name == "minecraft:structure_void" ||
+                        name == "minecraft:light_block" || name.ends_with("_air") || name == "minecraft:bush" ||
+                        name == "minecraft:short_dry_grass" || name == "minecraft:tall_dry_grass"
+                    ? 1
+                    : 0;
+        }
+        return v == 1;
+    }
+
+    namespace {
+        float BlastResistance(uint16_t id) {
+            static std::vector<float> memo;
+            static std::mutex memoMutex;
+            std::lock_guard lock(memoMutex);
+            if (id >= memo.size())
+                memo.resize(static_cast<size_t>(id) + 1, -1.0f);
+            float& v = memo[id];
+            if (v >= 0.0f)
+                return v;
+            const std::string& n = BlockRegistry::Instance().Name(id);
+            const auto has = [&](const char* t) { return n.find(t) != std::string::npos; };
+            if (has("bedrock") || has("barrier") || has("command_block") || has("end_portal") || has("end_gateway") ||
+                has("structure_block") || has("jigsaw") || has("reinforced_deepslate") || n == "minecraft:light_block" ||
+                has("border_block") || has("allow") || has("deny"))
+                v = 3600000.0f;
+            else if (has("obsidian") || has("ancient_debris") || has("netherite_block") || has("respawn_anchor") ||
+                     has("enchanting_table") || has("ender_chest"))
+                v = 1200.0f;
+            else if (has("anvil"))
+                v = 1200.0f;
+            else if (has("water") || has("lava"))
+                v = 100.0f;
+            else if (has("deepslate") || has("iron_block") || has("iron_door") || has("iron_bars") || has("copper") ||
+                     has("diamond_block") || has("emerald_block") || has("gold_block") || has("bell") ||
+                     has("hopper") || has("cauldron") || has("lodestone") || has("crafter"))
+                v = 6.0f;
+            else if (has("stone") || has("cobble") || has("brick") || has("andesite") || has("diorite") ||
+                     has("granite") || has("tuff") || has("basalt") || has("blackstone") || has("prismarine") ||
+                     has("purpur") || has("calcite") || has("_ore") || has("concrete") && !has("powder") ||
+                     has("terracotta") || has("quartz") || has("dripstone"))
+                v = 6.0f;
+            else if (has("planks") || has("_log") || has("_wood") || has("stem") || has("hyphae") || has("fence") ||
+                     has("door") || has("chest") || has("barrel") || has("crafting_table") || has("bookshelf") ||
+                     has("slab") || has("stairs"))
+                v = 3.0f;
+            else if (has("glass"))
+                v = 0.3f;
+            else if (has("leaves") || has("wool") || has("carpet") || has("snow") || has("cactus") || has("sponge"))
+                v = 0.8f;
+            else if (has("dirt") || has("grass_block") || has("sand") || has("gravel") || has("clay") || has("farmland") ||
+                     has("mud") || has("podzol") || has("mycelium") || has("soul_soil") || has("netherrack"))
+                v = 0.5f;
+            else if (has("tnt"))
+                v = 0.0f;
+            else
+                v = 1.0f;
+            return v;
+        }
+    }
+
+    void MobWorld::Explosion(double x, double y, double z, float power, uint64_t source, bool breakBlocks) {
+        std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        const int cx = static_cast<int>(std::floor(x)), cy = static_cast<int>(std::floor(y)), cz = static_cast<int>(std::floor(z));
+        const bool underwater = BlockLiquid(server.Chunks().GetBlock(cx, cy, cz));
+        std::vector<std::array<int, 3>> broken;
+        if (breakBlocks && !underwater) {
+            std::unordered_set<int64_t> seen;
+            for (int i = 0; i < 16; i++)
+                for (int j = 0; j < 16; j++)
+                    for (int k = 0; k < 16; k++) {
+                        if (i != 0 && i != 15 && j != 0 && j != 15 && k != 0 && k != 15)
                             continue;
-                        const uint16_t b = server.Chunks().GetBlock(cx + x, cy + y, cz + z);
-                        if (b == 0 || BlockLiquid(b))
-                            continue;
-                        const std::string name = BlockRegistry::Instance().Name(b);
-                        if (name.contains("bedrock") || name.contains("obsidian"))
-                            continue;
-                        server.SetBlock(cx + x, cy + y, cz + z, "minecraft:air");
+                        double dx = i / 15.0 * 2.0 - 1.0, dy = j / 15.0 * 2.0 - 1.0, dz = k / 15.0 * 2.0 - 1.0;
+                        const double len = std::sqrt(dx * dx + dy * dy + dz * dz);
+                        dx /= len;
+                        dy /= len;
+                        dz /= len;
+                        float intensity = power * (0.7f + unit(rng) * 0.6f);
+                        double px = x, py = y, pz = z;
+                        while (intensity > 0.0f) {
+                            const int bx = static_cast<int>(std::floor(px)), by = static_cast<int>(std::floor(py)),
+                                      bz = static_cast<int>(std::floor(pz));
+                            if (by < kMinY || by >= kMinY + kHeight || !server.Chunks().Peek({bx >> 4, bz >> 4}))
+                                break;
+                            const uint16_t b = server.Chunks().GetBlock(bx, by, bz);
+                            if (b != 0)
+                                intensity -= (BlastResistance(b) + 0.3f) * 0.3f;
+                            if (intensity > 0.0f && b != 0 && !BlockLiquid(b)) {
+                                const int64_t key = (static_cast<int64_t>(bx) & 0x3FFFFFF) << 38 |
+                                                    (static_cast<int64_t>(bz) & 0x3FFFFFF) << 12 |
+                                                    (static_cast<int64_t>(by + 2048) & 0xFFF);
+                                if (seen.insert(key).second)
+                                    broken.push_back({bx, by, bz});
+                            }
+                            px += dx * 0.3;
+                            py += dy * 0.3;
+                            pz += dz * 0.3;
+                            intensity -= 0.22500001f;
+                        }
                     }
+        }
+        for (const auto& b : broken) {
+            const uint16_t id = server.Chunks().GetBlock(b[0], b[1], b[2]);
+            if (BlockRegistry::Instance().Name(id) == "minecraft:tnt") {
+                server.SetBlockIn(kOverworld, b[0], b[1], b[2], BlockRegistry::kAir);
+                SpawnPrimedTnt(b[0] + 0.5, b[1], b[2] + 0.5, 10 + static_cast<int>(rng() % 20));
+                continue;
+            }
+            server.SetBlockIn(kOverworld, b[0], b[1], b[2], BlockRegistry::kAir);
+        }
+        const double reach = power * 2.0;
         for (Session* s : server.PlayersIn(kOverworld)) {
-            const double dx = s->X() - m.x, dy = s->Y() - 1.0 - m.y, dz = s->Z() - m.z;
+            s->SendLevelEvent(power >= 2.0f ? 16400 : 16390, x, y, z, 0);
+            s->PlaySound("Explode", x, y, z);
+            const double dx = s->X() - x, dy = s->Y() - 1.0 - y, dz = s->Z() - z;
             const double d = std::sqrt(dx * dx + dy * dy + dz * dz);
-            if (d < 6.0 && s->GameMode() != 1 && !s->Spectator()) {
-                const double impact = (1.0 - d / 6.0);
-                s->Hurt(static_cast<float>((impact * impact + impact) / 2.0 * 7.0 * 6.0 + 1.0), m.x, m.z);
+            if (d < reach && s->GameMode() != 1 && !s->Spectator()) {
+                const double impact = 1.0 - d / reach;
+                s->Hurt(static_cast<float>((impact * impact + impact) / 2.0 * 7.0 * reach + 1.0), x, z);
             }
         }
-        for (Mob& o : mobs)
-            if (&o != &m && o.deathTime == 0) {
-                const double dx = o.x - m.x, dz = o.z - m.z, dy = o.y - m.y;
-                const double d = std::sqrt(dx * dx + dy * dy + dz * dz);
-                if (d < 6.0)
-                    Hurt(o, static_cast<float>((1.0 - d / 6.0) * 20.0), m.x, m.z, nullptr);
+        for (Mob& o : mobs) {
+            if (o.id == source || o.deathTime != 0)
+                continue;
+            const double dx = o.x - x, dy = o.y - y, dz = o.z - z;
+            const double d = std::sqrt(dx * dx + dy * dy + dz * dz);
+            if (d >= reach)
+                continue;
+            const double impact = 1.0 - d / reach;
+            if (o.kind != 0) {
+                const double len = std::max(0.01, d);
+                o.vx += dx / len * impact;
+                o.vy += dy / len * impact;
+                o.vz += dz / len * impact;
+                continue;
             }
+            Hurt(o, static_cast<float>((impact * impact + impact) / 2.0 * 7.0 * reach + 1.0), x, z, nullptr);
+        }
+    }
+
+    void MobWorld::Explode(Mob& m) {
+        Explosion(m.x, m.y + 0.5, m.z, 3.0f, m.id, server.RuleValue("mobgriefing"));
         m.health = 0;
         m.deathTime = 19;
         for (Session* s : server.PlayersIn(kOverworld))
             s->HideItem(m.id);
+    }
+
+    Mob* MobWorld::SpawnFallingBlock(double x, double y, double z, uint16_t block) {
+        static const MobDef falling{"minecraft:falling_block", 0.98f, 0.98f, 1, 0, 0, 0, "", "", ""};
+        Mob m;
+        m.def = &falling;
+        m.kind = 1;
+        m.block = block;
+        m.id = nextId++;
+        m.x = x;
+        m.y = y;
+        m.z = z;
+        m.health = 1;
+        m.persistent = true;
+        mobs.push_back(m);
+        Mob& added = mobs.back();
+        for (Session* s : server.PlayersIn(kOverworld))
+            s->ShowMob(added);
+        added.lastX = static_cast<float>(x);
+        added.lastY = static_cast<float>(y);
+        added.lastZ = static_cast<float>(z);
+        added.lastFlags = Flags(added);
+        return &added;
+    }
+
+    Mob* MobWorld::SpawnPrimedTnt(double x, double y, double z, int fuse) {
+        static const MobDef tnt{"minecraft:tnt", 0.98f, 0.98f, 1, 0, 0, 0, "", "", ""};
+        Mob m;
+        m.def = &tnt;
+        m.kind = 2;
+        m.fuse = fuse;
+        m.id = nextId++;
+        m.x = x;
+        m.y = y;
+        m.z = z;
+        std::uniform_real_distribution<double> unit(0.0, 1.0);
+        const double angle = unit(rng) * 2.0 * kPi;
+        m.vx = -std::sin(angle) * 0.02;
+        m.vy = 0.2;
+        m.vz = -std::cos(angle) * 0.02;
+        m.health = 1;
+        m.persistent = true;
+        mobs.push_back(m);
+        Mob& added = mobs.back();
+        for (Session* s : server.PlayersIn(kOverworld)) {
+            s->ShowMob(added);
+            s->MobMotion(added);
+            s->PlaySound("Fuse", x, y, z);
+        }
+        added.lastX = static_cast<float>(x);
+        added.lastY = static_cast<float>(y);
+        added.lastZ = static_cast<float>(z);
+        added.lastFlags = Flags(added);
+        return &added;
+    }
+
+    bool MobWorld::TickSpecial(Mob& m) {
+        const auto blockAt = [&](int bx, int by, int bz) -> uint16_t {
+            if (by < kMinY || by >= kMinY + kHeight || !server.Chunks().Peek({bx >> 4, bz >> 4}))
+                return BlockRegistry::kAir;
+            return server.Chunks().GetBlock(bx, by, bz);
+        };
+        const int bx = static_cast<int>(std::floor(m.x)), bz = static_cast<int>(std::floor(m.z));
+        if (m.kind == 1) {
+            if (m.age > 600 || m.y < kMinY - 64)
+                return true;
+            m.vy = (m.vy - 0.04) * 0.98;
+            const double ny = m.y + m.vy;
+            for (int c = static_cast<int>(std::floor(m.y)) - (m.y == std::floor(m.y) ? 1 : 0); c >= static_cast<int>(std::floor(ny)); c--) {
+                if (c < kMinY)
+                    return true;
+                if (!FallingFree(blockAt(bx, c, bz))) {
+                    const int place = c + 1;
+                    if (FallingFree(blockAt(bx, place, bz)))
+                        server.SetBlockIn(kOverworld, bx, place, bz, m.block);
+                    return true;
+                }
+                if (c == static_cast<int>(std::floor(ny)))
+                    break;
+            }
+            m.y = ny;
+            return false;
+        }
+        if (m.kind == 2) {
+            m.vy -= 0.04;
+            const auto solid = [&](double px, double py, double pz) {
+                return BlockSolid(blockAt(static_cast<int>(std::floor(px)), static_cast<int>(std::floor(py)),
+                                          static_cast<int>(std::floor(pz))));
+            };
+            double nx = m.x + m.vx, ny = m.y + m.vy, nz = m.z + m.vz;
+            m.onGround = false;
+            if (solid(m.x, ny, m.z)) {
+                if (m.vy < 0) {
+                    ny = std::floor(ny) + 1.0;
+                    m.onGround = true;
+                } else {
+                    ny = m.y;
+                }
+                m.vy = 0;
+            }
+            if (solid(nx, ny + 0.1, m.z)) {
+                nx = m.x;
+                m.vx = 0;
+            }
+            if (solid(nx, ny + 0.1, nz)) {
+                nz = m.z;
+                m.vz = 0;
+            }
+            m.x = nx;
+            m.y = ny;
+            m.z = nz;
+            m.vx *= 0.98;
+            m.vy *= 0.98;
+            m.vz *= 0.98;
+            if (m.onGround) {
+                m.vx *= 0.7;
+                m.vz *= 0.7;
+            }
+            if (--m.fuse <= 0) {
+                Explosion(m.x, m.y + 0.0625, m.z, 4.0f, m.id, server.RuleValue("tntexplodes") != 0);
+                return true;
+            }
+            return false;
+        }
+        return true;
     }
 
     void MobWorld::Shoot(Mob& m, Session& at) {
@@ -820,7 +1093,7 @@ namespace perlin::server {
             bool remove = false;
             if (m.deathTime > 0) {
                 remove = ++m.deathTime > 20;
-            } else if (m.projectile && m.age > 1200) {
+            } else if (m.projectile && m.age > 1200 && m.kind == 0) {
                 remove = true;
             } else if (server.Chunks().Peek({static_cast<int>(std::floor(m.x)) >> 4, static_cast<int>(std::floor(m.z)) >> 4})) {
                 if (!m.persistent && !m.projectile) {
@@ -831,7 +1104,11 @@ namespace perlin::server {
                     }
                     remove = nearest > 128.0 * 128.0 || (nearest > 32.0 * 32.0 && rng() % 800 == 0);
                 }
-                if (!remove) {
+                if (!remove && m.kind != 0) {
+                    remove = TickSpecial(m);
+                    if (!remove)
+                        Broadcast(m, false);
+                } else if (!remove) {
                     if (m.hurtTime > 0)
                         m.hurtTime--;
                     Think(m);

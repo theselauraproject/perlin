@@ -2,6 +2,7 @@
 #include "core/Server.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "world/Mobs.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -103,6 +104,16 @@ namespace perlin::server {
     bool Server::UseItemOn(Session& by, int dimension, int x, int y, int z, int face, const CatalogItem& item) {
         if (face < 0 || face > 5)
             return false;
+        if ((item.name == "minecraft:flint_and_steel" || item.name == "minecraft:fire_charge") && dimension == kOverworld &&
+            NameOf(BlockAt(dimension, x, y, z)) == "minecraft:tnt") {
+            ApplyBlock(dimension, x, y, z, BlockRegistry::kAir);
+            Mobs().SpawnPrimedTnt(x + 0.5, y, z + 0.5, 80);
+            if (!by.Creative() && item.name == "minecraft:fire_charge") {
+                by.Inventory().TakeHeld(1);
+                by.SendSlot(by.Inventory().selected);
+            }
+            return true;
+        }
         if (item.name == "minecraft:flint_and_steel" || item.name == "minecraft:fire_charge") {
             const int tx = x + kFaceOffset[face][0], ty = y + kFaceOffset[face][1], tz = z + kFaceOffset[face][2];
             if (!TryLightPortal(dimension, tx, ty, tz))

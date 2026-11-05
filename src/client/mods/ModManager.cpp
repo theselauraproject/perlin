@@ -257,6 +257,8 @@ namespace perlin::mods {
         std::atomic<bool> revoked{false};
         std::atomic<uint64_t> subs{~0ull};
         std::atomic<double> lastEventMs{0};
+        Clock::time_point lastFrameAt{};
+        float frameDtAccum = 0;
         uint64_t serial = 0;
 
         std::thread thread;
@@ -1024,10 +1026,25 @@ namespace perlin::mods {
         });
         const uint64_t bit = 1ull << static_cast<uint32_t>(event);
         bool cancelled = false;
+        const auto now = Clock::now();
         for (Plugin* mod : list) {
             if (!(mod->subs.load() & bit))
                 continue;
             bool c = false;
+            if (event == abi::Event::Frame && mod->meta.frameRate > 0 && payload.data.size() >= sizeof(float)) {
+                float dt = 0;
+                std::memcpy(&dt, payload.data.data(), sizeof dt);
+                mod->frameDtAccum += dt;
+                const double interval = 1.0 / mod->meta.frameRate;
+                if (std::chrono::duration<double>(now - mod->lastFrameAt).count() < interval * 0.95)
+                    continue;
+                mod->lastFrameAt = now;
+                abi::Writer merged = payload;
+                std::memcpy(merged.data.data(), &mod->frameDtAccum, sizeof(float));
+                mod->frameDtAccum = 0;
+                Call(*mod, event, merged, budgetMs, c);
+                continue;
+            }
             if (Call(*mod, event, payload, budgetMs, c) && c)
                 cancelled = true;
         }
@@ -1125,6 +1142,8 @@ namespace perlin::mods {
                 meta.website = get("website");
                 if (const ui::Json* v = json.Find("priority"))
                     meta.priority = static_cast<int>(std::clamp(v->NumberOr(0), -1000.0, 1000.0));
+                if (const ui::Json* v = json.Find("frame_rate"))
+                    meta.frameRate = std::clamp(v->NumberOr(0), 0.0, 1000.0);
                 manifestIcon = get("icon");
                 if (const ui::Json* list = json.Find("settings"); list && list->IsArray())
                     ParseManifestSettings(*list, manifestSettings);
