@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace perlin::server::vanilla {
@@ -22,6 +23,8 @@ namespace perlin::server::vanilla {
     // Java's own r-tree resolves ties by what it found last on that thread, so ties cannot be matched exactly; they need a sample exactly on a shared edge
     // target: temperature, humidity, continentalness, erosion, depth, weirdness, each as climate * 10000
     int FindBiome(const int32_t target[6]);
+    int FindBiomePoint(const int32_t target[6], int hint);
+    int FindBiomeLinear(const int32_t target[6]);
 
     // the six climate functions of the overworld router, sampled where the biome is wanted
     class VanillaClimate {
@@ -31,6 +34,7 @@ namespace perlin::server::vanilla {
         bool Ok() const { return ok; }
         // climate * 10000 truncated, as Climate.quantizeCoord does
         void Sample(int x, int y, int z, int32_t out[6]) const;
+        void SampleColumn(int x, int z, const int* ys, int count, int32_t* out) const;
         // temperature, vegetation, continents, erosion, depth, ridges
         const std::array<DfPtr, 6>& Roots() const { return roots; }
 
@@ -40,6 +44,14 @@ namespace perlin::server::vanilla {
     };
 
     // the block that goes where: ids resolved once from the materials' names
+    struct TerrainStages {
+        const struct AquiferFunctions* aquifers = nullptr;
+        const class VanillaMaterials* materials = nullptr;
+        const class VanillaCarvers* carvers = nullptr;
+        std::function<float(int, int, int, int)> temperature;
+        std::function<int(int, int, int)> biome;
+    };
+
     struct SurfaceMaterial {
         uint16_t top, mid, foundation, seaFloor, sea;
         int32_t seaFloorDepth;
@@ -65,7 +77,7 @@ namespace perlin::server::vanilla {
         // `features`, when given, places its ores into the blocks of chunk (chunkX, chunkZ) before they are stored
         void Fill(const float* density, const uint8_t* biomes, ChunkColumn& column,
                   const class VanillaFeatures* features = nullptr, int chunkX = 0, int chunkZ = 0,
-                  const struct AquiferFunctions* aquifers = nullptr) const;
+                  const struct TerrainStages* stages = nullptr) const;
         // block ids already laid out [(x * 16 + z) * kHeight + y] into the chunk's sections (what the gpu surface stage returns)
         static void Store(const uint16_t* blocks, ChunkColumn& column);
         static void StoreBiomes(const uint8_t* biomes, ChunkColumn& column);

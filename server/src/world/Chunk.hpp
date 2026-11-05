@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -54,6 +55,18 @@ namespace perlin::server {
             genBiomes[static_cast<size_t>(x * 16 + z)] = tableIndex;
             netBiomes[static_cast<size_t>(x * 16 + z)] = networkId;
         }
+        static constexpr int kQuartLayers = kHeight / 4;
+        static constexpr int QuartIndex(int qx, int qy, int qz) { return (qy * 4 + qz) * 4 + qx; }
+        bool HasQuartBiomes() const { return hasQuartBiomes; }
+        uint8_t QuartBiome(int qx, int qy, int qz) const {
+            return hasQuartBiomes ? quartBiomes[static_cast<size_t>(QuartIndex(qx, qy, qz))]
+                                  : genBiomes[static_cast<size_t>((qx * 4 + 1) * 16 + qz * 4 + 1)];
+        }
+        void SetQuartBiomes(const uint8_t* tableIndices, const uint8_t* networkIds) {
+            std::copy_n(tableIndices, quartBiomes.size(), quartBiomes.begin());
+            std::copy_n(networkIds, quartNet.size(), quartNet.begin());
+            hasQuartBiomes = true;
+        }
         ChunkColumn Clone() const;
 
         uint64_t version = 0;
@@ -64,6 +77,9 @@ namespace perlin::server {
     private:
         std::array<Section, kSections> sections;
         std::array<uint8_t, 256> genBiomes{};
+        std::array<uint8_t, 4 * 4 * kHeight / 4> quartBiomes{};
+        std::array<uint8_t, 4 * 4 * kHeight / 4> quartNet{};
+        bool hasQuartBiomes = false;
         std::array<uint8_t, 256> netBiomes = [] {
             std::array<uint8_t, 256> a{};
             a.fill(kDefaultBiome);

@@ -95,6 +95,9 @@ namespace perlin::server {
         }
         c.genBiomes = genBiomes;
         c.netBiomes = netBiomes;
+        c.quartBiomes = quartBiomes;
+        c.quartNet = quartNet;
+        c.hasQuartBiomes = hasQuartBiomes;
         c.version = version;
         return c;
     }
@@ -134,12 +137,23 @@ namespace perlin::server {
             }
             WriteStorage(out, values);
         }
-        for (int x = 0; x < 16; x++)
-            for (int z = 0; z < 16; z++)
-                for (int y = 0; y < 16; y++)
-                    values[static_cast<size_t>(CellIndex(x, y, z))] = netBiomes[static_cast<size_t>(x * 16 + z)];
-        for (int sec = 0; sec < kSections; sec++)
-            WriteStorage(out, values);
+        if (!hasQuartBiomes) {
+            for (int x = 0; x < 16; x++)
+                for (int z = 0; z < 16; z++)
+                    for (int y = 0; y < 16; y++)
+                        values[static_cast<size_t>(CellIndex(x, y, z))] = netBiomes[static_cast<size_t>(x * 16 + z)];
+            for (int sec = 0; sec < kSections; sec++)
+                WriteStorage(out, values);
+        } else {
+            for (int sec = 0; sec < kSections; sec++) {
+                for (int x = 0; x < 16; x++)
+                    for (int z = 0; z < 16; z++)
+                        for (int y = 0; y < 16; y++)
+                            values[static_cast<size_t>(CellIndex(x, y, z))] =
+                                quartNet[static_cast<size_t>(QuartIndex(x >> 2, sec * 4 + (y >> 2), z >> 2))];
+                WriteStorage(out, values);
+            }
+        }
         // border blocks (education edition), none
         out.push_back(0);
     }

@@ -1,6 +1,7 @@
 #include "world/vanilla/VanillaTerrain.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <thread>
@@ -8,10 +9,84 @@
 
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "world/vanilla/BiomeZoom.hpp"
+
+#include <openssl/evp.h>
+#include <unordered_map>
 
 #include <vector>
 
 namespace perlin::server::vanilla {
+
+    int64_t ObfuscateBiomeSeed(int64_t seed) {
+        uint8_t in[8];
+        for (int i = 0; i < 8; i++)
+            in[i] = static_cast<uint8_t>(static_cast<uint64_t>(seed) >> (8 * i));
+        uint8_t digest[EVP_MAX_MD_SIZE];
+        unsigned int length = 0;
+        EVP_Digest(in, sizeof(in), digest, &length, EVP_sha256(), nullptr);
+        uint64_t out = 0;
+        for (int i = 7; i >= 0; i--)
+            out = (out << 8) | digest[i];
+        return static_cast<int64_t>(out);
+    }
+
+    const uint8_t* VanillaCpuBackend::ChunkFill(int chunkX, int chunkZ) const {
+        constexpr int layers = ChunkColumn::kQuartLayers;
+        using Fill = std::array<uint8_t, static_cast<size_t>(16 * layers)>;
+        thread_local std::unordered_map<uint64_t, std::unique_ptr<Fill>> cache;
+        thread_local const VanillaCpuBackend* owner = nullptr;
+        if (owner != this) {
+            cache.clear();
+            owner = this;
+        }
+        const uint64_t key = (static_cast<uint64_t>(static_cast<uint32_t>(chunkX)) << 32) | static_cast<uint32_t>(chunkZ);
+        if (const auto it = cache.find(key); it != cache.end())
+            return it->second->data();
+        if (cache.size() >= 2048)
+            cache.clear();
+        auto fill = std::make_unique<Fill>();
+        std::array<int, layers> ys{};
+        for (int qy = 0; qy < layers; qy++)
+            ys[static_cast<size_t>(qy)] = ((kMinY >> 2) + qy) * 4;
+        std::vector<int32_t> targets(static_cast<size_t>(16 * layers) * 6);
+        for (int qx = 0; qx < 4; qx++)
+            for (int qz = 0; qz < 4; qz++)
+                climate->SampleColumn((chunkX * 4 + qx) * 4, (chunkZ * 4 + qz) * 4, ys.data(), layers,
+                                      targets.data() + static_cast<size_t>((qx * 4 + qz) * layers) * 6);
+        int hint = -1;
+        for (int section = 0; section < layers / 4; section++)
+            for (int qx = 0; qx < 4; qx++)
+                for (int sy = 0; sy < 4; sy++)
+                    for (int qz = 0; qz < 4; qz++) {
+                        const int qy = section * 4 + sy;
+                        const int32_t* t = targets.data() + static_cast<size_t>((qx * 4 + qz) * layers + qy) * 6;
+                        hint = FindBiomePoint(t, hint);
+                        (*fill)[static_cast<size_t>(ChunkColumn::QuartIndex(qx, qy, qz))] = kBiomePointBiome[hint];
+                    }
+        const uint8_t* out = fill->data();
+        cache.emplace(key, std::move(fill));
+        return out;
+    }
+
+    int VanillaCpuBackend::NoiseBiome(int quartX, int quartY, int quartZ) const {
+        const int qy = std::clamp(quartY - (kMinY >> 2), 0, ChunkColumn::kQuartLayers - 1);
+        return ChunkFill(quartX >> 2, quartZ >> 2)[ChunkColumn::QuartIndex(quartX & 3, qy, quartZ & 3)];
+    }
+
+    int VanillaCpuBackend::BiomeAt(int x, int y, int z) const {
+        const QuartPos3 q = ZoomedQuart(zoomSeed, x, y, z);
+        return NoiseBiome(q.x, q.y, q.z);
+    }
+
+    void VanillaCpuBackend::QuartBiomes(int chunkX, int chunkZ, ChunkColumn& column) const {
+        constexpr int layers = ChunkColumn::kQuartLayers;
+        const uint8_t* fill = ChunkFill(chunkX, chunkZ);
+        std::vector<uint8_t> network(static_cast<size_t>(16 * layers));
+        for (size_t i = 0; i < network.size(); i++)
+            network[i] = NetworkBiome(fill[i]);
+        column.SetQuartBiomes(fill, network.data());
+    }
 
     std::unique_ptr<VanillaCpuBackend> VanillaCpuBackend::Create(const ServerConfig& config,
                                                                  std::string& error) {
@@ -35,6 +110,22 @@ namespace perlin::server::vanilla {
         b->features = std::make_unique<VanillaFeatures>(static_cast<int64_t>(config.seed));
         if (!std::getenv("PERLIN_NO_DECORATION"))
             b->decorator = std::make_unique<JavaDecorator>(static_cast<int64_t>(config.seed));
+        if (b->aquifers.ok && !std::getenv("PERLIN_NO_SURFACE_RULES"))
+            b->materials = VanillaMaterials::Load(*b->pack, *b->graph, b->aquifers.seaLevel);
+        if (b->materials && !std::getenv("PERLIN_NO_CARVERS"))
+            b->carvers = VanillaCarvers::Load(*b->pack, static_cast<int64_t>(config.seed));
+        b->zoomSeed = ObfuscateBiomeSeed(static_cast<int64_t>(config.seed));
+        if (!std::getenv("PERLIN_NO_3D_BIOMES")) {
+            const VanillaCpuBackend* self = b.get();
+            b->stages.biome = [self](int x, int y, int z) { return self->BiomeAt(x, y, z); };
+        }
+        b->stages.aquifers = b->Aquifers();
+        b->stages.materials = b->materials.get();
+        b->stages.carvers = b->carvers.get();
+        if (b->decorator) {
+            const JavaDecorator* d = b->decorator.get();
+            b->stages.temperature = [d](int biome, int x, int y, int z) { return d->Temperature(biome, x, y, z); };
+        }
         return b;
     }
 
@@ -50,8 +141,10 @@ namespace perlin::server::vanilla {
                             finalDensity->Eval(bx + x, kMinY + y, bz + z);
             std::array<uint8_t, 256> biomes;
             BiomesOf(density.data(), positions[n].x, positions[n].z, biomes.data());
-            surface->Fill(density.data(), biomes.data(), out[n], features.get(), positions[n].x,
-                          positions[n].z, Aquifers());
+            surface->Fill(density.data(), biomes.data(), out[n], Decorates() ? nullptr : features.get(), positions[n].x,
+                          positions[n].z, Stages());
+            if (stages.biome)
+                QuartBiomes(positions[n].x, positions[n].z, out[n]);
         }
     }
 }

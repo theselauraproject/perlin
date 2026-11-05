@@ -357,6 +357,20 @@ namespace perlin::server::vanilla {
         }
         case O::OldBlendedNoise:
             return blended->Get(x, y, z);
+        case O::FindTopSurface: {
+            const float upper = in[1]->Eval(x, 0, z);
+            const float q = upper / static_cast<float>(cellY);
+            int floored = static_cast<int>(q);
+            if (q < static_cast<float>(floored))
+                floored--;
+            const int top = floored * cellY;
+            if (top <= minCoordinate)
+                return static_cast<float>(minCoordinate);
+            for (int probe = top; probe >= minCoordinate; probe -= cellY)
+                if (in[0]->Eval(x, probe, z) > 0.0f)
+                    return static_cast<float>(probe);
+            return static_cast<float>(minCoordinate);
+        }
         case O::Unsupported:
             return 0.0f;
         }
@@ -432,6 +446,7 @@ namespace perlin::server::vanilla {
             case O::Unsupported:
             case O::ShiftA:
             case O::ShiftB:
+            case O::FindTopSurface:
                 return false;
             case O::Gradient:
                 return n.axis == 1;
@@ -555,6 +570,11 @@ namespace perlin::server::vanilla {
         } else if (type == "blend_density") {
             node->op = O::Pass;
             node->in = {child("input")};
+        } else if (type == "find_top_surface") {
+            node->op = O::FindTopSurface;
+            node->in = {child("density"), child("upper_bound")};
+            node->minCoordinate = static_cast<int>(v["lower_bound"].Int());
+            node->cellY = static_cast<int>(v["cell_height"].Int(8));
         } else if (type == "old_blended_noise") {
             node->op = O::OldBlendedNoise;
             // the generator seeds it from the world's positional random by the name "minecraft:terrain"

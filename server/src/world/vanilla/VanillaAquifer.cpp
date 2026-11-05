@@ -41,14 +41,6 @@ namespace perlin::server::vanilla {
         double ClampedMap(double v, double a, double b, double c, double d) {
             return ClampedLerp(InverseLerp(v, a, b), c, d);
         }
-        int64_t JavaSeed(int x, int y, int z) {
-            const int32_t xs = static_cast<int32_t>(static_cast<uint32_t>(x) * 3129871u);
-            uint64_t seed = static_cast<uint64_t>(static_cast<int64_t>(xs)) ^
-                            (static_cast<uint64_t>(static_cast<int64_t>(z)) * 116129781ull) ^
-                            static_cast<uint64_t>(static_cast<int64_t>(y));
-            seed = seed * seed * 42317861ull + seed * 11ull;
-            return static_cast<int64_t>(seed) >> 16;
-        }
     }
 
     AquiferFunctions AquiferFunctions::Load(const DataPack& pack, DensityGraph& graph) {
@@ -240,7 +232,7 @@ namespace perlin::server::vanilla {
                     const int index = Index(gx, gy, gz);
                     const size_t li = static_cast<size_t>(index) * 3;
                     if (!located[static_cast<size_t>(index)]) {
-                        Xoroshiro r(static_cast<uint64_t>(JavaSeed(gx, gy, gz)) ^ f.random.lo, f.random.hi);
+                        Xoroshiro r = f.random.At(gx, gy, gz);
                         locations[li] = FromGridX(gx, r.NextInt(10));
                         locations[li + 1] = FromGridY(gy, r.NextInt(9));
                         locations[li + 2] = FromGridX(gz, r.NextInt(10));

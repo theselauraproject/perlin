@@ -36,6 +36,7 @@ static void TestLookup(const char* path) {
             continue;
         const int want = IndexOf(name.substr(name.find(':') + 1));
         const int got = FindBiome(t);
+        CHECK(got == FindBiomeLinear(t));
         checked++;
         if (want != got) {
             if (wrong++ < 5)
@@ -43,9 +44,31 @@ static void TestLookup(const char* path) {
                             t[5], name.c_str(), kBiomes[got].java);
         }
     }
-    std::printf("biome lookup: %d samples, %d differ from Java's brute force\n", checked, wrong);
+    std::printf("biome lookup: %d samples, %d differ from Java's lookup\n", checked, wrong);
     CHECK(checked >= 29000);
     CHECK(wrong == 0);
+}
+
+static void TestSearchAgreesWithLinear() {
+    uint64_t state = 0x9E3779B97F4A7C15ull;
+    const auto next = [&] {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        return state;
+    };
+    int differ = 0;
+    for (int i = 0; i < 20000; i++) {
+        int32_t t[6];
+        for (int d = 0; d < 6; d++)
+            t[d] = static_cast<int32_t>(next() % 24001) - 12000;
+        if (i % 3 == 0)
+            t[4] = 0;
+        if (FindBiome(t) != FindBiomeLinear(t))
+            differ++;
+    }
+    std::printf("indexed biome search: %d of 20000 random targets differ from the linear scan\n", differ);
+    CHECK(differ == 0);
 }
 
 static void TestTable() {
@@ -178,6 +201,7 @@ static void TestLocate() {
 int main(int argc, char** argv) {
     BlockCatalog::Instance().LoadBuiltin();
     TestTable();
+    TestSearchAgreesWithLinear();
     TestLayers();
     if (argc > 1)
         TestLookup(argv[1]);

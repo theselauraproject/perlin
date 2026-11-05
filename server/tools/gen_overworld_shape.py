@@ -2,7 +2,7 @@
 
 The shape of the overworld (density functions, noise definitions, noise settings) is not in bedrock-samples or the dedicated server
 package, only in Java's data pack, so the server carries these values compiled in. The output is a deflated archive of
-data/minecraft/worldgen/{density_function,noise}/** and noise_settings/overworld.json as a byte array; nothing reads a jar at run time.
+data/minecraft/worldgen/{density_function,noise,material_rule,material_condition,carver}/** and noise_settings/overworld.json as a byte array; nothing reads a jar at run time.
 Regenerate only when the Java data changes. The file is deterministic (sorted, fixed timestamps).
 """
 import io
@@ -16,7 +16,8 @@ keep = []
 for name in sorted(src.namelist()):
     if name.endswith('/'):
         continue
-    if name.startswith(prefix + 'density_function/') or name.startswith(prefix + 'noise/') or name == prefix + 'noise_settings/overworld.json':
+    if name.startswith(prefix + 'density_function/') or name.startswith(prefix + 'noise/') or name == prefix + 'noise_settings/overworld.json' \
+            or name.startswith(prefix + 'material_rule/') or name.startswith(prefix + 'material_condition/') or name.startswith(prefix + 'carver/'):
         keep.append(name)
 
 buf = io.BytesIO()

@@ -183,10 +183,17 @@ namespace perlin {
         constexpr bool kWindows = false, kApple = false;
 #endif
         const char* debugger = gfxdebug::Attached();
+        const bool chosenByUser = user.api != conduit::api::none;
+        if (debugger && kWindows && !chosenByUser && !strict) {
+            user.api = conduit::api::d3d12;
+            Log("gpu", "{} attached: starting on Direct3D 12, which it captures without a Vulkan layer", debugger);
+        }
         conduit::probe_options probeOptions;
         probeOptions.read_caps = !debugger;
-        if (debugger && user.api != conduit::api::none)
+        if (debugger && chosenByUser)
             probeOptions.apis = {user.api};
+        else if (debugger && kWindows)
+            probeOptions.apis = {conduit::api::d3d12, conduit::api::d3d11};
         const conduit::probe probe = conduit::probe_system(probeOptions);
         std::vector<conduit::known_failure> failures = debugger ? std::vector<conduit::known_failure>{} : ReadFailures();
         if (debugger)
@@ -1396,6 +1403,8 @@ namespace perlin {
         const bool debugger = gfxdebug::Attached() != nullptr;
         conduit::probe_options probeOptions;
         probeOptions.read_caps = !debugger;
+        if (debugger && kWindows)
+            probeOptions.apis = {conduit::api::d3d12, conduit::api::d3d11};
         const conduit::probe probe = conduit::probe_system(probeOptions);
         return conduit::choose_profile(probe, conduit::user_choice{},
                                        debugger ? std::vector<conduit::known_failure>{} : ReadFailures(), kWindows,

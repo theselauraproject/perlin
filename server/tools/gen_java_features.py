@@ -165,8 +165,6 @@ def visit_any(o):
 
 for b in biomes.values():
     for step, names in enumerate(b['features']):
-        if step == 6:
-            continue
         for n in names:
             visit_placed(n)
 
@@ -176,8 +174,6 @@ for step in range(11):
     seen = []
     for b in biomes.values():
         names = b['features'][step] if step < len(b['features']) else []
-        if step == 6:
-            names = []
         for i, n in enumerate(names):
             if n not in edges:
                 edges[n] = set()
@@ -230,7 +226,7 @@ for t in raw_tags:
 
 doc = {
     'biomes': {k: {'temperature': v['temperature'], 'frozen': v['frozen'], 'precipitation': v['precipitation'],
-                   'features': [[] if i == 6 else s for i, s in enumerate(v['features'])],
+                   'features': v['features'],
                    'spawns': v['spawns']} for k, v in biomes.items()},
     'order': order,
     'placed': {k: convert(placed[k]) for k in sorted(used_placed)},

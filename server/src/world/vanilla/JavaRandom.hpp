@@ -66,6 +66,8 @@ namespace perlin::server::vanilla {
             }
             return static_cast<int32_t>(m >> 32);
         }
+        bool NextBool() { return (NextLong() & 1) != 0; }
+        int32_t NextIntBetweenInclusive(int32_t a, int32_t b) { return NextInt(b - a + 1) + a; }
         double NextDouble() { return static_cast<double>(NextLong() >> 11) * 1.1102230246251565E-16; }
         float NextFloat() { return static_cast<float>(NextLong() >> 40) * 5.9604645E-8f; }
 
@@ -78,6 +80,14 @@ namespace perlin::server::vanilla {
             }
             Xoroshiro FromSeed(int64_t seed) const {
                 return Xoroshiro(static_cast<uint64_t>(seed) ^ lo, static_cast<uint64_t>(seed) ^ hi);
+            }
+            Xoroshiro At(int x, int y, int z) const {
+                const int32_t xs = static_cast<int32_t>(static_cast<uint32_t>(x) * 3129871u);
+                uint64_t seed = static_cast<uint64_t>(static_cast<int64_t>(xs)) ^
+                                (static_cast<uint64_t>(static_cast<int64_t>(z)) * 116129781ull) ^
+                                static_cast<uint64_t>(static_cast<int64_t>(y));
+                seed = seed * seed * 42317861ull + seed * 11ull;
+                return Xoroshiro(static_cast<uint64_t>(static_cast<int64_t>(seed) >> 16) ^ lo, hi);
             }
         };
         Factory ForkPositional() {

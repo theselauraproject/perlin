@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
                          "overworld/final_density"};
     std::ifstream in(argv[1]);
     std::string line;
-    int bad = 0, checked = 0, skipped = 0;
+    int bad = 0, checked = 0;
     while (std::getline(in, line)) {
         std::istringstream ls(line);
         int x, y, z;
@@ -39,11 +39,6 @@ int main(int argc, char** argv) {
                 continue;
             const std::string name = tok.substr(0, eq);
             const float want = std::strtof(tok.c_str() + eq + 1, nullptr);
-            // "surf" is chunk_surface_level, which needs find_top_surface: not ported, so it is reported and left out of the comparison
-            if (name == "surf") {
-                skipped++;
-                continue;
-            }
             for (int k = 0; k < 8; k++)
                 if (name == names[k]) {
                     DfPtr node = graph.Load(ids[k]);
@@ -63,7 +58,7 @@ int main(int argc, char** argv) {
     }
     for (const std::string& u : graph.Unsupported())
         std::printf("unsupported node type: %s\n", u.c_str());
-    std::printf("%d value(s) checked, %d differ, %d not ported (find_top_surface)\n", checked, bad, skipped);
+    std::printf("%d value(s) checked, %d differ\n", checked, bad);
     // a missing or empty reference file must not pass
     if (checked < 30) {
         std::printf("too few values checked: is the reference file readable?\n");

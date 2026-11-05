@@ -2,29 +2,191 @@
 
 #include "world/BlockCatalog.hpp"
 #include "world/vanilla/VanillaAquifer.hpp"
+#include "world/vanilla/VanillaCarvers.hpp"
 #include "world/vanilla/VanillaFeatures.hpp"
+#include "world/vanilla/VanillaMaterials.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <climits>
+#include <vector>
 #include <memory>
 
 namespace perlin::server::vanilla {
 
-    int FindBiome(const int32_t target[6]) {
+    namespace {
+        uint32_t AxisDistance(int32_t t, int32_t lo, int32_t hi) {
+            const int32_t over = t - hi, under = lo - t;
+            uint32_t dist = over > 0 ? static_cast<uint32_t>(over) : (under > 0 ? static_cast<uint32_t>(under) : 0u);
+            dist = std::min(dist, kMaxClimateDistance);
+            return dist * dist;
+        }
+
+        struct BiomeNode {
+            std::array<int32_t, 6> lo{}, hi{};
+            uint64_t minOffset = 0;
+            int first = 0, count = 0;
+            int left = -1, right = -1;
+        };
+
+        struct BiomeTree {
+            std::vector<int> order;
+            std::vector<BiomeNode> nodes;
+
+            int Build(int first, int count) {
+                BiomeNode n;
+                n.first = first;
+                n.count = count;
+                n.lo.fill(INT32_MAX);
+                n.hi.fill(INT32_MIN);
+                n.minOffset = UINT64_MAX;
+                for (int k = first; k < first + count; k++) {
+                    const int16_t* p = kBiomePointData + static_cast<size_t>(order[static_cast<size_t>(k)]) * kBiomePointStride;
+                    for (int d = 0; d < 6; d++) {
+                        n.lo[static_cast<size_t>(d)] = std::min<int32_t>(n.lo[static_cast<size_t>(d)], p[d * 2]);
+                        n.hi[static_cast<size_t>(d)] = std::max<int32_t>(n.hi[static_cast<size_t>(d)], p[d * 2 + 1]);
+                    }
+                    const uint64_t off = static_cast<uint64_t>(std::abs(static_cast<int32_t>(p[12])));
+                    n.minOffset = std::min(n.minOffset, off * off);
+                }
+                const int index = static_cast<int>(nodes.size());
+                nodes.push_back(n);
+                if (count <= 8)
+                    return index;
+                int axis = 0;
+                int64_t spread = -1;
+                for (int d = 0; d < 6; d++) {
+                    int64_t cmin = INT64_MAX, cmax = INT64_MIN;
+                    for (int k = first; k < first + count; k++) {
+                        const int16_t* p = kBiomePointData + static_cast<size_t>(order[static_cast<size_t>(k)]) * kBiomePointStride;
+                        const int64_t c = static_cast<int64_t>(p[d * 2]) + p[d * 2 + 1];
+                        cmin = std::min(cmin, c);
+                        cmax = std::max(cmax, c);
+                    }
+                    if (cmax - cmin > spread) {
+                        spread = cmax - cmin;
+                        axis = d;
+                    }
+                }
+                auto begin = order.begin() + first, end = begin + count;
+                std::sort(begin, end, [axis](int a, int b) {
+                    const int16_t* pa = kBiomePointData + static_cast<size_t>(a) * kBiomePointStride;
+                    const int16_t* pb = kBiomePointData + static_cast<size_t>(b) * kBiomePointStride;
+                    const int ca = pa[axis * 2] + pa[axis * 2 + 1], cb = pb[axis * 2] + pb[axis * 2 + 1];
+                    return ca != cb ? ca < cb : a < b;
+                });
+                const int half = count / 2;
+                const int left = Build(first, half);
+                const int right = Build(first + half, count - half);
+                nodes[static_cast<size_t>(index)].left = left;
+                nodes[static_cast<size_t>(index)].right = right;
+                return index;
+            }
+
+            uint64_t Bound(const BiomeNode& n, const int32_t* t) const {
+                uint64_t b = n.minOffset;
+                for (int d = 0; d < 6; d++)
+                    b += AxisDistance(t[d], n.lo[static_cast<size_t>(d)], n.hi[static_cast<size_t>(d)]);
+                return b;
+            }
+
+            void Search(int index, const int32_t* t, uint64_t& best, int& foundIndex, int hint) const {
+                const BiomeNode& n = nodes[static_cast<size_t>(index)];
+                if (n.left < 0) {
+                    for (int k = n.first; k < n.first + n.count; k++) {
+                        const int i = order[static_cast<size_t>(k)];
+                        const int16_t* p = kBiomePointData + static_cast<size_t>(i) * kBiomePointStride;
+                        uint64_t fit = 0;
+                        for (int d = 0; d < 6 && fit <= best; d++)
+                            fit += AxisDistance(t[d], p[d * 2], p[d * 2 + 1]);
+                        const uint64_t off = static_cast<uint64_t>(std::abs(static_cast<int32_t>(p[12])));
+                        fit += off * off;
+                        if (fit < best || (fit == best && foundIndex != hint && i < foundIndex)) {
+                            best = fit;
+                            foundIndex = i;
+                        }
+                    }
+                    return;
+                }
+                const BiomeNode& a = nodes[static_cast<size_t>(n.left)];
+                const BiomeNode& b = nodes[static_cast<size_t>(n.right)];
+                const uint64_t ba = Bound(a, t), bb = Bound(b, t);
+                if (ba <= bb) {
+                    if (ba <= best)
+                        Search(n.left, t, best, foundIndex, hint);
+                    if (bb <= best)
+                        Search(n.right, t, best, foundIndex, hint);
+                } else {
+                    if (bb <= best)
+                        Search(n.right, t, best, foundIndex, hint);
+                    if (ba <= best)
+                        Search(n.left, t, best, foundIndex, hint);
+                }
+            }
+        };
+
+        const BiomeTree& Tree() {
+            static const BiomeTree tree = [] {
+                BiomeTree t;
+                t.order.resize(static_cast<size_t>(kBiomePointCount));
+                for (int i = 0; i < kBiomePointCount; i++)
+                    t.order[static_cast<size_t>(i)] = i;
+                t.nodes.reserve(static_cast<size_t>(kBiomePointCount));
+                t.Build(0, kBiomePointCount);
+                return t;
+            }();
+            return tree;
+        }
+    }
+
+    int FindBiomePoint(const int32_t target[6], int hint) {
+        const BiomeTree& tree = Tree();
+        uint64_t best = 0xFFFFFFFFull - 1;
+        int foundIndex = INT32_MAX;
+        if (hint >= 0 && hint < kBiomePointCount) {
+            const int16_t* p = kBiomePointData + static_cast<size_t>(hint) * kBiomePointStride;
+            uint64_t fit = 0;
+            for (int d = 0; d < 6; d++)
+                fit += AxisDistance(target[d], p[d * 2], p[d * 2 + 1]);
+            const uint64_t off = static_cast<uint64_t>(std::abs(static_cast<int32_t>(p[12])));
+            fit += off * off;
+            if (fit < best) {
+                best = fit;
+                foundIndex = hint;
+            }
+        } else {
+            hint = -1;
+        }
+        tree.Search(0, target, best, foundIndex, hint);
+        if (foundIndex == INT32_MAX) {
+            uint32_t lbest = 0xFFFFFFFFu;
+            foundIndex = 0;
+            for (int i = 0; i < kBiomePointCount; i++) {
+                const int16_t* p = kBiomePointData + static_cast<size_t>(i) * kBiomePointStride;
+                uint32_t fit = 0;
+                for (int d = 0; d < 6; d++)
+                    fit += AxisDistance(target[d], p[d * 2], p[d * 2 + 1]);
+                fit += static_cast<uint32_t>(std::abs(static_cast<int32_t>(p[12]))) * static_cast<uint32_t>(std::abs(static_cast<int32_t>(p[12])));
+                if (fit < lbest) {
+                    lbest = fit;
+                    foundIndex = i;
+                }
+            }
+        }
+        return foundIndex;
+    }
+
+    int FindBiome(const int32_t target[6]) { return kBiomePointBiome[FindBiomePoint(target, -1)]; }
+
+    int FindBiomeLinear(const int32_t target[6]) {
         uint32_t best = 0xFFFFFFFFu;
         int found = 0;
         for (int i = 0; i < kBiomePointCount; i++) {
             const int16_t* p = kBiomePointData + static_cast<size_t>(i) * kBiomePointStride;
             uint32_t fit = 0;
-            for (int d = 0; d < 6 && fit < best; d++) {
-                const int32_t lo = p[d * 2], hi = p[d * 2 + 1];
-                const int32_t t = target[d];
-                const int32_t over = t - hi, under = lo - t;
-                uint32_t dist =
-                    over > 0 ? static_cast<uint32_t>(over) : (under > 0 ? static_cast<uint32_t>(under) : 0u);
-                dist = std::min(dist, kMaxClimateDistance);
-                fit += dist * dist;
-            }
+            for (int d = 0; d < 6 && fit < best; d++)
+                fit += AxisDistance(target[d], p[d * 2], p[d * 2 + 1]);
             const uint32_t offset = static_cast<uint32_t>(std::abs(static_cast<int32_t>(p[12])));
             if (fit < best) {
                 fit += offset * offset;
@@ -54,6 +216,24 @@ namespace perlin::server::vanilla {
             // (long)(v * 10000.0F): float product, truncated toward zero, NaN as 0
             const float scaled = v * 10000.0f;
             out[i] = scaled != scaled ? 0 : static_cast<int32_t>(std::clamp(scaled, -2.0e9f, 2.0e9f));
+        }
+    }
+
+    void VanillaClimate::SampleColumn(int x, int z, const int* ys, int count, int32_t* out) const {
+        for (size_t i = 0; i < 6; i++) {
+            const bool flat = !roots[i]->yDependent;
+            int32_t first = 0;
+            for (int n = 0; n < count; n++) {
+                if (flat && n > 0) {
+                    out[n * 6 + static_cast<int>(i)] = first;
+                    continue;
+                }
+                const float v = roots[i]->Eval(x, ys[n], z);
+                const float scaled = v * 10000.0f;
+                const int32_t q = scaled != scaled ? 0 : static_cast<int32_t>(std::clamp(scaled, -2.0e9f, 2.0e9f));
+                out[n * 6 + static_cast<int>(i)] = q;
+                first = q;
+            }
         }
     }
 
@@ -139,7 +319,9 @@ namespace perlin::server::vanilla {
 
     void VanillaSurface::Fill(const float* density, const uint8_t* biomes, ChunkColumn& column,
                               const VanillaFeatures* features, int chunkX, int chunkZ,
-                              const AquiferFunctions* aquifers) const {
+                              const TerrainStages* stages) const {
+        const AquiferFunctions* aquifers = stages ? stages->aquifers : nullptr;
+        const VanillaMaterials* rules = stages ? stages->materials : nullptr;
         std::vector<uint16_t> blocks(static_cast<size_t>(16 * 16 * kHeight), 0);
         std::unique_ptr<VanillaAquifer> aquifer;
         if (aquifers && aquifers->ok)
@@ -165,6 +347,13 @@ namespace perlin::server::vanilla {
                 }
                 for (int y = 0; y < kHeight; y++) {
                     const VanillaAquifer::Substance k = kinds[static_cast<size_t>(y)];
+                    if (rules) {
+                        out[y] = k == VanillaAquifer::Substance::Solid   ? stone
+                                 : k == VanillaAquifer::Substance::Water ? water
+                                 : k == VanillaAquifer::Substance::Lava  ? lava
+                                                                         : static_cast<uint16_t>(0);
+                        continue;
+                    }
                     if (k == VanillaAquifer::Substance::Solid || y == 0)
                         out[y] = BlockAt(m, y, top, true);
                     else if (k == VanillaAquifer::Substance::Water)
@@ -175,6 +364,12 @@ namespace perlin::server::vanilla {
                         out[y] = 0;
                 }
             }
+        if (rules && aquifer) {
+            rules->Apply(chunkX, chunkZ, biomes, blocks.data(), stages->temperature, stages->biome);
+            if (stages->carvers)
+                stages->carvers->Carve(chunkX, chunkZ, blocks.data(), *aquifer, rules, biomes, stages->temperature,
+                                       stages->biome);
+        }
         if (features)
             features->Apply(chunkX, chunkZ, biomes, blocks.data());
         Store(blocks.data(), column);

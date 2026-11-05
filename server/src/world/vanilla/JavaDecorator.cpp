@@ -3,6 +3,7 @@
 
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "world/vanilla/BiomeZoom.hpp"
 #include "world/vanilla/BiomeData.hpp"
 #include "world/vanilla/JavaRandom.hpp"
 
@@ -98,6 +99,10 @@ namespace perlin::server::vanilla {
         public:
             explicit Simplex(int64_t seed) {
                 LegacyRandom r(seed);
+                Init(r);
+            }
+            explicit Simplex(LegacyRandom& r) { Init(r); }
+            void Init(LegacyRandom& r) {
                 r.NextDouble();
                 r.NextDouble();
                 r.NextDouble();
@@ -131,11 +136,27 @@ namespace perlin::server::vanilla {
                     t *= t;
                     return t * t * (G[g][0] * cx + G[g][1] * cy);
                 };
-                return 70.0 * (corner(a, d4, d5) + corner(b, d6, d7) + corner(c, d8, d9));
+                return static_cast<float>(70.0 * (corner(a, d4, d5) + corner(b, d6, d7) + corner(c, d8, d9)));
             }
 
         private:
             int p[256];
+        };
+
+        class FrozenNoise {
+        public:
+            explicit FrozenNoise(int64_t seed) : r(seed), a(r), b(r), c(r) {}
+            float Get(double x, double z) const {
+                float v = 0.0f;
+                v += 0.14285715f * static_cast<float>(a.Get(x, z));
+                v += 0.2857143f * static_cast<float>(b.Get(x * 0.5, z * 0.5));
+                v += 0.5714286f * static_cast<float>(c.Get(x * 0.25, z * 0.25));
+                return v;
+            }
+
+        private:
+            LegacyRandom r;
+            Simplex a, b, c;
         };
 
         enum Flag : uint8_t {
@@ -162,9 +183,10 @@ namespace perlin::server::vanilla {
         std::array<std::unordered_map<std::string, int>, 11> order;
         std::unordered_map<std::string, std::unordered_set<std::string>> tags;
         int64_t seed = 0;
+        int64_t zoomSeed = 0;
         Simplex biomeInfo{2345};
         Simplex temperatureNoise{1234};
-        Simplex frozenNoise{3456};
+        FrozenNoise frozenNoise{3456};
         uint16_t water = 0, ice = 0, snow = 0, vine = 0, air = 0;
         mutable std::unique_ptr<std::atomic<uint8_t>[]> flags{new std::atomic<uint8_t>[65536]()};
         mutable std::vector<std::string> names;
@@ -275,6 +297,22 @@ namespace perlin::server::vanilla {
             int BiomeIndex(int x, int z) const {
                 const ChunkColumn* c = Column(x, z);
                 return c ? c->GenBiome(x & 15, z & 15) : 0;
+            }
+            int BiomeIndex3(int x, int y, int z) const {
+                const QuartPos3 q = ZoomedQuart(d.zoomSeed, x, y, z);
+                const ChunkColumn* c = Column(q.x * 4, q.z * 4);
+                if (!c)
+                    return BiomeIndex(x, z);
+                if (!c->HasQuartBiomes())
+                    return c->GenBiome((q.x * 4) & 15, (q.z * 4) & 15);
+                const int qy = std::clamp(q.y - (kMinY >> 2), 0, ChunkColumn::kQuartLayers - 1);
+                return c->QuartBiome(q.x & 3, qy, q.z & 3);
+            }
+            const JavaBiome* BiomeAt3(int x, int y, int z) const {
+                const int i = BiomeIndex3(x, y, z);
+                return i >= 0 && i < static_cast<int>(d.tableToBiome.size()) && d.tableToBiome[static_cast<size_t>(i)] >= 0
+                           ? &d.biomes[static_cast<size_t>(d.tableToBiome[static_cast<size_t>(i)])]
+                           : nullptr;
             }
             const JavaBiome* BiomeAt(int x, int z) const {
                 const int i = BiomeIndex(x, z);
@@ -704,7 +742,7 @@ namespace perlin::server::vanilla {
                 } else if (Is(m, "height_range")) {
                     out.push_back({p.x, SampleHeight(m["height"]), p.z});
                 } else if (Is(m, "biome")) {
-                    const JavaBiome* b = w.BiomeAt(p.x, p.z);
+                    const JavaBiome* b = w.BiomeAt3(p.x, p.y, p.z);
                     if (b && b->placed.contains(w.topFeature))
                         out.push_back(p);
                 } else if (Is(m, "rarity_filter")) {
@@ -728,6 +766,10 @@ namespace perlin::server::vanilla {
                     const int y = SampleInt(m["y_spread"]);
                     const int z = SampleInt(m["xz_spread"]);
                     out.push_back(p.Off(x, y, z));
+                } else if (Is(m, "surface_relative_threshold_filter")) {
+                    const int64_t surface = w.Height(m["heightmap"].text, p.x, p.z);
+                    if (surface + m["min_inclusive"].Int(INT32_MIN) <= p.y && p.y <= surface + m["max_inclusive"].Int(INT32_MAX))
+                        out.push_back(p);
                 } else if (Is(m, "environment_scan")) {
                     const int dir = m["direction_of_search"].text == "up" ? 1 : -1;
                     const int steps = static_cast<int>(m["max_steps"].Int());
@@ -785,10 +827,244 @@ namespace perlin::server::vanilla {
                 w.Set(p, id);
             }
 
+            bool RuleTest(const json::Value& t, uint16_t id, const Pos& p) {
+                const std::string type = t["predicate_type"].String();
+                const std::string_view name = std::string_view(type).substr(type.starts_with("minecraft:") ? 10 : 0);
+                if (name == "always_true")
+                    return true;
+                if (name == "tag_match")
+                    return d.InTag(t["tag"].String(), id);
+                if (name == "block_match")
+                    return id == StateId(t["block"]) ||
+                           BlockRegistry::Instance().Name(id) == BlockRegistry::Instance().Name(StateId(t["block"]));
+                if (name == "blockstate_match")
+                    return id == StateId(t["block_state"]);
+                if (name == "random_block_match")
+                    return BlockRegistry::Instance().Name(id) == BlockRegistry::Instance().Name(StateId(t["block"])) &&
+                           r.NextFloat() < static_cast<float>(t["probability"].Number());
+                if (name == "random_blockstate_match")
+                    return id == StateId(t["block_state"]) && r.NextFloat() < static_cast<float>(t["probability"].Number());
+                if (name == "height_match")
+                    return t["min_inclusive"].Int(INT32_MIN) <= p.y && p.y <= t["max_inclusive"].Int(INT32_MAX);
+                if (name == "not")
+                    return !RuleTest(t["rule"], id, p);
+                if (name == "all_of") {
+                    for (const auto& e : t["rules"].items)
+                        if (!RuleTest(e, id, p))
+                            return false;
+                    return true;
+                }
+                if (name == "any_of") {
+                    for (const auto& e : t["rules"].items)
+                        if (RuleTest(e, id, p))
+                            return true;
+                    return false;
+                }
+                return false;
+            }
+
+            bool CanPlaceOre(uint16_t id, const json::Value& target, float discard, const Pos& p) {
+                if (!RuleTest(target["target"], id, p))
+                    return false;
+                if (discard <= 0.0f)
+                    return true;
+                if (discard < 1.0f && r.NextFloat() >= discard)
+                    return true;
+                for (const Pos& n : {p.Off(0, -1, 0), p.Off(0, 1, 0), p.Off(0, 0, -1), p.Off(0, 0, 1), p.Off(-1, 0, 0), p.Off(1, 0, 0)})
+                    if (w.AirAt(n))
+                        return false;
+                return true;
+            }
+
+            static float TableSin(double v) {
+                static const std::vector<float> table = [] {
+                    std::vector<float> t(65536);
+                    for (size_t i = 0; i < t.size(); i++)
+                        t[i] = static_cast<float>(std::sin(static_cast<double>(i) / 10430.378350470453));
+                    return t;
+                }();
+                return table[static_cast<size_t>(static_cast<int64_t>(v * 10430.378350470453) & 0xFFFF)];
+            }
+
+            static int CeilF(float v) {
+                const int i = static_cast<int>(v);
+                return v > static_cast<float>(i) ? i + 1 : i;
+            }
+            static int FloorD(double v) {
+                const int i = static_cast<int>(v);
+                return v < static_cast<double>(i) ? i - 1 : i;
+            }
+
+            bool Ore(const json::Value& c, const Pos& origin) {
+                const int size = static_cast<int>(c["size"].Int());
+                const float discard = static_cast<float>(c["discard_chance_on_air_exposure"].Number());
+                const auto& targets = c["targets"].items;
+                const float dir = r.NextFloat() * 3.14159265358979323846f;
+                const float spread = static_cast<float>(size) / 8.0f;
+                const int maxRadius = CeilF((static_cast<float>(size) / 16.0f * 2.0f + 1.0f) / 2.0f);
+                const double x0 = origin.x + std::sin(static_cast<double>(dir)) * static_cast<double>(spread);
+                const double x1 = origin.x - std::sin(static_cast<double>(dir)) * static_cast<double>(spread);
+                const double z0 = origin.z + std::cos(static_cast<double>(dir)) * static_cast<double>(spread);
+                const double z1 = origin.z - std::cos(static_cast<double>(dir)) * static_cast<double>(spread);
+                const double y0 = origin.y + r.NextInt(3) - 2;
+                const double y1 = origin.y + r.NextInt(3) - 2;
+                const int xStart = origin.x - CeilF(spread) - maxRadius;
+                const int yStart = origin.y - 2 - maxRadius;
+                const int zStart = origin.z - CeilF(spread) - maxRadius;
+                const int sizeXZ = 2 * (CeilF(spread) + maxRadius);
+                const int sizeY = 2 * (2 + maxRadius);
+                bool reachable = false;
+                for (int xp = xStart; xp <= xStart + sizeXZ && !reachable; xp++)
+                    for (int zp = zStart; zp <= zStart + sizeXZ; zp++)
+                        if (yStart <= w.Height("OCEAN_FLOOR_WG", xp, zp)) {
+                            reachable = true;
+                            break;
+                        }
+                if (!reachable)
+                    return false;
+                std::vector<double> data(static_cast<size_t>(size) * 4);
+                for (int i = 0; i < size; i++) {
+                    const float step = static_cast<float>(i) / static_cast<float>(size);
+                    const double t = static_cast<double>(step);
+                    const double xx = x0 + t * (x1 - x0), yy = y0 + t * (y1 - y0), zz = z0 + t * (z1 - z0);
+                    const double ss = r.NextDouble() * static_cast<double>(size) / 16.0;
+                    const double rad = (static_cast<double>(TableSin(static_cast<double>(3.14159265358979323846f * step)) + 1.0f) * ss + 1.0) / 2.0;
+                    data[static_cast<size_t>(i * 4)] = xx;
+                    data[static_cast<size_t>(i * 4 + 1)] = yy;
+                    data[static_cast<size_t>(i * 4 + 2)] = zz;
+                    data[static_cast<size_t>(i * 4 + 3)] = rad;
+                }
+                for (int a = 0; a < size - 1; a++) {
+                    if (data[static_cast<size_t>(a * 4 + 3)] <= 0.0)
+                        continue;
+                    for (int b = a + 1; b < size; b++) {
+                        if (data[static_cast<size_t>(b * 4 + 3)] <= 0.0)
+                            continue;
+                        const double dr = data[static_cast<size_t>(a * 4 + 3)] - data[static_cast<size_t>(b * 4 + 3)];
+                        const double dx = data[static_cast<size_t>(a * 4)] - data[static_cast<size_t>(b * 4)];
+                        const double dy = data[static_cast<size_t>(a * 4 + 1)] - data[static_cast<size_t>(b * 4 + 1)];
+                        const double dz = data[static_cast<size_t>(a * 4 + 2)] - data[static_cast<size_t>(b * 4 + 2)];
+                        if (!(dr * dr > dx * dx + dy * dy + dz * dz))
+                            continue;
+                        if (dr > 0.0)
+                            data[static_cast<size_t>(b * 4 + 3)] = -1.0;
+                        else
+                            data[static_cast<size_t>(a * 4 + 3)] = -1.0;
+                    }
+                }
+                std::vector<uint8_t> tested(static_cast<size_t>(sizeXZ) * sizeY * sizeXZ + static_cast<size_t>(sizeXZ * sizeY + sizeXZ + 1) * 4, 0);
+                int placed = 0;
+                for (int i = 0; i < size; i++) {
+                    const double rad = data[static_cast<size_t>(i * 4 + 3)];
+                    if (rad < 0.0)
+                        continue;
+                    const double xx = data[static_cast<size_t>(i * 4)], yy = data[static_cast<size_t>(i * 4 + 1)],
+                                 zz = data[static_cast<size_t>(i * 4 + 2)];
+                    const int xMin = std::max(FloorD(xx - rad), xStart), yMin = std::max(FloorD(yy - rad), yStart),
+                              zMin = std::max(FloorD(zz - rad), zStart);
+                    const int xMax = std::max(FloorD(xx + rad), xMin), yMax = std::max(FloorD(yy + rad), yMin),
+                              zMax = std::max(FloorD(zz + rad), zMin);
+                    for (int x = xMin; x <= xMax; x++) {
+                        const double xd = (static_cast<double>(x) + 0.5 - xx) / rad;
+                        if (!(xd * xd < 1.0))
+                            continue;
+                        for (int y = yMin; y <= yMax; y++) {
+                            const double yd = (static_cast<double>(y) + 0.5 - yy) / rad;
+                            if (!(xd * xd + yd * yd < 1.0))
+                                continue;
+                            for (int z = zMin; z <= zMax; z++) {
+                                const double zd = (static_cast<double>(z) + 0.5 - zz) / rad;
+                                if (!(xd * xd + yd * yd + zd * zd < 1.0) || y < kMinY || y > kMaxY)
+                                    continue;
+                                const size_t bit = static_cast<size_t>(x - xStart + (y - yStart) * sizeXZ + (z - zStart) * sizeXZ * sizeY);
+                                if (bit >= tested.size() || tested[bit])
+                                    continue;
+                                tested[bit] = 1;
+                                const Pos q{x, y, z};
+                                if (!w.Column(x, z))
+                                    continue;
+                                const uint16_t here = w.Get(q);
+                                for (const auto& target : targets)
+                                    if (CanPlaceOre(here, target, discard, q)) {
+                                        w.Set(q, StateId(target["state"]));
+                                        placed++;
+                                        break;
+                                    }
+                            }
+                        }
+                    }
+                }
+                return placed > 0;
+            }
+
+            bool ScatteredOre(const json::Value& c, const Pos& origin) {
+                const int size = static_cast<int>(c["size"].Int());
+                const float discard = static_cast<float>(c["discard_chance_on_air_exposure"].Number());
+                const int tries = r.NextInt(size + 1);
+                const auto axis = [&](int maxDist) {
+                    const float v = (r.NextFloat() - r.NextFloat()) * static_cast<float>(maxDist);
+                    return static_cast<int>(std::floor(v + 0.5f));
+                };
+                for (int i = 0; i < tries; i++) {
+                    const int m = std::min(i, 7);
+                    const int dx = axis(m), dy = axis(m), dz = axis(m);
+                    const Pos q = origin.Off(dx, dy, dz);
+                    const uint16_t here = w.Get(q);
+                    for (const auto& target : c["targets"].items)
+                        if (CanPlaceOre(here, target, discard, q)) {
+                            w.Set(q, StateId(target["state"]));
+                            break;
+                        }
+                }
+                return true;
+            }
+
+            bool UnderwaterMagma(const json::Value& c, const Pos& origin) {
+                const int range = static_cast<int>(c["floor_search_range"].Int());
+                const int radius = static_cast<int>(c["placement_radius_around_floor"].Int());
+                const float chance = static_cast<float>(c["placement_probability_per_valid_position"].Number());
+                if (!(w.F(origin) & kWater))
+                    return false;
+                int floor = INT32_MIN;
+                for (int dy = 1; dy <= range; dy++) {
+                    const Pos q = origin.Down(dy);
+                    if (!(w.F(q) & kWater)) {
+                        floor = q.y;
+                        break;
+                    }
+                }
+                if (floor == INT32_MIN)
+                    return false;
+                const uint16_t magma = BlockCatalog::Instance().DefaultBlock("magma");
+                const auto covered = [&](const Pos& q) { return (w.F(q) & kSolid) != 0; };
+                int placed = 0;
+                for (int x = origin.x - radius; x <= origin.x + radius; x++)
+                    for (int y = floor - radius; y <= floor + radius; y++)
+                        for (int z = origin.z - radius; z <= origin.z + radius; z++) {
+                            if (!(r.NextFloat() < chance))
+                                continue;
+                            const Pos q{x, y, z};
+                            const uint8_t f = w.F(q);
+                            if ((f & kWater) || (f & kAir) || !covered(q.Down()))
+                                continue;
+                            if (!covered(q.Off(1, 0, 0)) || !covered(q.Off(-1, 0, 0)) || !covered(q.Off(0, 0, 1)) || !covered(q.Off(0, 0, -1)))
+                                continue;
+                            w.Set(q, magma);
+                            placed++;
+                        }
+                return placed > 0;
+            }
+
             bool Feature(const json::Value& f, const Pos& p) {
                 const json::Value& c = f.members.contains("config") ? f["config"] : f;
                 if (Is(f, "tree"))
                     return Tree(c, p);
+                if (Is(f, "ore"))
+                    return Ore(c, p);
+                if (Is(f, "scattered_ore"))
+                    return ScatteredOre(c, p);
+                if (Is(f, "underwater_magma"))
+                    return UnderwaterMagma(c, p);
                 if (Is(f, "simple_block")) {
                     const uint16_t id = Provide(c["to_place"], p);
                     if (id == kNone || !Survives(id, p))
@@ -1639,6 +1915,7 @@ namespace perlin::server::vanilla {
 
     JavaDecorator::JavaDecorator(int64_t seed) : impl(std::make_unique<Impl>()) {
         impl->seed = seed;
+        impl->zoomSeed = ObfuscateBiomeSeed(seed);
         std::string text(kJavaFeatureJsonSize, '\0');
         mz_ulong size = static_cast<mz_ulong>(text.size());
         if (mz_uncompress(reinterpret_cast<unsigned char*>(text.data()), &size, kJavaFeatureData,
@@ -1700,13 +1977,17 @@ namespace perlin::server::vanilla {
         const JavaBiome* b = Biome(tableIndex);
         float t = b ? b->temperature : 0.8f;
         if (b && b->frozen) {
-            const double frozen = impl->frozenNoise.Get(x * 0.05, z * 0.05) * 7.0;
+            const double frozen = static_cast<double>(impl->frozenNoise.Get(x * 0.05, z * 0.05) * 7.0f);
             const double n = impl->biomeInfo.Get(x * 0.2, z * 0.2);
             if (frozen + n < 0.3 && impl->biomeInfo.Get(x * 0.09, z * 0.09) < 0.8)
                 t = 0.2f;
         }
-        if (y > 80)
-            t -= static_cast<float>((impl->temperatureNoise.Get(x / 8.0, z / 8.0) * 8.0 + y - 80) * 0.05 / 40.0);
+        if (y > 80) {
+            const float v = static_cast<float>(impl->temperatureNoise.Get(static_cast<double>(static_cast<float>(x) / 8.0f),
+                                                                           static_cast<double>(static_cast<float>(z) / 8.0f))) *
+                            8.0f;
+            t -= (v + static_cast<float>(y) - 80.0f) * 0.05f / 40.0f;
+        }
         return t;
     }
 
@@ -1740,6 +2021,11 @@ namespace perlin::server::vanilla {
                 std::unordered_set<int> present;
                 for (int i = 0; i < 256; i++)
                     present.insert(own->GenBiome(i >> 4, i & 15));
+                if (own->HasQuartBiomes())
+                    for (int qy = 0; qy < ChunkColumn::kQuartLayers; qy++)
+                        for (int qz = 0; qz < 4; qz++)
+                            for (int qx = 0; qx < 4; qx++)
+                                present.insert(own->QuartBiome(qx, qy, qz));
                 std::unordered_set<std::string> features;
                 for (const int b : present)
                     if (const JavaBiome* jb = Biome(b))

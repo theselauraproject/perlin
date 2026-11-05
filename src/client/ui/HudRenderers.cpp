@@ -198,26 +198,27 @@ namespace perlin::ui {
             }
         }
 
-        void Offhand(const HudState& s, const LNode& n, RmlWriter& w) {
-            const float unit = n.w / 20.0f;
-            const float x = s.offhandRight ? n.ax + n.w + unit + 7.0f * unit : n.ax - unit - 29.0f * unit;
-            const float y = n.ay;
+        void Offhand(const HudState& s, float slotX, float slotY, float slotW, float slotH, int layer, float alpha,
+                     RmlWriter& w) {
+            const float unit = slotW / 20.0f;
+            const float x = s.offhandRight ? slotX + slotW + unit + 7.0f * unit : slotX - unit - 29.0f * unit;
+            const float y = slotY;
             ImageStyle st;
-            st.alpha = n.alpha;
-            w.Image(x, y, unit, n.h, n.layer, "textures/ui/hotbar_start_cap", st);
-            w.Image(x + unit, y, n.w, n.h, n.layer, "textures/ui/hotbar_0", st);
-            w.Image(x + unit + n.w, y, unit, n.h, n.layer, "textures/ui/hotbar_end_cap", st);
+            st.alpha = alpha;
+            w.Image(x, y, unit, slotH, layer, "textures/ui/hotbar_start_cap", st);
+            w.Image(x + unit, y, slotW, slotH, layer, "textures/ui/hotbar_0", st);
+            w.Image(x + unit + slotW, y, unit, slotH, layer, "textures/ui/hotbar_end_cap", st);
             const HudItem& item = s.offhand;
             const float itemSize = 16.0f * unit;
             const float itemX = x + 3.0f * unit, itemY = y + 3.0f * unit;
-            w.Item(itemX, itemY, itemSize, itemSize, n.layer + 1, item.Key(), n.alpha, item.enchanted);
+            w.Item(itemX, itemY, itemSize, itemSize, layer + 1, item.Key(), alpha, item.enchanted);
             if (item.count > 1) {
                 const std::string text = std::to_string(item.count);
                 TextStyle ts;
                 ts.shadow = true;
                 ts.scale = unit;
                 const float tw = McFont::Instance().Width(text) * unit;
-                w.Text(itemX + 17.0f * unit - tw, itemY + 9.0f * unit, tw + unit, 9.0f * unit, n.layer + 2, {text},
+                w.Text(itemX + 17.0f * unit - tw, itemY + 9.0f * unit, tw + unit, 9.0f * unit, layer + 2, {text},
                        ts);
             }
         }
@@ -229,7 +230,20 @@ namespace perlin::ui {
             st.alpha = n.alpha;
             w.Image(n.ax, n.ay, n.w, n.h, n.layer, "textures/ui/hotbar_" + std::to_string(n.index), st);
             if (!s.offhand.Empty() && n.index == (s.offhandRight ? 8 : 0))
-                Offhand(s, n, w);
+                Offhand(s, n.ax, n.ay, n.w, n.h, n.layer, n.alpha, w);
+        }
+
+        void HotbarSlots(const HudState& s, const LNode& n, RmlWriter& w) {
+            const float unit = n.h / 22.0f;
+            const float slotW = 20.0f * unit;
+            ImageStyle st;
+            st.alpha = n.alpha;
+            for (int i = 0; i < 9; i++)
+                w.Image(n.ax + static_cast<float>(i) * slotW, n.ay, slotW, n.h, n.layer,
+                        "textures/ui/hotbar_" + std::to_string(i), st);
+            if (!s.offhand.Empty())
+                Offhand(s, n.ax + static_cast<float>(s.offhandRight ? 8 : 0) * slotW, n.ay, slotW, n.h, n.layer, n.alpha,
+                        w);
         }
 
         void InventoryItem(const HudState& s, const LNode& n, RmlWriter& w) {
@@ -680,6 +694,7 @@ namespace perlin::ui {
         Reg("hunger_renderer", [s](const LNode& n, RmlWriter& w) { Hunger(*s, n, w); });
         Reg("bubbles_renderer", [s](const LNode& n, RmlWriter& w) { Bubbles(*s, n, w); });
         Reg("hotbar_renderer", [s](const LNode& n, RmlWriter& w) { Hotbar(*s, n, w); });
+        Reg("hotbar_slots_renderer", [s](const LNode& n, RmlWriter& w) { HotbarSlots(*s, n, w); });
         Reg("inventory_item_renderer", [s](const LNode& n, RmlWriter& w) { InventoryItem(*s, n, w); });
         Reg("debug_renderer", [s](const LNode& n, RmlWriter& w) { Debug(*s, n, w); });
         Reg("chat_renderer", [s](const LNode& n, RmlWriter& w) { Chat(*s, n, w); });

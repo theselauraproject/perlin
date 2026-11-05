@@ -15,6 +15,7 @@
 #if defined(__GLIBC__)
 #include <malloc.h>
 #endif
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -40,6 +41,23 @@
 #include <thread>
 
 namespace {
+    void BootMark(const char* what) {
+        const std::string dir = perlin::paths::DataDir();
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        if (FILE* f = std::fopen((dir + "/boot.log").c_str(), "ab")) {
+            const std::time_t now = std::time(nullptr);
+            char stamp[64];
+            std::strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+            std::fprintf(f, "%s %s%s\n", stamp, what, perlin::gfxdebug::Attached() ? " (graphics debugger attached)" : "");
+            std::fclose(f);
+        }
+    }
+
+    struct BootMarker {
+        BootMarker() { BootMark("process started"); }
+    } gBootMarker;
+
     void AttachParentConsole() {
 #ifdef _WIN32
         HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -270,27 +288,29 @@ int main(int argc, char** argv) {
     mallopt(M_MMAP_THRESHOLD, 256 * 1024);
     mallopt(M_TRIM_THRESHOLD, 512 * 1024);
 #endif
+    BootMark("main reached");
     perlin::RememberCommandLine(argc, argv);
     AttachParentConsole();
-    perlin::RegisterEmbeddedResources();
-    perlin::update::OnStartup();
-
     const std::string dataDir = perlin::paths::DataDir();
     perlin::paths::EnsureDir(dataDir);
-    perlin::paths::EnsureDir(dataDir + "/texturepacks");
-    perlin::paths::EnsureDir(dataDir + "/shaderpacks");
 #ifndef __EMSCRIPTEN__
     StartLogCapture({dataDir + "/perlin.log"});
 #endif
+#ifdef _WIN32
+    SetUnhandledExceptionFilter(CrashFilter);
+#endif
+    std::printf("[boot] exe dir %s\n", perlin::paths::ExeDir().c_str());
     if (perlin::gfxdebug::WantsRenderDoc(argc, argv)) {
         perlin::paths::EnsureDir(dataDir + "/captures");
         perlin::gfxdebug::LoadRenderDoc(dataDir + "/captures");
     }
     if (const char* tool = perlin::gfxdebug::Attached())
         std::printf("[perlin] %s is attached: single device, no pipeline cache, no failure records\n", tool);
-#ifdef _WIN32
-    SetUnhandledExceptionFilter(CrashFilter);
-#endif
+    perlin::RegisterEmbeddedResources();
+    std::printf("[boot] embedded resources registered\n");
+    perlin::update::OnStartup();
+    perlin::paths::EnsureDir(dataDir + "/texturepacks");
+    perlin::paths::EnsureDir(dataDir + "/shaderpacks");
     {
         const std::time_t now = std::time(nullptr);
         char stamp[64];
@@ -306,8 +326,14 @@ int main(int argc, char** argv) {
     return 0;
 #else
     AppPlatform_SDL platform(ParseArgs(argc, argv));
-    if (!platform.Initialize())
+    std::printf("[boot] starting the window and renderer\n");
+    BootMark("starting the window and renderer");
+    if (!platform.Initialize()) {
+        BootMark("startup failed");
+        std::printf("[boot] startup failed\n");
         return 1;
+    }
+    BootMark("running");
 
     platform.Run();
     platform.Shutdown();

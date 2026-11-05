@@ -1,4 +1,4 @@
-// ore features from the Bedrock rules: the right ores turn up in the right heights, they are repeatable, and they don't depend on which chunks are built together
+// ore features from Java's data: the right ores turn up in the right heights after decoration, they are repeatable, and they don't depend on which chunks are built together
 #include "core/Config.hpp"
 #include "test_util.hpp"
 #include "world/BlockCatalog.hpp"
@@ -41,11 +41,24 @@ int main() {
     };
     std::map<std::string, Stat> stats;
     std::map<uint16_t, std::string> names;
+    std::vector<ChunkColumn> decorated;
+    if (backend->Decorates()) {
+        for (int x = -1; x <= 1; x++)
+            for (int z = -1; z <= 1; z++) {
+                const ChunkColumn* region[9];
+                for (int dz = -1; dz <= 1; dz++)
+                    for (int dx = -1; dx <= 1; dx++)
+                        region[(dz + 1) * 3 + (dx + 1)] = &cols[static_cast<size_t>((x + dx + 2) * 5 + (z + dz + 2))];
+                ChunkColumn out = cols[static_cast<size_t>((x + 2) * 5 + (z + 2))].Clone();
+                backend->Decorate({x, z}, region, out);
+                decorated.push_back(std::move(out));
+            }
+    }
     for (const char* n : {"coal_ore", "iron_ore", "copper_ore", "gold_ore", "lapis_ore", "redstone_ore",
                           "diamond_ore", "deepslate_iron_ore", "deepslate_diamond_ore",
                           "deepslate_redstone_ore", "gravel", "granite", "diorite", "andesite", "tuff"})
         names[cat.DefaultBlock(n)] = n;
-    for (auto& col : cols)
+    for (auto& col : decorated.empty() ? cols : decorated)
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++)
                 for (int y = kMinY; y < kMinY + kHeight; y++) {
@@ -68,11 +81,12 @@ int main() {
     CHECK(stats["redstone_ore"].hi <= 15 + 8);
     CHECK(stats["lapis_ore"].hi <= 64 + 8);
     CHECK(stats["tuff"].hi <= 0 + 8);
+    CHECK(stats["deepslate_diamond_ore"].count > 0);
     CHECK(stats["diamond_ore"].lo >= -144 - 8);
     // stone variants below y 0 are deepslate: iron under 0 is the deepslate kind
     CHECK(stats["deepslate_iron_ore"].count > 0);
 
-    // the same chunk built alone, or in another batch, is the same
+    // the same chunk built alone, or in another batch, is the same (terrain stage)
     std::vector<ChunkPos> one = {{1, -1}};
     std::vector<ChunkColumn> alone(1);
     backend->Generate(one, alone);

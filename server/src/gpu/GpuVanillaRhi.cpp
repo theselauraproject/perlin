@@ -424,8 +424,8 @@ namespace perlin::server {
                     } else {
                         cpu->BiomesOf(density, positions[i].x, positions[i].z, biomes.data());
                     }
-                    cpu->Surface().Fill(density, biomes.data(), out[i], &cpu->Features(), positions[i].x,
-                                        positions[i].z, cpu->Aquifers());
+                    cpu->Surface().Fill(density, biomes.data(), out[i], cpu->Decorates() ? nullptr : &cpu->Features(), positions[i].x,
+                                        positions[i].z, cpu->Stages());
                 }
                 return true;
             }

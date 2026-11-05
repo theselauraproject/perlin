@@ -5,6 +5,9 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
+#include <string>
+#include "world/Blocks.hpp"
 
 using namespace perlin::server;
 
@@ -27,6 +30,7 @@ int main(int argc, char** argv) {
     const auto start = std::chrono::steady_clock::now();
     backend->Generate(pos, cols);
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    std::vector<ChunkColumn> decoratedCols;
     double decorateMs = 0;
     int decorated = 0;
     if (backend->Decorates()) {
@@ -41,6 +45,7 @@ int main(int argc, char** argv) {
                         region[(dz + 1) * 3 + (dx + 1)] = &at(x + dx, z + dz);
                 ChunkColumn out = at(x, z).Clone();
                 backend->Decorate({x, z}, region, out);
+                decoratedCols.push_back(std::move(out));
                 decorated++;
             }
         decorateMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - d0).count();
@@ -67,5 +72,28 @@ int main(int argc, char** argv) {
                 }
     std::printf("%zu chunks in %.0f ms (%.1f ms each); y -50..29: air %ld water %ld lava %ld hash %016llx\n", pos.size(), ms,
                 ms / static_cast<double>(pos.size()), air, wet, hot, static_cast<unsigned long long>(hash));
+    std::map<std::string, int> tops, all;
+    for (const ChunkColumn& col : decoratedCols.empty() ? cols : decoratedCols)
+        for (int x = 0; x < 16; x++)
+            for (int z = 0; z < 16; z++) {
+                bool top = true;
+                for (int y = 319; y >= -64; y--) {
+                    const uint16_t b = col.Get(x, y, z);
+                    if (b == 0)
+                        continue;
+                    const std::string name = BlockRegistry::Instance().Name(b);
+                    if (top)
+                        tops[name]++;
+                    top = false;
+                    all[name]++;
+                }
+            }
+    std::printf("top blocks:");
+    for (const auto& [n, c] : tops)
+        std::printf(" %s=%d", n.c_str() + 10, c);
+    std::printf("\nall blocks:");
+    for (const auto& [n, c] : all)
+        std::printf(" %s=%d", n.c_str() + 10, c);
+    std::printf("\n");
     return 0;
 }

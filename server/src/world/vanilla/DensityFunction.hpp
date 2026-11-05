@@ -66,6 +66,7 @@ namespace perlin::server::vanilla {
             Pass,
             Interpolated,
             OldBlendedNoise,
+            FindTopSurface,
             Unsupported
         };
         Op op = Op::Constant;
@@ -97,6 +98,7 @@ namespace perlin::server::vanilla {
         // "minecraft:overworld/final_density"; null when the file is missing
         DfPtr Load(const std::string& id);
         DfPtr Inline(const json::Value& v) { return Build(v); }
+        const NormalNoise* Noise(const std::string& id) { return NoiseFor(id); }
         const Xoroshiro::Factory& Positional() const { return positional; }
         // node types the evaluator does not know yet, found while loading (empty when everything loaded is supported)
         const std::vector<std::string>& Unsupported() const { return unsupported; }
