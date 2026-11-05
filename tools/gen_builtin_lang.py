@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os,sys
+import os
 root=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 t=open(os.path.join(root,'resources/perlin_en_US.lang'),encoding='utf8').read()
 lines=[l for l in t.split('\n') if l and not l.startswith('##')]

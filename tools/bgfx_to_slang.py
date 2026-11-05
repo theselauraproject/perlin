@@ -17,23 +17,34 @@ ATTRIBUTE_LOCATIONS = {
 }
 
 BUILTIN_UNIFORMS = {
-    'u_viewRect': 'vec4', 'u_viewTexel': 'vec4', 'u_modelViewProj': 'mat4', 'u_viewProj': 'mat4',
-    'u_view': 'mat4', 'u_proj': 'mat4',
+    'u_viewRect':       'vec4', 
+    'u_viewTexel':      'vec4', 
+    'u_modelViewProj':  'mat4', 
+    'u_viewProj':       'mat4',
+    'u_view':           'mat4', 
+    'u_proj':           'mat4',
 }
 
-SAMPLER_KINDS = {'SAMPLER2D': 'SAMPLER2D', 'SAMPLER2DARRAY': 'SAMPLER2DARRAY'}
+SAMPLER_KINDS = {
+    'SAMPLER2D': 'SAMPLER2D', 
+    'SAMPLER2DARRAY': 'SAMPLER2DARRAY'
+}
 
 
 SLOTS = None
 
 
-def slot_of(name, requested):
+def slot_of(name):
     """texture slots are global by name, so every program binds a texture to the same place"""
     global SLOTS
-    if SLOTS is None:
-        SLOTS = json.loads((Path(__file__).resolve().parent.parent / 'src/shaders/slang/texture_slots.json').read_text())
+    slots_path: str = 'src/shaders/slang/texture_slots.json'
+    
+    if not SLOTS:
+        SLOTS = json.loads((Path(__file__).resolve().parent.parent / slots_path).read_text())
+
     if name not in SLOTS:
-        raise KeyError(f'texture {name} has no entry in texture_slots.json')
+        raise KeyError(f"texture {name} has no entry in texture_slots.json")
+
     return SLOTS[name][0]
 
 
