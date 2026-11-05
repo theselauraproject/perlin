@@ -174,6 +174,19 @@ namespace perlin::server::vanilla {
             const std::string& t = v["type"].text;
             return t.size() == type.size() + 10 ? t.compare(10, std::string::npos, type) == 0 : t == type;
         }
+
+        struct TypeView {
+            std::string_view type;
+            explicit TypeView(const json::Value& v) {
+                type = v["type"].text;
+                if (type.starts_with("minecraft:"))
+                    type.remove_prefix(10);
+            }
+        };
+
+        bool Is(const TypeView& v, std::string_view type) {
+            return v.type == type;
+        }
     }
 
     struct JavaDecorator::Impl {
@@ -378,31 +391,32 @@ namespace perlin::server::vanilla {
             Engine(const JavaDecorator::Impl& d, World& w, Rng& r) : d(d), w(w), r(r) {}
 
             int SampleInt(const json::Value& v) {
+                const TypeView vType(v);
                 if (v.kind == json::Value::Kind::Number)
                     return static_cast<int>(v.Int());
-                if (Is(v, "constant"))
+                if (Is(vType, "constant"))
                     return static_cast<int>(v["value"].Int());
-                if (Is(v, "uniform") || !v.members.contains("type") && v.members.contains("min_inclusive"))
+                if (Is(vType, "uniform") || !v.members.contains("type") && v.members.contains("min_inclusive"))
                     return r.Between(static_cast<int>(v["min_inclusive"].Int()), static_cast<int>(v["max_inclusive"].Int()));
-                if (Is(v, "biased_to_bottom")) {
+                if (Is(vType, "biased_to_bottom")) {
                     const int lo = static_cast<int>(v["min_inclusive"].Int()), hi = static_cast<int>(v["max_inclusive"].Int());
                     return lo + r.NextInt(r.NextInt(hi - lo + 1) + 1);
                 }
-                if (Is(v, "clamped"))
+                if (Is(vType, "clamped"))
                     return std::clamp(SampleInt(v["source"]), static_cast<int>(v["min_inclusive"].Int()),
                                       static_cast<int>(v["max_inclusive"].Int()));
-                if (Is(v, "clamped_normal")) {
+                if (Is(vType, "clamped_normal")) {
                     const double n = v["mean"].Number() + r.Gaussian() * v["deviation"].Number();
                     return static_cast<int>(std::clamp(n, v["min_inclusive"].Number(v["min"].Number()),
                                                        v["max_inclusive"].Number(v["max"].Number())));
                 }
-                if (Is(v, "trapezoid")) {
+                if (Is(vType, "trapezoid")) {
                     const int lo = static_cast<int>(v["min"].Int()), hi = static_cast<int>(v["max"].Int());
                     const int plateau = static_cast<int>(v["plateau"].Int());
                     const int span = hi - lo, a = (span - plateau) / 2, b = span - a;
                     return lo + r.Between(0, b) + r.Between(0, a);
                 }
-                if (Is(v, "weighted_list")) {
+                if (Is(vType, "weighted_list")) {
                     const json::Value& list = v["distribution"];
                     int64_t total = 0;
                     for (const auto& e : list.items)
@@ -421,17 +435,18 @@ namespace perlin::server::vanilla {
             }
 
             float SampleFloat(const json::Value& v) {
+                const TypeView vType(v);
                 if (v.kind == json::Value::Kind::Number)
                     return static_cast<float>(v.Number());
-                if (Is(v, "uniform")) {
+                if (Is(vType, "uniform")) {
                     const float lo = static_cast<float>(v["min_inclusive"].Number()),
                                 hi = static_cast<float>(v["max_exclusive"].Number(v["max_inclusive"].Number()));
                     return lo + r.NextFloat() * (hi - lo);
                 }
-                if (Is(v, "clamped_normal"))
+                if (Is(vType, "clamped_normal"))
                     return static_cast<float>(std::clamp(v["mean"].Number() + r.Gaussian() * v["deviation"].Number(),
                                                          v["min"].Number(), v["max"].Number()));
-                if (Is(v, "trapezoid")) {
+                if (Is(vType, "trapezoid")) {
                     const float lo = static_cast<float>(v["min"].Number()), hi = static_cast<float>(v["max"].Number());
                     const float plateau = static_cast<float>(v["plateau"].Number());
                     const float span = hi - lo, a = (span - plateau) / 2, b = span - a;
@@ -451,14 +466,15 @@ namespace perlin::server::vanilla {
             }
 
             int SampleHeight(const json::Value& v) {
+                const TypeView vType(v);
                 if (!v.members.contains("type"))
                     return Anchor(v);
-                if (Is(v, "constant"))
+                if (Is(vType, "constant"))
                     return Anchor(v["value"]);
                 const int lo = Anchor(v["min_inclusive"]), hi = Anchor(v["max_inclusive"]);
-                if (Is(v, "uniform"))
+                if (Is(vType, "uniform"))
                     return r.Between(lo, hi);
-                if (Is(v, "trapezoid")) {
+                if (Is(vType, "trapezoid")) {
                     const int plateau = static_cast<int>(v["plateau"].Int());
                     const int span = hi - lo;
                     if (plateau >= span)
@@ -466,11 +482,11 @@ namespace perlin::server::vanilla {
                     const int a = (span - plateau) / 2, b = span - a;
                     return lo + r.Between(0, b) + r.Between(0, a);
                 }
-                if (Is(v, "biased_to_bottom")) {
+                if (Is(vType, "biased_to_bottom")) {
                     const int inner = static_cast<int>(v["inner"].Int(1));
                     return lo + r.NextInt(r.NextInt(std::max(1, hi - lo - inner + 1)) + inner);
                 }
-                if (Is(v, "very_biased_to_bottom")) {
+                if (Is(vType, "very_biased_to_bottom")) {
                     const int inner = static_cast<int>(v["inner"].Int(1));
                     const int a = r.Between(lo + inner, hi);
                     const int b = r.Between(lo, a - 1);
@@ -555,30 +571,31 @@ namespace perlin::server::vanilla {
             }
 
             bool Test(const json::Value& v, const Pos& p) {
+                const TypeView vType(v);
                 if (v.IsNull())
                     return true;
                 const Pos q = OffsetOf(v, p);
-                if (Is(v, "true"))
+                if (Is(vType, "true"))
                     return true;
-                if (Is(v, "not"))
+                if (Is(vType, "not"))
                     return !Test(v["predicate"], p);
-                if (Is(v, "all_of")) {
+                if (Is(vType, "all_of")) {
                     for (const auto& e : v["predicates"].items)
                         if (!Test(e, p))
                             return false;
                     return true;
                 }
-                if (Is(v, "any_of")) {
+                if (Is(vType, "any_of")) {
                     for (const auto& e : v["predicates"].items)
                         if (Test(e, p))
                             return true;
                     return false;
                 }
-                if (Is(v, "matching_blocks"))
+                if (Is(vType, "matching_blocks"))
                     return NameMatches(v["blocks"], w.Get(q));
-                if (Is(v, "matching_block_tag"))
+                if (Is(vType, "matching_block_tag"))
                     return d.InTag(v["tag"].text, w.Get(q));
-                if (Is(v, "matching_fluids")) {
+                if (Is(vType, "matching_fluids")) {
                     const uint8_t f = w.F(q);
                     const json::Value& fl = v["fluids"];
                     const auto one = [&](const json::Value& e) {
@@ -593,20 +610,21 @@ namespace perlin::server::vanilla {
                         return std::any_of(fl.items.begin(), fl.items.end(), one);
                     return one(fl);
                 }
-                if (Is(v, "solid") || Is(v, "has_sturdy_face"))
+                if (Is(vType, "solid") || Is(vType, "has_sturdy_face"))
                     return (w.F(q) & kSolid) != 0;
-                if (Is(v, "replaceable"))
+                if (Is(vType, "replaceable"))
                     return (w.F(q) & kReplaceable) != 0;
-                if (Is(v, "would_survive"))
+                if (Is(vType, "would_survive"))
                     return Survives(StateId(v["state"]), q);
-                if (Is(v, "inside_world_bounds"))
+                if (Is(vType, "inside_world_bounds"))
                     return q.y >= kMinY && q.y <= kMaxY;
-                if (Is(v, "unobstructed"))
+                if (Is(vType, "unobstructed"))
                     return true;
                 return false;
             }
 
             uint16_t Provide(const json::Value& v, const Pos& p) {
+                const TypeView vType(v);
                 if (v.IsString()) {
                     const auto& prov = d.doc["providers"];
                     if (prov.members.contains(v.text))
@@ -617,9 +635,9 @@ namespace perlin::server::vanilla {
                     return kNone;
                 if (v["b"].IsString())
                     return StateId(v);
-                if (Is(v, "simple_state_provider"))
+                if (Is(vType, "simple_state_provider"))
                     return Provide(v["state"], p);
-                if (Is(v, "weighted") || Is(v, "weighted_state_provider")) {
+                if (Is(vType, "weighted") || Is(vType, "weighted_state_provider")) {
                     const json::Value& list = v["entries"];
                     int64_t total = 0;
                     for (const auto& e : list.items)
@@ -634,24 +652,24 @@ namespace perlin::server::vanilla {
                     }
                     return kNone;
                 }
-                if (Is(v, "rotated")) {
+                if (Is(vType, "rotated")) {
                     const uint16_t base = Provide(v["state"], p);
                     static const char* kAxes[3] = {"x", "y", "z"};
                     return Variant(base, "pillar_axis", kAxes[r.NextInt(3)]);
                 }
-                if (Is(v, "randomized_int"))
+                if (Is(vType, "randomized_int"))
                     return Provide(v["source"], p);
-                if (Is(v, "rule_based")) {
+                if (Is(vType, "rule_based")) {
                     for (const auto& rule : v["rules"].items)
                         if (Test(rule["if_true"], p))
                             return Provide(rule["then"], p);
                     return v.members.contains("fallback") ? Provide(v["fallback"], p) : kNone;
                 }
-                if (Is(v, "noise") || Is(v, "dual_noise") || Is(v, "noise_threshold")) {
+                if (Is(vType, "noise") || Is(vType, "dual_noise") || Is(vType, "noise_threshold")) {
                     const double scale = v["scale"].Number(0.02);
                     const double n = std::clamp(
                         Simplex(v["seed"].Int(0)).Get(p.x * scale, p.z * scale) * 0.9, -0.999, 0.999);
-                    if (Is(v, "noise_threshold")) {
+                    if (Is(vType, "noise_threshold")) {
                         if (n < v["threshold"].Number(0)) {
                             const auto& low = v["low_states"].items;
                             return low.empty() ? kNone : Provide(low[static_cast<size_t>(r.NextInt(static_cast<int>(low.size())))], p);
@@ -666,7 +684,7 @@ namespace perlin::server::vanilla {
                     const auto& states = v["states"].items;
                     if (states.empty())
                         return kNone;
-                    if (Is(v, "dual_noise"))
+                    if (Is(vType, "dual_noise"))
                         return Provide(states[static_cast<size_t>(r.NextInt(static_cast<int>(states.size())))], p);
                     const size_t i = static_cast<size_t>((n + 1) / 2 * static_cast<double>(states.size()));
                     return Provide(states[std::min(i, states.size() - 1)], p);
@@ -727,50 +745,51 @@ namespace perlin::server::vanilla {
             }
 
             void Modify(const json::Value& m, const Pos& p, std::vector<Pos>& out) {
-                if (Is(m, "count")) {
+                const TypeView mType(m);
+                if (Is(mType, "count")) {
                     const int n = SampleInt(m["count"]);
                     for (int i = 0; i < n; i++)
                         out.push_back(p);
-                } else if (Is(m, "in_square")) {
+                } else if (Is(mType, "in_square")) {
                     const int x = r.NextInt(16) + p.x;
                     const int z = r.NextInt(16) + p.z;
                     out.push_back({x, p.y, z});
-                } else if (Is(m, "heightmap")) {
+                } else if (Is(mType, "heightmap")) {
                     const int y = w.Height(m["heightmap"].text, p.x, p.z);
                     if (y > kMinY)
                         out.push_back({p.x, y, p.z});
-                } else if (Is(m, "height_range")) {
+                } else if (Is(mType, "height_range")) {
                     out.push_back({p.x, SampleHeight(m["height"]), p.z});
-                } else if (Is(m, "biome")) {
+                } else if (Is(mType, "biome")) {
                     const JavaBiome* b = w.BiomeAt3(p.x, p.y, p.z);
                     if (b && b->placed.contains(w.topFeature))
                         out.push_back(p);
-                } else if (Is(m, "rarity_filter")) {
+                } else if (Is(mType, "rarity_filter")) {
                     if (r.NextFloat() < 1.0f / static_cast<float>(std::max<int64_t>(1, m["chance"].Int(1))))
                         out.push_back(p);
-                } else if (Is(m, "surface_water_depth_filter")) {
+                } else if (Is(mType, "surface_water_depth_filter")) {
                     const int floor = w.Height("OCEAN_FLOOR", p.x, p.z);
                     const int surface = w.Height("WORLD_SURFACE", p.x, p.z);
                     if (surface - floor <= m["max_water_depth"].Int())
                         out.push_back(p);
-                } else if (Is(m, "block_predicate_filter")) {
+                } else if (Is(mType, "block_predicate_filter")) {
                     if (Test(m["predicate"], p))
                         out.push_back(p);
-                } else if (Is(m, "offset")) {
+                } else if (Is(mType, "offset")) {
                     const int x = SampleInt(m["x"]);
                     const int y = SampleInt(m["y"]);
                     const int z = SampleInt(m["z"]);
                     out.push_back(p.Off(x, y, z));
-                } else if (Is(m, "random_offset")) {
+                } else if (Is(mType, "random_offset")) {
                     const int x = SampleInt(m["xz_spread"]);
                     const int y = SampleInt(m["y_spread"]);
                     const int z = SampleInt(m["xz_spread"]);
                     out.push_back(p.Off(x, y, z));
-                } else if (Is(m, "surface_relative_threshold_filter")) {
+                } else if (Is(mType, "surface_relative_threshold_filter")) {
                     const int64_t surface = w.Height(m["heightmap"].text, p.x, p.z);
                     if (surface + m["min_inclusive"].Int(INT32_MIN) <= p.y && p.y <= surface + m["max_inclusive"].Int(INT32_MAX))
                         out.push_back(p);
-                } else if (Is(m, "environment_scan")) {
+                } else if (Is(mType, "environment_scan")) {
                     const int dir = m["direction_of_search"].text == "up" ? 1 : -1;
                     const int steps = static_cast<int>(m["max_steps"].Int());
                     const json::Value& allowed = m["allowed_search_condition"];
@@ -790,24 +809,24 @@ namespace perlin::server::vanilla {
                     }
                     if (Test(m["target_condition"], q))
                         out.push_back(q);
-                } else if (Is(m, "noise_threshold_count")) {
+                } else if (Is(mType, "noise_threshold_count")) {
                     const double n = d.biomeInfo.Get(p.x / 200.0, p.z / 200.0);
                     const int c = static_cast<int>(n < m["noise_level"].Number() ? m["below_noise"].Int() : m["above_noise"].Int());
                     for (int i = 0; i < c; i++)
                         out.push_back(p);
-                } else if (Is(m, "noise_based_count")) {
+                } else if (Is(mType, "noise_based_count")) {
                     const double f = m["noise_factor"].Number(1);
                     const double n = d.biomeInfo.Get(p.x / f, p.z / f);
                     const int c = static_cast<int>(std::ceil((n + m["noise_offset"].Number(0)) * m["noise_to_count_ratio"].Number()));
                     for (int i = 0; i < c; i++)
                         out.push_back(p);
-                } else if (Is(m, "surface_relative_threshold_filter")) {
+                } else if (Is(mType, "surface_relative_threshold_filter")) {
                     const int h = w.Height(m["heightmap"].text, p.x, p.z);
                     const int64_t lo = m.members.contains("min_inclusive") ? h + m["min_inclusive"].Int() : INT32_MIN;
                     const int64_t hi = m.members.contains("max_inclusive") ? h + m["max_inclusive"].Int() : INT32_MAX;
                     if (p.y >= lo && p.y <= hi)
                         out.push_back(p);
-                } else if (Is(m, "fixed_placement")) {
+                } else if (Is(mType, "fixed_placement")) {
                     for (const auto& e : m["positions"].items)
                         out.push_back({static_cast<int>(e[0].Int()), static_cast<int>(e[1].Int()), static_cast<int>(e[2].Int())});
                 }
@@ -1056,37 +1075,38 @@ namespace perlin::server::vanilla {
             }
 
             bool Feature(const json::Value& f, const Pos& p) {
+                const TypeView fType(f);
                 const json::Value& c = f.members.contains("config") ? f["config"] : f;
-                if (Is(f, "tree"))
+                if (Is(fType, "tree"))
                     return Tree(c, p);
-                if (Is(f, "ore"))
+                if (Is(fType, "ore"))
                     return Ore(c, p);
-                if (Is(f, "scattered_ore"))
+                if (Is(fType, "scattered_ore"))
                     return ScatteredOre(c, p);
-                if (Is(f, "underwater_magma"))
+                if (Is(fType, "underwater_magma"))
                     return UnderwaterMagma(c, p);
-                if (Is(f, "simple_block")) {
+                if (Is(fType, "simple_block")) {
                     const uint16_t id = Provide(c["to_place"], p);
                     if (id == kNone || !Survives(id, p))
                         return false;
                     PlaceState(p, id);
                     return true;
                 }
-                if (Is(f, "block_column"))
+                if (Is(fType, "block_column"))
                     return Column(c, p);
-                if (Is(f, "random_selector")) {
+                if (Is(fType, "random_selector")) {
                     for (const auto& e : c["features"].items)
                         if (r.NextFloat() < e["chance"].Number())
                             return PlaceRef(e["feature"], p);
                     return PlaceRef(c["default"], p);
                 }
-                if (Is(f, "simple_random_selector")) {
+                if (Is(fType, "simple_random_selector")) {
                     const auto& list = c["features"].items;
                     if (list.empty())
                         return false;
                     return PlaceRef(list[static_cast<size_t>(r.NextInt(static_cast<int>(list.size())))], p);
                 }
-                if (Is(f, "weighted_random_selector")) {
+                if (Is(fType, "weighted_random_selector")) {
                     const auto& list = c["features"].items;
                     int64_t total = 0;
                     for (const auto& e : list)
@@ -1101,25 +1121,25 @@ namespace perlin::server::vanilla {
                     }
                     return false;
                 }
-                if (Is(f, "random_boolean_selector"))
+                if (Is(fType, "random_boolean_selector"))
                     return PlaceRef(r.NextBool() ? c["feature_true"] : c["feature_false"], p);
-                if (Is(f, "sequence")) {
+                if (Is(fType, "sequence")) {
                     bool any = false;
                     for (const auto& e : c["features"].items)
                         any |= PlaceRef(e, p);
                     return any;
                 }
-                if (Is(f, "block_blob"))
+                if (Is(fType, "block_blob"))
                     return Blob(c, p);
-                if (Is(f, "disk"))
+                if (Is(fType, "disk"))
                     return Disk(c, p);
-                if (Is(f, "fallen_tree"))
+                if (Is(fType, "fallen_tree"))
                     return FallenTree(c, p);
-                if (Is(f, "huge_red_mushroom") || Is(f, "huge_brown_mushroom"))
-                    return HugeMushroom(c, p, Is(f, "huge_red_mushroom"));
-                if (Is(f, "bamboo"))
+                if (Is(fType, "huge_red_mushroom") || Is(fType, "huge_brown_mushroom"))
+                    return HugeMushroom(c, p, Is(fType, "huge_red_mushroom"));
+                if (Is(fType, "bamboo"))
                     return Bamboo(c, p);
-                if (Is(f, "vegetation_patch") || Is(f, "waterlogged_vegetation_patch"))
+                if (Is(fType, "vegetation_patch") || Is(fType, "waterlogged_vegetation_patch"))
                     return VegetationPatch(c, p);
                 return false;
             }
@@ -1692,20 +1712,21 @@ namespace perlin::server::vanilla {
             }
 
             bool Skip(const json::Value& fp, int dx, int localY, int dz, int range) {
-                if (Is(fp, "blob_foliage_placer") || Is(fp, "poplar_foliage_placer") || Is(fp, "cherry_foliage_placer"))
+                const TypeView fpType(fp);
+                if (Is(fpType, "blob_foliage_placer") || Is(fpType, "poplar_foliage_placer") || Is(fpType, "cherry_foliage_placer"))
                     return dx == range && dz == range && (r.NextInt(2) == 0 || localY == 0);
-                if (Is(fp, "fancy_foliage_placer"))
+                if (Is(fpType, "fancy_foliage_placer"))
                     return (dx + 0.5f) * (dx + 0.5f) + (dz + 0.5f) * (dz + 0.5f) > static_cast<float>(range * range);
-                if (Is(fp, "spruce_foliage_placer") || Is(fp, "pine_foliage_placer"))
+                if (Is(fpType, "spruce_foliage_placer") || Is(fpType, "pine_foliage_placer"))
                     return dx == range && dz == range && range > 0;
-                if (Is(fp, "jungle_foliage_placer") || Is(fp, "mega_pine_foliage_placer"))
+                if (Is(fpType, "jungle_foliage_placer") || Is(fpType, "mega_pine_foliage_placer"))
                     return dx + dz >= 7 || dx * dx + dz * dz > range * range;
-                if (Is(fp, "acacia_foliage_placer")) {
+                if (Is(fpType, "acacia_foliage_placer")) {
                     if (localY == 0)
                         return (dx > 1 || dz > 1) && dx != 0 && dz != 0;
                     return dx == range && dz == range && range > 0;
                 }
-                if (Is(fp, "bush_foliage_placer"))
+                if (Is(fpType, "bush_foliage_placer"))
                     return dx == range && dz == range && r.NextInt(2) == 0;
                 return false;
             }
@@ -1798,8 +1819,9 @@ namespace perlin::server::vanilla {
             }
 
             void Decorator(const json::Value& deco, const Pos& base) {
+                const TypeView decoType(deco);
                 static const int kVineBits[4] = {1, 2, 4, 8};
-                if (Is(deco, "trunk_vine")) {
+                if (Is(decoType, "trunk_vine")) {
                     const std::vector<Pos> logs = w.logs;
                     for (const Pos& p : logs)
                         for (int i = 0; i < 4; i++)
@@ -1809,7 +1831,7 @@ namespace perlin::server::vanilla {
                                     w.Set(q, BlockCatalog::Instance().Resolve("minecraft:vine[vine_direction_bits=" +
                                                                               std::to_string(kVineBits[(i + 2) % 4]) + "]"));
                             }
-                } else if (Is(deco, "leave_vine")) {
+                } else if (Is(decoType, "leave_vine")) {
                     const float chance = static_cast<float>(deco["probability"].Number(0.25));
                     const std::vector<Pos> leaves = w.leaves;
                     for (const Pos& p : leaves)
@@ -1819,7 +1841,7 @@ namespace perlin::server::vanilla {
                                 if (w.F(q) & kAir)
                                     HangingVine(q, kVineBits[(i + 2) % 4]);
                             }
-                } else if (Is(deco, "cocoa")) {
+                } else if (Is(decoType, "cocoa")) {
                     if (r.NextFloat() >= deco["probability"].Number())
                         return;
                     if (w.logs.empty())
@@ -1838,7 +1860,7 @@ namespace perlin::server::vanilla {
                                                      "minecraft:cocoa[age=" + std::to_string(r.NextInt(3)) +
                                                      ",direction=" + std::to_string((i + 2) % 4) + "]"));
                                 }
-                } else if (Is(deco, "alter_ground")) {
+                } else if (Is(decoType, "alter_ground")) {
                     const json::Value& prov = deco["provider"];
                     const auto at = [&](const Pos& p) {
                         for (int i = 2; i >= -3; i--) {
@@ -1867,11 +1889,11 @@ namespace perlin::server::vanilla {
                         const int j = r.NextInt(64);
                         circle(base.Off(j % 8 - 2, 0, j / 8 - 2));
                     }
-                } else if (Is(deco, "place_on_ground") || Is(deco, "attached_to_leaves")) {
+                } else if (Is(decoType, "place_on_ground") || Is(decoType, "attached_to_leaves")) {
                     const int tries = static_cast<int>(deco["tries"].Int(32));
                     const int rad = static_cast<int>(deco["radius"].Int(2));
                     const json::Value& prov = deco["block_provider"];
-                    if (Is(deco, "attached_to_leaves")) {
+                    if (Is(decoType, "attached_to_leaves")) {
                         const std::vector<Pos> leaves = w.leaves;
                         for (const Pos& p : leaves)
                             if (r.NextFloat() < deco["probability"].Number() && (w.F(p.Down()) & kAir))

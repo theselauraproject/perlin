@@ -161,7 +161,6 @@ namespace perlin::server {
             return out;
         }
 
-        // "19132" or "19400-19500"
         bool ParsePortRange(const std::string& text, uint16_t& first, uint16_t& last) {
             const size_t dash = text.find('-');
             int64_t a = 0, b = 0;
@@ -180,14 +179,12 @@ namespace perlin::server {
             return true;
         }
 
-        // [ip:][public:]local, where public and local are a port or a first-last range (bds "UDP port configuration for NetherNet")
         bool ParseUdpPorts(const std::string& text, ServerConfig& c) {
             std::string t = str::Trim(text);
             c.udpPortsSet = true;
             c.udpPublicAddress.clear();
             c.udpPublicBegin = c.udpPublicEnd = 0;
             if (t.empty()) {
-                // empty = an ephemeral port per connection
                 c.udpPortBegin = c.udpPortEnd = 0;
                 return true;
             }
@@ -218,7 +215,6 @@ namespace perlin::server {
                 c.udpPublicBegin = pubFirst;
                 c.udpPublicEnd = pubLast;
             } else if (!c.udpPublicAddress.empty()) {
-                // an address needs both port values
                 return false;
             }
             c.udpPortBegin = localFirst;
@@ -251,7 +247,6 @@ namespace perlin::server {
             return d == 0 ? "peaceful" : d == 2 ? "normal" : d == 3 ? "hard" : "easy";
         }
 
-        // the keys of bds's own server.properties, in its order, with its defaults; the ones this server acts on are read from the config when written
         struct BdsKey {
             const char* key;
             const char* fallback;
@@ -333,7 +328,6 @@ namespace perlin::server {
         int64_t n = 0;
         if (ParseInt(t, n))
             return static_cast<uint64_t>(n);
-        // java's String.hashCode over utf-16 code units
         int32_t h = 0;
         const auto feed = [&h](uint32_t unit) {
             h = static_cast<int32_t>(static_cast<uint32_t>(h) * 31u + unit);
@@ -449,10 +443,10 @@ namespace perlin::server {
             return true;
         }
         if (key == "transport") {
-            if (lower == "nethernet" || lower == "raknet")
+            if (lower == "nethernet" || lower == "raknet" || lower == "both" || lower == "nethernet-only")
                 transport = lower;
             else
-                bad("nethernet or raknet");
+                bad("nethernet, raknet, both or nethernet-only");
             return true;
         }
         if (key == "enable-lan-visibility")
@@ -513,7 +507,6 @@ namespace perlin::server {
                 bad("None, Dropped or Disabled");
             return true;
         }
-        // this server's own keys
         if (key == "perlin-generator") {
             generator = lower;
             return true;
@@ -559,7 +552,6 @@ namespace perlin::server {
                 flatLayers = std::move(parsed);
             return true;
         }
-        // a bds key with no behaviour here, or something unknown: keep it as written
         for (auto& [k, val] : extraProperties)
             if (k == key) {
                 val = v;
@@ -577,7 +569,6 @@ namespace perlin::server {
                 *error = path + ": cannot open";
             return c;
         }
-        // defaults a file that omits a key falls back to
         c.randomSeed = true;
         std::string line;
         bool first = true;
@@ -609,7 +600,6 @@ namespace perlin::server {
             return LoadProperties(props.string(), error);
         if (std::filesystem::exists(legacy, ec))
             return Load(legacy.string(), error);
-        // no config yet: a new world, so a new seed
         ServerConfig fresh;
         fresh.randomSeed = true;
         return fresh;
@@ -694,7 +684,6 @@ namespace perlin::server {
             out << k.key << "=" << value << "\n\n";
             written.push_back(k.key);
         }
-        // keys of ours and anything unknown that was read
         out << "# perlin additions: the terrain generator (flat or vanilla), gpu or cpu terrain, plugin and "
                "block data folders\n";
         out << "perlin-generator=" << generator << "\n";

@@ -1,7 +1,3 @@
-// nethernet server side: the same http offer/answer exchange the client's direct join speaks,
-//   GET  /v1/join            server info json
-//   POST /v1/join/<id>       sdp offer in, sdp answer out
-// then two webrtc data channels (ReliableDataChannel, UnreliableDataChannel) carry fragmented game batches
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "core/Server.hpp"
@@ -21,10 +17,8 @@
 
 namespace perlin::server {
     namespace {
-        // an unreachable stun server must not stall a join: answer with the candidates found so far
         constexpr auto kAnswerTimeout = std::chrono::seconds(4);
 
-        // the client puts its identity assertion in the offer; webrtc has no use for it
         std::string StripIdentityLines(const std::string& sdp) {
             std::istringstream in(sdp);
             std::string line, out;
@@ -47,7 +41,6 @@ namespace perlin::server {
                     reliable ? this->reliable : (unreliable ? unreliable : this->reliable);
                 if (!dc || !dc->isOpen())
                     return false;
-                // the unreliable channel has no fragmenting room: big messages ride the reliable one
                 if (!reliable && size > kFragmentSize)
                     dc = this->reliable;
                 const auto parts = SplitFragments(data, size);
@@ -113,7 +106,6 @@ namespace perlin::server {
                             }
                         }
                     });
-                    // the client opens its channels before the offer is answered, so ours may already be open
                     if (dc->isOpen() && !opened.exchange(true)) {
                         NetEvent e;
                         e.type = NetEvent::Type::Open;
@@ -126,7 +118,6 @@ namespace perlin::server {
                         auto self = weak.lock();
                         if (!self)
                             return;
-                        // single datagram per message, header byte is always 0
                         if (auto* b = std::get_if<rtc::binary>(&msg); b && b->size() > 1) {
                             NetEvent e;
                             e.type = NetEvent::Type::Message;
@@ -241,7 +232,6 @@ namespace perlin::server {
                 peer->offerSdp = req.body;
                 try {
                     rtc::Configuration rc;
-                    // "none" = lan only: no stun lookup, so no public address in the answer and no wait for it
                     if (config.iceServers.empty()) {
                         rc.iceServers.emplace_back("stun.l.google.com", uint16_t(19302));
                     } else {
@@ -252,17 +242,19 @@ namespace perlin::server {
                     if (!config.iceBindAddress.empty())
                         rc.bindAddress = config.iceBindAddress;
                     if (config.udpPortsSet) {
-                        // server-udp-ports: one shared port, a range spread over connections, or (0) whatever the os gives
                         if (config.udpPortBegin != 0) {
                             rc.portRangeBegin = config.udpPortBegin;
                             rc.portRangeEnd = config.udpPortEnd;
                             rc.enableIceUdpMux = config.udpPortBegin == config.udpPortEnd;
+                            if (config.iceUdpPort && config.udpPortBegin == config.udpPortEnd) {
+                                rc.portRangeBegin = config.iceUdpPort;
+                                rc.portRangeEnd = config.iceUdpPort;
+                            }
                         }
                     } else if (config.iceUdpMux) {
-                        // one udp port for every peer: a single forwarded port is enough
                         rc.enableIceUdpMux = true;
-                        rc.portRangeBegin = config.port;
-                        rc.portRangeEnd = config.port;
+                        rc.portRangeBegin = config.iceUdpPort ? config.iceUdpPort : config.port;
+                        rc.portRangeEnd = rc.portRangeBegin;
                     } else {
                         rc.portRangeBegin = config.port;
                         rc.portRangeEnd = static_cast<uint16_t>(std::min<int>(65535, config.port + 255));
@@ -322,7 +314,6 @@ namespace perlin::server {
                 res.set_content(answer, "application/sdp");
             }
 
-            // peers that never connected or have closed; destroyed off the webrtc threads
             void Sweep() {
                 std::vector<std::shared_ptr<Peer>> doomed;
                 {

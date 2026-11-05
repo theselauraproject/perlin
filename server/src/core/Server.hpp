@@ -38,12 +38,9 @@ namespace perlin::server {
     struct CommandDef {
         std::string name;
         std::string description;
-        // the overloads, in the notation of core/Commands.hpp; empty for plugin commands, which take any text
         std::vector<OverloadSpec> overloads;
-        // plugin that owns it, empty for built-ins
         std::string plugin;
         bool operatorOnly = false;
-        // built-ins run here once their arguments have parsed; plugin commands are forwarded to the plugin
         std::function<void(CommandCtx&)> handler;
     };
 
@@ -53,15 +50,12 @@ namespace perlin::server {
         ~Server() override;
 
         bool Start(std::string& error);
-        // blocking loop at the configured tick rate until RequestStop
         void Run();
-        // one tick; hosts that drive the loop themselves (embedded) call this
         void Tick();
         void Stop();
         void RequestStop() { stopRequested = true; }
         bool StopRequested() const { return stopRequested; }
 
-        // console / embedding entry point for a command line without the leading slash
         void RunConsoleCommand(const std::string& line);
 
         LoopbackListener& Loopback() { return *loopback; }
@@ -76,58 +70,43 @@ namespace perlin::server {
         void SetBlockIn(int dimension, int x, int y, int z, uint16_t block) { ApplyBlock(dimension, x, y, z, block); }
         PluginHost& Plugins() { return *plugins; }
         uint64_t TickCount() const { return tick; }
-        // how long the host loop should wait after a tick: the target rate's period, or nothing while sprinting or stepping
         std::chrono::nanoseconds TickDelay() const;
         const std::map<std::string, CommandDef>& Commands() const { return commands; }
 
-        // session callbacks
         void OnPlayerJoined(Session& session);
         void OnPlayerLeft(Session& session);
         void HandleChat(Session& from, const std::string& message);
         void RunPlayerCommand(Session& from, const std::string& line);
         std::vector<Session*> InGamePlayers();
-        // tells every player (the wearer too) what `wearer` has on
         void BroadcastArmor(const Session& wearer);
         Session* FindSession(uint64_t id);
         Session* FindByName(const std::string& name);
         bool IsOperatorName(const std::string& name) const;
-        // operators may be listed by name or by xuid; with xbox_auth only an xuid is a safe key
         bool IsOperator(const std::string& name, const std::string& xuid) const;
-        // allowlist.json (bds name; whitelist.json is read instead when it exists)
         bool IsWhitelisted(const std::string& name, const std::string& xuid) const {
             return allowList.Contains(name, xuid);
         }
-        // "visitor", "member" or "operator": the permissions.json entry, else default-player-permission-level
         std::string PermissionOf(const std::string& name, const std::string& xuid) const;
         AccessList& Permissions() { return permissionList; }
         AccessList& Whitelist() { return allowList; }
-        // where the allowlist is read and written
         std::string AllowlistPath() const;
         std::string PermissionsPath() const;
-        // true when the player is on the allowlist with ignoresPlayerLimit
         bool IgnoresPlayerLimit(const std::string& name, const std::string& xuid) const;
-        // the loopback test and old callers: the same list as Permissions()
         AccessList& Ops() { return permissionList; }
-        // grants or removes operator by name (online or not); returns a one-line result for the caller
         std::string SetOperator(const std::string& name, bool op);
         bool Full() const;
-        // the world spawn (the first free block above the ground); the flat default until Start asks the terrain backend
         double SpawnX() const { return static_cast<double>(spawnX); }
         double SpawnY() const { return static_cast<double>(spawnY); }
         double SpawnZ() const { return static_cast<double>(spawnZ); }
         void SetWorldSpawn(int x, int y, int z);
 
-        // the world clock and weather that /time and /weather drive; the clock advances with the daylight cycle rule
         int64_t DayTime() const { return dayTime; }
         void SetDayTime(int64_t ticks);
-        // "clear", "rain" or "thunder"; the duration is in ticks (0 = until changed)
         void SetWeather(const std::string& kind, int durationTicks);
         bool Raining() const { return raining; }
         bool Thundering() const { return thundering; }
-        // weather and game rules, for a player who just joined
         void SendWorldState(Session& to);
 
-        // /gamerule. keys are lowercase
         struct GameRule {
             std::string display;
             bool boolean = true;
@@ -142,11 +121,9 @@ namespace perlin::server {
         }
         AccessList& Bans() { return banList; }
 
-        // players editing the world: the server validates, runs plugin events, applies and tells everyone who has the chunk
         bool PlayerBreak(Session& by, int x, int y, int z);
         bool PlayerPlace(Session& by, int x, int y, int z, int face);
         void SendBlockTo(Session& to, int x, int y, int z);
-        // items in the world: a player throws a stack, a broken block leaves one; Tick moves them and lets players pick them up
         void DropFromPlayer(Session& by, const ItemStack& stack);
         void SpawnItem(const ItemStack& stack, double x, double y, double z, double vx, double vy, double vz,
                        int pickupDelay, int dimension = kOverworld);
@@ -167,7 +144,6 @@ namespace perlin::server {
         const std::vector<uint8_t>& ItemRegistryBody() const { return itemRegistryBody; }
         const std::vector<uint8_t>& CreativeContentBody() const { return creativeBody; }
 
-        // PluginApi
         void Broadcast(const std::string& text) override;
         bool Message(uint64_t player, const std::string& text) override;
         bool Kick(uint64_t player, const std::string& reason) override;
@@ -186,7 +162,6 @@ namespace perlin::server {
     private:
         void RegisterBuiltins();
         void BuildItemPackets();
-        // writes a block into the world and sends the change to every player who has that column
         void ApplyBlock(int x, int y, int z, uint16_t block) { ApplyBlock(kOverworld, x, y, z, block); }
         void ApplyBlock(int dimension, int x, int y, int z, uint16_t block);
         void Pump();
@@ -199,6 +174,7 @@ namespace perlin::server {
         std::unique_ptr<PluginHost> plugins;
         std::unique_ptr<LoopbackListener> loopback;
         std::unique_ptr<Listener> nethernet;
+        std::unique_ptr<Listener> raknet;
         EventQueue events;
         int spawnX = 0, spawnY = 0, spawnZ = 0;
         int64_t dayTime = 6000;
@@ -208,7 +184,6 @@ namespace perlin::server {
         AccessList banList{AccessList::Kind::Allowlist};
         void InitGameRules();
         void DrainLocate();
-        // /locate searches: run on their own threads, answered from the tick thread
         std::mutex locateMutex;
         std::vector<std::pair<uint64_t, std::string>> locateDone;
         std::vector<std::thread> locateThreads;
@@ -239,7 +214,6 @@ namespace perlin::server {
         void PushContainer(BlockContainer& c, bool slotsChanged);
         uint64_t nextEntityId = 1'000'000;
         uint64_t tick = 0;
-        // /tick: the game clock can be slowed, sped up, frozen and stepped. networking keeps running while frozen
         double tickRateTarget = 20.0;
         bool frozen = false;
         int64_t stepRemaining = 0;
@@ -256,7 +230,7 @@ namespace perlin::server {
         bool started = false;
     };
 
-    // implemented in net/NetherNetListener.cpp when built with nethernet support
     std::unique_ptr<Listener> CreateNetherNetListener(const ServerConfig& config,
                                                       std::function<std::string()> infoJson);
+    std::unique_ptr<Listener> CreateRakNetListener(const ServerConfig& config, std::function<std::string()> motd);
 }

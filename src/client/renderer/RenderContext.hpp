@@ -84,17 +84,12 @@ namespace perlin {
         float glintOffset[2] = {0, 0};
         float glintStrength = 1.0f;
         bool shadowOnly = false;
-        // a player model (java packs: shadowPlayer)
         bool player = false;
-        // java shader packs: what is being drawn (entity.properties / item.properties / block.properties ids)
-        // and the light where it stands (-1: the light at the eye)
         const char* entityType = nullptr;
         const char* itemName = nullptr;
         const char* blockEntity = nullptr;
         int8_t blockLight = -1, skyLight = -1;
-        // per vertex block / sky levels (two per vertex, -1 for unknown), valid during UiSubmit
         const int8_t* vertexLight = nullptr;
-        // engine draw categories with their own java program
         enum class PackKind : uint8_t { Auto, Clouds, Lightning, BeaconBeam, Line, Glowing, BlockText };
         PackKind packKind = PackKind::Auto;
     };
@@ -134,11 +129,8 @@ namespace perlin {
         float screenTint[4];
         float portalOverlay = 0.0f;
         uint32_t frameIndex;
-        // level clock for java pack uniforms; -1 when the session has none yet
         int worldDay = -1, worldTick = -1;
-        // what java packs read about the player's surroundings: light at the eye (0-15), the biome there
         int eyeSkyLight = 15, eyeBlockLight = 0;
-        // render distance in chunks: java packs' `far` uniform is this many blocks
         int renderDistance = 8;
         char biome[48] = "minecraft:plains";
         float thunder = 0.0f;
@@ -180,10 +172,7 @@ namespace perlin {
         }
         virtual void ClearJavaShaderPack() {}
         virtual bool JavaShaderPackActive() const { return false; }
-        // a java pack draws this frame: entity / item meshes should carry their plain tint, not the engine's
-        // lighting, since the pack lights them from the lightmap coordinates
         virtual bool JavaPackDrawing() const { return false; }
-        // a java pack getting ready: programs compiled of all it will use, and which one is still compiling
         struct JavaPackLoad {
             bool active = false;
             int done = 0, total = 0;
@@ -191,20 +180,15 @@ namespace perlin {
         };
         virtual JavaPackLoad JavaShaderPackLoad() const { return {}; }
         virtual std::vector<JavaPackOption> JavaShaderPackOptions() const { return {}; }
-        // the running java pack (screens, profiles, lang), null when none is loaded
         virtual std::shared_ptr<jshader::ShaderPackInstance> JavaShaderPackInstance() const { return {}; }
         virtual std::string JavaShaderPackError() const { return {}; }
         virtual void SetJavaShaderPackDimension(const std::string&) {}
-        // block name of a palette id, which packs map to their own block ids
         virtual void SetBlockNameLookup(std::function<std::string(uint16_t)>) {}
-        // block light a palette id gives off (0-15), for packs that read it from at_midBlock.w
         virtual void SetBlockEmissionLookup(std::function<int(uint16_t)>) {}
         virtual bool PackShadowsActive() const { return false; }
         virtual void SetVsync(bool) {}
-        // switches the graphics api while the game keeps running; applied before the next frame, false when unsupported
         virtual bool RequestRendererSwitch(const std::string&) { return false; }
         virtual bool RendererSwitchPending() const { return false; }
-        // api id of the running renderer ("vulkan", "d3d12", ...), empty when it has none
         virtual std::string ActiveRendererId() const { return {}; }
         virtual std::string RendererName() const { return {}; }
         virtual std::string GpuVendor() const { return {}; }
@@ -225,7 +209,6 @@ namespace perlin {
         virtual void UploadCrosshair(const Texture& icons) = 0;
         virtual void DrawHudCursor(float x, float y, float w, float h) = 0;
         virtual void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) = 0;
-        // textures/environment/end_sky.png, for java shader packs in the end
         virtual void UploadEndSkyTexture(const Texture&) {}
         virtual void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) = 0;
         virtual void UploadTileFlags(const std::vector<uint8_t>&) {}
@@ -235,6 +218,7 @@ namespace perlin {
         virtual uint32_t UiCreateTexture(int width, int height, const uint8_t* rgba, bool linear,
                                          bool repeat = false) = 0;
         virtual void UiDestroyTexture(uint32_t texture) = 0;
+        virtual bool UiUpdateTexture(uint32_t, int, int, int, int, const uint8_t*, int) { return false; }
         virtual uint32_t UiCreateMesh(const UiVertex* vertices, uint32_t vertexCount, const uint32_t* indices,
                                       uint32_t indexCount) = 0;
         virtual uint32_t UiCreateFrameMesh(const UiVertex* vertices, uint32_t vertexCount,
@@ -247,7 +231,6 @@ namespace perlin {
         virtual void FramebufferSize(int& width, int& height) const = 0;
 
         virtual void UpdateChunkMesh(int cx, int cz, const Tessellator& tess, uint64_t version) = 0;
-        // called on chunk meshing threads once a mesh is built: renderer-specific work that can run there
         virtual void PrepareChunkMesh(Tessellator&) {}
         virtual void RemoveChunkMesh(int cx, int cz) = 0;
         virtual void UpdateLodTile(int tx, int tz, int size, const Tessellator& tess, uint64_t version) = 0;
@@ -256,7 +239,6 @@ namespace perlin {
         virtual void UnloadLevelResources() { ClearChunkMeshes(); }
         virtual void DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) = 0;
         virtual void SetChunkCullRadius(int) {}
-        // section (16-block cube) reachable from the camera through open space, last frame
         virtual bool SectionReached(int sx, int sy, int sz) const { return true; }
     };
 }

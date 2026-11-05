@@ -100,8 +100,6 @@ namespace perlin {
         }
     }
 
-    // -- textures ---------------------------------------------------------------------------------------------------
-
     uint32_t RenderContext_rhi::UiCreateTexture(int w, int h, const uint8_t* rgba, bool linear, bool repeat) {
         if (!initialized || w <= 0 || h <= 0 || !rgba)
             return 0;
@@ -123,13 +121,29 @@ namespace perlin {
         return static_cast<uint32_t>(uiTextures.size());
     }
 
+    bool RenderContext_rhi::UiUpdateTexture(uint32_t id, int x, int y, int w, int h, const uint8_t* rgba,
+                                            int rowBytes) {
+        if (!initialized || id == 0 || id > uiTextures.size() || !uiTextures[id - 1].used || !rgba || w <= 0 ||
+            h <= 0 || x < 0 || y < 0)
+            return false;
+        TexRec& rec = uiTextures[id - 1];
+        if (static_cast<uint32_t>(x + w) > rec.w || static_cast<uint32_t>(y + h) > rec.h || rec.mips != 1)
+            return false;
+        const size_t pitch = rowBytes > 0 ? static_cast<size_t>(rowBytes) : static_cast<size_t>(w) * 4;
+        gpu.WriteTexture(rec.handle, 0, static_cast<uint32_t>(x), static_cast<uint32_t>(y), static_cast<uint32_t>(w),
+                         static_cast<uint32_t>(h), rgba, static_cast<uint32_t>(pitch));
+        if (rec.backup.size() == static_cast<size_t>(rec.w) * rec.h * 4)
+            for (int row = 0; row < h; row++)
+                std::memcpy(rec.backup.data() + (static_cast<size_t>(y + row) * rec.w + static_cast<size_t>(x)) * 4,
+                            rgba + static_cast<size_t>(row) * pitch, static_cast<size_t>(w) * 4);
+        return true;
+    }
+
     void RenderContext_rhi::UiDestroyTexture(uint32_t id) {
         if (id == 0 || id > uiTextures.size() || !uiTextures[id - 1].used)
             return;
         FreeTexture(uiTextures[id - 1]);
     }
-
-    // -- meshes -----------------------------------------------------------------------------------------------------
 
     RenderContext_rhi::UiMeshGpu* RenderContext_rhi::LookupUiMesh(uint32_t id) {
         const uint32_t slot = id & kUiMeshSlotMask;
@@ -308,13 +322,10 @@ namespace perlin {
         uiPages.clear();
     }
 
-    // -- drawing ----------------------------------------------------------------------------------------------------
-
     bool RenderContext_rhi::RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
                                             conduit::texture_handle texture, bool glint) {
         if (layer != UiLayer::World && layer != UiLayer::WorldLate && layer != UiLayer::Hand)
             return false;
-        // name tags and colour-masked overlays stay with the engine (iris draws text outside the pack too)
         if (draw.material == DrawMaterial::Nametag || draw.colorMask || !mesh.cpuVertices || !mesh.cpuIndices)
             return false;
         using K = gpu::JavaPack::ExternalDraw::Kind;
@@ -322,7 +333,6 @@ namespace perlin {
         const bool translucent = draw.blend == 1 || draw.premultiplied || draw.customBlend;
         const bool lightning =
             draw.entityType && std::strcmp(draw.entityType, "minecraft:lightning_bolt") == 0;
-        // iris ShaderKey alpha tests: entity cutout / translucent 0.1, solid none, eyes and glint non-zero
         constexpr float kTenth = 0.1f, kNonZero = 0.0001f;
         if (glint) {
             d.kind = layer == UiLayer::Hand ? K::HandGlint : K::Glint;
@@ -386,14 +396,11 @@ namespace perlin {
         if (draw.itemName)
             d.itemId = jpack->ItemIdFor(draw.itemName);
         if (glint) {
-            // vanilla glint texturing: scroll and a 10 degree turn, as a texture matrix the pack applies to
-            // gl_MultiTexCoord0
             d.glintBlend = true;
             d.depthWrite = false;
             const float scrollU = draw.glintMatrix[0], scrollV = draw.glintMatrix[1];
             const float scale = draw.glintMatrix[2] > 0.0f ? draw.glintMatrix[2] : 0.5f;
             const float c = std::cos(0.17453292f), sn = std::sin(0.17453292f);
-            // translate(scroll) * rotateZ * scale, column major
             const float m[16] = {c * scale, sn * scale, 0, 0, -sn * scale, c * scale, 0, 0,
                                  0,         0,          1, 0, scrollU,     scrollV,   0, 1};
             std::memcpy(d.textureMatrix, m, sizeof(m));
@@ -454,7 +461,6 @@ namespace perlin {
                           : layer == UiLayer::Export    ? View::ExportUi
                                                         : View::Gui;
 
-        // mobs and players write into the sun map; glint and blended passes would only double-draw them
         if (layer == UiLayer::World && shadow.active && shadow.entities && !glint && draw.depth &&
             draw.depthWrite && draw.blend != 2 && ProgramIndex(Program::EntityShadow) >= 0) {
             SetTransform(glm::make_mat4(draw.model));

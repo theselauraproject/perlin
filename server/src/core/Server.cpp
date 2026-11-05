@@ -1,6 +1,7 @@
 #include "core/Server.hpp"
 #include "inventory/Recipes.hpp"
 
+#include "core/Auth.hpp"
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "world/BlockCatalog.hpp"
@@ -24,7 +25,6 @@
 namespace perlin::server {
     namespace {
 
-        // a block name with or without the namespace
         std::string FullBlockName(const std::string& n) {
             return !n.contains(':') ? "minecraft:" + n : n;
         }
@@ -50,10 +50,7 @@ namespace perlin::server {
             error = "unknown generator '" + config.generator + "' (\"flat\" or \"vanilla\")";
             return false;
         }
-        if (config.transport == "raknet" && !config.loopbackOnly) {
-            error = "transport=raknet: this server only speaks NetherNet, set transport=nethernet";
-            return false;
-        }
+
         if (config.randomSeed) {
             std::random_device device;
             config.seed = (static_cast<uint64_t>(device()) << 32) ^ device();
@@ -99,7 +96,6 @@ namespace perlin::server {
         LogInfo("terrain: " + std::string(choice.backend->Name()) +
                 (choice.note.empty() ? "" : " (" + choice.note + ")"));
         {
-            // the spawn: the backend's dry land nearest the origin, or the origin on the flat surface
             int x = 0, y = FlatSurfaceY(config), z = 0;
             const auto spawnStart = std::chrono::steady_clock::now();
             if (config.generator == "vanilla" && choice.backend->FindSpawn(x, y, z))
@@ -122,7 +118,35 @@ namespace perlin::server {
             error = "loopback: " + listenError;
             return false;
         }
-        if (config.nethernet && !config.loopbackOnly) {
+        if (config.xboxAuth && !config.loopbackOnly)
+            auth::StartTokenKeyRefresh();
+        const bool wantRakNet = !config.loopbackOnly && config.transport != "nethernet-only";
+        const bool wantNetherNet = config.nethernet && !config.loopbackOnly && config.transport != "raknet";
+        if (wantRakNet && wantNetherNet) {
+            const bool sharedPort = config.udpPortsSet ? (config.udpPortBegin == config.port && config.udpPortEnd == config.port)
+                                                       : config.iceUdpMux;
+            if (sharedPort) {
+                config.iceUdpPort = static_cast<uint16_t>(config.port + 2);
+                LogInfo("raknet takes udp " + std::to_string(config.port) + "; nethernet's webrtc traffic moves to udp " +
+                        std::to_string(config.iceUdpPort));
+            }
+        }
+        if (wantRakNet) {
+            raknet = CreateRakNetListener(config, [this] {
+                std::string name = config.name;
+                std::replace(name.begin(), name.end(), ';', ' ');
+                return "MCPE;" + name + ";2225;1.26.60;" +
+                       std::to_string(InGamePlayers().size()) + ";" + std::to_string(config.maxPlayers) + ";";
+            });
+            std::string raknetError;
+            if (raknet->Start(events, raknetError)) {
+                LogInfo("raknet on udp " + config.bindAddress + ":" + std::to_string(config.port));
+            } else {
+                LogWarn(raknetError + "; regular Bedrock clients cannot join until the port is free");
+                raknet.reset();
+            }
+        }
+        if (wantNetherNet) {
             nethernet = CreateNetherNetListener(config, [this] {
                 std::ostringstream o;
                 o << "{\"name\":\"" << json::Escape(config.name)
@@ -148,7 +172,6 @@ namespace perlin::server {
             const bool fresh = persist && !std::filesystem::exists(permissionsPath);
             permissionList.Load(persist ? permissionsPath : std::string());
             if (fresh) {
-                // ops.json from before the bds file names: its entries become operators once
                 AccessList legacyOps;
                 legacyOps.Load(config.dataDir + "/ops.json");
                 for (const AccessEntry& e : legacyOps.Entries())
@@ -157,11 +180,9 @@ namespace perlin::server {
                     LogInfo("imported " + std::to_string(legacyOps.Entries().size()) +
                             " operators from ops.json into permissions.json");
             }
-            // the old operators key in server.json still counts
             for (const std::string& o : config.operators)
                 permissionList.SetPermission(o, std::string(), "operator");
             if (persist) {
-                // written out on first run so there is a file to edit
                 permissionList.Save();
                 allowList.Save();
             }
@@ -179,7 +200,6 @@ namespace perlin::server {
         if (!started)
             return;
         started = false;
-        // searches in flight stop at their next sample
         locateCancel = true;
         for (std::thread& t : locateThreads)
             if (t.joinable())
@@ -190,6 +210,8 @@ namespace perlin::server {
         sessions.clear();
         if (nethernet)
             nethernet->Stop();
+        if (raknet)
+            raknet->Stop();
         loopback->Stop();
         plugins->UnloadAll();
         chunks.reset();
@@ -205,7 +227,6 @@ namespace perlin::server {
             next += TickDelay();
             const auto now = clock::now();
             if (next < now) {
-                // fell behind: drop the backlog instead of spiralling
                 next = now;
             } else {
                 std::this_thread::sleep_until(next);
@@ -227,7 +248,6 @@ namespace perlin::server {
                 w->Pump();
         Pump();
         DrainLocate();
-        // frozen: the game clock holds still but the network, chat and commands keep working; a step lets single ticks through
         const bool advance = !frozen || stepRemaining > 0 || sprintRemaining > 0;
         if (advance) {
             tick++;
@@ -249,7 +269,6 @@ namespace perlin::server {
             if (plugins->AnyoneListens(abi::Event::Tick))
                 plugins->Dispatch<abi::Event::Tick>({.dt = 0.05f, .tick = tick});
         }
-        // position broadcast: once per tick for players that moved is plenty at 20 Hz
         std::vector<Session*> players = InGamePlayers();
         for (Session* s : players)
             if (s->TakeMoved())
@@ -316,7 +335,6 @@ namespace perlin::server {
         std::string sub, arg;
         in >> sub >> arg;
         sub = str::Lower(sub);
-        // a time is ticks, or a number with t (ticks), s (seconds) or d (days) after it
         const auto parseTime = [](std::string text, int64_t& ticks) {
             if (text.empty())
                 return false;
@@ -425,7 +443,6 @@ namespace perlin::server {
     }
 
     void Server::DropFromPlayer(Session& by, const ItemStack& stack) {
-        // thrown from the eyes, the way the game does: a short arc in the direction the player faces
         const double yaw = static_cast<double>(by.Yaw()) * 3.14159265358979323846 / 180.0;
         const double dx = -std::sin(yaw), dz = std::cos(yaw);
         SpawnItem(stack, by.X() + dx * 0.3, by.Y() - 0.3, by.Z() + dz * 0.3, dx * 0.3, 0.2, dz * 0.3, 40, by.DimensionId());
@@ -453,7 +470,6 @@ namespace perlin::server {
             const std::vector<Session*>& players = byDimension[static_cast<size_t>(std::clamp(it.dimension, 0, kDimensionCount - 1))];
             it.age++;
             const double ox = it.x, oy = it.y, oz = it.z;
-            // gravity, then drag; resting on a block stops the fall and slows the slide
             it.vy -= 0.04;
             double ny = it.y + it.vy;
             it.onGround = false;
@@ -488,7 +504,6 @@ namespace perlin::server {
             bool gone = false;
             if (it.age >= it.pickupDelay)
                 for (Session* s : players) {
-                    // spectators pass through items
                     if (s->Spectator())
                         continue;
                     const double dx = it.x - s->X(), dy = it.y - (s->Y() - 0.9), dz = it.z - s->Z();
@@ -505,7 +520,6 @@ namespace perlin::server {
                             o->HideItem(it.id);
                         gone = true;
                     } else {
-                        // part of the stack fit: the rest stays where it lies
                         it.stack.count = static_cast<uint16_t>(left);
                     }
                     break;
@@ -619,7 +633,6 @@ namespace perlin::server {
     }
 
     std::string Server::AllowlistPath() const {
-        // bds: a whitelist.json that exists is used instead of allowlist.json
         const std::string legacy = config.dataDir + "/whitelist.json";
         std::error_code ec;
         return std::filesystem::exists(legacy, ec) ? legacy : config.dataDir + "/allowlist.json";
@@ -642,7 +655,6 @@ namespace perlin::server {
     }
 
     bool Server::IsOperatorName(const std::string& name) const {
-        // embedded singleplayer: the one player owns the world
         return config.loopbackOnly || PermissionOf(name, std::string()) == "operator";
     }
 
@@ -655,7 +667,6 @@ namespace perlin::server {
         const std::string shown = online ? online->Name() : name;
         const std::string xuid = online ? online->Xuid() : std::string();
         const bool already = PermissionOf(shown, xuid) == "operator";
-        // bds: op writes "operator", deop writes "member" (so it also overrides a default of operator)
         permissionList.SetPermission(shown, xuid, op ? "operator" : "member");
         if (online)
             online->SetOperator(op);
@@ -722,7 +733,6 @@ namespace perlin::server {
     }
 
     namespace {
-        // java answers an unknown command, and one you may not use, the same way
         void UnknownCommand(const std::string& name, const std::function<void(const std::string&)>& say) {
             say("§cUnknown or incomplete command, see below for error");
             say("§c/" + name + "<--[HERE]");
@@ -779,7 +789,6 @@ namespace perlin::server {
     }
 
     bool Server::Message(uint64_t player, const std::string& text) {
-        // player 0 is the console
         if (player == 0) {
             LogInfo(text);
             return true;
@@ -844,7 +853,6 @@ namespace perlin::server {
     abi::Status Server::SetBlock(int x, int y, int z, const std::string& block) {
         if (y < kMinY || y >= kMinY + kHeight)
             return abi::Status::BadArguments;
-        // by name means the default state; a block with no item is not one the catalog can place
         const CatalogItem* item = BlockCatalog::Instance().ItemByName(FullBlockName(block));
         const bool air = FullBlockName(block) == "minecraft:air";
         if ((!item || !item->block) && !air)
@@ -856,7 +864,6 @@ namespace perlin::server {
     }
 
     namespace {
-        // block face index to the neighbour it points at, the order the game numbers faces in
         constexpr int kFaceOffset[6][3] = {{0, -1, 0}, {0, 1, 0},  {0, 0, -1},
                                            {0, 0, 1},  {-1, 0, 0}, {1, 0, 0}};
     }
@@ -871,7 +878,6 @@ namespace perlin::server {
         }
         const uint16_t current = world.GetBlock(x, y, z);
         if (current == BlockRegistry::kAir) {
-            // a second message for a break that already happened: confirm, change nothing
             by.CorrectBlock(x, y, z);
             return true;
         }
@@ -889,13 +895,11 @@ namespace perlin::server {
         DropContainer(dim, x, y, z);
         ApplyBlock(dim, x, y, z, BlockRegistry::kAir);
         OnBlockRemoved(by, dim, x, y, z, name);
-        // survival: the block leaves an item where it stood, to be picked up
         if (!by.Creative())
             if (const CatalogItem* item = BlockCatalog::Instance().ItemByName(name)) {
                 ItemStack drop;
                 drop.networkId = item->networkId;
                 drop.count = 1;
-                // a little sideways kick so stacked drops do not sit on one point
                 const double kick = static_cast<double>((x * 7 + z * 13 + y * 3) & 7) / 7.0 - 0.5;
                 SpawnItem(drop, x + 0.5, y + 0.25, z + 0.5, kick * 0.1, 0.2, -kick * 0.1, 10, dim);
             }
@@ -950,7 +954,6 @@ namespace perlin::server {
         struct GroupDef {
             proto2225::CreativeContentPacketGroupsEntryCategory category;
             const char* name;
-            // block name fragments that put an item in this group; the first group to match wins
             std::vector<const char*> words;
         };
 
@@ -1024,7 +1027,6 @@ namespace perlin::server {
         proto2225::ItemRegistryPacket registry;
         proto2225::CreativeContentPacket creative;
         const std::vector<GroupDef>& defs = Groups();
-        // one extra catch-all group at the end for blocks no fragment matched
         std::vector<proto2225::CreativeContentPacketGroupsEntry> groups(defs.size() + 1);
         for (size_t i = 0; i < defs.size(); i++) {
             groups[i].category = defs[i].category;
@@ -1038,7 +1040,6 @@ namespace perlin::server {
             size_t group;
         };
         std::vector<Placed> placed;
-        // two more groups after the catch-all: gear and everything else that is not a block
         groups.resize(defs.size() + 3);
         const size_t equipmentGroup = defs.size() + 1, itemsGroup = defs.size() + 2;
         groups[equipmentGroup].category = proto2225::CreativeContentPacketGroupsEntryCategory::Equipment;
@@ -1057,7 +1058,6 @@ namespace perlin::server {
             legacy.networkId = item.networkId;
             legacy.count = 1;
             legacy.blockRuntimeId = item.block ? item.blockHash : 0;
-            // the wire always carries the extra-data frame; leaving the variant empty writes none and the client cannot decode the packet
             legacy.extra = proto2225::ItemExtraDataWithoutBlockingTick{};
             size_t group = defs.size();
             const std::string shortName = item.name.substr(item.name.find(':') + 1);
@@ -1080,7 +1080,6 @@ namespace perlin::server {
                     }
             placed.push_back({legacy, group});
         }
-        // groups with nothing in them are left out; the client lists a tab per group
         std::vector<int> remap(groups.size(), -1);
         for (const Placed& p : placed)
             if (remap[p.group] < 0) {
@@ -1088,7 +1087,6 @@ namespace perlin::server {
                 groups[p.group].iconItem = p.legacy;
                 creative.groups.push_back(groups[p.group]);
             }
-        // creative order: by group, the way the vanilla menu lists them
         std::stable_sort(placed.begin(), placed.end(),
                          [&](const Placed& a, const Placed& b) { return remap[a.group] < remap[b.group]; });
         for (const Placed& p : placed) {

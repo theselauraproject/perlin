@@ -3,7 +3,6 @@
 namespace perlin::server {
 
     namespace {
-        // server-side face of an endpoint
         class Peer final : public Connection {
         public:
             explicit Peer(std::shared_ptr<LoopbackListener::Shared> shared) : shared(std::move(shared)) {}
@@ -17,6 +16,7 @@ namespace perlin::server {
             void Close() override { shared->alive = false; }
             bool Alive() const override { return shared->alive; }
             std::string Describe() const override { return "loopback"; }
+            bool Local() const override { return true; }
 
         private:
             std::shared_ptr<LoopbackListener::Shared> shared;

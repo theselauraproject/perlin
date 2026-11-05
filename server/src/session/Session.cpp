@@ -22,7 +22,6 @@ namespace perlin::server {
         constexpr int32_t kProtocol = 2225;
         constexpr const char* kGameVersion = "1.26.60";
         constexpr double kEyeHeight = 1.62;
-        // chunks sent per tick to one player; keeps a join from flooding the data channel
         constexpr int kChunksPerTick = 6;
         constexpr auto kIdleTimeout = std::chrono::seconds(60);
         constexpr auto kHeartbeat = std::chrono::seconds(5);
@@ -52,11 +51,9 @@ namespace perlin::server {
                 n++;
             }
             if (n != 32) {
-                // no usable identity: derive a stable-looking one from the runtime id
                 for (size_t i = 0; i < 16; i++)
                     text16[i] = static_cast<uint8_t>((fallbackSeed * 0x9E3779B97F4A7C15ull) >> (i * 4));
             }
-            // the wire stores each 8 byte half little endian
             std::array<uint8_t, 16> wire{};
             for (size_t i = 0; i < 8; i++) {
                 wire[i] = text16[7 - i];
@@ -81,7 +78,6 @@ namespace perlin::server {
                 static_cast<size_t>(s.skinData.width) * static_cast<size_t>(s.skinData.height) * 4;
             s.skinData.data.assign(rgba.begin(), rgba.end());
             if (s.skinData.data.size() != want) {
-                // a missing or malformed skin shows as a flat grey player instead of breaking the list packet
                 s.skinData.width = 64;
                 s.skinData.height = 64;
                 s.skinData.data.assign(64 * 64 * 4, 0x80);
@@ -103,7 +99,6 @@ namespace perlin::server {
             s.premium = c["PremiumSkin"].Bool();
             s.persona = c["PersonaSkin"].Bool();
             s.capeOnClassic = c["CapeOnClassicSkin"].Bool();
-            // "#aarrggbb" or "#rrggbb"
             if (const std::string color = c["SkinColor"].String(); color.size() > 1 && color[0] == '#') {
                 try {
                     const uint32_t v = static_cast<uint32_t>(std::stoul(color.substr(1), nullptr, 16));
@@ -208,7 +203,6 @@ namespace perlin::server {
             Close();
     }
 
-    // settings and early status replies go out before compression is on: send exactly this packet, uncompressed
     void Session::SendImmediate(uint32_t id, const std::vector<uint8_t>& body) {
         std::vector<uint8_t> content;
         BatchCodec::AppendPacket(content, id, body);
@@ -332,7 +326,7 @@ namespace perlin::server {
         case proto::ClientToServerHandshakePacket::kId:
         case proto::ClientCacheStatusPacket::kId:
         default:
-            break; // everything else a client may send is ignored for now
+            break;
         }
     }
 
@@ -359,7 +353,6 @@ namespace perlin::server {
         settings.compressionAlgorithm = proto::NetworkSettingsPacketCompressionAlgorithm::Deflate;
         std::vector<uint8_t> out;
         net::EncodeChecked(settings, out);
-        // the settings reply itself is the last uncompressed batch
         SendImmediate(proto::NetworkSettingsPacket::kId, out);
         codec.EnableCompression(server.Config().compressionThreshold);
         state = State::AwaitLogin;
@@ -372,7 +365,6 @@ namespace perlin::server {
             Close();
             return;
         }
-        // signatures are always checked; what a valid chain proves depends on xbox_auth (see ServerConfig)
         const auth::Login login2 = auth::VerifyLogin(
             login.tokens.identity, login.tokens.client,
             server.Config().authRootKeys.empty() ? auth::DefaultRootKeys() : server.Config().authRootKeys);
@@ -387,7 +379,6 @@ namespace perlin::server {
                 why = "not signed in to Xbox Live";
             } else if (!connection->offerSdp.empty() &&
                        !auth::VerifyOfferBinding(connection->offerSdp, login2.clientKey, why)) {
-                // a replayed login cannot also sign this connection's dtls fingerprints
             } else {
                 why.clear();
             }
@@ -414,7 +405,6 @@ namespace perlin::server {
             Kick("Invalid login: no player name");
             return;
         }
-        // names are shown in chat and used by commands
         for (char& c : name)
             if (static_cast<unsigned char>(c) < 0x20)
                 c = ' ';
@@ -430,7 +420,6 @@ namespace perlin::server {
 
         if (server.Config().whitelist && !server.Config().loopbackOnly && !server.IsWhitelisted(name, xuid)) {
             LogInfo(name + " refused: not on the allowlist");
-            // the client translates this key (bds sends the same one)
             Kick("disconnectionScreen.notAllowed");
             return;
         }
@@ -476,7 +465,6 @@ namespace perlin::server {
             Kick("Resource packs refused");
             break;
         case Status::SendPacks:
-            // the server offers none
             Kick("Requested a resource pack this server does not have");
             break;
         case Status::HaveAllPacks: {
@@ -510,7 +498,6 @@ namespace perlin::server {
         g.biomeType = 0;
         g.biomeName = "plains";
         g.dimension = proto::StartGamePacketDimension::Overworld;
-        // generator enum: 1 infinite, 2 flat; informational for the client
         g.generator = cfg.generator == "vanilla" ? 1 : 2;
         g.worldGamemode = static_cast<proto::GameMode>(cfg.gameMode);
         g.difficulty = cfg.difficulty;
@@ -538,7 +525,6 @@ namespace perlin::server {
         g.multiplayerCorrelationId = "perlin-" + std::to_string(runtimeId);
         g.serverAuthoritativeInventory = true;
         g.engine = "Perlin Server";
-        // block ids on the wire are the name hashes: the chunk encoder writes those
         g.blockNetworkIdsAreHashes = true;
         g.serverIdentifier = cfg.name;
         Send(g);
@@ -557,7 +543,6 @@ namespace perlin::server {
         Send(t);
 
         {
-            // the client lists itself too, which is how it finds its own skin
             proto::PlayerListPacket self;
             proto::PlayerRecord rec;
             rec.type = proto::PlayerRecordType::Add;
@@ -596,7 +581,6 @@ namespace perlin::server {
             a.default_ = fallback;
             p.attributes.push_back(std::move(a));
         };
-        // what a survival client's hud reads: without these it shows no hearts, hunger or experience
         add("minecraft:health", 0.0f, 20.0f, std::max(0.0f, std::ceil(health)), 20.0f);
         add("minecraft:player.hunger", 0.0f, 20.0f, 20.0f, 20.0f);
         add("minecraft:player.saturation", 0.0f, 20.0f, 5.0f, 5.0f);
@@ -618,7 +602,6 @@ namespace perlin::server {
         }
         if (gameMode == 1)
             enabled |= F::InstantBuild | F::MayFly | F::Invulnerable;
-        // spectators fly through everything, touch nothing, and can't be hurt
         if (gameMode == 6)
             enabled |= F::MayFly | F::Flying | F::Invulnerable | F::NoClip;
         if (isOperator)
@@ -632,10 +615,8 @@ namespace perlin::server {
             isOperator ? proto::CommandPermissionLevel::Operator : proto::CommandPermissionLevel::Normal;
         proto::AbilityLayers layer;
         layer.type = proto::AbilityLayersType::Base;
-        // every ability the game knows may be granted by this layer; `enabled` says which are on
         layer.allowed = F::Count - 1;
         layer.enabled = enabled;
-        // the speed level multiplies both flight speeds (spectator only; everyone else flies at the normal rate)
         const float speed = gameMode == 6 ? static_cast<float>(flySpeedLevel) : 1.0f;
         layer.flySpeed = 0.05f * speed;
         layer.verticalFlySpeed = 1.0f * speed;
@@ -728,7 +709,6 @@ namespace perlin::server {
     }
 
     void Session::SetGameMode(int mode) {
-        // 0 survival, 1 creative, 2 adventure, 6 spectator
         if (mode != 0 && mode != 1 && mode != 2 && mode != 6)
             return;
         if (mode == 6 && gameMode != 6)
@@ -815,7 +795,6 @@ namespace perlin::server {
 
     bool Session::InReach(int x, int y, int z) const {
         const double dx = x + 0.5 - posX, dy = y + 0.5 - posY, dz = z + 0.5 - posZ;
-        // a generous reach: the point is to stop a client editing across the map, not to police the exact limit
         return dx * dx + dy * dy + dz * dz <= 12.0 * 12.0;
     }
 
@@ -932,7 +911,6 @@ namespace perlin::server {
             return;
         }
         switch (a.action) {
-        // creative breaks on the first message; survival waits for the stop, since the dig time is the client's to count here
         case proto::Action::StartBreak:
             if (isVisitor || gameMode == 6)
                 break;
@@ -1003,7 +981,6 @@ namespace perlin::server {
             server.PlayerBreak(*this, at.x, at.y, at.z);
             break;
         case proto::TransactionUseItemActionType::ClickBlock:
-            // armor used on a block is put on, as in the game, rather than placed
             if ((sneaking && !inventory.Held().Empty()) || !server.UseBlock(*this, at.x, at.y, at.z))
                 if (!EquipHeldArmor())
                     server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
@@ -1058,7 +1035,6 @@ namespace perlin::server {
                          static_cast<int32_t>(std::floor(posZ))};
         u.radius = static_cast<uint32_t>(radius * 16);
         Send(u);
-        // columns that fell out of range may be sent again if the player returns
         for (auto it = sent.begin(); it != sent.end();) {
             if (std::abs(it->x - center.x) > radius + 1 || std::abs(it->z - center.z) > radius + 1)
                 it = sent.erase(it);
@@ -1077,7 +1053,6 @@ namespace perlin::server {
     void Session::StreamChunks() {
         if (radius == 0 || !centerSent)
             return;
-        // nearest first, so the spawn area is there before the horizon
         std::vector<ChunkPos> want;
         for (int dx = -radius; dx <= radius; dx++)
             for (int dz = -radius; dz <= radius; dz++) {
@@ -1090,13 +1065,14 @@ namespace perlin::server {
             const int db = (b.x - center.x) * (b.x - center.x) + (b.z - center.z) * (b.z - center.z);
             return da < db;
         });
-        int budget = kChunksPerTick;
-        // ask the manager for a window ahead so generation overlaps sending
+        int budget = connection->Local() ? kChunksPerTick * 8
+                     : state == State::Loading ? kChunksPerTick * 3
+                                               : kChunksPerTick * 2;
         int asked = 0;
         for (const ChunkPos& pos : want) {
             auto entry = server.World(dimension).Get(pos);
             if (!entry) {
-                if (++asked >= 64)
+                if (++asked >= 128)
                     break;
                 continue;
             }
@@ -1114,7 +1090,6 @@ namespace perlin::server {
             sent.insert(pos);
             budget--;
         }
-        // the client waits for terrain under its feet before it drops the loading screen
         if (!spawnSent && state == State::Loading) {
             size_t near = 0;
             for (const ChunkPos& p : sent)
@@ -1153,7 +1128,6 @@ namespace perlin::server {
         proto::AnimatePacket p;
         if (!Decode(body, p) || state != State::InGame)
             return;
-        // arm swings: everyone else sees this player's swing
         p.runtimeEntityId = runtimeId;
         for (Session* other : server.InGamePlayers())
             if (other != this)
@@ -1175,7 +1149,6 @@ namespace perlin::server {
         proto::TickSyncPacket p;
         if (!Decode(body, p))
             return;
-        // the client uses the round trip to line its clock up with ours
         p.responseTime = static_cast<int64_t>(server.TickCount());
         Send(p);
     }
@@ -1203,7 +1176,6 @@ namespace perlin::server {
         proto::LevelSoundEventPacket p;
         if (!Decode(body, p) || state != State::InGame)
             return;
-        // footsteps, block breaking and placing, swings: the client announces them, the others hear them
         for (Session* other : server.InGamePlayers())
             if (other != this)
                 other->Send(p);
@@ -1244,7 +1216,6 @@ namespace perlin::server {
     void Session::SetPosition(double x, double y, double z, float p, float yawValue) {
         if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
             return;
-        // far outside any sane world: ignore rather than let a bad value drive chunk loading
         if (std::abs(x) > 3.0e7 || std::abs(z) > 3.0e7 || std::abs(y) > 1.0e5)
             return;
         if (awaitingDimensionAck) {
@@ -1331,7 +1302,6 @@ namespace perlin::server {
         const int slot = ArmorSlotFor(held.networkId);
         if (slot < 0)
             return false;
-        // the game swaps: what was worn goes to the hand
         std::swap(held, inventory.armor[static_cast<size_t>(slot)]);
         if (!held.Empty())
             held.stackId = inventory.NewStackId();
@@ -1614,7 +1584,6 @@ namespace perlin::server {
         proto::UpdateBlockPacket u;
         u.position = {x, y, z};
         u.blockRuntimeId = static_cast<uint32_t>(networkId);
-        // neighbours + network: the standard flags for a server side change
         u.flags = 3;
         u.layer = 0;
         Send(u);
@@ -1644,7 +1613,6 @@ namespace perlin::server {
             Close();
             return;
         }
-        // player-idle-timeout (minutes): bds kicks players who have not moved, acted or chatted for that long
         const uint32_t idleMinutes = server.Config().idleTimeoutMinutes;
         if (idleMinutes > 0 && state == State::InGame && !server.Config().loopbackOnly &&
             now - lastActive > std::chrono::minutes(idleMinutes)) {
@@ -1654,7 +1622,6 @@ namespace perlin::server {
         }
         if (state == State::Loading || state == State::InGame)
             StreamChunks();
-        // a quiet world sends nothing, and a client that hears nothing for a while assumes the server is gone: say hello now and then
         if (state == State::InGame && now - lastHeartbeat > kHeartbeat) {
             lastHeartbeat = now;
             proto::SetTimePacket t;

@@ -76,7 +76,8 @@ namespace perlin {
         BlockPalette();
         std::atomic<int32_t> sequentialAir{-1};
 
-        bool namesLoaded = false;
+        std::atomic<bool> namesLoaded{false};
+        std::mutex loadMutex;
         std::unordered_map<int32_t, std::string> nameByHash;
         std::unordered_map<int32_t, std::vector<std::pair<std::string, StateValue>>> statesByHash;
         std::unordered_map<std::string, std::string> rpKeyByName;
@@ -98,7 +99,7 @@ namespace perlin {
         std::vector<uint64_t> baseKeys, sequenceKeys;
         std::vector<int32_t> netByLocal;
         std::vector<CustomRun> customRuns;
-        std::unordered_set<std::string> keptDataDriven; // data-driven table blocks the server declared
+        std::unordered_set<std::string> keptDataDriven;
         bool layoutVerified = false;
         bool layoutAppended = false;
         void BuildLayoutLocked(bool appended);

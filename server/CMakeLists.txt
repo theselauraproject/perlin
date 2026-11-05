@@ -78,6 +78,7 @@ set(PS_SOURCES
     src/net/Batch.cpp
     src/net/Connection.cpp
     src/net/LoopbackListener.cpp
+    src/net/RakNetListener.cpp
     src/plugin/PluginHost.cpp
     src/session/Session.cpp
     src/world/Backends.cpp
@@ -220,6 +221,7 @@ foreach(t perlin_server_objects ${PS_LIBS})
         # the client builds libdatachannel static (position independent) and shared; the static one keeps the library self contained
         if(TARGET datachannel-static)
             target_link_libraries(${t} PUBLIC datachannel-static OpenSSL::SSL)
+            target_compile_definitions(${t} PRIVATE PERLIN_SERVER_HAS_SSL)
         else()
             target_link_libraries(${t} PUBLIC datachannel)
         endif()

@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <unordered_map>
 #include "util/Platform.hpp"
 
 namespace perlin {
@@ -190,7 +191,6 @@ namespace perlin {
         SetupModActions();
         SetupModAdvanced();
         SetupModHooks();
-        // registered last: these replace any earlier handler for the same op
         SetupModInteractionApi();
     }
 
@@ -519,11 +519,21 @@ namespace perlin {
             enum : uint8_t { known = 1, water = 2, lava = 4, snow = 8, leaves = 16, cube = 32 };
             const BlockLibrary& blocks = levelRenderer->Blocks();
             const BiomeTints& tints = levelRenderer->Tints();
+            struct MapEntry {
+                uint64_t version = 0;
+                const void* level = nullptr;
+                uint64_t epoch = 0;
+                std::vector<uint8_t> bytes;
+            };
+            static std::unordered_map<uint64_t, MapEntry> mapCache;
+            static uint64_t colourEpoch = 0;
             if (blocks.AtlasPixels().data() != atlasSeen || blocks.AtlasPixels().size() != atlasSize) {
                 atlasSeen = blocks.AtlasPixels().data();
                 atlasSize = blocks.AtlasPixels().size();
                 colours.InvalidateColours();
                 traits.clear();
+                colourEpoch++;
+                mapCache.clear();
             }
             const auto traitsOf = [&](uint16_t id) -> uint8_t {
                 if (id >= traits.size())
@@ -557,6 +567,16 @@ namespace perlin {
                 return Status::Ok;
             }
             const Chunk& chunk = it->second;
+            const uint64_t cacheKey = (static_cast<uint64_t>(static_cast<uint32_t>(cx)) * 0x9E3779B97F4A7C15ull) ^
+                                      (static_cast<uint64_t>(static_cast<uint32_t>(cz)) << 20) ^
+                                      static_cast<uint64_t>(static_cast<uint32_t>(caveY)) * 0xC2B2AE3D27D4EB4Full;
+            if (const auto hit = mapCache.find(cacheKey); hit != mapCache.end() && hit->second.version == chunk.version &&
+                                                          hit->second.level == modLevel &&
+                                                          hit->second.epoch == colourEpoch) {
+                w.raw(hit->second.bytes.data(), hit->second.bytes.size());
+                return Status::Ok;
+            }
+            const size_t replyStart = w.data.size();
             w.boolean(true).put<uint64_t>(chunk.version * 31 + static_cast<uint64_t>(caveY == INT32_MIN ? 0 : caveY + 1000));
             const auto rgb = [](const LodStore::Rgb& c) {
                 return static_cast<uint32_t>(c.r) << 16 | static_cast<uint32_t>(c.g) << 8 | c.b;
@@ -648,6 +668,13 @@ namespace perlin {
                     }
                     w.put<uint32_t>(colour).put<int16_t>(height).put<int16_t>(top).put<uint8_t>(depth).put<uint8_t>(flags);
                 }
+            if (mapCache.size() > 2500)
+                mapCache.clear();
+            MapEntry& entry = mapCache[cacheKey];
+            entry.version = chunk.version;
+            entry.level = modLevel;
+            entry.epoch = colourEpoch;
+            entry.bytes.assign(w.data.begin() + static_cast<std::ptrdiff_t>(replyStart), w.data.end());
             return Status::Ok;
         });
 

@@ -1635,6 +1635,7 @@ namespace perlin {
                 if (vanillaUi)
                     ui::UiAssets::Instance().Configure(vanillaRoot, &levelRenderer->Blocks());
                 auto candidate = std::make_unique<ui::Hud>();
+                candidate->SetJavaStyle(true);
                 if (candidate->Initialize(*renderer, vanillaRoot, paths::DataDir(), !vanillaUi)) {
                     hudBootstrap = !candidate->HasLevelUi();
                     hud = std::move(candidate);

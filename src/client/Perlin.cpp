@@ -2,10 +2,11 @@
 #include "client/update/Updater.hpp"
 #include "network/Http.hpp"
 #include "util/Log.hpp"
+#include "util/Resources.hpp"
+#include "world/level/block/BlockPalette.hpp"
 
 #ifdef __EMSCRIPTEN__
 #include <cstdlib>
-// clang-format off
 EM_JS(char*, perlin_js_auth_relay, (), {
     var relay = Module["perlinAuthRelay"] || "";
     var size = lengthBytesUTF8(relay) + 1;
@@ -13,7 +14,6 @@ EM_JS(char*, perlin_js_auth_relay, (), {
     stringToUTF8(relay, ptr, size);
     return ptr;
 });
-// clang-format on
 #endif
 
 namespace perlin {
@@ -58,17 +58,14 @@ namespace perlin {
                                    });
         options = Options::Load();
         runningRenderer = notifiedRenderer = options.renderer;
-        // headless runs (tests, control port) never touch the installation
         update::Start(options.autoUpdate && !std::getenv("PERLIN_NO_UPDATE") && !args.hidden);
 #ifdef __EMSCRIPTEN__
-        // the page's sign-in relay (perlin-config.json, ?relay=, or serve.py's own): see tools/web/auth-relay
         if (char* relay = perlin_js_auth_relay()) {
             http::SetWebRelay(relay);
             std::free(relay);
         }
 #endif
         i18n::Lang::Get().Configure(std::string(), paths::DataDir(), options.language);
-        // dev/test: PERLIN_TEST_SERVER_PACKS=dir1:dir2: extracted pack folders act as the server's packs
         if (const char* test = PERLIN_ENV("PERLIN_TEST_SERVER_PACKS")) {
             ServerPacks::Instance().SetRoot(paths::DataDir() + "/server_packs_extracted");
             std::stringstream list(test);
@@ -156,7 +153,18 @@ namespace perlin {
             assets::Samples().stage = assets::Stage::Checking;
         if (!MojangFonts::Available(paths::DataDir()))
             assets::Client().stage = assets::Stage::Checking;
-        workers->Submit([this] { BedrockSamples::Ensure(options.bedrockSamplesDir); });
+        workers->Submit([this] {
+            if (!BedrockSamples::Ensure(options.bedrockSamplesDir))
+                return;
+            BlockPalette& palette = BlockPalette::Instance();
+            palette.LoadVanillaDefinitions(options.bedrockSamplesDir +
+                                           "/repo/metadata/vanilladata_modules/mojang-blocks.json");
+            if (!palette.SequenceLoaded()) {
+                std::string table;
+                if (resources::Read("block_states.json", table))
+                    palette.LoadServerStatesText(table, "block_states.json");
+            }
+        });
         workers->Submit([this] {
             if (MojangFonts::Ensure(paths::DataDir()))
                 fontsDownloaded = true;
@@ -199,9 +207,7 @@ namespace perlin {
             std::string bare = serverText.substr(0, serverText.find_first_of(":/"));
             const bool local = bare == "localhost" || bare == "127.0.0.1" || bare == "[::1]";
             if (!local) {
-                // clang-format off
                 secureSignaling = EM_ASM_INT({ return location.protocol === 'https:' ? 1 : 0; }) != 0;
-                // clang-format on
             }
         }
 #endif
@@ -278,9 +284,6 @@ namespace perlin {
         ServerPacks::Instance().SetRoot(paths::DataDir() + "/server_packs_extracted");
 
         account.reset();
-        // a signed-in Microsoft account plays singleplayer as itself (gamertag, xuid, skin) like on a server. the
-        // embedded server checks no Xbox login, so when the sign-in cannot be reached (offline, the browser without a
-        // relay) the join goes on as an offline player with the account's name instead of failing
         if (onlineThisRun) {
             account = std::make_shared<xbox::Account>(ActiveAuthPath());
             session->SetAccount(account, ActiveAuthPath());
@@ -349,7 +352,6 @@ namespace perlin {
         statusHint = text;
     }
 
-    // same moment and length as the game's touch vibration (ClientInputCallbacks::destroyVibrate, 24 ms)
     void Perlin::VibrateBlockBroken() {
         if (options.padVibration && platform && input.PadConnected())
             platform->Vibrate(24);

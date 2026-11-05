@@ -24,19 +24,23 @@ Applied: `server-name`, `gamemode`, `difficulty`, `max-players`, `online-mode`, 
 
 Read and kept, not acted on yet: `force-gamemode` and `allow-cheats` (nothing is saved to apply them to), `server-portv6`, the `server-authoritative-*` and position thresholds, ticking-area limits, content log, script debugging, `disable-persona`, `disable-custom-skins`, `enable-packet-rate-limiter` (and `packetlimitconfig.json`), `server-build-radius-ratio`.
 
-Differences from BDS that are deliberate or forced: `transport=raknet` is refused (NetherNet only); `compression-algorithm=snappy` falls back to zlib with a warning; `block-network-ids-are-hashes=false` is ignored; `client-side-chunk-generation-enabled` is read but the server always sends it off, since the client would generate its own terrain outside the server's radius; the public half of a `server-udp-ports` mapping is parsed but WebRTC does not announce it, so forward the same port numbers; `online-mode` defaults to false and `allow-list` to false here, where BDS defaults both to true.
+Differences from BDS that are deliberate or forced: `transport` takes `nethernet` (the default: RakNet and NetherNet together), `both` (the same), `raknet` (RakNet only) or `nethernet-only`; `compression-algorithm=snappy` falls back to zlib with a warning; `block-network-ids-are-hashes=false` is ignored; `client-side-chunk-generation-enabled` is read but the server always sends it off, since the client would generate its own terrain outside the server's radius; the public half of a `server-udp-ports` mapping is parsed but WebRTC does not announce it, so forward the same port numbers; `online-mode` defaults to false and `allow-list` to false here, where BDS defaults both to true.
 
-## Transport: NetherNet only
+## Transport: RakNet and NetherNet
 
-There is no RakNet in the server. A player joins the way the client's direct join already does:
+Regular Bedrock clients (Windows, consoles, phones) join over RakNet: add the server with its address and port, or find it in the Friends tab's LAN list. The server answers RakNet pings on UDP `server-port` (and `server-portv6` for IPv6) with its name, version and player count, runs the RakNet handshake (protocol 11, no cookies), and carries game batches as `0xfe` messages with reliable ordering, splitting, acks and resends. The Perlin client can use either transport.
+
+NetherNet stays available for the Perlin client's direct join:
 
 1. `GET /v1/join` returns the server info (name, protocol, version, players).
 2. `POST /v1/join/<id>` carries the client's SDP offer; the answer comes back in the response.
 3. Two WebRTC data channels, `ReliableDataChannel` and `UnreliableDataChannel`, carry game batches. Each message is `[fragments still to come][payload]`, 262143 bytes per fragment.
 
-DTLS already secures the channel, so the Bedrock encryption handshake is not used (the client replies to `ServerToClientHandshake` without encryption on NetherNet). Compression is raw deflate with a 256 byte threshold.
+DTLS already secures NetherNet, and the Bedrock encryption handshake is not used on either transport, which every client accepts. Compression is raw deflate with a 256 byte threshold.
 
-Reachability: forward one port, TCP for the signalling and UDP for WebRTC, both `port` (default 19132). `ice_udp_mux` (default on) puts every player on that one UDP port. `ice_servers` takes `stun:host:port` / `turn:` URLs, or `["none"]` for LAN only. `ice_bind_address` pins the interface (needed on hosts without IPv6).
+Logins: a client's identity is read from the multiplayer token (`Token`, issued by Minecraft's authorization service since 1.26.10) or from the older certificate chain. With `online-mode=true` the token's signature is checked against the authorization service's published keys, fetched at start and every 30 minutes.
+
+Reachability: forward UDP `server-port` (default 19132) for RakNet. NetherNet uses TCP on the same port for signalling, and with RakNet on, its WebRTC traffic moves to UDP `server-port + 2` (19134) so the two do not collide; forward that too for NetherNet players. `ice_udp_mux` (default on) puts every NetherNet player on that one UDP port. `ice_servers` takes `stun:host:port` / `turn:` URLs, or `["none"]` for LAN only. `ice_bind_address` pins the interface (needed on hosts without IPv6).
 
 The in-process `LoopbackListener` skips the network entirely and is what singleplayer uses.
 

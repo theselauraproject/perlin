@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 
 namespace perlin::server {
     namespace {
@@ -19,24 +20,46 @@ namespace perlin::server {
             PutVarint(o, (static_cast<uint32_t>(v) << 1) ^ static_cast<uint32_t>(v >> 31));
         }
 
-        // paletted storage as the wire carries it: header (bits << 1 | 1 for runtime ids), packed words, palette
         void WriteStorage(std::vector<uint8_t>& out, const std::array<int32_t, kCells>& values) {
-            std::vector<int32_t> palette;
-            std::map<int32_t, uint32_t> lookup;
+            static thread_local std::vector<int32_t> palette;
+            static thread_local std::unordered_map<int32_t, uint32_t> lookup;
+            palette.clear();
+            lookup.clear();
             std::array<uint16_t, kCells> idx;
+            int32_t lastValue = values[0];
+            uint32_t lastIndex = 0;
+            palette.push_back(lastValue);
             for (int i = 0; i < kCells; i++) {
-                auto it = lookup.find(values[static_cast<size_t>(i)]);
-                if (it == lookup.end()) {
-                    it = lookup.emplace(values[static_cast<size_t>(i)], static_cast<uint32_t>(palette.size()))
-                             .first;
-                    palette.push_back(values[static_cast<size_t>(i)]);
+                const int32_t v = values[static_cast<size_t>(i)];
+                if (v != lastValue) {
+                    uint32_t found = UINT32_MAX;
+                    if (palette.size() <= 24) {
+                        for (uint32_t k = 0; k < palette.size(); k++)
+                            if (palette[k] == v) {
+                                found = k;
+                                break;
+                            }
+                    } else {
+                        if (lookup.empty())
+                            for (uint32_t k = 0; k < palette.size(); k++)
+                                lookup.emplace(palette[k], k);
+                        if (const auto it = lookup.find(v); it != lookup.end())
+                            found = it->second;
+                    }
+                    if (found == UINT32_MAX) {
+                        found = static_cast<uint32_t>(palette.size());
+                        palette.push_back(v);
+                        if (!lookup.empty())
+                            lookup.emplace(v, found);
+                    }
+                    lastValue = v;
+                    lastIndex = found;
                 }
-                idx[static_cast<size_t>(i)] = static_cast<uint16_t>(it->second);
+                idx[static_cast<size_t>(i)] = static_cast<uint16_t>(lastIndex);
             }
             unsigned need = 0;
             while ((1u << need) < palette.size())
                 need++;
-            // the wire only allows these widths
             const unsigned bits = need == 0   ? 0
                                   : need <= 1 ? 1
                                   : need <= 2 ? 2

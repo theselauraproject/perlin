@@ -1,10 +1,12 @@
 #include "client/SampleProfiler.hpp"
 
 #if defined(__linux__) && !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+#include <atomic>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <algorithm>
 #include <execinfo.h>
 #include <link.h>
 #include <pthread.h>
@@ -17,7 +19,7 @@ namespace perlin {
         constexpr int kMax = 40000;
         void* gStacks[kMax][kDepth];
         int gDepths[kMax];
-        volatile int gCount = 0;
+        std::atomic<int> gCount{0};
         timer_t gTimer;
         bool gStarted = false;
         double gSince = 0;
@@ -29,11 +31,13 @@ namespace perlin {
         }
 
         void OnSignal(int) {
-            const int i = gCount;
-            if (i >= kMax || Now() < gSince)
+            if (gCount.load(std::memory_order_relaxed) >= kMax || Now() < gSince)
                 return;
+            const int i = gCount.fetch_add(1, std::memory_order_relaxed);
+            if (i >= kMax)
+                return;
+            gDepths[i] = 0;
             gDepths[i] = backtrace(gStacks[i], kDepth);
-            gCount = i + 1;
         }
 
         int Base(struct dl_phdr_info* info, size_t, void* data) {
@@ -61,7 +65,10 @@ namespace perlin {
         sev._sigev_un._tid = static_cast<int>(syscall(SYS_gettid));
         clockid_t clock;
         pthread_getcpuclockid(pthread_self(), &clock);
-        // PERLIN_SAMPLE_WALL: sample by wall time, so time spent waiting shows up too
+        if (std::getenv("PERLIN_SAMPLE_ALL")) {
+            sev.sigev_notify = SIGEV_SIGNAL;
+            clock = CLOCK_PROCESS_CPUTIME_ID;
+        }
         if (std::getenv("PERLIN_SAMPLE_WALL"))
             clock = CLOCK_MONOTONIC;
         if (timer_create(clock, &sev, &gTimer) != 0)
@@ -70,7 +77,6 @@ namespace perlin {
         spec.it_interval.tv_nsec = 1000000;
         spec.it_value.tv_nsec = 1000000;
         timer_settime(gTimer, 0, &spec, nullptr);
-        // PERLIN_SAMPLE_SECONDS: write the samples that long after sampling starts, without waiting for the exit
         if (const char* secs = std::getenv("PERLIN_SAMPLE_SECONDS")) {
             static double stopAfter = 0;
             stopAfter = std::atof(secs) + (gSince - Now());
@@ -98,7 +104,7 @@ namespace perlin {
         unsigned long base = 0;
         dl_iterate_phdr(Base, &base);
         if (FILE* f = std::fopen(path, "w")) {
-            for (int i = 0; i < gCount; i++) {
+            for (int i = 0, n = std::min(gCount.load(), kMax); i < n; i++) {
                 for (int d = 0; d < gDepths[i]; d++)
                     std::fprintf(f, "%lx ", reinterpret_cast<unsigned long>(gStacks[i][d]) - base);
                 std::fprintf(f, "\n");

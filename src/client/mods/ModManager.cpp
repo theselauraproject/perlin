@@ -240,6 +240,8 @@ namespace perlin::mods {
             bool linear = true;
             uint64_t version = 0;
             std::shared_ptr<const std::vector<uint8_t>> rgba;
+            uint64_t rectFrom = 0;
+            int rx0 = 0, ry0 = 0, rx1 = 0, ry1 = 0;
         };
         std::map<uint32_t, Tex> textures;
         uint32_t nextTexture = 1;
@@ -666,9 +668,18 @@ namespace perlin::mods {
         std::vector<GfxTexture> out;
         for (const auto& mod : mods)
             if (mod->loaded && !mod->revoked)
-                for (const auto& entry : mod->textures)
-                    out.push_back({mod->name, entry.first, entry.second.w, entry.second.h,
-                                   entry.second.linear, entry.second.version, entry.second.rgba});
+                for (auto& entry : mod->textures) {
+                    Plugin::Tex& t = entry.second;
+                    GfxTexture g{mod->name, entry.first, t.w, t.h, t.linear, t.version, t.rgba};
+                    g.rectFrom = t.rectFrom;
+                    g.rx0 = t.rx0;
+                    g.ry0 = t.ry0;
+                    g.rx1 = t.rx1;
+                    g.ry1 = t.ry1;
+                    out.push_back(std::move(g));
+                    t.rectFrom = t.version;
+                    t.rx0 = t.ry0 = t.rx1 = t.ry1 = 0;
+                }
         return out;
     }
 
@@ -874,7 +885,6 @@ namespace perlin::mods {
             if (!mod.instance->Call("perlin_subscriptions", {}, &subs, ignored))
                 return;
             uint64_t mask = static_cast<uint32_t>(subs);
-            // events 32+ come from a second export; plugins built before it only see the first 32
             uint64_t hi = 0;
             if (mod.instance->HasExport("perlin_subscriptions_hi") &&
                 mod.instance->Call("perlin_subscriptions_hi", {}, &hi, ignored))
@@ -1332,7 +1342,6 @@ namespace perlin::mods {
         lastScan = now;
         Scan();
         RefreshWanted();
-        // ModsLoaded: once every enabled mod finished loading, and again when that set changes
         size_t loaded = 0;
         bool pending = false;
         {
@@ -1997,7 +2006,6 @@ namespace perlin::mods {
             return abi::Status::Ok;
         });
 
-        // mod-to-mod messages go through the main thread, after the sender's call returns
         Register(abi::Op::ModSend, [this](CallContext& ctx, abi::Reader& r, abi::Writer&) {
             const abi::ModMessageData in = r.read<abi::ModMessageData>();
             if (!r.Ok() || in.channel.empty() || in.channel.size() > 128 || in.body.size() > (1u << 20))
@@ -2166,14 +2174,31 @@ namespace perlin::mods {
             Plugin::Tex& tex = it->second;
             if (static_cast<int64_t>(x) + width > tex.w || static_cast<int64_t>(y) + height > tex.h)
                 return abi::Status::BadArguments;
-            auto copy = std::make_shared<std::vector<uint8_t>>(*tex.rgba);
+            std::vector<uint8_t>* target = nullptr;
+            if (tex.rgba && tex.rgba.use_count() == 1) {
+                target = const_cast<std::vector<uint8_t>*>(tex.rgba.get());
+            } else {
+                auto copy = std::make_shared<std::vector<uint8_t>>(*tex.rgba);
+                target = copy.get();
+                tex.rgba = std::move(copy);
+            }
             for (int32_t row = 0; row < height; row++)
-                std::memcpy(copy->data() + (static_cast<size_t>(y + row) * static_cast<size_t>(tex.w) +
-                                            static_cast<size_t>(x)) *
-                                               4,
+                std::memcpy(target->data() + (static_cast<size_t>(y + row) * static_cast<size_t>(tex.w) +
+                                              static_cast<size_t>(x)) *
+                                                 4,
                             rgba.data() + static_cast<size_t>(row) * static_cast<size_t>(width) * 4,
                             static_cast<size_t>(width) * 4);
-            tex.rgba = std::move(copy);
+            if (tex.rx1 <= tex.rx0 || tex.ry1 <= tex.ry0) {
+                tex.rx0 = x;
+                tex.ry0 = y;
+                tex.rx1 = x + width;
+                tex.ry1 = y + height;
+            } else {
+                tex.rx0 = std::min(tex.rx0, x);
+                tex.ry0 = std::min(tex.ry0, y);
+                tex.rx1 = std::max(tex.rx1, x + width);
+                tex.ry1 = std::max(tex.ry1, y + height);
+            }
             tex.version++;
             return abi::Status::Ok;
         });

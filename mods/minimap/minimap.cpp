@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -26,7 +27,7 @@ namespace {
     constexpr int kFetchPerFrame = 6;
     constexpr int kPaintPerFrame = 24;
     constexpr int kPollPerFrame = 4;
-    constexpr int64_t kBudgetMs = 3;
+    constexpr int64_t kBudgetMs = 2;
     constexpr int kRoofFrames = 8;
     constexpr int64_t kNoSlot = INT64_MIN;
     constexpr std::array<double, 7> kZoomSteps{0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
@@ -102,6 +103,7 @@ struct Minimap : Plugin {
         ctx.on_setting_changed([this](const abi::EventSettingChanged&) {
             for (Slot& s : slots)
                 s.dirty = true;
+            anyDirty = true;
             cursor = 0;
         });
         pixels.assign(static_cast<size_t>(kTexW) * kTexH * 4, 0);
@@ -285,6 +287,7 @@ private:
         for (Slot& slot : slots)
             if (slot.owner != kNoSlot)
                 slot.dirty = true;
+        anyDirty = true;
     }
 
     void Refresh() {
@@ -320,7 +323,7 @@ private:
 
     template <class Budget> void Poll(const std::vector<int>& order, const Budget& overBudget) {
         int retried = 0;
-        for (int n = 0; n < kSlots && retried < kPollPerFrame && !overBudget(); n++) {
+        for (int n = 0; frame % 8 == 0 && n < kSlots && retried < kPollPerFrame && !overBudget(); n++) {
             const int i = order[static_cast<size_t>(n)];
             const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
             const auto it = cache.find(ChunkKey(cx, cz));
@@ -330,7 +333,7 @@ private:
                 return;
             retried++;
         }
-        for (int n = 0; n < kPollPerFrame && !overBudget(); n++) {
+        for (int n = 0; n < kPollPerFrame / 2 && !overBudget(); n++) {
             const int next = (pollCursor + 1) % kSlots;
             const int i = order[static_cast<size_t>(next)];
             if (!Fetch(centerX - kRadius + i % kChunks, centerZ - kRadius + i / kChunks))
@@ -340,7 +343,14 @@ private:
     }
 
     template <class Budget> void Repaint(const std::vector<int>& order, int painted, const Budget& overBudget) {
-        for (int n = 0; n < kSlots && painted < kPaintPerFrame && !overBudget(); n++) {
+        if (!anyDirty)
+            return;
+        bool left = false;
+        for (int n = 0; n < kSlots; n++) {
+            if (painted >= kPaintPerFrame || overBudget()) {
+                left = true;
+                break;
+            }
             const int i = order[static_cast<size_t>(n)];
             const int cx = centerX - kRadius + i % kChunks, cz = centerZ - kRadius + i / kChunks;
             const Slot& s = slots[static_cast<size_t>(SlotOf(cx, cz))];
@@ -349,6 +359,7 @@ private:
                 painted++;
             }
         }
+        anyDirty = left;
     }
 
     void Trim() {
@@ -375,8 +386,10 @@ private:
         Paint(cx, cz);
         for (const auto [dx, dz] : {std::pair{1, 0}, std::pair{0, 1}, std::pair{1, 1}}) {
             Slot& s = slots[static_cast<size_t>(SlotOf(cx + dx, cz + dz))];
-            if (s.owner == ChunkKey(cx + dx, cz + dz))
+            if (s.owner == ChunkKey(cx + dx, cz + dz)) {
                 s.dirty = true;
+                anyDirty = true;
+            }
         }
         return true;
     }
@@ -389,6 +402,8 @@ private:
         const Cached& c = self->second;
         const int slotIndex = SlotOf(cx, cz);
         Slot& slot = slots[static_cast<size_t>(slotIndex)];
+        if (slot.owner != key)
+            layoutVersion++;
         slot.owner = key;
         slot.version = c.version;
         slot.layer = c.layer;
@@ -531,6 +546,37 @@ private:
             }
         const uint8_t lb = Clamp8(bright * 255.0f), la = Clamp8(light * 255.0f);
         const uint32_t tint = gfx::rgba8(lb, lb, lb, la);
+        {
+            uint64_t sig = 1469598103934665603ull;
+            const auto mix = [&](uint64_t v) {
+                sig ^= v;
+                sig *= 1099511628211ull;
+            };
+            const auto mixd = [&](double v) {
+                uint64_t b;
+                std::memcpy(&b, &v, sizeof b);
+                mix(b);
+            };
+            mixd(p.x);
+            mixd(p.z);
+            mixd(p.yaw);
+            mixd(zoom);
+            mixd(size);
+            mix(static_cast<uint64_t>(d.width) << 32 | static_cast<uint32_t>(d.height));
+            mix(static_cast<uint64_t>(d.guiScale));
+            mix(tint);
+            mix(static_cast<uint64_t>(settings::corner.get()));
+            mix(settings::grid ? 1u : 0u);
+            mix(settings::waypoints ? 1u : 0u);
+            mix(rotate ? 1u : 0u);
+            mix(layoutVersion);
+            mix(iconTexture ? iconTexture.id() : 0u);
+            mix(texture.id());
+            mix(static_cast<uint64_t>(centerX) << 32 ^ static_cast<uint32_t>(centerZ));
+            if (shown && sig == drawSignature)
+                return;
+            drawSignature = sig;
+        }
         const float wu = 0.5f / kTexW, wv = (kWhiteRow + 0.5f) / kTexH;
 
         list.clear();
@@ -691,6 +737,7 @@ private:
     }
 
     void saveWaypoints() {
+        layoutVersion++;
         std::string out;
         char row[96];
         for (const Waypoint& w : waypoints) {
@@ -723,5 +770,8 @@ private:
     int iconRetry = 0;
     uint64_t frame = 0;
     bool shown = false;
+    bool anyDirty = true;
+    uint64_t layoutVersion = 0;
+    uint64_t drawSignature = 0;
 };
 PERLIN_REGISTER(Minimap)

@@ -87,6 +87,9 @@ namespace perlin {
     bool BlockPalette::LoadVanillaDefinitions(const std::string& path) {
         if (namesLoaded)
             return true;
+        std::lock_guard loadLock(loadMutex);
+        if (namesLoaded)
+            return true;
         std::ifstream f(path, std::ios::binary);
         if (!f)
             return false;
@@ -202,6 +205,9 @@ namespace perlin {
     }
 
     bool BlockPalette::LoadServerStatesText(const std::string& text, const std::string& path) {
+        std::lock_guard loadLock(loadMutex);
+        if (path == "block_states.json" && sequenceFrozen)
+            return true;
         const auto document = json::Document::Parse(text);
         if (!document)
             return false;
@@ -260,7 +266,7 @@ namespace perlin {
             sequenceKeys = baseKeys;
             BuildLayoutLocked(false);
         }
-        namesLoaded = namesLoaded || !nameByHash.empty();
+        namesLoaded = namesLoaded.load() || !nameByHash.empty();
         Log("blocks", "server registry: {} ids added, {} renamed from {}", added, replaced, path);
         return added + replaced > 0 || !nameByHash.empty();
     }
@@ -305,8 +311,6 @@ namespace perlin {
         for (const int32_t h : baseSequence)
             if (const auto it = nameByHash.find(h); it != nameByHash.end())
                 (dataDrivenHashes.contains(h) ? dataDriven : vanilla).insert(it->second);
-        // A data-driven block the table already lists keeps the table's states and slots: servers often declare
-        // these blocks without their properties, which would give one state where the game has many.
         keptDataDriven.clear();
         for (const CustomRun& r : runs)
             if (dataDriven.contains(r.name))
