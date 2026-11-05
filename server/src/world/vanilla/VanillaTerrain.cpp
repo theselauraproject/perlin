@@ -31,21 +31,57 @@ namespace perlin::server::vanilla {
         return static_cast<int64_t>(out);
     }
 
+    namespace {
+        using OverworldFill = std::array<uint8_t, static_cast<size_t>(16 * ChunkColumn::kQuartLayers)>;
+        struct FillCache {
+            std::unordered_map<uint64_t, std::unique_ptr<OverworldFill>> map;
+            uint64_t owner = 0;
+        };
+        FillCache& Fills(uint64_t owner) {
+            thread_local FillCache cache;
+            if (cache.owner != owner) {
+                cache.map.clear();
+                cache.owner = owner;
+            }
+            if (cache.map.size() >= 2048)
+                cache.map.clear();
+            return cache;
+        }
+        uint64_t FillKey(int chunkX, int chunkZ) {
+            return (static_cast<uint64_t>(static_cast<uint32_t>(chunkX)) << 32) | static_cast<uint32_t>(chunkZ);
+        }
+    }
+
+    const uint8_t* VanillaCpuBackend::SearchFill(int chunkX, int chunkZ, const int32_t* targets) const {
+        constexpr int layers = ChunkColumn::kQuartLayers;
+        auto fill = std::make_unique<OverworldFill>();
+        int hint = -1;
+        for (int section = 0; section < layers / 4; section++)
+            for (int qx = 0; qx < 4; qx++)
+                for (int sy = 0; sy < 4; sy++)
+                    for (int qz = 0; qz < 4; qz++) {
+                        const int qy = section * 4 + sy;
+                        const int32_t* t = targets + static_cast<size_t>((qx * 4 + qz) * layers + qy) * 6;
+                        hint = FindBiomePoint(t, hint);
+                        (*fill)[static_cast<size_t>(ChunkColumn::QuartIndex(qx, qy, qz))] = kBiomePointBiome[hint];
+                    }
+        FillCache& cache = Fills(instance);
+        const uint8_t* out = fill->data();
+        cache.map[FillKey(chunkX, chunkZ)] = std::move(fill);
+        return out;
+    }
+
+    void VanillaCpuBackend::PrimeChunkFill(int chunkX, int chunkZ, const int32_t* targets) const {
+        if (Fills(instance).map.contains(FillKey(chunkX, chunkZ)))
+            return;
+        SearchFill(chunkX, chunkZ, targets);
+    }
+
     const uint8_t* VanillaCpuBackend::ChunkFill(int chunkX, int chunkZ) const {
         constexpr int layers = ChunkColumn::kQuartLayers;
-        using Fill = std::array<uint8_t, static_cast<size_t>(16 * layers)>;
-        thread_local std::unordered_map<uint64_t, std::unique_ptr<Fill>> cache;
-        thread_local const VanillaCpuBackend* owner = nullptr;
-        if (owner != this) {
-            cache.clear();
-            owner = this;
-        }
-        const uint64_t key = (static_cast<uint64_t>(static_cast<uint32_t>(chunkX)) << 32) | static_cast<uint32_t>(chunkZ);
-        if (const auto it = cache.find(key); it != cache.end())
+        FillCache& cache = Fills(instance);
+        if (const auto it = cache.map.find(FillKey(chunkX, chunkZ)); it != cache.map.end())
             return it->second->data();
-        if (cache.size() >= 2048)
-            cache.clear();
-        auto fill = std::make_unique<Fill>();
         std::array<int, layers> ys{};
         for (int qy = 0; qy < layers; qy++)
             ys[static_cast<size_t>(qy)] = ((kMinY >> 2) + qy) * 4;
@@ -54,19 +90,7 @@ namespace perlin::server::vanilla {
             for (int qz = 0; qz < 4; qz++)
                 climate->SampleColumn((chunkX * 4 + qx) * 4, (chunkZ * 4 + qz) * 4, ys.data(), layers,
                                       targets.data() + static_cast<size_t>((qx * 4 + qz) * layers) * 6);
-        int hint = -1;
-        for (int section = 0; section < layers / 4; section++)
-            for (int qx = 0; qx < 4; qx++)
-                for (int sy = 0; sy < 4; sy++)
-                    for (int qz = 0; qz < 4; qz++) {
-                        const int qy = section * 4 + sy;
-                        const int32_t* t = targets.data() + static_cast<size_t>((qx * 4 + qz) * layers + qy) * 6;
-                        hint = FindBiomePoint(t, hint);
-                        (*fill)[static_cast<size_t>(ChunkColumn::QuartIndex(qx, qy, qz))] = kBiomePointBiome[hint];
-                    }
-        const uint8_t* out = fill->data();
-        cache.emplace(key, std::move(fill));
-        return out;
+        return SearchFill(chunkX, chunkZ, targets.data());
     }
 
     int VanillaCpuBackend::NoiseBiome(int quartX, int quartY, int quartZ) const {
@@ -91,6 +115,7 @@ namespace perlin::server::vanilla {
     std::unique_ptr<VanillaCpuBackend> VanillaCpuBackend::Create(const ServerConfig& config,
                                                                  std::string& error) {
         std::unique_ptr<VanillaCpuBackend> b(new VanillaCpuBackend());
+        b->instance = NextBackendInstance();
         b->pack = DataPack::Embedded();
         b->graph = std::make_unique<DensityGraph>(*b->pack, static_cast<int64_t>(config.seed));
         b->finalDensity = b->graph->Load("minecraft:overworld/final_density");

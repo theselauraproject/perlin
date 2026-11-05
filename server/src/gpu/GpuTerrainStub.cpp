@@ -10,4 +10,9 @@ namespace perlin::server {
         note = "built without gpu terrain (PERLIN_SERVER_GPU=OFF)";
         return nullptr;
     }
+
+    std::unique_ptr<TerrainBackend> CreateGpuDimensionBackend(const ServerConfig&, int, std::string& note) {
+        note = "built without gpu terrain (PERLIN_SERVER_GPU=OFF)";
+        return nullptr;
+    }
 }

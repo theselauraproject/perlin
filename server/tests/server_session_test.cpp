@@ -15,6 +15,7 @@
 #include "world/Blocks.hpp"
 #include "world/level/chunk/ChunkCodec.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -846,6 +847,131 @@ int main(int argc, char** argv) {
         CHECK(fs::exists(config.dataDir + "/permissions.json") &&
               fs::exists(config.dataDir + "/allowlist.json"));
         CHECK(!fs::exists(config.dataDir + "/ops.json") && !fs::exists(config.dataDir + "/whitelist.json"));
+    }
+
+    {
+        const auto send = [&](Client& who, const std::string& line) {
+            who.inbox.clear();
+            proto::CommandRequestPacket c;
+            c.command = line;
+            who.Send(c);
+            who.Settle();
+        };
+        const auto said = [&](Client& who) {
+            std::string all;
+            for (const auto& t : who.Take<proto::TextPacket>())
+                all += t.message + "\n";
+            return all;
+        };
+        send(alice, "/gamemode creative");
+        send(alice, "/execute in the_nether run tp @s 8 70 8");
+        for (int i = 0; i < 80; i++)
+            alice.Settle(2);
+        const auto change = alice.Take<proto::ChangeDimensionPacket>();
+        CHECK(change.size() == 1 && change[0].dimension == 1);
+        const auto netherChunks = alice.Take<proto::LevelChunkPacket>();
+        CHECK(!netherChunks.empty());
+        for (const auto& c : netherChunks) {
+            CHECK(c.dimension == 1 && c.subChunkCount == 8);
+            std::vector<std::pair<int, perlin::SubChunkData>> subs;
+            size_t used = 0;
+            CHECK(perlin::ChunkCodec::ParseColumn(c.payload.data(), c.payload.size(), c.subChunkCount, 0, 8, subs, used));
+            CHECK(subs.size() == 8);
+        }
+        proto::PlayerActionPacket ack;
+        ack.action = proto::Action::DimensionChangeAck;
+        alice.Send(ack);
+        alice.Settle();
+        Session* a = server.FindByName("Alice");
+        CHECK(a && a->DimensionId() == 1);
+        CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 8, 0, 8)) == "minecraft:bedrock");
+        send(alice, "/execute if dimension the_nether");
+        CHECK(said(alice).contains("Test passed"));
+        send(alice, "/execute unless entity @a[name=Bob,distance=..1000]");
+        CHECK(said(alice).contains("Test passed"));
+        send(alice, "/execute as @s at @s if dimension the_nether run say still here");
+        CHECK(said(alice).contains("still here"));
+        send(alice, "/execute as @s at @s if dimension overworld run say wrong place");
+        CHECK(!said(alice).contains("wrong place"));
+        send(alice, "/execute positioned 8 70 9 run setblock ~ ~ ~ obsidian");
+        CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 8, 70, 9)) == "minecraft:obsidian");
+        CHECK(BlockRegistry::Instance().Name(server.BlockAt(0, 8, 70, 9)) != "minecraft:obsidian");
+        const CatalogItem* flint = BlockCatalog::Instance().ItemByName("minecraft:flint_and_steel");
+        if (flint && a) {
+            send(alice, "/fill 5 69 12 8 73 12 obsidian");
+            send(alice, "/fill 6 70 12 7 72 12 air");
+            a->Inventory().main[0] = ItemStack{};
+            a->Inventory().main[0].networkId = flint->networkId;
+            a->Inventory().main[0].count = 1;
+            proto::InventoryTransactionPacket light;
+            light.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
+            proto::TransactionUseItem use;
+            use.actionType = proto::TransactionUseItemActionType::ClickBlock;
+            use.blockPosition = {6, 69, 12};
+            use.face = 1;
+            use.hotbarSlot = 0;
+            light.transaction.transactionData = use;
+            alice.Send(light);
+            alice.Settle();
+            CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 6, 70, 12)) == "minecraft:portal");
+            CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 7, 72, 12)) == "minecraft:portal");
+            alice.inbox.clear();
+            send(alice, "/tp @s 6.5 70 12.5");
+            for (int i = 0; i < 40; i++)
+                alice.Settle(2);
+            const auto back = alice.Take<proto::ChangeDimensionPacket>();
+            CHECK(back.size() == 1 && back[0].dimension == 0);
+            CHECK(a->DimensionId() == 0);
+            if (!back.empty())
+                CHECK(BlockRegistry::Instance().Name(server.BlockAt(0, static_cast<int>(std::floor(back[0].position.x)),
+                                                                    static_cast<int>(std::floor(back[0].position.y - 1.62f)),
+                                                                    static_cast<int>(std::floor(back[0].position.z)))) ==
+                      "minecraft:portal");
+            alice.Send(ack);
+            alice.Settle();
+            send(alice, "/fill 0 -60 -10 4 -60 -6 end_portal_frame");
+            const CatalogItem* eye = BlockCatalog::Instance().ItemByName("minecraft:ender_eye");
+            if (eye) {
+                send(alice, "/fill 1 -60 -9 3 -60 -7 air");
+                send(alice, "/setblock 0 -60 -10 air");
+                send(alice, "/setblock 4 -60 -10 air");
+                send(alice, "/setblock 0 -60 -6 air");
+                send(alice, "/setblock 4 -60 -6 air");
+                send(alice, "/tp @s 2 -59 -4");
+                a->Inventory().main[1].networkId = eye->networkId;
+                a->Inventory().main[1].count = 12;
+                const int ring[12][2] = {{1, -10}, {2, -10}, {3, -10}, {1, -6}, {2, -6}, {3, -6},
+                                         {0, -9},  {0, -8},  {0, -7},  {4, -9}, {4, -8}, {4, -7}};
+                for (const auto& r : ring) {
+                    proto::InventoryTransactionPacket put;
+                    put.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
+                    proto::TransactionUseItem u;
+                    u.actionType = proto::TransactionUseItemActionType::ClickBlock;
+                    u.blockPosition = {r[0], -60, r[1]};
+                    u.face = 1;
+                    u.hotbarSlot = 1;
+                    put.transaction.transactionData = u;
+                    alice.Send(put);
+                    alice.Settle(1);
+                }
+                CHECK(BlockRegistry::Instance().Name(server.BlockAt(0, 2, -60, -8)) == "minecraft:end_portal");
+                alice.inbox.clear();
+                send(alice, "/tp @s 2.5 -60 -7.5");
+                for (int i = 0; i < 40; i++)
+                    alice.Settle(2);
+                const auto toEnd = alice.Take<proto::ChangeDimensionPacket>();
+                CHECK(toEnd.size() == 1 && toEnd[0].dimension == 2);
+                CHECK(BlockRegistry::Instance().Name(server.BlockAt(2, 100, 48, 0)) == "minecraft:obsidian");
+                alice.Send(ack);
+                alice.Settle();
+            }
+        }
+        send(alice, "/execute in overworld run tp @s 0 -59 0");
+        for (int i = 0; i < 20; i++)
+            alice.Settle(2);
+        CHECK(a && a->DimensionId() == 0);
+        alice.Send(ack);
+        alice.Settle();
     }
 
     server.Stop();

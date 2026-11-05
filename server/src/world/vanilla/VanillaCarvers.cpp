@@ -13,9 +13,8 @@
 
 namespace perlin::server::vanilla {
     namespace {
-        constexpr int kMaskMinY = kMinY + 1;
-        constexpr int kMaskMaxY = kMinY + kHeight - 1 - 7;
-        constexpr int kMaskHeight = kMaskMaxY - kMaskMinY + 1;
+        thread_local int t_maskMinY = kMinY + 1;
+        thread_local int t_maskMaxY = kMinY + kHeight - 1 - 7;
         constexpr float kPiF = 3.14159265358979323846f;
 
         const std::array<float, 65536>& SinTable() {
@@ -114,25 +113,26 @@ namespace perlin::server::vanilla {
             return u;
         }
 
-        int Anchor(const json::Value& v) {
+        int Anchor(const json::Value& v, int minY, int height) {
             if (v["absolute"].kind != json::Value::Kind::Null)
                 return static_cast<int>(v["absolute"].Int());
             if (v["above_bottom"].kind != json::Value::Kind::Null)
-                return kMinY + static_cast<int>(v["above_bottom"].Int());
+                return minY + static_cast<int>(v["above_bottom"].Int());
             if (v["below_top"].kind != json::Value::Kind::Null)
-                return kMinY + kHeight - 1 - static_cast<int>(v["below_top"].Int());
+                return minY + height - 1 - static_cast<int>(v["below_top"].Int());
             return 0;
         }
 
         struct Mask {
-            std::vector<uint8_t> bits = std::vector<uint8_t>(static_cast<size_t>(256 * kMaskHeight), 0);
+            int minY = t_maskMinY, height = t_maskMaxY - t_maskMinY + 1;
+            std::vector<uint8_t> bits = std::vector<uint8_t>(static_cast<size_t>(256 * height), 0);
             bool any = false;
             void Set(int x, int y, int z) {
-                bits[static_cast<size_t>(y - kMaskMinY + (z + (x << 4)) * kMaskHeight)] = 1;
+                bits[static_cast<size_t>(y - minY + (z + (x << 4)) * height)] = 1;
                 any = true;
             }
             bool Get(int x, int y, int z) const {
-                return bits[static_cast<size_t>(y - kMaskMinY + (z + (x << 4)) * kMaskHeight)] != 0;
+                return bits[static_cast<size_t>(y - minY + (z + (x << 4)) * height)] != 0;
             }
         };
 
@@ -144,7 +144,7 @@ namespace perlin::server::vanilla {
                 return;
             const int minX = chunkX * 16, minZ = chunkZ * 16;
             const int x0 = std::max(FloorD(x - hr) - minX - 1, 0), x1 = std::min(FloorD(x + hr) - minX, 15);
-            const int y0 = std::max(FloorD(y - vr) - 1, kMaskMinY), y1 = std::min(FloorD(y + vr) + 1, kMaskMaxY);
+            const int y0 = std::max(FloorD(y - vr) - 1, t_maskMinY), y1 = std::min(FloorD(y + vr) + 1, t_maskMaxY);
             const int z0 = std::max(FloorD(z - hr) - minZ - 1, 0), z1 = std::min(FloorD(z + hr) - minZ, 15);
             for (int xi = x0; xi <= x1; xi++) {
                 const double xd = (static_cast<double>(minX + xi) + 0.5 - x) / hr;
@@ -317,17 +317,24 @@ namespace perlin::server::vanilla {
     }
 
     std::unique_ptr<VanillaCarvers> VanillaCarvers::Load(const DataPack& pack, int64_t seed) {
+        return Load(pack, seed, {"cave", "cave_extra_underground", "canyon"}, kMinY, kHeight);
+    }
+
+    std::unique_ptr<VanillaCarvers> VanillaCarvers::Load(const DataPack& pack, int64_t seed, const std::vector<std::string>& names,
+                                                         int minY, int height) {
         std::unique_ptr<VanillaCarvers> out(new VanillaCarvers());
         out->seed = seed;
-        for (const char* name : {"cave", "cave_extra_underground", "canyon"}) {
+        out->genMinY = minY;
+        out->genHeight = height;
+        for (const std::string& name : names) {
             json::Value v;
-            if (!json::Parse(pack.Read(std::string("worldgen/carver/") + name + ".json"), v))
+            if (!json::Parse(pack.Read("worldgen/carver/" + name + ".json"), v))
                 return nullptr;
             Carver c;
             c.canyon = v["type"].String().ends_with("canyon");
             c.probability = static_cast<float>(v["probability"].Number());
-            c.yMin = Anchor(v["y"]["min_inclusive"]);
-            c.yMax = Anchor(v["y"]["max_inclusive"]);
+            c.yMin = Anchor(v["y"]["min_inclusive"], minY, height);
+            c.yMax = Anchor(v["y"]["max_inclusive"], minY, height);
             if (c.canyon) {
                 const json::Value& s = v["shape"];
                 c.verticalRotation = ReadFloat(v["vertical_rotation"], 0);
@@ -365,6 +372,8 @@ namespace perlin::server::vanilla {
                                const VanillaMaterials* materials, const uint8_t* biomes,
                                const std::function<float(int, int, int, int)>& temperature,
                                const std::function<int(int, int, int)>& biomeAt) const {
+        t_maskMinY = genMinY + 1;
+        t_maskMaxY = genMinY + genHeight - 1 - 7;
         Mask mask;
         Lcg random(0);
         for (int dx = -8; dx <= 8; dx++)
@@ -391,14 +400,14 @@ namespace perlin::server::vanilla {
             for (int z = 0; z < 16; z++) {
                 uint16_t* col = blocks + static_cast<size_t>((x * 16 + z) * kHeight);
                 const int wx = chunkX * 16 + x, wz = chunkZ * 16 + z;
-                int y = kMaskMinY;
-                while (y <= kMaskMaxY) {
+                int y = t_maskMinY;
+                while (y <= t_maskMaxY) {
                     if (!mask.Get(x, y, z)) {
                         y++;
                         continue;
                     }
                     int top = y;
-                    while (top + 1 <= kMaskMaxY && mask.Get(x, top + 1, z))
+                    while (top + 1 <= t_maskMaxY && mask.Get(x, top + 1, z))
                         top++;
                     const int bottom = y;
                     bool hasGrass = false;

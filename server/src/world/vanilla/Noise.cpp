@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <memory>
 
 namespace perlin::server::vanilla {
     namespace {
@@ -129,7 +130,7 @@ namespace perlin::server::vanilla {
         return out;
     }
 
-    PerlinNoise::PerlinNoise(Xoroshiro& random) {
+    PerlinNoise::PerlinNoise(WorldRandom& random) {
         offsetX = random.NextDouble() * 256.0;
         offsetY = random.NextDouble() * 256.0;
         offsetZ = random.NextDouble() * 256.0;
@@ -181,7 +182,7 @@ namespace perlin::server::vanilla {
         return SampleAndLerp(ix, iy, iz, fx, static_cast<float>(fyd - fudge), fz, static_cast<float>(fyd));
     }
 
-    std::vector<BlendedNoise::Layer> BlendedNoise::Fbm(Xoroshiro& random, int firstOctave, double smearScale,
+    std::vector<BlendedNoise::Layer> BlendedNoise::Fbm(WorldRandom& random, int firstOctave, double smearScale,
                                                        double amplitude) {
         const int count = -firstOctave + 1;
         double frequency = 1.0;
@@ -204,7 +205,7 @@ namespace perlin::server::vanilla {
     }
 
     BlendedNoise::BlendedNoise(double xzScale, double yScale, double xzFactorIn, double yFactorIn,
-                               double smear, Xoroshiro random)
+                               double smear, WorldRandom random)
         : xzMultiplier(684.412 * xzScale), yMultiplier(684.412 * yScale), xzFactor(xzFactorIn),
           yFactor(yFactorIn) {
         const double d2 = yMultiplier * smear;
@@ -229,7 +230,104 @@ namespace perlin::server::vanilla {
         return a + alpha * (b - a);
     }
 
-    NormalNoise::NormalNoise(const NoiseParameters& p, Xoroshiro random) {
+    SimplexNoise::SimplexNoise(WorldRandom& random, bool discardOffset) {
+        const double scale = discardOffset ? 0.0 : 256.0;
+        offsetX = random.NextDouble() * scale;
+        offsetY = random.NextDouble() * scale;
+        offsetZ = random.NextDouble() * scale;
+        for (int i = 0; i < 256; i++)
+            perms[static_cast<size_t>(i)] = static_cast<uint8_t>(i);
+        for (int i = 0; i < 256; i++) {
+            const int j = random.NextInt(256 - i);
+            std::swap(perms[static_cast<size_t>(i)], perms[static_cast<size_t>(i + j)]);
+        }
+    }
+
+    float SimplexNoise::Get(double inX, double inY) const {
+        static const double kF2 = 0.5 * (std::sqrt(3.0) - 1.0);
+        static const double kG2 = (3.0 - std::sqrt(3.0)) / 6.0;
+        static const int kGrad[16][2] = {{1, 1}, {-1, 1}, {1, -1}, {-1, -1}, {1, 0}, {-1, 0}, {1, 0}, {-1, 0},
+                                         {0, 1}, {0, -1}, {0, 1}, {0, -1}, {1, 1}, {0, -1}, {-1, 1}, {0, -1}};
+        const double xin = inX + offsetX, yin = inY + offsetY;
+        const double s = (xin + yin) * kF2;
+        const int i = JavaFloor(xin + s);
+        const int j = JavaFloor(yin + s);
+        const double t = static_cast<double>(i + j) * kG2;
+        const double x0 = xin - (static_cast<double>(i) - t);
+        const double y0 = yin - (static_cast<double>(j) - t);
+        const int i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
+        const double x1 = x0 - i1 + kG2, y1 = y0 - j1 + kG2;
+        const double x2 = x0 - 1.0 + 2.0 * kG2, y2 = y0 - 1.0 + 2.0 * kG2;
+        const int ii = i & 255, jj = j & 255;
+        const int g0 = Permute(ii + Permute(jj)) % 12;
+        const int g1 = Permute(ii + i1 + Permute(jj + j1)) % 12;
+        const int g2 = Permute(ii + 1 + Permute(jj + 1)) % 12;
+        const auto corner = [&](int g, double x, double y) {
+            double c = 0.5 - x * x - y * y;
+            if (c < 0.0)
+                return 0.0;
+            c *= c;
+            return c * c * (static_cast<double>(kGrad[g][0]) * x + static_cast<double>(kGrad[g][1]) * y);
+        };
+        return static_cast<float>(70.0 * (corner(g0, x0, y0) + corner(g1, x1, y1) + corner(g2, x2, y2)));
+    }
+
+    double NormalNoise::Normalization(const NoiseParameters& p) {
+        double amplitude = p.baseAmplitude;
+        if (p.normalize)
+            amplitude = amplitude * std::pow(0.5, static_cast<double>(-(p.octaveCount - 1))) /
+                        (std::pow(0.5, static_cast<double>(-p.octaveCount)) - 1.0);
+        double sum = 0, deviation = 0;
+        for (int i = 0; i < p.octaveCount; i++) {
+            const double modifier =
+                p.amplitudeModifiers.empty() ? 1.0 : p.amplitudeModifiers[static_cast<size_t>(i)];
+            if (modifier != 0.0) {
+                const double a = std::abs(amplitude * modifier);
+                sum += a;
+                const double d = 0.2702247831245211 * a;
+                deviation += d * d;
+            }
+            amplitude *= 0.5;
+        }
+        deviation = std::sqrt(deviation);
+        return deviation == 0.0 ? 0.0 : (sum * 0.3333333333333333) / (deviation * std::sqrt(2.0));
+    }
+
+    NormalNoise NormalNoise::LegacyNetherBiome(const NoiseParameters& p, WorldRandom random) {
+        std::vector<double> amplitudes = p.amplitudeModifiers;
+        if (amplitudes.empty())
+            amplitudes.assign(static_cast<size_t>(p.octaveCount), 1.0);
+        const float valueFactor = static_cast<float>(Normalization(p) * p.baseAmplitude);
+        NormalNoise out;
+        const auto stack = [&](double frequencyScale) {
+            const int octaves = static_cast<int>(amplitudes.size());
+            const int zero = -p.baseOctave;
+            std::vector<std::unique_ptr<PerlinNoise>> levels(static_cast<size_t>(octaves));
+            auto zeroOctave = std::make_unique<PerlinNoise>(random);
+            if (zero >= 0 && zero < octaves && amplitudes[static_cast<size_t>(zero)] != 0.0)
+                levels[static_cast<size_t>(zero)] = std::move(zeroOctave);
+            for (int i = zero - 1; i >= 0; i--) {
+                if (i < octaves && amplitudes[static_cast<size_t>(i)] != 0.0)
+                    levels[static_cast<size_t>(i)] = std::make_unique<PerlinNoise>(random);
+                else
+                    random.Consume(262);
+            }
+            double factor = std::pow(2.0, static_cast<double>(-zero));
+            double vf = std::pow(2.0, static_cast<double>(octaves - 1)) / (std::pow(2.0, static_cast<double>(octaves)) - 1.0);
+            for (int i = 0; i < octaves; i++) {
+                if (levels[static_cast<size_t>(i)])
+                    out.layers.push_back({*levels[static_cast<size_t>(i)], factor * frequencyScale,
+                                          static_cast<float>(vf * amplitudes[static_cast<size_t>(i)]) * valueFactor});
+                factor *= 2.0;
+                vf /= 2.0;
+            }
+        };
+        stack(1.0);
+        stack(1.0181268882175227);
+        return out;
+    }
+
+    NormalNoise::NormalNoise(const NoiseParameters& p, WorldRandom random) {
         struct Octave {
             int index;
             double frequency, amplitude;
@@ -258,12 +356,12 @@ namespace perlin::server::vanilla {
         const double normalization =
             deviation == 0.0 ? 0.0 : (sum * 0.3333333333333333) / (deviation * std::sqrt(2.0));
 
-        const Xoroshiro::Factory a = random.ForkPositional();
-        const Xoroshiro::Factory b = random.ForkPositional();
+        const WorldRandom::Factory a = random.ForkPositional();
+        const WorldRandom::Factory b = random.ForkPositional();
         for (const Octave& o : octaves) {
             const std::string seed = "octave_" + std::to_string(o.index);
-            Xoroshiro ra = a.FromHashOf(seed);
-            Xoroshiro rb = b.FromHashOf(seed);
+            WorldRandom ra = a.FromHashOf(seed);
+            WorldRandom rb = b.FromHashOf(seed);
             const float amp = static_cast<float>(normalization * o.amplitude);
             layers.push_back({PerlinNoise(ra), o.frequency, amp});
             layers.push_back({PerlinNoise(rb), o.frequency * 1.0181268882175227, amp});

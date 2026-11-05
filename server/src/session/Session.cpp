@@ -927,6 +927,10 @@ namespace perlin::server {
         if (!Decode(body, a) || state != State::InGame)
             return;
         const auto& pos = a.position;
+        if (a.action == proto::Action::DimensionChangeAck) {
+            awaitingDimensionAck = false;
+            return;
+        }
         switch (a.action) {
         // creative breaks on the first message; survival waits for the stop, since the dig time is the client's to count here
         case proto::Action::StartBreak:
@@ -1023,6 +1027,23 @@ namespace perlin::server {
         PublishCenter(true);
     }
 
+    void Session::SwitchDimension(int to, double x, double y, double z) {
+        proto::ChangeDimensionPacket change;
+        change.dimension = to;
+        change.position = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+        change.respawn = false;
+        Send(change);
+        dimension = to;
+        awaitingDimensionAck = true;
+        dimensionChangedAt = std::chrono::steady_clock::now();
+        sent.clear();
+        posX = x;
+        posY = y;
+        posZ = z;
+        moved = true;
+        PublishCenter(true);
+    }
+
     void Session::PublishCenter(bool force) {
         const ChunkPos now{static_cast<int32_t>(std::floor(posX)) >> 4,
                            static_cast<int32_t>(std::floor(posZ)) >> 4};
@@ -1073,7 +1094,7 @@ namespace perlin::server {
         // ask the manager for a window ahead so generation overlaps sending
         int asked = 0;
         for (const ChunkPos& pos : want) {
-            auto entry = server.Chunks().Get(pos);
+            auto entry = server.World(dimension).Get(pos);
             if (!entry) {
                 if (++asked >= 64)
                     break;
@@ -1081,12 +1102,12 @@ namespace perlin::server {
             }
             if (budget <= 0)
                 break;
-            const std::vector<uint8_t>& payload = server.Chunks().Payload(*entry);
+            const std::vector<uint8_t>& payload = server.World(dimension).Payload(*entry);
             proto::LevelChunkPacket lc;
             lc.x = pos.x;
             lc.z = pos.z;
-            lc.dimension = 0;
-            lc.subChunkCount = static_cast<uint32_t>(kSections);
+            lc.dimension = dimension;
+            lc.subChunkCount = static_cast<uint32_t>(RangeOf(dimension).SectionCount());
             lc.cacheEnabled = false;
             lc.payload = payload;
             Send(lc);
@@ -1206,7 +1227,9 @@ namespace perlin::server {
         reply.state = 1;
         reply.runtimeEntityId = runtimeId;
         Send(reply);
-        if (wasDead)
+        if (wasDead && dimension != kOverworld)
+            server.ChangeDimension(*this, kOverworld, posX, posY, posZ);
+        else if (wasDead)
             Teleport(posX, posY, posZ);
     }
 
@@ -1224,6 +1247,11 @@ namespace perlin::server {
         // far outside any sane world: ignore rather than let a bad value drive chunk loading
         if (std::abs(x) > 3.0e7 || std::abs(z) > 3.0e7 || std::abs(y) > 1.0e5)
             return;
+        if (awaitingDimensionAck) {
+            if (std::chrono::steady_clock::now() - dimensionChangedAt < std::chrono::seconds(15))
+                return;
+            awaitingDimensionAck = false;
+        }
         const bool changed = x != posX || y != posY || z != posZ || p != pitch || yawValue != yaw;
         if (changed)
             lastActive = std::chrono::steady_clock::now();
@@ -1598,6 +1626,8 @@ namespace perlin::server {
         if (state == State::InGame) {
             if (hurtCooldown > 0)
                 hurtCooldown--;
+            if (!dead && !awaitingDimensionAck && posY - 1.62 < RangeOf(dimension).minY - 64)
+                Hurt(4.0f, posX, posZ);
             if (!dead && health < 20.0f && server.RuleValue("naturalregeneration") && ++regenTicks >= 80) {
                 regenTicks = 0;
                 Heal(1.0f);

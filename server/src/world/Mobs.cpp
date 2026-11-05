@@ -179,7 +179,7 @@ namespace perlin::server {
         m.yaw = m.headYaw = static_cast<float>(rng() % 360);
         mobs.push_back(m);
         Mob& added = mobs.back();
-        for (Session* s : server.InGamePlayers())
+        for (Session* s : server.PlayersIn(kOverworld))
             s->ShowMob(added);
         added.lastX = static_cast<float>(x);
         added.lastY = static_cast<float>(y);
@@ -222,10 +222,15 @@ namespace perlin::server {
                 to.ShowMob(m);
     }
 
+    void MobWorld::Hide(Session& to) const {
+        for (const Mob& m : mobs)
+            to.HideItem(m.id);
+    }
+
     Session* MobWorld::Nearest(const Mob& m, double range, bool survivalOnly) {
         Session* best = nullptr;
         double bestD = range * range;
-        for (Session* s : server.InGamePlayers()) {
+        for (Session* s : server.PlayersIn(kOverworld)) {
             if (survivalOnly && (s->GameMode() == 1 || s->Spectator() || s->Dead()))
                 continue;
             const double dx = s->X() - m.x, dy = (s->Y() - 1.62) - m.y, dz = s->Z() - m.z;
@@ -254,7 +259,7 @@ namespace perlin::server {
             m.target = by->Id();
             m.angry = true;
         }
-        for (Session* s : server.InGamePlayers()) {
+        for (Session* s : server.PlayersIn(kOverworld)) {
             s->MobEvent(m.id, 2, 0);
             s->MobMotion(m);
         }
@@ -285,7 +290,7 @@ namespace perlin::server {
         m.deathTime = 1;
         m.health = 0;
         m.target = 0;
-        for (Session* s : server.InGamePlayers())
+        for (Session* s : server.PlayersIn(kOverworld))
             s->MobEvent(m.id, 3, 0);
         if (m.projectile || m.baby)
             return;
@@ -343,7 +348,7 @@ namespace perlin::server {
                             continue;
                         server.SetBlock(cx + x, cy + y, cz + z, "minecraft:air");
                     }
-        for (Session* s : server.InGamePlayers()) {
+        for (Session* s : server.PlayersIn(kOverworld)) {
             const double dx = s->X() - m.x, dy = s->Y() - 1.0 - m.y, dz = s->Z() - m.z;
             const double d = std::sqrt(dx * dx + dy * dy + dz * dz);
             if (d < 6.0 && s->GameMode() != 1 && !s->Spectator()) {
@@ -360,7 +365,7 @@ namespace perlin::server {
             }
         m.health = 0;
         m.deathTime = 19;
-        for (Session* s : server.InGamePlayers())
+        for (Session* s : server.PlayersIn(kOverworld))
             s->HideItem(m.id);
     }
 
@@ -378,7 +383,7 @@ namespace perlin::server {
         arrow->vz = dz / len * speed;
         arrow->owner = self ? self->id : 0;
         arrow->yaw = static_cast<float>(std::atan2(-dx, dz) * 180.0 / kPi);
-        for (Session* s : server.InGamePlayers())
+        for (Session* s : server.PlayersIn(kOverworld))
             s->MobMotion(*arrow);
     }
 
@@ -462,7 +467,7 @@ namespace perlin::server {
 
     void MobWorld::Think(Mob& m) {
         if (m.projectile) {
-            for (Session* s : server.InGamePlayers()) {
+            for (Session* s : server.PlayersIn(kOverworld)) {
                 if (s->Spectator() || s->GameMode() == 1 || s->Dead())
                     continue;
                 const double dx = s->X() - m.x, dy = (s->Y() - 0.9) - m.y, dz = s->Z() - m.z;
@@ -553,7 +558,7 @@ namespace perlin::server {
                         damage *= 1.5f;
                     target->Hurt(damage, m.x, m.z);
                     m.attackCooldown = 20;
-                    for (Session* s : server.InGamePlayers())
+                    for (Session* s : server.PlayersIn(kOverworld))
                         s->MobEvent(m.id, 4, 0);
                 }
             }
@@ -660,7 +665,7 @@ namespace perlin::server {
         const bool moved = std::abs(static_cast<float>(m.x) - m.lastX) > 0.005f || std::abs(static_cast<float>(m.y) - m.lastY) > 0.005f ||
                            std::abs(static_cast<float>(m.z) - m.lastZ) > 0.005f || Angle(m.yaw) != Angle(m.lastYaw) ||
                            Angle(m.headYaw) != Angle(m.lastHead);
-        const std::vector<Session*> players = server.InGamePlayers();
+        const std::vector<Session*> players = server.PlayersIn(kOverworld);
         if (moved || force) {
             for (Session* s : players)
                 s->MoveMob(m);
@@ -759,7 +764,7 @@ namespace perlin::server {
     void MobWorld::NaturalSpawns() {
         if (!server.RuleValue("domobspawning"))
             return;
-        const std::vector<Session*> players = server.InGamePlayers();
+        const std::vector<Session*> players = server.PlayersIn(kOverworld);
         if (players.empty())
             return;
         int monsters = 0, water = 0, ambient = 0;
@@ -808,7 +813,7 @@ namespace perlin::server {
     void MobWorld::Tick() {
         if (++spawnTick % 20 == 0)
             NaturalSpawns();
-        const std::vector<Session*> players = server.InGamePlayers();
+        const std::vector<Session*> players = server.PlayersIn(kOverworld);
         for (auto it = mobs.begin(); it != mobs.end();) {
             Mob& m = *it;
             m.age++;

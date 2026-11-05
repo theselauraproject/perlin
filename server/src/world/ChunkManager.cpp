@@ -1,6 +1,7 @@
 #include "world/ChunkManager.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <span>
 
 #if defined(_WIN32)
@@ -25,7 +26,8 @@ namespace perlin::server {
         }
     }
 
-    ChunkManager::ChunkManager(std::unique_ptr<TerrainBackend> b, size_t maxThreads) : backend(std::move(b)) {
+    ChunkManager::ChunkManager(std::unique_ptr<TerrainBackend> b, size_t maxThreads, int dimensionId)
+        : backend(std::move(b)), dimension(dimensionId) {
         size_t threads = 1;
         if (backend->ThreadSafe()) {
             const unsigned hw = std::thread::hardware_concurrency();
@@ -184,9 +186,38 @@ namespace perlin::server {
         }
         for (auto& [pos, entry] : ready) {
             requested.erase(pos);
+            if (chunks.contains(pos))
+                continue;
             chunks[pos] = std::move(entry);
             this->ready.push_back(pos);
         }
+    }
+
+    std::shared_ptr<ChunkEntry> ChunkManager::Load(ChunkPos pos) {
+        if (const auto it = chunks.find(pos); it != chunks.end())
+            return it->second;
+        if (!backend->ThreadSafe()) {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (std::chrono::steady_clock::now() < until) {
+                Get(pos);
+                Pump();
+                if (auto entry = Peek(pos))
+                    return entry;
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            return nullptr;
+        }
+        std::vector<ChunkPos> batch{pos};
+        std::vector<ChunkColumn> columns(1);
+        if (backend->Decorates())
+            Finish(batch, columns);
+        else
+            backend->Generate(batch, columns);
+        auto entry = std::make_shared<ChunkEntry>();
+        entry->column = std::move(columns[0]);
+        chunks[pos] = entry;
+        ready.push_back(pos);
+        return entry;
     }
 
     size_t ChunkManager::Pending() const {
@@ -197,7 +228,7 @@ namespace perlin::server {
     const std::vector<uint8_t>& ChunkManager::Payload(ChunkEntry& entry) const {
         if (entry.payloadVersion != entry.column.version) {
             entry.payload.clear();
-            entry.column.EncodeNetwork(entry.payload);
+            entry.column.EncodeNetwork(entry.payload, dimension);
             entry.payloadVersion = entry.column.version;
         }
         return entry.payload;

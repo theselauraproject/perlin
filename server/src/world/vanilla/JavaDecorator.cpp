@@ -39,7 +39,7 @@ namespace perlin::server::vanilla {
 
         class Rng {
         public:
-            void SetSeed(int64_t seed) { x = Xoroshiro::FromSeed(seed); }
+            void SetSeed(int64_t seed) { x = WorldRandom::FromSeed(seed); }
             int64_t NextLong() { return static_cast<int64_t>(x.NextLong()); }
             int NextInt(int bound) { return bound <= 0 ? 0 : x.NextInt(bound); }
             int Between(int lo, int hi) { return hi < lo ? lo : lo + NextInt(hi - lo + 1); }
@@ -64,7 +64,7 @@ namespace perlin::server::vanilla {
             }
 
         private:
-            Xoroshiro x{1, 2};
+            WorldRandom x{1, 2};
             bool haveSpare = false;
             double spare = 0;
         };

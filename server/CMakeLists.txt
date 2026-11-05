@@ -87,6 +87,8 @@ set(PS_SOURCES
     src/world/ChunkManager.cpp
     src/world/Mobs.cpp
     src/core/ServerContainers.cpp
+    src/core/ServerPortals.cpp
+    src/core/CommandExecute.cpp
     src/inventory/Recipes.cpp
     src/inventory/RecipeData.cpp
     src/world/MobData.cpp
@@ -95,12 +97,13 @@ set(PS_SOURCES
     src/world/vanilla/DensityFunction.cpp
     src/world/vanilla/Noise.cpp
     src/world/vanilla/VanillaTerrain.cpp
+    src/world/vanilla/VanillaDimension.cpp
     src/world/vanilla/OverworldShapeData.cpp
     src/world/vanilla/BiomeData.cpp
     src/world/vanilla/VanillaSurface.cpp
     src/world/vanilla/VanillaAquifer.cpp
     src/world/vanilla/VanillaMaterials.cpp
-    src/world/vanilla/VanillaCarvers.cpp
+    src/world/vanilla/VanillaCarvers.cpp src/world/vanilla/VanillaDimension.cpp
     src/world/vanilla/VanillaFeatures.cpp
     src/world/vanilla/FeatureData.cpp
     src/world/vanilla/JavaDecorator.cpp
@@ -239,7 +242,7 @@ foreach(t perlin_server_objects ${PS_LIBS})
 endforeach()
 # float results must match java's strict ieee arithmetic bit for bit: no fused multiply-add
 if(NOT MSVC)
-    set_source_files_properties(src/world/vanilla/Noise.cpp src/world/vanilla/DensityFunction.cpp src/world/vanilla/VanillaTerrain.cpp src/world/vanilla/VanillaSurface.cpp src/world/vanilla/VanillaAquifer.cpp src/world/vanilla/VanillaMaterials.cpp src/world/vanilla/VanillaCarvers.cpp
+    set_source_files_properties(src/world/vanilla/Noise.cpp src/world/vanilla/DensityFunction.cpp src/world/vanilla/VanillaTerrain.cpp src/world/vanilla/VanillaSurface.cpp src/world/vanilla/VanillaAquifer.cpp src/world/vanilla/VanillaMaterials.cpp src/world/vanilla/VanillaCarvers.cpp src/world/vanilla/VanillaDimension.cpp
     src/gpu/VanillaGpuProgram.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 endif()
 

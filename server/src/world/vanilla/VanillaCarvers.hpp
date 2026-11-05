@@ -1,9 +1,11 @@
 #pragma once
+#include "world/Chunk.hpp"
 #include "world/vanilla/DataPack.hpp"
 
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace perlin::server::vanilla {
@@ -33,6 +35,8 @@ namespace perlin::server::vanilla {
         };
 
         static std::unique_ptr<VanillaCarvers> Load(const DataPack& pack, int64_t seed);
+        static std::unique_ptr<VanillaCarvers> Load(const DataPack& pack, int64_t seed, const std::vector<std::string>& names,
+                                                    int minY, int height);
 
         void Carve(int chunkX, int chunkZ, uint16_t* blocks, VanillaAquifer& aquifer, const VanillaMaterials* materials,
                    const uint8_t* biomes, const std::function<float(int, int, int, int)>& temperature,
@@ -41,6 +45,7 @@ namespace perlin::server::vanilla {
     private:
         std::vector<Carver> carvers;
         int64_t seed = 0;
+        int genMinY = kMinY, genHeight = kHeight;
         uint16_t bedrock = 0, grass = 0, mycelium = 0, dirt = 0, water = 0, lava = 0;
     };
 }

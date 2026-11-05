@@ -4,6 +4,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <tuple>
 
 namespace perlin::server::vanilla {
     namespace {
@@ -22,7 +23,10 @@ namespace perlin::server::vanilla {
         struct Builder {
             GpuProgram& p;
             std::string error;
-            std::map<const DfNode*, uint32_t> index;
+            std::map<std::tuple<const DfNode*, uint32_t, int32_t>, uint32_t> index;
+            uint32_t ctxMask = 0;
+            int32_t ctxValue = 0;
+            bool haveCell = false;
             std::map<const NormalNoise*, uint32_t> noiseIndex;
             std::vector<std::vector<uint32_t>> children; // per node, for reachability
 
@@ -98,12 +102,15 @@ namespace perlin::server::vanilla {
             }
 
             uint32_t Visit(const DfNode& n) {
-                if (const auto it = index.find(&n); it != index.end())
+                const auto key = std::make_tuple(&n, ctxMask, ctxValue);
+                if (const auto it = index.find(key); it != index.end())
                     return it->second;
                 std::vector<uint32_t> deps;
                 uint32_t rec[GpuProgram::kNodeStride] = {};
                 rec[0] = static_cast<uint32_t>(n.op);
                 rec[1] = rec[2] = rec[3] = 0xFFFFFFFFu;
+                rec[12] = ctxMask;
+                rec[13] = static_cast<uint32_t>(ctxValue);
                 using O = DfNode::Op;
                 switch (n.op) {
                 case O::Constant:
@@ -203,10 +210,17 @@ namespace perlin::server::vanilla {
                     rec[6] = Spline(*n.spline, deps);
                     break;
                 case O::Interpolated:
-                    if (n.cellXz != static_cast<int>(GpuProgram::kCellXz) ||
-                        n.cellY != static_cast<int>(GpuProgram::kCellY))
-                        error = "interpolated node with cell size " + std::to_string(n.cellXz) + "x" +
-                                std::to_string(n.cellY) + ": the kernel's corner grid is 4x8";
+                    if (ctxMask != 0)
+                        error = "an interpolated node inside a slice";
+                    if (!haveCell) {
+                        p.cellXz = static_cast<uint32_t>(n.cellXz);
+                        p.cellY = static_cast<uint32_t>(n.cellY);
+                        haveCell = true;
+                        if (16 % n.cellXz != 0)
+                            error = "interpolation cells of " + std::to_string(n.cellXz) + " do not divide a chunk";
+                    } else if (p.cellXz != static_cast<uint32_t>(n.cellXz) || p.cellY != static_cast<uint32_t>(n.cellY)) {
+                        error = "interpolated nodes with different cell sizes";
+                    }
                     rec[1] = Visit(*n.in[0]);
                     deps = {rec[1]};
                     rec[6] = static_cast<uint32_t>(p.interpolatedInputs.size());
@@ -230,6 +244,38 @@ namespace perlin::server::vanilla {
                     p.blends.insert(p.blends.end(), blend, blend + GpuProgram::kBlendStride);
                     break;
                 }
+                case O::Slice: {
+                    const uint32_t bit = 1u << static_cast<uint32_t>(n.axis);
+                    if (ctxMask != 0 && ctxMask != bit)
+                        error = "slices on two axes";
+                    const uint32_t savedMask = ctxMask;
+                    const int32_t savedValue = ctxValue;
+                    ctxMask = bit;
+                    ctxValue = n.fromCoordinate;
+                    const uint32_t child = Visit(*n.in[0]);
+                    ctxMask = savedMask;
+                    ctxValue = savedValue;
+                    rec[1] = child;
+                    deps = {child};
+                    break;
+                }
+                case O::DistanceToPoint:
+                    rec[4] = static_cast<uint32_t>(n.point[0]);
+                    rec[5] = static_cast<uint32_t>(n.point[1]);
+                    rec[6] = static_cast<uint32_t>(n.point[2]);
+                    rec[7] = static_cast<uint32_t>(n.metric);
+                    break;
+                case O::EndIslands:
+                    if (!n.simplex || !n.simplex->OffsetFree())
+                        error = "end islands noise with an offset";
+                    rec[6] = static_cast<uint32_t>(p.perms.size());
+                    if (n.simplex)
+                        for (uint8_t v : n.simplex->Perms())
+                            p.perms.push_back(v);
+                    break;
+                case O::FindTopSurface:
+                    error = "find_top_surface is not supported on the gpu";
+                    break;
                 case O::Unsupported:
                     error = "unsupported density function: " + n.unsupported;
                     break;
@@ -238,7 +284,7 @@ namespace perlin::server::vanilla {
                 p.nodes.insert(p.nodes.end(), rec, rec + GpuProgram::kNodeStride);
                 children.push_back(deps);
                 p.source.push_back(&n);
-                index[&n] = id;
+                index[key] = id;
                 return id;
             }
         };

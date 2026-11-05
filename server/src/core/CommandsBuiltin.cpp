@@ -1,5 +1,3 @@
-// the built-in commands, with Java Edition's names, syntax and answers wherever the server has the thing to act on.
-// not here, because there is nothing to act on yet: kill, effect, xp, enchant, summon, scoreboard, execute and the other commands about mobs, health and data
 #include "core/Commands.hpp"
 #include "core/Json.hpp"
 #include "core/Log.hpp"
@@ -232,7 +230,7 @@ namespace perlin::server {
         add({"teleport", "tp"}, "Teleport entities", true,
             {"<destination:target>", "<location:pos>", "<targets:targets> <destination:target>",
              "<targets:targets> <location:pos> [yaw:float] [pitch:float]"},
-            [say, fail](CommandCtx& c) {
+            [this, say, fail](CommandCtx& c) {
                 std::vector<Session*> who = c.Has("targets") ? c["targets"].players : std::vector<Session*>{};
                 if (!c.Has("targets")) {
                     if (!c.source) {
@@ -247,13 +245,24 @@ namespace perlin::server {
                     for (Session* s : who) {
                         if (s == to)
                             continue;
+                        if (s->DimensionId() != to->DimensionId()) {
+                            ChangeDimension(*s, to->DimensionId(), to->X(), to->Y(), to->Z());
+                            say(c.source, "Teleported " + s->Name() + " to " + to->Name());
+                            continue;
+                        }
                         s->Teleport(to->X(), to->Y(), to->Z());
                         say(c.source, "Teleported " + s->Name() + " to " + to->Name());
                     }
                     return;
                 }
                 const auto& p = c["location"].pos;
+                const int dim = CommandDimension(c.source);
                 for (Session* s : who) {
+                    if (s->DimensionId() != dim) {
+                        ChangeDimension(*s, dim, p[0], p[1] + 1.62, p[2]);
+                        say(c.source, "Teleported " + s->Name() + " to " + Fixed(p[0]) + ", " + Fixed(p[1]) + ", " + Fixed(p[2]));
+                        continue;
+                    }
                     // y is the feet; the protocol position is the eyes
                     if (c.Has("yaw"))
                         s->Teleport(p[0], p[1] + 1.62, p[2], static_cast<float>(c["yaw"].number),
@@ -710,9 +719,11 @@ namespace perlin::server {
                 }
             });
 
-        const auto loaded = [this](int x, int z) { return chunks->Peek({x >> 4, z >> 4}) != nullptr; };
-        const auto registryOf = [](int networkId) {
-            const CatalogItem* item = BlockCatalog::Instance().ItemById(static_cast<int16_t>(networkId));
+        const auto loaded = [this](int dim, int x, int z) { return World(dim).Peek({x >> 4, z >> 4}) != nullptr; };
+        const auto registryOf = [](const ArgValue& v) -> uint16_t {
+            if (v.block >= 0)
+                return static_cast<uint16_t>(v.block);
+            const CatalogItem* item = BlockCatalog::Instance().ItemById(static_cast<int16_t>(v.index));
             return item ? BlockCatalog::Instance().RegistryId(item->blockHash) : BlockRegistry::kAir;
         };
         add({"setblock"}, "Change a block", true,
@@ -721,21 +732,23 @@ namespace perlin::server {
                 const int x = static_cast<int>(c["position"].pos[0]),
                           y = static_cast<int>(c["position"].pos[1]),
                           z = static_cast<int>(c["position"].pos[2]);
-                if (y < kMinY || y >= kMinY + kHeight) {
+                const int dim = CommandDimension(c.source);
+                const DimensionRange range = RangeOf(dim);
+                if (y < range.minY || y > range.MaxY()) {
                     fail(c.source, "That position is outside the world");
                     return;
                 }
-                if (!loaded(x, z)) {
+                if (!loaded(dim, x, z)) {
                     fail(c.source, "That position is not loaded");
                     return;
                 }
-                const uint16_t block = registryOf(c["block"].index);
+                const uint16_t block = registryOf(c["block"]);
                 const std::string mode = c.Has("mode") ? c["mode"].text : "replace";
-                if (mode == "keep" && chunks->GetBlock(x, y, z) != BlockRegistry::kAir) {
+                if (mode == "keep" && World(dim).GetBlock(x, y, z) != BlockRegistry::kAir) {
                     fail(c.source, "Could not set the block");
                     return;
                 }
-                ApplyBlock(x, y, z, block);
+                ApplyBlock(dim, x, y, z, block);
                 say(c.source, "Changed the block at " + BlockPosText(x, y, z));
             });
         add({"fill"}, "Fill a region with a block", true,
@@ -756,28 +769,30 @@ namespace perlin::server {
                                        std::to_string(volume) + ")");
                     return;
                 }
-                if (lo[1] < kMinY || hi[1] >= kMinY + kHeight) {
+                const int dim = CommandDimension(c.source);
+                const DimensionRange range = RangeOf(dim);
+                if (lo[1] < range.minY || hi[1] > range.MaxY()) {
                     fail(c.source, "That position is outside the world");
                     return;
                 }
                 for (int x = lo[0] >> 4; x <= hi[0] >> 4; x++)
                     for (int z = lo[2] >> 4; z <= hi[2] >> 4; z++)
-                        if (!loaded(x * 16, z * 16)) {
+                        if (!loaded(dim, x * 16, z * 16)) {
                             fail(c.source, "That position is not loaded");
                             return;
                         }
-                const uint16_t block = registryOf(c["block"].index);
+                const uint16_t block = registryOf(c["block"]);
                 const std::string mode =
                     c.overload == 1 ? "replace" : (c.Has("mode") ? c["mode"].text : "replace");
                 const bool filtered = c.overload == 1;
-                const uint16_t filter = filtered ? registryOf(c["filter"].index) : 0;
+                const uint16_t filter = filtered ? registryOf(c["filter"]) : 0;
                 int changed = 0;
                 for (int x = lo[0]; x <= hi[0]; x++)
                     for (int y = lo[1]; y <= hi[1]; y++)
                         for (int z = lo[2]; z <= hi[2]; z++) {
                             const bool edge = x == lo[0] || x == hi[0] || y == lo[1] || y == hi[1] ||
                                               z == lo[2] || z == hi[2];
-                            const uint16_t current = chunks->GetBlock(x, y, z);
+                            const uint16_t current = World(dim).GetBlock(x, y, z);
                             uint16_t put = block;
                             if (mode == "keep" && current != BlockRegistry::kAir)
                                 continue;
@@ -789,7 +804,7 @@ namespace perlin::server {
                                 continue;
                             if (current == put)
                                 continue;
-                            ApplyBlock(x, y, z, put);
+                            ApplyBlock(dim, x, y, z, put);
                             changed++;
                         }
                 if (changed == 0)
@@ -805,7 +820,7 @@ namespace perlin::server {
                                        "\": this server does not generate structures yet");
                     return;
                 }
-                TerrainBackend& backend = chunks->Backend();
+                TerrainBackend& backend = World(CommandDimension(c.source)).Backend();
                 if (!backend.HasBiomes()) {
                     fail(c.source, "This world has no biomes to locate (it is a flat world)");
                     return;
@@ -816,8 +831,9 @@ namespace perlin::server {
                     return;
                 }
                 locating.insert(id);
-                const int fromX = static_cast<int>(std::floor(c.source ? c.source->X() : SpawnX()));
-                const int fromZ = static_cast<int>(std::floor(c.source ? c.source->Z() : SpawnZ()));
+                const CommandOrigin* origin = ActiveOrigin();
+                const int fromX = static_cast<int>(std::floor(origin ? origin->x : c.source ? c.source->X() : SpawnX()));
+                const int fromZ = static_cast<int>(std::floor(origin ? origin->z : c.source ? c.source->Z() : SpawnZ()));
                 const int biome = c["biome"].index;
                 const std::string name = c["biome"].text;
                 say(c.source, "Searching for " + name + " ...");
@@ -840,6 +856,9 @@ namespace perlin::server {
                     locateDone.emplace_back(id, std::move(text));
                 });
             });
+
+        add({"execute"}, "Execute another command", true, {"<subcommands:text>"},
+            [this](CommandCtx& c) { RunExecute(c.source, c["subcommands"].text); });
 
         add({"tick"}, "Query or control the game's tick rate", true,
             {"query", "rate <rate:float>", "freeze", "unfreeze", "step", "step <time:string>", "sprint stop",

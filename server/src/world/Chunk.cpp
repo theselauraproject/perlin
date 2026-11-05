@@ -119,16 +119,16 @@ namespace perlin::server {
         std::copy(cells, cells + kCells, s.cells->begin());
     }
 
-    void ChunkColumn::EncodeNetwork(std::vector<uint8_t>& out) const {
+    void ChunkColumn::EncodeNetwork(std::vector<uint8_t>& out, int dimension) const {
         const BlockRegistry& blocks = BlockRegistry::Instance();
-        const int minSection = kMinY >> 4;
+        const DimensionRange range = RangeOf(dimension);
+        const int first = range.FirstSection(), count = range.SectionCount();
         std::array<int32_t, kCells> values;
-        for (int sec = 0; sec < kSections; sec++) {
+        for (int sec = first; sec < first + count; sec++) {
             const Section& s = sections[static_cast<size_t>(sec)];
-            // version 9: storage count, absolute sub chunk index, then the storages
             out.push_back(9);
             out.push_back(1);
-            out.push_back(static_cast<uint8_t>(static_cast<int8_t>(minSection + sec)));
+            out.push_back(static_cast<uint8_t>(static_cast<int8_t>((kMinY >> 4) + sec)));
             if (s.cells) {
                 for (int i = 0; i < kCells; i++)
                     values[static_cast<size_t>(i)] = blocks.Hash((*s.cells)[static_cast<size_t>(i)]);
@@ -142,10 +142,10 @@ namespace perlin::server {
                 for (int z = 0; z < 16; z++)
                     for (int y = 0; y < 16; y++)
                         values[static_cast<size_t>(CellIndex(x, y, z))] = netBiomes[static_cast<size_t>(x * 16 + z)];
-            for (int sec = 0; sec < kSections; sec++)
+            for (int sec = 0; sec < count; sec++)
                 WriteStorage(out, values);
         } else {
-            for (int sec = 0; sec < kSections; sec++) {
+            for (int sec = first; sec < first + count; sec++) {
                 for (int x = 0; x < 16; x++)
                     for (int z = 0; z < 16; z++)
                         for (int y = 0; y < 16; y++)
@@ -154,7 +154,6 @@ namespace perlin::server {
                 WriteStorage(out, values);
             }
         }
-        // border blocks (education edition), none
         out.push_back(0);
     }
 }

@@ -5,6 +5,8 @@
 #include "core/Log.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "gpu/GpuTerrain.hpp"
+#include "world/vanilla/VanillaDimension.hpp"
 
 #include "protocol/Packets.hpp"
 #include "util/Strings.hpp"
@@ -191,6 +193,8 @@ namespace perlin::server {
         loopback->Stop();
         plugins->UnloadAll();
         chunks.reset();
+        for (auto& w : otherWorlds)
+            w.reset();
     }
 
     void Server::Run() {
@@ -218,6 +222,9 @@ namespace perlin::server {
     void Server::Tick() {
         const auto began = std::chrono::steady_clock::now();
         chunks->Pump();
+        for (auto& w : otherWorlds)
+            if (w)
+                w->Pump();
         Pump();
         DrainLocate();
         // frozen: the game clock holds still but the network, chat and commands keep working; a step lets single ticks through
@@ -233,8 +240,12 @@ namespace perlin::server {
             TickItems();
             for (const ChunkPos& ready : chunks->TakeReady())
                 mobWorld->OnChunkReady(ready.x, ready.z);
+            for (auto& w : otherWorlds)
+                if (w)
+                    w->TakeReady();
             mobWorld->Tick();
             TickContainers();
+            TickPortals();
             if (plugins->AnyoneListens(abi::Event::Tick))
                 plugins->Dispatch<abi::Event::Tick>({.dt = 0.05f, .tick = tick});
         }
@@ -243,7 +254,7 @@ namespace perlin::server {
         for (Session* s : players)
             if (s->TakeMoved())
                 for (Session* other : players)
-                    if (other != s)
+                    if (other != s && other->DimensionId() == s->DimensionId())
                         other->SendMove(*s, 0);
         for (auto& [id, session] : sessions)
             session->Tick(tick);
@@ -393,7 +404,7 @@ namespace perlin::server {
     }
 
     void Server::SpawnItem(const ItemStack& stack, double x, double y, double z, double vx, double vy,
-                           double vz, int pickupDelay) {
+                           double vz, int pickupDelay, int dimension) {
         if (stack.Empty())
             return;
         ItemEntity item;
@@ -407,8 +418,9 @@ namespace perlin::server {
         item.vy = vy;
         item.vz = vz;
         item.pickupDelay = pickupDelay;
+        item.dimension = dimension;
         itemEntities.push_back(item);
-        for (Session* s : InGamePlayers())
+        for (Session* s : PlayersIn(dimension))
             s->ShowItem(itemEntities.back());
     }
 
@@ -416,24 +428,29 @@ namespace perlin::server {
         // thrown from the eyes, the way the game does: a short arc in the direction the player faces
         const double yaw = static_cast<double>(by.Yaw()) * 3.14159265358979323846 / 180.0;
         const double dx = -std::sin(yaw), dz = std::cos(yaw);
-        SpawnItem(stack, by.X() + dx * 0.3, by.Y() - 0.3, by.Z() + dz * 0.3, dx * 0.3, 0.2, dz * 0.3, 40);
+        SpawnItem(stack, by.X() + dx * 0.3, by.Y() - 0.3, by.Z() + dz * 0.3, dx * 0.3, 0.2, dz * 0.3, 40, by.DimensionId());
     }
 
     void Server::TickItems() {
         if (itemEntities.empty())
             return;
+        ChunkManager* world = chunks.get();
         const auto solid = [&](double x, double y, double z) {
             const int bx = static_cast<int>(std::floor(x)), by = static_cast<int>(std::floor(y)),
                       bz = static_cast<int>(std::floor(z));
             if (by < kMinY)
                 return true;
-            if (!chunks->Peek({bx >> 4, bz >> 4}))
+            if (!world || !world->Peek({bx >> 4, bz >> 4}))
                 return true;
-            return chunks->GetBlock(bx, by, bz) != BlockRegistry::kAir;
+            return world->GetBlock(bx, by, bz) != BlockRegistry::kAir;
         };
-        const std::vector<Session*> players = InGamePlayers();
+        std::array<std::vector<Session*>, kDimensionCount> byDimension;
+        for (int d = 0; d < kDimensionCount; d++)
+            byDimension[static_cast<size_t>(d)] = PlayersIn(d);
         for (size_t i = 0; i < itemEntities.size();) {
             ItemEntity& it = itemEntities[i];
+            world = LoadedWorld(it.dimension);
+            const std::vector<Session*>& players = byDimension[static_cast<size_t>(std::clamp(it.dimension, 0, kDimensionCount - 1))];
             it.age++;
             const double ox = it.x, oy = it.y, oz = it.z;
             // gravity, then drag; resting on a block stops the fall and slows the slide
@@ -532,6 +549,54 @@ namespace perlin::server {
         }
     }
 
+    std::vector<Session*> Server::PlayersIn(int dimension) {
+        std::vector<Session*> out;
+        for (auto& [id, s] : sessions)
+            if (s->InGame() && s->DimensionId() == dimension)
+                out.push_back(s.get());
+        return out;
+    }
+
+    ChunkManager* Server::LoadedWorld(int dimension) const {
+        if (dimension == kOverworld)
+            return chunks.get();
+        if (dimension < 0 || dimension >= kDimensionCount)
+            return nullptr;
+        return otherWorlds[static_cast<size_t>(dimension)].get();
+    }
+
+    ChunkManager& Server::World(int dimension) {
+        if (dimension <= kOverworld || dimension >= kDimensionCount)
+            return *chunks;
+        auto& slot = otherWorlds[static_cast<size_t>(dimension)];
+        if (!slot) {
+            std::string error;
+            const std::string label = dimension == kNether ? "nether" : "end";
+            std::unique_ptr<TerrainBackend> backend;
+            if (config.terrainBackend == "gpu" || config.terrainBackend == "auto") {
+                std::string note;
+                backend = CreateGpuDimensionBackend(config, dimension, note);
+                LogInfo("the " + label + " on the gpu: " + note);
+            }
+            if (!backend)
+                backend = vanilla::VanillaDimensionBackend::Create(config, dimension, error);
+            if (!backend) {
+                LogError("could not start the " + label + ": " + error);
+                return *chunks;
+            }
+            LogInfo("generating the " + label + " with " + backend->Name());
+            slot = std::make_unique<ChunkManager>(std::move(backend), config.maxThreads, dimension);
+        }
+        return *slot;
+    }
+
+    uint16_t Server::BlockAt(int dimension, int x, int y, int z) {
+        ChunkManager& w = World(dimension);
+        if (!w.Peek({x >> 4, z >> 4}))
+            return BlockRegistry::kAir;
+        return w.GetBlock(x, y, z);
+    }
+
     std::vector<Session*> Server::InGamePlayers() {
         std::vector<Session*> out;
         for (auto& [id, s] : sessions)
@@ -614,7 +679,7 @@ namespace perlin::server {
 
     void Server::OnPlayerJoined(Session& joined) {
         LogInfo(joined.Name() + " joined (" + joined.Conn().Describe() + ")");
-        for (Session* other : InGamePlayers()) {
+        for (Session* other : PlayersIn(joined.DimensionId())) {
             if (other == &joined)
                 continue;
             other->ShowPlayer(joined);
@@ -624,8 +689,10 @@ namespace perlin::server {
         }
         joined.ShowArmor(joined);
         for (const ItemEntity& item : itemEntities)
-            joined.ShowItem(item);
-        mobWorld->Show(joined);
+            if (item.dimension == joined.DimensionId())
+                joined.ShowItem(item);
+        if (joined.DimensionId() == kOverworld)
+            mobWorld->Show(joined);
         SendWorldState(joined);
         plugins->Dispatch<abi::Event::PlayerJoin>({joined.Id(), joined.Name()});
         Broadcast("§e" + joined.Name() + " joined the game");
@@ -633,7 +700,7 @@ namespace perlin::server {
 
     void Server::OnPlayerLeft(Session& left) {
         LogInfo(left.Name() + " left");
-        for (Session* other : InGamePlayers())
+        for (Session* other : PlayersIn(left.DimensionId()))
             if (other != &left)
                 other->HidePlayer(left);
         plugins->Dispatch<abi::Event::PlayerQuit>({left.Id(), left.Name()});
@@ -686,7 +753,7 @@ namespace perlin::server {
         const std::string name = str::Lower(text.substr(0, space));
         const std::string args = space == std::string::npos ? "" : str::Trim(text.substr(space + 1));
         const auto it = commands.find(name);
-        if (it == commands.end() || (it->second.operatorOnly && from && !from->Operator())) {
+        if (it == commands.end() || (it->second.operatorOnly && from && !from->Operator() && !executeElevated)) {
             UnknownCommand(name, say);
             return;
         }
@@ -756,11 +823,10 @@ namespace perlin::server {
         return true;
     }
 
-    void Server::ApplyBlock(int x, int y, int z, uint16_t block) {
-        chunks->SetBlock(x, y, z, block);
-        // the cached payload for this column rebuilds on its version bump; players who already have it get the single change now
+    void Server::ApplyBlock(int dimension, int x, int y, int z, uint16_t block) {
+        World(dimension).SetBlock(x, y, z, block);
         const int32_t hash = BlockRegistry::Instance().Hash(block);
-        for (Session* s : InGamePlayers())
+        for (Session* s : PlayersIn(dimension))
             if (s->HasSent({x >> 4, z >> 4}))
                 s->SendBlockUpdate(x, y, z, hash);
         if (plugins->AnyoneListens(abi::Event::BlockChanged))
@@ -769,9 +835,10 @@ namespace perlin::server {
     }
 
     void Server::SendBlockTo(Session& to, int x, int y, int z) {
-        if (!chunks->Peek({x >> 4, z >> 4}))
+        ChunkManager& w = World(to.DimensionId());
+        if (!w.Peek({x >> 4, z >> 4}))
             return;
-        to.SendBlockUpdate(x, y, z, BlockRegistry::Instance().Hash(chunks->GetBlock(x, y, z)));
+        to.SendBlockUpdate(x, y, z, BlockRegistry::Instance().Hash(w.GetBlock(x, y, z)));
     }
 
     abi::Status Server::SetBlock(int x, int y, int z, const std::string& block) {
@@ -795,11 +862,14 @@ namespace perlin::server {
     }
 
     bool Server::PlayerBreak(Session& by, int x, int y, int z) {
-        if (y < kMinY || y >= kMinY + kHeight || !by.InReach(x, y, z) || !chunks->Peek({x >> 4, z >> 4})) {
+        const int dim = by.DimensionId();
+        ChunkManager& world = World(dim);
+        const DimensionRange range = RangeOf(dim);
+        if (y < range.minY || y > range.MaxY() || !by.InReach(x, y, z) || !world.Peek({x >> 4, z >> 4})) {
             by.CorrectBlock(x, y, z);
             return false;
         }
-        const uint16_t current = chunks->GetBlock(x, y, z);
+        const uint16_t current = world.GetBlock(x, y, z);
         if (current == BlockRegistry::kAir) {
             // a second message for a break that already happened: confirm, change nothing
             by.CorrectBlock(x, y, z);
@@ -816,8 +886,9 @@ namespace perlin::server {
                 return false;
             }
         }
-        DropContainer(x, y, z);
-        ApplyBlock(x, y, z, BlockRegistry::kAir);
+        DropContainer(dim, x, y, z);
+        ApplyBlock(dim, x, y, z, BlockRegistry::kAir);
+        OnBlockRemoved(by, dim, x, y, z, name);
         // survival: the block leaves an item where it stood, to be picked up
         if (!by.Creative())
             if (const CatalogItem* item = BlockCatalog::Instance().ItemByName(name)) {
@@ -826,7 +897,7 @@ namespace perlin::server {
                 drop.count = 1;
                 // a little sideways kick so stacked drops do not sit on one point
                 const double kick = static_cast<double>((x * 7 + z * 13 + y * 3) & 7) / 7.0 - 0.5;
-                SpawnItem(drop, x + 0.5, y + 0.25, z + 0.5, kick * 0.1, 0.2, -kick * 0.1, 10);
+                SpawnItem(drop, x + 0.5, y + 0.25, z + 0.5, kick * 0.1, 0.2, -kick * 0.1, 10, dim);
             }
         return true;
     }
@@ -843,13 +914,18 @@ namespace perlin::server {
         const int tx = x + kFaceOffset[face][0], ty = y + kFaceOffset[face][1], tz = z + kFaceOffset[face][2];
         const ItemStack& held = by.Inventory().Held();
         const CatalogItem* item = held.Empty() ? nullptr : BlockCatalog::Instance().ItemById(held.networkId);
-        if (!item || !item->block || ty < kMinY || ty >= kMinY + kHeight || !by.InReach(tx, ty, tz) ||
-            !chunks->Peek({tx >> 4, tz >> 4}) || chunks->GetBlock(tx, ty, tz) != BlockRegistry::kAir)
+        const int dim = by.DimensionId();
+        ChunkManager& world = World(dim);
+        const DimensionRange range = RangeOf(dim);
+        if (item && UseItemOn(by, dim, x, y, z, face, *item))
+            return true;
+        if (!item || !item->block || ty < range.minY || ty > range.MaxY() || !by.InReach(tx, ty, tz) ||
+            !world.Peek({tx >> 4, tz >> 4}) || world.GetBlock(tx, ty, tz) != BlockRegistry::kAir)
             return reject(tx, ty, tz);
         if (plugins->AnyoneListens(abi::Event::BlockPlace) &&
             plugins->Dispatch<abi::Event::BlockPlace>({by.Id(), tx, ty, tz, item->name}))
             return reject(tx, ty, tz);
-        ApplyBlock(tx, ty, tz, BlockCatalog::Instance().RegistryId(item->blockHash));
+        ApplyBlock(dim, tx, ty, tz, BlockCatalog::Instance().RegistryId(item->blockHash));
         if (!by.Creative()) {
             by.Inventory().TakeHeld(1);
             by.SendSlot(by.Inventory().selected);

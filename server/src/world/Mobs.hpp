@@ -57,6 +57,7 @@ namespace perlin::server {
         bool Kill(uint64_t id);
         int KillAll(const std::string& identifier);
         void Show(Session& to) const;
+        void Hide(Session& to) const;
         bool Attack(Session& by, uint64_t entity, float damage);
         bool Interact(Session& by, uint64_t entity);
         Mob* Find(uint64_t id);

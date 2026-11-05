@@ -24,6 +24,8 @@ namespace perlin::server::vanilla {
         bool kept = false;
     };
 
+    uint64_t NextBackendInstance();
+
     struct DfNode;
     using DfPtr = std::shared_ptr<const DfNode>;
 
@@ -67,6 +69,9 @@ namespace perlin::server::vanilla {
             Interpolated,
             OldBlendedNoise,
             FindTopSurface,
+            Slice,
+            DistanceToPoint,
+            EndIslands,
             Unsupported
         };
         Op op = Op::Constant;
@@ -83,6 +88,9 @@ namespace perlin::server::vanilla {
         int cellXz = 4, cellY = 8;
         std::shared_ptr<const SplineNode> spline;
         std::shared_ptr<const BlendedNoise> blended;
+        std::shared_ptr<const SimplexNoise> simplex;
+        int point[3] = {0, 0, 0};
+        int metric = 0;
         std::string unsupported;
         uint8_t cacheKind = 0;
         bool yDependent = true;
@@ -94,12 +102,15 @@ namespace perlin::server::vanilla {
     // loads named functions from a data pack for one world seed
     class DensityGraph {
     public:
-        DensityGraph(const DataPack& pack, int64_t seed);
+        DensityGraph(const DataPack& pack, int64_t seed, bool legacyRandom = false);
+        ~DensityGraph();
         // "minecraft:overworld/final_density"; null when the file is missing
         DfPtr Load(const std::string& id);
         DfPtr Inline(const json::Value& v) { return Build(v); }
         const NormalNoise* Noise(const std::string& id) { return NoiseFor(id); }
-        const Xoroshiro::Factory& Positional() const { return positional; }
+        const WorldRandom::Factory& Positional() const { return positional; }
+        int64_t Seed() const { return seed; }
+        bool Legacy() const { return legacy; }
         // node types the evaluator does not know yet, found while loading (empty when everything loaded is supported)
         const std::vector<std::string>& Unsupported() const { return unsupported; }
 
@@ -109,7 +120,9 @@ namespace perlin::server::vanilla {
         const NormalNoise* NoiseFor(const std::string& id);
 
         const DataPack& pack;
-        Xoroshiro::Factory positional;
+        WorldRandom::Factory positional;
+        int64_t seed = 0;
+        bool legacy = false;
         std::map<std::string, DfPtr> functions;
         std::map<std::string, std::unique_ptr<NormalNoise>> noises;
         std::vector<std::string> unsupported;

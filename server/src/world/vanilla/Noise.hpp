@@ -10,7 +10,7 @@ namespace perlin::server::vanilla {
 
     class PerlinNoise {
     public:
-        explicit PerlinNoise(Xoroshiro& random);
+        explicit PerlinNoise(WorldRandom& random);
         float Get(double x, double y, double z) const;
 
         // the lattice walk shared with the smeared variant: `smoothY` drives the y blend, `fy` the gradient offset
@@ -29,7 +29,7 @@ namespace perlin::server::vanilla {
     // perlin noise whose y coordinate snaps to steps of `fudgeYScale` near the origin (the old terrain noise's vertical smearing)
     class SmearedPerlinNoise : public PerlinNoise {
     public:
-        SmearedPerlinNoise(Xoroshiro& random, double fudgeYScale)
+        SmearedPerlinNoise(WorldRandom& random, double fudgeYScale)
             : PerlinNoise(random), fudgeYScale(fudgeYScale) {}
         float Get(double x, double y, double z) const;
         double FudgeYScale() const { return fudgeYScale; }
@@ -42,7 +42,7 @@ namespace perlin::server::vanilla {
     class BlendedNoise {
     public:
         BlendedNoise(double xzScale, double yScale, double xzFactor, double yFactor,
-                     double smearScaleMultiplier, Xoroshiro random);
+                     double smearScaleMultiplier, WorldRandom random);
         float Get(int x, int y, int z) const;
 
         struct Layer {
@@ -59,7 +59,7 @@ namespace perlin::server::vanilla {
         double YFactor() const { return yFactor; }
 
     private:
-        static std::vector<Layer> Fbm(Xoroshiro& random, int firstOctave, double smearScale,
+        static std::vector<Layer> Fbm(WorldRandom& random, int firstOctave, double smearScale,
                                       double amplitude);
         static float Sum(const std::vector<Layer>& stack, double x, double y, double z);
         std::vector<Layer> minLimit, maxLimit, main;
@@ -75,11 +75,26 @@ namespace perlin::server::vanilla {
         std::vector<double> amplitudeModifiers;
     };
 
+    class SimplexNoise {
+    public:
+        SimplexNoise(WorldRandom& random, bool discardOffset);
+        float Get(double x, double y) const;
+        const std::array<uint8_t, 256>& Perms() const { return perms; }
+        bool OffsetFree() const { return offsetX == 0.0 && offsetY == 0.0 && offsetZ == 0.0; }
+
+    private:
+        int Permute(int i) const { return perms[static_cast<size_t>(i & 255)]; }
+        std::array<uint8_t, 256> perms{};
+        double offsetX = 0, offsetY = 0, offsetZ = 0;
+    };
+
     // octaves of two perlin noises each, summed in float the way NoiseStack does
     class NormalNoise {
     public:
         // `random` is the generator forked for this noise (positional.fromHashOf(name))
-        NormalNoise(const NoiseParameters& parameters, Xoroshiro random);
+        NormalNoise(const NoiseParameters& parameters, WorldRandom random);
+        // the nether's temperature and vegetation: the old octave initialisation from one sequential generator
+        static NormalNoise LegacyNetherBiome(const NoiseParameters& parameters, WorldRandom random);
         float Get(double x, double y, double z) const;
 
         struct Layer {
@@ -90,6 +105,8 @@ namespace perlin::server::vanilla {
         const std::vector<Layer>& Layers() const { return layers; }
 
     private:
+        NormalNoise() = default;
+        static double Normalization(const NoiseParameters& parameters);
         std::vector<Layer> layers;
     };
 }

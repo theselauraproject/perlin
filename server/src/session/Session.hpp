@@ -61,6 +61,10 @@ namespace perlin::server {
         bool IsClosed() const { return state == State::Closed; }
         bool Operator() const { return isOperator; }
         bool Visitor() const { return isVisitor; }
+        int DimensionId() const { return dimension; }
+        void SwitchDimension(int dimension, double x, double y, double z);
+        int portalTicks = 0;
+        int portalCooldown = 0;
         double X() const { return posX; }
         double Y() const { return posY; }
         double Z() const { return posZ; }
@@ -201,6 +205,9 @@ namespace perlin::server {
         int regenTicks = 0;
 
         double posX = 0.5, posY = 0, posZ = 0.5;
+        int dimension = kOverworld;
+        bool awaitingDimensionAck = false;
+        std::chrono::steady_clock::time_point dimensionChangedAt;
         float pitch = 0, yaw = 0;
         int32_t radius = 0;
         ChunkPos center{0, 0};
