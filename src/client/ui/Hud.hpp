@@ -24,7 +24,10 @@ namespace perlin::ui {
         Hud();
         ~Hud();
 
-        bool Initialize(RenderContext& renderer, const std::string& vanillaRoot, const std::string& dataDir);
+        bool Initialize(RenderContext& renderer, const std::string& vanillaRoot, const std::string& dataDir,
+                        bool allowEmpty = false);
+        void RequestReload() { reloadRequested = true; }
+        bool HasLevelUi() const { return tree != nullptr; }
         void Shutdown();
         void UnloadLevelUi();
 
@@ -54,9 +57,7 @@ namespace perlin::ui {
         const std::string& LastDocument() const { return lastRml; }
         size_t Rebuilds() const { return rebuilds; }
         void Reload() { reloadRequested = true; }
-        // java style: java-like overrides over the bedrock hud; bedrock style: hud as packs define it
         void SetJavaStyle(bool java);
-        // true when a server or resource pack (not just vanilla/our defaults) defines namespace `ns`
         bool Overrides(const std::string& ns) const {
             return tree && library.RootCount() > 3 && library.DefinedBefore(ns, library.RootCount() - 3);
         }

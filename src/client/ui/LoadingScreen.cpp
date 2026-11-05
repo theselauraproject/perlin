@@ -13,7 +13,6 @@ namespace perlin::ui {
 <head>
 <title>loading</title>
 <style>
-/* Edit this file while the game runs: it is reloaded when it changes. {{name}} placeholders are filled in by Perlin. */
 body { position: absolute; left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; margin: 0; padding: 0; background: transparent; }
 div { display: block; position: absolute; }
 mcimg { display: block; position: absolute; }
@@ -118,7 +117,7 @@ div { display: block; position: absolute; }
         const auto N = [](int v) { return std::to_string(v); };
         const int barW = std::min(guiW - 40, 240);
         const int x = (guiW - barW) / 2;
-        const int rowsH = static_cast<int>(t.rows.size()) * 34;
+        const int rowsH = static_cast<int>(t.rows.size()) * 42;
         const bool buttons = !t.retry.empty() || !t.skip.empty();
         const int contentH = 28 + rowsH + (buttons ? 30 : 0);
         int y = std::max(10, (guiH - contentH) / 2);
@@ -134,7 +133,7 @@ div { display: block; position: absolute; }
             d += "<div class=\"t\" style=\"left:" + N(x) + "px;top:" + N(y) + "px;width:" + N(barW) +
                  "px;\">" + EscapeRml(r.label) + "</div>\n";
             d += "<div class=\"t" + std::string(r.failed ? " bad" : " dim") + "\" style=\"left:" + N(x) +
-                 "px;top:" + N(y) + "px;width:" + N(barW) + "px;text-align:right;\">" + EscapeRml(r.status) +
+                 "px;top:" + N(y + 20) + "px;width:" + N(barW) + "px;text-align:right;\">" + EscapeRml(r.status) +
                  "</div>\n";
             const int by = y + 12;
             d += "<div style=\"left:" + N(x) + "px;top:" + N(by) + "px;width:" + N(barW) +
@@ -152,7 +151,7 @@ div { display: block; position: absolute; }
                 d += "<div style=\"left:" + N(gx) + "px;top:" + N(by + 1) + "px;width:" + N(gw) +
                      "px;height:3px;background-color:" + fill + ";\"></div>\n";
             }
-            y += 34;
+            y += 42;
         }
         if (buttons) {
             const bool both = !t.retry.empty() && !t.skip.empty();

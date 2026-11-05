@@ -1,5 +1,6 @@
 #include "client/Options.hpp"
 #include "util/Paths.hpp"
+#include "util/Platform.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -118,12 +119,31 @@ namespace perlin {
             o.dynamicLights = "off";
             o.webTuned = true;
         }
+
+        void TuneForMobile(Options& o) {
+            o.renderDistance = 8;
+            o.maxFps = 60;
+            o.shadows = false;
+            o.shadowQuality = 1;
+            o.shadowEntities = false;
+            o.bloom = 0.0f;
+            o.motionBlur = 0.0f;
+            o.rgss = false;
+            o.cloudRange = 64;
+            o.menuBlur = 0;
+            o.dynamicLights = "off";
+            o.upscaler = "fsr1";
+            o.upscaleCustom = 75;
+            o.webTuned = true;
+        }
     }
 
     Options Options::Load() {
         Options o;
 #ifdef __EMSCRIPTEN__
         TuneForWeb(o);
+#elif defined(PERLIN_MOBILE)
+        TuneForMobile(o);
 #endif
         const std::string dir = paths::DataDir();
         paths::EnsureDir(dir);
@@ -326,6 +346,11 @@ namespace perlin {
 #ifdef __EMSCRIPTEN__
         if (!stored.webTuned)
             TuneForWeb(o);
+        else
+            o.webTuned = true;
+#elif defined(PERLIN_MOBILE)
+        if (!stored.webTuned)
+            TuneForMobile(o);
         else
             o.webTuned = true;
 #endif

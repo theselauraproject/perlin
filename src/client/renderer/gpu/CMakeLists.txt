@@ -34,6 +34,7 @@ if(NOT TARGET perlin_gpu)
         JavaPack.cpp
         GpuCore.cpp
         ChunkMeshStore.cpp
+        GpuChunkCull.cpp
         RenderContext_rhi.cpp
         RenderContext_rhi_java.cpp
         RenderContext_rhi_pack.cpp

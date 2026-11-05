@@ -3,6 +3,7 @@
 #include "client/renderer/SkyGeometry.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
+#include "client/renderer/gpu/GpuChunkCull.hpp"
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/UniformStore.hpp"
@@ -524,6 +525,8 @@ namespace perlin {
         conduit::cull_mode cullMode = conduit::cull_mode::back;
         conduit::front_face frontFace = conduit::front_face::clockwise;
         std::vector<gpu::ChunkMeshStore::Run> runs;
+        gpu::GpuChunkCull cull;
+        bool gpuCullFrame = false;
         gpu::PipelineKey KeyFor(const ViewData& view, const DrawState& state) const;
 
         void ConvertDepth(const float in[16], float out[16]) const;

@@ -347,14 +347,18 @@ namespace perlin {
         if (hideBlend && (layer == RenderLayer::Translucent || layer == RenderLayer::TranslucentCull))
             return;
         const bool ordered = layer == RenderLayer::Translucent || layer == RenderLayer::TranslucentCull;
-        meshes.CollectRuns(layer, ordered, runs);
+        const bool onGpu = gpuCullFrame && gpu::GpuChunkCull::Handles(layer);
+        if (onGpu)
+            runs.clear();
+        else
+            meshes.CollectRuns(layer, ordered, runs);
         if (javaActive && PERLIN_ENV("PERLIN_JAVA_DBG")) {
             static int m = 0;
             if (m++ < 10)
                 std::fprintf(stderr, "[javadbg] runs layer=%d count=%zu\n", static_cast<int>(layer),
                              runs.size());
         }
-        if (runs.empty())
+        if (onGpu ? cull.Buckets(layer).empty() : runs.empty())
             return;
         DrawState state = PassState(layer);
         state.program = program;
@@ -398,6 +402,20 @@ namespace perlin {
                              ProgramIndex(program));
         }
         const bool multi = UseMultiDraw();
+        if (onGpu) {
+            for (const gpu::GpuChunkCull::Bucket& b : cull.Buckets(layer)) {
+                DrawCall dc = templ;
+                dc.vertices = meshes.Vertices(b.page);
+                dc.vertexOffset = 0;
+                dc.indices = meshes.Indices(b.page, layer);
+                dc.indexOffset = 0;
+                dc.indexType = conduit::index_type::u32;
+                dc.indirect = cull.Commands();
+                dc.indirectOffset = static_cast<uint64_t>(b.firstCommand) * sizeof(conduit::draw_indexed_indirect_command);
+                dc.indirectDraws = b.commands;
+                views[static_cast<size_t>(view)].draws.push_back(dc);
+            }
+        }
         for (size_t i = 0; i < runs.size();) {
             size_t j = i + 1;
             while (multi && j < runs.size() && runs[j].page == runs[i].page)
@@ -481,6 +499,7 @@ namespace perlin {
             DrawScreenTint();
             return;
         }
+        gpuCullFrame = cull.Ready() && UseMultiDraw() && cull.Prepare(meshes, frustum, camX, camZ, chunkCullRadius);
         RenderShadows(frame.cameraPosition[0], frame.cameraPosition[1], frame.cameraPosition[2]);
         DrawLayer(RenderLayer::Solid, Program::TerrainSolid, View::World);
         DrawLayer(RenderLayer::Cutout, Program::TerrainCutout, View::World);

@@ -95,7 +95,8 @@ namespace perlin::ui {
         reloadRequested = true;
     }
 
-    bool Hud::Initialize(RenderContext& renderer, const std::string& vanilla, const std::string& data_dir) {
+    bool Hud::Initialize(RenderContext& renderer, const std::string& vanilla, const std::string& data_dir,
+                         bool allowEmpty) {
         dataDir = data_dir;
         vanillaRoot = vanilla;
         if (!backend.Initialize(renderer))
@@ -147,7 +148,8 @@ namespace perlin::ui {
         };
         data = std::make_unique<HudData>(state);
         RegisterHudRenderers(emitter, state, services);
-        return Rebuild();
+        const bool built = Rebuild();
+        return built || allowEmpty;
     }
 
     void Hud::UnloadLevelUi() {
@@ -174,8 +176,6 @@ namespace perlin::ui {
     }
 
     namespace {
-        // font/glyph_XX.png: vanilla, then server packs low to high priority (first listed wins);
-        // servers draw logos/icons in chat, titles, sidebars with these
         void LoadGlyphPages(const std::string& vanillaRoot) {
             McFont& font = McFont::Instance();
             font.ClearGlyphPages();
