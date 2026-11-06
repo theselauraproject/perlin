@@ -770,9 +770,9 @@ endif()
 # The build intention rejects non-finite rays and velocities; keep those guards when the application enables
 # relaxed floating point.
 if(MSVC AND NOT PERLIN_CLANG_CL_BUILD)
-    set_source_files_properties(src/client/player/Bridging.cpp src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
+    set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
 else()
-    set_source_files_properties(src/client/player/Bridging.cpp src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
+    set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
 endif()
 
 include(CheckIPOSupported)
@@ -1028,15 +1028,14 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(hand_anim_selftest PRIVATE src)
     target_compile_features(hand_anim_selftest PRIVATE cxx_std_23)
     add_test(NAME hand_anim_selftest COMMAND hand_anim_selftest)
-    add_executable(bridging_selftest
-        tests/bridging_selftest.cpp
-        src/client/player/Bridging.cpp
+    add_executable(heldbuild_selftest
+        tests/heldbuild_selftest.cpp
         src/client/player/HeldBuild.cpp
         src/client/player/PlayerPhysics.cpp
         src/client/player/BlockUse.cpp)
-    target_include_directories(bridging_selftest PRIVATE src "${glm_SOURCE_DIR}")
-    target_compile_features(bridging_selftest PRIVATE cxx_std_23)
-    add_test(NAME bridging_selftest COMMAND bridging_selftest)
+    target_include_directories(heldbuild_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(heldbuild_selftest PRIVATE cxx_std_23)
+    add_test(NAME heldbuild_selftest COMMAND heldbuild_selftest)
     add_executable(entity_animation_selftest tests/entity_animation_selftest.cpp
         src/client/entity/JavaAnimation.cpp src/client/attachable/Geometry.cpp
         src/client/attachable/Animation.cpp src/client/attachable/Molang.cpp src/client/ui/Json.cpp)

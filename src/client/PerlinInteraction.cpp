@@ -299,8 +299,6 @@ namespace perlin {
         const glm::vec3 buildEye(camera.x, camera.y, camera.z);
         const int64_t buildNow =
             std::chrono::duration_cast<std::chrono::nanoseconds>(detail::Clock::now().time_since_epoch()).count();
-        static const int kFaceNormal[6][3] = {{0, -1, 0}, {0, 1, 0},  {0, 0, -1},
-                                              {0, 0, 1},  {-1, 0, 0}, {1, 0, 0}};
         const auto aimAt = [&](glm::ivec3 support, int face, glm::dvec3 point) {
             useAim.kind = AimHit::Kind::Block;
             useAim.bx = support.x;
@@ -309,38 +307,6 @@ namespace perlin {
             useAim.face = face;
             useAim.point = point;
         };
-        if (bedrockBuild && live && levelRenderer && aimHit.kind == AimHit::Kind::None) {
-            Level& level = live->NetLevel();
-            const LevelCollision collision(level, &levelRenderer->Blocks());
-            auto& palette = BlockPalette::Instance();
-            const auto& shape =
-                LevelCollision::ShapeOf(palette.InternRuntime(static_cast<int32_t>(held.blockRuntimeId)));
-            const std::vector<physics::Box> heldShape(shape.boxes.begin(), shape.boxes.end());
-            bridging::Request request;
-            request.eye = {camera.x, camera.y, camera.z};
-            request.direction = glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch));
-            request.body = physics::BoundingBox(player.State(), player.Sneaking());
-            request.sneaking = player.Sneaking();
-            request.reach = PickRange(creative, 1);
-            request.placedShape = heldShape;
-            request.horizontalSlab = held.name.contains("slab") && heldShape.size() == 1 &&
-                                     std::abs(heldShape[0].y1 - heldShape[0].y0 - 0.5) < 1e-5;
-            const auto around = bridging::FindTarget(request, [&](glm::ivec3 position) {
-                bridging::Cell cell;
-                bool loaded = false;
-                const uint16_t id = level.GetBlock(position.x, position.y, position.z, loaded);
-                const std::string& name = palette.Name(id);
-                cell.loaded = loaded;
-                cell.replaceable = blockuse::IsReplaceableCell(loaded, id, name);
-                cell.interactive = blockuse::IsInteractive(name);
-                if (loaded && !cell.replaceable) {
-                    collision.Selection(position.x, position.y, position.z, cell.collision);
-                }
-                return cell;
-            });
-            if (around)
-                aimAt(around->anchor, around->face, around->point);
-        }
         if (bedrockBuild && inputManager.Pressed(Action::Use))
             heldBuild.Start(player.TickCount(), useAim.kind == AimHit::Kind::Block);
         bool heldRepeat = false;
