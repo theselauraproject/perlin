@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include <chrono>
 #include <functional>
 #include <glm/glm.hpp>
@@ -193,7 +194,9 @@ namespace perlin::entity {
         void SetScale(uint64_t rid, float scale);
         void SetBoundingBox(uint64_t rid, float width, float height);
         void SetNameTag(uint64_t rid, const std::string& nameTag);
-        void SetVariant(uint64_t rid, int variant, int markVariant, int color);
+        // an update that leaves a field out keeps its value: servers resend only what changed
+        void SetVariant(uint64_t rid, std::optional<int> variant, std::optional<int> markVariant,
+                        std::optional<int> color);
         void SetHealth(uint64_t rid, float health);
         void SetAttribute(uint64_t rid, const std::string& name, float min, float value, float max);
         void SetOwner(uint64_t rid, int64_t ownerUid);
