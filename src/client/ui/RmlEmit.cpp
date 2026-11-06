@@ -442,16 +442,23 @@ namespace perlin::ui {
         }
     }
 
+    namespace {
+        // sound_name after inheritance: common.button and toggles declare random.click, container slot buttons none
+        std::string SoundAttrs(const LNode& n) {
+            const Json* sn = n.Get("sound_name");
+            if (!sn || !sn->IsString())
+                return {};
+            return " snd=\"" + EscapeRml(sn->string) + "\" vol=\"" + Num(static_cast<float>(n.Num("sound_volume", 1.0))) +
+                   "\" pit=\"" + Num(static_cast<float>(n.Num("sound_pitch", 1.0))) + "\"";
+        }
+    }
+
     void RmlEmitter::VisitButton(const LNode& n, RmlWriter& out) {
         const std::string command = ButtonCommand(n);
         const std::string defName = n.Str("default_control"), hoverName = n.Str("hover_control"),
                           pressedName = n.Str("pressed_control"), lockedName = n.Str("locked_control");
         const bool hasHover = FindKid(n, hoverName) != nullptr && (!command.empty() || inSlot);
-        std::string soundAttrs;
-        if (const Json* sn = n.Get("sound_name"); sn && sn->IsString())
-            soundAttrs = " snd=\"" + EscapeRml(sn->string) + "\" vol=\"" +
-                         Num(static_cast<float>(n.Num("sound_volume", 1.0))) + "\" pit=\"" +
-                         Num(static_cast<float>(n.Num("sound_pitch", 1.0))) + "\"";
+        const std::string soundAttrs = SoundAttrs(n);
         out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() && !inSlot ? "" : "bt", command, false, 0.0f,
                      command.empty() && !inSlot ? std::string() : soundAttrs);
         for (const auto& kid : n.kids) {
@@ -515,7 +522,8 @@ namespace perlin::ui {
                 states.push_back(std::move(name));
         const std::string command = WidgetCommand(n);
         const bool hasHover = !hover.empty() && FindKid(n, hover) != nullptr && !command.empty();
-        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() ? "" : "bt", command, false);
+        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() ? "" : "bt", command, false, 0.0f,
+                     command.empty() ? std::string() : SoundAttrs(n));
         for (const auto& kid : n.kids) {
             if (!kid->visible)
                 continue;
