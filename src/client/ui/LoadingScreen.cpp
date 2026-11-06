@@ -8,6 +8,13 @@
 #include <cmath>
 
 namespace perlin::ui {
+    std::string MenuBackdropRml(bool panorama) {
+        // menu_background.png: flat black at alpha 64 over the blurred panorama
+        if (panorama)
+            return R"(<div style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; background-color: #00000040;"></div>)";
+        return R"(<mcimg src="textures/blocks/dirt" tiled="1" tilescale="{{tile_scale}}" color="0.25 0.25 0.25" style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;"></mcimg>)";
+    }
+
     std::string DefaultLoadingScreenTemplate() {
         return R"PERLINRML(<rml>
 <head>
@@ -35,7 +42,7 @@ mcimg { display: block; position: absolute; }
 </style>
 </head>
 <body>
-  <mcimg src="textures/blocks/dirt" tiled="1" tilescale="{{tile_scale}}" color="0.25 0.25 0.25" style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;"></mcimg>
+  {{backdrop}}
   <div id="title">{{title}}</div>
   <div id="message">{{message}}</div>
   <div id="track"><div id="fill"></div></div>
@@ -58,6 +65,7 @@ mcimg { display: block; position: absolute; }
         const int detailY = bar ? barY + 10 : msgY + 14;
         const int btnY = std::min(guiH - 24, detailY + 36 + (t.warning.empty() ? 0 : 32));
         std::string d = templateText;
+        ReplaceAll(d, "backdrop", MenuBackdropRml(t.panorama));
         ReplaceAll(d, "w", std::to_string(guiW));
         ReplaceAll(d, "h", std::to_string(guiH));
         ReplaceAll(d, "tile_scale", "2");

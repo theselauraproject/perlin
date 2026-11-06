@@ -254,6 +254,45 @@ mcimg { display: block; position: absolute; }
                    "px;\"></mcimg>\n";
         }
 
+        std::string Fill(int x, int y, int w, int h, const char* color, int z) {
+            return "<div style=\"left:" + N(x) + "px;top:" + N(y) + "px;width:" + N(w) + "px;height:" + N(h) +
+                   "px;background-color:" + color + ";z-index:" + N(z) + ";\"></div>\n";
+        }
+
+        // blurred panorama drawn natively under the page; dirt only while it isn't loaded
+        // menu_background.png: flat black at alpha 64
+        std::string Backdrop(const TitleModel& m, int w, int h) {
+            if (!m.nativePanorama)
+                return Dirt(w, h, "0.25 0.25 0.25");
+            return Fill(0, 0, w, h, "#00000040", 0);
+        }
+
+        // menu_list_background.png (black, alpha 112) between header/footer_separator.png:
+        // 2px each, a 20% white line on the outside and a 75% black one against the list
+        std::string ListBand(const TitleModel& m, int w, int top, int bottom) {
+            std::string d;
+            if (!m.nativePanorama) {
+                d += "<mcimg src=\"textures/blocks/dirt\" tiled=\"1\" tilescale=\"2\" color=\"0.12 0.12 "
+                     "0.12\" "
+                     "style=\"left:0px;top:" +
+                     N(top) + "px;width:" + N(w) + "px;height:" + N(bottom - top) +
+                     "px;z-index:1;\"></mcimg>\n";
+                d += "<div style=\"left:0px;top:" + N(top) + "px;width:" + N(w) +
+                     "px;height:4px;decorator:vertical-gradient(#000000ff #00000000);z-index:2;\"></div>\n";
+                d += "<div style=\"left:0px;top:" + N(bottom - 4) + "px;width:" + N(w) +
+                     "px;height:4px;decorator:vertical-gradient(#00000000 #000000ff);z-index:2;\"></div>\n";
+                d += Fill(0, top - 1, w, 1, "#000000", 3);
+                d += Fill(0, bottom, w, 1, "#000000", 3);
+                return d;
+            }
+            d += Fill(0, top, w, bottom - top, "#00000070", 1);
+            d += Fill(0, top - 2, w, 1, "#ffffff33", 3);
+            d += Fill(0, top - 1, w, 1, "#000000bf", 3);
+            d += Fill(0, bottom, w, 1, "#000000bf", 3);
+            d += Fill(0, bottom + 1, w, 1, "#ffffff33", 3);
+            return d;
+        }
+
         std::string Field(const std::string& id, int x, int y, int w, const std::string& value, bool focused,
                           bool caret) {
             std::string d = "<div id=\"" + id + "\" class=\"field\" style=\"left:" + N(x) + "px;top:" + N(y) +
@@ -596,21 +635,10 @@ mcimg { display: block; position: absolute; }
         }
 
         std::string Servers(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             const int listTop = TitleListTop(), listBottom = TitleListBottom(h);
-            d += "<mcimg src=\"textures/blocks/dirt\" tiled=\"1\" tilescale=\"2\" color=\"0.12 0.12 0.12\" "
-                 "style=\"left:0px;top:" +
-                 N(listTop) + "px;width:" + N(w) + "px;height:" + N(listBottom - listTop) +
-                 "px;z-index:1;\"></mcimg>\n";
-            d += "<div style=\"left:0px;top:" + N(listTop) + "px;width:" + N(w) +
-                 "px;height:4px;decorator:vertical-gradient(#000000ff #00000000);z-index:2;\"></div>\n";
-            d += "<div style=\"left:0px;top:" + N(listBottom - 4) + "px;width:" + N(w) +
-                 "px;height:4px;decorator:vertical-gradient(#00000000 #000000ff);z-index:2;\"></div>\n";
-            d += "<div style=\"left:0px;top:" + N(listTop - 1) + "px;width:" + N(w) +
-                 "px;height:1px;background-color:#000000;z-index:3;\"></div>\n";
-            d += "<div style=\"left:0px;top:" + N(listBottom) + "px;width:" + N(w) +
-                 "px;height:1px;background-color:#000000;z-index:3;\"></div>\n";
+            d += ListBand(m, w, listTop, listBottom);
             {
                 static const struct {
                     ServerTab tab;
@@ -764,7 +792,7 @@ mcimg { display: block; position: absolute; }
         }
 
         std::string Edit(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             d += "<div class=\"txt ctr\" style=\"left:0px;top:17px;width:" + N(w) + "px;height:9px;\">" +
                  (m.adding ? "Add Server" : "Edit Server Info") + "</div>\n";
@@ -778,7 +806,7 @@ mcimg { display: block; position: absolute; }
         }
 
         std::string Direct(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             d += "<div class=\"txt ctr\" style=\"left:0px;top:20px;width:" + N(w) +
                  "px;height:9px;\">Direct Connection</div>\n";
@@ -792,7 +820,7 @@ mcimg { display: block; position: absolute; }
 
     namespace {
         std::string AddRealm(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             d += "<div class=\"txt ctr\" style=\"left:0px;top:20px;width:" + N(w) +
                  "px;height:9px;\">Add Realm</div>\n";
@@ -819,21 +847,10 @@ mcimg { display: block; position: absolute; }
         }
 
         std::string Replays(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             const int listTop = TitleListTop(), listBottom = TitleListBottom(h);
-            d += "<mcimg src=\"textures/blocks/dirt\" tiled=\"1\" tilescale=\"2\" color=\"0.12 0.12 0.12\" "
-                 "style=\"left:0px;top:" +
-                 N(listTop) + "px;width:" + N(w) + "px;height:" + N(listBottom - listTop) +
-                 "px;z-index:1;\"></mcimg>\n";
-            d += "<div style=\"left:0px;top:" + N(listTop) + "px;width:" + N(w) +
-                 "px;height:4px;decorator:vertical-gradient(#000000ff #00000000);z-index:2;\"></div>\n";
-            d += "<div style=\"left:0px;top:" + N(listBottom - 4) + "px;width:" + N(w) +
-                 "px;height:4px;decorator:vertical-gradient(#00000000 #000000ff);z-index:2;\"></div>\n";
-            d += "<div style=\"left:0px;top:" + N(listTop - 1) + "px;width:" + N(w) +
-                 "px;height:1px;background-color:#000000;z-index:3;\"></div>\n";
-            d += "<div style=\"left:0px;top:" + N(listBottom) + "px;width:" + N(w) +
-                 "px;height:1px;background-color:#000000;z-index:3;\"></div>\n";
+            d += ListBand(m, w, listTop, listBottom);
             d += "<div class=\"txt ctr\" style=\"left:0px;top:12px;width:" + N(w) +
                  "px;height:9px;\">Select Replay</div>\n";
             const int rows = TitleVisibleRows(h);
@@ -889,7 +906,7 @@ mcimg { display: block; position: absolute; }
         }
 
         std::string ReplayRename(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             d += "<div class=\"txt ctr\" style=\"left:0px;top:17px;width:" + N(w) +
                  "px;height:9px;\">Edit Replay</div>\n";
@@ -901,7 +918,7 @@ mcimg { display: block; position: absolute; }
         }
 
         std::string ReplayDelete(const TitleModel& m, int w, int h) {
-            std::string d = Dirt(w, h, "0.25 0.25 0.25");
+            std::string d = Backdrop(m, w, h);
             const int cx = w / 2;
             const std::string name =
                 m.replaySelected >= 0 && m.replaySelected < static_cast<int>(m.replays.size())

@@ -37,6 +37,7 @@
 #include "client/ui/FormScreen.hpp"
 #include "client/ui/Hud.hpp"
 #include "client/ui/InventoryScreen.hpp"
+#include "client/ui/TitlePanorama.hpp"
 #include "client/ui/TitleScreen.hpp"
 #include "client/ui/UiTemplate.hpp"
 #include "network/FriendWorld.hpp"
@@ -211,7 +212,7 @@ namespace perlin {
         void BuildJavaShaderSettingsOptions(OptionsModel& m, PauseFrame& f);
         void BuildShaderSettingsOptions(OptionsModel& m, PauseFrame& f);
         void BuildSkinOptions(OptionsModel& m, PauseFrame& f);
-        void BuildHandOptions(OptionsModel& m, PauseFrame& f);
+        void BuildPerlinOptions(OptionsModel& m, PauseFrame& f);
         void BuildKeyBindsOptions(OptionsModel& m, PauseFrame& f);
         void UpdatePauseMenu(PauseFrame& f);
         const Binding& BindingOf(Action a) const {
@@ -228,7 +229,8 @@ namespace perlin {
         bool UpdateAssetScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateLoadingScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateDisconnectScreen(ui::Hud& hud, int fbW, int fbH);
-        void DrawTitlePanorama(int fbW, int fbH);
+        bool DrawTitlePanorama(int fbW, int fbH, bool blurred = false);
+        bool PollBlurredPanorama(int fbH);
         void LeaveToServerList(ui::Hud& hud);
         int FrameGenMultiplier();
 
@@ -602,6 +604,11 @@ namespace perlin {
         ui::TitleModel title;
         struct Panorama {
             uint32_t textures[6] = {};
+            uint32_t blurred[6] = {};
+            int blurKey = -1, blurJobKey = -1;
+            uint64_t blurJobStamp = 0;
+            std::future<std::vector<ui::PanoramaImage>> blurJob;
+            TimePoint blurRetryAt;
             bool ready = false;
             uint64_t packStamp = 0;
             TimePoint clock, retryAt;

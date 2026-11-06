@@ -277,23 +277,26 @@ namespace perlin {
         inSingleplayer = false;
     }
 
-    void Perlin::DrawTitlePanorama(int fbW, int fbH) {
+    bool Perlin::DrawTitlePanorama(int fbW, int fbH, bool blurred) {
         const auto now = Clock::now();
         const uint64_t packStamp =
             (TexturePack::Instance().Generation() << 32) ^ ServerPacks::Instance().Generation();
         if (packStamp != panorama.packStamp) {
             panorama.packStamp = packStamp;
-            for (uint32_t& id : panorama.textures) {
-                if (id)
-                    renderer->UiDestroyTexture(id);
-                id = 0;
-            }
+            uint32_t* const sets[] = {panorama.textures, panorama.blurred};
+            for (uint32_t* set : sets)
+                for (int i = 0; i < 6; i++) {
+                    if (set[i])
+                        renderer->UiDestroyTexture(set[i]);
+                    set[i] = 0;
+                }
+            panorama.blurKey = -1;
             panorama.ready = false;
             panorama.retryAt = {};
         }
         if (!panorama.ready) {
             if (now < panorama.retryAt)
-                return;
+                return false;
             panorama.retryAt = now + std::chrono::seconds(2);
             int loaded = 0;
             for (int i = 0; i < 6; i++) {
@@ -309,9 +312,13 @@ namespace perlin {
                 loaded += id != 0;
             panorama.ready = loaded == 6;
             if (!panorama.ready)
-                return;
+                return false;
             panorama.clock = now;
         }
+        const uint32_t* faceTextures = panorama.textures;
+        // polled on every panorama frame: the title screen warms the blur up before a menu needs it
+        if (options.menuBlur > 0 && PollBlurredPanorama(fbH) && blurred)
+            faceTextures = panorama.blurred;
         const double seconds = std::chrono::duration<double>(now - panorama.clock).count();
         ui::PanoramaFace faces[6];
         ui::BuildPanorama(ui::PanoramaViewAt(seconds), fbW, fbH, faces);
@@ -331,11 +338,60 @@ namespace perlin {
                 continue;
             UiDraw draw;
             draw.mesh = mesh;
-            draw.texture = panorama.textures[i];
+            draw.texture = faceTextures[i];
             draw.premultiplied = true;
             renderer->UiSubmit(UiLayer::Gui, draw);
             renderer->UiDestroyMesh(mesh);
         }
+        return true;
+    }
+
+    bool Perlin::PollBlurredPanorama(int fbH) {
+        const auto now = Clock::now();
+        if (panorama.blurJob.valid() &&
+            panorama.blurJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            std::vector<ui::PanoramaImage> faces = panorama.blurJob.get();
+            if (faces.size() != 6) {
+                panorama.blurRetryAt = now + std::chrono::seconds(2);
+            } else if (panorama.blurJobStamp == panorama.packStamp) {
+                for (int i = 0; i < 6; i++) {
+                    if (panorama.blurred[i])
+                        renderer->UiDestroyTexture(panorama.blurred[i]);
+                    const ui::PanoramaImage& img = faces[static_cast<size_t>(i)];
+                    panorama.blurred[i] =
+                        renderer->UiCreateTexture(img.width, img.height, img.rgba.data(), true);
+                }
+                panorama.blurKey = panorama.blurJobKey;
+                Log("ui", "blurred panorama ready: {}px faces, radius {}", faces[0].width, panorama.blurKey);
+            }
+        }
+        // keyed on the radius at full face size: a resize only re-blurs when the strength really changes
+        const int radius = ui::PanoramaBlurRadius(options.menuBlur, 512, fbH);
+        if (!panorama.blurJob.valid() && radius != panorama.blurKey && now >= panorama.blurRetryAt) {
+            panorama.blurJobKey = radius;
+            panorama.blurJobStamp = panorama.packStamp;
+            // ~100 ms of work at 512px: off the frame, the sharp faces stand in meanwhile
+            panorama.blurJob = std::async(std::launch::async, [radius] {
+                ui::PanoramaImage in[6];
+                int size = 512;
+                for (int i = 0; i < 6; i++) {
+                    Texture t;
+                    if (!ui::UiAssets::Instance().Image("textures/ui/panorama_" + std::to_string(i), t) ||
+                        t.width <= 0)
+                        return std::vector<ui::PanoramaImage>{};
+                    size = std::min(size, std::max(t.width, t.height));
+                    in[i].width = t.width;
+                    in[i].height = t.height;
+                    in[i].rgba = std::move(t.pixels);
+                }
+                ui::PanoramaImage out[6];
+                if (!ui::BlurPanorama(in, size, std::max(1, radius * size / 512), out))
+                    return std::vector<ui::PanoramaImage>{};
+                return std::vector<ui::PanoramaImage>(std::make_move_iterator(std::begin(out)),
+                                                      std::make_move_iterator(std::end(out)));
+            });
+        }
+        return panorama.blurred[0] != 0;
     }
 
     bool Perlin::UpdateAssetScreen(ui::Hud& hud, int fbW, int fbH) {
@@ -493,7 +549,7 @@ namespace perlin {
                 titleScreen.shown = false;
                 titleScreen.signature.clear();
             }
-            DrawTitlePanorama(fbW, fbH);
+            DrawTitlePanorama(fbW, fbH, true);
             return false;
         }
         if (!titleScreen.active) {
@@ -749,9 +805,11 @@ namespace perlin {
         if (connectsInFlight.load() == 0)
             UnloadServerPacks();
 
-        if (title.page == ui::TitlePage::Main || title.page == ui::TitlePage::Accounts ||
-            title.page == ui::TitlePage::AccountName || title.page == ui::TitlePage::AccountSignIn)
-            DrawTitlePanorama(fbW, fbH);
+        // sub-screens blur it, like the game's menus
+        DrawTitlePanorama(fbW, fbH,
+                          !(title.page == ui::TitlePage::Main || title.page == ui::TitlePage::Accounts ||
+                            title.page == ui::TitlePage::AccountName ||
+                            title.page == ui::TitlePage::AccountSignIn));
 
         {
             std::lock_guard lock(signIn.mutex);
@@ -1364,13 +1422,15 @@ namespace perlin {
             loading.signature.clear();
         const auto [scale, guiW, guiH] = detail::OverlayViewport(hud, fbW, fbH);
         const double time = std::chrono::duration<double>(now.time_since_epoch()).count();
-        const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
-                                      "|" + t.message + "|" + t.detail + "|" + t.cancel;
         bool modHidden = false;
         {
             std::lock_guard lock(modHooks.mutex);
             modHidden = !modHooks.loadingHidden.empty();
         }
+        t.panorama = !modHidden && DrawTitlePanorama(fbW, fbH, true);
+        const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
+                                      "|" + t.message + "|" + t.detail + "|" + t.cancel +
+                                      (t.panorama ? "|p" : "|d");
         // a mod hid the loading screen: connection carries on underneath, nothing drawn over it
         if (modHidden) {
             if (hud.Overlay().HasOverlay())
@@ -1561,8 +1621,9 @@ namespace perlin {
                                     std::chrono::milliseconds(400), now, "disconnect screen"))
             disconnect.signature.clear();
         const auto [scale, guiW, guiH] = detail::OverlayViewport(hud, fbW, fbH);
-        const std::string signature =
-            std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title + "|" + t.reason + "|" + t.code;
+        t.panorama = DrawTitlePanorama(fbW, fbH, true);
+        const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
+                                      "|" + t.reason + "|" + t.code + (t.panorama ? "|p" : "|d");
         if (signature != disconnect.signature || !hud.Overlay().HasOverlay()) {
             disconnect.signature = signature;
             std::string error;

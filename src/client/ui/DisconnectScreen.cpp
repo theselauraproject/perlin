@@ -1,6 +1,7 @@
 #include "client/ui/DisconnectScreen.hpp"
 
 #include "client/ui/FormatCodes.hpp"
+#include "client/ui/LoadingScreen.hpp"
 #include "client/ui/RmlEmit.hpp"
 #include "client/ui/UiLayout.hpp"
 #include "client/ui/UiTemplate.hpp"
@@ -45,7 +46,7 @@ mcimg { display: block; position: absolute; }
 </style>
 </head>
 <body>
-  <mcimg src="textures/blocks/dirt" tiled="1" tilescale="{{tile_scale}}" color="0.25 0.25 0.25" style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;"></mcimg>
+  {{backdrop}}
   <div id="heading">{{title}}</div>
   <div id="reason">{{reason}}</div>
   <div id="code">{{code}}</div>
@@ -91,6 +92,7 @@ mcimg { display: block; position: absolute; }
         const int y1 = codeY + 22;
 
         std::string d = templateText;
+        ReplaceAll(d, "backdrop", MenuBackdropRml(t.panorama));
         ReplaceAll(d, "w", std::to_string(guiW));
         ReplaceAll(d, "h", std::to_string(guiH));
         ReplaceAll(d, "tile_scale", "2");

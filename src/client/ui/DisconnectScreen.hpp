@@ -7,6 +7,7 @@ namespace perlin::ui {
         bool rejoinEnabled = true;
         // optional third row under the buttons (a checkbox: "[x] Don't ask again")
         std::string extra;
+        bool panorama = false;
     };
     inline constexpr const char* kDisconnectRejoinId = "rejoin";
     inline constexpr const char* kDisconnectExtraId = "dontask";

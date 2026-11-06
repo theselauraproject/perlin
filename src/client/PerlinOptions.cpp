@@ -107,7 +107,7 @@ namespace perlin {
         else if (optionsUi.page == 9)
             BuildSkinOptions(m, f);
         else if (optionsUi.page == 4)
-            BuildHandOptions(m, f);
+            BuildPerlinOptions(m, f);
         else
             BuildKeyBindsOptions(m, f);
 
@@ -437,21 +437,68 @@ namespace perlin {
         m.Nav(detail::TrOr("options.videoTitle", "Video Settings..."), 1);
         m.Nav(detail::TrOr("options.controls", "Controls..."), 3);
         m.Nav(detail::TrOr("options.language", "Language..."), 6);
-        m.Nav(detail::TrOr("perlin.options.hand", "Camera & Hand..."), 4);
         m.Nav(detail::TrOr("resourcePack.title", "Resource Packs..."), 7);
         m.Nav(detail::TrOr("perlin.shaderPacks", "Shader Packs..."), 8);
-        if (update::Supported()) {
-            m.Toggle(detail::TrOr("perlin.options.autoUpdate", "Auto Update"), options.autoUpdate);
+        m.Nav(detail::TrOr("perlin.options.perlin", "Perlin Settings..."), 4);
+    }
+
+    void Perlin::BuildPerlinOptions(OptionsModel& m, PauseFrame& f) {
+        [[maybe_unused]] auto& [hud, live, fbW, fbH, now, preview, scale, guiW, guiH, mx, my, down,
+                                clickReady] = f;
+        m.title = detail::TrOr("perlin.options.perlin.title", "Perlin Settings");
+        const auto head = [&](const std::string& text) {
+            OptRow h{text, "", -1.0f, [](float, bool) {}};
+            h.header = true;
+            m.rows.push_back(h);
+        };
+        head(detail::TrOr("perlin.options.header.graphics", "Graphics"));
+        {
+            std::vector<std::pair<std::string, std::string>> apis = {{"auto", "Auto"}};
+            for (conduit::api api : conduit::compiled_apis())
+                apis.emplace_back(conduit::api_id(api), conduit::api_name(api));
+            const std::string shown = options.renderer;
+            m.Choice("Renderer", options.renderer, apis);
+            if (shown != runningRenderer)
+                m.rows.back().value += " (restart to apply)";
             m.rows.back().wide = true;
         }
+        head(detail::TrOr("perlin.options.header.network", "Network"));
+        m.Choice(detail::TrOr("perlin.options.transport", "Connection"), options.transport,
+                 {{"auto", "Auto"}, {"raknet", "RakNet"}, {"nethernet", "NetherNet"}});
+        m.rows.push_back({detail::TrOr("perlin.options.versionMismatchAsk", "Ask On Version Mismatch"),
+                          OnOff(!options.versionMismatchNoAsk), -1.0f, [this](float, bool click) {
+                              if (click) {
+                                  options.versionMismatchNoAsk = !options.versionMismatchNoAsk;
+                                  versionOverride.dontAsk = options.versionMismatchNoAsk;
+                              }
+                          }});
         if (discord::Supported()) {
-            m.Toggle(detail::TrOr("perlin.options.discordPresence", "Discord Status"), options.discordPresence);
+            head("Discord");
+            m.Toggle(detail::TrOr("perlin.options.discordPresence", "Discord Status"),
+                     options.discordPresence);
+            m.rows.back().wide = true;
             if (options.discordPresence) {
                 m.Toggle(detail::TrOr("perlin.options.discordShowServer", "Show Server in Discord"),
                          options.discordShowServer);
-                m.Toggle(detail::TrOr("perlin.options.discordJoin", "Discord Friends Can Join"), options.discordJoin);
+                m.Toggle(detail::TrOr("perlin.options.discordJoin", "Discord Friends Can Join"),
+                         options.discordJoin);
             }
         }
+        head(detail::TrOr("perlin.options.header.app", "App"));
+        if (update::Supported())
+            m.Toggle(detail::TrOr("perlin.options.autoUpdate", "Auto Update"), options.autoUpdate);
+        m.Toggle("Hot Reload On Save", options.hotReload);
+        m.rows.back().wide = !update::Supported();
+        m.rows.push_back({detail::TrOr("perlin.options.dataFolder", "Open Data Folder"), "", -1.0f,
+                          [this](float, bool click) {
+                              if (!click)
+                                  return;
+                              std::error_code ec;
+                              platform->OpenUrl(
+                                  "file://" +
+                                  std::filesystem::absolute(paths::DataDir(), ec).generic_string());
+                          }});
+        m.rows.back().wide = true;
     }
 
     void Perlin::BuildVideoOptions(OptionsModel& m, PauseFrame& f) {
@@ -470,25 +517,6 @@ namespace perlin {
             OptRow h{"Display", "", -1.0f, [](float, bool) {}};
             h.header = true;
             m.rows.push_back(h);
-        }
-        {
-            std::vector<std::pair<std::string, std::string>> apis = {{"auto", "Auto"}};
-            for (conduit::api api : conduit::compiled_apis())
-                apis.emplace_back(conduit::api_id(api), conduit::api_name(api));
-            size_t at = 0;
-            for (size_t i = 0; i < apis.size(); i++)
-                if (apis[i].first == options.renderer)
-                    at = i;
-            const size_t last = apis.size() - 1;
-            const std::string label =
-                apis[at].second + (options.renderer != runningRenderer ? " (restart to apply)" : "");
-            m.Slider("Renderer", label,
-                     last ? static_cast<float>(at) / static_cast<float>(last) : 0.0f,
-                     [this, apis, last](float f) {
-                         options.renderer = apis[static_cast<size_t>(std::lround(std::clamp(f, 0.0f, 1.0f) *
-                                                                                 static_cast<float>(last)))]
-                                                .first;
-                     });
         }
         m.Toggle(detail::TrOr("options.fullscreen", "Fullscreen"), options.fullscreen);
         m.Toggle(detail::TrOr("options.vsync", "VSync"), options.vsync);
@@ -619,6 +647,64 @@ namespace perlin {
                  });
         m.Choice("Dynamic Lights", options.dynamicLights,
                  {{"off", "Off"}, {"fast", "Fast"}, {"fancy", "Fancy"}});
+        {
+            OptRow h{"Camera", "", -1.0f, [](float, bool) {}};
+            h.header = true;
+            m.rows.push_back(h);
+        }
+        m.Toggle(detail::TrOr("options.viewBobbing", "View Bobbing"), options.hand.viewBobbing);
+        m.Toggle(detail::TrOr("perlin.options.bobCamera", "Camera Bobbing"), options.hand.bobCamera);
+        m.Slider(detail::TrOr("options.motionBlur", "Motion Blur"),
+                 options.motionBlur <= 0.001f ? detail::TrOr("options.off", "OFF")
+                                              : Percent(options.motionBlur),
+                 options.motionBlur, [this](float f) { options.motionBlur = Snap(f, 100.0f); });
+        m.Toggle(detail::TrOr("options.fovEffectScale", "FOV Effects"), options.fovEffects);
+        m.Slider(detail::TrOr("options.damageTilt", "Damage Tilt"),
+                 Percent(static_cast<float>(options.damageTilt) / 100.0f),
+                 static_cast<float>(options.damageTilt) / 100.0f, [this](float f) {
+                     options.damageTilt = static_cast<int>(std::lround(std::clamp(f, 0.0f, 1.0f) * 100.0f));
+                 });
+        m.Toggle(detail::TrOr("perlin.options.damageTint", "Damage Tint"), options.damageTint);
+        m.Toggle(detail::TrOr("perlin.options.thirdCrosshair", "Third Person Crosshair"),
+                 options.thirdPersonCrosshair);
+        m.Toggle(detail::TrOr("perlin.options.thirdNametag", "Third Person Nametag"),
+                 options.thirdPersonNametag);
+        {
+            OptRow h{"Zoom", "", -1.0f, [](float, bool) {}};
+            h.header = true;
+            m.rows.push_back(h);
+        }
+        auto& z = options.zoom;
+        m.Slider("Zoom Level", Percent(z.level),
+                 (z.level - z.minLevel) / std::max(0.001f, z.maxLevel - z.minLevel), [this](float f) {
+                     auto& zz = options.zoom;
+                     zz.level = zz.minLevel + std::round(std::clamp(f, 0.0f, 1.0f) * 100.0f) / 100.0f *
+                                                  (zz.maxLevel - zz.minLevel);
+                 });
+        m.Slider("Zoom In Time", std::to_string(static_cast<int>(std::lround(z.inSeconds * 1000.0f))) + " ms",
+                 z.inSeconds / 2.0f, [this](float f) {
+                     options.zoom.inSeconds = std::round(std::clamp(f, 0.0f, 1.0f) * 100.0f) / 50.0f;
+                 });
+        m.Slider("Zoom Out Time",
+                 std::to_string(static_cast<int>(std::lround(z.outSeconds * 1000.0f))) + " ms",
+                 z.outSeconds / 2.0f, [this](float f) {
+                     options.zoom.outSeconds = std::round(std::clamp(f, 0.0f, 1.0f) * 100.0f) / 50.0f;
+                 });
+        m.Choice("Zoom Easing", z.easing,
+                 {{"linear", "Linear"},
+                  {"cubic", "Cubic"},
+                  {"quint", "Quint"},
+                  {"sine", "Sine"},
+                  {"smooth", "Smooth"}});
+        m.Slider("Zoom Scroll Step", Percent(z.scrollStep), z.scrollStep / 0.9f, [this](float f) {
+            options.zoom.scrollStep = std::round(std::clamp(f, 0.0f, 1.0f) * 90.0f) / 100.0f;
+        });
+        m.Slider("Zoom Smoothing", std::to_string(static_cast<int>(std::lround(z.smoothing))),
+                 z.smoothing / 30.0f,
+                 [this](float f) { options.zoom.smoothing = std::round(std::clamp(f, 0.0f, 1.0f) * 30.0f); });
+        m.Toggle("Zoom Reset On Press", options.zoom.resetOnPress);
+        m.Toggle("Cinematic Camera", options.zoom.cinematic);
+        m.Toggle("Scale Sensitivity", options.zoom.scaleSensitivity);
         {
             OptRow h{"Performance", "", -1.0f, [](float, bool) {}};
             h.header = true;
@@ -1305,6 +1391,22 @@ namespace perlin {
         [[maybe_unused]] auto& [hud, live, fbW, fbH, now, preview, scale, guiW, guiH, mx, my, down,
                                 clickReady] = f;
         m.title = detail::TrOr("options.skinCustomisation.title", "Skin Customization");
+        m.rows.push_back(
+            {detail::TrOr("perlin.wardrobe", "Wardrobe..."), "", -1.0f, [this, &hud](float, bool click) {
+                 if (click) {
+                     options.Save();
+                     pause.view = 5;
+                     optionsUi.signature.clear();
+                     hud.Overlay().ClearOverlay();
+                 }
+             }});
+        m.rows.back().wide = true;
+        {
+            OptRow h{detail::TrOr("perlin.options.header.skin", "Skin Layers"), "", -1.0f,
+                     [](float, bool) {}};
+            h.header = true;
+            m.rows.push_back(h);
+        }
         m.Toggle(detail::TrOr("options.modelPart.cape", "Cape"), options.skinParts.cape);
         m.Choice("Cape Physics", options.capePhysics,
                  {{"noshoulder", "No Shoulder"}, {"shoulder", "Shoulder"}, {"off", "Off"}});
@@ -1318,79 +1420,7 @@ namespace perlin {
                  options.skinParts.rightPants);
         m.Toggle(detail::TrOr("options.modelPart.hat", "Hat"), options.skinParts.hat);
         m.Toggle("3D Skins", options.skins3d);
-        m.rows.push_back(
-            {detail::TrOr("perlin.wardrobe", "Wardrobe..."), "", -1.0f, [this, &hud](float, bool click) {
-                 if (click) {
-                     options.Save();
-                     pause.view = 5;
-                     optionsUi.signature.clear();
-                     hud.Overlay().ClearOverlay();
-                 }
-             }});
-    }
-
-    void Perlin::BuildHandOptions(OptionsModel& m, PauseFrame& f) {
-        [[maybe_unused]] auto& [hud, live, fbW, fbH, now, preview, scale, guiW, guiH, mx, my, down,
-                                clickReady] = f;
-        m.title = detail::TrOr("perlin.options.hand", "Camera & Hand");
-        {
-            OptRow h{"Camera", "", -1.0f, [](float, bool) {}};
-            h.header = true;
-            m.rows.push_back(h);
-        }
-        m.Toggle(detail::TrOr("options.viewBobbing", "View Bobbing"), options.hand.viewBobbing);
-        m.Toggle(detail::TrOr("perlin.options.bobCamera", "Camera Bobbing"), options.hand.bobCamera);
-        m.Slider(detail::TrOr("options.motionBlur", "Motion Blur"),
-                 options.motionBlur <= 0.001f ? detail::TrOr("options.off", "OFF")
-                                              : Percent(options.motionBlur),
-                 options.motionBlur, [this](float f) { options.motionBlur = Snap(f, 100.0f); });
-        m.Toggle(detail::TrOr("options.fovEffectScale", "FOV Effects"), options.fovEffects);
-        m.Slider(detail::TrOr("options.damageTilt", "Damage Tilt"),
-                 Percent(static_cast<float>(options.damageTilt) / 100.0f),
-                 static_cast<float>(options.damageTilt) / 100.0f, [this](float f) {
-                     options.damageTilt = static_cast<int>(std::lround(std::clamp(f, 0.0f, 1.0f) * 100.0f));
-                 });
-        m.Toggle(detail::TrOr("perlin.options.damageTint", "Damage Tint"), options.damageTint);
-        m.Toggle(detail::TrOr("perlin.options.thirdCrosshair", "Third Person Crosshair"),
-                 options.thirdPersonCrosshair);
-        m.Toggle(detail::TrOr("perlin.options.thirdNametag", "Third Person Nametag"),
-                 options.thirdPersonNametag);
-        {
-            OptRow h{"Zoom", "", -1.0f, [](float, bool) {}};
-            h.header = true;
-            m.rows.push_back(h);
-        }
-        auto& z = options.zoom;
-        m.Slider("Zoom Level", Percent(z.level),
-                 (z.level - z.minLevel) / std::max(0.001f, z.maxLevel - z.minLevel), [this](float f) {
-                     auto& zz = options.zoom;
-                     zz.level = zz.minLevel + std::round(std::clamp(f, 0.0f, 1.0f) * 100.0f) / 100.0f *
-                                                  (zz.maxLevel - zz.minLevel);
-                 });
-        m.Slider("Zoom In Time", std::to_string(static_cast<int>(std::lround(z.inSeconds * 1000.0f))) + " ms",
-                 z.inSeconds / 2.0f, [this](float f) {
-                     options.zoom.inSeconds = std::round(std::clamp(f, 0.0f, 1.0f) * 100.0f) / 50.0f;
-                 });
-        m.Slider("Zoom Out Time",
-                 std::to_string(static_cast<int>(std::lround(z.outSeconds * 1000.0f))) + " ms",
-                 z.outSeconds / 2.0f, [this](float f) {
-                     options.zoom.outSeconds = std::round(std::clamp(f, 0.0f, 1.0f) * 100.0f) / 50.0f;
-                 });
-        m.Choice("Zoom Easing", z.easing,
-                 {{"linear", "Linear"},
-                  {"cubic", "Cubic"},
-                  {"quint", "Quint"},
-                  {"sine", "Sine"},
-                  {"smooth", "Smooth"}});
-        m.Slider("Zoom Scroll Step", Percent(z.scrollStep), z.scrollStep / 0.9f, [this](float f) {
-            options.zoom.scrollStep = std::round(std::clamp(f, 0.0f, 1.0f) * 90.0f) / 100.0f;
-        });
-        m.Slider("Zoom Smoothing", std::to_string(static_cast<int>(std::lround(z.smoothing))),
-                 z.smoothing / 30.0f,
-                 [this](float f) { options.zoom.smoothing = std::round(std::clamp(f, 0.0f, 1.0f) * 30.0f); });
-        m.Toggle("Zoom Reset On Press", options.zoom.resetOnPress);
-        m.Toggle("Cinematic Camera", options.zoom.cinematic);
-        m.Toggle("Scale Sensitivity", options.zoom.scaleSensitivity);
+        m.rows.back().wide = true;
         {
             OptRow h{"Hand", "", -1.0f, [](float, bool) {}};
             h.header = true;
