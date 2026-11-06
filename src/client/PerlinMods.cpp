@@ -1236,8 +1236,8 @@ namespace perlin {
             const double scale = e.scale > 0 ? e.scale : 1.0;
             const double halfWidth = hb.first * 0.5 * scale, height = hb.second * scale;
             const glm::dvec3 centre(e.pos.x, e.pos.y + height * 0.5, e.pos.z);
-            return EntityClickOffset({camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), e.pos,
-                                     halfWidth, height, centre);
+            return EntityClickPoint({camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), e.pos,
+                                    halfWidth, height, centre);
         };
 
         mm.Register(Op::MousePosition, [this](CallContext&, abi::Reader&, abi::Writer& w) {
@@ -1411,8 +1411,8 @@ namespace perlin {
             if (!modLive->Entities().Find(id, e))
                 return Status::NotFound;
             const float eye[3] = {camera.x, camera.y, camera.z};
-            const glm::vec3 offset = ModEntityClick(e);
-            const float click[3] = {offset.x, offset.y, offset.z};
+            const glm::vec3 point = ModEntityClick(e);
+            const float click[3] = {point.x, point.y, point.z};
             handRenderer.Swing(options.hand);
             modLive->SendSwingArm("attack");
             modLive->SendAttackEntity(id, eye, click);
@@ -1429,8 +1429,8 @@ namespace perlin {
             if (!modLive->Entities().Find(id, e))
                 return Status::NotFound;
             const float eye[3] = {camera.x, camera.y, camera.z};
-            const glm::vec3 offset = ModEntityClick(e);
-            const float click[3] = {offset.x, offset.y, offset.z};
+            const glm::vec3 point = ModEntityClick(e);
+            const float click[3] = {point.x, point.y, point.z};
             handRenderer.Swing(options.hand);
             modLive->SendSwingArm("interact");
             modLive->SendInteractEntity(id, eye, click);

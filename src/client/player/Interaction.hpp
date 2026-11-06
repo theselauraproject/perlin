@@ -19,8 +19,9 @@ namespace perlin {
         std::vector<std::pair<glm::dvec3, glm::dvec3>> shape;
     };
 
-    glm::vec3 EntityClickOffset(const glm::dvec3& eye, const glm::dvec3& direction, const glm::dvec3& feet,
-                                double halfWidth, double height, const glm::dvec3& fallback);
+    // world hit on the padded pick box, like HitResult::mPos: the game sends it as the entity click pos
+    glm::vec3 EntityClickPoint(const glm::dvec3& eye, const glm::dvec3& direction, const glm::dvec3& feet,
+                               double halfWidth, double height, const glm::dvec3& fallback);
 
     AimHit Raycast(const Level& level, const BlockLibrary* blocks,
                    const std::vector<entity::Entity>& entities,

@@ -124,13 +124,9 @@ namespace perlin {
                                         live->Entities().Find(aimHit.entity, attacked) && !attacked.isPlayer;
                 if (aimHit.kind == AimHit::Kind::Entity && !mobBlocked &&
                     !DispatchModInteract(abi::InteractKind::Attack, 0, 0, 0, 0, aimHit.entity)) {
-                    const glm::dvec3 feet((aimHit.boxLo.x + aimHit.boxHi.x) * 0.5, aimHit.boxLo.y,
-                                          (aimHit.boxLo.z + aimHit.boxHi.z) * 0.5);
-                    const glm::vec3 offset = EntityClickOffset(
-                        {camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), feet,
-                        (aimHit.boxHi.x - aimHit.boxLo.x) * 0.5, aimHit.boxHi.y - aimHit.boxLo.y,
-                        (aimHit.boxLo + aimHit.boxHi) * 0.5);
-                    float click[3] = {offset.x, offset.y, offset.z};
+                    // HitResult::mPos as is: GameMode::attack copies it into the click pos
+                    const float click[3] = {static_cast<float>(aimHit.point.x), static_cast<float>(aimHit.point.y),
+                                            static_cast<float>(aimHit.point.z)};
                     live->SendAttackEntity(aimHit.entity, eyeF, click);
                     const physics::State& cst = player.State();
                     if (!cst.onGround && cst.vy < 0.0 && !cst.inWater && !cst.inLava && !player.Flying()) {
@@ -438,11 +434,9 @@ namespace perlin {
                 if (live->Entities().Find(useAim.entity, target) && frame::IsInteractable(target.type) &&
                     !(live->InputLocks() & 128u) &&
                     !DispatchModInteract(abi::InteractKind::InteractEntity, 0, 0, 0, 0, useAim.entity)) {
-                    const glm::vec3 offset = EntityClickOffset(
-                        {camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), target.pos,
-                        (useAim.boxHi.x - useAim.boxLo.x) * 0.5, useAim.boxHi.y - useAim.boxLo.y,
-                        (useAim.boxLo + useAim.boxHi) * 0.5);
-                    float click[3] = {offset.x, offset.y, offset.z};
+                    // same HitResult::mPos the game passes to attack
+                    const float click[3] = {static_cast<float>(useAim.point.x), static_cast<float>(useAim.point.y),
+                                            static_cast<float>(useAim.point.z)};
                     SwingHand();
                     live->SendSwingArm("interact");
                     live->SendInteractEntity(useAim.entity, eyeF, click);
