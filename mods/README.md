@@ -89,18 +89,37 @@ PERLIN_REGISTER(Hello)
 
 `Context` (also spelled `PluginCtx`) has `on`, `after`, `every`, `command`, `bind`, `hud`, `on_change`, `on_press`, `config`, `print` and `raw()`; `command`, `bind` and `hud` also take an object and a member function, and `ctx()` reaches it from any method. The event methods are generated from the ABI table, one `onName` per event (`onTick`, `onFrame`, `onChatReceived`, ..., and on the server `onPlayerJoin`, `onPlayerQuit`, `onPlayerChat`, `onBlockBreak`, `onBlockPlace`); each takes the payload or nothing, and may return `Flow` to cancel. `mods/waila`, `mods/examples/barrel_roll` and `mods/tests/sdk_test.cpp` are complete examples.
 
-## One ABI for client and server (`perlin/abi_table.h`)
+## One schema for client and server (`mods/api/*.papi`)
 
-Every operation and event, for both the client and the server, is one line in `mods/sdk/perlin/abi_table.h`:
+`mods/` is the Perlin mod API, kept apart from the game so it can become its own repository (theperlinproject/perlin-api). Everything a plugin can call or receive, on the client and on the server, is declared once in the schema files in `mods/api/`, and everything else is generated from them by `mods/codegen/generate.py`:
 
-```c
-X(Teleport, 0x7004, ServerTeleport, Nothing, None, Server)   // name, id, request, response, permission, hosts
-X(PlayerChat, 49, EventPlayerChat, Server, Method)           // name, id, payload, hosts, wiring
+```
+tag hot on event, op @doc("Raised or called many times per second");
+struct Form @since(3) { kind: FormKind = Message; title: string; body: string; buttons: list<FormButton>; controls: list<FormControl>; }
+op PlayerForm = 0x7023 @hosts(server) @category(ui) (player: u64, form: Form) -> u32;
+event PlayerDamage = 52 @hosts(server) @cancellable EventServerDamage;
 ```
 
-From that line the SDK gets `abi::Op::Teleport` / `abi::Event::PlayerChat`, the C names `PERLIN_OP_TELEPORT` / `PERLIN_EVENT_PLAYER_CHAT` in `perlin.h`, the payload and response types (`abi::OpSpec<Op>`, `abi::payload_t<E>`), the permission the host checks, the `onPlayerChat` method on `Plugin`, and the subscription bit. The hosts read the same table: the client's `ModManager` and the server's `PluginHost` both register typed handlers with `Handle<Op>(fn)` and deliver events with `Dispatch<Event>(payload)` (`perlin/host.hpp`), so a request is decoded and a response encoded in exactly one way everywhere. Adding an operation is: one table line, the request/response structs in `abi.hpp` if they are new, and one `Handle<Op>` in the host that serves it.
+Declarations are `api`, `tag`, `const`, `enum`, `flags`, `alias`, `struct`, `op` and `event`. Types are the scalars (`bool`, `i8` to `u64`, `f32`, `f64`), `string`, `bytes`, `list<T>`, `optional<T>`, `pair<A, B>`, `array<T, N>`, `flagset<F>`, `indexset<E, u64>`, and `rest_text` / `rest_bytes` (the rest of the message, without a length). An inline parameter list `(x: i32, y: i32)` makes a `NameRequest` or `NameResponse` struct. Tags are declared in the schema itself (`00_tags.papi`) and checked by the generator: `@doc`, `@hosts`, `@permission`, `@since`, `@deprecated`, `@internal`, `@cancellable`, `@hot`, `@category`, `@range`, `@unit`, `@max`, `@layout(packed)`, `@size` and `@cpp`. Bindings for other languages read the same tags from the JSON IR.
 
-Calling an operation directly is `rpc::call<abi::Op::BlockName>(abi::BlockCoord{x, y, z})`, which returns `Result<abi::TextMessage>`. Server plugins have friendlier wrappers in `perlin/server.hpp`:
+`python3 mods/codegen/generate.py` writes:
+
+| Output | What it is |
+| --- | --- |
+| `sdk/perlin_abi.h` | The C ABI: every enum and struct, writer/reader/arena helpers, an encoder and decoder per type, a typed wrapper per op (`perlin_player_form(&req, &id, &arena)`), a decoder per event (`perlin_decode_event_player_damage`), `PERLIN_OP_*` and `PERLIN_EVENT_*`. Freestanding C99, no libc needed. |
+| `sdk/perlin/gen/abi_types.hpp`, `abi_spec.hpp` | C++ types, `Op`/`Event`, `OpSpec<Op>` and `EventSpec<Event>` (request, response, permission, hosts, since, hot, name, category). |
+| `sdk/perlin/gen/calls.hpp` | One typed C++ function per op: `perlin::api::player_info(id)`, `perlin::api::fill(...)`. |
+| `sdk/perlin/gen/event_tags.hpp`, `plugin_wire.hpp` | `event::Name` tags and the automatic `onName` wiring for plugin classes. |
+| `sdk/perlin/gen/client_service.hpp`, `server_service.hpp` | A host interface per program: a virtual `OpName(ctx, request)` per op it serves, and `Bind(table)` registering them all. The server implements `ServerService`; an op it does not override answers `Unavailable`. |
+| `sdk/perlin/gen/coverage.hpp`, `sdk/perlin/abi_table.h` | Op and event lists per host, and an X-macro table for C. |
+| `api/perlin_api.json` | The whole schema as JSON, for C#, Rust, Java, Zig, Python and JavaScript generators. |
+| `docs/API.md` | The reference: every op, event, enum and struct with its tags. |
+
+`generate.py --check` runs in ctest (`perlin_api_codegen_check`), and `tools/check_api.py` fails when the schema has an op or event a host never serves. `abi::host::RequestMatchesSchema` / `ResponseMatchesSchema` check any message against the schema; set `PERLIN_MOD_WIRE_CHECK=1` to make the client log every call that does not match.
+
+Adding an operation is: one `op` line in the schema, run the generator, then either override `OpName` in the server's service or `Handle<Op::Name>` in the client. The wrappers in C and C++ appear by themselves.
+
+Server plugins have friendly wrappers in `perlin/server.hpp` plus every generated call:
 
 ```cpp
 using namespace perlin;
@@ -110,11 +129,16 @@ struct Greeter : Plugin {
     Flow onPlayerChat(const abi::EventPlayerChat& c) {
         return c.message.contains("creeper") ? Flow::cancel : Flow::pass;
     }
+    Flow onPlayerDamage(const abi::EventServerDamage& d) {
+        if (d.cause == abi::DamageCause::Fall)
+            (void)api::event_amend("amount", d.amount / 2, "");
+        return Flow::pass;
+    }
 };
 PERLIN_REGISTER(Greeter)
 ```
 
-`server::broadcast`, `message`, `kick` (all `std::format`-style), `players()`, `teleport`, `set_block`, `block`, `info` and `give` are available; the same `.wasm` can serve both hosts, each calling only what its host provides (`abi::HostsOf(op)`).
+The server side covers players (info, health, food, experience, effects, game mode, inventory slots, velocity, dimension, titles, action bar, sounds, transfer, operator, spawn point, forms, commands), the world (block states, fill, time, weather, game rules, difficulty, explosions, particles, item drops, world spawn), entities (spawn, list, remove, damage, teleport, velocity, health), loot tables (read and replace any Java loot table) and the server itself (run a console command and read its output, server name), with events for damage, death, respawn, using blocks, attacking, entity damage, death and spawn, eating, game mode, form answers, movement, explosions, dropping and picking up items, opening containers, changing dimension, commands and logins. `EventAmend` changes the event being handled: the damage amount, a chat message, an explosion's power, a command line, a login refusal reason. Storage, settings, HTTP, the mod list and messages between plugins work on both hosts.
 
 ## Bringing your own renderer (`perlin/gfx.hpp`, `perlin/input.hpp`)
 
@@ -130,7 +154,7 @@ Enough is exposed to hook up Dear ImGui or any other immediate-mode library:
 
 ## Everything is exposed
 
-The wire format is derived from the member list of each struct (`abi.hpp`) and the operation list from `abi_table.h`, so adding a field to a struct the host already sends, such as an entity's attributes, exposes it to every plugin and every language with no wrapper to write. `tools/check_api.py` (run by CTest as `mod_api_check`) fails when an operation is declared without a host or without an SDK wrapper, or an event is never delivered. Every enumeration in `perlin::abi` prints by name with `std::format` without being listed anywhere. `perlin/json.hpp` is a small JSON reader for the text the game hands over (block entity tags, option dumps, HTTP bodies): `json::parse(text)` then `tag["Items"][0]["Name"].string()`; missing keys read as null, so chains never fail.
+The wire format is the field list of each struct in the schema, so adding a field to a struct the host already sends, such as an entity's attributes, exposes it to every plugin and every language with no wrapper to write. `tools/check_api.py` (run by CTest as `perlin_api_host_check`) fails when an op or event in the schema is never served or raised by its host. Every enumeration in `perlin::abi` prints by name with `std::format` without being listed anywhere. `perlin/json.hpp` is a small JSON reader for the text the game hands over (block entity tags, option dumps, HTTP bodies): `json::parse(text)` then `tag["Items"][0]["Name"].string()`; missing keys read as null, so chains never fail.
 
 ## Client hooks (`perlin/hooks.hpp`)
 
@@ -234,19 +258,16 @@ net::download("https://example.com/pack.zip", fs::in(Area::ResourcePacks, "pack.
 
 ## Any language
 
-The C++ SDK is a convenience. A plugin is any WebAssembly module (core wasm, no component model) that targets a WASI preview 1 or freestanding environment, so Rust (`wasm32-wasip1`), C, Zig, Go (TinyGo), AssemblyScript, Swift, Nim and anything else that emits wasm work. The contract is small:
+A plugin is any WebAssembly module (core wasm, no component model), 64-bit (memory64) by default and 32-bit when the toolchain cannot do 64. C gets the whole API from `perlin.h` (`mods/examples/c/hello.c`, `server/examples/hello_server/hello_server.c`); other languages generate their bindings from `mods/api/perlin_api.json`. The contract:
 
-* Import one function: module `perlin`, name `call`, signature `(op: i32, in: ptr, in_len: i32, out: ptr, out_cap: i32) -> i32`.
-* Export `perlin_alloc(size: i32) -> ptr`, `perlin_free(ptr)`, `perlin_event(id: i32, ptr, len: i32) -> i32` and `perlin_subscriptions() -> i32`.
-* `ptr` is `i32` in a 32-bit module and `i64` in a 64-bit (memory64) one: exactly what `void*` becomes when you compile for `wasm32` or `wasm64`. The host reads the module's declared types, so it also accepts `i64` lengths (`size_t`) in a 64-bit plugin.
-* Linear memory must be the module's own (not imported) and exported; 1 GiB at most.
-* `perlin_subscriptions` returns a bitmask with bit `1 << event_id` set for every event you want delivered (ids 0 to 31; export `perlin_subscriptions_hi` for ids 32 to 63, bit `1 << (id - 32)`) (see `Event` in `mods/sdk/perlin/abi.hpp`; id 1 is Load, 7 is Connected, 3 is Tick, 4 is Frame). `perlin_event` returns bit 0 set to cancel a cancellable event.
-* The host calls `perlin_event(Load = 1, ...)` once after instantiation; register everything (commands, keys, HUD) from there.
-* Payloads and arguments are little-endian packed values: integers and floats at their natural width, strings and byte blobs as a `u32` length followed by the bytes, booleans as one byte.
-* `call` returns the number of bytes written to `out` (>= 0), a negative `Status` code (`-1` unknown op, `-2` denied, `-3` bad arguments, `-4` unavailable, `-5` not found, `-6` failed), or a value below `-16` meaning the buffer was too small: call again with `out_cap` of `-rc - 16`.
-* Operation ids are the `Op` enum in `abi.hpp`; each C++ wrapper in `game.hpp`, `act.hpp`, `ui.hpp` and `io.hpp` shows the exact argument layout for that op.
+* Import module `perlin`, name `call`: `(op: i32, in: ptr, in_len, out: ptr, out_cap) -> i32`.
+* Export `perlin_alloc(size) -> ptr`, `perlin_free(ptr)`, `perlin_event(id: i32, ptr, len) -> i32`, and either `perlin_subscriptions_word(word: i32) -> i32` (bit `id % 32` of word `id / 32`, up to 128 events) or the older `perlin_subscriptions` / `perlin_subscriptions_hi` pair.
+* `ptr` is `i32` in a 32-bit module and `i64` in a 64-bit one; linear memory is the module's own and exported, 1 GiB at most.
+* The host calls `perlin_event(Load = 1, ...)` once after instantiation; register commands, keys and HUD layers there. Bit 0 of the result cancels a cancellable event.
+* Messages are little-endian fields in schema order: scalars at their width, strings and bytes as a `u32` length and the bytes, booleans as one byte, lists as a `u32` count and the items, optionals as a presence byte and the value.
+* `call` returns the bytes written, a negative `Status` (`-1` unknown op, `-2` denied, `-3` bad arguments, `-4` unavailable, `-5` not found, `-6` failed), or below `-16`: the buffer was too small, call again with `out_cap = -rc - 16`.
 
-`mods/examples/c/hello.c` is a complete plugin in plain C (about 30 lines, no SDK) that prints a message when you join a server; build it with `mods/examples/c/build.sh` (`--wasm32` for wasi-sdk).
+Build the C examples with their `build.sh` (system `clang`, wasm64 by default, `--wasm32` for 32-bit). `mods/build.sh` builds C++ plugins as wasm64 with Emscripten (`--wasm32` with wasi-sdk). The client runs both on WasmEdge; the server runs both on WasmEdge when built with the client, and 32-bit modules on wasm3 when built alone.
 
 ## Manifest
 
@@ -373,19 +394,18 @@ Register with `ctx.on<event::Name>([](const event::Name::Payload& e) { ... })`. 
 ## Layout
 
 ```
-mods/
-  build.sh            build script (wasm64 with Emscripten; --wasm32 with wasi-sdk)
-  sdk/perlin/         headers: perlin.hpp pulls in everything
-    abi.hpp           wire format shared with the host
-    rpc.hpp           Result/Error and the single host import
-    meta.hpp          compile-time reflection (enum names, aggregates, flags, fixed_string)
-    detail/           field-binding helpers used by meta.hpp
-    game.hpp act.hpp ui.hpp io.hpp types.hpp runtime.hpp
-  barrel_roll/        Do a Barrel Roll port: barrel_roll.cpp, barrel_roll.json
-  waila/              the WAILA plugin: waila.cpp, waila.json, waila/ (api, layout, vanilla providers), tests/
-  examples/c/         a plugin in plain C, no SDK
-  tools/              perlin_settings.py (manifest -> typed handles), check_api.py (every operation is hosted and wrapped)
-  tests/              meta_test, abi_test (wire format), sdk_test (fake host); build each with g++ -std=c++23 -Isdk
+mods/                 the mod API (future theperlinproject/perlin-api), buildable on its own: cmake -S mods -B build
+  api/                the schema: 00_tags, 10_core, 20_types, 30_events, 40_client, 50_server (.papi)
+  codegen/            generate.py and the perlin_codegen package (parser, validator, C, C++, JSON, docs and host backends)
+  cmake/              PerlinApi.cmake: include it to get perlin_api, the host sources and the checks
+  host/               the host core shared by the client and the server: WasmEdge and wasm3 runtimes, WASI shim, event calls, subscriptions
+  sdk/                perlin.h and perlin_abi.h (C), perlin/ (C++; perlin.hpp pulls in everything, perlin/gen is generated)
+  docs/API.md         the generated reference
+  build.sh            builds a C++ plugin (wasm64 with Emscripten, --wasm32 with wasi-sdk)
+  barrel_roll/ waila/ minimap/   plugins
+  examples/c/         a plugin in plain C
+  tools/              perlin_settings.py (manifest -> typed handles), check_api.py (every op and event is hosted)
+  tests/              abi, meta, plugin and sdk tests, and the C header test
   prebuilt/           built .wasm files and their manifests
 ```
 
@@ -408,848 +428,6 @@ For mods that need to reach into the game itself. Everything that changes the ga
 | `game::packet_counters` | How many packets of each id have arrived. |
 
 
-<!-- API-REFERENCE-BEGIN -->
-
 ## Reference
 
-Generated from the SDK headers by `mods/tools/gen_api_reference.py`; run it after changing the API.
-
-### Permissions per operation
-
-| Op | Id | Needs |
-| --- | --- | --- |
-| `Log` | `0x0001` | always allowed |
-| `Meta` | `0x0002` | always allowed |
-| `Clock` | `0x0003` | always allowed |
-| `PlayerState` | `0x0100` | always allowed |
-| `PlayerEffects` | `0x0101` | always allowed |
-| `PlayerLook` | `0x0102` | always allowed |
-| `Inventory` | `0x0200` | always allowed |
-| `InventorySelect` | `0x0201` | control |
-| `InventoryDrop` | `0x0202` | control |
-| `InventorySwap` | `0x0203` | control |
-| `InventoryClick` | `0x0204` | control |
-| `InventoryOpen` | `0x0205` | control |
-| `InventoryClose` | `0x0206` | control |
-| `WorldState` | `0x0300` | always allowed |
-| `Block` | `0x0301` | always allowed |
-| `Region` | `0x0302` | always allowed |
-| `Raycast` | `0x0303` | always allowed |
-| `Aim` | `0x0304` | always allowed |
-| `FindBlocks` | `0x0305` | always allowed |
-| `ChunkLoaded` | `0x0306` | always allowed |
-| `BlockNames` | `0x0307` | always allowed |
-| `BlockProps` | `0x0308` | always allowed |
-| `BlockEntityData` | `0x0309` | always allowed |
-| `DisplayName` | `0x030A` | always allowed |
-| `BreakProgress` | `0x030B` | always allowed |
-| `Entities` | `0x0400` | always allowed |
-| `EntityById` | `0x0401` | always allowed |
-| `PlayerList` | `0x0402` | always allowed |
-| `Options` | `0x0500` | always allowed |
-| `OptionGet` | `0x0501` | always allowed |
-| `OptionSet` | `0x0502` | control |
-| `Screen` | `0x0503` | always allowed |
-| `Translate` | `0x0504` | always allowed |
-| `ReloadResources` | `0x0505` | control |
-| `PerspectiveGet` | `0x0506` | always allowed |
-| `PerspectiveSet` | `0x0507` | always allowed |
-| `ResourcePacks` | `0x0508` | always allowed |
-| `InputDown` | `0x0600` | always allowed |
-| `InputOverride` | `0x0601` | control |
-| `KeyRegister` | `0x0602` | always allowed |
-| `InputActions` | `0x0603` | always allowed |
-| `MousePosition` | `0x0604` | always allowed |
-| `Chat` | `0x0700` | control |
-| `Command` | `0x0701` | control |
-| `LocalMessage` | `0x0702` | always allowed |
-| `CommandRegister` | `0x0703` | always allowed |
-| `CommandUnregister` | `0x0704` | always allowed |
-| `ServerCommands` | `0x0705` | always allowed |
-| `Toast` | `0x0706` | always allowed |
-| `Title` | `0x0707` | always allowed |
-| `ChatHistory` | `0x0708` | always allowed |
-| `TitleState` | `0x0709` | always allowed |
-| `SwingArm` | `0x0800` | control |
-| `UseItem` | `0x0801` | control |
-| `UseOnBlock` | `0x0802` | control |
-| `AttackEntity` | `0x0803` | control |
-| `InteractEntity` | `0x0804` | control |
-| `BreakBlock` | `0x0805` | control |
-| `Look` | `0x0806` | control |
-| `Respawn` | `0x0807` | control |
-| `Disconnect` | `0x0808` | control |
-| `PlaySound` | `0x0809` | always allowed |
-| `Jump` | `0x080B` | control |
-| `UiSubmit` | `0x0900` | always allowed |
-| `UiClear` | `0x0901` | always allowed |
-| `UiMeasure` | `0x0902` | always allowed |
-| `StorageRead` | `0x0A00` | always allowed |
-| `StorageWrite` | `0x0A01` | always allowed |
-| `StorageList` | `0x0A02` | always allowed |
-| `StorageRemove` | `0x0A03` | always allowed |
-| `StorageExists` | `0x0A04` | always allowed |
-| `StorageMakeDir` | `0x0A05` | always allowed |
-| `HttpRequest` | `0x0B00` | network |
-| `PacketSend` | `0x0B01` | packets |
-| `PacketName` | `0x0B02` | always allowed |
-| `SettingGet` | `0x0C01` | always allowed |
-| `SettingSet` | `0x0C02` | always allowed |
-| `SettingList` | `0x0C03` | always allowed |
-| `ModList` | `0x0C10` | always allowed |
-| `IconSet` | `0x0C11` | always allowed |
-| `OpenScreen` | `0x0D00` | always allowed |
-| `OpenModSettings` | `0x0D01` | always allowed |
-| `TakeScreenshot` | `0x0D02` | always allowed |
-| `CyclePerspective` | `0x0D03` | always allowed |
-| `CopyToClipboard` | `0x0D04` | always allowed |
-| `OpenUrl` | `0x0D05` | network |
-| `ToggleHud` | `0x0D06` | always allowed |
-| `CopyFile` | `0x0E00` | files, network |
-| `MoveFile` | `0x0E01` | files, network |
-| `DownloadFile` | `0x0E02` | files, network |
-| `CameraControl` | `0x0F00` | control |
-| `CameraState` | `0x0F01` | always allowed |
-| `WorldToScreen` | `0x0F02` | always allowed |
-| `PlayerMotion` | `0x0F10` | control |
-| `PlayerTeleport` | `0x0F11` | control |
-| `PlayerModelPose` | `0x0F20` | control |
-| `PlayerSetLook` | `0x0F21` | control |
-| `WorldLines` | `0x0F30` | always allowed |
-| `WorldBoxes` | `0x0F31` | always allowed |
-| `ClientBlockSet` | `0x0F40` | control |
-| `ClientBlockGet` | `0x0F41` | always allowed |
-| `PacketDrop` | `0x0F50` | control, packets |
-| `PacketCounters` | `0x0F51` | always allowed |
-| `PacketInject` | `0x0F52` | control, packets |
-
-### Functions
-
-#### `perlin/game.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `Result<PlayerState> player()` |  |
-| `Vec3 position(const PlayerState& p)` |  |
-| `Vec3 velocity(const PlayerState& p)` |  |
-| `Vec3 eye_position(const PlayerState& p)` |  |
-| `Vec3 look_direction(const PlayerState& p)` |  |
-| `Result<Look> look()` |  |
-| `Result<std::vector<Effect>> effects()` |  |
-| `Result<Inventory> inventory()` |  |
-| `Result<WorldState> world()` |  |
-| `Result<BlockInfo> block(const BlockPos& pos)` |  |
-| `std::string block_name(const BlockPos& pos)` |  |
-| `bool chunk_loaded(int chunkX, int chunkZ)` |  |
-| `Result<abi::Region> region(const BlockPos& from, const BlockPos& to)` |  |
-| `Result<RayHit> raycast(const Vec3& origin, const Vec3& direction, RaycastOptions options = {})` |  |
-| `Result<AimState> aim()` |  |
-| `Result<std::vector<abi::FoundBlock>> find_blocks(const BlockPos& center, const FindOptions& options)` |  |
-| `Result<BlockProps> block_props(std::string_view name)` |  |
-| `Result<BlockEntityInfo> block_entity(const BlockPos& pos)` |  |
-| `std::string display_name(NameKind kind, std::string_view id, int aux = 0)` |  |
-| `Result<BreakState> break_state()` |  |
-| `Result<std::vector<std::string>> block_names()` |  |
-| `Result<std::vector<Entity>> entities(const EntityQuery& query = {})` |  |
-| `Result<Entity> entity(uint64_t runtimeId)` |  |
-| `Result<std::vector<PlayerEntry>> players()` |  |
-| `Result<ScreenState> screen()` |  |
-| `Result<abi::Meta> meta()` |  |
-| `Result<abi::Perspective> perspective()` |  |
-| `Result<std::vector<abi::ChatLine>> chat_history(uint32_t count = 20)` |  |
-| `Result<abi::TitleStateData> title_state()` |  |
-| `Result<std::vector<abi::PackEntry>> resource_packs()` |  |
-| `Result<std::vector<abi::ModEntry>> mods()` |  |
-| `Result<std::string> option_text(std::string_view key)` |  |
-| `Result<std::string> options_json()` |  |
-| `Target target()` |  |
-| `std::string translate(std::string_view key)` |  |
-| `Result<std::vector<std::string>> server_commands()` |  |
-| `Result<std::vector<std::string>> input_actions()` |  |
-| `bool input_down(std::string_view action)` |  |
-| `bool input_down(Control control)` |  |
-| `Result<MousePos> mouse()` |  |
-| `int64_t now_ms()` |  |
-
-#### `perlin/adv.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `Result<void> camera(const CameraControlState& state)` |  |
-| `Result<CameraInfo> camera_info()` |  |
-| `Result<ScreenPoint> to_screen(double x, double y, double z)` |  |
-| `Result<void> set_velocity(double x, double y, double z)` |  |
-| `Result<void> add_velocity(double x, double y, double z)` |  |
-| `Result<void> motion(const abi::MotionRequest& request)` |  |
-| `Result<void> teleport(double x, double y, double z, bool keep_velocity = false)` |  |
-| `Result<void> set_look(double x, double y, double z)` |  |
-| `Result<void> model_pose(const ModelPose& pose)` |  |
-| `Result<void> lines(const std::vector<WorldLine>& list, int ticks = 2)` |  |
-| `Result<void> boxes(const std::vector<WorldBox>& list, int ticks = 2)` |  |
-| `Result<uint32_t> find_block(std::string_view name, std::vector<std::pair<std::string, std::string>> states = {})` |  |
-| `Result<void> set_blocks(const std::vector<abi::ClientBlockEdit>& edits)` |  |
-| `Result<void> drop_packets(const std::vector<uint32_t>& ids, int ticks = 20, bool outgoing = false)` |  |
-| `Result<std::vector<abi::PacketCount>> packet_counters()` |  |
-| `Result<void> inject_packet(uint32_t id, std::span<const uint8_t> body)` |  |
-
-#### `perlin/act.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `Result<void> say(std::string_view text)` |  |
-| `Result<void> run_command(std::string_view command)` |  |
-| `Result<void> message(std::string_view text)` |  |
-| `Result<void> toast(std::string_view text, std::chrono::milliseconds duration = std::chrono::milliseconds(3000))` |  |
-| `Result<void> title(std::string_view text, const TitleOptions& options = {})` |  |
-| `Result<void> select_slot(int slot)` |  |
-| `Result<void> swing()` |  |
-| `Result<void> use_item()` |  |
-| `Result<void> use_on(const BlockPos& pos, Face face = Face::Up)` |  |
-| `Result<void> attack(uint64_t runtimeId)` |  |
-| `Result<void> interact(uint64_t runtimeId)` |  |
-| `Result<void> break_block(const BlockPos& pos, Face face = Face::Up)` |  |
-| `Result<void> look(float yaw, float pitch)` |  |
-| `Result<void> look_at(const Vec3& from, const Vec3& target)` |  |
-| `Result<void> jump()` |  |
-| `Result<void> respawn()` |  |
-| `Result<void> disconnect()` |  |
-| `Result<void> drop(int count = 1)` |  |
-| `Result<void> swap_slots(int a, int b)` |  |
-| `Result<void> click_slot(int slot, bool right = false, bool shift = false)` |  |
-| `Result<void> open_inventory()` |  |
-| `Result<void> close_inventory()` |  |
-| `Result<void> play(const Sound& sound)` |  |
-| `Result<void> drive(const Inputs& inputs)` |  |
-| `Result<void> set_option(std::string_view key, std::string_view value)` |  |
-| `Result<void> set_perspective(abi::Perspective mode)` |  |
-| `Result<void> reload_resources()` |  |
-| `Result<void> open_screen(Screen screen)` |  |
-| `Result<void> open_settings(std::string_view mod = {})` |  |
-| `Result<void> screenshot()` |  |
-| `Result<void> cycle_perspective()` |  |
-| `Result<void> toggle_hud()` |  |
-| `Result<void> copy_to_clipboard(std::string_view text)` |  |
-| `Result<void> open_url(std::string_view url)` |  |
-
-#### `perlin/io.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `Result<std::vector<uint8_t>> read_bytes(std::string_view path)` |  |
-| `Result<std::string> read_text(std::string_view path)` |  |
-| `Result<void> write_bytes(std::string_view path, std::span<const uint8_t> data)` |  |
-| `Result<void> write_text(std::string_view path, std::string_view text)` |  |
-| `bool exists(std::string_view path)` |  |
-| `Result<void> remove(std::string_view path)` |  |
-| `Result<void> make_directory(std::string_view path)` |  |
-| `Result<std::vector<std::string>> list(std::string_view path = "")` |  |
-| `Location in(Area area, std::string_view path)` |  |
-| `Result<void> copy(const Location& from, const Location& to)` |  |
-| `Result<void> move(const Location& from, const Location& to)` |  |
-| `Result<uint32_t> send(const Request& request, Callback callback)` |  |
-| `Result<uint32_t> get(std::string url, Callback callback)` |  |
-| `Result<uint32_t> post(std::string url, std::string body, std::string content_type, Callback callback)` |  |
-| `Result<uint32_t> download(std::string_view url, const fs::Location& to, Callback callback)` |  |
-| `Result<std::string> packet_name(uint32_t id)` |  |
-| `Result<void> send_packet(uint32_t id, std::span<const uint8_t> body)` |  |
-
-#### `perlin/ui.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `float text_width(std::string_view value, float scale = 1.0f)` |  |
-| `Result<void> submit(std::string_view layer, int z, const Canvas& canvas)` |  |
-| `Result<void> clear(std::string_view layer)` |  |
-
-#### `perlin/settings.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `Result<std::string> setting_text(std::string_view id)` |  |
-
-#### `perlin/types.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `std::string_view short_name(std::string_view id)` |  |
-
-#### `perlin/runtime.hpp`
-
-| Signature | Notes |
-| --- | --- |
-| `std::string key_id(Key key)` |  |
-| `Result<void> set_mod_icon(std::string_view relative_png)` |  |
-| `std::vector<std::string> Context::split(const std::string& text)` |  |
-| `void Context::run_timers()` |  |
-| `void Context::draw_layers(const abi::EventFrame& frame)` |  |
-| `void Context::dispatch(abi::Event id, abi::Reader& r, uint32_t& flags)` |  |
-| `void Context::run_unload()` |  |
-
-### Enumerations
-
-* `Status`: `Ok`, `UnknownOp`, `Denied`, `BadArguments`, `Unavailable`, `NotFound`, `Failed`
-* `Permission`: `None`, `Network`, `Packets`, `Control`, `Storage`, `Files`
-* `Draw`: `Rect`, `Text`, `Item`, `Image`, `Line`, `Gradient`, `Border`
-* `Screen`: `None`, `Pause`, `Chat`, `Inventory`, `Options`, `Mods`, `Wardrobe`, `Death`, `Workbench`, `Menu`, `Other`
-* `GameMode`: `Survival`, `Creative`, `Adventure`, `SurvivalSpectator`, `CreativeSpectator`, `Default`, `Spectator`
-* `Dimension`: `Overworld`, `Nether`, `End`
-* `Difficulty`: `Peaceful`, `Easy`, `Normal`, `Hard`
-* `PermissionLevel`: `Unknown`, `Visitor`, `Member`, `Operator`, `Custom`
-* `Face`: `Down`, `Up`, `North`, `South`, `West`, `East`
-* `AimKind`: `None`, `Block`, `Entity`
-* `ChatType`: `Raw`, `Chat`, `Translation`, `Popup`, `JukeboxPopup`, `Tip`, `System`, `Whisper`, `Announcement`, `ObjectWhisper`, `Object`, `ObjectAnnouncement`
-* `DisconnectReason`: `Unknown`, `CantConnectNoInternet`, `NoPermissions`, `UnrecoverableError`, `ThirdPartyBlocked`, `ThirdPartyNoInternet`, `ThirdPartyBadIp`, `ThirdPartyNoServerOrServerLocked`, `VersionMismatch`, `SkinIssue`, `InviteSessionNotFound`
-* `EffectId`: `Speed`, `Slowness`, `Haste`, `MiningFatigue`, `Strength`, `InstantHealth`, `InstantDamage`, `JumpBoost`, `Nausea`, `Regeneration`, `Resistance`, `FireResistance`, `WaterBreathing`, `Invisibility`, `Blindness`, `NightVision`, `Hunger`, `Weakness`, `Poison`, `Wither`, `HealthBoost`, `Absorption`, `Saturation`, `Levitation`, `FatalPoison`, `ConduitPower`, `SlowFalling`, `BadOmen`, `VillageHero`, `Darkness`, `TrialOmen`, `RaidOmen`, `WindCharged`, `Weaving`, `Oozing`, `Infested`
-* `Perspective`: `FirstPerson`, `ThirdPersonBack`, `ThirdPersonFront`
-* `SettingKind`: `Toggle`, `Integer`, `Number`, `Choice`, `Button`, `Label`, `Header`
-* `Area`: `Mod`, `Screenshots`, `ResourcePacks`, `ShaderPacks`
-* `EntityFlag`: `OnFire`, `Sneaking`, `Riding`, `Sprinting`, `UsingItem`, `Invisible`, `Tempted`, `InLove`, `Saddled`, `Powered`, `Ignited`, `Baby`, `Converting`, `Critical`, `CanShowName`, `AlwaysShowName`, `NoAi`, `Silent`, `WallClimbing`, `CanClimb`, `CanSwim`, `CanFly`, `CanWalk`, `Resting`, `Sitting`, `Angry`, `Interested`, `Charged`, `Tamed`, `Orphaned`, `Leashed`, `Sheared`, `Gliding`, `Elder`, `Moving`, `Breathing`, `Chested`, `Stackable`, `ShowBase`, `Rearing`, `Vibrating`, `Idling`, `EvokerSpell`, `ChargeAttack`, `WasdControlled`, `CanPowerJump`, `Lingering`, `HasCollision`, `HasGravity`, `FireImmune`, `Dancing`, `Enchanted`, `ReturnTrident`, `ContainerPrivate`, `Transforming`, `DamageNearbyMobs`, `Swimming`, `Bribed`, `Pregnant`, `LayingEgg`, `PassengerCanPick`, `TransitionSitting`, `Eating`, `LayingDown`
-* `Tool`: `None`, `Pickaxe`, `Axe`, `Shovel`, `Hoe`, `Shears`, `Sword`
-* `NameKind`: `Item`, `Block`, `Entity`
-
-### Data types
-
-#### `Item`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name` |  |
-| `int32_t count = 0, aux = 0, damage = 0` |  |
-| `bool enchanted = false` |  |
-| `std::string customName` |  |
-| `std::vector<std::pair<int32_t, int32_t>> enchants` |  |
-| `std::vector<std::string> lore` |  |
-
-#### `PlayerState`
-
-| Field | Notes |
-| --- | --- |
-| `uint64_t runtimeId = 0` |  |
-| `int64_t uniqueId = 0` |  |
-| `std::string name` |  |
-| `double x = 0, y = 0, z = 0` |  |
-| `double vx = 0, vy = 0, vz = 0` |  |
-| `float yaw = 0, pitch = 0, headYaw = 0, eyeHeight = 1.62f` |  |
-| `spectator = false, onFire = false, riding = false, connected = false` |  |
-| `GameMode gameMode = GameMode::Survival` |  |
-| `Dimension dimension = Dimension::Overworld` |  |
-| `int32_t selectedSlot = 0` |  |
-| `PermissionLevel permission = PermissionLevel::Unknown` |  |
-| `float health = 20, maxHealth = 20, absorption = 0, hunger = 20, saturation = 5, xpProgress = 0, walkSpeed = 0.1f` |  |
-| `int32_t xpLevel = 0, air = 300, maxAir = 300` |  |
-
-#### `Effect`
-
-| Field | Notes |
-| --- | --- |
-| `EffectId id{}` |  |
-| `int32_t amplifier = 0, ticks = 0` |  |
-| `bool ambient = false, particles = true` |  |
-
-#### `Inventory`
-
-| Field | Notes |
-| --- | --- |
-| `std::array<Item, 36> slots` |  |
-| `std::array<Item, 4> armor` |  |
-| `Item offhand, cursor` |  |
-| `int32_t selected = 0` |  |
-| `bool open = false` |  |
-
-#### `Attribute`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name` |  |
-| `float min = 0, value = 0, max = 0` |  |
-
-#### `Entity`
-
-| Field | Notes |
-| --- | --- |
-| `uint64_t runtimeId = 0` |  |
-| `int64_t uniqueId = 0` |  |
-| `std::string type, name, nameTag, uuid` |  |
-| `double x = 0, y = 0, z = 0` |  |
-| `float yaw = 0, pitch = 0, headYaw = 0, health = -1, scale = 1` |  |
-| `bool onGround = false, isPlayer = false, isItem = false, isSelf = false` |  |
-| `EntityFlags flags` |  |
-| `std::string itemName` |  |
-| `int32_t itemCount = 0` |  |
-| `std::string mainHand, offHand` |  |
-| `std::array<std::string, 4> armor` |  |
-| `int64_t vehicleUid = 0, ownerUid = 0, targetUid = 0` |  |
-| `int32_t variant = 0, markVariant = 0, color = 0` |  |
-| `float maxHealth = -1` |  |
-| `bool dying = false` |  |
-| `std::vector<Attribute> attributes` |  |
-| `std::vector<std::pair<std::string, float>> properties` |  |
-| `std::vector<std::pair<std::string, std::string>> propertyText` |  |
-
-#### `PlayerEntry`
-
-| Field | Notes |
-| --- | --- |
-| `std::string uuid, name` |  |
-| `int64_t uid = 0` |  |
-| `PermissionLevel permission = PermissionLevel::Unknown` |  |
-
-#### `WorldState`
-
-| Field | Notes |
-| --- | --- |
-| `Dimension dimension = Dimension::Overworld` |  |
-| `Difficulty difficulty = Difficulty::Normal` |  |
-| `GameMode worldGameMode = GameMode::Survival` |  |
-| `int64_t day = 0` |  |
-| `int32_t timeOfDay = 0` |  |
-| `double totalTicks = 0` |  |
-| `float rain = 0, thunder = 0` |  |
-| `bool commandsEnabled = true, haveSpawn = false` |  |
-| `int32_t spawnX = 0, spawnY = 0, spawnZ = 0` |  |
-| `std::vector<std::pair<std::string, int32_t>> rules` |  |
-
-#### `BlockInfo`
-
-| Field | Notes |
-| --- | --- |
-| `bool loaded = false` |  |
-| `uint32_t runtimeId = 0` |  |
-| `std::string name` |  |
-| `int32_t biome = 0` |  |
-| `uint32_t liquid = 0` |  |
-| `std::vector<std::pair<std::string, std::string>> states` |  |
-
-#### `BlockProps`
-
-| Field | Notes |
-| --- | --- |
-| `bool known = false` |  |
-| `float hardness = 0` |  |
-| `Tool tool = Tool::None` |  |
-| `int32_t harvestLevel = 0` |  |
-| `bool needsSupportBelow = false, breaksWholeStack = false` |  |
-| `std::string displayName` |  |
-| `std::vector<std::string> properties` |  |
-
-#### `BlockEntityInfo`
-
-| Field | Notes |
-| --- | --- |
-| `bool present = false` |  |
-| `std::string id` |  |
-| `int32_t color = -1` |  |
-| `bool waxed = false` |  |
-| `float rotation = 0` |  |
-| `std::string frontText, backText` |  |
-| `bool frontGlow = false, backGlow = false` |  |
-| `int32_t base = -1, bannerType = 0` |  |
-| `std::vector<std::pair<std::string, int32_t>> patterns` |  |
-| `std::string nbt` |  |
-
-#### `BreakState`
-
-| Field | Notes |
-| --- | --- |
-| `bool active = false` |  |
-| `int32_t x = 0, y = 0, z = 0` |  |
-| `float progress = 0` |  |
-
-#### `RayHit`
-
-| Field | Notes |
-| --- | --- |
-| `bool hit = false` |  |
-| `int32_t x = 0, y = 0, z = 0` |  |
-| `Face face = Face::Up` |  |
-| `double hx = 0, hy = 0, hz = 0, distance = 0` |  |
-| `std::string block` |  |
-
-#### `AimState`
-
-| Field | Notes |
-| --- | --- |
-| `AimKind kind = AimKind::None` |  |
-| `RayHit block` |  |
-| `uint64_t entity = 0` |  |
-| `std::string entityType` |  |
-| `double distance = 0` |  |
-
-#### `ScreenState`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t guiWidth = 0, guiHeight = 0, guiScale = 1, framebufferWidth = 0, framebufferHeight = 0` |  |
-| `float fps = 0, frameMs = 0` |  |
-| `Screen screen = Screen::None` |  |
-| `bool paused = false, connected = false, hudHidden = false, debug = false` |  |
-| `std::string server, language, platform, gameVersion` |  |
-
-#### `Meta`
-
-| Field | Notes |
-| --- | --- |
-| `uint32_t apiVersion = kApiVersion` |  |
-| `std::string gameVersion, plugin, platform` |  |
-| `Permissions permissions` |  |
-| `int64_t nowMs = 0` |  |
-| `uint64_t tick = 0` |  |
-
-#### `InputOverrideState`
-
-| Field | Notes |
-| --- | --- |
-| `float forward = 0, strafe = 0` |  |
-| `bool jump = false, sneak = false, sprint = false, attack = false, use = false` |  |
-| `int32_t ticks = 1` |  |
-
-#### `CameraControlState`
-
-| Field | Notes |
-| --- | --- |
-| `float roll = 0` |  |
-| `float fovAdd = 0` |  |
-| `float fovSet = 0` |  |
-| `float offsetX = 0, offsetY = 0, offsetZ = 0` |  |
-| `float yawAdd = 0, pitchAdd = 0` |  |
-| `int32_t ticks = 2` |  |
-
-#### `CameraInfo`
-
-| Field | Notes |
-| --- | --- |
-| `double x = 0, y = 0, z = 0` |  |
-| `float yaw = 0, pitch = 0, fov = 70, aspect = 1.78f, nearPlane = 0.1f, farPlane = 600` |  |
-| `int32_t perspective = 0` |  |
-| `std::array<float, 16> viewProjection{}` |  |
-
-#### `WorldPoint`
-
-| Field | Notes |
-| --- | --- |
-| `double x = 0, y = 0, z = 0` |  |
-
-#### `ScreenPoint`
-
-| Field | Notes |
-| --- | --- |
-| `float x = 0, y = 0` |  |
-| `float depth = 0` |  |
-| `bool visible = false` |  |
-
-#### `MotionRequest`
-
-| Field | Notes |
-| --- | --- |
-| `bool add = false` |  |
-| `double x = 0, y = 0, z = 0` |  |
-| `bool axisX = true, axisY = true, axisZ = true` |  |
-
-#### `TeleportRequest`
-
-| Field | Notes |
-| --- | --- |
-| `double x = 0, y = 0, z = 0` |  |
-| `bool keepVelocity = false` |  |
-
-#### `ModelPose`
-
-| Field | Notes |
-| --- | --- |
-| `float roll = 0, pitch = 0, yaw = 0` |  |
-| `int32_t ticks = 2` |  |
-
-#### `LookSet`
-
-| Field | Notes |
-| --- | --- |
-| `double x = 0, y = 0, z = -1` |  |
-
-#### `WorldLine`
-
-| Field | Notes |
-| --- | --- |
-| `double x1 = 0, y1 = 0, z1 = 0, x2 = 0, y2 = 0, z2 = 0` |  |
-| `uint32_t color = 0xFFFFFFFF` |  |
-| `float width = 1.0f` |  |
-
-#### `WorldLines`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t ticks = 2` |  |
-| `std::vector<WorldLine> lines` |  |
-
-#### `WorldBox`
-
-| Field | Notes |
-| --- | --- |
-| `double x0 = 0, y0 = 0, z0 = 0, x1 = 1, y1 = 1, z1 = 1` |  |
-| `uint32_t color = 0xFFFFFFFF` |  |
-| `float width = 1.0f` |  |
-
-#### `WorldBoxes`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t ticks = 2` |  |
-| `std::vector<WorldBox> boxes` |  |
-
-#### `ClientBlockEdit`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t x = 0, y = 0, z = 0` |  |
-| `uint32_t runtimeId = 0` |  |
-
-#### `ClientBlockEdits`
-
-| Field | Notes |
-| --- | --- |
-| `std::vector<ClientBlockEdit> edits` |  |
-
-#### `BlockQuery`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name` |  |
-| `std::vector<std::pair<std::string, std::string>> states` |  |
-
-#### `BlockQueryResult`
-
-| Field | Notes |
-| --- | --- |
-| `bool found = false` |  |
-| `uint32_t runtimeId = 0` |  |
-
-#### `PacketDropRequest`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t ticks = 20` |  |
-| `std::vector<uint32_t> ids` |  |
-| `bool outgoing = false` |  |
-
-#### `PacketCount`
-
-| Field | Notes |
-| --- | --- |
-| `uint32_t id = 0, count = 0` |  |
-
-#### `Region`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t x0 = 0, y0 = 0, z0 = 0, sx = 0, sy = 0, sz = 0` |  |
-| `std::vector<std::string> palette` |  |
-| `std::vector<uint16_t> cells` |  |
-
-#### `FoundBlock`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t x = 0, y = 0, z = 0` |  |
-| `std::string name` |  |
-
-#### `SettingDef`
-
-| Field | Notes |
-| --- | --- |
-| `std::string id` |  |
-| `SettingKind kind = SettingKind::Toggle` |  |
-| `std::string label, description` |  |
-| `std::string icon` |  |
-| `std::string value, fallback` |  |
-| `double min = 0, max = 1, step = 0` |  |
-| `std::vector<std::string> choices, choiceLabels` |  |
-| `std::string unit` |  |
-| `bool restart = false` |  |
-
-#### `SettingEntry`
-
-| Field | Notes |
-| --- | --- |
-| `std::string id, value` |  |
-
-#### `FileLocation`
-
-| Field | Notes |
-| --- | --- |
-| `Area area = Area::Mod` |  |
-| `std::string path` |  |
-
-#### `ModEntry`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name, displayName, description, version, author, state` |  |
-| `bool enabled = true, self = false, hasSettings = false` |  |
-
-#### `ChatLine`
-
-| Field | Notes |
-| --- | --- |
-| `std::string text` |  |
-| `float alpha = 1` |  |
-
-#### `PackEntry`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name` |  |
-| `bool server = false` |  |
-
-#### `TitleStateData`
-
-| Field | Notes |
-| --- | --- |
-| `std::string title, subtitle, actionBar` |  |
-| `float titleAlpha = 0, actionBarAlpha = 0` |  |
-
-#### `EventTick`
-
-| Field | Notes |
-| --- | --- |
-| `float dt = 0.05f` |  |
-| `uint64_t tick = 0` |  |
-
-#### `EventFrame`
-
-| Field | Notes |
-| --- | --- |
-| `float dt = 0, fps = 0` |  |
-| `int32_t guiWidth = 0, guiHeight = 0` |  |
-
-#### `EventChat`
-
-| Field | Notes |
-| --- | --- |
-| `ChatType type = ChatType::Raw` |  |
-| `std::string sender, message, raw` |  |
-
-#### `EventKey`
-
-| Field | Notes |
-| --- | --- |
-| `std::string id` |  |
-| `bool down = false` |  |
-
-#### `EventCommand`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name, args` |  |
-
-#### `EventConnection`
-
-| Field | Notes |
-| --- | --- |
-| `std::string server, message` |  |
-| `DisconnectReason reason = DisconnectReason::Unknown` |  |
-
-#### `EventDamage`
-
-| Field | Notes |
-| --- | --- |
-| `bool known = false` |  |
-| `float dx = 0, dz = 0, health = 0` |  |
-
-#### `EventText`
-
-| Field | Notes |
-| --- | --- |
-| `std::string text` |  |
-
-#### `EventChange`
-
-| Field | Notes |
-| --- | --- |
-| `T from{}, to{}` |  |
-
-#### `EventSlot`
-
-| Field | Notes |
-| --- | --- |
-| `int32_t slot = 0` |  |
-| `Item item` |  |
-
-#### `EventEntity`
-
-| Field | Notes |
-| --- | --- |
-| `Entity entity` |  |
-
-#### `EventSound`
-
-| Field | Notes |
-| --- | --- |
-| `std::string name` |  |
-| `double x = 0, y = 0, z = 0` |  |
-| `float volume = 1, pitch = 1` |  |
-
-#### `EventHttp`
-
-| Field | Notes |
-| --- | --- |
-| `uint32_t id = 0` |  |
-| `int32_t status = 0` |  |
-| `std::string error` |  |
-| `std::vector<std::pair<std::string, std::string>> headers` |  |
-| `std::vector<uint8_t> body` |  |
-
-#### `EventPacket`
-
-| Field | Notes |
-| --- | --- |
-| `uint32_t id = 0` |  |
-| `bool outgoing = false` |  |
-| `std::vector<uint8_t> body` |  |
-
-#### `EventTitle`
-
-| Field | Notes |
-| --- | --- |
-| `std::string title, subtitle, actionBar` |  |
-
-#### `EventLook`
-
-| Field | Notes |
-| --- | --- |
-| `float dx = 0, dy = 0, dt = 0` |  |
-| `double dirX = 0, dirY = 0, dirZ = -1` |  |
-| `double vx = 0, vy = 0, vz = 0` |  |
-| `uint32_t keys = 0` |  |
-| `bool gliding = false, underwater = false, thirdPerson = false, onGround = false` |  |
-
-#### `EventSettingChanged`
-
-| Field | Notes |
-| --- | --- |
-| `std::string id, value` |  |
-| `SettingKind kind = SettingKind::Toggle` |  |
-
-#### `Vec3`
-
-| Field | Notes |
-| --- | --- |
-| `double x = 0, y = 0, z = 0` |  |
-
-#### `BlockPos`
-
-| Field | Notes |
-| --- | --- |
-| `int x = 0, y = 0, z = 0` |  |
-
-#### `Rgba`
-
-| Field | Notes |
-| --- | --- |
-| `uint8_t r = 255, g = 255, b = 255, a = 255` |  |
-
-#### `BlockInfo`
-
-| Field | Notes |
-| --- | --- |
-| `int out = fallback` |  |
-
-<!-- API-REFERENCE-END -->
+The full reference, generated from the schema, is [docs/API.md](docs/API.md).

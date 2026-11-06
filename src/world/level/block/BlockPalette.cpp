@@ -303,6 +303,87 @@ namespace perlin {
         BuildLayoutLocked(false);
     }
 
+    bool BlockPalette::LoadVersionDeltas(const std::string& text) {
+        const auto document = json::Document::Parse(text);
+        if (!document)
+            return false;
+        std::vector<VersionDelta> deltas;
+        for (const json::View v : document->root()["versions"].items()) {
+            VersionDelta d;
+            d.before = v["before"].integer();
+            d.protocol = v["protocol"].integer();
+            for (const json::View r : v["removed"].items())
+                d.removed.insert(r.str());
+            for (const auto [block, props] : v["pinned"].members()) {
+                auto& list = d.pinned[std::string(block)];
+                for (const auto [key, value] : props.members()) {
+                    StateValue sv;
+                    if (value.isBool()) {
+                        sv.kind = StateValue::Bool;
+                        sv.i = value.boolean() ? 1 : 0;
+                    } else if (value.isNumber()) {
+                        sv.kind = StateValue::Int;
+                        sv.i = value.integer();
+                    } else {
+                        sv.kind = StateValue::String;
+                        sv.s = value.str();
+                    }
+                    list.emplace_back(std::string(key), std::move(sv));
+                }
+            }
+            deltas.push_back(std::move(d));
+        }
+        std::lock_guard<std::mutex> lk(mutex);
+        versionDeltas = std::move(deltas);
+        versionDeltasLoaded = true;
+        return true;
+    }
+
+    void BlockPalette::UseProtocol(int protocol) {
+        std::lock_guard<std::mutex> lk(mutex);
+        if (protocol == sequenceProtocol && !baseSequence.empty())
+            return;
+        sequenceProtocol = protocol;
+        versionHidden.clear();
+        size_t applied = 0;
+        for (const VersionDelta& d : versionDeltas) {
+            if (protocol >= d.before)
+                continue;
+            applied++;
+            for (const int32_t h : baseSequence) {
+                const auto name = nameByHash.find(h);
+                if (name == nameByHash.end())
+                    continue;
+                if (d.removed.contains(name->second)) {
+                    versionHidden.insert(h);
+                    continue;
+                }
+                const auto pin = d.pinned.find(name->second);
+                if (pin == d.pinned.end())
+                    continue;
+                const auto st = statesByHash.find(h);
+                if (st == statesByHash.end())
+                    continue;
+                for (const auto& [key, want] : pin->second) {
+                    const auto have = std::find_if(st->second.begin(), st->second.end(),
+                                                   [&](const auto& kv) { return kv.first == key; });
+                    if (have == st->second.end())
+                        continue;
+                    const bool same = want.kind == StateValue::String ? have->second.s == want.s
+                                                                      : have->second.i == want.i;
+                    if (!same) {
+                        versionHidden.insert(h);
+                        break;
+                    }
+                }
+            }
+        }
+        layoutVerified = false;
+        BuildLayoutLocked(layoutAppended);
+        Log("blocks", "block ids for protocol {}: {} older-version deltas, {} states hidden, {} in the sequence",
+            protocol, applied, versionHidden.size(), sequence.size());
+    }
+
     void BlockPalette::InsertCustomRuns(std::vector<CustomRun> runs) {
         std::lock_guard<std::mutex> lk(mutex);
         if (baseSequence.empty())
@@ -329,6 +410,8 @@ namespace perlin {
         sequence.clear();
         sequenceKeys.clear();
         for (size_t i = 0; i < baseSequence.size(); ++i) {
+            if (versionHidden.contains(baseSequence[i]))
+                continue;
             if (dataDrivenHashes.contains(baseSequence[i])) {
                 const auto name = nameByHash.find(baseSequence[i]);
                 if (name == nameByHash.end() || !keptDataDriven.contains(name->second))

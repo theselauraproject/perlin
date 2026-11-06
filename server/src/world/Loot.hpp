@@ -51,6 +51,8 @@ namespace perlin::server {
 
         bool Has(const std::string& key) const;
         std::vector<LootDrop> Roll(const std::string& key, LootContext& ctx) const;
+        bool Override(const std::string& key, const std::string& json, std::string& error);
+        std::string Source(const std::string& key) const;
 
         static LootBlock ViewOf(const std::string& bedrockName, const StateList& states);
         static std::string JavaEntityName(const std::string& bedrockId);

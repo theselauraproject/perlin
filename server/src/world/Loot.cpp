@@ -228,6 +228,7 @@ namespace perlin::server {
 
     struct LootTables::Impl {
         std::unordered_map<std::string, json::Value> tables;
+        std::unordered_map<std::string, std::string> overrides;
     };
 
     LootTables& LootTables::Instance() {
@@ -241,6 +242,39 @@ namespace perlin::server {
             if (json::Parse(kLootSources[i].json, v))
                 impl->tables.emplace(kLootSources[i].key, std::move(v));
         }
+    }
+
+    bool LootTables::Override(const std::string& key, const std::string& text, std::string& error) {
+        if (key.empty() || key.size() > 256) {
+            error = "bad key";
+            return false;
+        }
+        if (text.empty()) {
+            impl->overrides.erase(key);
+            impl->tables.erase(key);
+            for (int i = 0; i < kLootSourceCount; i++)
+                if (key == kLootSources[i].key) {
+                    json::Value v;
+                    if (json::Parse(kLootSources[i].json, v))
+                        impl->tables[key] = std::move(v);
+                }
+            return true;
+        }
+        json::Value v;
+        if (!json::Parse(text, v, &error))
+            return false;
+        impl->tables[key] = std::move(v);
+        impl->overrides[key] = text;
+        return true;
+    }
+
+    std::string LootTables::Source(const std::string& key) const {
+        if (const auto it = impl->overrides.find(key); it != impl->overrides.end())
+            return it->second;
+        for (int i = 0; i < kLootSourceCount; i++)
+            if (key == kLootSources[i].key)
+                return kLootSources[i].json;
+        return {};
     }
 
     bool LootTables::Has(const std::string& key) const {

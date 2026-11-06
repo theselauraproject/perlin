@@ -621,6 +621,8 @@ namespace perlin {
                 BlockPalette::Instance().LoadServerStatesText(table, "block_states.json");
             else
                 Log("blocks", "block_states.json is not bundled: sequential-id servers will read as air");
+            if (std::string versions; resources::Read("block_versions.json", versions))
+                BlockPalette::Instance().LoadVersionDeltas(versions);
         }
         const std::vector<std::string> allNames = BlockPalette::Instance().AllNames();
         int noTexture = 0;

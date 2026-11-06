@@ -14,6 +14,7 @@
 
 #include "perlin/abi.hpp"
 #include "perlin/host.hpp"
+#include "host/PluginCore.hpp"
 
 namespace perlin::mods {
     struct ModInfo {
@@ -134,7 +135,7 @@ namespace perlin::mods {
         void PostMain(std::function<void()> task);
         std::function<bool(const std::string& path, int& width, int& height, std::vector<uint8_t>& rgba)> imageLoader;
         void Queue(abi::Event event, abi::Writer payload);
-        bool Wants(abi::Event event) const { return (wanted.load() >> static_cast<uint32_t>(event)) & 1; }
+        bool Wants(abi::Event event) const { return wanted.Has(event); }
         void Pump();
         bool HasPermission(const std::string& plugin, abi::Permission p) const;
         uint64_t Tick() const { return tickCounter.load(); }
@@ -146,7 +147,7 @@ namespace perlin::mods {
 
     private:
         ModManager() = default;
-        std::atomic<uint64_t> wanted{0};
+        AtomicSubscriptions wanted{Subscriptions{}};
         bool modsSettled = false;
         size_t settledCount = 0;
         void RefreshWanted();

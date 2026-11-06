@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <charconv>
 #include <chrono>
 #include <concepts>
@@ -55,12 +56,11 @@ namespace perlin {
         static constexpr abi::Event id = E;
     };
 
-    // a tag per event in abi_table.h: ctx.on<event::Tick>(...)
-    namespace event {
-#define PERLIN_X(Name, ...) using Name = EventTag<abi::Event::Name>;
-        PERLIN_ABI_EVENTS(PERLIN_X)
-#undef PERLIN_X
-    }
+}
+
+#include "perlin/gen/event_tags.hpp"
+
+namespace perlin {
 
     template <class T>
     concept EventTagLike = requires {
@@ -390,7 +390,6 @@ namespace perlin {
             keys[id] = wrap_key(std::forward<Fn>(fn));
         }
 
-        // member functions of a plugin class as handlers: ctx.command<"greet">("say hello", this, &Hello::greet)
         template <class C, class R, class... A> static auto member(C* self, R (C::*fn)(A...)) {
             return [self, fn](A... a) -> R { return (self->*fn)(std::forward<A>(a)...); };
         }
@@ -453,26 +452,30 @@ namespace perlin {
         void dispatch(abi::Event id, abi::Reader& r, uint32_t& flags);
         void run_unload();
 
-        // bits 0-31 go through perlin_subscriptions, 32-63 through perlin_subscriptions_hi
-        uint64_t subscriptions() const {
-            uint64_t mask = bit(abi::Event::HttpResponse) | bit(abi::Event::SettingChanged);
+        using Subscriptions = std::array<uint32_t, abi::kSubscriptionWords>;
+        Subscriptions subscriptions() const {
+            Subscriptions mask{};
+            const auto set = [&mask](uint32_t id) {
+                if (id / 32 < mask.size())
+                    mask[id / 32] |= 1u << (id % 32);
+            };
+            set(static_cast<uint32_t>(abi::Event::HttpResponse));
+            set(static_cast<uint32_t>(abi::Event::SettingChanged));
             for (const auto& entry : handlers)
                 if (!entry.second.empty())
-                    mask |= 1ull << entry.first;
+                    set(static_cast<uint32_t>(entry.first));
             if (!timers.empty())
-                mask |= bit(abi::Event::Tick);
+                set(static_cast<uint32_t>(abi::Event::Tick));
             if (!layers.empty())
-                mask |= bit(abi::Event::Frame);
+                set(static_cast<uint32_t>(abi::Event::Frame));
             if (!commands.empty())
-                mask |= bit(abi::Event::Command);
+                set(static_cast<uint32_t>(abi::Event::Command));
             if (!keys.empty())
-                mask |= bit(abi::Event::Key);
+                set(static_cast<uint32_t>(abi::Event::Key));
             return mask;
         }
 
     private:
-        static constexpr uint64_t bit(abi::Event e) { return 1ull << static_cast<uint32_t>(e); }
-
         struct Timer {
             TimerId id;
             double due, period;
@@ -729,10 +732,14 @@ __attribute__((export_name("perlin_free"))) inline void perlin_free(void* p) {
     ::operator delete(p);
 }
 __attribute__((export_name("perlin_subscriptions"))) inline uint32_t perlin_subscriptions() {
-    return static_cast<uint32_t>(perlin::detail::context().subscriptions());
+    return perlin::detail::context().subscriptions()[0];
 }
 __attribute__((export_name("perlin_subscriptions_hi"))) inline uint32_t perlin_subscriptions_hi() {
-    return static_cast<uint32_t>(perlin::detail::context().subscriptions() >> 32);
+    return perlin::abi::kSubscriptionWords > 1 ? perlin::detail::context().subscriptions()[1] : 0u;
+}
+__attribute__((export_name("perlin_subscriptions_word"))) inline uint32_t perlin_subscriptions_word(uint32_t word) {
+    const auto mask = perlin::detail::context().subscriptions();
+    return word < mask.size() ? mask[word] : 0u;
 }
 __attribute__((export_name("perlin_event"))) inline uint32_t perlin_event(uint32_t id, const uint8_t* data,
                                                                           uint32_t len) {

@@ -13,7 +13,7 @@ static void Check(bool ok, const char* why) {
     }
 }
 int main(int argc, char** argv) {
-    Check(argc == 2, "expected palette file");
+    Check(argc == 3, "expected palette and version files");
     std::ifstream file(argv[1]);
     const std::string text((std::istreambuf_iterator<char>(file)), {});
     auto& palette = BlockPalette::Instance();
@@ -58,5 +58,27 @@ int main(int argc, char** argv) {
     Check(palette.InternRuntime(18894) == 0, "native air did not resolve");
     palette.TruncateSequence();
     Check(palette.SequentialAir() == 17713, "previous server's definitions survived reconnect");
+    std::ifstream versionsFile(argv[2]);
+    const std::string versions((std::istreambuf_iterator<char>(versionsFile)), {});
+    Check(palette.LoadVersionDeltas(versions), "version deltas failed to load");
+    const auto fireStates = [&] {
+        int fire = 0;
+        for (int32_t id = 0; id < 24000; id++)
+            if (palette.Name(palette.InternRuntime(id)) == "minecraft:fire")
+                fire++;
+        return fire;
+    };
+    palette.UseProtocol(2225);
+    Check(palette.SequentialAir() == 17713, "the current protocol lost its native IDs");
+    Check(fireStates() == 512, "1.26.60 fire should have 512 states");
+    palette.UseProtocol(2193);
+    Check(palette.SequentialAir() == 15844, "1.26.50 air is not where a 1.26.50 server puts it");
+    Check(fireStates() == 16, "1.26.50 fire should have 16 states");
+    palette.UseProtocol(2168);
+    Check(palette.SequentialAir() == 13629, "1.26.40 air is not where a 1.26.40 server puts it");
+    palette.UseProtocol(944);
+    Check(palette.SequentialAir() == 12531, "1.26.10 air is not where a 1.26.10 server puts it");
+    palette.UseProtocol(2225);
+    Check(palette.SequentialAir() == 17713, "switching back to the current protocol did not restore its IDs");
     std::cout << "conditional block palette passed\n";
 }

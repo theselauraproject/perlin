@@ -1,41 +1,20 @@
 #pragma once
 #include "perlin/abi.hpp"
+#include "perlin/gen/server_service.hpp"
 
 #include <cstdint>
-#include <expected>
 #include <string>
-#include <vector>
 
 namespace perlin::server {
-    // what plugins may do to the server; implemented by Server so the plugin host does not depend on it
-    class PluginApi {
-    public:
-        struct PlayerInfo {
-            uint64_t id = 0;
-            std::string name;
-            double x = 0, y = 0, z = 0;
-        };
-        struct Status {
-            std::string name;
-            uint32_t players = 0;
-            uint32_t maxPlayers = 0;
-            uint64_t tick = 0;
-            std::string backend;
-        };
+    struct PluginCall {
+        const std::string& plugin;
+        const std::string& dataDir;
+    };
 
-        virtual ~PluginApi() = default;
-        virtual void Broadcast(const std::string& text) = 0;
-        virtual bool Message(uint64_t player, const std::string& text) = 0;
-        virtual bool Kick(uint64_t player, const std::string& reason) = 0;
+    class PluginApi : public abi::host::ServerService<PluginCall> {
+    public:
         virtual void RegisterCommand(const std::string& plugin, const std::string& name,
                                      const std::string& description) = 0;
-        virtual std::vector<PlayerInfo> Players() = 0;
-        virtual bool Teleport(uint64_t player, double x, double y, double z) = 0;
-        virtual abi::Status SetBlock(int x, int y, int z, const std::string& block) = 0;
-        virtual abi::Status GetBlock(int x, int y, int z, std::string& block) = 0;
-        virtual Status GetStatus() = 0;
-        // the count that did not fit
-        virtual std::expected<int, abi::Status> GiveItem(uint64_t player, const std::string& item,
-                                                         int count) = 0;
+        virtual void UnregisterCommand(const std::string&, const std::string&) {}
     };
 }

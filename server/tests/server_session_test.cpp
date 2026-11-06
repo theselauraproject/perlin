@@ -775,7 +775,19 @@ int main(int argc, char** argv) {
                     land.inputData.push_back(proto::InputData::VerticalCollision);
                     alice.Send(land);
                     alice.Settle();
-                    CHECK(a->Health() >= 13.0f && a->Health() < 14.5f);
+                    CHECK(a->Health() >= 16.0f && a->Health() < 17.5f);
+                    run("/menu");
+                    const auto forms = alice.Take<proto::ModalFormRequestPacket>();
+                    CHECK(forms.size() == 1 && forms[0].data.contains("Heal me"));
+                    if (!forms.empty()) {
+                        proto::ModalFormResponsePacket answer;
+                        answer.formId = forms[0].formId;
+                        answer.hasResponseData = true;
+                        answer.data = "0";
+                        alice.Send(answer);
+                        alice.Settle();
+                        CHECK(a->Health() == 20.0f);
+                    }
 
                     const CatalogItem* bread = BlockCatalog::Instance().ItemByName("minecraft:bread");
                     CHECK(bread != nullptr);

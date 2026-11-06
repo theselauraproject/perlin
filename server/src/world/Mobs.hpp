@@ -66,6 +66,9 @@ namespace perlin::server {
         Mob* SpawnPrimedTnt(double x, double y, double z, int fuse);
         void Explosion(double x, double y, double z, float power, uint64_t source, bool breakBlocks = true);
         bool Kill(uint64_t id);
+        bool Remove(uint64_t id);
+        bool Damage(uint64_t id, float amount);
+        void Moved(Mob& m);
         int KillAll(const std::string& identifier);
         void Show(Session& to) const;
         void Hide(Session& to) const;

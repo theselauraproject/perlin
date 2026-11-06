@@ -229,6 +229,7 @@ namespace perlin::server {
         if (dimension == kOverworld)
             mobWorld->Show(who);
         SendWorldState(who);
+        HookDimensionChange(who, from, dimension);
         static const char* kNames[] = {"overworld", "the_nether", "the_end"};
         LogInfo(who.Name() + " went to the " + kNames[dimension]);
     }

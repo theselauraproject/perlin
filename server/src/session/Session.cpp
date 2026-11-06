@@ -279,6 +279,7 @@ namespace perlin::server {
     Session::Session(Server& server, std::shared_ptr<Connection> connection, uint64_t runtimeId)
         : server(server), connection(std::move(connection)), runtimeId(runtimeId),
           skin(std::make_unique<proto::Skin>()) {
+        address = this->connection->Describe();
         posX = server.SpawnX() + 0.5;
         posZ = server.SpawnZ() + 0.5;
         posY = server.SpawnY() + kEyeHeight;
@@ -434,6 +435,9 @@ namespace perlin::server {
         case proto::RespawnPacket::kId:
             OnRespawn(body);
             break;
+        case proto::ModalFormResponsePacket::kId:
+            OnFormResponse(body);
+            break;
         case proto::ClientToServerHandshakePacket::kId:
         case proto::ClientCacheStatusPacket::kId:
         default:
@@ -537,6 +541,11 @@ namespace perlin::server {
         if (server.IsBanned(name, xuid) && !server.Config().loopbackOnly) {
             LogInfo(name + " refused: banned");
             Kick("You are banned from this server.");
+            return;
+        }
+        if (std::string reason; server.HookPreLogin(*this, reason)) {
+            LogInfo(name + " refused by a plugin");
+            Kick(reason.empty() ? "disconnectionScreen.noReason" : reason);
             return;
         }
         if (server.Full() && !server.IgnoresPlayerLimit(name, xuid)) {
@@ -830,10 +839,13 @@ namespace perlin::server {
             return;
         if (mode == 6 && gameMode != 6)
             flySpeedLevel = 1;
+        const int old = gameMode;
         gameMode = mode;
         creative = mode == 1;
         if (state != State::InGame)
             return;
+        if (old != mode)
+            server.HookGameModeChange(*this, old, mode);
         proto::SetPlayerGameTypePacket p;
         p.gamemode = static_cast<proto::GameMode>(mode);
         Send(p);
@@ -1109,12 +1121,15 @@ namespace perlin::server {
                 if (on->hotbarSlot >= 0 && on->hotbarSlot < PlayerInventory::kHotbar)
                     inventory.selected = on->hotbarSlot;
                 const ItemStack held = inventory.Held();
+                float damage = AttackDamage(held);
+                if (server.HookPlayerAttack(*this, on->entityRuntimeId, damage))
+                    return;
                 if (Session* victim = server.FindSession(on->entityRuntimeId)) {
                     AttackPlayer(*victim, held);
                     return;
                 }
                 const bool crit = !onGround && fallDistance > 0.0f && !swimming && !gliding && !flying;
-                if (server.Mobs().Attack(*this, on->entityRuntimeId, AttackDamage(held), sprinting ? 0.9f : 0.4f)) {
+                if (server.Mobs().Attack(*this, on->entityRuntimeId, damage, sprinting ? 0.9f : 0.4f)) {
                     Exhaust(0.1f);
                     if (crit)
                         for (Session* s : server.PlayersIn(dimension))
@@ -1167,6 +1182,11 @@ namespace perlin::server {
             server.PlayerBreak(*this, at.x, at.y, at.z);
             break;
         case proto::TransactionUseItemActionType::ClickBlock:
+            if (server.HookPlayerUse(*this, at.x, at.y, at.z, use->face)) {
+                CorrectBlock(at.x, at.y, at.z);
+                SendInventory();
+                break;
+            }
             if ((sneaking && !inventory.Held().Empty()) || !server.UseBlock(*this, at.x, at.y, at.z)) {
                 if (!EquipHeldArmor()) {
                     const ItemStack& held = inventory.Held();
@@ -1395,9 +1415,9 @@ namespace perlin::server {
             fallDistance = 0;
             invulnerable = 60;
             dataDirty = true;
-            posX = server.SpawnX() + 0.5;
-            posY = server.SpawnY() + 1.62;
-            posZ = server.SpawnZ() + 0.5;
+            posX = (hasSpawnPoint ? spawnPointX : server.SpawnX()) + 0.5;
+            posY = (hasSpawnPoint ? spawnPointY : server.SpawnY()) + 1.62;
+            posZ = (hasSpawnPoint ? spawnPointZ : server.SpawnZ()) + 0.5;
             SendAttributes();
         }
         proto::RespawnPacket reply;
@@ -1409,6 +1429,8 @@ namespace perlin::server {
             server.ChangeDimension(*this, kOverworld, posX, posY, posZ);
         else if (wasDead)
             Teleport(posX, posY, posZ);
+        if (wasDead)
+            server.HookPlayerRespawn(*this);
     }
 
     void Session::OnCommand(std::span<const uint8_t> body) {
@@ -1454,6 +1476,12 @@ namespace perlin::server {
             dataDirty = true;
         if (state != State::InGame)
             return;
+        if (std::abs(posX - lastHookX) + std::abs(posY - lastHookY) + std::abs(posZ - lastHookZ) > 0.1) {
+            lastHookX = posX;
+            lastHookY = posY;
+            lastHookZ = posZ;
+            server.HookPlayerMove(*this);
+        }
         if (!awaitingDimensionAck)
             MovementTick(in, previousY);
         if (in.blockAction && !isVisitor && gameMode != 6 && !dead)
@@ -2010,6 +2038,8 @@ namespace perlin::server {
             return false;
         if (cause == DamageCause::Starving && server.Config().difficulty == 0)
             return false;
+        if (server.HookPlayerDamage(*this, amount, cause, attacker, source) || amount <= 0)
+            return false;
         const bool blockable = cause == DamageCause::Mob || cause == DamageCause::Player ||
                                cause == DamageCause::Projectile || cause == DamageCause::Explosion;
         if (blockable && Shielding(fromX, fromZ)) {
@@ -2092,6 +2122,7 @@ namespace perlin::server {
     }
 
     void Session::Die(DamageCause cause, const std::string& source) {
+        server.HookPlayerDeath(*this, cause, source);
         dead = true;
         health = 0;
         StopUsing();
@@ -2425,6 +2456,11 @@ namespace perlin::server {
         StopUsing();
         if (!f)
             return;
+        if (server.HookItemConsume(*this, n)) {
+            SendInventory();
+            SendAttributes();
+            return;
+        }
         static std::mt19937 rng{std::random_device{}()};
         const auto chance = [&](float p) { return std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < p; };
         if (gameMode != 1) {
@@ -2863,4 +2899,84 @@ namespace perlin::server {
         Flush();
     }
 
+    std::vector<Session::EffectState> Session::Effects() const {
+        std::vector<EffectState> out;
+        for (const auto& [id, e] : effects)
+            out.push_back({id, e.amplifier, e.ticks, e.particles, e.ambient});
+        return out;
+    }
+
+    void Session::SetHealth(float value) {
+        if (dead || state != State::InGame)
+            return;
+        health = std::min(value, MaxHealth());
+        if (health <= 0) {
+            Die(DamageCause::Kill, "plugin");
+            return;
+        }
+        SendAttributes();
+    }
+
+    void Session::SetVelocity(double x, double y, double z) {
+        proto::SetEntityMotionPacket p;
+        p.runtimeEntityId = runtimeId;
+        p.velocity = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+        p.tick = server.TickCount();
+        Send(p);
+    }
+
+    void Session::SetSpawnPoint(int x, int y, int z) {
+        hasSpawnPoint = true;
+        spawnPointX = x;
+        spawnPointY = y;
+        spawnPointZ = z;
+        if (state == State::InGame)
+            SendSpawnPosition(x, y, z, false);
+    }
+
+    void Session::Transfer(const std::string& host, uint16_t port) {
+        proto::TransferPacket p;
+        p.serverAddress = host;
+        p.port = port;
+        p.reloadWorld = true;
+        Send(p);
+        Flush();
+    }
+
+    uint32_t Session::ShowForm(const std::string& json) {
+        const uint32_t id = nextFormId++;
+        if (openForms.size() > 64)
+            openForms.clear();
+        openForms.insert(id);
+        proto::ModalFormRequestPacket p;
+        p.formId = id;
+        p.data = json;
+        Send(p);
+        return id;
+    }
+
+    void Session::OnFormResponse(std::span<const uint8_t> body) {
+        proto::ModalFormResponsePacket p;
+        if (!Decode(body, p) || state != State::InGame || !openForms.erase(p.formId))
+            return;
+        server.HookFormResponse(*this, p.formId, p.data ? *p.data : std::string());
+    }
+
+    void Session::PlaySoundTo(const std::string& sound, double x, double y, double z, float volume, float pitchValue) {
+        proto::PlaySoundPacket p;
+        p.name = sound;
+        p.coordinates = {static_cast<int32_t>(x * 8), static_cast<int32_t>(y * 8), static_cast<int32_t>(z * 8)};
+        p.volume = volume;
+        p.pitch = pitchValue;
+        Send(p);
+    }
+
+    void Session::SpawnParticle(const std::string& particle, double x, double y, double z) {
+        proto::SpawnParticleEffectPacket p;
+        p.dimension = static_cast<uint8_t>(dimension);
+        p.entityId = -1;
+        p.position = {static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)};
+        p.particleName = particle;
+        Send(p);
+    }
 }

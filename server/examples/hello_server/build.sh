@@ -1,9 +1,15 @@
 #!/bin/sh
-# freestanding build: clang with the wasm32 target and wasm-ld, no libc, no emscripten needed
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
+target=wasm64
+if [ "$1" = "--wasm32" ]; then
+    target=wasm32
+    shift
+elif [ "$1" = "--wasm64" ]; then
+    shift
+fi
 out=${1:-$here/hello_server.wasm}
-clang --target=wasm32 -O2 -nostdlib -fno-builtin -fvisibility=hidden \
-  -Wl,--no-entry -Wl,--export-dynamic -Wl,--allow-undefined \
+clang --target=$target -O2 -nostdlib -ffreestanding -fno-builtin -fvisibility=hidden \
+  -Wl,--no-entry -Wl,--export-dynamic -Wl,--allow-undefined -Wl,-z,stack-size=65536 \
   -I "$here/../../../mods/sdk" -o "$out" "$here/hello_server.c"
-echo "built $out"
+echo "built $out ($target)"

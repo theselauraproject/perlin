@@ -1,4 +1,4 @@
-#include "client/mods/WasmRuntime.hpp"
+#include "host/WasmRuntime.hpp"
 
 #include <wasm3.h>
 

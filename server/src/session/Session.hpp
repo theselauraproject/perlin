@@ -170,6 +170,21 @@ namespace perlin::server {
         bool InReach(int x, int y, int z) const;
         bool TakeMoved() { return std::exchange(moved, false); }
 
+        struct EffectState {
+            int id = 0, amplifier = 0, ticks = 0;
+            bool particles = true, ambient = false;
+        };
+        std::vector<EffectState> Effects() const;
+        float Absorption() const { return absorption; }
+        void SetHealth(float value);
+        void SetVelocity(double x, double y, double z);
+        void SetSpawnPoint(int x, int y, int z);
+        void Transfer(const std::string& host, uint16_t port);
+        uint32_t ShowForm(const std::string& json);
+        void PlaySoundTo(const std::string& sound, double x, double y, double z, float volume, float pitch);
+        void SpawnParticle(const std::string& particle, double x, double y, double z);
+        const std::string& Address() const { return address; }
+
     private:
         void Dispatch(uint32_t id, std::span<const uint8_t> body);
         void Queue(uint32_t id, const std::vector<uint8_t>& body);
@@ -199,6 +214,7 @@ namespace perlin::server {
         void OnEmote(std::span<const uint8_t> body);
         void OnSound(std::span<const uint8_t> body);
         void OnRespawn(std::span<const uint8_t> body);
+        void OnFormResponse(std::span<const uint8_t> body);
 
         void SendStartGame();
         void SurvivalTick();
@@ -282,6 +298,12 @@ namespace perlin::server {
         int openWindow = -1;
         proto2225::WindowType openType = proto2225::WindowType::Inventory;
         bool dead = false;
+        bool hasSpawnPoint = false;
+        int spawnPointX = 0, spawnPointY = 0, spawnPointZ = 0;
+        uint32_t nextFormId = 1;
+        std::unordered_set<uint32_t> openForms;
+        std::string address;
+        double lastHookX = 0, lastHookY = 0, lastHookZ = 0;
 
         double posX = 0.5, posY = 0, posZ = 0.5;
         int dimension = kOverworld;

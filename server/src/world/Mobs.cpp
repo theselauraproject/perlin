@@ -175,6 +175,8 @@ namespace perlin::server {
         }
         if (!m.def)
             return nullptr;
+        if (!m.projectile && server.HookEntitySpawn(m.def->id, nextId, x, y, z, !persistent))
+            return nullptr;
         m.id = nextId++;
         m.x = x;
         m.y = y;
@@ -207,6 +209,27 @@ namespace perlin::server {
         m->health = 0;
         Die(*m, nullptr);
         return true;
+    }
+
+    bool MobWorld::Remove(uint64_t id) {
+        const auto it = std::find_if(mobs.begin(), mobs.end(), [id](const Mob& m) { return m.id == id; });
+        if (it == mobs.end())
+            return false;
+        for (Session* s : server.PlayersIn(kOverworld))
+            s->HideItem(id);
+        mobs.erase(it);
+        return true;
+    }
+
+    bool MobWorld::Damage(uint64_t id, float amount) {
+        Mob* m = Find(id);
+        return m && Hurt(*m, amount, m->x, m->z, nullptr, 0.0f);
+    }
+
+    void MobWorld::Moved(Mob& m) {
+        Broadcast(m, true);
+        for (Session* s : server.PlayersIn(kOverworld))
+            s->MobMotion(m);
     }
 
     int MobWorld::KillAll(const std::string& identifier) {
@@ -250,6 +273,8 @@ namespace perlin::server {
 
     bool MobWorld::Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by, float knockback) {
         if (m.deathTime > 0 || m.kind != 0 || damage <= 0)
+            return false;
+        if (!m.projectile && (server.HookEntityDamage(m, damage, by) || damage <= 0))
             return false;
         float dealt = damage;
         if (m.invulnerable > 10) {
@@ -319,6 +344,7 @@ namespace perlin::server {
             killer = server.FindSession(m.lastAttacker);
         if (killer && (!killer->InGame() || killer->DimensionId() != kOverworld))
             killer = nullptr;
+        server.HookEntityDeath(m, killer);
         const bool hostile = (m.def->flags & mobflag::Hostile) != 0;
         const std::string java = LootTables::JavaEntityName(m.def->id);
         const bool zombieLike = java == "zombie" || java == "husk" || java == "drowned" || java == "zombie_villager" ||
@@ -519,6 +545,8 @@ namespace perlin::server {
     }
 
     void MobWorld::Explosion(double x, double y, double z, float power, uint64_t source, bool breakBlocks) {
+        if (server.HookExplosion(x, y, z, power, source) || power <= 0)
+            return;
         std::uniform_real_distribution<float> unit(0.0f, 1.0f);
         const Mob* origin = Find(source);
         const bool fromTnt = origin && origin->kind == 2;

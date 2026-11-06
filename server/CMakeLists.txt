@@ -25,6 +25,7 @@ option(PERLIN_SERVER_BUILD_EXE "build the perlin-server executable" ON)
 option(PERLIN_SERVER_BUILD_TESTS "build the server tests" ${PERLIN_SERVER_STANDALONE})
 
 get_filename_component(PERLIN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+include("${PERLIN_ROOT}/mods/cmake/PerlinApi.cmake")
 include(FetchContent)
 find_package(Threads REQUIRED)
 
@@ -74,6 +75,7 @@ set(PS_SOURCES
     src/core/Json.cpp
     src/core/Log.cpp
     src/core/Server.cpp
+    src/core/ServerPlugins.cpp
     src/inventory/Inventory.cpp
     src/net/Batch.cpp
     src/net/Connection.cpp
@@ -113,9 +115,12 @@ set(PS_SOURCES
     src/world/vanilla/JavaFeatureData.cpp
     src/gpu/VanillaGpuProgram.cpp)
 
-# wasm runtime: wasm3 through the client's own wrapper (WasmRuntimeWasm3.cpp), so plugins behave the same.
-# it is plain c with no dependencies, which keeps it safe to link into a shared library next to the client's WasmEdge
-if(TRUE)
+# wasm runtime: WasmEdge (wasm64 and wasm32) when the client build provides it, otherwise wasm3 (wasm32 only), both through mods/host
+option(PERLIN_SERVER_WASM3 "Run server plugins on wasm3 (32-bit modules only) even when WasmEdge is available" OFF)
+if(TARGET perlin_wasmedge AND NOT PERLIN_SERVER_WASM3)
+    set(PS_WASM_SOURCES ${PERLIN_API_HOST_WASMEDGE_SOURCES} ${PERLIN_API_HOST_CORE_SOURCES})
+    set(PS_WASM_LIB perlin_wasmedge)
+else()
     if(NOT TARGET wasm3_core)
         FetchContent_Declare(wasm3 GIT_REPOSITORY https://github.com/wasm3/wasm3.git GIT_TAG 28ecb9af6d2040e474a70f7cb7f43666740141fb)
         FetchContent_GetProperties(wasm3)
@@ -133,7 +138,7 @@ if(TRUE)
         target_compile_options(wasm3_core PRIVATE -w)
         set_target_properties(wasm3_core PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 11)
     endif()
-    set(PS_WASM_SOURCES "${PERLIN_ROOT}/src/client/mods/WasmRuntimeWasm3.cpp")
+    set(PS_WASM_SOURCES ${PERLIN_API_HOST_WASM3_SOURCES} ${PERLIN_API_HOST_CORE_SOURCES})
     set(PS_WASM_LIB wasm3_core)
 endif()
 
@@ -214,7 +219,7 @@ if(PERLIN_SERVER_EMBED)
     list(APPEND PS_LIBS perlin_server_embed)
 endif()
 foreach(t perlin_server_objects ${PS_LIBS})
-    target_include_directories(${t} PUBLIC "${PERLIN_ROOT}/mods/sdk" include PRIVATE src "${PERLIN_ROOT}/src")
+    target_include_directories(${t} PUBLIC ${PERLIN_API_INCLUDE_DIRS} include PRIVATE src "${PERLIN_ROOT}/src")
     target_compile_features(${t} PUBLIC cxx_std_23)
     set_target_properties(${t} PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
     target_compile_definitions(${t} PRIVATE PERLIN_SERVER_BUILD_SHARED "PERLIN_SERVER_RESOURCE_DIR=\"${PERLIN_ROOT}/resources\"")
@@ -288,7 +293,7 @@ if(PERLIN_SERVER_BUILD_TESTS)
 
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
         COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/examples/hello_server/build.sh" "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
-        DEPENDS examples/hello_server/hello_server.c ${PERLIN_ROOT}/mods/sdk/perlin.h ${PERLIN_ROOT}/mods/sdk/perlin/abi_table.h examples/hello_server/build.sh
+        DEPENDS examples/hello_server/hello_server.c ${PERLIN_ROOT}/mods/sdk/perlin.h ${PERLIN_ROOT}/mods/sdk/perlin_abi.h examples/hello_server/build.sh
         COMMENT "Building the example plugin" VERBATIM)
     add_custom_target(server_example_plugin DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm")
 

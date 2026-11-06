@@ -285,8 +285,6 @@ namespace perlin {
 
         On<PlayStatusPacket>([this](const PlayStatusPacket& p) {
             Log("bedrock", "PlayStatus {}", static_cast<int>(p.status));
-            // status 1: our client outdated; 2 (FailedSpawn in protocol data, LoginFailedServer in bedrock): server outdated;
-            // either can arrive before network settings, not only after Login
             if ((p.status == PlayStatusPacketStatus::FailedClient ||
                  p.status == PlayStatusPacketStatus::FailedSpawn) &&
                 state != State::InGame) {
@@ -501,6 +499,7 @@ namespace perlin {
         });
 
         OnPartial<StartGamePacket>([this](const StartGamePacket& p) {
+            BlockPalette::Instance().UseProtocol(serverProtocol);
             ParsePropertySchema(p.propertyData.bytes);
             if (!p.blockProperties.empty()) {
                 const size_t n = RegisterCustomBlocks(p.blockProperties);
@@ -539,7 +538,6 @@ namespace perlin {
                 haveStartPos = true;
             }
             clientGen = p.clientSideGeneration;
-            // generator 2 is the flat type
             flatWorld = p.generator == 2;
             serverAuthBreaking = p.serverAuthoritativeBlockBreaking;
             Log("bedrock", "serverAuthoritativeBlockBreaking={}",
@@ -615,7 +613,6 @@ namespace perlin {
         });
 
         On<ItemRegistryPacket>([this](const ItemRegistryPacket& p) {
-            // Some proxies follow the real registry with an empty one; it carries nothing, so it must not wipe the names.
             if (p.itemstates.empty()) {
                 std::lock_guard lock(statusMutex);
                 if (!itemNames.empty()) {
@@ -888,7 +885,6 @@ namespace perlin {
                 named("portal.portal");
                 break;
             case LevelEventPacketEvent::SoundOrb: {
-                // suppress the server echo of a pickup already predicted locally
                 const auto nowMs =
                     static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                               std::chrono::steady_clock::now().time_since_epoch())
@@ -1236,7 +1232,6 @@ namespace perlin {
             if (const auto it = itemNames.find(p.heldItem.networkId);
                 p.heldItem.networkId != 0 && it != itemNames.end())
                 held = it->second;
-            // AddPlayer carries the feet position; move packets carry the eye
             entities.AddPlayer(p.runtimeId, p.uniqueId, UuidKey(p.uuid), p.username,
                                {p.position.x, p.position.y, p.position.z}, p.pitch, p.yaw, p.headYaw,
                                MetaFlags(p.metadata), held);
@@ -1314,7 +1309,6 @@ namespace perlin {
                     r.pitch = 1.4f + (static_cast<float>(taken.runtimeId % 7) * 0.03f);
                     PushSound(std::move(r));
                 } else if (taken.type == "minecraft:xp_orb") {
-                    // vanilla predicts the orb pickup sound locally; server echo (SoundOrb) suppressed below for the same pickup
                     SoundRequest r;
                     r.kind = SoundRequest::Kind::Named;
                     r.name = "random.orb";
@@ -1338,7 +1332,6 @@ namespace perlin {
         On<MoveEntityPacket>([this](const MoveEntityPacket& p) {
             if (runtimeId != 0 && p.runtimeEntityId == runtimeId)
                 return;
-            // the client-predicted vehicle is moved by our own simulation
             if (p.runtimeEntityId == predictedVehicleRuntime.load())
                 return;
             constexpr float kByte = 360.0f / 256.0f;

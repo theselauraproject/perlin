@@ -163,6 +163,8 @@ namespace perlin {
                 std::string table;
                 if (resources::Read("block_states.json", table))
                     palette.LoadServerStatesText(table, "block_states.json");
+                if (std::string versions; resources::Read("block_versions.json", versions))
+                    palette.LoadVersionDeltas(versions);
             }
         });
         workers->Submit([this] {

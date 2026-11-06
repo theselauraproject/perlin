@@ -77,6 +77,8 @@ namespace perlin::server {
         const int kind = ContainerKindOf(name);
         if (kind < 0)
             return false;
+        if (HookContainerOpen(by, x, y, z, name))
+            return true;
         CloseContainer(by);
         static int windowCounter = 0;
         const int window = 1 + (windowCounter++ % 99);

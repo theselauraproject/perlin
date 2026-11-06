@@ -321,25 +321,25 @@ static void TestAccessFiles() {
 }
 
 struct MockApi final : PluginApi {
+    template <class T> using R = abi::host::Result<T>;
     std::vector<std::string> broadcasts, messages, commands;
-    void Broadcast(const std::string& t) override { broadcasts.push_back(t); }
-    bool Message(uint64_t p, const std::string& t) override {
-        messages.push_back(std::to_string(p) + ":" + t);
-        return true;
+    R<void> OpBroadcast(PluginCall&, const abi::TextMessage& m) override {
+        broadcasts.push_back(m.text);
+        return {};
     }
-    bool Kick(uint64_t, const std::string&) override { return true; }
+    R<void> OpPlayerMessage(PluginCall&, const abi::PlayerText& m) override {
+        messages.push_back(std::to_string(m.player) + ":" + m.text);
+        return {};
+    }
     void RegisterCommand(const std::string& plugin, const std::string& name, const std::string&) override {
         commands.push_back(plugin + "/" + name);
     }
-    std::vector<PlayerInfo> Players() override { return {{7, "Alice", 1, 2, 3}, {8, "Bob", 4, 5, 6}}; }
-    bool Teleport(uint64_t, double, double, double) override { return true; }
-    abi::Status SetBlock(int, int, int, const std::string&) override { return abi::Status::Ok; }
-    abi::Status GetBlock(int, int, int, std::string& b) override {
-        b = "minecraft:stone";
-        return abi::Status::Ok;
+    R<abi::OnlinePlayerList> OpOnlinePlayers(PluginCall&) override {
+        return abi::OnlinePlayerList{{{7, "Alice", 1, 2, 3}, {8, "Bob", 4, 5, 6}}};
     }
-    Status GetStatus() override { return {"mock", 2, 10, 99, "cpu"}; }
-    std::expected<int, abi::Status> GiveItem(uint64_t, const std::string&, int) override { return 0; }
+    R<abi::TextMessage> OpBlockName(PluginCall&, const abi::BlockCoord&) override {
+        return abi::TextMessage{"minecraft:stone"};
+    }
 };
 
 static void TestPluginHost(const char* wasm) {
@@ -359,7 +359,7 @@ static void TestPluginHost(const char* wasm) {
     host.LoadDirectory(dir.string());
     const auto list = host.List();
     CHECK(list.size() == 1 && list[0].name == "hello_server" && list[0].enabled);
-    CHECK(api.commands.size() == 1 && api.commands[0] == "hello_server/hello");
+    CHECK(api.commands.size() == 2 && api.commands[0] == "hello_server/hello" && api.commands[1] == "hello_server/menu");
 
     host.Dispatch<abi::Event::PlayerJoin>({7, "Alice"});
     CHECK(api.messages.size() == 1 && api.messages[0] == "7:Welcome, Alice!");

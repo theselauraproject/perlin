@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <unordered_set>
 #include <vector>
 
@@ -42,6 +43,9 @@ namespace perlin {
         int32_t SequentialAir() const { return sequentialAir.load(std::memory_order_acquire); }
         void AppendSequence(int32_t hash);
         void TruncateSequence();
+        bool LoadVersionDeltas(const std::string& text);
+        void UseProtocol(int protocol);
+        int SequenceProtocol() const { return sequenceProtocol; }
         bool SequenceLoaded() const { return !baseSequence.empty(); }
         static uint64_t NameSortKey(const std::string& name);
         struct CustomRun {
@@ -96,6 +100,16 @@ namespace perlin {
         std::vector<int32_t> baseSequence;
         std::unordered_set<int32_t> reservedHashes;
         std::unordered_set<int32_t> dataDrivenHashes;
+        std::unordered_set<int32_t> versionHidden;
+        struct VersionDelta {
+            int before = 0;
+            int protocol = 0;
+            std::unordered_set<std::string> removed;
+            std::map<std::string, std::vector<std::pair<std::string, StateValue>>> pinned;
+        };
+        std::vector<VersionDelta> versionDeltas;
+        bool versionDeltasLoaded = false;
+        int sequenceProtocol = 0;
         std::vector<uint64_t> baseKeys, sequenceKeys;
         std::vector<int32_t> netByLocal;
         std::vector<CustomRun> customRuns;

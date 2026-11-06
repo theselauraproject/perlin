@@ -1,6 +1,7 @@
 #include "client/mods/ModManager.hpp"
 
-#include "client/mods/WasmRuntime.hpp"
+#include "host/PluginCore.hpp"
+#include "host/WasmRuntime.hpp"
 
 #include "client/ui/Json.hpp"
 
@@ -25,107 +26,11 @@ namespace perlin::mods {
     namespace {
         thread_local const void* tlsPlugin = nullptr;
         const char* const kRevoked = "plugin revoked";
-        const char* const kExit = "plugin exited";
 
         int64_t UnixMs() {
             return std::chrono::duration_cast<std::chrono::milliseconds>(
                        std::chrono::system_clock::now().time_since_epoch())
                 .count();
-        }
-
-        const char* EventName(uint32_t id) {
-            switch (static_cast<abi::Event>(id)) {
-            case abi::Event::Tick:
-                return "tick";
-            case abi::Event::Frame:
-                return "frame";
-            case abi::Event::ChatReceived:
-                return "chat";
-            case abi::Event::ChatSending:
-                return "chat_sending";
-            case abi::Event::Connected:
-                return "connected";
-            case abi::Event::Disconnected:
-                return "disconnected";
-            case abi::Event::Key:
-                return "key";
-            case abi::Event::Command:
-                return "command";
-            case abi::Event::Damage:
-                return "damage";
-            case abi::Event::Death:
-                return "death";
-            case abi::Event::Respawned:
-                return "respawned";
-            case abi::Event::DimensionChanged:
-                return "dimension";
-            case abi::Event::ScreenChanged:
-                return "screen";
-            case abi::Event::SlotChanged:
-                return "slot";
-            case abi::Event::EntityAdded:
-                return "entity_added";
-            case abi::Event::EntityRemoved:
-                return "entity_removed";
-            case abi::Event::Sound:
-                return "sound";
-            case abi::Event::HttpResponse:
-                return "http";
-            case abi::Event::Packet:
-                return "packet";
-            case abi::Event::Title:
-                return "title";
-            case abi::Event::SettingChanged:
-                return "setting_changed";
-            case abi::Event::Look:
-                return "look";
-            case abi::Event::MouseMove:
-                return "mouse_move";
-            case abi::Event::MouseButton:
-                return "mouse_button";
-            case abi::Event::MouseWheel:
-                return "mouse_wheel";
-            case abi::Event::KeyRaw:
-                return "key_raw";
-            case abi::Event::TextInput:
-                return "text_input";
-            case abi::Event::ScreenRender:
-                return "screen_render";
-            case abi::Event::SlotClick:
-                return "slot_click";
-            case abi::Event::Interact:
-                return "interact";
-            case abi::Event::ChunkLoaded:
-                return "chunk_loaded";
-            case abi::Event::ChunkUnloaded:
-                return "chunk_unloaded";
-            case abi::Event::BlockChanged:
-                return "block_changed";
-            case abi::Event::ResourcesReloaded:
-                return "resources_reloaded";
-            case abi::Event::LevelLoaded:
-                return "level_loaded";
-            case abi::Event::LevelUnloaded:
-                return "level_unloaded";
-            case abi::Event::ModsLoaded:
-                return "mods_loaded";
-            case abi::Event::ClientStopping:
-                return "client_stopping";
-            case abi::Event::Toast:
-                return "toast";
-            case abi::Event::ModMessage:
-                return "mod_message";
-            case abi::Event::Tooltip:
-                return "tooltip";
-            case abi::Event::ScreenButton:
-                return "screen_button";
-            case abi::Event::WindowFocus:
-                return "window_focus";
-            case abi::Event::ServerPing:
-                return "server_ping";
-            default:
-                return nullptr;
-            }
         }
 
         bool ReadFile(const std::string& path, std::vector<uint8_t>& out) {
@@ -255,7 +160,7 @@ namespace perlin::mods {
         std::atomic<bool> loaded{false};
         std::atomic<bool> stuck{false};
         std::atomic<bool> revoked{false};
-        std::atomic<uint64_t> subs{~0ull};
+        AtomicSubscriptions subs;
         std::atomic<double> lastEventMs{0};
         Clock::time_point lastFrameAt{};
         float frameDtAccum = 0;
@@ -275,7 +180,7 @@ namespace perlin::mods {
 
         std::unique_ptr<WasmInstance> instance;
         std::string arch;
-        bool hasAlloc = false, hasFree = false, hasSubs = false;
+        GuestExports exports;
     };
 
     struct HostBridge {
@@ -311,147 +216,6 @@ namespace perlin::mods {
     ModManager* HostBridge::manager = nullptr;
 
     namespace {
-        constexpr uint32_t kBadf = 8, kFault = 21, kNosys = 52, kNotcapable = 76, kSpipe = 70;
-
-        using Wasi = WasmInstance::HostFn;
-
-        bool PutSize(WasmInstance& w, uint64_t at, uint64_t value) {
-            const uint64_t width = w.Is64() ? 8 : 4;
-            uint8_t* p = w.Memory(at, width);
-            if (!p)
-                return false;
-            std::memcpy(p, &value, width);
-            return true;
-        }
-
-        Wasi Const(uint32_t code) {
-            return [code](WasmInstance::HostContext&, const uint64_t*, uint32_t, uint64_t* r, uint32_t nr) {
-                if (nr)
-                    r[0] = code;
-                return true;
-            };
-        }
-
-        Wasi WasiFunction(ModManager::Plugin& plugin, const std::string& name) {
-            using Ctx = WasmInstance::HostContext;
-            if (name == "args_sizes_get" || name == "environ_sizes_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t n, uint64_t* r, uint32_t) {
-                    r[0] =
-                        n >= 2 && PutSize(c.instance, a[0], 0) && PutSize(c.instance, a[1], 0) ? 0 : kFault;
-                    return true;
-                };
-            if (name == "args_get" || name == "environ_get" || name == "fd_close" || name == "fd_sync" ||
-                name == "fd_datasync" || name == "sched_yield")
-                return Const(0);
-            if (name == "clock_time_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t n, uint64_t* r, uint32_t) {
-                    uint8_t* out = n >= 3 ? c.instance.Memory(a[2], 8) : nullptr;
-                    if (!out) {
-                        r[0] = kFault;
-                        return true;
-                    }
-                    const uint64_t ns =
-                        a[0] == 0
-                            ? static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                                        std::chrono::system_clock::now().time_since_epoch())
-                                                        .count())
-                            : static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                                        Clock::now().time_since_epoch())
-                                                        .count());
-                    std::memcpy(out, &ns, 8);
-                    r[0] = 0;
-                    return true;
-                };
-            if (name == "clock_res_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t n, uint64_t* r, uint32_t) {
-                    uint8_t* out = n >= 2 ? c.instance.Memory(a[1], 8) : nullptr;
-                    const uint64_t res = 1000;
-                    if (out)
-                        std::memcpy(out, &res, 8);
-                    r[0] = out ? 0 : kFault;
-                    return true;
-                };
-            if (name == "random_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t n, uint64_t* r, uint32_t) {
-                    uint8_t* bytes = n >= 2 ? c.instance.Memory(a[0], a[1]) : nullptr;
-                    if (!bytes) {
-                        r[0] = kFault;
-                        return true;
-                    }
-                    thread_local std::mt19937_64 rng{std::random_device{}()};
-                    for (uint64_t i = 0; i < a[1]; i++)
-                        bytes[i] = static_cast<uint8_t>(rng());
-                    r[0] = 0;
-                    return true;
-                };
-            if (name == "fd_write")
-                return [&plugin](Ctx& c, const uint64_t* a, uint32_t n, uint64_t* r, uint32_t) {
-                    if (n < 4)
-                        return false;
-                    if (a[0] != 1 && a[0] != 2) {
-                        r[0] = kBadf;
-                        return true;
-                    }
-                    const uint64_t stride = c.instance.Is64() ? 16 : 8, half = stride / 2;
-                    const uint64_t count = a[2];
-                    const uint8_t* iovs = count <= 1024 ? c.instance.Memory(a[1], count * stride) : nullptr;
-                    if (!iovs) {
-                        r[0] = kFault;
-                        return true;
-                    }
-                    std::vector<uint8_t> list(iovs, iovs + count * stride);
-                    std::string text;
-                    uint64_t total = 0;
-                    for (uint64_t i = 0; i < count; i++) {
-                        uint64_t ptr = 0, len = 0;
-                        std::memcpy(&ptr, list.data() + i * stride, half);
-                        std::memcpy(&len, list.data() + i * stride + half, half);
-                        const uint8_t* buf = c.instance.Memory(ptr, len);
-                        if (!buf) {
-                            r[0] = kFault;
-                            return true;
-                        }
-                        if (text.size() < 65536)
-                            text.append(reinterpret_cast<const char*>(buf),
-                                        static_cast<size_t>(std::min<uint64_t>(len, 65536)));
-                        total += len;
-                    }
-                    while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
-                        text.pop_back();
-                    if (!text.empty())
-                        std::cout << "[mod:" << plugin.name << "] " << text << std::endl;
-                    r[0] = PutSize(c.instance, a[3], total) ? 0 : kFault;
-                    return true;
-                };
-            if (name == "fd_fdstat_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t n, uint64_t* r, uint32_t) {
-                    uint8_t* out = n >= 2 && a[0] <= 2 ? c.instance.Memory(a[1], 24) : nullptr;
-                    if (!out) {
-                        r[0] = kBadf;
-                        return true;
-                    }
-                    uint8_t stat[24] = {};
-                    stat[0] = 2;
-                    const uint64_t rights = a[0] == 0 ? (1ull << 1) : (1ull << 6);
-                    std::memcpy(stat + 8, &rights, 8);
-                    std::memcpy(out, stat, 24);
-                    r[0] = 0;
-                    return true;
-                };
-            if (name == "proc_exit")
-                return [](Ctx& c, const uint64_t*, uint32_t, uint64_t*, uint32_t) {
-                    c.error = kExit;
-                    return false;
-                };
-            if (name == "fd_seek" || name == "fd_tell")
-                return Const(kSpipe);
-            if (name.starts_with("fd_"))
-                return Const(kBadf);
-            if (name.starts_with("path_"))
-                return Const(kNotcapable);
-            return Const(kNosys);
-        }
-
         WasmInstance::Resolver PluginImports(ModManager::Plugin& plugin) {
             return [&plugin](const std::string& module, const std::string& name) -> WasmInstance::HostFn {
                 if (module == "perlin" && name == "call")
@@ -463,11 +227,9 @@ namespace perlin::mods {
                         }
                         return HostBridge::Call(plugin, c, a, n, r);
                     };
-                if (module == "wasi_snapshot_preview1")
-                    return WasiFunction(plugin, name);
-                if (module == "env" && name == "emscripten_notify_memory_growth")
-                    return Const(0);
-                return {};
+                return StandardImports({}, [&plugin](const std::string& text) {
+                    std::cout << "[mod:" << plugin.name << "] " << text << std::endl;
+                })(module, name);
             };
         }
     }
@@ -611,11 +373,11 @@ namespace perlin::mods {
                                                : "loading";
             info.hooks.clear();
             if (mod->loaded) {
-                const uint64_t subs = mod->subs.load();
-                for (uint32_t id = 1; id < 64; id++)
-                    if ((subs & (1ull << id)) && id != static_cast<uint32_t>(abi::Event::HttpResponse))
-                        if (const char* n = EventName(id))
-                            info.hooks.push_back(n);
+                const Subscriptions subs = mod->subs.Load();
+                for (uint32_t id = 1; id < abi::kEventCount; id++)
+                    if (Subscribed(subs, id) && id != static_cast<uint32_t>(abi::Event::HttpResponse))
+                        if (const auto n = abi::SnakeName(static_cast<abi::Event>(id)); !n.empty())
+                            info.hooks.emplace_back(n);
             }
             out.push_back(std::move(info));
         }
@@ -773,14 +535,18 @@ namespace perlin::mods {
         CallContext ctx{mod.name, mod.permissions, mod.storage, &mod};
         abi::Reader reader(in, inLen);
         abi::Writer writer;
+        static const bool wireCheck = std::getenv("PERLIN_MOD_WIRE_CHECK") != nullptr;
+        const auto opId = static_cast<abi::Op>(op);
+        if (wireCheck && !abi::host::RequestMatchesSchema(opId, {in, inLen}))
+            Log("mods", "wire check: {} sent {} bytes to {} that do not match the schema", mod.name, inLen,
+                abi::NameOf(opId));
         const abi::Status status = it->second.first(ctx, reader, writer);
         if (status != abi::Status::Ok)
             return static_cast<int32_t>(status);
-        if (writer.Size() > outCap)
-            return -(abi::kNeedMoreBase + static_cast<int32_t>(std::min<size_t>(writer.Size(), 1u << 28)));
-        if (writer.Size())
-            std::memcpy(out, writer.Data(), writer.Size());
-        return static_cast<int32_t>(writer.Size());
+        if (wireCheck && !abi::host::ResponseMatchesSchema(opId, {writer.Data(), writer.Size()}))
+            Log("mods", "wire check: the host answered {} with {} bytes that do not match the schema",
+                abi::NameOf(opId), writer.Size());
+        return Reply(abi::Status::Ok, writer, out, outCap);
     }
 
     void ModManager::Revoke(Plugin& mod, const char* why) {
@@ -844,54 +610,13 @@ namespace perlin::mods {
             dead = std::move(mod.instance);
         }
         dead.reset();
-        mod.hasAlloc = mod.hasFree = mod.hasSubs = false;
+        mod.exports = {};
     }
 
     namespace {
         bool CallEventFn(ModManager::Plugin& mod, uint32_t id, const std::vector<uint8_t>& payload,
                          uint32_t& flags, std::string& error) {
-            WasmInstance& w = *mod.instance;
-            uint64_t ptr = 0;
-            const uint64_t len = payload.size();
-            if (len && !mod.hasAlloc) {
-                error = "plugin has no perlin_alloc export";
-                return false;
-            }
-            if (len) {
-                if (!w.Call("perlin_alloc", {len}, &ptr, error)) {
-                    error = "alloc: " + error;
-                    return false;
-                }
-                uint8_t* dst = ptr ? w.Memory(ptr, len) : nullptr;
-                if (!dst) {
-                    error = "alloc returned a bad pointer";
-                    return false;
-                }
-                std::memcpy(dst, payload.data(), payload.size());
-            }
-            uint64_t result = 0;
-            if (!w.Call("perlin_event", {id, ptr, len}, &result, error)) {
-                error = std::string(EventName(id) ? EventName(id) : "event") + ": " + error;
-                return false;
-            }
-            flags = static_cast<uint32_t>(result);
-            std::string ignored;
-            if (len && mod.hasFree)
-                w.Call("perlin_free", {ptr}, nullptr, ignored);
-            return true;
-        }
-
-        void ReadSubscriptions(ModManager::Plugin& mod) {
-            uint64_t subs = 0;
-            std::string ignored;
-            if (!mod.instance->Call("perlin_subscriptions", {}, &subs, ignored))
-                return;
-            uint64_t mask = static_cast<uint32_t>(subs);
-            uint64_t hi = 0;
-            if (mod.instance->HasExport("perlin_subscriptions_hi") &&
-                mod.instance->Call("perlin_subscriptions_hi", {}, &hi, ignored))
-                mask |= static_cast<uint64_t>(static_cast<uint32_t>(hi)) << 32;
-            mod.subs = mask;
+            return CallEvent(*mod.instance, mod.exports, id, payload, flags, error);
         }
     }
 
@@ -908,19 +633,17 @@ namespace perlin::mods {
             mod.jobError = error;
             return;
         }
-        if (!mod.instance->HasExport("perlin_event")) {
+        mod.exports = ProbeExports(*mod.instance);
+        if (!mod.exports.event) {
             mod.jobError = "not a Perlin plugin (missing perlin_event export)";
             return;
         }
-        mod.hasAlloc = mod.instance->HasExport("perlin_alloc");
-        mod.hasFree = mod.instance->HasExport("perlin_free");
-        mod.hasSubs = mod.instance->HasExport("perlin_subscriptions");
         {
             std::lock_guard lock(mutex);
             mod.arch = mod.instance->Is64() ? "wasm64" : "wasm32";
         }
         Log("mods", "{}: {} on {}", mod.name, mod.arch, WasmEngineName());
-        if (mod.instance->HasExport("_initialize") &&
+        if (mod.exports.initialize &&
             !mod.instance->Call("_initialize", {}, nullptr, error)) {
             mod.jobError = "_initialize: " + error;
             return;
@@ -930,8 +653,8 @@ namespace perlin::mods {
             mod.jobError = error;
             return;
         }
-        if (mod.hasSubs)
-            ReadSubscriptions(mod);
+        if (mod.exports.subscriptions)
+            mod.subs.Store(ReadSubscriptions(*mod.instance));
     }
 
     void ModManager::WorkerEvent(Plugin& mod) {
@@ -943,8 +666,8 @@ namespace perlin::mods {
             return;
         }
         mod.flags = flags;
-        if (mod.hasSubs && mod.event != abi::Event::Frame && mod.event != abi::Event::Unload)
-            ReadSubscriptions(mod);
+        if (mod.exports.subscriptions && mod.event != abi::Event::Frame && mod.event != abi::Event::Unload)
+            mod.subs.Store(ReadSubscriptions(*mod.instance));
     }
 
     bool ModManager::Call(Plugin& mod, abi::Event event, const abi::Writer& payload, double budgetMs,
@@ -1004,9 +727,8 @@ namespace perlin::mods {
                 if (mod->loaded && !mod->stuck)
                     list.push_back(mod.get());
         }
-        const uint64_t bit = 1ull << static_cast<uint32_t>(event);
         for (Plugin* mod : list)
-            if (mod->subs.load() & bit)
+            if (mod->subs.Has(event))
                 return true;
         return false;
     }
@@ -1024,11 +746,10 @@ namespace perlin::mods {
         std::stable_sort(list.begin(), list.end(), [](const Plugin* a, const Plugin* b) {
             return a->meta.priority > b->meta.priority;
         });
-        const uint64_t bit = 1ull << static_cast<uint32_t>(event);
         bool cancelled = false;
         const auto now = Clock::now();
         for (Plugin* mod : list) {
-            if (!(mod->subs.load() & bit))
+            if (!mod->subs.Has(event))
                 continue;
             bool c = false;
             if (event == abi::Event::Frame && mod->meta.frameRate > 0 && payload.data.size() >= sizeof(float)) {
@@ -1210,7 +931,7 @@ namespace perlin::mods {
             mod.error = "cannot read file";
             return;
         }
-        mod.subs = ~0ull;
+        mod.subs.Store(AllEvents());
         Spawn(mod);
         {
             std::lock_guard lock(mod.jobMutex);
@@ -1380,12 +1101,15 @@ namespace perlin::mods {
     }
 
     void ModManager::RefreshWanted() {
-        uint64_t mask = 0;
+        Subscriptions mask{};
         std::lock_guard lock(mutex);
         for (const auto& mod : mods)
-            if (mod->loaded && !mod->stuck)
-                mask |= mod->subs.load();
-        wanted = mask;
+            if (mod->loaded && !mod->stuck) {
+                const Subscriptions s = mod->subs.Load();
+                for (size_t i = 0; i < mask.size(); i++)
+                    mask[i] |= s[i];
+            }
+        wanted.Store(mask);
     }
 
     void ModManager::Queue(abi::Event event, abi::Writer payload) {
@@ -1669,7 +1393,7 @@ namespace perlin::mods {
                 event.value = normal;
             }
         }
-        if (mod->loaded && (mod->subs.load() & (1ull << static_cast<uint32_t>(abi::Event::SettingChanged)))) {
+        if (mod->loaded && mod->subs.Has(abi::Event::SettingChanged)) {
             abi::Writer w;
             w.write(event);
             bool cancelled = false;
@@ -2042,7 +1766,7 @@ namespace perlin::mods {
                     std::lock_guard lock(mutex);
                     for (const auto& mod : mods)
                         if (mod->loaded && mod->name != e.from &&
-                            (mod->subs.load() & (1ull << static_cast<uint32_t>(abi::Event::ModMessage))))
+                            mod->subs.Has(abi::Event::ModMessage))
                             names.push_back(mod->name);
                 }
                 for (const std::string& name : names)

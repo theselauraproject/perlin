@@ -147,18 +147,97 @@ namespace perlin::server {
         const std::vector<uint8_t>& ItemRegistryBody() const { return itemRegistryBody; }
         const std::vector<uint8_t>& CreativeContentBody() const { return creativeBody; }
 
-        void Broadcast(const std::string& text) override;
-        bool Message(uint64_t player, const std::string& text) override;
-        bool Kick(uint64_t player, const std::string& reason) override;
+        void Broadcast(const std::string& text);
+        bool Message(uint64_t player, const std::string& text);
+        bool Kick(uint64_t player, const std::string& reason);
+        bool Teleport(uint64_t player, double x, double y, double z);
+        abi::Status SetBlock(int x, int y, int z, const std::string& block);
+        abi::Status GetBlock(int x, int y, int z, std::string& block);
+        std::expected<int, abi::Status> GiveItem(uint64_t player, const std::string& item, int count);
         void RegisterCommand(const std::string& plugin, const std::string& name,
                              const std::string& description) override;
-        std::vector<PlayerInfo> Players() override;
-        bool Teleport(uint64_t player, double x, double y, double z) override;
-        abi::Status SetBlock(int x, int y, int z, const std::string& block) override;
-        abi::Status GetBlock(int x, int y, int z, std::string& block) override;
-        Status GetStatus() override;
-        std::expected<int, abi::Status> GiveItem(uint64_t player, const std::string& item,
-                                                 int count) override;
+        void UnregisterCommand(const std::string& plugin, const std::string& name) override;
+
+        abi::host::Result<void> OpBroadcast(PluginCall&, const abi::TextMessage&) override;
+        abi::host::Result<void> OpPlayerMessage(PluginCall&, const abi::PlayerText&) override;
+        abi::host::Result<void> OpKick(PluginCall&, const abi::PlayerText&) override;
+        abi::host::Result<abi::OnlinePlayerList> OpOnlinePlayers(PluginCall&) override;
+        abi::host::Result<void> OpTeleport(PluginCall&, const abi::ServerTeleport&) override;
+        abi::host::Result<void> OpSetBlock(PluginCall&, const abi::BlockWrite&) override;
+        abi::host::Result<abi::TextMessage> OpBlockName(PluginCall&, const abi::BlockCoord&) override;
+        abi::host::Result<abi::ServerStatus> OpServerInfo(PluginCall&) override;
+        abi::host::Result<abi::GiveItemResult> OpGiveItem(PluginCall&, const abi::GiveItemRequest&) override;
+        abi::host::Result<abi::PlayerDetails> OpPlayerInfo(PluginCall&, const abi::PlayerInfoRequest&) override;
+        abi::host::Result<void> OpPlayerSetGameMode(PluginCall&, const abi::PlayerSetGameModeRequest&) override;
+        abi::host::Result<void> OpPlayerSetHealth(PluginCall&, const abi::PlayerSetHealthRequest&) override;
+        abi::host::Result<bool> OpPlayerDamage(PluginCall&, const abi::PlayerDamageRequest&) override;
+        abi::host::Result<void> OpPlayerKill(PluginCall&, const abi::PlayerKillRequest&) override;
+        abi::host::Result<void> OpPlayerSetFood(PluginCall&, const abi::PlayerSetFoodRequest&) override;
+        abi::host::Result<void> OpPlayerAddExperience(PluginCall&, const abi::PlayerAddExperienceRequest&) override;
+        abi::host::Result<void> OpPlayerEffectAdd(PluginCall&, const abi::PlayerEffectAddRequest&) override;
+        abi::host::Result<void> OpPlayerEffectRemove(PluginCall&, const abi::PlayerEffectRemoveRequest&) override;
+        abi::host::Result<abi::ServerInventory> OpPlayerInventory(PluginCall&, const abi::PlayerInventoryRequest&) override;
+        abi::host::Result<void> OpPlayerSetSlot(PluginCall&, const abi::PlayerSetSlotRequest&) override;
+        abi::host::Result<void> OpPlayerClearInventory(PluginCall&, const abi::PlayerClearInventoryRequest&) override;
+        abi::host::Result<void> OpPlayerSetVelocity(PluginCall&, const abi::PlayerSetVelocityRequest&) override;
+        abi::host::Result<void> OpPlayerTransferDimension(PluginCall&, const abi::PlayerTransferDimensionRequest&) override;
+        abi::host::Result<void> OpPlayerTitle(PluginCall&, const abi::PlayerTitleRequest&) override;
+        abi::host::Result<void> OpPlayerActionBar(PluginCall&, const abi::PlayerActionBarRequest&) override;
+        abi::host::Result<void> OpPlayerSound(PluginCall&, const abi::PlayerSoundRequest&) override;
+        abi::host::Result<void> OpPlayerTransfer(PluginCall&, const abi::PlayerTransferRequest&) override;
+        abi::host::Result<void> OpPlayerSetOperator(PluginCall&, const abi::PlayerSetOperatorRequest&) override;
+        abi::host::Result<uint32_t> OpPlayerForm(PluginCall&, const abi::PlayerFormRequest&) override;
+        abi::host::Result<void> OpPlayerRunCommand(PluginCall&, const abi::PlayerRunCommandRequest&) override;
+        abi::host::Result<void> OpPlayerSetSpawn(PluginCall&, const abi::PlayerSetSpawnRequest&) override;
+        abi::host::Result<uint64_t> OpPlayerByName(PluginCall&, const abi::PlayerByNameRequest&) override;
+        abi::host::Result<abi::BlockInfo> OpBlockState(PluginCall&, const abi::BlockStateRequest&) override;
+        abi::host::Result<void> OpBlockStateSet(PluginCall&, const abi::BlockStateSetRequest&) override;
+        abi::host::Result<uint32_t> OpFill(PluginCall&, const abi::FillRequest&) override;
+        abi::host::Result<abi::TimeGetResponse> OpTimeGet(PluginCall&) override;
+        abi::host::Result<void> OpTimeSet(PluginCall&, const abi::TimeSetRequest&) override;
+        abi::host::Result<void> OpWeatherSet(PluginCall&, const abi::WeatherSetRequest&) override;
+        abi::host::Result<int32_t> OpGameRuleGet(PluginCall&, const abi::GameRuleGetRequest&) override;
+        abi::host::Result<void> OpGameRuleSet(PluginCall&, const abi::GameRuleSetRequest&) override;
+        abi::host::Result<void> OpDifficultySet(PluginCall&, const abi::DifficultySetRequest&) override;
+        abi::host::Result<void> OpExplode(PluginCall&, const abi::ExplodeRequest&) override;
+        abi::host::Result<int32_t> OpHighestBlock(PluginCall&, const abi::HighestBlockRequest&) override;
+        abi::host::Result<void> OpParticleAt(PluginCall&, const abi::ParticleAtRequest&) override;
+        abi::host::Result<void> OpDropItem(PluginCall&, const abi::DropItemRequest&) override;
+        abi::host::Result<abi::BlockCoord> OpWorldSpawnGet(PluginCall&) override;
+        abi::host::Result<void> OpWorldSpawnSet(PluginCall&, const abi::BlockCoord&) override;
+        abi::host::Result<uint64_t> OpEntitySpawn(PluginCall&, const abi::EntitySpawnRequest&) override;
+        abi::host::Result<abi::EntityListResponse> OpEntityList(PluginCall&, const abi::EntityListRequest&) override;
+        abi::host::Result<void> OpEntityRemove(PluginCall&, const abi::EntityRemoveRequest&) override;
+        abi::host::Result<bool> OpEntityDamage(PluginCall&, const abi::EntityDamageRequest&) override;
+        abi::host::Result<void> OpEntityTeleport(PluginCall&, const abi::EntityTeleportRequest&) override;
+        abi::host::Result<void> OpEntitySetVelocity(PluginCall&, const abi::EntitySetVelocityRequest&) override;
+        abi::host::Result<abi::ServerEntity> OpEntityInfo(PluginCall&, const abi::EntityInfoRequest&) override;
+        abi::host::Result<void> OpEntitySetHealth(PluginCall&, const abi::EntitySetHealthRequest&) override;
+        abi::host::Result<abi::RestText> OpRunCommand(PluginCall&, const abi::RunCommandRequest&) override;
+        abi::host::Result<void> OpMotdSet(PluginCall&, const abi::MotdSetRequest&) override;
+        abi::host::Result<void> OpLootTableOverride(PluginCall&, const abi::LootTableOverrideRequest&) override;
+        abi::host::Result<abi::RestText> OpLootTableGet(PluginCall&, const abi::LootTableGetRequest&) override;
+
+        bool HookPreLogin(Session& who, std::string& reason);
+        bool HookPlayerDamage(Session& who, float& amount, Session::DamageCause cause, Session* attacker,
+                              const std::string& source);
+        void HookPlayerDeath(Session& who, Session::DamageCause cause, const std::string& source);
+        void HookPlayerRespawn(Session& who);
+        bool HookPlayerUse(Session& who, int x, int y, int z, int face);
+        bool HookPlayerAttack(Session& who, uint64_t target, float& damage);
+        bool HookEntityDamage(Mob& mob, float& amount, Session* attacker);
+        void HookEntityDeath(Mob& mob, Session* killer);
+        bool HookEntitySpawn(const std::string& type, uint64_t id, double x, double y, double z, bool natural);
+        bool HookItemConsume(Session& who, const std::string& item);
+        void HookGameModeChange(Session& who, int from, int to);
+        void HookFormResponse(Session& who, uint32_t form, const std::string& data);
+        void HookPlayerMove(Session& who);
+        bool HookExplosion(double x, double y, double z, float& power, uint64_t source);
+        bool HookItemDrop(Session& who, const ItemStack& stack);
+        bool HookItemPickup(Session& who, const ItemStack& stack);
+        bool HookContainerOpen(Session& who, int x, int y, int z, const std::string& block);
+        void HookDimensionChange(Session& who, int from, int to);
+        bool HookServerCommand(Session* from, std::string& line);
 
         std::string Describe() const;
 
@@ -232,6 +311,7 @@ namespace perlin::server {
         int RunExecute(Session* from, const std::string& args);
         bool executeElevated = false;
         std::atomic<bool> stopRequested{false};
+        std::map<std::pair<uint64_t, uint32_t>, abi::FormKind> formKinds;
         bool started = false;
     };
 

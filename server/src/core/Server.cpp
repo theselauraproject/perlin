@@ -271,6 +271,7 @@ namespace perlin::server {
             TickContainers();
             TickPortals();
             TickGravity();
+            plugins->Pump();
             if (plugins->AnyoneListens(abi::Event::Tick))
                 plugins->Dispatch<abi::Event::Tick>({.dt = 0.05f, .tick = tick});
         }
@@ -448,6 +449,11 @@ namespace perlin::server {
     }
 
     void Server::DropFromPlayer(Session& by, const ItemStack& stack) {
+        if (HookItemDrop(by, stack)) {
+            by.Inventory().Give(stack);
+            by.SendInventory();
+            return;
+        }
         const double yaw = static_cast<double>(by.Yaw()) * 3.14159265358979323846 / 180.0;
         const double dx = -std::sin(yaw), dz = std::cos(yaw);
         SpawnItem(stack, by.X() + dx * 0.3, by.Y() - 0.3, by.Z() + dz * 0.3, dx * 0.3, 0.2, dz * 0.3, 40, by.DimensionId());
@@ -513,6 +519,8 @@ namespace perlin::server {
                         continue;
                     const double dx = it.x - s->X(), dy = it.y - (s->Y() - 0.9), dz = it.z - s->Z();
                     if (dx * dx + dy * dy + dz * dz > 1.5 * 1.5)
+                        continue;
+                    if (HookItemPickup(*s, it.stack))
                         continue;
                     const int left = s->Inventory().Give(it.stack);
                     if (left == it.stack.count)
@@ -732,9 +740,10 @@ namespace perlin::server {
         }
         if (plugins->Dispatch<abi::Event::PlayerChat>({from.Id(), from.Name(), message}))
             return;
-        LogInfo("<" + from.Name() + "> " + message);
+        const std::string text = plugins->AmendedText("message").value_or(message);
+        LogInfo("<" + from.Name() + "> " + text);
         for (Session* s : InGamePlayers())
-            s->SendText(1, from.Name(), message);
+            s->SendText(1, from.Name(), text);
     }
 
     namespace {
@@ -753,7 +762,10 @@ namespace perlin::server {
     }
 
     void Server::RunCommand(Session* from, const std::string& line) {
-        std::string text = str::Trim(line);
+        std::string amended = line;
+        if (HookServerCommand(from, amended))
+            return;
+        std::string text = str::Trim(amended);
         if (!text.empty() && text[0] == '/')
             text.erase(0, 1);
         if (text.empty())
@@ -811,22 +823,6 @@ namespace perlin::server {
             return false;
         s->Kick(reason);
         return true;
-    }
-
-    void Server::RegisterCommand(const std::string& plugin, const std::string& name,
-                                 const std::string& description) {
-        CommandDef d;
-        d.name = str::Lower(name);
-        d.description = description;
-        d.plugin = plugin;
-        commands[d.name] = std::move(d);
-    }
-
-    std::vector<PluginApi::PlayerInfo> Server::Players() {
-        std::vector<PlayerInfo> out;
-        for (Session* s : InGamePlayers())
-            out.push_back({s->Id(), s->Name(), s->X(), s->Y() - 1.62, s->Z()});
-        return out;
     }
 
     bool Server::Teleport(uint64_t player, double x, double y, double z) {
@@ -1203,16 +1199,6 @@ namespace perlin::server {
             return abi::Status::Unavailable;
         block = BlockRegistry::Instance().Name(chunks->GetBlock(x, y, z));
         return abi::Status::Ok;
-    }
-
-    PluginApi::Status Server::GetStatus() {
-        Status s;
-        s.name = config.name;
-        s.players = static_cast<uint32_t>(InGamePlayers().size());
-        s.maxPlayers = config.maxPlayers;
-        s.tick = tick;
-        s.backend = chunks ? chunks->BackendName() : "";
-        return s;
     }
 
     std::string Server::Describe() const {
