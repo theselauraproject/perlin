@@ -153,6 +153,8 @@ namespace perlin {
 
         Zoom zoom;
         float scopeFov = 1.0f;
+        // replays have no local player tick: actors interpolate on their own 20 Hz clock
+        double replayActorClock = 0.0;
         TimePoint previous = Clock::now();
         const TimePoint startedAt = previous;
         uint64_t frameCounter = 0;

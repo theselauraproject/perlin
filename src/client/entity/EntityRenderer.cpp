@@ -155,14 +155,6 @@ namespace perlin::entity {
     struct EntityRenderer::View {
         bool init = false;
         glm::dvec3 pos{0.0}, lastPos{0.0};
-        struct Sample {
-            double t = 0;
-            glm::dvec3 pos{0.0};
-            float yaw = 0, headYaw = 0, pitch = 0;
-        };
-        std::deque<Sample> samples;
-        double interval = 0.05, jitter = 0.0, delay = 0.1;
-        double lastArrival = 0;
         float yaw = 0, headYaw = 0, pitch = 0;
         uint32_t moveSerial = 0, hurtSerial = 0, swingSerial = 0;
         float limbSwing = 0, limbAmount = 0;
@@ -471,57 +463,17 @@ namespace perlin::entity {
         const float prevYaw = v.yaw;
         glm::dvec3 d = e.pos - v.pos;
         if (buffered) {
-            if (v.samples.empty() || v.samples.back().pos != e.pos || v.samples.back().yaw != e.yaw ||
-                v.samples.back().headYaw != e.headYaw || v.samples.back().pitch != e.pitch) {
-                if (!v.samples.empty() && glm::length(e.pos - v.samples.back().pos) > 12.0) {
-                    v.samples.clear();
-                    v.pos = e.pos;
-                    v.lastPos = e.pos;
-                    v.yaw = e.yaw;
-                    v.headYaw = e.headYaw;
-                    v.pitch = e.pitch;
-                    v.lastArrival = 0;
-                }
-                if (v.lastArrival > 0) {
-                    const double gap = std::clamp(in.time - v.lastArrival, 0.005, 0.5);
-                    const double dev = std::fabs(gap - v.interval);
-                    v.interval += (gap - v.interval) * 0.1;
-                    v.jitter += (dev - v.jitter) * 0.1;
-                }
-                v.lastArrival = in.time;
-                v.samples.push_back({in.time, e.pos, e.yaw, e.headYaw, e.pitch});
-                while (v.samples.size() > 64)
-                    v.samples.pop_front();
-            }
-            const double wantDelay = std::clamp(v.interval * 1.25 + v.jitter * 2.0, 0.06, 0.25);
-            v.delay += (wantDelay - v.delay) * std::min(1.0, static_cast<double>(dt) * 2.0);
-            const double renderT = in.time - v.delay;
-            while (v.samples.size() > 2 && v.samples[1].t <= renderT)
-                v.samples.pop_front();
-            if (v.samples.size() >= 2 && renderT >= v.samples[0].t) {
-                const auto& a = v.samples[0];
-                const auto& b = v.samples[1];
-                const double span = b.t - a.t;
-                const double f = span > 1e-6 ? std::clamp((renderT - a.t) / span, 0.0, 1.0) : 1.0;
-                v.pos = a.pos + (b.pos - a.pos) * f;
-                const auto mix = [&](float x, float y) {
-                    return x + WrapDegrees(y - x) * static_cast<float>(f);
-                };
-                v.yaw = mix(a.yaw, b.yaw);
-                v.headYaw = mix(a.headYaw, b.headYaw);
-                v.pitch = a.pitch + WrapDegrees(b.pitch - a.pitch) * static_cast<float>(f);
-            } else if (v.samples.size() >= 2) {
-                v.pos = v.samples[0].pos;
-            } else if (!v.samples.empty()) {
-                const double catchUp = 1.0 - std::exp(-static_cast<double>(dt) / 0.06);
-                v.pos += (v.samples.back().pos - v.pos) * catchUp;
-                const auto turnTo = [&](float cur, float target) {
-                    return cur + WrapDegrees(target - cur) * static_cast<float>(catchUp);
-                };
-                v.yaw = turnTo(v.yaw, v.samples.back().yaw);
-                v.headYaw = turnTo(v.headYaw, v.samples.back().headYaw);
-                v.pitch += WrapDegrees(v.samples.back().pitch - v.pitch) * static_cast<float>(catchUp);
-            }
+            // the tracker moves actors once per tick like MovementInterpolatorSystem::tickClient; draw between the
+            // last two ticks so the drawn body is the one our hits are tested against
+            const double a = std::clamp(static_cast<double>(in.partialTick), 0.0, 1.0);
+            const glm::dvec3 step = e.pos - e.prevPos;
+            v.pos = glm::dot(step, step) > 144.0 ? e.pos : e.prevPos + step * a;
+            const auto mix = [&](float from, float to) {
+                return from + WrapDegrees(to - from) * static_cast<float>(a);
+            };
+            v.yaw = mix(e.prevYaw, e.yaw);
+            v.headYaw = mix(e.prevHeadYaw, e.headYaw);
+            v.pitch = mix(e.prevPitch, e.pitch);
             v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / dt;
         } else {
             v.pos = glm::length(d) > 24.0 ? e.pos : v.pos + d * follow;

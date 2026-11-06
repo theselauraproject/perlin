@@ -115,6 +115,23 @@ namespace perlin::entity {
         glm::dvec3 vel{0.0};
         bool sleeping = false, sleepExt = false, sleepPlayer = false;
         bool simulated = false;
+        // MovementInterpolatorComponent: pos above is the actor's tick position, moved toward the last received
+        // one over a few ticks; prevPos/prev* are the previous tick for render interpolation
+        struct Lerp {
+            glm::dvec3 pos{0.0};
+            float pitch = 0, yaw = 0, headYaw = 0;
+            int steps = 0;
+            bool forceCompletion = false;
+        };
+        Lerp lerp, queued;
+        bool hasQueued = false;
+        glm::dvec3 prevPos{0.0};
+        float prevYaw = 0, prevHeadYaw = 0, prevPitch = 0;
+        bool ticked = false;
+        // last absolute pose received: move_entity_delta only sends the changed lanes
+        glm::dvec3 netPos{0.0};
+        float netPitch = 0, netYaw = 0, netHeadYaw = 0;
+        bool haveNet = false;
         bool haveServerPos = false;
         glm::dvec3 lastServerPos{0.0};
         std::chrono::steady_clock::time_point lastServerAt;
@@ -160,9 +177,16 @@ namespace perlin::entity {
         void SetMotion(uint64_t rid, glm::dvec3 velocity);
         void SetSleeping(uint64_t rid, bool sleeping, bool playerFlag = false);
         void StepItems(const std::function<bool(int, int, int)>& solid);
-        void Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw, bool onGround);
+        // how a server position reaches the actor: Place sets it now (our own predicted vehicles), Lerp and
+        // Teleport go through Actor::lerpTo like the game's move_entity / move_entity_delta handler
+        enum class MoveKind { Place, Lerp, Teleport };
+        void Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw, bool onGround,
+                  MoveKind kind = MoveKind::Place, uint64_t ticks = 0, bool forceCompletion = false);
         void MoveDelta(uint64_t rid, const double* x, const double* y, const double* z, const float* pitch,
-                       const float* yaw, const float* headYaw, bool onGround);
+                       const float* yaw, const float* headYaw, bool onGround, bool teleport = false,
+                       uint64_t ticks = 0, bool forceCompletion = false);
+        // one client tick of MovementInterpolatorSystem::tickClient for every actor
+        void TickInterpolation();
         void SetFlags(uint64_t rid, uint64_t flags);
         void SetFlagsExtended(uint64_t rid, uint64_t flags);
         void SetCrawling(uint64_t rid, bool crawling);
