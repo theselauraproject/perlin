@@ -143,6 +143,8 @@ namespace perlin::entity {
             std::string texture;
             bool translucent = false;
             float tint[4] = {1, 1, 1, 1};
+            bool ignoreLighting = false;
+            float lightMultiplier = 1.0f;
             MaterialInfo material;
             uint32_t maskRgb = 0xFFFFFF;
             // entity's own model; invisibility hides it, keeps armor and attached items

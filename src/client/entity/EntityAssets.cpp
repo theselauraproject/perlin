@@ -153,6 +153,10 @@ namespace perlin::entity {
                         if (entry.IsObject())
                             for (const auto& [pattern, expr] : entry.object)
                                 rc.parts.push_back({LowerCase(pattern), ParseValue(expr)});
+                if (const Json* il = def.Find("ignore_lighting"); il && il->IsBool())
+                    rc.ignoreLighting = il->boolean;
+                if (const Json* lm = def.Find("light_color_multiplier"); lm && lm->IsNumber())
+                    rc.lightMultiplier = static_cast<float>(lm->number);
                 if (const Json* c = def.Find("color"); c && c->IsObject()) {
                     rc.hasColor = true;
                     static const char* kKeys[4] = {"r", "g", "b", "a"};

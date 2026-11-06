@@ -50,6 +50,9 @@ namespace perlin::entity {
         ExprPtr color[4];
         bool hasColor = false;
         bool translucent = false;
+        // ignore_lighting: drawn at full brightness whatever the world light where the actor stands
+        bool ignoreLighting = false;
+        float lightMultiplier = 1.0f;
     };
 
     class EntityAssets {

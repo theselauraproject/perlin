@@ -1110,6 +1110,8 @@ namespace perlin::entity {
                 }
             }
             layer.translucent = rc->translucent;
+            layer.ignoreLighting = rc->ignoreLighting;
+            layer.lightMultiplier = rc->lightMultiplier;
             for (const std::string& group : groups) {
                 const bool single = groups.size() == 1;
                 const attachable::BoneFilter groupFilter =
@@ -1412,12 +1414,13 @@ namespace perlin::entity {
             const float layerHurt = layer.material.hurtTint ? hurt : 0.0f;
             const bool fullbright = layer.material.emissive == 2;
             const glm::vec3 tint(layer.tint[0], layer.tint[1], layer.tint[2]);
+            const glm::vec3 layerLight = layer.ignoreLighting ? glm::vec3(layer.lightMultiplier) : light;
             for (const attachable::Quad& q : layer.quads) {
                 const glm::vec3 n = rot * q.n;
                 const float lit = std::min(
                     1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
                 const uint32_t color = fullbright || packLit ? PackColor(tint, layer.tint[3])
-                                                             : PackColor(light * lit * tint, layer.tint[3]);
+                                                             : PackColor(layerLight * lit * tint, layer.tint[3]);
                 const uint32_t base = static_cast<uint32_t>(vertices.size());
                 for (int i = 0; i < 4; i++)
                     vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
@@ -1454,7 +1457,7 @@ namespace perlin::entity {
             draw.material = DrawMaterial::Entity;
             draw.player = e.isPlayer;
             draw.entityType = e.type.c_str();
-            if (fullbright) {
+            if (fullbright || layer.ignoreLighting) {
                 draw.blockLight = 15;
                 draw.skyLight = 15;
             } else if (levels.x >= 0) {
@@ -1472,6 +1475,13 @@ namespace perlin::entity {
             draw.depthWrite = layer.material.depthWrite && draw.blend != 2;
             draw.depth = layer.material.depthTest;
             draw.depthFunc = layer.material.depthFunc;
+            // one-sided materials (no DisableCulling) hide faces seen from behind: some packs build a background
+            // box from inward-facing planes that must not cover the model; the world mirrors model z, which
+            // turns the faces' winding around
+            CullMode cull = layer.material.noCull ? CullMode::None : layer.material.cull;
+            if (cull != CullMode::None && glm::determinant(glm::mat3(model)) < 0.0f)
+                cull = cull == CullMode::Back ? CullMode::Front : CullMode::Back;
+            draw.cull = cull;
             draw.colorWrite = layer.material.colorWrite;
             draw.alphaWrite = layer.material.alphaWrite;
             if (layer.material.customBlend && layer.material.blend != Blend::AlphaTest &&
