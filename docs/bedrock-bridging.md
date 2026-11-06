@@ -2,13 +2,22 @@
 
 Placing blocks always follows Bedrock Edition's own rules. They were
 read out of the client (`ClientInstance::_tickBuildAction`, `GameMode::startBuildBlock`, `continueBuildBlock`,
-`stopBuildBlock` and `GameMode::useItemOn`) and live in `src/client/player/HeldBuild.{hpp,cpp}`. Reach-around for
-fresh presses (placing against the block you stand on while aiming past its edge) lives in
-`src/client/player/Bridging.{hpp,cpp}`.
+`stopBuildBlock` and `GameMode::useItemOn`) and live in `src/client/player/HeldBuild.{hpp,cpp}`.
+
+## Click position
+
+The build transaction's click position comes from the look ray, as in the Windows 26.60 client's build lambda
+(`0x143771570`, reached from `GameMode` vtable slot 6 `0x14376B290`):
+
+- block hit (`HitResult` type 0): `HitResult::mPos - BlockPos`, the real ray hit on the clicked face;
+- no block hit (types 2 / 3): the block position itself, so the click is `(0, 0, 0)`;
+- a build that continues an earlier one reuses the hit stored at `GameMode + 108` on the first placement.
+
+There is no assist that targets a block the ray misses: a fresh press only places on the crosshair block.
 
 ## Fresh press
 
-A new press places at the crosshair (or the reach-around target) immediately and starts a new build: the previous
+A new press places at the crosshair block immediately and starts a new build: the previous
 block's kind and any build line are forgotten. A block is never placed into the player's own body.
 
 ## Held use
@@ -53,8 +62,8 @@ corrected by the existing prediction expiry.
 
 ## Validation
 
-`bridging_selftest` covers reach-around targeting.
+`heldbuild_selftest` covers held repeats, build lines, body overlap and block-use rules.
 
 ```sh
-cmake --build build --target bridging_selftest && ./build/bridging_selftest
+cmake --build build --target heldbuild_selftest && ./build/heldbuild_selftest
 ```

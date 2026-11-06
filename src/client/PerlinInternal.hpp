@@ -18,7 +18,6 @@
 #include "client/player/BlockCollision.hpp"
 #include "client/player/BlockDestroy.hpp"
 #include "client/player/BlockUse.hpp"
-#include "client/player/Bridging.hpp"
 #include "client/player/DamageEffect.hpp"
 #include "client/renderer/DynamicLights.hpp"
 #include "client/renderer/Environment.hpp"
