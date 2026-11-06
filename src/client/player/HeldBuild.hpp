@@ -21,9 +21,10 @@ namespace perlin::heldbuild {
 
     struct Hit {
         bool block = false; // crosshair on a block (direct hit)
-        bool assist = false; // the block is the look-down pick under the player, not a ray hit
         Target target;
         glm::vec3 point{}; // where the ray stopped: hit point, or eye + look * reach without a hit
+        // last: callers brace-initialise the fields above in order
+        bool assist = false; // the block is the look-down pick under the player, not a ray hit
     };
 
     class HeldBuild {
