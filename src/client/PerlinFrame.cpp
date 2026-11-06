@@ -400,8 +400,17 @@ namespace perlin {
         player.SetToggleModes(options.sprintMode == "toggle", options.sneakMode == "toggle");
         hudState.moveStatus.clear();
         UpdateEatingAndDrinking(f, *live);
-        if (!replayCtl.Playing())
+        if (!replayCtl.Playing()) {
             player.Update(*live, inputManager, camera, levelRenderer->Blocks(), dt);
+        } else {
+            double& clock = loop->replayActorClock;
+            clock += std::min(static_cast<double>(dt), 0.1) * std::max(0.0, replayCtl.Speed());
+            for (int i = 0; clock >= physics::kTickSeconds && i < 10; ++i) {
+                clock -= physics::kTickSeconds;
+                live->Entities().TickInterpolation();
+            }
+            clock = std::min(clock, static_cast<double>(physics::kTickSeconds));
+        }
     }
 
     void Perlin::UpdateRiding(BedrockSession& live, const std::vector<entity::Entity>& frameEntities) {

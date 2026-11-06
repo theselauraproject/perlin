@@ -1106,6 +1106,9 @@ namespace perlin {
         entity::EntityRenderer::FrameIn ein;
         ein.time = std::chrono::duration<double>(frameStart - startedAt).count();
         ein.dt = dt;
+        ein.partialTick = replayCtl.Playing()
+                              ? static_cast<float>(std::clamp(loop->replayActorClock / physics::kTickSeconds, 0.0, 1.0))
+                              : player.PartialTick();
         {
             const glm::vec3 eyePos = camera.EyePosition();
             ein.camera = {eyePos.x, eyePos.y, eyePos.z};

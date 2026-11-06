@@ -45,6 +45,13 @@ namespace perlin::entity {
         e.pitch = SignedPitch(pitch);
         e.yaw = yaw;
         e.headYaw = headYaw;
+        e.prevPos = e.pos;
+        e.prevPitch = e.pitch;
+        e.prevYaw = e.yaw;
+        e.prevHeadYaw = e.headYaw;
+        e.lerp.steps = 0;
+        e.hasQueued = false;
+        e.haveNet = false;
         e.flags = flags;
         e.mainHand = mainHand;
         e.isSelf = rid == selfRuntime && rid != 0;
@@ -67,6 +74,13 @@ namespace perlin::entity {
         e.pitch = SignedPitch(pitch);
         e.yaw = yaw;
         e.headYaw = headYaw;
+        e.prevPos = e.pos;
+        e.prevPitch = e.pitch;
+        e.prevYaw = e.yaw;
+        e.prevHeadYaw = e.headYaw;
+        e.lerp.steps = 0;
+        e.hasQueued = false;
+        e.haveNet = false;
         e.flags = flags;
         e.scale = scale;
         e.variant = variant;
@@ -131,8 +145,60 @@ namespace perlin::entity {
         }
     }
 
-    void EntityTracker::Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw,
-                             bool onGround) {
+    namespace {
+        float Wrap(float degrees) {
+            degrees = std::fmod(degrees, 360.0f);
+            if (degrees >= 180.0f)
+                degrees -= 360.0f;
+            if (degrees < -180.0f)
+                degrees += 360.0f;
+            return degrees;
+        }
+
+        void PlaceNow(Entity& e, const Entity::Lerp& to) {
+            e.pos = e.prevPos = to.pos;
+            e.pitch = e.prevPitch = to.pitch;
+            e.yaw = e.prevYaw = to.yaw;
+            e.headYaw = e.prevHeadYaw = to.headYaw;
+            e.lerp.steps = 0;
+            e.hasQueued = false;
+        }
+
+        // Actor::lerpTo 0x142C74350: a running interpolation started with forceCompletion keeps going and the new
+        // target waits in QueuedMovementInterpolationComponent; anything else replaces the target
+        void LerpTo(Entity& e, const Entity::Lerp& to) {
+            if (!to.forceCompletion && e.lerp.forceCompletion && e.lerp.steps != 0) {
+                e.queued = to;
+                e.hasQueued = true;
+                return;
+            }
+            e.lerp = to;
+        }
+
+        // move_entity / move_entity_delta handler 0x1422C88B0 -> 0x1422C8D20: steps = ticks when above 3, else 3;
+        // a teleport of 0.5 block or more is placed at once
+        void Receive(Entity& e, const glm::dvec3& next, float pitch, float yaw, float headYaw,
+                     EntityTracker::MoveKind kind, uint64_t ticks, bool forceCompletion) {
+            e.haveNet = true;
+            e.netPos = next;
+            e.netPitch = pitch;
+            e.netYaw = yaw;
+            e.netHeadYaw = headYaw;
+            const Entity::Lerp to{next, pitch, yaw, headYaw, ticks >= 4 ? static_cast<int>(std::min<uint64_t>(ticks, 1000)) : 3,
+                                  forceCompletion};
+            const glm::dvec3 jump = next - e.pos;
+            const bool farTeleport =
+                kind == EntityTracker::MoveKind::Teleport && glm::dot(jump, jump) >= 0.25;
+            // TODO: the game also places at once when the destination block is not loaded
+            if (kind == EntityTracker::MoveKind::Place || farTeleport || !e.ticked)
+                PlaceNow(e, to);
+            else
+                LerpTo(e, to);
+        }
+    }
+
+    void EntityTracker::Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw, bool onGround,
+                             MoveKind kind, uint64_t ticks, bool forceCompletion) {
         std::lock_guard lock(mutex);
         const auto it = entities.find(rid);
         if (it == entities.end())
@@ -145,16 +211,14 @@ namespace perlin::entity {
         const glm::dvec3 next = e.isPlayer ? glm::dvec3(pos.x, pos.y - kPlayerEye, pos.z) : pos;
         if (e.dying && e.isPlayer && glm::dot(next - e.pos, next - e.pos) > 2.25)
             e.dying = false;
-        e.pos = next;
-        e.pitch = SignedPitch(pitch);
-        e.yaw = yaw;
-        e.headYaw = headYaw;
+        Receive(e, next, SignedPitch(pitch), yaw, headYaw, kind, ticks, forceCompletion);
         e.onGround = onGround;
         e.moveSerial++;
     }
 
     void EntityTracker::MoveDelta(uint64_t rid, const double* x, const double* y, const double* z,
-                                  const float* pitch, const float* yaw, const float* headYaw, bool onGround) {
+                                  const float* pitch, const float* yaw, const float* headYaw, bool onGround,
+                                  bool teleport, uint64_t ticks, bool forceCompletion) {
         std::lock_guard lock(mutex);
         const auto it = entities.find(rid);
         if (it == entities.end())
@@ -164,20 +228,58 @@ namespace perlin::entity {
             ItemServerUpdate(e, glm::dvec3(x ? *x : e.pos.x, y ? *y : e.pos.y, z ? *z : e.pos.z), onGround);
             return;
         }
-        if (x)
-            e.pos.x = *x;
-        if (y)
-            e.pos.y = e.isPlayer ? *y - kPlayerEye : *y;
-        if (z)
-            e.pos.z = *z;
-        if (pitch)
-            e.pitch = SignedPitch(*pitch);
-        if (yaw)
-            e.yaw = *yaw;
-        if (headYaw)
-            e.headYaw = *headYaw;
+        if (!e.haveNet) {
+            e.netPos = e.pos;
+            e.netPitch = e.pitch;
+            e.netYaw = e.yaw;
+            e.netHeadYaw = e.headYaw;
+        }
+        const glm::dvec3 next(x ? *x : e.netPos.x, y ? (e.isPlayer ? *y - kPlayerEye : *y) : e.netPos.y,
+                              z ? *z : e.netPos.z);
+        Receive(e, next, pitch ? SignedPitch(*pitch) : e.netPitch, yaw ? *yaw : e.netYaw,
+                headYaw ? *headYaw : e.netHeadYaw, teleport ? MoveKind::Teleport : MoveKind::Lerp, ticks,
+                forceCompletion);
         e.onGround = onGround;
         e.moveSerial++;
+    }
+
+    void EntityTracker::TickInterpolation() {
+        std::lock_guard lock(mutex);
+        for (auto& [rid, e] : entities) {
+            e.prevPos = e.pos;
+            e.prevPitch = e.pitch;
+            e.prevYaw = e.yaw;
+            e.prevHeadYaw = e.headYaw;
+            e.ticked = true;
+            if (e.isSelf || (e.isItem && e.simulated) || pickups.contains(rid))
+                continue;
+            // MovementInterpolatorSystem::handleQueuedMovementInterpolation 0x143634AE0
+            if (e.hasQueued) {
+                if (e.lerp.forceCompletion && e.lerp.steps != 0) {
+                    e.queued.steps = std::max(e.queued.steps, 2) - 1;
+                } else {
+                    e.lerp = e.queued;
+                    e.lerp.forceCompletion = false;
+                    e.hasQueued = false;
+                }
+            }
+            // MovementInterpolatorSystem::tickClient 0x143630D70: 1/steps of the way, the last step lands on it
+            if (e.lerp.steps > 0) {
+                if (e.lerp.steps == 1) {
+                    e.pos = e.lerp.pos;
+                    e.pitch = e.lerp.pitch;
+                    e.yaw = e.lerp.yaw;
+                    e.headYaw = e.lerp.headYaw;
+                } else {
+                    const double f = 1.0 / e.lerp.steps;
+                    e.pos += (e.lerp.pos - e.pos) * f;
+                    e.pitch += Wrap(e.lerp.pitch - e.pitch) * static_cast<float>(f);
+                    e.yaw += Wrap(e.lerp.yaw - e.yaw) * static_cast<float>(f);
+                    e.headYaw += Wrap(e.lerp.headYaw - e.headYaw) * static_cast<float>(f);
+                }
+                e.lerp.steps--;
+            }
+        }
     }
 
     void EntityTracker::SetVehicle(int64_t riderUid, int64_t vehicleUid) {

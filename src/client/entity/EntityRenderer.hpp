@@ -51,6 +51,8 @@ namespace perlin::entity {
         struct FrameIn {
             double time = 0;
             float dt = 0.016f;
+            // client tick progress (0..1) since the last actor interpolation step
+            float partialTick = 1.0f;
             glm::dvec3 camera{0.0};
             std::function<glm::vec3(const glm::dvec3&)> light;
             std::function<glm::ivec2(const glm::dvec3&)> lightLevels; // block, sky (0-15)

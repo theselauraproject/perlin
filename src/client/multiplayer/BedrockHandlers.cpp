@@ -1337,7 +1337,9 @@ namespace perlin {
             constexpr float kByte = 360.0f / 256.0f;
             entities.Move(p.runtimeEntityId, {p.position.x, p.position.y, p.position.z},
                           p.rotation.pitch * kByte, p.rotation.yaw * kByte, p.rotation.headYaw * kByte,
-                          (p.flags & 1) != 0);
+                          (p.flags & 1) != 0,
+                          (p.flags & 2) != 0 ? entity::EntityTracker::MoveKind::Teleport
+                                             : entity::EntityTracker::MoveKind::Lerp);
         });
 
         On<MoveEntityDeltaPacket>([this](const MoveEntityDeltaPacket& p) {
@@ -1362,14 +1364,17 @@ namespace perlin {
                 head = *p.rotZ * kByte;
             entities.MoveDelta(p.runtimeEntityId, p.x ? &x : nullptr, p.y ? &y : nullptr, p.z ? &z : nullptr,
                                p.rotX ? &pitch : nullptr, p.rotY ? &yaw : nullptr, p.rotZ ? &head : nullptr,
-                               p.onGround);
+                               p.onGround, p.forceMove, p.ticks, p.forceCompletion);
         });
 
         On<MovePlayerPacket>([this](const MovePlayerPacket& p) {
             if (runtimeId != 0 && p.runtimeId == runtimeId)
                 return;
             entities.Move(p.runtimeId, {p.position.x, p.position.y, p.position.z}, p.pitch, p.yaw, p.headYaw,
-                          p.onGround);
+                          p.onGround,
+                          p.mode == MovePlayerPacketMode::Normal || p.mode == MovePlayerPacketMode::Rotation
+                              ? entity::EntityTracker::MoveKind::Lerp
+                              : entity::EntityTracker::MoveKind::Teleport);
         });
 
         On<SetEntityDataPacket>([this](const SetEntityDataPacket& p) {

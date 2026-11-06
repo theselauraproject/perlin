@@ -1369,6 +1369,7 @@ namespace perlin {
                 break;
             }
             input.SetControlTick(tickCounter);
+            session.Entities().TickInterpolation();
             Tick(session, input, camera, world);
             // VanillaOffsetSystem::ClientSide 0x142CED480: the drop below eye level moves halfway each tick
             const float standEye = static_cast<float>(physics::kStandEye);
