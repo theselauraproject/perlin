@@ -1,4 +1,6 @@
 #include "inventory/Inventory.hpp"
+
+#include <unordered_map>
 #include "inventory/Recipes.hpp"
 
 #include "world/BlockCatalog.hpp"
@@ -24,7 +26,6 @@ namespace perlin::server {
         if (ends("_shulker_box") || n == "minecraft:shulker_box" || ends("_bed"))
             return 1;
         if (!item->block) {
-            // tools, weapons, armor and the other items that never stack
             if (has("_sword") || has("_pickaxe") || has("_axe") || has("_shovel") || has("_hoe") ||
                 has("_helmet") || has("_chestplate") || has("_leggings") || has("_boots") ||
                 has("_horse_armor") || has("_boat") || has("_raft") || has("_minecart") || has("_bed") ||
@@ -89,7 +90,6 @@ namespace perlin::server {
             return slot >= 0 && slot < kMainSlots ? &main[static_cast<size_t>(slot)] : nullptr;
         case Container::Hotbar:
             return slot >= 0 && slot < kHotbar ? &main[static_cast<size_t>(slot)] : nullptr;
-        // the inventory container counts from the first slot after the hotbar
         case Container::Inventory:
             return slot >= 0 && slot < kMainSlots - kHotbar ? &main[static_cast<size_t>(slot + kHotbar)]
                                                             : nullptr;
@@ -154,6 +154,24 @@ namespace perlin::server {
         return count;
     }
 
+    int PlayerInventory::Give(const ItemStack& stack) {
+        if (stack.Empty())
+            return 0;
+        if (stack.damage == 0)
+            return Give(stack.networkId, stack.count);
+        int left = stack.count;
+        for (ItemStack& s : main) {
+            if (left <= 0)
+                break;
+            if (s.Empty()) {
+                s = MakeStack(stack.networkId, 1);
+                s.damage = stack.damage;
+                left--;
+            }
+        }
+        return left;
+    }
+
     bool PlayerInventory::TakeHeld(int count) {
         ItemStack& s = main[static_cast<size_t>(selected)];
         if (s.Empty() || s.count < count)
@@ -198,11 +216,134 @@ namespace perlin::server {
         out.stackId = stack.stackId;
         if (const CatalogItem* item = BlockCatalog::Instance().ItemById(stack.networkId); item && item->block)
             out.blockRuntimeId = static_cast<uint32_t>(item->blockHash);
+        if (stack.damage > 0) {
+            std::vector<uint8_t> nbt = {0x0A, 0x00, 0x00, 0x03, 0x06, 0x00, 'D', 'a', 'm', 'a', 'g', 'e'};
+            const uint32_t d = stack.damage;
+            for (int i = 0; i < 4; i++)
+                nbt.push_back(static_cast<uint8_t>(d >> (8 * i)));
+            nbt.push_back(0x00);
+            const auto fill = [&](auto& extra) {
+                extra.hasNbt = decltype(extra.hasNbt)::True;
+                auto& tag = extra.nbt.emplace();
+                tag.version = 1;
+                tag.nbt.bytes = nbt;
+            };
+            if (out.networkId == net::context::ShieldItemID())
+                fill(out.extra.emplace<1>());
+            else
+                fill(out.extra.emplace<2>());
+        }
         return out;
     }
 
+    int MaxDurability(int16_t networkId) {
+        const CatalogItem* item = BlockCatalog::Instance().ItemById(networkId);
+        if (!item || item->block)
+            return 0;
+        std::string n = item->name;
+        if (n.starts_with("minecraft:"))
+            n.erase(0, 10);
+        const auto ends = [&](const char* s) { return n.ends_with(s); };
+        const auto tier = [&](int wood, int stone, int iron, int gold, int diamond, int netherite, int copper) {
+            if (n.starts_with("wooden_"))
+                return wood;
+            if (n.starts_with("stone_"))
+                return stone;
+            if (n.starts_with("iron_"))
+                return iron;
+            if (n.starts_with("golden_"))
+                return gold;
+            if (n.starts_with("diamond_"))
+                return diamond;
+            if (n.starts_with("netherite_"))
+                return netherite;
+            if (n.starts_with("copper_"))
+                return copper;
+            return 0;
+        };
+        if (ends("_sword") || ends("_pickaxe") || ends("_axe") || ends("_shovel") || ends("_hoe") || ends("_spear"))
+            return tier(59, 131, 250, 32, 1561, 2031, 190);
+        const auto armor = [&](int base) {
+            if (n.starts_with("leather_"))
+                return 5 * base;
+            if (n.starts_with("chainmail_"))
+                return 15 * base;
+            if (n.starts_with("iron_"))
+                return 15 * base;
+            if (n.starts_with("copper_"))
+                return 11 * base;
+            if (n.starts_with("golden_"))
+                return 7 * base;
+            if (n.starts_with("diamond_"))
+                return 33 * base;
+            if (n.starts_with("netherite_"))
+                return 37 * base;
+            return 0;
+        };
+        if (ends("_helmet"))
+            return n == "turtle_helmet" ? 275 : armor(11);
+        if (ends("_chestplate"))
+            return armor(16);
+        if (ends("_leggings"))
+            return armor(15);
+        if (ends("_boots"))
+            return armor(13);
+        static const std::unordered_map<std::string, int> kOther = {
+            {"bow", 384}, {"crossbow", 465}, {"shield", 336}, {"trident", 250}, {"mace", 500},
+            {"fishing_rod", 384}, {"flint_and_steel", 64}, {"shears", 238}, {"elytra", 432},
+            {"carrot_on_a_stick", 25}, {"warped_fungus_on_a_stick", 100}, {"brush", 64}, {"wolf_armor", 64}};
+        if (const auto it = kOther.find(n); it != kOther.end())
+            return it->second;
+        return 0;
+    }
+
+    int ArmorPoints(int16_t networkId) {
+        const CatalogItem* item = BlockCatalog::Instance().ItemById(networkId);
+        if (!item)
+            return 0;
+        std::string n = item->name;
+        if (n.starts_with("minecraft:"))
+            n.erase(0, 10);
+        if (n == "turtle_helmet")
+            return 2;
+        int slot = -1;
+        if (n.ends_with("_helmet"))
+            slot = 0;
+        else if (n.ends_with("_chestplate"))
+            slot = 1;
+        else if (n.ends_with("_leggings"))
+            slot = 2;
+        else if (n.ends_with("_boots"))
+            slot = 3;
+        if (slot < 0)
+            return 0;
+        static const std::pair<const char*, std::array<int, 4>> kTable[] = {
+            {"leather_", {1, 3, 2, 1}},  {"chainmail_", {2, 5, 4, 1}}, {"iron_", {2, 6, 5, 2}},
+            {"copper_", {2, 4, 3, 1}},   {"golden_", {2, 5, 3, 1}},    {"diamond_", {3, 8, 6, 3}},
+            {"netherite_", {3, 8, 6, 3}}};
+        for (const auto& [prefix, points] : kTable)
+            if (n.starts_with(prefix))
+                return points[static_cast<size_t>(slot)];
+        return 0;
+    }
+
+    float ArmorToughness(int16_t networkId) {
+        const CatalogItem* item = BlockCatalog::Instance().ItemById(networkId);
+        if (!item || ArmorPoints(networkId) == 0)
+            return 0;
+        if (item->name.contains("netherite_"))
+            return 3.0f;
+        if (item->name.contains("diamond_"))
+            return 2.0f;
+        return 0;
+    }
+
+    float KnockbackResistance(int16_t networkId) {
+        const CatalogItem* item = BlockCatalog::Instance().ItemById(networkId);
+        return item && ArmorPoints(networkId) > 0 && item->name.contains("netherite_") ? 0.1f : 0.0f;
+    }
+
     namespace {
-        // a client names a stack by the id the server gave it; ids created inside a request are negative and unknown here
         bool StackIdMatches(const ItemStack& s, int32_t quoted) {
             return quoted < 0 || s.Empty() || quoted == 0 || quoted == s.stackId;
         }
@@ -216,6 +357,7 @@ namespace perlin::server {
                 dst.count = static_cast<uint16_t>(dst.count + count);
             } else {
                 dst.networkId = src.networkId;
+                dst.damage = src.damage;
                 dst.count = static_cast<uint16_t>(count);
             }
             src.count = static_cast<uint16_t>(src.count - count);
@@ -251,7 +393,6 @@ namespace perlin::server {
                     return result;
                 if (a.destination.slotType.containerId == Container::FurnaceOutput)
                     return result;
-                // armor slots take one wearable of their kind
                 if (a.destination.slotType.containerId == Container::Armor &&
                     (ArmorSlotFor(src->networkId) != static_cast<int>(a.destination.slot) || a.count != 1 ||
                      !dst->Empty()))
@@ -286,7 +427,6 @@ namespace perlin::server {
                 if (!src || !StackIdMatches(*src, a.source.stackId) || src->Empty() || src->count < a.count ||
                     a.count == 0)
                     return result;
-                // destroy (the creative trash) deletes; drop throws the stack into the world
                 if (a.typeId == Action::Drop) {
                     ItemStack out = *src;
                     out.count = a.count;
@@ -301,7 +441,6 @@ namespace perlin::server {
             case Action::CraftCreative: {
                 if (!creative)
                     return result;
-                // creative entry ids are the item ids
                 const CatalogItem* item = BlockCatalog::Instance().ItemById(static_cast<int16_t>(a.itemId));
                 if (!item)
                     return result;
@@ -357,7 +496,6 @@ namespace perlin::server {
             }
         }
         work.output = ItemStack{};
-        // every slot a request changed gets a new stack id so a stale quote cannot match it later
         for (const auto& [type, slot] : touched)
             if (ItemStack* s = work.Resolve(type, slot); s && !s->Empty())
                 s->stackId = work.NewStackId();

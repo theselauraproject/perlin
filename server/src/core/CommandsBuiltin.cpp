@@ -52,7 +52,6 @@ namespace perlin::server {
             }
         }
 
-        // text of a /tellraw or /title argument: JSON text components ({"text": "..", "extra": [..]}, "plain", [..]) or just words
         void CollectText(const json::Value& v, std::string& out) {
             switch (v.kind) {
             case json::Value::Kind::String:
@@ -104,7 +103,6 @@ namespace perlin::server {
         };
         const auto fail = [say](Session* to, const std::string& text) { say(to, "§c" + text); };
 
-        // a command is its names, its overloads in the notation of Commands.hpp, and a handler that runs once an overload has matched
         const auto add = [this](std::vector<const char*> names, const char* description, bool op,
                                 std::vector<std::string> notations, std::function<void(CommandCtx&)> fn) {
             std::vector<OverloadSpec> specs;
@@ -263,7 +261,6 @@ namespace perlin::server {
                         say(c.source, "Teleported " + s->Name() + " to " + Fixed(p[0]) + ", " + Fixed(p[1]) + ", " + Fixed(p[2]));
                         continue;
                     }
-                    // y is the feet; the protocol position is the eyes
                     if (c.Has("yaw"))
                         s->Teleport(p[0], p[1] + 1.62, p[2], static_cast<float>(c["yaw"].number),
                                     static_cast<float>(c["pitch"].number));
@@ -320,7 +317,6 @@ namespace perlin::server {
                 config.gameMode = m == "survival" ? 0 : m == "creative" ? 1 : m == "adventure" ? 2 : 6;
                 say(c.source, std::string("The default game mode is now ") + ModeName(config.gameMode));
             });
-        // spectator flight speed: any player may change their own. the Perlin client calls this from the scroll wheel and shows the answer over the hotbar
         add({"flyspeed"}, "Change your spectator flying speed (1x, 2x, 5x, 10x or 20x)", false,
             {"", "<speed:string>"}, [fail](CommandCtx& c) {
                 if (!c.source) {
@@ -402,7 +398,7 @@ namespace perlin::server {
                             return;
                         }
                         for (Session* s : list) {
-                            s->Hurt(1.0e6f, s->X(), s->Z());
+                            s->Kill();
                             say(c.source, "Killed " + s->Name());
                         }
                         return;
@@ -425,10 +421,93 @@ namespace perlin::server {
                 if (c.source)
                     list.push_back(c.source);
                 for (Session* s : list) {
-                    s->Hurt(1.0e6f, s->X(), s->Z());
+                    s->Kill();
                     say(c.source, "Killed " + s->Name());
                 }
             });
+        add({"xp", "experience"}, "Adds or removes player experience", true,
+            {"<amount:string>", "<amount:string> <player:targets>"}, [say, fail](CommandCtx& c) {
+                std::string text = c["amount"].text;
+                const bool levels = !text.empty() && (text.back() == 'L' || text.back() == 'l');
+                if (levels)
+                    text.pop_back();
+                char* end = nullptr;
+                const long amount = std::strtol(text.c_str(), &end, 10);
+                if (text.empty() || !end || *end) {
+                    fail(c.source, "Expected a number, optionally followed by L: " + c["amount"].text);
+                    return;
+                }
+                std::vector<Session*> list = c.Has("player") ? c["player"].players : std::vector<Session*>{};
+                if (!c.Has("player")) {
+                    if (!c.source) {
+                        fail(nullptr, "The console has no experience; name a player: /xp <amount> <player>");
+                        return;
+                    }
+                    list.push_back(c.source);
+                }
+                for (Session* s : list) {
+                    if (levels) {
+                        s->AddLevels(static_cast<int>(amount));
+                        say(c.source, (amount >= 0 ? "Gave " : "Took ") + std::to_string(std::labs(amount)) +
+                                          " levels " + (amount >= 0 ? "to " : "from ") + s->Name());
+                    } else {
+                        if (amount < 0) {
+                            fail(c.source, "Cannot remove experience points; use levels, for example /xp -5L");
+                            return;
+                        }
+                        s->AddExperience(static_cast<int>(amount));
+                        say(c.source, "Gave " + std::to_string(amount) + " experience to " + s->Name());
+                    }
+                }
+            });
+        {
+            static const char* const kEffects[] = {
+                "", "speed", "slowness", "haste", "mining_fatigue", "strength", "instant_health", "instant_damage",
+                "jump_boost", "nausea", "regeneration", "resistance", "fire_resistance", "water_breathing",
+                "invisibility", "blindness", "night_vision", "hunger", "weakness", "poison", "wither", "health_boost",
+                "absorption", "saturation", "levitation", "fatal_poison", "conduit_power", "slow_falling", "bad_omen",
+                "village_hero", "darkness"};
+            std::string names = "clear";
+            for (size_t i = 1; i < std::size(kEffects); i++)
+                names += std::string("|") + kEffects[i];
+            add({"effect"}, "Add or remove status effects", true,
+                {"<player:targets> <effect:enum(" + names + ")>",
+                 "<player:targets> <effect:enum(" + names + ")> <seconds:int>",
+                 "<player:targets> <effect:enum(" + names + ")> <seconds:int> <amplifier:int>",
+                 "<player:targets> <effect:enum(" + names + ")> <seconds:int> <amplifier:int> <hideParticles:enum(true|false)>"},
+                [say, fail](CommandCtx& c) {
+                    const std::string effect = c["effect"].text;
+                    int id = 0;
+                    for (size_t i = 1; i < std::size(kEffects); i++)
+                        if (effect == kEffects[i])
+                            id = static_cast<int>(i);
+                    for (Session* s : c["player"].players) {
+                        if (effect == "clear") {
+                            s->ClearEffects();
+                            say(c.source, "Took all effects from " + s->Name());
+                            continue;
+                        }
+                        const int64_t seconds = c.Has("seconds") ? c["seconds"].integer : 30;
+                        const int64_t amplifier = c.Has("amplifier") ? c["amplifier"].integer : 0;
+                        if (amplifier < 0 || amplifier > 255) {
+                            fail(c.source, "The amplifier must be between 0 and 255");
+                            return;
+                        }
+                        if (seconds <= 0) {
+                            if (s->RemoveEffect(id))
+                                say(c.source, "Took " + effect + " from " + s->Name());
+                            else
+                                fail(c.source, s->Name() + " does not have " + effect);
+                            continue;
+                        }
+                        const bool hide = c.Has("hideParticles") && c["hideParticles"].text == "true";
+                        s->AddEffect(id, static_cast<int>(amplifier),
+                                     static_cast<int>(std::min<int64_t>(seconds, 1000000) * 20), !hide);
+                        say(c.source, "Gave " + effect + " * " + std::to_string(amplifier) + " to " + s->Name() +
+                                          " for " + std::to_string(seconds) + " seconds");
+                    }
+                });
+        }
         add({"clear"}, "Remove items from player inventories", true,
             {"", "<targets:targets>", "<targets:targets> <item:item>",
              "<targets:targets> <item:item> <maxCount:int>"},
@@ -450,7 +529,6 @@ namespace perlin::server {
                     const auto sweep = [&](ItemStack& slot) {
                         if (slot.Empty() || (filtered && slot.networkId != wanted))
                             return;
-                        // maxCount 0 only counts
                         const int64_t take =
                             limit < 0 ? slot.count
                                       : std::min<int64_t>(slot.count, std::max<int64_t>(0, limit - removed));
@@ -479,12 +557,10 @@ namespace perlin::server {
             });
 
         const auto allowlistCommand = [this, say](CommandCtx& c) {
-            // the first word of the line is the keyword of the overload that matched
             const std::string action = str::Lower(c.raw.substr(0, c.raw.find(' ')));
             const auto persist = [this] {
                 if (config.loopbackOnly)
                     return;
-                // keep to the format the directory already uses, so a server.json setup does not grow a second config that overrides it
                 std::error_code ec;
                 const std::string legacy = config.dataDir + "/server.json";
                 if (!std::filesystem::exists(config.dataDir + "/server.properties", ec) &&
@@ -542,7 +618,6 @@ namespace perlin::server {
                     say(c.source, out);
                 } else {
                     permissionList.Load(PermissionsPath());
-                    // operators are refreshed now; everyone else keeps what they had until they rejoin
                     for (Session* s : InGamePlayers())
                         s->SetOperator(IsOperator(s->Name(), s->Xuid()));
                     say(c.source, "Reloaded " + PermissionsPath());
@@ -612,7 +687,6 @@ namespace perlin::server {
                     } else {
                         t = c["ticks"].integer;
                     }
-                    // the day count is kept: only the time of day moves
                     SetDayTime((dayTime / 24000) * 24000 + ((t % 24000) + 24000) % 24000);
                     say(c.source, "Set the time to " + std::to_string(t));
                 } else if (c.overload == 2) {
@@ -636,7 +710,6 @@ namespace perlin::server {
                          "Integer must not be less than 1, found " + std::to_string(c["duration"].integer));
                     return;
                 }
-                // a duration is in seconds, as in java; without one rain lasts five minutes and clear weather stays
                 const int ticks = c.Has("duration") ? static_cast<int>(c["duration"].integer) * 20
                                                     : (kind == "clear" ? 0 : 6000);
                 SetWeather(kind, ticks);
@@ -837,7 +910,6 @@ namespace perlin::server {
                 const int biome = c["biome"].index;
                 const std::string name = c["biome"].text;
                 say(c.source, "Searching for " + name + " ...");
-                // up to 6400 blocks out, ring by ring, on the machine's cores; the answer comes back through the tick
                 locateThreads.emplace_back([this, &backend, id, biome, name, fromX, fromZ] {
                     int x = 0, y = 0, z = 0;
                     const bool found = backend.LocateBiome(biome, fromX, fromZ, 6400, locateCancel, x, y, z);
@@ -868,7 +940,6 @@ namespace perlin::server {
             say(c.source, "Stopping the server");
             RequestStop();
         });
-        // there is no world file yet, so these have nothing to do; they answer the way a server that saves would, so scripts and clients do not stumble
         add({"save-all"}, "Save the world", true, {"", "flush"}, [say](CommandCtx& c) {
             say(c.source, "Saved the game (this server keeps no world file yet, so nothing was written)");
         });

@@ -58,16 +58,11 @@ namespace perlin {
 
     struct Options {
         bool webTuned = false;
-        // draw our own menus (title, pause, settings) the bedrock way instead of java layouts; server ui
-        // (sidebars, forms, container screens a server pack restyles) always uses the server's json ui
         int maxFps = 120;
         bool vsync = true;
         bool fullscreen = false;
-        // moves the pointer to the middle of the window when an in-game gui (inventory, menus, forms) opens
         bool centerCursor = true;
-        // nightly builds fetch the newest nightly in the background and install it when the game closes
         bool autoUpdate = true;
-        // join servers that advertise an older version without asking first (the disconnect screen's checkbox)
         bool versionMismatchNoAsk = false;
         bool eulaAccepted = false;
         int renderDistance = 8;
@@ -124,7 +119,6 @@ namespace perlin {
         int upscaleTargetFps = 0;
         std::string frameGen = "off";
         bool skins3d = false;
-        bool bedrockBridging = true;
         bool enableLods = false;
         std::string renderer = "auto";
         std::string capePhysics = "off";

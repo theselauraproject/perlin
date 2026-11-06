@@ -151,7 +151,6 @@ namespace perlin::ui {
         count++;
         body += "  <div" + (cls.empty() ? std::string() : " class=\"" + cls + "\"") +
                 (id.empty() ? std::string() : " id=\"" + EscapeRml(id) + "\"") + extraAttrs +
-                // hover/default layers get display from the stylesheet: no inline display
                 " style=\"position:absolute;" + (cls == "hv" || cls == "df" ? "" : "display:block;") +
                 "left:" + Num(ax - ox) + "px;top:" + Num(ay - oy) + "px;width:" + Num(w) +
                 "px;height:" + Num(h) + "px;z-index:" + std::to_string(z) + ";" +
@@ -212,7 +211,6 @@ namespace perlin::ui {
         ax -= ox;
         ay -= oy;
         count++;
-        // MinecraftTen: real font, 11 px em vs 8 px bitmap grid, own line height
         const float size = (st.ten ? TenFont::kEm : 8.0f) * st.scale;
         const float lineHeight =
             (st.ten ? TenFont::Instance().LineHeight(st.scale) : 9.0f * st.scale) + st.linePadding;
@@ -246,7 +244,6 @@ namespace perlin::ui {
 
     namespace {
         bool ReadColor(const Json* v, float& r, float& g, float& b, float* a = nullptr) {
-            // colours: named ("black", ...) or hex ("#RRGGBB")
             if (v && v->IsString()) {
                 static const std::pair<const char*, uint32_t> kNamed[] = {
                     {"white", 0xFFFFFF}, {"black", 0x000000},  {"red", 0xFF0000},    {"green", 0x00FF00},
@@ -381,7 +378,6 @@ namespace perlin::ui {
                     return "fb:" + std::to_string(std::max(0, n.index));
                 if (id == "button.submit_custom_form")
                     return "submit";
-                // modal form popup: first button answers true, the other false
                 if (id == "popup_dialog.left_button")
                     return "fb:0";
                 if (id == "popup_dialog.rightcancel_button")
@@ -400,7 +396,6 @@ namespace perlin::ui {
                     id.contains("close"))
                     return "close";
             }
-            // slot ids for our inventory logic: s<n> player inventory (hotbar first), k<n> open container
             for (const Json& m : maps->array) {
                 const Json* to = m.IsObject() ? m.Find("to_button_id") : nullptr;
                 if (!to || !to->IsString() || to->string != "button.container_take_all_place_all" ||
@@ -413,14 +408,12 @@ namespace perlin::ui {
                 if (n.collection == "hotbar_items")
                     return "s" + std::to_string(n.index);
             }
-            // other screens: raw button id (button.menu_play, ...); collection rows carry their index, as bedrock handlers expect
             for (const Json& m : maps->array) {
                 const Json* to = m.IsObject() ? m.Find("to_button_id") : nullptr;
                 if (!to || !to->IsString() || to->string.empty() || to->string[0] == '$')
                     continue;
                 const Json* from = m.Find("from_button_id");
                 const Json* type = m.Find("mapping_type");
-                // focus/controller-only mappings never fire on click
                 if (type && type->IsString() && type->string == "focused" && from && from->IsString() &&
                     from->string != "button.menu_select" && from->string != "button.menu_ok")
                     continue;
@@ -440,8 +433,6 @@ namespace perlin::ui {
     }
 
     namespace {
-        // a wrapper box is a stacking context: it takes the top layer of what it holds, or the background of a
-        // parent panel would cover a button's label (layers are global in the game)
         int TopLayer(const LNode& n) {
             int z = n.layer;
             for (const auto& kid : n.kids)
@@ -461,7 +452,8 @@ namespace perlin::ui {
             soundAttrs = " snd=\"" + EscapeRml(sn->string) + "\" vol=\"" +
                          Num(static_cast<float>(n.Num("sound_volume", 1.0))) + "\" pit=\"" +
                          Num(static_cast<float>(n.Num("sound_pitch", 1.0))) + "\"";
-        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), "bt", command, false, 0.0f, soundAttrs);
+        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() && !inSlot ? "" : "bt", command, false, 0.0f,
+                     command.empty() && !inSlot ? std::string() : soundAttrs);
         for (const auto& kid : n.kids) {
             if (!kid->visible)
                 continue;
@@ -485,7 +477,6 @@ namespace perlin::ui {
     }
 
     namespace {
-        // click target of a form control in a collection row: t toggle, r dropdown option, d dropdown, k slider, i text box
         std::string WidgetCommand(const LNode& n) {
             if (n.index < 0)
                 return {};
@@ -501,7 +492,6 @@ namespace perlin::ui {
             return {};
         }
 
-        // nodes own their children: move a subtree for one draw, then put it back
         void Shift(const LNode& n, float dx) {
             LNode& m = const_cast<LNode&>(n);
             m.ax += dx;
@@ -552,7 +542,6 @@ namespace perlin::ui {
             steps = st->number;
         if (const Json* v = n.bag.Find("#slider_value"); v && v->IsNumber())
             value = v->number;
-        // step sliders hold an index, smooth ones a 0..1 fraction
         const float f = static_cast<float>(std::clamp(steps > 1 ? value / (steps - 1) : value, 0.0, 1.0));
         const std::string boxName = n.Str("slider_box_control", "slider_box");
         const LNode* box = FindKid(n, boxName);
@@ -566,7 +555,6 @@ namespace perlin::ui {
         progressWidth = boxW * 0.5f + f * (n.w - boxW);
         out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() ? "" : "bt", command, false);
         const std::string barHover = n.Str("hover_control");
-        // the bar first: the box sits on top of it (its layer is above the bar's)
         for (const auto& kid : n.kids)
             if (kid->visible && kid->id != barHover && kid->id != boxName)
                 Visit(*kid, out);
@@ -577,7 +565,6 @@ namespace perlin::ui {
             Shift(*kid, dx);
             const LNode* rest = FindKid(*kid, kid->Str("default_control", "default"));
             const LNode* hover = FindKid(*kid, kid->Str("hover_control", "hover"));
-            // state boxes take the box's own layer: at 0 they would sit under the bar
             if (rest) {
                 out.BeginBox(kid->ax, kid->ay, kid->w, kid->h, kid->layer,
                              hover && !command.empty() ? "df" : "", "", false);
@@ -616,7 +603,6 @@ namespace perlin::ui {
         for (const auto& kid : n.kids) {
             if (!kid->visible || kid->id == locked)
                 continue;
-            // a focused box draws its pressed look, like the game's selected text field
             const bool shownRest = focused ? kid->id == pressed : kid->id == rest;
             if (shownRest) {
                 out.BeginBox(n.ax, n.ay, n.w, n.h, 0, hasHover && !focused ? "df" : "", "", false);
@@ -702,7 +688,6 @@ namespace perlin::ui {
             return;
         }
         if (progressWidth >= 0 && (n.id == progressName || n.id == progressHoverName)) {
-            // slider progress: only the filled part of the bar
             out.BeginBox(n.ax, n.ay, std::max(0.0f, progressWidth - (n.ax - progressLeft)), n.h, TopLayer(n),
                          "", "", true);
             const float saved = progressWidth;
@@ -712,8 +697,6 @@ namespace perlin::ui {
             out.EndBox();
             return;
         }
-        // the text label is named "$text_edit_text_control" in the files; the game fills it, and shows the
-        // placeholder in its place while the box is empty
         if (!editTextName.empty() && n.type == "label" &&
             (n.id == editTextName || n.id == "$text_edit_text_control")) {
             if (editShown.empty())
@@ -754,7 +737,6 @@ namespace perlin::ui {
             }
         }
         const bool clipFlag = n.Bool("clips_children", false) && n.type != "button" && !n.kids.empty();
-        // clipping control with no area shows nothing (packs hide "font warmer" labels this way)
         if (clipFlag && (n.w <= 0 || n.h <= 0))
             return;
         const bool clips = clipFlag;
@@ -813,7 +795,6 @@ namespace perlin::ui {
     sidebar=scoreboard
 -->
 <style>
-/* Edit this file while the game runs: it is reloaded when it changes. {{name}} placeholders are filled in by Perlin. */
 body { position: absolute; left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; margin: 0; padding: 0; background: transparent; }
 mcimg, mcitem { display: block; position: absolute; }
 .t { display: block; position: absolute; font-family: minecraft; white-space: nowrap; overflow: visible; }
@@ -964,7 +945,6 @@ mcimg, mcitem { display: block; position: absolute; }
             ".link:hover .ul { display: block; }\n"
             ".df { display: block; }\n.bt .hv { display: none; }\n.bt:hover .hv { display: block; "
             "}\n.bt:hover .df { display: none; }\n"
-            // only interactive controls take the pointer, as in the game: overlays (sheens, borders, hover fills) don't eat clicks
             "body * { pointer-events: none; }\n.bt, .bt *, .link, .link * { pointer-events: auto; }\n";
         if (const size_t at = doc.find("<style>"); at != std::string::npos)
             doc.insert(at + 7, kEngineCss);

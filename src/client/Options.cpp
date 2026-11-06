@@ -78,7 +78,6 @@ namespace perlin {
             float bloom = 0.5f;
             std::string renderer = "auto";
             std::string capePhysics = "off";
-            bool bedrockBridging = true;
             bool webTuned = false;
             std::map<std::string, std::string> padKeys;
             float padSensitivity = 1.0f;
@@ -132,8 +131,7 @@ namespace perlin {
             o.cloudRange = 64;
             o.menuBlur = 0;
             o.dynamicLights = "off";
-            o.upscaler = "fsr1";
-            o.upscaleCustom = 75;
+            o.upscaler = "off";
             o.webTuned = true;
         }
     }
@@ -218,8 +216,7 @@ namespace perlin {
                       o.shadowEntities,
                       o.bloom,
                       o.renderer,
-                      o.capePhysics,
-                      o.bedrockBridging};
+                      o.capePhysics};
         auto parsed = json::Read<Stored>(text);
         if (!parsed)
             return o;
@@ -266,7 +263,6 @@ namespace perlin {
         o.betterGrass = stored.betterGrass;
         o.enableLods = stored.enableLods;
         o.skins3d = stored.skins3d;
-        o.bedrockBridging = stored.bedrockBridging;
         o.upscaler = stored.upscaler;
         o.upscaleQuality = stored.upscaleQuality;
         o.upscaleSharpness = std::clamp(stored.upscaleSharpness, 0, 100);
@@ -353,6 +349,8 @@ namespace perlin {
             TuneForMobile(o);
         else
             o.webTuned = true;
+        if (o.upscaler == "fsr1" && o.upscaleCustom == 75)
+            o.upscaler = "off";
 #endif
         o.padSensitivity = std::clamp(stored.padSensitivity, 0.1f, 3.0f);
         o.padDeadzone = std::clamp(stored.padDeadzone, 0.0f, 0.6f);
@@ -433,8 +431,7 @@ namespace perlin {
                       shadowEntities,
                       bloom,
                       renderer,
-                      capePhysics,
-                      bedrockBridging};
+                      capePhysics};
         for (size_t i = 0; i < kActionCount; i++)
             stored.keys[ActionId(static_cast<Action>(i))] = keys[i].Serialize();
         for (size_t i = 0; i < kActionCount; i++)

@@ -126,7 +126,7 @@ namespace perlin::server {
         bool gave = false;
         for (ItemStack& s : inv.craft)
             if (!s.Empty()) {
-                const int left = inv.Give(s.networkId, s.count);
+                const int left = inv.Give(s);
                 if (left > 0) {
                     ItemStack rest = s;
                     rest.count = static_cast<uint16_t>(left);

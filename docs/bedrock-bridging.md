@@ -1,6 +1,6 @@
 # Bedrock bridging
 
-With **Bedrock Bridging** enabled in gameplay settings, placing blocks follows Bedrock Edition's own rules. They were
+Placing blocks always follows Bedrock Edition's own rules. They were
 read out of the client (`ClientInstance::_tickBuildAction`, `GameMode::startBuildBlock`, `continueBuildBlock`,
 `stopBuildBlock` and `GameMode::useItemOn`) and live in `src/client/player/HeldBuild.{hpp,cpp}`. Reach-around for
 fresh presses (placing against the block you stand on while aiming past its edge) lives in

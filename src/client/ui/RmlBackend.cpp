@@ -93,7 +93,6 @@ namespace perlin::ui {
             draw.model[0] = s;
             draw.model[5] = s;
             draw.model[10] = 1.0f;
-            // whole device pixels: pixel art and bitmap text never straddle pixel boundaries
             draw.model[12] = std::round(translation.x * s);
             draw.model[13] = std::round(translation.y * s);
             draw.scissor = scissorOn;
@@ -165,8 +164,6 @@ namespace perlin::ui {
                 if (!UiAssets::Instance().ItemIcon(source.substr(7), t))
                     return 0;
             } else if (!UiAssets::Instance().Image(source, t)) {
-                // Bedrock uses a literal "null" texture path to mean "draw nothing"; keep it
-                // transparent instead of showing the missing-texture magenta.
                 std::string tail = source;
                 const size_t slash = tail.find_last_of("/\\:");
                 if (slash != std::string::npos)
@@ -268,7 +265,6 @@ namespace perlin::ui {
             face.bold = weight == Rml::Style::FontWeight::Bold;
             face.italic = style == Rml::Style::FontStyle::Italic;
             face.size = static_cast<float>(std::max(size, 1));
-            // RmlUi's face callback rounds CSS sizes to integers; retain the source size in our family key
             if (const size_t at = family.rfind("-size-"); at != Rml::String::npos) {
                 const float requested = std::strtof(family.c_str() + at + 6, nullptr);
                 if (std::isfinite(requested) && requested > 0 && requested <= 4096)
@@ -344,7 +340,6 @@ namespace perlin::ui {
             const std::string text(string.begin(), string.end());
             size_t glyphIndex = 0;
             uint32_t glyphCode;
-            // dynamic glyphs must be rasterized before the atlas texture is uploaded
             while (McFont::Next(text, glyphIndex, glyphCode))
                 font.Get(glyphCode);
             Rml::Texture texture =
@@ -358,10 +353,8 @@ namespace perlin::ui {
                                                   static_cast<Rml::byte>(main.green / 4),
                                                   static_cast<Rml::byte>(main.blue / 4), main.alpha);
 
-            // geometry and advances must use the same scale as text measurement
             const float device = static_cast<float>(std::max(1, gScale));
             const float k = s;
-            // bitmap texels cover whole device pixels: snap geometry and pen together so spacing matches drawn size
             const float kGeo = std::max(1.0f, std::round(k * device)) / device;
             const auto snap = [&](float v) { return std::round(v * device) / device; };
 
@@ -372,7 +365,6 @@ namespace perlin::ui {
                 while (McFont::Next(text, i, cp)) {
                     const McFont::Glyph& g = font.Get(cp);
                     if (g.width > 0) {
-                        // Font::drawTransformed scales the whole run: rounding each pen position changes glyph spacing
                         const float x = g.colored ? snap(position.x + pen + ox + g.left * kGeo)
                                                   : position.x + pen + ox + g.left * kGeo;
                         const float y = (g.colored ? snap(position.y - 7.0f * kGeo + oy)
@@ -399,7 +391,6 @@ namespace perlin::ui {
                                 out.mesh.indices.push_back(base + idx);
                         }
                     }
-                    // pen follows snapped geometry: exact advances overlap widened glyphs
                     pen += static_cast<float>(g.advance + (f.bold ? 1 : 0)) * kGeo;
                 }
                 return pen;
@@ -443,8 +434,6 @@ namespace perlin::ui {
             return c;
         }
 
-        // MinecraftTen: real truetype face rasterised at device resolution: texels cover whole screen pixels,
-        // unlike the 8 px bitmap font at a fractional scale
         int GenerateTenString(Rml::RenderManager& renderManager, const Face& f, Rml::StringView string,
                               const Rml::Vector2f& position, Rml::ColourbPremultiplied colour, float opacity,
                               Rml::TexturedMeshList& meshes) {
@@ -457,7 +446,6 @@ namespace perlin::ui {
             const TenFont::Page* page = ten.PageFor(emPx);
             if (!page || page->rgba.empty())
                 return 0;
-            // gui pixels per atlas pixel
             const float k = static_cast<float>(f.size) / static_cast<float>(page->emPx);
             const std::string text(string.begin(), string.end());
             size_t glyphIndex = 0;
@@ -479,7 +467,6 @@ namespace perlin::ui {
                                                   static_cast<Rml::byte>(main.blue / 4), main.alpha);
             const auto snap = [&](float v) { return std::round(v * device) / device; };
             const auto quads = [&](float ox, float oy, const Rml::ColourbPremultiplied& c) {
-                // single snap for the run origin: per-glyph snapping jitters spacing at fractional scales
                 const float baseX = snap(position.x + ox);
                 const float baseY = snap(position.y + oy);
                 float pen = 0;
@@ -489,7 +476,6 @@ namespace perlin::ui {
                     const auto it = page->glyphs.find(cp);
                     if (it != page->glyphs.end()) {
                         const TenFont::Glyph& g = it->second;
-                        // glyph bearings are relative to RmlUi's supplied baseline
                         const float x = baseX + pen + static_cast<float>(g.x) * k;
                         const float y = baseY + static_cast<float>(g.y) * k;
                         if (g.w > 0 && g.h > 0)
@@ -499,7 +485,6 @@ namespace perlin::ui {
                         pen += ten.Advance(cp, s);
                         continue;
                     }
-                    // server icons live in the bitmap atlas, not in the heading face
                     const McFont::Glyph& mg = McFont::Instance().Get(cp);
                     if (mg.width > 0) {
                         const float ks = s * (TenFont::kEm / 8.0f);

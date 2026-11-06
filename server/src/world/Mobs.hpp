@@ -48,6 +48,10 @@ namespace perlin::server {
         int kind = 0;
         uint16_t block = 0;
         uint64_t owner = 0;
+        int invulnerable = 0;
+        float lastHurt = 0;
+        uint64_t lastAttacker = 0;
+        int lastAttackerTicks = 0;
         float lastX = 0, lastY = 0, lastZ = 0, lastYaw = 0, lastHead = 0;
         uint64_t lastFlags = 0;
     };
@@ -65,7 +69,8 @@ namespace perlin::server {
         int KillAll(const std::string& identifier);
         void Show(Session& to) const;
         void Hide(Session& to) const;
-        bool Attack(Session& by, uint64_t entity, float damage);
+        bool Attack(Session& by, uint64_t entity, float damage, float knockback = 0.4f);
+        void SpawnXpOrbs(double x, double y, double z, int amount);
         bool Interact(Session& by, uint64_t entity);
         Mob* Find(uint64_t id);
         const std::list<Mob>& All() const { return mobs; }
@@ -85,7 +90,7 @@ namespace perlin::server {
         bool Dark(int x, int y, int z) const;
         bool Day() const;
         Session* Nearest(const Mob& m, double range, bool survivalOnly);
-        void Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by);
+        bool Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by, float knockback = 0.4f);
         void Explode(Mob& m);
         bool TickSpecial(Mob& m);
         void Shoot(Mob& m, Session& at);

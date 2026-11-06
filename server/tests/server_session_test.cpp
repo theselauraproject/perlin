@@ -735,6 +735,123 @@ int main(int argc, char** argv) {
                         CHECK(a->Inventory().craft[0].Empty());
                     }
                 }
+                if (Session* a = server.FindByName("Alice")) {
+                    alice.Settle(30);
+                    run("/xp 30");
+                    CHECK(a->XpLevel() == 3);
+                    run("/xp 5L");
+                    CHECK(a->XpLevel() == 8);
+                    alice.Settle();
+                    bool levelSent = false;
+                    for (const auto& u : alice.Take<proto::UpdateAttributesPacket>())
+                        for (const auto& at : u.attributes)
+                            levelSent = levelSent || (at.name == "minecraft:player.level" && at.current == 8.0f);
+                    CHECK(levelSent);
+
+                    const CatalogItem* plate = BlockCatalog::Instance().ItemByName("minecraft:diamond_chestplate");
+                    CHECK(plate != nullptr);
+                    alice.Settle(25);
+                    if (plate) {
+                        a->Inventory().armor[1] = a->Inventory().MakeStack(plate->networkId, 1);
+                        const float before = a->Health();
+                        CHECK(a->Damage(10.0f, Session::DamageCause::Mob, a->X() + 1, a->Z()));
+                        CHECK(std::abs((before - a->Health()) - 8.4f) < 0.01f);
+                        CHECK(a->Inventory().armor[1].damage == 2);
+                        CHECK(!a->Damage(5.0f, Session::DamageCause::Mob, a->X() + 1, a->Z()));
+                        a->Inventory().armor[1] = ItemStack{};
+                    }
+                    alice.Settle(25);
+                    a->Heal(20.0f);
+                    CHECK(a->Health() == 20.0f);
+                    run("/tp 0 -50 0");
+                    for (int i = 0; i < 10; i++) {
+                        proto::PlayerAuthInputPacket fall;
+                        fall.position = {0.5f, -48.38f - static_cast<float>(i + 1), 0.5f};
+                        alice.Send(fall);
+                        alice.Settle();
+                    }
+                    proto::PlayerAuthInputPacket land;
+                    land.position = {0.5f, -58.38f, 0.5f};
+                    land.inputData.push_back(proto::InputData::VerticalCollision);
+                    alice.Send(land);
+                    alice.Settle();
+                    CHECK(a->Health() >= 13.0f && a->Health() < 14.5f);
+
+                    const CatalogItem* bread = BlockCatalog::Instance().ItemByName("minecraft:bread");
+                    CHECK(bread != nullptr);
+                    if (bread) {
+                        a->SetFood(10, 0.0f);
+                        a->Inventory().main[0] = a->Inventory().MakeStack(bread->networkId, 3);
+                        a->Inventory().selected = 0;
+                        proto::InventoryTransactionPacket eat;
+                        eat.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
+                        proto::TransactionUseItem eu;
+                        eu.actionType = proto::TransactionUseItemActionType::ClickAir;
+                        eu.hotbarSlot = 0;
+                        eat.transaction.transactionData = eu;
+                        alice.Send(eat);
+                        alice.Settle(40);
+                        CHECK(a->Food() == 15);
+                        CHECK(a->Inventory().main[0].count == 2);
+                    }
+
+                    const CatalogItem* pick = BlockCatalog::Instance().ItemByName("minecraft:iron_pickaxe");
+                    const CatalogItem* diamond = BlockCatalog::Instance().ItemByName("minecraft:diamond");
+                    CHECK(pick && diamond);
+                    if (pick && diamond) {
+                        const auto count = [&](int16_t id) {
+                            int n = 0;
+                            for (const auto& it : server.Items())
+                                if (it.stack.networkId == id)
+                                    n += it.stack.count;
+                            return n;
+                        };
+                        const int had = count(diamond->networkId);
+                        a->Inventory().main[0] = ItemStack{};
+                        CHECK(server.SetBlock(1, -60, 2, "diamond_ore") == perlin::abi::Status::Ok);
+                        CHECK(server.PlayerBreak(*a, 1, -60, 2));
+                        CHECK(count(diamond->networkId) == had);
+                        a->Inventory().main[0] = a->Inventory().MakeStack(pick->networkId, 1);
+                        CHECK(server.SetBlock(1, -60, 2, "diamond_ore") == perlin::abi::Status::Ok);
+                        CHECK(server.PlayerBreak(*a, 1, -60, 2));
+                        CHECK(count(diamond->networkId) == had + 1);
+                        CHECK(a->Inventory().main[0].damage == 1);
+                        size_t orbs = 0;
+                        for (const Mob& m : server.Mobs().All())
+                            orbs += m.kind == 3 ? 1 : 0;
+                        CHECK(orbs > 0);
+                    }
+
+                    alice.inbox.clear();
+                    run("/summon cow ~2 ~ ~");
+                    auto cows = alice.Take<proto::AddEntityPacket>();
+                    std::erase_if(cows, [](const proto::AddEntityPacket& e) { return e.entityType != "minecraft:cow"; });
+                    CHECK(cows.size() == 1);
+                    if (!cows.empty()) {
+                        const CatalogItem* leather = BlockCatalog::Instance().ItemByName("minecraft:leather");
+                        const CatalogItem* beef = BlockCatalog::Instance().ItemByName("minecraft:beef");
+                        CHECK(leather && beef);
+                        CHECK(server.Mobs().Attack(*a, cows[0].runtimeId, 100.0f));
+                        int meat = 0;
+                        for (const auto& it : server.Items())
+                            if (beef && it.stack.networkId == beef->networkId)
+                                meat += it.stack.count;
+                        CHECK(meat >= 1);
+                    }
+                    run("/effect @s regeneration 5 1");
+                    CHECK(a->EffectLevel(10) == 2);
+                    run("/effect @s clear");
+                    CHECK(a->EffectLevel(10) == 0);
+                    const int levelBefore = a->XpLevel();
+                    run("/kill @s");
+                    CHECK(a->Dead());
+                    CHECK(a->XpLevel() == 0 || levelBefore == 0);
+                    proto::RespawnPacket respawn;
+                    respawn.state = 2;
+                    alice.Send(respawn);
+                    alice.Settle();
+                    CHECK(!a->Dead() && a->Health() == 20.0f && a->Food() == 20);
+                }
                 run("/gamemode creative");
                 alice.Settle(25);
                 alice.inbox.clear();

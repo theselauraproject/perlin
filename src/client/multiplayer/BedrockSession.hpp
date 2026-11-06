@@ -68,7 +68,6 @@ namespace perlin {
             playerName = name.empty() ? std::string("Perlin") : name;
         }
         void SetTransport(const std::string& mode) { transportMode = mode; }
-        // a ready transport (the embedded server's) used by the next Connect instead of dialling out
         void SetInjectedTransport(std::unique_ptr<Transport> transport) {
             injectedTransport = std::move(transport);
         }
@@ -76,16 +75,12 @@ namespace perlin {
         void SetSkin(LoadedSkin loaded) { skin = std::move(loaded); }
         const LoadedSkin& Skin() const { return skin; }
         entity::EntityTracker& Entities() { return entities; }
-        // loginKey names the account (its auth file): logins are cached per account until the token expires
         void SetAccount(std::shared_ptr<xbox::Account> a, std::string loginKey = {}) {
             account = std::move(a);
             accountKey = std::move(loginKey);
         }
-        // signs in ahead of the join so connecting skips Xbox Live, PlayFab and the Minecraft token
         static void PrewarmLogin(std::shared_ptr<xbox::Account> account, const std::string& loginKey);
         void SetChunkRadius(int r) { chunkRadius = r; }
-        // join announcing another protocol / game version than perlin's own (servers that advertise an older one
-        // but let newer clients in); 0 = perlin's own
         void SetProtocolOverride(int protocol, std::string version) {
             protocolOverride = protocol;
             versionOverride = std::move(version);
@@ -100,7 +95,6 @@ namespace perlin {
         void SetPackDirectory(const std::string& dir) { packs.SetDirectory(dir); }
         std::vector<PackDownloader::PackFile> ServerPackFiles() const { return packs.Files(); }
         bool Transferring() const { return transferring; }
-        // the server says its overworld is a flat one: the sky's horizon sits at the world floor instead of sea level
         bool FlatWorld() const { return flatWorld; }
 
         void Update();
@@ -192,13 +186,11 @@ namespace perlin {
             bool hasDelta = false;
             bool hasBlockAction = false;
             BlockActionData blockAction;
-            // client-predicted vehicle: ActorRotation (x, y) and ActorUniqueID; sets InputData 45
             std::optional<std::array<float, 2>> vehicleRotation;
             std::optional<int64_t> predictedVehicle;
         };
         bool SendMoveInput(const MoveInput& input);
 
-        // CorrectPlayerMovePredictionPacket with the vehicle prediction type
         struct VehicleCorrection {
             uint64_t tick = 0;
             float pos[3] = {0, 0, 0};
@@ -208,14 +200,11 @@ namespace perlin {
             bool onGround = false;
         };
         bool TakeVehicleCorrection(VehicleCorrection& out);
-        // RiderSeatPosition (actor data 56) of the local player, when the server sent one
         std::optional<std::array<float, 3>> OwnSeatOffset() const {
             std::lock_guard lock(attrMutex);
             return ownSeatOffset;
         }
-        // SetActorLink type 1: the local player sits in the controlling seat
         bool RidingAsDriver() const { return ridingDriver.load(); }
-        // server moves of this actor are ignored while the client predicts it
         void SetPredictedVehicle(uint64_t runtime) { predictedVehicleRuntime = runtime; }
 
         struct ServerMotion {
@@ -249,10 +238,7 @@ namespace perlin {
             const auto it = ownAttributes.find("minecraft:movement");
             return it == ownAttributes.end() ? 0.1f : it->second;
         }
-        // adds or removes the sprint modifier like the game's sprint action, then returns the instance value;
-        // a freeze strength swaps the sent "Freeze effect" modifier for ours
         float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength = std::nullopt);
-        // own FREEZING_EFFECT_STRENGTH (actor data 120) with the server tick it was set on
         struct FreezeUpdate {
             uint64_t tick = 0;
             float strength = 0;
@@ -345,7 +331,6 @@ namespace perlin {
         bool SendSettingsCommand(const std::string& command);
         bool SendSkinUpdate();
         std::string lastSentSkinName;
-        // predicted xp orb pickup (TakeItemEntityPacket): dedupe server SoundOrb echo
         uint64_t lastLocalOrbMs = 0;
         float lastOrbX = 0.0f, lastOrbY = 0.0f, lastOrbZ = 0.0f;
         uint32_t CommandsVersion() const {
@@ -400,11 +385,9 @@ namespace perlin {
             bool known = false;
         };
         struct AdventureSettings {
-            // showNameTags is kept for completeness only: the game draws name tags whatever it says.
             bool noPvm = false, noMvp = false, immutableWorld = false, showNameTags = true, autoJump = true;
         };
-        // OnScreenTextureAnimation: effect id (-1 = none) and arrival time
-        static constexpr int kTotemScreenAnimation = 1000; // not an effect id: totem item
+        static constexpr int kTotemScreenAnimation = 1000;
         struct ScreenAnimation {
             int effect = -1;
             std::chrono::steady_clock::time_point started;
@@ -413,7 +396,6 @@ namespace perlin {
             std::lock_guard<std::mutex> lk(worldMutex);
             return std::exchange(screenAnimation, ScreenAnimation{});
         }
-        // ShowCredits: server waits for status 1 before respawning us
         bool TakeCreditsRequest() { return creditsRequested.exchange(false); }
         bool SendCreditsFinished();
         AdventureSettings Adventure() const {
@@ -430,7 +412,6 @@ namespace perlin {
             return it == permByUid.end() ? -1 : it->second;
         }
         int DimensionId() const { return dimensionId; }
-        // chunk column arrived/left for mods; no-op without listeners
         void NoteModChunk(bool loaded, int x, int z) const;
         bool DimensionChanging() const { return dimAckPending.load(); }
         uint32_t HurtCount() const { return hurtCounter.load(); }
@@ -547,7 +528,6 @@ namespace perlin {
             int reason = -1;
             std::string message;
             bool connectionLost = false;
-            // version mismatch: 1 = we're too old, 2 = server too old
             int outdated = 0;
             std::string serverVersion;
             int serverProtocol = 0;
@@ -561,10 +541,7 @@ namespace perlin {
         bool MayFly() const { return mayFly; }
         bool Instabuild() const { return instabuild; }
         bool IsFlying() const { return isFlying; }
-        // bumped by every UpdateAbilities: the game applies the whole set, not only changes
         uint32_t AbilitiesSeq() const { return abilitiesSeq; }
-        // Player::setPlayerGameType 0x1402b9ab0 -> base ability layer 0x1402e1980 (5: the world's type);
-        // creative keeps flying, survival and adventure drop it; spectator lives in its own layer
         void ApplyGameTypeAbilities(int worldGameType) {
             const int type = gameType == 5 ? worldGameType : gameType;
             if (type == 1) {
@@ -578,9 +555,6 @@ namespace perlin {
                 noClip = false;
             }
         }
-        // entity flag 32 (gliding), last from server for local player
-        // actor flag 75 (sleeping): extended flag word
-        // local invisibility (actor flag 5) from our SetActorData
         bool Invisible() const {
             std::lock_guard lock(attrMutex);
             return (ownFlagWords[0] & (1ull << 5)) != 0;
@@ -744,7 +718,6 @@ namespace perlin {
 
         bool PredictPlace(int x, int y, int z, int32_t heldRuntimeId);
         bool PredictBridgePlace(int x, int y, int z, int32_t heldRuntimeId, int face, const float click[3]);
-        // repeat: a held build repeat (GameMode::continueBuildBlock), sent with the simulation-tick trigger
         bool SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3], int use, const int dest[3], bool repeat = false);
         bool SendUseItemInAir(const float eye[3], bool held);
         bool SendReleaseItem(const float eye[3]);
@@ -794,7 +767,7 @@ namespace perlin {
         bool TakeChestOpened();
         bool ChestOpen() const {
             std::lock_guard lock(statusMutex);
-            return inventory.chestOpen;
+            return inventory.chestOpen || inventory.furnaceKind >= 0;
         }
         bool HorseOpen() const {
             std::lock_guard lock(statusMutex);
@@ -1120,7 +1093,7 @@ namespace perlin {
         std::shared_ptr<friendworld::Lease> friendLease;
         xbox::Credentials onlineCreds;
         std::string accountKey;
-        std::shared_ptr<EC_KEY> swapKey; // key pair of a background sign-in that finished during the connect
+        std::shared_ptr<EC_KEY> swapKey;
         std::string playerUuid;
         std::string serverAddress;
         std::string gameVersion;
@@ -1152,7 +1125,6 @@ namespace perlin {
         std::array<uint64_t, 2> ownFlagWords{};
         std::array<bool, 2> ownFlagWordsKnown{};
         std::optional<proto::PlayerAttributesEntry> movementAttribute;
-        // own copy of the movement AttributeInstance: modifiers, base (min, max, value), limits, value
         std::vector<proto::PlayerAttributesEntryModifiersEntry> movementModifiers;
         std::array<float, 3> movementBase{};
         std::array<float, 2> movementLimits{};
@@ -1189,7 +1161,6 @@ namespace perlin {
 
         bool mayFly = false;
         bool noClip = false;
-        // ability 11, MovementAbilitiesComponent bit 2: changes jump while gliding
         bool instabuild = false;
         int gameType = 0;
         bool isFlying = false;

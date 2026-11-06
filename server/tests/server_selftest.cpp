@@ -14,6 +14,7 @@
 #include "world/Blocks.hpp"
 #include "world/Chunk.hpp"
 #include "world/Generator.hpp"
+#include "world/Loot.hpp"
 
 #include "world/level/chunk/ChunkCodec.hpp"
 #include "protocol/Packets.hpp"
@@ -22,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <set>
 
 using namespace perlin::server;
 namespace abi = perlin::abi;
@@ -606,12 +608,124 @@ static void TestAuth() {
     CHECK(!auth::VerifyOfferBinding(sdp, alice.player.spki, why));
 }
 
+static int LootCount(const std::vector<LootDrop>& drops, const std::string& item) {
+    int n = 0;
+    for (const LootDrop& d : drops)
+        if (d.item == item)
+            n += d.count;
+    return n;
+}
+
+static void TestLoot() {
+    BlockCatalog& c = BlockCatalog::Instance();
+    std::string error;
+    CHECK(c.Load(BlockCatalog::FindFile("", "block_states.json"), BlockCatalog::FindFile("", "block_destroy.tsv"), error,
+                 BlockCatalog::FindFile("", "extra_items.txt")));
+    const LootTables& loot = LootTables::Instance();
+    std::mt19937 rng(7);
+    const auto roll = [&](const std::string& bedrock, StateList states, const std::string& tool) {
+        LootContext ctx;
+        ctx.rng = &rng;
+        ctx.tool = tool;
+        ctx.block = LootTables::ViewOf(bedrock, states);
+        return loot.Roll("blocks/" + ctx.block.java, ctx);
+    };
+    CHECK(LootTables::ViewOf("minecraft:stone", {}).java == "stone");
+    CHECK(LootCount(roll("minecraft:stone", {}, "minecraft:wooden_pickaxe"), "minecraft:cobblestone") == 1);
+    CHECK(LootCount(roll("minecraft:diamond_ore", {}, "minecraft:iron_pickaxe"), "minecraft:diamond") == 1);
+    CHECK(!LootTables::CanHarvest("minecraft:diamond_ore", "minecraft:stone_pickaxe"));
+    CHECK(LootTables::CanHarvest("minecraft:diamond_ore", "minecraft:iron_pickaxe"));
+    CHECK(!LootTables::CanHarvest("minecraft:stone", ""));
+    CHECK(LootTables::CanHarvest("minecraft:dirt", ""));
+    const int lapis = LootCount(roll("minecraft:lapis_ore", {}, "minecraft:stone_pickaxe"), "minecraft:lapis_lazuli");
+    CHECK(lapis >= 4 && lapis <= 9);
+    StateList ripe = {{"growth", StateValue(int32_t{7})}};
+    StateList young = {{"growth", StateValue(int32_t{2})}};
+    CHECK(LootCount(roll("minecraft:wheat", ripe, ""), "minecraft:wheat") == 1);
+    CHECK(LootCount(roll("minecraft:wheat", young, ""), "minecraft:wheat") == 0);
+    CHECK(LootCount(roll("minecraft:wheat", young, ""), "minecraft:wheat_seeds") == 1);
+    CHECK(LootCount(roll("minecraft:snow_layer", {{"height", StateValue(int32_t{3})}, {"covered_bit", StateValue(false)}},
+                         "minecraft:wooden_shovel"),
+                    "minecraft:snowball") == 4);
+    CHECK(LootCount(roll("minecraft:oak_double_slab", {{"minecraft:vertical_half", StateValue(std::string("bottom"))}}, ""),
+                    "minecraft:oak_slab") == 2);
+    CHECK(LootCount(roll("minecraft:grass_block", {}, ""), "minecraft:dirt") == 1);
+    CHECK(LootCount(roll("minecraft:glass", {}, ""), "minecraft:glass") == 0);
+    int sticks = 0, leaves = 0;
+    for (int i = 0; i < 400; i++) {
+        const auto drops = roll("minecraft:oak_leaves", {}, "");
+        sticks += LootCount(drops, "minecraft:stick");
+        leaves += LootCount(drops, "minecraft:oak_leaves");
+    }
+    CHECK(sticks > 0 && leaves == 0);
+    CHECK(LootCount(roll("minecraft:oak_leaves", {}, "minecraft:shears"), "minecraft:oak_leaves") == 1);
+    LootContext cow;
+    cow.rng = &rng;
+    cow.onFire = true;
+    int cooked = 0, raw = 0;
+    for (int i = 0; i < 20; i++) {
+        const auto drops = loot.Roll("entities/cow", cow);
+        cooked += LootCount(drops, "minecraft:cooked_beef");
+        raw += LootCount(drops, "minecraft:beef");
+    }
+    CHECK(cooked >= 20 && raw == 0);
+    LootContext sheep;
+    sheep.rng = &rng;
+    CHECK(LootCount(loot.Roll("entities/sheep", sheep), "minecraft:white_wool") == 1);
+    CHECK(LootTables::JavaEntityName("minecraft:zombie_pigman") == "zombified_piglin");
+    CHECK(loot.Has("entities/zombified_piglin") && loot.Has("entities/zombie"));
+    size_t missing = 0;
+    std::string examples;
+    for (const CatalogItem& item : c.Items()) {
+        if (!item.block)
+            continue;
+        const LootBlock view = LootTables::ViewOf(item.name, {});
+        if (view.java.starts_with("element_") || view.java.starts_with("hard_") || view.java.starts_with("light_block"))
+            continue;
+        if (!loot.Has("blocks/" + view.java)) {
+            missing++;
+            if (missing <= 12)
+                examples += " " + item.name;
+        }
+    }
+    std::printf("loot: %zu placeable blocks without a java table (%s )\n", missing, examples.c_str());
+    CHECK(missing < 24);
+    std::set<std::string> unresolved;
+    for (int i = 0; i < kLootSourceCount; i++) {
+        const std::string text = kLootSources[i].json;
+        size_t at = 0;
+        while ((at = text.find("\"name\":\"", at)) != std::string::npos) {
+            at += 8;
+            const size_t end = text.find('"', at);
+            const std::string name = text.substr(at, end - at);
+            if (LootTables::BedrockItemName(name).empty())
+                unresolved.insert(name);
+            at = end;
+        }
+    }
+    std::printf("loot: %zu java item names have no item in this block catalog\n", unresolved.size());
+    for (const char* name : {"minecraft:diamond", "minecraft:string", "minecraft:rotten_flesh", "minecraft:cobweb",
+                             "minecraft:bricks", "minecraft:terracotta", "minecraft:snow_block", "minecraft:melon"})
+        CHECK(!LootTables::BedrockItemName(name).empty());
+    ItemStack worn;
+    worn.networkId = c.ItemByName("minecraft:diamond_sword")->networkId;
+    worn.count = 1;
+    worn.damage = 17;
+    const auto wire = ToWire(worn);
+    const auto* extra = std::get_if<2>(&wire.extra);
+    CHECK(extra && extra->nbt && extra->nbt->nbt.bytes.size() == 17 && extra->nbt->nbt.bytes[12] == 17);
+    CHECK(MaxDurability(worn.networkId) == 1561);
+    CHECK(ArmorPoints(c.ItemByName("minecraft:diamond_chestplate")->networkId) == 8);
+    CHECK(ArmorPoints(c.ItemByName("minecraft:leather_boots")->networkId) == 1);
+}
+
 int main(int argc, char** argv) {
     TestJson();
     TestBlockHash();
     TestAuth();
     TestBlockCatalog();
     TestInventory();
+    TestLoot();
     TestFlatGeneration();
     TestChunkEncodingDecodesWithClientCodec();
     TestBatchCodec();

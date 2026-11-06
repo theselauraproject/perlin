@@ -4,6 +4,7 @@
 #include "session/Session.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "world/Loot.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -247,16 +248,32 @@ namespace perlin::server {
         return best;
     }
 
-    void MobWorld::Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by) {
-        if (m.deathTime > 0 || m.hurtTime > 0)
-            return;
-        m.health -= damage;
-        m.hurtTime = 10;
-        const double dx = m.x - fromX, dz = m.z - fromZ;
-        const double len = std::max(0.01, std::sqrt(dx * dx + dz * dz));
-        m.vx = dx / len * 0.4;
-        m.vz = dz / len * 0.4;
-        m.vy = m.onGround ? 0.36 : m.vy;
+    bool MobWorld::Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by, float knockback) {
+        if (m.deathTime > 0 || m.kind != 0 || damage <= 0)
+            return false;
+        float dealt = damage;
+        if (m.invulnerable > 10) {
+            if (damage <= m.lastHurt)
+                return false;
+            dealt = damage - m.lastHurt;
+            m.lastHurt = damage;
+        } else {
+            m.lastHurt = damage;
+            m.invulnerable = 20;
+            m.hurtTime = 10;
+        }
+        m.health -= dealt;
+        if (by) {
+            m.lastAttacker = by->Id();
+            m.lastAttackerTicks = 100;
+        }
+        if (knockback > 0) {
+            const double dx = m.x - fromX, dz = m.z - fromZ;
+            const double len = std::max(0.01, std::sqrt(dx * dx + dz * dz));
+            m.vx = m.vx * 0.5 + dx / len * knockback;
+            m.vz = m.vz * 0.5 + dz / len * knockback;
+            m.vy = m.onGround ? std::min(0.4, 0.36 * knockback / 0.4 + 0.04) : m.vy;
+        }
         if (m.def->flags & mobflag::Panic)
             m.panicTicks = 60 + static_cast<int>(rng() % 40);
         if (by && (m.def->flags & (mobflag::Neutral | mobflag::Hostile))) {
@@ -269,17 +286,17 @@ namespace perlin::server {
         }
         if (m.health <= 0)
             Die(m, by);
+        return true;
     }
 
-    bool MobWorld::Attack(Session& by, uint64_t entity, float damage) {
+    bool MobWorld::Attack(Session& by, uint64_t entity, float damage, float knockback) {
         Mob* m = Find(entity);
-        if (!m || m->projectile)
+        if (!m || m->projectile || m->kind != 0)
             return false;
         const double dx = m->x - by.X(), dz = m->z - by.Z(), dy = m->y - (by.Y() - 1.62);
-        if (dx * dx + dy * dy + dz * dz > 6.0 * 6.0)
+        if (dx * dx + dy * dy + dz * dz > 7.0 * 7.0)
             return false;
-        Hurt(*m, by.GameMode() == 1 ? 1000.0f : damage, by.X(), by.Z(), &by);
-        return true;
+        return Hurt(*m, by.GameMode() == 1 ? std::max(damage, 1000.0f) : damage, by.X(), by.Z(), &by, knockback);
     }
 
     bool MobWorld::Interact(Session& by, uint64_t entity) {
@@ -296,43 +313,115 @@ namespace perlin::server {
         m.target = 0;
         for (Session* s : server.PlayersIn(kOverworld))
             s->MobEvent(m.id, 3, 0);
-        if (m.projectile || m.baby)
+        if (m.projectile || m.kind != 0)
             return;
-        std::istringstream drops(m.def->drops);
-        std::string entry;
-        while (std::getline(drops, entry, ';')) {
-            std::istringstream parts(entry);
-            std::string name, lo, hi, chance;
-            std::getline(parts, name, ':');
-            std::getline(parts, lo, ':');
-            std::getline(parts, hi, ':');
-            std::getline(parts, chance, ':');
-            if (const auto it = ItemAliases().find(name); it != ItemAliases().end())
-                name = it->second;
-            if (m.burning && name == "beef")
-                name = "cooked_beef";
-            if (m.burning && name == "porkchop")
-                name = "cooked_porkchop";
-            if (m.burning && name == "chicken")
-                name = "cooked_chicken";
-            if (m.burning && name == "mutton")
-                name = "cooked_mutton";
-            const double c = chance.empty() ? 1.0 : std::atof(chance.c_str());
-            if (std::uniform_real_distribution<double>(0, 1)(rng) >= c)
-                continue;
-            const int a = std::atoi(lo.c_str()), b = std::max(a, std::atoi(hi.c_str()));
-            const int count = a + static_cast<int>(rng() % static_cast<unsigned>(b - a + 1));
-            if (count <= 0)
-                continue;
-            const CatalogItem* item = BlockCatalog::Instance().ItemByName("minecraft:" + name);
+        if (!killer && m.lastAttacker && m.lastAttackerTicks > 0)
+            killer = server.FindSession(m.lastAttacker);
+        if (killer && (!killer->InGame() || killer->DimensionId() != kOverworld))
+            killer = nullptr;
+        const bool hostile = (m.def->flags & mobflag::Hostile) != 0;
+        const std::string java = LootTables::JavaEntityName(m.def->id);
+        const bool zombieLike = java == "zombie" || java == "husk" || java == "drowned" || java == "zombie_villager" ||
+                                java == "zombified_piglin" || java == "piglin" || java == "hoglin";
+        if (m.baby && !zombieLike)
+            return;
+        if (killer)
+            SpawnXpOrbs(m.x, m.y + 0.5, m.z, LootTables::MobXp(m.def->id, m.baby, hostile, rng));
+        if (!server.RuleValue("domobloot"))
+            return;
+        std::vector<LootDrop> drops;
+        const LootTables& loot = LootTables::Instance();
+        if (loot.Has("entities/" + java)) {
+            LootContext ctx;
+            ctx.rng = &rng;
+            ctx.killedByPlayer = killer != nullptr;
+            ctx.onFire = m.burning;
+            ctx.baby = m.baby;
+            ctx.cubeSize = java == "magma_cube" ? 2 : 1;
+            ctx.attackerType = killer ? "minecraft:player" : "";
+            if (killer) {
+                const ItemStack& held = killer->Inventory().Held();
+                if (const CatalogItem* item = held.Empty() ? nullptr : BlockCatalog::Instance().ItemById(held.networkId))
+                    ctx.tool = item->name;
+            }
+            drops = loot.Roll("entities/" + java, ctx);
+        } else {
+            std::istringstream list(m.def->drops);
+            std::string entry;
+            while (std::getline(list, entry, ';')) {
+                std::istringstream parts(entry);
+                std::string name, lo, hi, chance;
+                std::getline(parts, name, ':');
+                std::getline(parts, lo, ':');
+                std::getline(parts, hi, ':');
+                std::getline(parts, chance, ':');
+                if (const auto it = ItemAliases().find(name); it != ItemAliases().end())
+                    name = it->second;
+                const double c = chance.empty() ? 1.0 : std::atof(chance.c_str());
+                if (std::uniform_real_distribution<double>(0, 1)(rng) >= c)
+                    continue;
+                const int a = std::atoi(lo.c_str()), b = std::max(a, std::atoi(hi.c_str()));
+                const int count = a + static_cast<int>(rng() % static_cast<unsigned>(b - a + 1));
+                if (count > 0)
+                    drops.push_back({"minecraft:" + name, count});
+            }
+        }
+        for (const LootDrop& d : drops) {
+            const CatalogItem* item = BlockCatalog::Instance().ItemByName(d.item);
             if (!item)
                 continue;
-            ItemStack stack;
-            stack.networkId = item->networkId;
-            stack.count = static_cast<uint16_t>(count);
-            server.SpawnItem(stack, m.x, m.y + 0.5, m.z, (rng() % 100 - 50) / 500.0, 0.2, (rng() % 100 - 50) / 500.0, 10);
+            int left = d.count;
+            const int limit = std::max(1, MaxStack(item->networkId));
+            while (left > 0) {
+                ItemStack stack;
+                stack.networkId = item->networkId;
+                stack.count = static_cast<uint16_t>(std::min(left, limit));
+                left -= stack.count;
+                server.SpawnItem(stack, m.x, m.y + 0.5, m.z, (rng() % 100 - 50) / 500.0, 0.2, (rng() % 100 - 50) / 500.0, 10);
+            }
         }
-        (void)killer;
+    }
+
+    void MobWorld::SpawnXpOrbs(double x, double y, double z, int amount) {
+        static const MobDef orb{"minecraft:xp_orb", 0.25f, 0.25f, 1, 0, 0, 0, "", "", ""};
+        static constexpr int kSizes[] = {2477, 1237, 617, 307, 149, 73, 37, 17, 7, 3, 1};
+        int spawned = 0;
+        while (amount > 0 && spawned < 24) {
+            int value = 1;
+            for (int s : kSizes)
+                if (amount >= s) {
+                    value = s;
+                    break;
+                }
+            if (spawned == 23)
+                value = amount;
+            amount -= value;
+            spawned++;
+            Mob m;
+            m.def = &orb;
+            m.kind = 3;
+            m.block = static_cast<uint16_t>(std::min(value, 65535));
+            m.id = nextId++;
+            m.x = x;
+            m.y = y;
+            m.z = z;
+            std::uniform_real_distribution<double> spread(-0.1, 0.1);
+            m.vx = spread(rng) * 2.0;
+            m.vy = 0.2 + std::abs(spread(rng));
+            m.vz = spread(rng) * 2.0;
+            m.health = 1;
+            m.persistent = true;
+            mobs.push_back(m);
+            Mob& added = mobs.back();
+            for (Session* s : server.PlayersIn(kOverworld)) {
+                s->ShowMob(added);
+                s->MobMotion(added);
+            }
+            added.lastX = static_cast<float>(x);
+            added.lastY = static_cast<float>(y);
+            added.lastZ = static_cast<float>(z);
+            added.lastFlags = Flags(added);
+        }
     }
 
     bool FallsWithGravity(uint16_t id) {
@@ -431,6 +520,8 @@ namespace perlin::server {
 
     void MobWorld::Explosion(double x, double y, double z, float power, uint64_t source, bool breakBlocks) {
         std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+        const Mob* origin = Find(source);
+        const bool fromTnt = origin && origin->kind == 2;
         const int cx = static_cast<int>(std::floor(x)), cy = static_cast<int>(std::floor(y)), cz = static_cast<int>(std::floor(z));
         const bool underwater = BlockLiquid(server.Chunks().GetBlock(cx, cy, cz));
         std::vector<std::array<int, 3>> broken;
@@ -477,6 +568,10 @@ namespace perlin::server {
                 SpawnPrimedTnt(b[0] + 0.5, b[1], b[2] + 0.5, 10 + static_cast<int>(rng() % 20));
                 continue;
             }
+            if (server.RuleValue("dotiledrops")) {
+                const bool decay = !fromTnt || server.RuleValue("tntexplosiondropdecay");
+                server.DropBlockLoot(kOverworld, b[0], b[1], b[2], id, std::string(), decay ? power : 1.0f, nullptr);
+            }
             server.SetBlockIn(kOverworld, b[0], b[1], b[2], BlockRegistry::kAir);
         }
         const double reach = power * 2.0;
@@ -487,7 +582,9 @@ namespace perlin::server {
             const double d = std::sqrt(dx * dx + dy * dy + dz * dz);
             if (d < reach && s->GameMode() != 1 && !s->Spectator()) {
                 const double impact = 1.0 - d / reach;
-                s->Hurt(static_cast<float>((impact * impact + impact) / 2.0 * 7.0 * reach + 1.0), x, z);
+                s->Damage(static_cast<float>((impact * impact + impact) / 2.0 * 7.0 * reach + 1.0),
+                          Session::DamageCause::Explosion, x, z, origin && origin->kind == 0 ? std::string(origin->def->id) : std::string(),
+                          nullptr, static_cast<float>(impact));
             }
         }
         for (Mob& o : mobs) {
@@ -639,6 +736,68 @@ namespace perlin::server {
             }
             return false;
         }
+        if (m.kind == 3) {
+            if (m.age > 6000 || m.y < kMinY - 64)
+                return true;
+            Session* best = nullptr;
+            double bestD = 8.0 * 8.0;
+            for (Session* s : server.PlayersIn(kOverworld)) {
+                if (s->Spectator() || s->Dead())
+                    continue;
+                const double dx = s->X() - m.x, dy = (s->Y() - 1.0) - m.y, dz = s->Z() - m.z;
+                const double d = dx * dx + dy * dy + dz * dz;
+                if (d < bestD) {
+                    bestD = d;
+                    best = s;
+                }
+            }
+            if (best && m.age > 10) {
+                const double dx = best->X() - m.x, dy = (best->Y() - 1.0) - m.y, dz = best->Z() - m.z;
+                const double d = std::sqrt(dx * dx + dy * dy + dz * dz);
+                if (d < 1.25) {
+                    best->AddExperience(m.block);
+                    for (Session* s : server.PlayersIn(kOverworld))
+                        s->TakeItem(m.id, best->Id());
+                    return true;
+                }
+                const double pull = 1.0 - d / 8.0;
+                const double strength = pull * pull * 0.1;
+                m.vx += dx / d * strength;
+                m.vy += dy / d * strength;
+                m.vz += dz / d * strength;
+            }
+            m.vy -= 0.03;
+            const auto solid = [&](double px, double py, double pz) {
+                return BlockSolid(blockAt(static_cast<int>(std::floor(px)), static_cast<int>(std::floor(py)),
+                                          static_cast<int>(std::floor(pz))));
+            };
+            double nx = m.x + m.vx, ny = m.y + m.vy, nz = m.z + m.vz;
+            m.onGround = false;
+            if (solid(m.x, ny, m.z)) {
+                if (m.vy < 0) {
+                    ny = std::floor(ny) + 1.0;
+                    m.onGround = true;
+                } else {
+                    ny = m.y;
+                }
+                m.vy = 0;
+            }
+            if (solid(nx, ny + 0.05, m.z)) {
+                nx = m.x;
+                m.vx = 0;
+            }
+            if (solid(nx, ny + 0.05, nz)) {
+                nz = m.z;
+                m.vz = 0;
+            }
+            m.x = nx;
+            m.y = ny;
+            m.z = nz;
+            m.vx *= m.onGround ? 0.6 : 0.98;
+            m.vy *= 0.98;
+            m.vz *= m.onGround ? 0.6 : 0.98;
+            return false;
+        }
         return true;
     }
 
@@ -740,15 +899,40 @@ namespace perlin::server {
 
     void MobWorld::Think(Mob& m) {
         if (m.projectile) {
+            if (!(m.vx || m.vz || m.vy))
+                return;
+            Session* shooter = m.owner && m.owner < 5'000'000 ? server.FindSession(m.owner) : nullptr;
+            const Mob* shooterMob = m.owner >= 5'000'000 ? Find(m.owner) : nullptr;
+            const double speed = std::sqrt(m.vx * m.vx + m.vy * m.vy + m.vz * m.vz);
+            float damage = static_cast<float>(std::ceil(speed * 2.0));
+            if (m.baby)
+                damage += static_cast<float>(rng() % static_cast<unsigned>(std::max(1.0f, damage / 2.0f + 2.0f)));
             for (Session* s : server.PlayersIn(kOverworld)) {
                 if (s->Spectator() || s->GameMode() == 1 || s->Dead())
                     continue;
+                if (shooter && (s == shooter ? m.age < 5 : !server.RuleValue("pvp")))
+                    continue;
                 const double dx = s->X() - m.x, dy = (s->Y() - 0.9) - m.y, dz = s->Z() - m.z;
-                if (std::abs(dx) < 0.5 && std::abs(dz) < 0.5 && std::abs(dy) < 1.0 && (m.vx || m.vz)) {
-                    const double speed = std::sqrt(m.vx * m.vx + m.vy * m.vy + m.vz * m.vz);
-                    s->Hurt(static_cast<float>(std::ceil(speed * 2.0)), m.x - m.vx, m.z - m.vz);
+                if (std::abs(dx) < 0.55 && std::abs(dz) < 0.55 && std::abs(dy) < 1.0) {
+                    const std::string from = shooter ? shooter->Name() : shooterMob ? std::string(shooterMob->def->id) : std::string();
+                    s->Damage(damage, Session::DamageCause::Projectile, m.x - m.vx, m.z - m.vz, from, shooter);
+                    if (shooter)
+                        shooter->PlaySound("BowHit", m.x, m.y, m.z);
                     m.age = 2000;
-                    break;
+                    return;
+                }
+            }
+            for (Mob& o : mobs) {
+                if (&o == &m || o.kind != 0 || o.projectile || o.deathTime || o.id == m.owner)
+                    continue;
+                if (!shooter && (o.def->flags & mobflag::Hostile))
+                    continue;
+                const double hw = o.def->width * (o.baby ? 0.25 : 0.5) + 0.15;
+                const double h = o.def->height * (o.baby ? 0.5 : 1.0);
+                if (std::abs(o.x - m.x) < hw && std::abs(o.z - m.z) < hw && m.y >= o.y - 0.1 && m.y <= o.y + h) {
+                    Hurt(o, damage, m.x - m.vx, m.z - m.vz, shooter);
+                    m.age = 2000;
+                    return;
                 }
             }
             return;
@@ -829,7 +1013,7 @@ namespace perlin::server {
                         damage = std::min(damage / 2.0f + 1.0f, damage);
                     else if (server.Config().difficulty == 3)
                         damage *= 1.5f;
-                    target->Hurt(damage, m.x, m.z);
+                    target->Damage(damage, Session::DamageCause::Mob, m.x, m.z, d.id);
                     m.attackCooldown = 20;
                     for (Session* s : server.PlayersIn(kOverworld))
                         s->MobEvent(m.id, 4, 0);
@@ -1111,6 +1295,10 @@ namespace perlin::server {
                 } else if (!remove) {
                     if (m.hurtTime > 0)
                         m.hurtTime--;
+                    if (m.invulnerable > 0)
+                        m.invulnerable--;
+                    if (m.lastAttackerTicks > 0)
+                        m.lastAttackerTicks--;
                     Think(m);
                     if (m.deathTime == 0) {
                         if (m.health <= 0)

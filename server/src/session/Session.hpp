@@ -17,6 +17,7 @@
 #include "protocol/Packets.hpp"
 
 #include <climits>
+#include <map>
 
 namespace perlin::server {
 
@@ -84,10 +85,56 @@ namespace perlin::server {
         void MobData(const Mob& mob);
         void MobMotion(const Mob& mob);
         void MobEvent(uint64_t id, int event, int data);
+        enum class DamageCause : uint8_t {
+            Generic,
+            Mob,
+            Player,
+            Projectile,
+            Explosion,
+            Fall,
+            Void,
+            Lava,
+            Fire,
+            Burning,
+            Drowning,
+            Starving,
+            Suffocation,
+            Cactus,
+            Magma,
+            BerryBush,
+            Poison,
+            Wither,
+            Magic,
+            FallingBlock,
+            Kill
+        };
         void Hurt(float amount, double fromX, double fromZ);
+        bool Damage(float amount, DamageCause cause, double fromX, double fromZ, const std::string& source = {},
+                    Session* attacker = nullptr, float knockback = 0.4f);
+        void Kill();
         bool Dead() const { return dead; }
         float Health() const { return health; }
+        float MaxHealth() const;
         void Heal(float amount);
+        int Food() const { return food; }
+        float Saturation() const { return saturation; }
+        void SetFood(int value, float sat);
+        void Exhaust(float amount);
+        void OnBlockMined(float hardness);
+        int XpLevel() const { return xpLevel; }
+        float XpProgress() const { return xpProgress; }
+        void AddExperience(int points);
+        void AddLevels(int levels);
+        void AddEffect(int id, int amplifier, int ticks, bool particles = true, bool ambient = false);
+        bool RemoveEffect(int id);
+        void ClearEffects();
+        int EffectLevel(int id) const;
+        bool OnGround() const { return onGround; }
+        bool Sprinting() const { return sprinting; }
+        float FallDistance() const { return fallDistance; }
+        int ArmorValue() const;
+        void DamageHeld(int amount);
+        bool Shielding(double fromX, double fromZ) const;
         void OpenWindow(int window, proto2225::WindowType type, int x, int y, int z);
         void SendWindowContents(proto2225::ContainerSlotType type, const std::vector<ItemStack>& slots);
         void SendWindowData(int property, int value);
@@ -154,6 +201,23 @@ namespace perlin::server {
         void OnRespawn(std::span<const uint8_t> body);
 
         void SendStartGame();
+        void SurvivalTick();
+        void MovementTick(const proto2225::PlayerAuthInputPacket& in, double previousY);
+        void FoodTick();
+        void EffectTick();
+        void EnvironmentTick();
+        void FinishUsing();
+        void StartUsing();
+        void StopUsing();
+        void ReleaseBow();
+        void SendEffect(int id, int event);
+        void SendSelfData();
+        void SendArmorSlot(int slot);
+        void DamageArmor(float amount);
+        void Die(DamageCause cause, const std::string& source);
+        std::string BlockNameAt(double x, double y, double z) const;
+        float AttackDamage(const ItemStack& held) const;
+        void AttackPlayer(Session& victim, const ItemStack& held);
         void SendAbilities();
         void SendAttributes();
         void SendCommands();
@@ -179,12 +243,45 @@ namespace perlin::server {
         int gameMode = 0;
         PlayerInventory inventory;
         float health = 20.0f;
+        float absorption = 0.0f;
+        int food = 20;
+        float saturation = 5.0f;
+        float exhaustion = 0.0f;
+        int foodTimer = 0;
+        int xpLevel = 0;
+        float xpProgress = 0.0f;
+        int xpTotal = 0;
+        struct ActiveEffect {
+            int amplifier = 0;
+            int ticks = 0;
+            bool particles = true;
+            bool ambient = false;
+        };
+        std::map<int, ActiveEffect> effects;
+        int invulnerable = 0;
+        float lastHurt = 0.0f;
+        float fallDistance = 0.0f;
+        bool onGround = true;
+        bool sprinting = false;
+        bool swimming = false;
+        bool gliding = false;
+        bool flying = false;
+        bool jumping = false;
+        int air = 300;
+        int fireTicks = 0;
+        int envTicks = 0;
+        int useTicks = -1;
+        int useSlot = -1;
+        int16_t useItem = 0;
+        bool attributesDirty = false;
+        bool dataDirty = false;
+        int lastAirSent = 300;
+        bool lastFireSent = false;
+        double lastMoveX = 0, lastMoveZ = 0;
         bool sneaking = false;
         int openWindow = -1;
         proto2225::WindowType openType = proto2225::WindowType::Inventory;
         bool dead = false;
-        int hurtCooldown = 0;
-        int regenTicks = 0;
 
         double posX = 0.5, posY = 0, posZ = 0.5;
         int dimension = kOverworld;

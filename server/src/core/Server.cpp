@@ -7,6 +7,7 @@
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
 #include "world/Mobs.hpp"
+#include "world/Loot.hpp"
 #include "gpu/GpuTerrain.hpp"
 #include "world/vanilla/VanillaDimension.hpp"
 
@@ -87,7 +88,9 @@ namespace perlin::server {
                         std::to_string(catalog.Items().size()) + " items");
             }
             BuildItemPackets();
-        Recipes::Instance().Load();
+            Recipes::Instance().Load();
+            if (const CatalogItem* shield = catalog.ItemByName("minecraft:shield"))
+                net::context::SetShieldItemID(shield->networkId);
         }
         BackendChoice choice = CreateTerrainBackend(config);
         if (!choice.backend) {
@@ -506,12 +509,12 @@ namespace perlin::server {
             bool gone = false;
             if (it.age >= it.pickupDelay)
                 for (Session* s : players) {
-                    if (s->Spectator())
+                    if (s->Spectator() || s->Dead())
                         continue;
                     const double dx = it.x - s->X(), dy = it.y - (s->Y() - 0.9), dz = it.z - s->Z();
                     if (dx * dx + dy * dy + dz * dz > 1.5 * 1.5)
                         continue;
-                    const int left = s->Inventory().Give(it.stack.networkId, it.stack.count);
+                    const int left = s->Inventory().Give(it.stack);
                     if (left == it.stack.count)
                         continue;
                     s->SendInventory();
@@ -910,7 +913,7 @@ namespace perlin::server {
             return true;
         }
         const std::string name = BlockRegistry::Instance().Name(current);
-        if (!by.Creative() && name == "minecraft:bedrock") {
+        if (!by.Creative() && (name == "minecraft:bedrock" || LootTables::Hardness(name) < 0)) {
             by.CorrectBlock(x, y, z);
             return false;
         }
@@ -921,17 +924,84 @@ namespace perlin::server {
             }
         }
         DropContainer(dim, x, y, z);
+        if (!by.Creative() && RuleValue("dotiledrops")) {
+            const ItemStack& held = by.Inventory().Held();
+            const CatalogItem* tool = held.Empty() ? nullptr : BlockCatalog::Instance().ItemById(held.networkId);
+            DropBlockLoot(dim, x, y, z, current, tool ? tool->name : std::string(), 0.0f, &by);
+        }
         ApplyBlock(dim, x, y, z, BlockRegistry::kAir);
         OnBlockRemoved(by, dim, x, y, z, name);
         if (!by.Creative())
-            if (const CatalogItem* item = BlockCatalog::Instance().ItemByName(name)) {
+            by.OnBlockMined(LootTables::Hardness(name));
+        return true;
+    }
+
+    void Server::DropBlockLoot(int dim, int x, int y, int z, uint16_t block, const std::string& tool,
+                               float explosionRadius, Session* by) {
+        static std::mt19937 rng{std::random_device{}()};
+        const std::string name = BlockRegistry::Instance().Name(block);
+        const LootBlock view = LootTables::ViewOf(name, BlockRegistry::Instance().States(block));
+        const std::string key = "blocks/" + view.java;
+        std::vector<LootDrop> drops;
+        const LootTables& loot = LootTables::Instance();
+        if (!LootTables::CanHarvest(name, tool) && explosionRadius <= 0)
+            return;
+        if (loot.Has(key)) {
+            LootContext ctx;
+            ctx.rng = &rng;
+            ctx.tool = tool;
+            ctx.explosionRadius = explosionRadius;
+            ctx.block = view;
+            ctx.attackerType = by ? "minecraft:player" : "";
+            ChunkManager& world = World(dim);
+            ctx.neighbor = [&](int dx, int dy, int dz) {
+                const int nx = x + dx, ny = y + dy, nz = z + dz;
+                const uint16_t id = world.Peek({nx >> 4, nz >> 4}) ? world.GetBlock(nx, ny, nz) : BlockRegistry::kAir;
+                return LootTables::ViewOf(BlockRegistry::Instance().Name(id), BlockRegistry::Instance().States(id));
+            };
+            drops = loot.Roll(key, ctx);
+        } else if (const CatalogItem* item = BlockCatalog::Instance().ItemByName(name)) {
+            drops.push_back({item->name, 1});
+        }
+        for (const LootDrop& d : drops) {
+            const CatalogItem* item = BlockCatalog::Instance().ItemByName(d.item);
+            if (!item)
+                continue;
+            int left = d.count;
+            const int limit = std::max(1, MaxStack(item->networkId));
+            while (left > 0) {
                 ItemStack drop;
                 drop.networkId = item->networkId;
-                drop.count = 1;
-                const double kick = static_cast<double>((x * 7 + z * 13 + y * 3) & 7) / 7.0 - 0.5;
-                SpawnItem(drop, x + 0.5, y + 0.25, z + 0.5, kick * 0.1, 0.2, -kick * 0.1, 10, dim);
+                drop.count = static_cast<uint16_t>(std::min(left, limit));
+                left -= drop.count;
+                std::uniform_real_distribution<double> jitter(-0.25, 0.25);
+                SpawnItem(drop, x + 0.5 + jitter(rng), y + 0.25, z + 0.5 + jitter(rng), jitter(rng) * 0.4, 0.2,
+                          jitter(rng) * 0.4, 10, dim);
             }
-        return true;
+        }
+        if (explosionRadius <= 0)
+            if (const int xp = LootTables::BlockXp(view.java, 0, rng); xp > 0)
+                SpawnXp(dim, x + 0.5, y + 0.5, z + 0.5, xp);
+    }
+
+    void Server::SpawnXp(int dim, double x, double y, double z, int amount) {
+        if (amount <= 0)
+            return;
+        if (dim != kOverworld) {
+            Session* best = nullptr;
+            double bestD = 1e18;
+            for (Session* s : PlayersIn(dim)) {
+                const double dx = s->X() - x, dy = s->Y() - y, dz = s->Z() - z;
+                if (dx * dx + dy * dy + dz * dz < bestD) {
+                    bestD = dx * dx + dy * dy + dz * dz;
+                    best = s;
+                }
+            }
+            if (best && bestD < 64.0 * 64.0)
+                best->AddExperience(amount);
+            return;
+        }
+        mobWorld->SpawnXpOrbs(x, y, z, amount);
     }
 
     bool Server::PlayerPlace(Session& by, int x, int y, int z, int face) {

@@ -13,7 +13,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <random>
+#include <unordered_map>
 
 namespace perlin::server {
     namespace proto = proto2225;
@@ -162,6 +164,115 @@ namespace perlin::server {
             s.trusted = "true";
             (void)playerName;
             return s;
+        }
+    }
+
+    namespace {
+        struct FoodInfo {
+            int nutrition;
+            float saturation;
+            bool always;
+            int ticks;
+            const char* leftover;
+        };
+
+        const FoodInfo* FoodOf(const std::string& fullName) {
+            static const std::unordered_map<std::string, FoodInfo> foods = {
+                {"apple", {4, 2.4f, false, 32, nullptr}},
+                {"baked_potato", {5, 6.0f, false, 32, nullptr}},
+                {"beef", {3, 1.8f, false, 32, nullptr}},
+                {"beetroot", {1, 1.2f, false, 32, nullptr}},
+                {"beetroot_soup", {6, 7.2f, false, 32, "minecraft:bowl"}},
+                {"bread", {5, 6.0f, false, 32, nullptr}},
+                {"carrot", {3, 3.6f, false, 32, nullptr}},
+                {"chicken", {2, 1.2f, false, 32, nullptr}},
+                {"chorus_fruit", {4, 2.4f, true, 32, nullptr}},
+                {"cod", {2, 0.4f, false, 32, nullptr}},
+                {"cooked_beef", {8, 12.8f, false, 32, nullptr}},
+                {"cooked_chicken", {6, 7.2f, false, 32, nullptr}},
+                {"cooked_cod", {5, 6.0f, false, 32, nullptr}},
+                {"cooked_mutton", {6, 9.6f, false, 32, nullptr}},
+                {"cooked_porkchop", {8, 12.8f, false, 32, nullptr}},
+                {"cooked_rabbit", {5, 6.0f, false, 32, nullptr}},
+                {"cooked_salmon", {6, 9.6f, false, 32, nullptr}},
+                {"cookie", {2, 0.4f, false, 32, nullptr}},
+                {"dried_kelp", {1, 0.6f, false, 16, nullptr}},
+                {"enchanted_golden_apple", {4, 9.6f, true, 32, nullptr}},
+                {"golden_apple", {4, 9.6f, true, 32, nullptr}},
+                {"glow_berries", {2, 0.4f, false, 32, nullptr}},
+                {"golden_carrot", {6, 14.4f, false, 32, nullptr}},
+                {"honey_bottle", {6, 1.2f, false, 40, "minecraft:glass_bottle"}},
+                {"melon_slice", {2, 1.2f, false, 32, nullptr}},
+                {"mushroom_stew", {6, 7.2f, false, 32, "minecraft:bowl"}},
+                {"mutton", {2, 1.2f, false, 32, nullptr}},
+                {"poisonous_potato", {2, 1.2f, false, 32, nullptr}},
+                {"porkchop", {3, 1.8f, false, 32, nullptr}},
+                {"potato", {1, 0.6f, false, 32, nullptr}},
+                {"pufferfish", {1, 0.2f, false, 32, nullptr}},
+                {"pumpkin_pie", {8, 4.8f, false, 32, nullptr}},
+                {"rabbit", {3, 1.8f, false, 32, nullptr}},
+                {"rabbit_stew", {10, 12.0f, false, 32, "minecraft:bowl"}},
+                {"rotten_flesh", {4, 0.8f, false, 32, nullptr}},
+                {"salmon", {2, 0.4f, false, 32, nullptr}},
+                {"spider_eye", {2, 3.2f, false, 32, nullptr}},
+                {"suspicious_stew", {6, 7.2f, true, 32, "minecraft:bowl"}},
+                {"sweet_berries", {2, 0.4f, false, 32, nullptr}},
+                {"tropical_fish", {1, 0.2f, false, 32, nullptr}},
+                {"milk_bucket", {0, 0.0f, true, 32, "minecraft:bucket"}},
+                {"potion", {0, 0.0f, true, 32, "minecraft:glass_bottle"}},
+            };
+            std::string n = fullName.starts_with("minecraft:") ? fullName.substr(10) : fullName;
+            if (n == "clownfish")
+                n = "tropical_fish";
+            if (n == "appleEnchanted")
+                n = "enchanted_golden_apple";
+            const auto it = foods.find(n);
+            return it == foods.end() ? nullptr : &it->second;
+        }
+
+        std::string ItemNameOf(int16_t id) {
+            const CatalogItem* item = BlockCatalog::Instance().ItemById(id);
+            return item ? item->name : std::string();
+        }
+
+        std::string Pretty(const std::string& id) {
+            std::string n = id.starts_with("minecraft:") ? id.substr(10) : id;
+            if (n == "zombie_pigman")
+                n = "zombified_piglin";
+            if (n == "evocation_illager")
+                n = "evoker";
+            if (n.ends_with("_v2"))
+                n.resize(n.size() - 3);
+            bool up = true;
+            for (char& c : n) {
+                if (c == '_') {
+                    c = ' ';
+                    up = true;
+                } else if (up) {
+                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                    up = false;
+                }
+            }
+            return n;
+        }
+
+        int XpForLevel(int level) {
+            if (level >= 30)
+                return 112 + (level - 30) * 9;
+            if (level >= 15)
+                return 37 + (level - 15) * 5;
+            return 7 + level * 2;
+        }
+
+        bool BypassesArmor(Session::DamageCause c) {
+            using C = Session::DamageCause;
+            return c == C::Fall || c == C::Void || c == C::Drowning || c == C::Starving || c == C::Suffocation ||
+                   c == C::Poison || c == C::Wither || c == C::Magic || c == C::Kill || c == C::Burning;
+        }
+
+        bool FireCause(Session::DamageCause c) {
+            using C = Session::DamageCause;
+            return c == C::Lava || c == C::Fire || c == C::Burning || c == C::Magma;
         }
     }
 
@@ -581,14 +692,20 @@ namespace perlin::server {
             a.default_ = fallback;
             p.attributes.push_back(std::move(a));
         };
-        add("minecraft:health", 0.0f, 20.0f, std::max(0.0f, std::ceil(health)), 20.0f);
-        add("minecraft:player.hunger", 0.0f, 20.0f, 20.0f, 20.0f);
-        add("minecraft:player.saturation", 0.0f, 20.0f, 5.0f, 5.0f);
-        add("minecraft:player.exhaustion", 0.0f, 4.0f, 0.0f, 0.0f);
-        add("minecraft:player.level", 0.0f, 24791.0f, 0.0f, 0.0f);
-        add("minecraft:player.experience", 0.0f, 1.0f, 0.0f, 0.0f);
-        add("minecraft:absorption", 0.0f, 16.0f, 0.0f, 0.0f);
-        add("minecraft:movement", 0.0f, 3.4028235e38f, 0.1f, 0.1f);
+        const float maxHealth = MaxHealth();
+        add("minecraft:health", 0.0f, maxHealth, std::clamp(std::ceil(health), 0.0f, maxHealth), 20.0f);
+        add("minecraft:player.hunger", 0.0f, 20.0f, static_cast<float>(food), 20.0f);
+        add("minecraft:player.saturation", 0.0f, 20.0f, saturation, 5.0f);
+        add("minecraft:player.exhaustion", 0.0f, 5.0f, std::min(exhaustion, 5.0f), 0.0f);
+        add("minecraft:player.level", 0.0f, 24791.0f, static_cast<float>(xpLevel), 0.0f);
+        add("minecraft:player.experience", 0.0f, 1.0f, std::clamp(xpProgress, 0.0f, 1.0f), 0.0f);
+        add("minecraft:absorption", 0.0f, 16.0f, std::min(absorption, 16.0f), 0.0f);
+        float speed = 0.1f;
+        if (const int level = EffectLevel(1); level > 0)
+            speed *= 1.0f + 0.2f * static_cast<float>(level);
+        if (const int level = EffectLevel(2); level > 0)
+            speed *= std::max(0.0f, 1.0f - 0.15f * static_cast<float>(level));
+        add("minecraft:movement", 0.0f, 3.4028235e38f, speed, 0.1f);
         Send(p);
     }
 
@@ -806,7 +923,36 @@ namespace perlin::server {
         bool armorChanged = false;
         bool containerChanged = false;
         for (const proto::ItemStackRequest& r : p.requests) {
+            const bool furnace = inventory.containerKind >= 2 && inventory.container.size() == 3;
+            const ItemStack smelted = furnace ? inventory.container[2] : ItemStack{};
             const RequestResult result = ApplyStackRequest(inventory, r, creative);
+            if (result.ok && furnace && !smelted.Empty() && inventory.container.size() == 3) {
+                const ItemStack& now = inventory.container[2];
+                const int taken = now.Empty() || now.networkId != smelted.networkId ? smelted.count : smelted.count - now.count;
+                if (taken > 0) {
+                    const std::string out = ItemNameOf(smelted.networkId);
+                    float each = 0.1f;
+                    if (out.ends_with("_ingot") || out == "minecraft:netherite_scrap")
+                        each = out.contains("gold") ? 1.0f : out.contains("netherite") ? 2.0f : 0.7f;
+                    else if (out == "minecraft:diamond" || out == "minecraft:emerald")
+                        each = 1.0f;
+                    else if (out == "minecraft:redstone" || out == "minecraft:lapis_lazuli" || out == "minecraft:quartz")
+                        each = out == "minecraft:redstone" ? 0.3f : 0.2f;
+                    else if (out.starts_with("minecraft:cooked_") || out == "minecraft:baked_potato" ||
+                             out == "minecraft:dried_kelp" || out.ends_with("terracotta"))
+                        each = 0.35f;
+                    else if (out == "minecraft:charcoal" || out == "minecraft:sponge")
+                        each = 0.15f;
+                    else if (out == "minecraft:green_dye" || out == "minecraft:lime_dye")
+                        each = 1.0f;
+                    static std::mt19937 rng{std::random_device{}()};
+                    const float total = each * static_cast<float>(taken);
+                    int whole = static_cast<int>(std::floor(total));
+                    if (std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < total - static_cast<float>(whole))
+                        whole++;
+                    AddExperience(whole);
+                }
+            }
             if (result.ok)
                 for (const auto& [container, slot] : result.touched)
                     if (container != proto::ContainerSlotType::HotbarAndInventory && container != proto::ContainerSlotType::Hotbar &&
@@ -837,8 +983,11 @@ namespace perlin::server {
         proto::MobEquipmentPacket m;
         if (!Decode(body, m) || state != State::InGame)
             return;
-        if (m.selectedSlot < PlayerInventory::kHotbar)
+        if (m.selectedSlot < PlayerInventory::kHotbar) {
+            if (inventory.selected != m.selectedSlot)
+                StopUsing();
             inventory.selected = m.selectedSlot;
+        }
     }
 
     void Session::OnInteract(std::span<const uint8_t> body) {
@@ -911,6 +1060,24 @@ namespace perlin::server {
             return;
         }
         switch (a.action) {
+        case proto::Action::StartSprint:
+        case proto::Action::StopSprint:
+            sprinting = a.action == proto::Action::StartSprint && (food > 6 || gameMode == 1);
+            dataDirty = true;
+            break;
+        case proto::Action::Swimming:
+        case proto::Action::StopSwimming:
+            swimming = a.action == proto::Action::Swimming;
+            dataDirty = true;
+            break;
+        case proto::Action::StartGlide:
+        case proto::Action::StopGlide:
+            gliding = a.action == proto::Action::StartGlide;
+            dataDirty = true;
+            break;
+        case proto::Action::Jump:
+            Exhaust(sprinting ? 0.2f : 0.05f);
+            break;
         case proto::Action::StartBreak:
             if (isVisitor || gameMode == 6)
                 break;
@@ -939,29 +1106,48 @@ namespace perlin::server {
                 return;
             lastActive = std::chrono::steady_clock::now();
             if (on->actionType == proto::TransactionTransactionDataCase1ActionType::Attack) {
-                float damage = 1.0f;
-                const ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
-                if (!held.Empty())
-                    if (const CatalogItem* item = BlockCatalog::Instance().ItemById(held.networkId)) {
-                        const std::string& n = item->name;
-                        const float tier = n.contains("netherite") ? 4 : n.contains("diamond") ? 3 : n.contains("iron") ? 2 :
-                                           n.contains("stone") || n.contains("golden") ? 1 : 0;
-                        if (n.contains("_sword"))
-                            damage = 4.0f + tier;
-                        else if (n.contains("_axe"))
-                            damage = 7.0f + std::min(tier, 2.0f);
-                        else if (n.contains("_pickaxe"))
-                            damage = 2.0f + tier;
-                        else if (n.contains("_shovel"))
-                            damage = 2.5f + tier;
-                        else if (n.contains("trident"))
-                            damage = 9.0f;
-                        else if (n.contains("mace"))
-                            damage = 6.0f;
+                if (on->hotbarSlot >= 0 && on->hotbarSlot < PlayerInventory::kHotbar)
+                    inventory.selected = on->hotbarSlot;
+                const ItemStack held = inventory.Held();
+                if (Session* victim = server.FindSession(on->entityRuntimeId)) {
+                    AttackPlayer(*victim, held);
+                    return;
+                }
+                const bool crit = !onGround && fallDistance > 0.0f && !swimming && !gliding && !flying;
+                if (server.Mobs().Attack(*this, on->entityRuntimeId, AttackDamage(held), sprinting ? 0.9f : 0.4f)) {
+                    Exhaust(0.1f);
+                    if (crit)
+                        for (Session* s : server.PlayersIn(dimension))
+                            s->MobEvent(on->entityRuntimeId, 17, 0);
+                    const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
+                    if (n.ends_with("_sword") || n == "minecraft:trident" || n == "minecraft:mace")
+                        DamageHeld(1);
+                    else if (n.ends_with("_axe") || n.ends_with("_pickaxe") || n.ends_with("_shovel") || n.ends_with("_hoe"))
+                        DamageHeld(2);
+                    if (sprinting) {
+                        sprinting = false;
+                        dataDirty = true;
                     }
-                server.Mobs().Attack(*this, on->entityRuntimeId, damage);
+                }
             } else {
                 server.Mobs().Interact(*this, on->entityRuntimeId);
+            }
+            return;
+        }
+        if (t.transaction.transactionType == proto::TransactionTransactionType::ItemRelease) {
+            const auto* release = std::get_if<proto::TransactionTransactionDataCase2>(&t.transaction.transactionData);
+            if (!release || dead)
+                return;
+            if (useTicks >= 0 && ItemNameOf(useItem) == "minecraft:bow") {
+                ReleaseBow();
+            } else if (release->actionType == proto::TransactionTransactionDataCase2ActionType::Consume && useTicks >= 0) {
+                const FoodInfo* f = FoodOf(ItemNameOf(useItem));
+                if (f && useTicks >= f->ticks - 6)
+                    FinishUsing();
+                else
+                    StopUsing();
+            } else {
+                StopUsing();
             }
             return;
         }
@@ -981,12 +1167,22 @@ namespace perlin::server {
             server.PlayerBreak(*this, at.x, at.y, at.z);
             break;
         case proto::TransactionUseItemActionType::ClickBlock:
-            if ((sneaking && !inventory.Held().Empty()) || !server.UseBlock(*this, at.x, at.y, at.z))
-                if (!EquipHeldArmor())
-                    server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
+            if ((sneaking && !inventory.Held().Empty()) || !server.UseBlock(*this, at.x, at.y, at.z)) {
+                if (!EquipHeldArmor()) {
+                    const ItemStack& held = inventory.Held();
+                    const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
+                    if (!held.Empty() && (FoodOf(n) || n == "minecraft:bow")) {
+                        if (useTicks < 0)
+                            StartUsing();
+                    } else {
+                        server.PlayerPlace(*this, at.x, at.y, at.z, use->face);
+                    }
+                }
+            }
             break;
         case proto::TransactionUseItemActionType::ClickAir:
-            EquipHeldArmor();
+            if (!EquipHeldArmor() && useTicks < 0)
+                StartUsing();
             break;
         default:
             break;
@@ -1188,7 +1384,17 @@ namespace perlin::server {
         const bool wasDead = dead;
         if (dead) {
             dead = false;
-            health = 20.0f;
+            health = MaxHealth();
+            food = 20;
+            saturation = 5.0f;
+            exhaustion = 0;
+            foodTimer = 0;
+            absorption = 0;
+            fireTicks = 0;
+            air = 300;
+            fallDistance = 0;
+            invulnerable = 60;
+            dataDirty = true;
             posX = server.SpawnX() + 0.5;
             posY = server.SpawnY() + 1.62;
             posZ = server.SpawnZ() + 0.5;
@@ -1240,8 +1446,26 @@ namespace perlin::server {
         proto::PlayerAuthInputPacket in;
         if (!Decode(body, in) || (state != State::InGame && state != State::Loading))
             return;
+        const double previousY = posY;
         SetPosition(in.position.x, in.position.y, in.position.z, in.pitch, in.yaw);
+        const bool wasSneaking = sneaking;
         sneaking = std::find(in.inputData.begin(), in.inputData.end(), proto::InputData::Sneaking) != in.inputData.end();
+        if (wasSneaking != sneaking)
+            dataDirty = true;
+        if (state != State::InGame)
+            return;
+        if (!awaitingDimensionAck)
+            MovementTick(in, previousY);
+        if (in.blockAction && !isVisitor && gameMode != 6 && !dead)
+            for (const auto& action : *in.blockAction) {
+                const auto& at = action.position;
+                if (action.action == proto::Action::PredictBreak ||
+                    (action.action == proto::Action::StartBreak && creative) ||
+                    action.action == proto::Action::CreativePlayerDestroyBlock) {
+                    lastActive = std::chrono::steady_clock::now();
+                    server.PlayerBreak(*this, at.x, at.y, at.z);
+                }
+            }
     }
 
     void Session::OnMovePlayer(std::span<const uint8_t> body) {
@@ -1436,6 +1660,8 @@ namespace perlin::server {
                 out.push_back(IntEntry(proto::MetadataDictionaryEntryKey::Variant, BlockRegistry::Instance().Hash(mob.block)));
             if (mob.kind == 2)
                 out.push_back(IntEntry(proto::MetadataDictionaryEntryKey::FuseLength, std::max(0, mob.fuse)));
+            if (mob.kind == 3)
+                out.push_back(IntEntry(proto::MetadataDictionaryEntryKey::ExperienceValue, mob.block));
             proto::MetadataDictionaryEntry flags;
             flags.key = proto::MetadataDictionaryEntryKey::Flags;
             flags.type = proto::MetadataDictionaryEntryType::Long;
@@ -1572,42 +1798,1025 @@ namespace perlin::server {
         openWindow = -1;
     }
 
-    void Session::Heal(float amount) {
-        if (dead || health >= 20.0f)
+    float Session::MaxHealth() const {
+        return 20.0f + 4.0f * static_cast<float>(EffectLevel(21));
+    }
+
+    int Session::EffectLevel(int id) const {
+        const auto it = effects.find(id);
+        return it == effects.end() ? 0 : it->second.amplifier + 1;
+    }
+
+    int Session::ArmorValue() const {
+        int points = 0;
+        for (const ItemStack& a : inventory.armor)
+            if (!a.Empty())
+                points += ArmorPoints(a.networkId);
+        return points;
+    }
+
+    void Session::SendEffect(int id, int event) {
+        if (state != State::InGame)
             return;
-        health = std::min(20.0f, health + amount);
-        SendAttributes();
+        proto::MobEffectPacket p;
+        p.runtimeEntityId = runtimeId;
+        p.eventId = static_cast<proto::MobEffectPacketEventId>(event);
+        p.effectId = id;
+        if (const auto it = effects.find(id); it != effects.end()) {
+            p.amplifier = it->second.amplifier;
+            p.particles = it->second.particles;
+            p.duration = it->second.ticks;
+            p.ambient = it->second.ambient;
+        }
+        p.tick = server.TickCount();
+        Send(p);
+    }
+
+    void Session::AddEffect(int id, int amplifier, int ticks, bool particles, bool ambient) {
+        if (id <= 0 || ticks <= 0)
+            return;
+        if (id == 6) {
+            Heal(static_cast<float>(4 << std::clamp(amplifier, 0, 10)));
+            return;
+        }
+        if (id == 7) {
+            Damage(static_cast<float>(6 << std::clamp(amplifier, 0, 10)), DamageCause::Magic, posX, posZ);
+            return;
+        }
+        if (id == 23) {
+            SetFood(food + amplifier + 1, saturation + static_cast<float>(amplifier + 1) * 2.0f);
+            return;
+        }
+        auto it = effects.find(id);
+        const bool fresh = it == effects.end();
+        if (!fresh && it->second.amplifier > amplifier)
+            return;
+        if (!fresh && it->second.amplifier == amplifier && it->second.ticks > ticks)
+            return;
+        ActiveEffect& e = effects[id];
+        e.amplifier = amplifier;
+        e.ticks = ticks;
+        e.particles = particles;
+        e.ambient = ambient;
+        if (id == 22)
+            absorption = std::max(absorption, 4.0f * static_cast<float>(amplifier + 1));
+        SendEffect(id, fresh ? 1 : 2);
+        attributesDirty = true;
+    }
+
+    bool Session::RemoveEffect(int id) {
+        const auto it = effects.find(id);
+        if (it == effects.end())
+            return false;
+        SendEffect(id, 3);
+        effects.erase(it);
+        if (id == 22)
+            absorption = 0;
+        if (id == 21)
+            health = std::min(health, MaxHealth());
+        attributesDirty = true;
+        return true;
+    }
+
+    void Session::ClearEffects() {
+        std::vector<int> ids;
+        for (const auto& [id, e] : effects)
+            ids.push_back(id);
+        for (int id : ids)
+            RemoveEffect(id);
+    }
+
+    void Session::SetFood(int value, float sat) {
+        food = std::clamp(value, 0, 20);
+        saturation = std::clamp(sat, 0.0f, static_cast<float>(food));
+        attributesDirty = true;
+    }
+
+    void Session::Exhaust(float amount) {
+        if (gameMode == 1 || gameMode == 6 || dead)
+            return;
+        exhaustion = std::min(40.0f, exhaustion + amount);
+    }
+
+    void Session::OnBlockMined(float hardness) {
+        Exhaust(0.005f);
+        if (hardness <= 0.0f || gameMode == 1)
+            return;
+        const ItemStack& held = inventory.Held();
+        if (held.Empty())
+            return;
+        const std::string n = ItemNameOf(held.networkId);
+        if (n.ends_with("_sword") || n.ends_with("trident") || n.ends_with("mace"))
+            DamageHeld(2);
+        else if (n.ends_with("_pickaxe") || n.ends_with("_axe") || n.ends_with("_shovel") || n.ends_with("_hoe") ||
+                 n.ends_with("shears"))
+            DamageHeld(1);
+    }
+
+    void Session::DamageHeld(int amount) {
+        if (gameMode == 1 || gameMode == 6)
+            return;
+        ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
+        if (held.Empty())
+            return;
+        const int max = MaxDurability(held.networkId);
+        if (max <= 0)
+            return;
+        held.damage = static_cast<uint16_t>(std::min(max + 1, held.damage + amount));
+        if (held.damage >= max) {
+            held = ItemStack{};
+            for (Session* s : server.PlayersIn(dimension))
+                s->PlaySound("Break", posX, posY, posZ);
+        } else {
+            held.stackId = inventory.NewStackId();
+        }
+        SendSlot(inventory.selected);
+        SendHeldSelection();
+    }
+
+    void Session::SendArmorSlot(int slot) {
+        proto::InventorySlotPacket p;
+        p.windowId = proto::WindowIDVarint::Armor;
+        p.slot = static_cast<uint32_t>(slot);
+        proto::FullContainerName c;
+        c.containerId = proto::ContainerSlotType::Armor;
+        p.container = c;
+        p.item = ToWire(inventory.armor[static_cast<size_t>(slot)]);
+        Send(p);
+    }
+
+    void Session::DamageArmor(float amount) {
+        if (gameMode == 1 || gameMode == 6)
+            return;
+        const int loss = std::max(1, static_cast<int>(amount / 4.0f));
+        bool changed = false;
+        for (int slot = 0; slot < 4; slot++) {
+            ItemStack& a = inventory.armor[static_cast<size_t>(slot)];
+            if (a.Empty())
+                continue;
+            const int max = MaxDurability(a.networkId);
+            if (max <= 0)
+                continue;
+            a.damage = static_cast<uint16_t>(std::min(max + 1, a.damage + loss));
+            if (a.damage >= max) {
+                a = ItemStack{};
+                for (Session* s : server.PlayersIn(dimension))
+                    s->PlaySound("Break", posX, posY, posZ);
+            } else {
+                a.stackId = inventory.NewStackId();
+            }
+            SendArmorSlot(slot);
+            changed = true;
+        }
+        if (changed)
+            server.BroadcastArmor(*this);
+    }
+
+    bool Session::Shielding(double fromX, double fromZ) const {
+        if (!sneaking)
+            return false;
+        const auto isShield = [](const ItemStack& s) {
+            return !s.Empty() && ItemNameOf(s.networkId) == "minecraft:shield";
+        };
+        if (!isShield(inventory.offhand) && !isShield(inventory.Held()))
+            return false;
+        const double yawRad = static_cast<double>(yaw) * 3.14159265358979323846 / 180.0;
+        const double lookX = -std::sin(yawRad), lookZ = std::cos(yawRad);
+        const double dx = fromX - posX, dz = fromZ - posZ;
+        const double len = std::sqrt(dx * dx + dz * dz);
+        return len < 1e-6 || (dx * lookX + dz * lookZ) / len > 0.0;
     }
 
     void Session::Hurt(float amount, double fromX, double fromZ) {
-        if (dead || gameMode == 1 || gameMode == 6 || hurtCooldown > 0 || amount <= 0)
-            return;
-        health -= amount;
-        hurtCooldown = 10;
-        regenTicks = 0;
+        Damage(amount, DamageCause::Mob, fromX, fromZ);
+    }
+
+    void Session::Kill() {
+        Damage(std::numeric_limits<float>::max() / 4.0f, DamageCause::Kill, posX, posZ);
+    }
+
+    bool Session::Damage(float amount, DamageCause cause, double fromX, double fromZ, const std::string& source,
+                         Session* attacker, float knockback) {
+        if (dead || amount <= 0 || state != State::InGame)
+            return false;
+        const bool bypassInvulnerable = cause == DamageCause::Void || cause == DamageCause::Kill;
+        if ((gameMode == 1 || gameMode == 6) && !bypassInvulnerable)
+            return false;
+        if (FireCause(cause) && (EffectLevel(12) > 0 || !server.RuleValue("firedamage")))
+            return false;
+        if (cause == DamageCause::Fall && !server.RuleValue("falldamage"))
+            return false;
+        if (cause == DamageCause::Drowning && !server.RuleValue("drowningdamage"))
+            return false;
+        if (cause == DamageCause::Starving && server.Config().difficulty == 0)
+            return false;
+        const bool blockable = cause == DamageCause::Mob || cause == DamageCause::Player ||
+                               cause == DamageCause::Projectile || cause == DamageCause::Explosion;
+        if (blockable && Shielding(fromX, fromZ)) {
+            for (Session* s : server.PlayersIn(dimension))
+                s->PlaySound("ShieldBlock", posX, posY, posZ);
+            ItemStack& shield = ItemNameOf(inventory.offhand.networkId) == "minecraft:shield"
+                                    ? inventory.offhand
+                                    : inventory.main[static_cast<size_t>(inventory.selected)];
+            if (amount >= 3.0f && gameMode != 1) {
+                const int max = MaxDurability(shield.networkId);
+                shield.damage = static_cast<uint16_t>(shield.damage + 1 + static_cast<int>(amount));
+                if (max > 0 && shield.damage >= max)
+                    shield = ItemStack{};
+                else
+                    shield.stackId = inventory.NewStackId();
+                SendInventory();
+            }
+            return false;
+        }
+        float dealt = amount;
+        if (invulnerable > 10 && !bypassInvulnerable) {
+            if (amount <= lastHurt)
+                return false;
+            dealt = amount - lastHurt;
+            lastHurt = amount;
+        } else {
+            lastHurt = amount;
+            invulnerable = 20;
+        }
+        if (!BypassesArmor(cause)) {
+            float armor = 0, toughness = 0;
+            for (const ItemStack& a : inventory.armor)
+                if (!a.Empty()) {
+                    armor += static_cast<float>(ArmorPoints(a.networkId));
+                    toughness += ArmorToughness(a.networkId);
+                }
+            if (armor > 0) {
+                DamageArmor(dealt);
+                const float effective =
+                    std::clamp(armor - 4.0f * dealt / (toughness + 8.0f), armor / 5.0f, 20.0f);
+                dealt *= 1.0f - effective / 25.0f;
+            }
+        }
+        if (const int resistance = EffectLevel(11); resistance > 0 && cause != DamageCause::Void && cause != DamageCause::Kill)
+            dealt *= std::max(0.0f, 1.0f - 0.2f * static_cast<float>(resistance));
+        if (dealt <= 0)
+            return false;
+        if (absorption > 0) {
+            const float used = std::min(absorption, dealt);
+            absorption -= used;
+            dealt -= used;
+        }
+        health -= dealt;
+        Exhaust(0.1f);
+        attributesDirty = true;
+        for (Session* s : server.PlayersIn(dimension))
+            s->MobEvent(runtimeId, 2, 0);
+        const bool pushes = cause == DamageCause::Mob || cause == DamageCause::Player ||
+                            cause == DamageCause::Projectile || cause == DamageCause::Explosion;
+        if (pushes && knockback > 0) {
+            float resist = 0;
+            for (const ItemStack& a : inventory.armor)
+                if (!a.Empty())
+                    resist += KnockbackResistance(a.networkId);
+            const float strength = knockback * std::max(0.0f, 1.0f - resist);
+            const double dx = posX - fromX, dz = posZ - fromZ;
+            const double len = std::max(0.01, std::sqrt(dx * dx + dz * dz));
+            proto::SetEntityMotionPacket kb;
+            kb.runtimeEntityId = runtimeId;
+            kb.velocity = {static_cast<float>(dx / len * strength), std::min(0.4f, 0.36f * strength / 0.4f + 0.04f),
+                           static_cast<float>(dz / len * strength)};
+            kb.tick = server.TickCount();
+            Send(kb);
+        }
+        if (health <= 0)
+            Die(cause, attacker ? attacker->Name() : source);
+        else
+            SendAttributes();
+        return true;
+    }
+
+    void Session::Die(DamageCause cause, const std::string& source) {
+        dead = true;
+        health = 0;
+        StopUsing();
         SendAttributes();
         for (Session* s : server.InGamePlayers())
-            s->MobEvent(runtimeId, 2, 0);
-        const double dx = posX - fromX, dz = posZ - fromZ;
-        const double len = std::max(0.01, std::sqrt(dx * dx + dz * dz));
-        proto::SetEntityMotionPacket kb;
-        kb.runtimeEntityId = runtimeId;
-        kb.velocity = {static_cast<float>(dx / len * 0.4), 0.36f, static_cast<float>(dz / len * 0.4)};
-        kb.tick = server.TickCount();
-        Send(kb);
-        if (health <= 0) {
-            dead = true;
-            health = 0;
-            for (Session* s : server.InGamePlayers())
-                if (s != this)
-                    s->MobEvent(runtimeId, 3, 0);
+            if (s != this)
+                s->MobEvent(runtimeId, 3, 0);
+        if (!server.RuleValue("keepinventory")) {
+            const auto drop = [&](ItemStack& slot) {
+                if (slot.Empty())
+                    return;
+                std::uniform_real_distribution<double> unit(-0.2, 0.2);
+                static std::mt19937 rng{std::random_device{}()};
+                server.SpawnItem(slot, posX, posY - 1.0, posZ, unit(rng), 0.2, unit(rng), 40, dimension);
+                slot = ItemStack{};
+            };
             for (ItemStack& slot : inventory.main)
-                if (!slot.Empty() && !server.RuleValue("keepinventory")) {
-                    server.SpawnItem(slot, posX, posY - 1.0, posZ, 0.0, 0.2, 0.0, 40);
-                    slot = ItemStack{};
-                }
+                drop(slot);
+            for (ItemStack& slot : inventory.armor)
+                drop(slot);
+            drop(inventory.offhand);
+            drop(inventory.cursor);
+            for (ItemStack& slot : inventory.craft)
+                drop(slot);
+            const int xp = std::min(xpLevel * 7, 100);
+            server.SpawnXp(dimension, posX, posY - 1.0, posZ, xp);
+            xpLevel = 0;
+            xpProgress = 0;
+            xpTotal = 0;
             SendInventory();
-            server.Broadcast(name + " died");
+            server.BroadcastArmor(*this);
+        }
+        ClearEffects();
+        fireTicks = 0;
+        air = 300;
+        fallDistance = 0;
+        std::string message;
+        const std::string from = source.empty() ? std::string() : Pretty(source);
+        switch (cause) {
+        case DamageCause::Mob:
+            message = name + " was slain by " + (from.empty() ? std::string("a mob") : from);
+            break;
+        case DamageCause::Player:
+            message = name + " was slain by " + from;
+            break;
+        case DamageCause::Projectile:
+            message = name + " was shot by " + (from.empty() ? std::string("an arrow") : from);
+            break;
+        case DamageCause::Explosion:
+            message = from.empty() ? name + " blew up" : name + " was blown up by " + from;
+            break;
+        case DamageCause::Fall:
+            message = name + " fell from a high place";
+            break;
+        case DamageCause::Void:
+            message = name + " fell out of the world";
+            break;
+        case DamageCause::Lava:
+            message = name + " tried to swim in lava";
+            break;
+        case DamageCause::Fire:
+            message = name + " went up in flames";
+            break;
+        case DamageCause::Burning:
+            message = name + " burned to death";
+            break;
+        case DamageCause::Drowning:
+            message = name + " drowned";
+            break;
+        case DamageCause::Starving:
+            message = name + " starved to death";
+            break;
+        case DamageCause::Suffocation:
+            message = name + " suffocated in a wall";
+            break;
+        case DamageCause::Cactus:
+            message = name + " was pricked to death";
+            break;
+        case DamageCause::Magma:
+            message = name + " discovered the floor was lava";
+            break;
+        case DamageCause::BerryBush:
+            message = name + " was poked to death by a sweet berry bush";
+            break;
+        case DamageCause::Wither:
+            message = name + " withered away";
+            break;
+        case DamageCause::Magic:
+        case DamageCause::Poison:
+            message = name + " was killed by magic";
+            break;
+        case DamageCause::FallingBlock:
+            message = name + " was squashed by a falling block";
+            break;
+        default:
+            message = name + " died";
+            break;
+        }
+        if (server.RuleValue("showdeathmessages"))
+            server.Broadcast(message);
+    }
+
+    void Session::Heal(float amount) {
+        if (dead || amount <= 0 || health >= MaxHealth())
+            return;
+        health = std::min(MaxHealth(), health + amount);
+        attributesDirty = true;
+    }
+
+    void Session::AddExperience(int points) {
+        if (points <= 0 || dead)
+            return;
+        xpTotal += points;
+        float progress = xpProgress + static_cast<float>(points) / static_cast<float>(XpForLevel(xpLevel));
+        const int before = xpLevel;
+        while (progress >= 1.0f) {
+            progress = (progress - 1.0f) * static_cast<float>(XpForLevel(xpLevel));
+            xpLevel++;
+            progress /= static_cast<float>(XpForLevel(xpLevel));
+        }
+        xpProgress = progress;
+        if (xpLevel > before && xpLevel % 5 == 0)
+            PlaySound("LevelUp", posX, posY, posZ);
+        attributesDirty = true;
+    }
+
+    void Session::AddLevels(int levels) {
+        xpLevel = std::clamp(xpLevel + levels, 0, 24791);
+        if (xpLevel == 0 && levels < 0)
+            xpProgress = 0;
+        if (levels > 0 && xpLevel % 5 == 0)
+            PlaySound("LevelUp", posX, posY, posZ);
+        attributesDirty = true;
+    }
+
+    std::string Session::BlockNameAt(double x, double y, double z) const {
+        ChunkManager& world = server.World(dimension);
+        const int bx = static_cast<int>(std::floor(x)), by = static_cast<int>(std::floor(y)),
+                  bz = static_cast<int>(std::floor(z));
+        const DimensionRange range = RangeOf(dimension);
+        if (by < range.minY || by > range.MaxY() || !world.Peek({bx >> 4, bz >> 4}))
+            return {};
+        return BlockRegistry::Instance().Name(world.GetBlock(bx, by, bz));
+    }
+
+    float Session::AttackDamage(const ItemStack& held) const {
+        float damage = 1.0f;
+        if (!held.Empty()) {
+            const std::string n = ItemNameOf(held.networkId);
+            const auto tier = [&](float wood, float stone, float iron, float gold, float diamond, float netherite,
+                                  float copper) {
+                if (n.contains("wooden_"))
+                    return wood;
+                if (n.contains("stone_"))
+                    return stone;
+                if (n.contains("iron_"))
+                    return iron;
+                if (n.contains("golden_"))
+                    return gold;
+                if (n.contains("diamond_"))
+                    return diamond;
+                if (n.contains("netherite_"))
+                    return netherite;
+                if (n.contains("copper_"))
+                    return copper;
+                return 1.0f;
+            };
+            if (n.ends_with("_sword"))
+                damage = tier(5, 6, 7, 5, 8, 9, 6);
+            else if (n.ends_with("_axe"))
+                damage = tier(4, 5, 6, 4, 7, 8, 5);
+            else if (n.ends_with("_pickaxe"))
+                damage = tier(3, 4, 5, 3, 6, 7, 4);
+            else if (n.ends_with("_shovel"))
+                damage = tier(2, 3, 4, 2, 5, 6, 3);
+            else if (n.ends_with("_hoe"))
+                damage = tier(2, 3, 4, 2, 5, 6, 3);
+            else if (n.ends_with("_spear"))
+                damage = tier(2, 3, 4, 2, 5, 6, 3);
+            else if (n == "minecraft:trident")
+                damage = 9.0f;
+            else if (n == "minecraft:mace") {
+                damage = 6.0f;
+                if (!onGround && fallDistance > 1.5f) {
+                    const float f = fallDistance;
+                    damage += 4.0f * std::min(f, 3.0f) + 2.0f * std::clamp(f - 3.0f, 0.0f, 5.0f) +
+                              std::max(0.0f, f - 8.0f);
+                }
+            }
+        }
+        damage += 3.0f * static_cast<float>(EffectLevel(5));
+        damage -= 4.0f * static_cast<float>(EffectLevel(18));
+        const bool falling = !onGround && fallDistance > 0.0f && !swimming && !gliding && !flying;
+        if (falling && EffectLevel(15) == 0)
+            damage *= 1.5f;
+        return std::max(0.0f, damage);
+    }
+
+    void Session::AttackPlayer(Session& victim, const ItemStack& held) {
+        if (&victim == this || !victim.InGame() || victim.Dead() || victim.dimension != dimension ||
+            !server.RuleValue("pvp"))
+            return;
+        if (victim.gameMode == 1 || victim.gameMode == 6)
+            return;
+        const double dx = victim.posX - posX, dy = victim.posY - posY, dz = victim.posZ - posZ;
+        if (dx * dx + dy * dy + dz * dz > 7.0 * 7.0)
+            return;
+        const bool crit = !onGround && fallDistance > 0.0f && !swimming && !gliding && !flying;
+        const float damage = AttackDamage(held);
+        const float knock = sprinting ? 0.9f : 0.4f;
+        if (victim.Damage(damage, DamageCause::Player, posX, posZ, name, this, knock)) {
+            if (crit)
+                for (Session* s : server.PlayersIn(dimension))
+                    s->MobEvent(victim.runtimeId, 17, 0);
+            const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
+            if (n.ends_with("_sword") || n == "minecraft:trident" || n == "minecraft:mace")
+                DamageHeld(1);
+            else if (n.ends_with("_axe") || n.ends_with("_pickaxe") || n.ends_with("_shovel") || n.ends_with("_hoe"))
+                DamageHeld(2);
+            if (sprinting)
+                sprinting = false;
+        }
+        Exhaust(0.1f);
+    }
+
+    void Session::StartUsing() {
+        const ItemStack& held = inventory.Held();
+        if (held.Empty()) {
+            StopUsing();
+            return;
+        }
+        const std::string n = ItemNameOf(held.networkId);
+        if (n == "minecraft:bow") {
+            bool ammo = gameMode == 1;
+            for (const ItemStack& s : inventory.main)
+                if (!s.Empty() && ItemNameOf(s.networkId) == "minecraft:arrow")
+                    ammo = true;
+            if (!ItemNameOf(inventory.offhand.networkId).empty() &&
+                ItemNameOf(inventory.offhand.networkId) == "minecraft:arrow")
+                ammo = true;
+            if (!ammo)
+                return;
+            useTicks = 0;
+            useSlot = inventory.selected;
+            useItem = held.networkId;
+            return;
+        }
+        const FoodInfo* f = FoodOf(n);
+        if (!f)
+            return;
+        if (!f->always && food >= 20 && gameMode != 1)
+            return;
+        useTicks = 0;
+        useSlot = inventory.selected;
+        useItem = held.networkId;
+    }
+
+    void Session::StopUsing() {
+        useTicks = -1;
+        useSlot = -1;
+        useItem = 0;
+    }
+
+    void Session::ReleaseBow() {
+        const int ticks = useTicks;
+        StopUsing();
+        if (ticks < 0)
+            return;
+        float charge = static_cast<float>(ticks) / 20.0f;
+        charge = (charge * charge + charge * 2.0f) / 3.0f;
+        if (charge < 0.1f)
+            return;
+        charge = std::min(charge, 1.0f);
+        if (gameMode != 1) {
+            bool taken = false;
+            for (int i = 0; i < PlayerInventory::kMainSlots && !taken; i++) {
+                ItemStack& s = inventory.main[static_cast<size_t>(i)];
+                if (!s.Empty() && ItemNameOf(s.networkId) == "minecraft:arrow") {
+                    s.count = static_cast<uint16_t>(s.count - 1);
+                    if (s.count == 0)
+                        s = ItemStack{};
+                    else
+                        s.stackId = inventory.NewStackId();
+                    SendSlot(i);
+                    taken = true;
+                }
+            }
+            if (!taken && ItemNameOf(inventory.offhand.networkId) == "minecraft:arrow") {
+                inventory.offhand.count = static_cast<uint16_t>(inventory.offhand.count - 1);
+                if (inventory.offhand.count == 0)
+                    inventory.offhand = ItemStack{};
+                taken = true;
+                SendInventory();
+            }
+            if (!taken)
+                return;
+            DamageHeld(1);
+        }
+        if (dimension != kOverworld)
+            return;
+        const double yawRad = static_cast<double>(yaw) * 3.14159265358979323846 / 180.0;
+        const double pitchRad = static_cast<double>(pitch) * 3.14159265358979323846 / 180.0;
+        const double dirX = -std::sin(yawRad) * std::cos(pitchRad), dirY = -std::sin(pitchRad),
+                     dirZ = std::cos(yawRad) * std::cos(pitchRad);
+        Mob* arrow = server.Mobs().Spawn("minecraft:arrow", posX + dirX * 0.5, posY - 0.1 + dirY * 0.5, posZ + dirZ * 0.5, false);
+        if (!arrow)
+            return;
+        const double speed = 3.0 * charge;
+        arrow->vx = dirX * speed;
+        arrow->vy = dirY * speed;
+        arrow->vz = dirZ * speed;
+        arrow->owner = runtimeId;
+        arrow->baby = charge >= 1.0f;
+        arrow->yaw = yaw;
+        arrow->pitch = pitch;
+        for (Session* s : server.PlayersIn(dimension)) {
+            s->MobMotion(*arrow);
+            s->PlaySound("Bow", posX, posY, posZ);
+        }
+        Exhaust(0.0f);
+    }
+
+    void Session::FinishUsing() {
+        ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
+        if (held.Empty() || held.networkId != useItem) {
+            StopUsing();
+            return;
+        }
+        const std::string n = ItemNameOf(held.networkId);
+        const FoodInfo* f = FoodOf(n);
+        StopUsing();
+        if (!f)
+            return;
+        static std::mt19937 rng{std::random_device{}()};
+        const auto chance = [&](float p) { return std::uniform_real_distribution<float>(0.0f, 1.0f)(rng) < p; };
+        if (gameMode != 1) {
+            food = std::min(20, food + f->nutrition);
+            saturation = std::min(static_cast<float>(food), saturation + f->saturation);
+        }
+        const std::string bare = n.substr(n.find(':') + 1);
+        if (bare == "golden_apple") {
+            AddEffect(10, 1, 100);
+            AddEffect(22, 0, 2400);
+        } else if (bare == "enchanted_golden_apple" || bare == "appleEnchanted") {
+            AddEffect(10, 1, 600);
+            AddEffect(22, 3, 2400);
+            AddEffect(11, 0, 6000);
+            AddEffect(12, 0, 6000);
+        } else if (bare == "chicken" && chance(0.3f)) {
+            AddEffect(17, 0, 600);
+        } else if (bare == "rotten_flesh" && chance(0.8f)) {
+            AddEffect(17, 0, 600);
+        } else if (bare == "poisonous_potato" && chance(0.6f)) {
+            AddEffect(19, 0, 100);
+        } else if (bare == "spider_eye") {
+            AddEffect(19, 0, 100);
+        } else if (bare == "pufferfish") {
+            AddEffect(17, 2, 300);
+            AddEffect(9, 0, 300);
+            AddEffect(19, 3, 1200);
+        } else if (bare == "honey_bottle") {
+            RemoveEffect(19);
+        } else if (bare == "milk_bucket") {
+            ClearEffects();
+        } else if (bare == "chorus_fruit") {
+            for (int attempt = 0; attempt < 16; attempt++) {
+                const double tx = posX + std::uniform_real_distribution<double>(-8, 8)(rng);
+                const double tz = posZ + std::uniform_real_distribution<double>(-8, 8)(rng);
+                const double feet = posY - 1.62;
+                for (int dy = 8; dy >= -8; dy--) {
+                    const double ty = std::floor(feet) + dy;
+                    const std::string below = BlockNameAt(tx, ty - 1, tz);
+                    if (below.empty() || !BlockSolid(BlockRegistry::Instance().Find(below)))
+                        continue;
+                    if (BlockSolid(server.World(dimension).GetBlock(static_cast<int>(std::floor(tx)), static_cast<int>(ty),
+                                                                    static_cast<int>(std::floor(tz)))) ||
+                        BlockSolid(server.World(dimension).GetBlock(static_cast<int>(std::floor(tx)), static_cast<int>(ty) + 1,
+                                                                    static_cast<int>(std::floor(tz)))))
+                        continue;
+                    Teleport(std::floor(tx) + 0.5, ty + 1.62, std::floor(tz) + 0.5);
+                    fallDistance = 0;
+                    attempt = 16;
+                    break;
+                }
+            }
+        }
+        if (gameMode != 1) {
+            held.count = static_cast<uint16_t>(held.count - 1);
+            if (held.count == 0)
+                held = ItemStack{};
+            else
+                held.stackId = inventory.NewStackId();
+            if (f->leftover) {
+                const CatalogItem* rest = BlockCatalog::Instance().ItemByName(f->leftover);
+                if (rest) {
+                    if (held.Empty())
+                        held = inventory.MakeStack(rest->networkId, 1);
+                    else if (inventory.Give(rest->networkId, 1) > 0) {
+                        ItemStack spill;
+                        spill.networkId = rest->networkId;
+                        spill.count = 1;
+                        server.DropFromPlayer(*this, spill);
+                    }
+                }
+            }
+            SendInventory();
+        }
+        for (Session* s : server.PlayersIn(dimension)) {
+            s->MobEvent(runtimeId, 57, static_cast<int>(held.networkId) << 16);
+            s->PlaySound("Burp", posX, posY, posZ);
+        }
+        attributesDirty = true;
+    }
+
+    void Session::SendSelfData() {
+        namespace F = proto::FlagsMetadataFlags1;
+        uint64_t flags = F::HasCollision | F::AffectedByGravity | F::CanClimb | F::Walker;
+        if (air >= 300 || EffectLevel(13) > 0)
+            flags |= F::Breathing;
+        if (fireTicks > 0 && EffectLevel(12) == 0)
+            flags |= F::Onfire;
+        if (sneaking)
+            flags |= F::Sneaking;
+        if (sprinting)
+            flags |= F::Sprinting;
+        if (swimming)
+            flags |= F::Swimming;
+        if (gliding)
+            flags |= F::Gliding;
+        std::vector<proto::MetadataDictionaryEntry> meta;
+        proto::MetadataDictionaryEntry f;
+        f.key = proto::MetadataDictionaryEntryKey::Flags;
+        f.type = proto::MetadataDictionaryEntryType::Long;
+        f.value.template emplace<1>(static_cast<int64_t>(flags));
+        meta.push_back(f);
+        proto::MetadataDictionaryEntry a;
+        a.key = proto::MetadataDictionaryEntryKey::Air;
+        a.type = proto::MetadataDictionaryEntryType::Short;
+        a.value.template emplace<4>().template emplace<2>(static_cast<int16_t>(std::clamp(air, -20, 300)));
+        meta.push_back(a);
+        proto::MetadataDictionaryEntry m;
+        m.key = proto::MetadataDictionaryEntryKey::MaxAirdataMaxAir;
+        m.type = proto::MetadataDictionaryEntryType::Short;
+        m.value.template emplace<4>().template emplace<2>(static_cast<int16_t>(300));
+        meta.push_back(m);
+        proto::SetEntityDataPacket p;
+        p.runtimeEntityId = runtimeId;
+        p.metadata = meta;
+        p.tick = server.TickCount();
+        for (Session* s : server.PlayersIn(dimension))
+            s->Send(p);
+    }
+
+    void Session::MovementTick(const proto::PlayerAuthInputPacket& in, double previousY) {
+        const auto has = [&](proto::InputData d) {
+            return std::find(in.inputData.begin(), in.inputData.end(), d) != in.inputData.end();
+        };
+        const bool wasSprinting = sprinting, wasSwimming = swimming, wasGliding = gliding;
+        if (has(proto::InputData::StartSprinting))
+            sprinting = true;
+        if (has(proto::InputData::StopSprinting))
+            sprinting = false;
+        if (has(proto::InputData::Sprinting))
+            sprinting = true;
+        else if (!has(proto::InputData::StartSprinting) && sprinting && in.moveVector.z <= 0.0f)
+            sprinting = false;
+        if (has(proto::InputData::StartSwimming))
+            swimming = true;
+        if (has(proto::InputData::StopSwimming))
+            swimming = false;
+        if (has(proto::InputData::StartGliding))
+            gliding = true;
+        if (has(proto::InputData::StopGliding))
+            gliding = false;
+        if (has(proto::InputData::StartFlying))
+            flying = true;
+        if (has(proto::InputData::StopFlying))
+            flying = false;
+        if (gameMode != 1 && gameMode != 6 && flying && !(gameMode == 1))
+            flying = false;
+        if (sprinting && food <= 6 && gameMode != 1)
+            sprinting = false;
+        if (wasSprinting != sprinting || wasSwimming != swimming || wasGliding != gliding)
+            dataDirty = true;
+        if (gameMode == 1 || gameMode == 6 || dead) {
+            fallDistance = 0;
+            onGround = true;
+            return;
+        }
+        const double dy = posY - previousY;
+        const bool collided = has(proto::InputData::VerticalCollision);
+        const std::string feet = BlockNameAt(posX, posY - 1.62 + 0.1, posZ);
+        const std::string under = BlockNameAt(posX, posY - 1.62 - 0.2, posZ);
+        const bool inWater = feet.contains("water") || feet.contains("bubble_column");
+        const bool climbing = feet.contains("ladder") || feet.contains("vine") || feet.contains("scaffolding") ||
+                              feet.contains("web") || feet.contains("powder_snow") || feet.contains("sweet_berry");
+        const bool grounded = collided && dy <= 0.0001;
+        if (has(proto::InputData::StartJumping)) {
+            Exhaust(sprinting ? 0.2f : 0.05f);
+            jumping = true;
+        }
+        const double mx = posX - lastMoveX, mz = posZ - lastMoveZ;
+        lastMoveX = posX;
+        lastMoveZ = posZ;
+        const double horizontal = std::sqrt(mx * mx + mz * mz);
+        if (horizontal < 2.0) {
+            if (swimming || inWater)
+                Exhaust(static_cast<float>(0.01 * horizontal));
+            else if (sprinting && onGround)
+                Exhaust(static_cast<float>(0.1 * horizontal));
+        }
+        if (inWater || climbing || flying || EffectLevel(27) > 0 || EffectLevel(24) > 0 || feet.contains("lava")) {
+            fallDistance = 0;
+        } else if (gliding) {
+            if (dy > -0.5)
+                fallDistance = 0;
+        } else if (dy < 0 && !grounded) {
+            fallDistance -= static_cast<float>(dy);
+        }
+        if (grounded && !onGround) {
+            float damage = std::ceil(fallDistance - 3.0f - static_cast<float>(EffectLevel(8)) - 0.001f);
+            const std::string land = under.empty() ? feet : under;
+            if (land.contains("hay_block") || land.contains("honey_block"))
+                damage = std::ceil(damage * 0.2f);
+            if (land.contains("slime") || land.contains("_bed") || land == "minecraft:bed")
+                damage = land.contains("slime") && !sneaking ? 0.0f : std::ceil(damage * 0.5f);
+            if (land.contains("powder_snow") || land.contains("water") || land.contains("cobweb") || land.contains(":web"))
+                damage = 0;
+            if (land.contains("pointed_dripstone") && fallDistance > 2.0f)
+                damage = std::ceil((fallDistance - 2.0f) * 2.0f);
+            if (damage > 0)
+                Damage(damage, DamageCause::Fall, posX, posZ);
+            fallDistance = 0;
+            jumping = false;
+        } else if (grounded) {
+            fallDistance = 0;
+        }
+        onGround = grounded;
+    }
+
+    void Session::FoodTick() {
+        if (gameMode == 1 || gameMode == 6 || dead)
+            return;
+        const int difficulty = server.Config().difficulty;
+        if (const int hunger = EffectLevel(17); hunger > 0)
+            Exhaust(0.005f * static_cast<float>(hunger));
+        if (exhaustion > 4.0f) {
+            exhaustion -= 4.0f;
+            if (saturation > 0)
+                saturation = std::max(0.0f, saturation - 1.0f);
+            else if (difficulty != 0)
+                food = std::max(0, food - 1);
+            attributesDirty = true;
+        }
+        const bool regen = server.RuleValue("naturalregeneration") != 0;
+        if (difficulty == 0) {
+            if (regen && health < MaxHealth() && server.TickCount() % 20 == 0)
+                Heal(1.0f);
+            if (food < 20 && server.TickCount() % 10 == 0) {
+                food++;
+                attributesDirty = true;
+            }
+        }
+        if (regen && saturation > 0 && health < MaxHealth() && food >= 20) {
+            if (++foodTimer >= 10) {
+                const float amount = std::min(saturation, 6.0f);
+                Heal(amount / 6.0f);
+                Exhaust(amount);
+                foodTimer = 0;
+            }
+        } else if (regen && food >= 18 && health < MaxHealth()) {
+            if (++foodTimer >= 80) {
+                Heal(1.0f);
+                Exhaust(6.0f);
+                foodTimer = 0;
+            }
+        } else if (food <= 0) {
+            if (++foodTimer >= 80) {
+                if (health > 10.0f || difficulty == 3 || (health > 1.0f && difficulty == 2))
+                    Damage(1.0f, DamageCause::Starving, posX, posZ);
+                foodTimer = 0;
+            }
+        } else {
+            foodTimer = 0;
+        }
+    }
+
+    void Session::EffectTick() {
+        std::vector<int> expired;
+        for (auto& [id, e] : effects) {
+            const int amp = e.amplifier;
+            if (id == 10) {
+                const int interval = std::max(1, 50 >> amp);
+                if (e.ticks % interval == 0)
+                    Heal(1.0f);
+            } else if (id == 19 || id == 25) {
+                const int interval = std::max(1, 25 >> amp);
+                if (e.ticks % interval == 0 && (health > 1.0f || id == 25))
+                    Damage(1.0f, DamageCause::Poison, posX, posZ);
+            } else if (id == 20) {
+                const int interval = std::max(1, 40 >> amp);
+                if (e.ticks % interval == 0)
+                    Damage(1.0f, DamageCause::Wither, posX, posZ);
+            }
+            if (--e.ticks <= 0)
+                expired.push_back(id);
+        }
+        for (int id : expired)
+            RemoveEffect(id);
+    }
+
+    void Session::EnvironmentTick() {
+        if (gameMode == 1 || gameMode == 6 || dead) {
+            if (fireTicks > 0 || air < 300) {
+                fireTicks = 0;
+                air = 300;
+                dataDirty = true;
+            }
+            return;
+        }
+        envTicks++;
+        const double feetY = posY - 1.62;
+        const std::string feet = BlockNameAt(posX, feetY + 0.1, posZ);
+        const std::string body = BlockNameAt(posX, feetY + 1.0, posZ);
+        const std::string eye = BlockNameAt(posX, posY, posZ);
+        const std::string below = BlockNameAt(posX, feetY - 0.2, posZ);
+        const auto any = [&](const char* what) {
+            return feet.contains(what) || body.contains(what);
+        };
+        const bool inWater = any("water") || any("bubble_column");
+        const bool inLava = any("lava");
+        if (eye.contains("water") && EffectLevel(13) == 0) {
+            air--;
+            if (air <= -20) {
+                air = 0;
+                Damage(2.0f, DamageCause::Drowning, posX, posZ);
+            }
+            dataDirty = true;
+        } else if (air < 300) {
+            air = std::min(300, air + 4);
+            dataDirty = true;
+        }
+        if (inLava) {
+            if (EffectLevel(12) == 0)
+                fireTicks = std::max(fireTicks, 300);
+            Damage(4.0f, DamageCause::Lava, posX, posZ);
+            fallDistance = 0;
+        } else if (any("fire") && !any("campfire")) {
+            fireTicks = std::max(fireTicks, 160);
+            Damage(1.0f, DamageCause::Fire, posX, posZ);
+        } else if (any("campfire") && !any("soul_campfire")) {
+            Damage(1.0f, DamageCause::Fire, posX, posZ);
+        } else if (any("soul_campfire")) {
+            Damage(2.0f, DamageCause::Fire, posX, posZ);
+        }
+        if (inWater || (server.Raining() && dimension == kOverworld && fireTicks > 0 && envTicks % 20 == 0 &&
+                        BlockNameAt(posX, posY + 1.0, posZ).ends_with(":air"))) {
+            if (fireTicks > 0)
+                dataDirty = true;
+            fireTicks = 0;
+        }
+        if (fireTicks > 0) {
+            if (EffectLevel(12) > 0) {
+                fireTicks = 0;
+                dataDirty = true;
+            } else {
+                if (fireTicks % 20 == 0 && !inLava)
+                    Damage(1.0f, DamageCause::Burning, posX, posZ);
+                if (--fireTicks == 0)
+                    dataDirty = true;
+            }
+        }
+        if (any("cactus"))
+            Damage(1.0f, DamageCause::Cactus, posX, posZ);
+        if (any("sweet_berry_bush") && (std::abs(posX - lastMoveX) > 0.003 || std::abs(posZ - lastMoveZ) > 0.003))
+            Damage(1.0f, DamageCause::BerryBush, posX, posZ);
+        if (below.contains("magma") && !sneaking && EffectLevel(12) == 0 && onGround)
+            Damage(1.0f, DamageCause::Magma, posX, posZ);
+        if (!eye.empty() && envTicks % 10 == 0) {
+            const uint16_t id = BlockRegistry::Instance().Find(eye);
+            if (id != 0 && BlockSolid(id) && !BlockLiquid(id) && !eye.contains("glass") && !eye.contains("leaves") &&
+                !eye.contains("slab") && !eye.contains("stairs") && !eye.contains("fence") && !eye.contains("door") &&
+                !eye.contains("wall") && !eye.contains("pane") && !eye.contains("chest") && !eye.contains("trapdoor"))
+                Damage(1.0f, DamageCause::Suffocation, posX, posZ);
+        }
+        if (fireTicks > 0 != lastFireSent)
+            dataDirty = true;
+    }
+
+    void Session::SurvivalTick() {
+        if (invulnerable > 0)
+            invulnerable--;
+        if (!dead && !awaitingDimensionAck && posY - 1.62 < RangeOf(dimension).minY - 64)
+            Damage(4.0f, DamageCause::Void, posX, posZ);
+        if (!dead) {
+            EffectTick();
+            FoodTick();
+            EnvironmentTick();
+            if (useTicks >= 0) {
+                if (inventory.selected != useSlot || inventory.Held().networkId != useItem) {
+                    StopUsing();
+                } else {
+                    useTicks++;
+                    const std::string n = ItemNameOf(useItem);
+                    if (n != "minecraft:bow") {
+                        const FoodInfo* f = FoodOf(n);
+                        if (useTicks % 4 == 0 && f && f->nutrition > 0 && useTicks < f->ticks)
+                            for (Session* s : server.PlayersIn(dimension))
+                                if (s != this)
+                                    s->MobEvent(runtimeId, 57, static_cast<int>(useItem) << 16);
+                        if (f && useTicks >= f->ticks)
+                            FinishUsing();
+                    }
+                }
+            }
+        }
+        if (dataDirty || air != lastAirSent || (fireTicks > 0) != lastFireSent) {
+            dataDirty = false;
+            lastAirSent = air;
+            lastFireSent = fireTicks > 0;
+            SendSelfData();
+        }
+        if (attributesDirty) {
+            attributesDirty = false;
+            SendAttributes();
         }
     }
 
@@ -1623,16 +2832,8 @@ namespace perlin::server {
     void Session::Tick(uint64_t) {
         if (state == State::Closed)
             return;
-        if (state == State::InGame) {
-            if (hurtCooldown > 0)
-                hurtCooldown--;
-            if (!dead && !awaitingDimensionAck && posY - 1.62 < RangeOf(dimension).minY - 64)
-                Hurt(4.0f, posX, posZ);
-            if (!dead && health < 20.0f && server.RuleValue("naturalregeneration") && ++regenTicks >= 80) {
-                regenTicks = 0;
-                Heal(1.0f);
-            }
-        }
+        if (state == State::InGame)
+            SurvivalTick();
         const auto now = std::chrono::steady_clock::now();
         if (!connection->Alive()) {
             Close();

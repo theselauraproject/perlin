@@ -87,6 +87,8 @@ set(PS_SOURCES
     src/world/Chunk.cpp
     src/world/ChunkManager.cpp
     src/world/Mobs.cpp
+    src/world/Loot.cpp
+    src/world/LootData.cpp
     src/core/ServerContainers.cpp
     src/core/ServerPortals.cpp
     src/core/CommandExecute.cpp
