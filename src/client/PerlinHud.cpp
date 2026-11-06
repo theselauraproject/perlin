@@ -190,7 +190,7 @@ namespace perlin {
     void Perlin::FillHudState(ui::HudState& s, BedrockSession* live, bool preview) {
         // a screen over the world (server form, container, inventory) hides the hud, like #hud_visible in the game
         s.visible = options.showHud && (live || preview) && !(replayCtl.Playing() && replayUi.hideHud) &&
-                    !form.shown && !inventory.shown;
+                    !form.shown && !inventory.shown && !WorldCovered();
         s.tick = preview ? static_cast<uint64_t>(
                                std::chrono::duration<double>(Clock::now().time_since_epoch()).count() * 20.0)
                          : hudAnim.ticks;

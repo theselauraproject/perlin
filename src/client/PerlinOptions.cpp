@@ -456,10 +456,19 @@ namespace perlin {
             std::vector<std::pair<std::string, std::string>> apis = {{"auto", "Auto"}};
             for (conduit::api api : conduit::compiled_apis())
                 apis.emplace_back(conduit::api_id(api), conduit::api_name(api));
-            const std::string shown = options.renderer;
-            m.Choice("Renderer", options.renderer, apis);
-            if (shown != runningRenderer)
-                m.rows.back().value += " (restart to apply)";
+            size_t at = 0;
+            for (size_t i = 0; i < apis.size(); i++)
+                if (apis[i].first == options.renderer)
+                    at = i;
+            const size_t last = apis.size() - 1;
+            const std::string label =
+                apis[at].second + (options.renderer != runningRenderer ? " (restart to apply)" : "");
+            m.Slider("Renderer", label, last ? static_cast<float>(at) / static_cast<float>(last) : 0.0f,
+                     [this, apis, last](float f) {
+                         options.renderer = apis[static_cast<size_t>(std::lround(std::clamp(f, 0.0f, 1.0f) *
+                                                                                 static_cast<float>(last)))]
+                                                .first;
+                     });
             m.rows.back().wide = true;
         }
         head(detail::TrOr("perlin.options.header.network", "Network"));

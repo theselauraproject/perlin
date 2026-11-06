@@ -1781,7 +1781,7 @@ namespace perlin {
                 }
             }
             float cx, cy, cw, ch;
-            if (options.showHud && !replayCtl.Playing() && !screens.AnyCoveringOpen() &&
+            if (options.showHud && !replayCtl.Playing() && !screens.AnyCoveringOpen() && !WorldCovered() &&
                 (camera.mode == PerspectiveMode::FirstPerson || options.thirdPersonCrosshair) &&
                 hudState.mode != ui::GameMode::Spectator && hud->Cursor(cx, cy, cw, ch))
                 renderer->DrawHudCursor(cx, cy, cw, ch);
@@ -1819,9 +1819,8 @@ namespace perlin {
             previewControls.SetViewport(width, height);
             previewControls.SetState(touchState);
             previewControls.Draw(*renderer, true);
-        } else if (optionsUi.touchEditing ||
-                   (live && hud && !asset.shown && !death.shown && !pause.shown && !inventory.shown &&
-                    !disconnect.shown && !loading.shown && !titleScreen.shown)) {
+        } else if (optionsUi.touchEditing || (live && hud && !asset.shown && !death.shown && !pause.shown &&
+                                              !inventory.shown && !WorldCovered())) {
             platform->DrawTouchOverlay(*renderer);
         }
         platform->DrawPointerOverlay(*renderer);

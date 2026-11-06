@@ -230,7 +230,8 @@ namespace perlin {
         bool UpdateLoadingScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateDisconnectScreen(ui::Hud& hud, int fbW, int fbH);
         bool DrawTitlePanorama(int fbW, int fbH, bool blurred = false);
-        bool PollBlurredPanorama(int fbH);
+        bool PollBlurredPanorama(int fbH, bool wait);
+        bool WorldCovered() const;
         void LeaveToServerList(ui::Hud& hud);
         int FrameGenMultiplier();
 
@@ -624,7 +625,7 @@ namespace perlin {
         } asset;
 
         struct LoadingScreen : OverlayState {
-            bool textMode = false, done = false, readyArmed = false;
+            bool textMode = false, done = false, readyArmed = false, modHidden = false;
             TimePoint readyAt, startAt;
             int chunkBase = 0;
             ui::TemplateSlot tmpl;

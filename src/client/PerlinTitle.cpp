@@ -283,20 +283,17 @@ namespace perlin {
             (TexturePack::Instance().Generation() << 32) ^ ServerPacks::Instance().Generation();
         if (packStamp != panorama.packStamp) {
             panorama.packStamp = packStamp;
-            uint32_t* const sets[] = {panorama.textures, panorama.blurred};
-            for (uint32_t* set : sets)
-                for (int i = 0; i < 6; i++) {
-                    if (set[i])
-                        renderer->UiDestroyTexture(set[i]);
-                    set[i] = 0;
-                }
+            for (uint32_t& id : panorama.textures) {
+                if (id)
+                    renderer->UiDestroyTexture(id);
+                id = 0;
+            }
+            // the old blurred faces stay up until the new pack's are ready: server packs land mid-join
             panorama.blurKey = -1;
             panorama.ready = false;
             panorama.retryAt = {};
         }
-        if (!panorama.ready) {
-            if (now < panorama.retryAt)
-                return false;
+        if (!panorama.ready && now >= panorama.retryAt) {
             panorama.retryAt = now + std::chrono::seconds(2);
             int loaded = 0;
             for (int i = 0; i < 6; i++) {
@@ -311,14 +308,19 @@ namespace perlin {
             for (uint32_t id : panorama.textures)
                 loaded += id != 0;
             panorama.ready = loaded == 6;
-            if (!panorama.ready)
-                return false;
-            panorama.clock = now;
+            if (panorama.ready && !panorama.clock.time_since_epoch().count())
+                panorama.clock = now;
         }
+        const bool wantBlur = blurred && options.menuBlur > 0;
+        if (!panorama.ready && !(wantBlur && panorama.blurred[0]))
+            return false;
         const uint32_t* faceTextures = panorama.textures;
-        // polled on every panorama frame: the title screen warms the blur up before a menu needs it
-        if (options.menuBlur > 0 && PollBlurredPanorama(fbH) && blurred)
+        // polled on every panorama frame: the title screen warms the blur up before a menu needs it.
+        // a blurred screen waits for it the first time rather than show the sharp faces
+        if (options.menuBlur > 0 && PollBlurredPanorama(fbH, wantBlur) && wantBlur)
             faceTextures = panorama.blurred;
+        else if (!panorama.ready)
+            return false;
         const double seconds = std::chrono::duration<double>(now - panorama.clock).count();
         ui::PanoramaFace faces[6];
         ui::BuildPanorama(ui::PanoramaViewAt(seconds), fbW, fbH, faces);
@@ -346,31 +348,34 @@ namespace perlin {
         return true;
     }
 
-    bool Perlin::PollBlurredPanorama(int fbH) {
+    bool Perlin::PollBlurredPanorama(int fbH, bool wait) {
         const auto now = Clock::now();
-        if (panorama.blurJob.valid() &&
-            panorama.blurJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        const auto take = [&] {
             std::vector<ui::PanoramaImage> faces = panorama.blurJob.get();
             if (faces.size() != 6) {
                 panorama.blurRetryAt = now + std::chrono::seconds(2);
-            } else if (panorama.blurJobStamp == panorama.packStamp) {
-                for (int i = 0; i < 6; i++) {
-                    if (panorama.blurred[i])
-                        renderer->UiDestroyTexture(panorama.blurred[i]);
-                    const ui::PanoramaImage& img = faces[static_cast<size_t>(i)];
-                    panorama.blurred[i] =
-                        renderer->UiCreateTexture(img.width, img.height, img.rgba.data(), true);
-                }
-                panorama.blurKey = panorama.blurJobKey;
-                Log("ui", "blurred panorama ready: {}px faces, radius {}", faces[0].width, panorama.blurKey);
+                return;
             }
-        }
+            for (int i = 0; i < 6; i++) {
+                if (panorama.blurred[i])
+                    renderer->UiDestroyTexture(panorama.blurred[i]);
+                const ui::PanoramaImage& img = faces[static_cast<size_t>(i)];
+                panorama.blurred[i] = renderer->UiCreateTexture(img.width, img.height, img.rgba.data(), true);
+            }
+            // faces from before a pack change still beat sharp ones: shown, then redone
+            panorama.blurKey = panorama.blurJobStamp == panorama.packStamp ? panorama.blurJobKey : -1;
+            Log("ui", "blurred panorama ready: {}px faces, radius {}", faces[0].width, panorama.blurJobKey);
+        };
+        const bool needNow = wait && !panorama.blurred[0];
+        if (panorama.blurJob.valid() &&
+            (needNow || panorama.blurJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready))
+            take();
         // keyed on the radius at full face size: a resize only re-blurs when the strength really changes
         const int radius = ui::PanoramaBlurRadius(options.menuBlur, 512, fbH);
         if (!panorama.blurJob.valid() && radius != panorama.blurKey && now >= panorama.blurRetryAt) {
             panorama.blurJobKey = radius;
             panorama.blurJobStamp = panorama.packStamp;
-            // ~100 ms of work at 512px: off the frame, the sharp faces stand in meanwhile
+            // ~100 ms at 512px: off the frame unless nothing blurred exists yet
             panorama.blurJob = std::async(std::launch::async, [radius] {
                 ui::PanoramaImage in[6];
                 int size = 512;
@@ -390,8 +395,17 @@ namespace perlin {
                 return std::vector<ui::PanoramaImage>(std::make_move_iterator(std::begin(out)),
                                                       std::make_move_iterator(std::end(out)));
             });
+            if (needNow)
+                take();
         }
         return panorama.blurred[0] != 0;
+    }
+
+    bool Perlin::WorldCovered() const {
+        // also true the frame before the loading screen opens (connect, dimension change): the hud would
+        // flash for a frame otherwise. a mod that hid the loading screen gets the game back
+        return titleScreen.active || titleScreen.shown || loading.shown || disconnect.shown ||
+               (session && !loading.done && !loading.modHidden);
     }
 
     bool Perlin::UpdateAssetScreen(ui::Hud& hud, int fbW, int fbH) {
@@ -1427,6 +1441,7 @@ namespace perlin {
             std::lock_guard lock(modHooks.mutex);
             modHidden = !modHooks.loadingHidden.empty();
         }
+        loading.modHidden = modHidden;
         t.panorama = !modHidden && DrawTitlePanorama(fbW, fbH, true);
         const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
                                       "|" + t.message + "|" + t.detail + "|" + t.cancel +
