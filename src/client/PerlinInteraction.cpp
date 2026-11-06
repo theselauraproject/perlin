@@ -75,6 +75,21 @@ namespace perlin {
                 },
                 {camera.x, camera.y, camera.z}, glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch)), PickRange(creative, 1),
                 EntityPickRange(creative));
+            // looking down past an edge with nothing in reach (pick 0x144E090C0): clip 2 blocks straight down
+            // from the eye; that block becomes the target, on the face of the look's dominant horizontal axis
+            const glm::dvec3 look(targeting::ViewVector(camera.yaw, camera.pitch));
+            if (aimHit.kind == AimHit::Kind::None && look.y < -0.7) {
+                const std::vector<entity::Entity> noEntities;
+                AimHit below = Raycast(
+                    live ? live->NetLevel() : *previewLevel, &levelRenderer->Blocks(), noEntities,
+                    [](const entity::Entity&) { return glm::vec2(0.0f); }, {camera.x, camera.y, camera.z},
+                    glm::dvec3(0.0, -1.0, 0.0), 2.0, 0.0);
+                if (below.kind == AimHit::Kind::Block) {
+                    below.face = std::fabs(look.x) > std::fabs(look.z) ? (look.x < 0.0 ? 4 : 5) : (look.z < 0.0 ? 2 : 3);
+                    below.buildAssist = true;
+                    aimHit = below;
+                }
+            }
         }
         if (PERLIN_ENV("PERLIN_AIM_DEBUG"))
             Log("aim", "kind {} block {},{},{} face {} dist {}", static_cast<int>(aimHit.kind), aimHit.bx,
@@ -313,6 +328,7 @@ namespace perlin {
         if (bedrockBuild && inputManager.IsDown(Action::Use) && !inputManager.Pressed(Action::Use)) {
             heldbuild::Hit hit;
             hit.block = aimHit.kind == AimHit::Kind::Block;
+            hit.assist = aimHit.buildAssist;
             hit.target = {{aimHit.bx, aimHit.by, aimHit.bz}, aimHit.face};
             hit.point = aimHit.kind != AimHit::Kind::None ? glm::vec3(aimHit.point)
                                                           : buildEye + glm::normalize(camera.Direction()) *

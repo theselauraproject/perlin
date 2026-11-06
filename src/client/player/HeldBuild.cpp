@@ -106,7 +106,7 @@ namespace perlin::heldbuild {
             if (!SegmentHitsCell(eye, hit.point, nextBuild))
                 return std::nullopt;
             click = {nextBuild - direction, continueFacing};
-        } else if (hit.block) {
+        } else if (hit.block && !hit.assist) {
             click = hit.target;
             const float xy = velocity.x * velocity.x + velocity.y * velocity.y;
             if (lastSnappable && !hasDirection && hasLastBuilt && velocity.z * velocity.z + xy > 0.0099999998f) {
