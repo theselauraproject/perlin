@@ -1691,15 +1691,11 @@ namespace perlin {
                     this->input.SetKeyboard(keyboard);
                 }
                 const bool pressed = this->input.IsMouseDown(0);
-                const bool onButton = hud->Overlay().OverlayHoverIsButton();
-                if (pressed && !uiClickWasDown && onButton && !chat.IsOpen()) {
-                    std::string clickName = "random.click";
-                    float clickVolume = 1.0f, clickPitch = 1.0f;
-                    hud->Overlay().OverlayHoverSound(clickName, clickVolume, clickPitch);
-                    if (!clickName.empty())
-                        sounds.PlayNamed(clickName, {camera.x, camera.y, camera.z}, clickVolume, clickPitch,
-                                         false);
-                }
+                std::string clickName;
+                float clickVolume = 1.0f, clickPitch = 1.0f;
+                if (pressed && !uiClickWasDown && !chat.IsOpen() &&
+                    hud->Overlay().OverlayHoverClickSound(clickName, clickVolume, clickPitch))
+                    sounds.PlayNamed(clickName, {camera.x, camera.y, camera.z}, clickVolume, clickPitch, false);
                 uiClickWasDown = pressed;
             }
             DrawModTint(fbW, fbH);

@@ -40,8 +40,8 @@ namespace perlin::ui {
         bool HasOverlay() const { return overlay != nullptr; }
         void MouseMove(float guiX, float guiY);
         std::string OverlayHover() const;
-        bool OverlayHoverIsButton() const;
-        bool OverlayHoverSound(std::string& name, float& volume, float& pitch) const;
+        // sound to play for a click on the hovered overlay element; false when it makes none
+        bool OverlayHoverClickSound(std::string& name, float& volume, float& pitch) const;
         std::string HoverLink() const;
         void Update();
         void Render();

@@ -949,33 +949,29 @@ namespace perlin::ui {
         return {};
     }
 
-    bool RmlBackend::OverlayHoverIsButton() const {
+    bool RmlBackend::OverlayHoverClickSound(std::string& name, float& volume, float& pitch) const {
         if (!context || !overlay)
             return false;
-        static const char* const kClickable[] = {"btn",   "sbtn", "rbtn", "pg", "row",
-                                                 "ticon", "go",   "acc",  "bt"};
+        static const char* const kNative[] = {"btn", "sbtn", "rbtn", "pg", "row", "ticon", "go", "acc"};
         for (Rml::Element* e = context->GetHoverElement(); e && e->GetOwnerDocument() == overlay;
              e = e->GetParentNode()) {
             if (e->IsClassSet("off"))
                 return false;
-            for (const char* name : kClickable)
-                if (e->IsClassSet(name))
+            if (e->HasAttribute("snd")) {
+                name = e->GetAttribute<Rml::String>("snd", "");
+                volume = e->GetAttribute<float>("vol", 1.0f);
+                pitch = e->GetAttribute<float>("pit", 1.0f);
+                return !name.empty();
+            }
+            // json ui control without sound_name (container slots, sliders, edit boxes): the game stays silent
+            if (e->IsClassSet("bt"))
+                return false;
+            for (const char* cls : kNative)
+                if (e->IsClassSet(cls)) {
+                    name = "random.click";
+                    volume = pitch = 1.0f;
                     return true;
-        }
-        return false;
-    }
-
-    bool RmlBackend::OverlayHoverSound(std::string& name, float& volume, float& pitch) const {
-        if (!context || !overlay)
-            return false;
-        for (Rml::Element* e = context->GetHoverElement(); e && e->GetOwnerDocument() == overlay;
-             e = e->GetParentNode()) {
-            if (!e->HasAttribute("snd"))
-                continue;
-            name = e->GetAttribute<Rml::String>("snd", "");
-            volume = e->GetAttribute<float>("vol", 1.0f);
-            pitch = e->GetAttribute<float>("pit", 1.0f);
-            return true;
+                }
         }
         return false;
     }
