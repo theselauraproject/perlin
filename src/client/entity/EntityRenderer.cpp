@@ -283,7 +283,8 @@ namespace perlin::entity {
         float w, h;
         if (assets.CollisionBox(e.type, w, h))
             return {w * scale, h * scale};
-        return {0.6f, 1.0f};
+        // no server box and no definition: minecraft:collision_box defaults to 0.6 x 1.8 (0x142EBA9A0)
+        return {0.6f * scale, 1.8f * scale};
     }
 
     void EntityRenderer::ClearCaches() {
