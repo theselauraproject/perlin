@@ -400,13 +400,14 @@ namespace perlin::attachable {
                 }
             }
             for (int i = 0; i < 6; i++) {
-                if (!c.boxUv && !c.faces[i].present)
-                    continue;
                 int fi = i;
                 const bool mirrored = c.mirror != mirrorTextures;
                 bool flip = mirrored;
                 if (mirrored && i < 2)
                     fi = 1 - i;
+                // the x mirror moves east/west to the other side: a face the cube lists sits on that other side
+                if (!c.boxUv && !c.faces[fi].present)
+                    continue;
                 const FaceDef& f = faces[i];
                 const glm::vec2 o = uvOrigin[fi], s = uvSize[fi];
                 glm::vec2 a = o, b = o + glm::vec2(s.x, 0), cc = o + s, dd = o + glm::vec2(0, s.y);
