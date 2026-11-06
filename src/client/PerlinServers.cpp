@@ -2,6 +2,8 @@
 #include "util/Log.hpp"
 
 #include <algorithm>
+#include <filesystem>
+#include <future>
 #include <thread>
 
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
@@ -15,6 +17,115 @@
 
 namespace perlin {
     namespace {
+        std::filesystem::path FeaturedDir() { return std::filesystem::path(paths::DataDir()) / "featured"; }
+
+        // logos keyed by their url: a server that changes its logo gets a new url, so a cached file never goes stale
+        std::filesystem::path FeaturedLogoPath(const std::string& url) {
+            uint64_t h = 1469598103934665603ull;
+            for (const unsigned char c : url)
+                h = (h ^ c) * 1099511628211ull;
+            return FeaturedDir() / "logos" / (std::to_string(h) + ".png");
+        }
+
+        void SaveFeatured(const std::vector<featured::Server>& list) {
+            ui::Json servers = ui::Json::MakeArray();
+            for (const featured::Server& f : list) {
+                ui::Json e = ui::Json::MakeObject();
+                e.Set("name", ui::Json(f.name));
+                e.Set("description", ui::Json(f.description));
+                e.Set("host", ui::Json(f.host));
+                e.Set("port", ui::Json(static_cast<double>(f.port)));
+                e.Set("logo", ui::Json(f.logoUrl));
+                e.Set("ranked", ui::Json(f.ranked));
+                e.Set("rank", ui::Json(static_cast<double>(f.rank)));
+                servers.Push(std::move(e));
+            }
+            ui::Json root = ui::Json::MakeObject();
+            root.Set("servers", std::move(servers));
+            std::error_code ec;
+            std::filesystem::create_directories(FeaturedDir(), ec);
+            file::Write(FeaturedDir() / "servers.json", root.Dump(2));
+        }
+
+        bool LoadFeatured(std::vector<featured::Server>& out) {
+            std::string text, error;
+            ui::Json root;
+            if (!file::Read(FeaturedDir() / "servers.json", text) || !ui::Json::Parse(text, root, error))
+                return false;
+            const ui::Json* servers = root.Find("servers");
+            if (!servers || !servers->IsArray())
+                return false;
+            for (const ui::Json& e : servers->array) {
+                featured::Server f;
+                const auto str = [&](const char* key) {
+                    const ui::Json* v = e.Find(key);
+                    return v ? v->StringOr("") : std::string();
+                };
+                f.name = str("name");
+                f.description = str("description");
+                f.host = str("host");
+                f.logoUrl = str("logo");
+                if (const ui::Json* v = e.Find("port"); v && v->IsNumber())
+                    f.port = static_cast<uint16_t>(v->number);
+                if (const ui::Json* v = e.Find("ranked"))
+                    f.ranked = v->BoolOr(false);
+                if (const ui::Json* v = e.Find("rank"); v && v->IsNumber())
+                    f.rank = static_cast<int>(v->number);
+                if (!f.host.empty())
+                    out.push_back(std::move(f));
+            }
+            return true;
+        }
+
+        std::string FeaturedIconKey(const featured::Server& f) {
+            return "fs:" + f.host + ":" + std::to_string(f.port);
+        }
+
+        // a logo already on disk is loaded without the network
+        bool LoadFeaturedLogo(const featured::Server& f) {
+            const std::string key = FeaturedIconKey(f);
+            if (ui::UiAssets::Instance().HasHead(key))
+                return true;
+            std::vector<uint8_t> bytes;
+            Texture t;
+            if (f.logoUrl.empty() || !file::ReadBytes(FeaturedLogoPath(f.logoUrl), bytes) ||
+                !LoadTextureMemory(bytes.data(), bytes.size(), t))
+                return false;
+            ui::UiAssets::Instance().SetHead(key, std::move(t));
+            return true;
+        }
+
+        bool DownloadFeaturedLogo(const featured::Server& f) {
+            const http::Response pic = http::GetUrl(f.logoUrl, {}, 8);
+            Texture t;
+            if (pic.status != 200 ||
+                !LoadTextureMemory(reinterpret_cast<const unsigned char*>(pic.body.data()), pic.body.size(), t))
+                return false;
+            const std::filesystem::path path = FeaturedLogoPath(f.logoUrl);
+            std::error_code ec;
+            std::filesystem::create_directories(path.parent_path(), ec);
+            file::Write(path, pic.body);
+            ui::UiAssets::Instance().SetHead(FeaturedIconKey(f), std::move(t));
+            return true;
+        }
+
+        std::vector<ui::ServerEntry> FeaturedRows(const std::vector<featured::Server>& list) {
+            std::vector<ui::ServerEntry> rows;
+            for (const featured::Server& f : list) {
+                ui::ServerEntry e;
+                e.kind = ui::ServerEntry::Kind::Lan;
+                e.name = f.name;
+                e.address = f.host + ":" + std::to_string(f.port);
+                e.right = f.ranked ? "Featured" : "Creator";
+                e.pingable = true;
+                e.motd = f.description;
+                e.note = e.address + (f.ranked ? "" : "  -  Creator");
+                if (ui::UiAssets::Instance().HasHead(FeaturedIconKey(f)))
+                    e.icon = FeaturedIconKey(f);
+                rows.push_back(std::move(e));
+            }
+            return rows;
+        }
         std::string StripFormatting(const std::string& text) {
             std::string out;
             for (size_t i = 0; i < text.size(); i++) {
@@ -552,14 +663,25 @@ namespace perlin {
     }
 
     void Perlin::RefreshFeatured(bool force) {
+        (void)force;
         if (!(accounts.Active() && accounts.Active()->microsoft)) {
             std::lock_guard lock(tabMutex);
             tabFeatured.clear();
             return;
         }
-        if (!force && featuredAt != Clock::time_point{} &&
-            Clock::now() - featuredAt < std::chrono::minutes(10))
-            return;
+        // the last list shows at once from disk; the network one replaces it when it arrives
+        if (!featuredCacheLoaded.exchange(true)) {
+            std::vector<featured::Server> cached;
+            if (LoadFeatured(cached) && !cached.empty()) {
+                int logos = 0;
+                for (const featured::Server& f : cached)
+                    logos += LoadFeaturedLogo(f) ? 1 : 0;
+                Log("featured", "{} servers ({} logos) from the cache", cached.size(), logos);
+                std::lock_guard lock(tabMutex);
+                tabFeatured = FeaturedRows(cached);
+                featuredPing = true;
+            }
+        }
         if (featuredBusy.exchange(true))
             return;
         const std::string authPath = ActiveAuthPath();
@@ -568,38 +690,35 @@ namespace perlin {
             std::string error;
             std::vector<featured::Server> list;
             const bool ok = acct.SignInSaved(error) && featured::List(acct, list, error);
-            if (!ok)
+            if (!ok) {
                 Log("featured", "{}", error);
-            std::vector<ui::ServerEntry> rows;
-            for (const featured::Server& f : list) {
-                ui::ServerEntry e;
-                e.kind = ui::ServerEntry::Kind::Lan;
-                e.name = f.name;
-                e.address = f.host + ":" + std::to_string(f.port);
-                e.right = f.ranked ? "Featured" : "Creator";
-                e.pingable = true;
-                e.motd = f.description;
-                e.note = e.address + (f.ranked ? "" : "  -  Creator");
-                const std::string key = "fs:" + e.address;
-                if (!f.logoUrl.empty() && !ui::UiAssets::Instance().HasHead(key)) {
-                    const http::Response pic = http::GetUrl(f.logoUrl, {}, 8);
-                    Texture t;
-                    if (pic.status == 200 &&
-                        LoadTextureMemory(reinterpret_cast<const unsigned char*>(pic.body.data()),
-                                          pic.body.size(), t))
-                        ui::UiAssets::Instance().SetHead(key, std::move(t));
-                }
-                if (ui::UiAssets::Instance().HasHead(key))
-                    e.icon = key;
-                rows.push_back(std::move(e));
+                featuredBusy = false;
+                return;
             }
+            SaveFeatured(list);
+            std::vector<const featured::Server*> missing;
+            for (const featured::Server& f : list)
+                if (!LoadFeaturedLogo(f) && !f.logoUrl.empty())
+                    missing.push_back(&f);
             {
                 std::lock_guard lock(tabMutex);
-                if (ok) {
-                    tabFeatured = std::move(rows);
-                    featuredAt = Clock::now();
-                    featuredPing = true;
-                }
+                tabFeatured = FeaturedRows(list);
+                featuredPing = true;
+            }
+            // logos after the list: one slow image no longer holds back every row
+            std::vector<std::future<bool>> downloads;
+            for (const featured::Server* f : missing)
+                downloads.push_back(std::async(std::launch::async, [f] { return DownloadFeaturedLogo(*f); }));
+            bool fetched = false;
+            for (std::future<bool>& d : downloads)
+                fetched = d.get() || fetched;
+            if (fetched) {
+                const std::vector<ui::ServerEntry> rows = FeaturedRows(list);
+                std::lock_guard lock(tabMutex);
+                for (ui::ServerEntry& row : tabFeatured)
+                    for (const ui::ServerEntry& fresh : rows)
+                        if (fresh.address == row.address)
+                            row.icon = fresh.icon;
             }
             featuredBusy = false;
         }).detach();

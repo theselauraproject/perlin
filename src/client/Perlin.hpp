@@ -663,8 +663,7 @@ namespace perlin {
         std::string tabLanMsg, tabRealmsMsg, tabFriendsMsg, tabJoinMsg, realmJoinAddress;
         bool tabDirty = false, realmJoinReady = false;
         std::atomic<bool> lanBusy{false}, realmsBusy{false}, friendsBusy{false}, realmJoinBusy{false};
-        std::atomic<bool> featuredBusy{false}, featuredPing{false};
-        TimePoint featuredAt;
+        std::atomic<bool> featuredBusy{false}, featuredPing{false}, featuredCacheLoaded{false};
         std::atomic<bool> realmAddBusy{false}, realmAddedFlag{false};
         TimePoint realmAddedAt;
         std::atomic<bool> leaseJoining{false}, leaseJoinFailed{false};
