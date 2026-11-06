@@ -28,13 +28,13 @@
 namespace fs = std::filesystem;
 
 namespace perlin::paths {
-    std::string ExeDir() {
+    std::string ExePath() {
 #if defined(_WIN32)
         char buf[MAX_PATH] = {};
         DWORD n = GetModuleFileNameA(nullptr, buf, MAX_PATH);
         if (n == 0)
             return {};
-        return fs::path(std::string(buf, n)).parent_path().generic_string();
+        return fs::path(std::string(buf, n)).generic_string();
 #elif defined(__APPLE__)
         char buf[PATH_MAX] = {};
         uint32_t size = sizeof(buf);
@@ -42,22 +42,26 @@ namespace perlin::paths {
             return {};
         std::error_code ec;
         fs::path p = fs::canonical(buf, ec);
-        return (ec ? fs::path(buf) : p).parent_path().generic_string();
+        return (ec ? fs::path(buf) : p).generic_string();
 #elif defined(__FreeBSD__)
-        // no /proc by default: the kernel names the running image
         int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
         char buf[PATH_MAX] = {};
         size_t size = sizeof(buf);
         if (sysctl(mib, 4, buf, &size, nullptr, 0) != 0 || size == 0)
             return {};
-        return fs::path(buf).parent_path().generic_string();
+        return fs::path(buf).generic_string();
 #else
         char buf[PATH_MAX] = {};
         ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
         if (n <= 0)
             return {};
-        return fs::path(std::string(buf, (size_t)n)).parent_path().generic_string();
+        return fs::path(std::string(buf, (size_t)n)).generic_string();
 #endif
+    }
+
+    std::string ExeDir() {
+        const std::string exe = ExePath();
+        return exe.empty() ? std::string() : fs::path(exe).parent_path().generic_string();
     }
 
     std::string DataDir() {

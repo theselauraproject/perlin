@@ -129,6 +129,7 @@ namespace perlin {
         UpdateCameraEffects();
         TrackDamage();
         UpdateSession(f);
+        UpdateDiscord();
         UpdateViewSettings(f);
         UpdateChat(f);
         UpdateGameInput(f);

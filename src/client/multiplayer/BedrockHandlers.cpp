@@ -500,6 +500,10 @@ namespace perlin {
 
         OnPartial<StartGamePacket>([this](const StartGamePacket& p) {
             BlockPalette::Instance().UseProtocol(serverProtocol);
+            {
+                std::lock_guard lock(worldNameMutex);
+                worldName = p.worldName;
+            }
             ParsePropertySchema(p.propertyData.bytes);
             if (!p.blockProperties.empty()) {
                 const size_t n = RegisterCustomBlocks(p.blockProperties);

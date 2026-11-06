@@ -1,4 +1,5 @@
 #pragma once
+#include "client/platform/DiscordRpc.hpp"
 #include "client/Accounts.hpp"
 #include "client/Camera.hpp"
 #include "client/ClientControl.hpp"
@@ -241,6 +242,8 @@ namespace perlin {
         void RefreshTab(ui::ServerTab tab);
         void RefreshFeatured(bool force);
         void JoinServer(const std::string& address);
+        void UpdateDiscord();
+        void HandleDiscordJoin(const std::string& secret);
         void JoinSingleplayer(const std::string& worldDir = {}, uint64_t seed = 0, int gameMode = -1);
         void StartBenchmark(bench::Settings settings);
         void UpdateBenchmark(FrameContext& f);
@@ -662,6 +665,10 @@ namespace perlin {
         std::mutex lanSessionMutex;
         std::shared_ptr<friendworld::Lease> friendLease;
         std::shared_ptr<friendworld::Lease> friendLeaseReady;
+        std::unique_ptr<discord::Client> discordRpc;
+        TimePoint discordNextUpdate{};
+        uint64_t discordGeneration = 0;
+        int64_t discordSince = 0;
         std::atomic<bool> friendJoinBusy{false};
 
         int modOpenView = -1, modOpenPage = 0;

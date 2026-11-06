@@ -444,6 +444,14 @@ namespace perlin {
             m.Toggle(detail::TrOr("perlin.options.autoUpdate", "Auto Update"), options.autoUpdate);
             m.rows.back().wide = true;
         }
+        if (discord::Supported()) {
+            m.Toggle(detail::TrOr("perlin.options.discordPresence", "Discord Status"), options.discordPresence);
+            if (options.discordPresence) {
+                m.Toggle(detail::TrOr("perlin.options.discordShowServer", "Show Server in Discord"),
+                         options.discordShowServer);
+                m.Toggle(detail::TrOr("perlin.options.discordJoin", "Discord Friends Can Join"), options.discordJoin);
+            }
+        }
     }
 
     void Perlin::BuildVideoOptions(OptionsModel& m, PauseFrame& f) {

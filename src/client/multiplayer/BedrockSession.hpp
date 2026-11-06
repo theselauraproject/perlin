@@ -64,6 +64,10 @@ namespace perlin {
         BedrockSession& operator=(const BedrockSession&) = delete;
 
         const std::string& PlayerName() const { return playerName; }
+        std::string WorldName() const {
+            std::lock_guard lock(worldNameMutex);
+            return worldName;
+        }
         void SetPlayerName(const std::string& name) {
             playerName = name.empty() ? std::string("Perlin") : name;
         }
@@ -1087,6 +1091,8 @@ namespace perlin {
         std::map<std::pair<int, int>, int> colPending;
 
         std::string playerName = "Perlin";
+        mutable std::mutex worldNameMutex;
+        std::string worldName;
         LoadedSkin skin;
         entity::EntityTracker entities;
         std::shared_ptr<xbox::Account> account;

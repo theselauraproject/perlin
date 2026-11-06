@@ -64,6 +64,9 @@ namespace perlin {
         bool centerCursor = true;
         bool autoUpdate = true;
         bool versionMismatchNoAsk = false;
+        bool discordPresence = true;
+        bool discordShowServer = true;
+        bool discordJoin = true;
         bool eulaAccepted = false;
         int renderDistance = 8;
         float fov = 70.0f;

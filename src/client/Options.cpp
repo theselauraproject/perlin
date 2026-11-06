@@ -92,6 +92,9 @@ namespace perlin {
             bool centerCursor = true;
             bool autoUpdate = true;
             bool versionMismatchNoAsk = false;
+            bool discordPresence = true;
+            bool discordShowServer = true;
+            bool discordJoin = true;
         };
     }
 
@@ -364,6 +367,9 @@ namespace perlin {
         o.centerCursor = stored.centerCursor;
         o.autoUpdate = stored.autoUpdate;
         o.versionMismatchNoAsk = stored.versionMismatchNoAsk;
+        o.discordPresence = stored.discordPresence;
+        o.discordShowServer = stored.discordShowServer;
+        o.discordJoin = stored.discordJoin;
         return o;
     }
 
@@ -449,6 +455,9 @@ namespace perlin {
         stored.centerCursor = centerCursor;
         stored.autoUpdate = autoUpdate;
         stored.versionMismatchNoAsk = versionMismatchNoAsk;
+        stored.discordPresence = discordPresence;
+        stored.discordShowServer = discordShowServer;
+        stored.discordJoin = discordJoin;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))
