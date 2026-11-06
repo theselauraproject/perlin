@@ -167,6 +167,8 @@ namespace perlin::server {
             bool Start(EventQueue& q, std::string& error) override {
                 queue = &q;
                 rtc::InitLogger(std::getenv("PS_RTC_LOG") ? rtc::LogLevel::Debug : rtc::LogLevel::Error);
+                // set here, not through CPPHTTPLIB_THREAD_POOL_COUNT: the client shares these httplib inlines
+                http.new_task_queue = [] { return new httplib::ThreadPool(16, 64); };
 
                 http.Get("/v1/join", [this](const httplib::Request&, httplib::Response& res) {
                     res.set_content(infoJson(), "application/json");
