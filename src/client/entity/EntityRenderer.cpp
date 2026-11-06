@@ -2151,9 +2151,8 @@ namespace perlin::entity {
                 }
             }
             const bool nameHidden = e.Has(flag::Invisible) && (e.isPlayer || !e.Has(flag::AlwaysShowName));
-            const bool nameAllowed =
-                e.isSelf || e.Has(flag::CanShowName) || e.Has(flag::AlwaysShowName) || !e.isPlayer;
-            if (in.nametags && !e.isItem && !nameHidden && nameAllowed &&
+            // players show their name tag without CAN_SHOW_NAME / ALWAYS_SHOW_NAME: servers often send neither
+            if (in.nametags && !e.isItem && !nameHidden &&
                 !(e.isSelf && (in.firstPerson || !in.ownNametag))) {
                 const std::string& label = style && style->nameTag == 1   ? std::string()
                                            : style && style->nameTag == 2 ? style->nameText
