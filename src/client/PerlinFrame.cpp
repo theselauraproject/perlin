@@ -384,6 +384,11 @@ namespace perlin {
             camera.aspect = static_cast<float>(width) / static_cast<float>(height);
 
         PumpReplay(dt);
+        // retired sessions die here, before this frame takes `live`: Connect() can run mid-frame (a Discord
+        // join, a transfer, a button) while the rest of the frame still holds the old session
+        if (connectsInFlight.load() == 0)
+            std::erase_if(retiredSessions,
+                          [](const std::unique_ptr<BedrockSession>& s) { return !s->Transferring(); });
         live = sessionReady && session && !session->Transferring() ? session.get() : nullptr;
         if (live) {
             const physics::State& viewerState = player.State();
