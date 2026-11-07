@@ -417,6 +417,9 @@ namespace perlin {
             }
             clock = std::min(clock, static_cast<double>(physics::kTickSeconds));
         }
+        // after the ticks: render and aim blend prevPos->pos by the post-tick partial tick; the pre-tick snapshot
+        // is one tick behind on frames that ticked, pulling every actor back a tick each time (stutter, ghosting)
+        live->Entities().Snapshot(frameEntities);
     }
 
     void Perlin::UpdateRiding(BedrockSession& live, const std::vector<entity::Entity>& frameEntities) {

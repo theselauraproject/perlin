@@ -1202,11 +1202,11 @@
       "container",
       [
         {
-          "name": "yaw",
+          "name": "pitch",
           "type": "byterot"
         },
         {
-          "name": "pitch",
+          "name": "yaw",
           "type": "byterot"
         },
         {
