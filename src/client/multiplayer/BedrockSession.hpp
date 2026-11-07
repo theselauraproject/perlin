@@ -549,6 +549,7 @@ namespace perlin {
         int ServerProtocol() const { return serverProtocol; }
         bool MayFly() const { return mayFly; }
         bool Instabuild() const { return instabuild; }
+        bool MayMine() const { return mayMine; }
         bool IsFlying() const { return isFlying; }
         uint32_t AbilitiesSeq() const { return abilitiesSeq; }
         void ApplyGameTypeAbilities(int worldGameType) {
@@ -622,6 +623,8 @@ namespace perlin {
             int nbtTags = 0;
             std::vector<std::pair<int, int>> enchants;
             std::vector<std::string> lore;
+            // adventure mode: the only blocks this item may break
+            std::vector<std::string> canDestroy;
             int networkId = 0;
             bool Empty() const { return name.empty() || count <= 0; }
         };
@@ -653,6 +656,9 @@ namespace perlin {
             bool chestOpen = false;
             int chestSlots = 0;
             std::string chestTitle;
+            // actor inventories show as many rows as they have slots (a 36-slot shop is four rows), titled with the
+            // actor's name; block chests stay three or six rows
+            bool chestFitRows = false;
             int furnaceKind = -1;
         };
         struct FurnaceProgress {
@@ -1173,6 +1179,7 @@ namespace perlin {
         bool mayFly = false;
         bool noClip = false;
         bool instabuild = false;
+        bool mayMine = true;
         int gameType = 0;
         bool isFlying = false;
         uint32_t abilitiesSeq = 0;

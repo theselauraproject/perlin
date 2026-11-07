@@ -1,11 +1,13 @@
 #include <deque>
 #include <optional>
 #include "client/ui/JsonUi.hpp"
+#include "client/ui/FormatCodes.hpp"
 #include "client/ui/UiExpr.hpp"
 #include "util/FileIo.hpp"
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -246,6 +248,47 @@ namespace perlin::ui {
         return count != stamps.size();
     }
 
+    namespace {
+        // the game takes text colours from ui globals: "$<code>_color_format" and "$material_<name>_color"
+        void ApplyFormatColors(const Vars& globals) {
+            static const std::pair<const char*, char> kMaterials[] = {
+                {"minecoin_gold", 'g'}, {"quartz", 'h'}, {"iron", 'i'},      {"netherite", 'j'},
+                {"redstone", 'm'},      {"copper", 'n'}, {"gold", 'p'},      {"emerald", 'q'},
+                {"diamond", 's'},       {"lapis", 't'},  {"amethyst", 'u'},  {"resin", 'v'}};
+            const auto rgbOf = [](const Json& v, uint32_t& out) {
+                if (!v.IsArray() || v.array.size() < 3)
+                    return false;
+                float c[3];
+                bool bytes = false;
+                for (int i = 0; i < 3; i++) {
+                    if (!v.array[i].IsNumber())
+                        return false;
+                    c[i] = static_cast<float>(v.array[i].number);
+                    bytes = bytes || c[i] > 1.0f;
+                }
+                out = 0;
+                for (int i = 0; i < 3; i++) {
+                    const float n = bytes ? c[i] : c[i] * 255.0f;
+                    out = (out << 8) | static_cast<uint32_t>(std::clamp(std::lround(n), 0L, 255L));
+                }
+                return true;
+            };
+            std::vector<std::pair<char, uint32_t>> colors;
+            uint32_t rgb = 0;
+            for (const char* codes = "0123456789abcdefghijmnpqstuv"; *codes; codes++) {
+                const auto it = globals.find(std::string("$") + *codes + "_color_format");
+                if (it != globals.end() && rgbOf(it->second, rgb))
+                    colors.emplace_back(*codes, rgb);
+            }
+            for (const auto& [name, code] : kMaterials) {
+                const auto it = globals.find(std::string("$material_") + name + "_color");
+                if (it != globals.end() && rgbOf(it->second, rgb))
+                    colors.emplace_back(code, rgb);
+            }
+            SetFormatColorOverrides(colors);
+        }
+    }
+
     const Vars& UiLibrary::GlobalVariables() {
         if (!globalsLoaded) {
             globalsLoaded = true;
@@ -269,6 +312,7 @@ namespace perlin::ui {
                         globals[name] = member.second;
                     }
             }
+            ApplyFormatColors(globals);
         }
         return globals;
     }

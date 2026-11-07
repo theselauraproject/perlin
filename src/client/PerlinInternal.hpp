@@ -187,6 +187,7 @@ namespace perlin::detail {
         item.nbtTags = info.nbtTags;
         item.enchants = info.enchants;
         item.lore = info.lore;
+        item.canDestroy = info.canDestroy;
         item.maxDamage = ui::MaxDurability(info.name);
         item.aux = item.maxDamage > 0 ? std::clamp(info.damage, 0, item.maxDamage) : info.aux;
         return item;

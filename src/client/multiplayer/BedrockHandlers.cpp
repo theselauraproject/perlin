@@ -1704,8 +1704,10 @@ namespace perlin {
             }
             if (runtimeId != 0 && p.entityUniqueId != 0 && uniqueId != 0 && p.entityUniqueId != uniqueId)
                 return;
-            bool fly = false, flying = false, clip = false, build = false;
+            bool fly = false, flying = false, clip = false, build = false, mine = true;
             for (const AbilityLayers& layer : p.abilities) {
+                if (layer.allowed & (1u << 1))
+                    mine = (layer.enabled & (1u << 1)) != 0;
                 if (layer.allowed & (1u << 10))
                     fly = (layer.enabled & (1u << 10)) != 0;
                 if (layer.allowed & (1u << 11))
@@ -1722,6 +1724,7 @@ namespace perlin {
                     walkSpeed = layer.walkSpeed;
             }
             mayFly = fly;
+            mayMine = mine;
             instabuild = build;
             isFlying = flying;
             ++abilitiesSeq;

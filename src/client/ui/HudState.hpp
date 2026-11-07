@@ -19,6 +19,7 @@ namespace perlin::ui {
         int nbtTags = 0;
         std::vector<std::pair<int, int>> enchants;
         std::vector<std::string> lore;
+        std::vector<std::string> canDestroy;
         bool Empty() const { return name.empty() || count <= 0; }
         std::string Key() const {
             std::string k = name + ";" + std::to_string(maxDamage > 0 ? 0 : aux);
@@ -32,7 +33,7 @@ namespace perlin::ui {
             return name == o.name && count == o.count && aux == o.aux && blockRuntimeId == o.blockRuntimeId &&
                    maxDamage == o.maxDamage && enchanted == o.enchanted && customName == o.customName &&
                    hasColor == o.hasColor && color == o.color && nbtTags == o.nbtTags &&
-                   enchants == o.enchants && lore == o.lore;
+                   enchants == o.enchants && lore == o.lore && canDestroy == o.canDestroy;
         }
     };
 

@@ -96,6 +96,28 @@ namespace perlin {
                 aimHit.by, aimHit.bz, aimHit.face, aimHit.distance);
     }
 
+    namespace {
+        // what the game's GameMode::startDestroyBlock refuses before it sends anything: no mine ability,
+        // spectators, adventure without a can_destroy match, and blocks with negative hardness outside creative
+        bool MayStartBreaking(BedrockSession& live, const ui::HudItem& held, bool creative,
+                              const std::string& blockName) {
+            if (live.Spectator() || !live.MayMine())
+                return false;
+            const int type = live.GameType() == 5 ? live.World().worldGameMode : live.GameType();
+            if (type == 2) {
+                const std::string bare = blockName.starts_with("minecraft:") ? blockName.substr(10) : blockName;
+                const bool listed = std::any_of(held.canDestroy.begin(), held.canDestroy.end(), [&](std::string n) {
+                    if (n.starts_with("minecraft:"))
+                        n.erase(0, 10);
+                    return n == bare;
+                });
+                if (held.Empty() || !listed)
+                    return false;
+            }
+            return creative || destroy::Lookup(blockName).hardness >= 0.0f;
+        }
+    }
+
     void Perlin::StopBreaking(BedrockSession* live) {
         if (mining.breaking && live) {
             live->SendPlayerAuthInputBlockAction(1, mining.x, mining.y, mining.z, mining.face);
@@ -172,6 +194,10 @@ namespace perlin {
                 const uint16_t fireId = live->NetLevel().GetBlock(fx, fy, fz, fireLoaded);
                 const std::string fireName =
                     fireLoaded ? BlockPalette::Instance().Name(fireId) : std::string();
+                bool targetLoaded = false;
+                const uint16_t targetId = live->NetLevel().GetBlock(aimHit.bx, aimHit.by, aimHit.bz, targetLoaded);
+                const std::string targetName =
+                    targetLoaded ? BlockPalette::Instance().Name(targetId) : std::string();
                 if (fireName == "minecraft:fire" || fireName == "minecraft:soul_fire") {
                     live->SendPlayerAuthInputBlockAction(0, aimHit.bx, aimHit.by, aimHit.bz, aimHit.face);
                     live->SendPlayerAuthInputBlockAction(1, aimHit.bx, aimHit.by, aimHit.bz, aimHit.face);
@@ -181,6 +207,8 @@ namespace perlin {
                     breakDelayTicks = 5;
                     if (creative)
                         creativeBreakReadyAt = detail::MsNow() + 250;
+                } else if (!MayStartBreaking(*live, held, creative, targetName)) {
+                    // no start-break, crack or prediction: the server would only put the block back
                 } else {
                     bkx = aimHit.bx;
                     bky = aimHit.by;

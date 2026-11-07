@@ -50,6 +50,12 @@ namespace perlin {
             constexpr float kRad = 3.14159265358979f / 180.0f;
             return Mul(Rz(r[2] * kRad), Mul(Ry(-r[1] * kRad), Rx(-r[0] * kRad)));
         }
+        // minecraft:transformation turns the placed block in world axes: no mirrored x/y like model rotations
+        // (the game's own example faces a north model west with [0, 90, 0])
+        Mat3 TransformRotation(const float r[3]) {
+            constexpr float kRad = 3.14159265358979f / 180.0f;
+            return Mul(Rz(r[2] * kRad), Mul(Ry(r[1] * kRad), Rx(r[0] * kRad)));
+        }
         void Apply(const Mat3& m, const float pivot[3], float v[3]) {
             const float d[3] = {v[0] - pivot[0], v[1] - pivot[1], v[2] - pivot[2]};
             for (int i = 0; i < 3; i++)
@@ -238,11 +244,9 @@ namespace perlin {
         for (const auto& entry : fs::recursive_directory_iterator(dir, ec)) {
             if (!entry.is_regular_file())
                 continue;
-            const std::string name = entry.path().filename().string();
-            const bool isGeo = name.size() >= 9 && name.compare(name.size() - 9, 9, ".geo.json") == 0;
-            const bool isGeometry =
-                name.size() >= 14 && name.compare(name.size() - 14, 14, ".geometry.json") == 0;
-            if (!isGeo && !isGeometry)
+            // the game reads every .json under models/, whatever the name ("slab_bottom.json" as well as "*.geo.json");
+            // files without geometry add nothing below
+            if (entry.path().extension() != ".json")
                 continue;
             const auto doc = json::Document::Parse(file::Read(entry.path()), true);
             if (!doc)
@@ -496,7 +500,7 @@ namespace perlin {
 
     std::vector<ModelQuad> BlockGeometry::Bake(const Geometry& g, const Components& c) const {
         std::vector<ModelQuad> out;
-        const Mat3 blockRot = c.hasTransform ? BedrockRotation(c.rot) : Identity();
+        const Mat3 blockRot = c.hasTransform ? TransformRotation(c.rot) : Identity();
         auto place = [&](float v[3]) {
             v[0] = v[0] / 16.0f + 0.5f;
             v[1] = v[1] / 16.0f;

@@ -36,7 +36,12 @@ int main() {
            "ab<span style=\"color:#FFFF55;\">cd</span>", "mid-word");
     // material colours, not strike/underline
     Expect(FormatCodesToRml("\xC2\xA7mx\xC2\xA7nY"),
-           "<span style=\"color:#971607;\">x</span><span style=\"color:#B4684D;\">Y</span>", "m and n");
+           "<span style=\"color:#EE222C;\">x</span><span style=\"color:#C87363;\">Y</span>", "m and n");
+    // ui/_global_variables.json can recolour a code; an empty list brings the built-in palette back
+    SetFormatColorOverrides({{'i', 0xD461FF}});
+    Expect(FormatCodesToRml("\xC2\xA7ix"), "<span style=\"color:#D461FF;\">x</span>", "pack override");
+    SetFormatColorOverrides({});
+    Expect(FormatCodesToRml("\xC2\xA7ix"), "<span style=\"color:#A9B4B7;\">x</span>", "override cleared");
     Expect(FormatCodesToRml("\xC2\xA7ox"), "<span style=\"font-style:italic;\">x</span>", "italic");
     // the code is the whole character after the sign, never half of one
     Expect(StripFormatCodes("\xC2\xA7\xC3\xA9x"), "x", "multibyte code strip");

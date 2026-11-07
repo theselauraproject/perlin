@@ -168,6 +168,7 @@ namespace perlin {
     }
 
     void PackDownloader::MountAll() {
+        const ServerPacks::Batch batch;
         ServerPacks::Instance().Clear();
         for (const Offered& o : offeredPacks) {
             const auto path = std::filesystem::path(directory) / o.fileName;

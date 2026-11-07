@@ -202,7 +202,7 @@ namespace perlin::entity {
 
     void EntityAssets::SyncOverlays() {
         const uint32_t gen = ServerPacks::Instance().Generation();
-        if (gen == overlayGeneration)
+        if (gen == overlayGeneration || ServerPacks::Instance().Mounting())
             return;
         const std::vector<std::string> dirs = ServerPacks::Instance().Directories();
         if (dirs.size() < overlaysLoaded) {

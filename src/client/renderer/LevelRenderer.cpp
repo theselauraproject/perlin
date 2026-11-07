@@ -159,8 +159,8 @@ namespace perlin {
             serverPacksChangedAt = std::chrono::steady_clock::now();
             serverPackReloadPending = true;
         }
-        // packs mount one by one: wait for the last before paying for a reload
-        if (serverPackReloadPending &&
+        // packs mount one by one (encrypted ones take seconds each): reload once, after the last
+        if (serverPackReloadPending && !ServerPacks::Instance().Mounting() &&
             std::chrono::steady_clock::now() - serverPacksChangedAt > std::chrono::milliseconds(300)) {
             serverPackReloadPending = false;
             Log("packs", "server packs changed: reloading block textures");
