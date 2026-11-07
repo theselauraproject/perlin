@@ -1361,8 +1361,13 @@ namespace perlin {
             const int freshChunks = chunks - loading.chunkBase;
             // the world shows only once it can be drawn: block textures loaded, the player placed and the
             // chunks around it meshed. hiding the screen earlier leaves an empty sky behind the touch controls
+            // server blocks build as the meshes meet them: the world shows once those are built and drawn again
+            // (a server with a huge set gets a limit, the rest fills in behind the world)
+            if (levelRenderer)
+                levelRenderer->SetFastBuild(true);
             const bool assets =
-                levelRenderer && levelRenderer->Blocks().Complete() && levelRenderer->TexturesLoaded();
+                levelRenderer && levelRenderer->Blocks().Complete() && levelRenderer->TexturesLoaded() &&
+                (levelRenderer->ServerBlocksSettled() || now - loading.startAt > std::chrono::seconds(30));
             const bool placed = session->Initialized();
             const size_t meshed =
                 levelRenderer ? levelRenderer->MeshedChunks() -
@@ -1403,6 +1408,8 @@ namespace perlin {
             }
         }
         if (!show) {
+            if (levelRenderer)
+                levelRenderer->SetFastBuild(false);
             if (loading.shown) {
                 hud.Overlay().ClearOverlay();
                 loading.shown = false;

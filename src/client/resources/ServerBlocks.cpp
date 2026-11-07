@@ -62,6 +62,11 @@ namespace perlin {
         return !pending.empty();
     }
 
+    bool ServerBlocks::HasWaiting() const {
+        std::lock_guard lock(mutex);
+        return !waiting.empty();
+    }
+
     void ServerBlocks::Requeue() {
         std::lock_guard lock(mutex);
         pending.clear();

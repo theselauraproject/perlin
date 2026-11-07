@@ -35,6 +35,9 @@ namespace perlin {
         }
         void ReloadResources();
         void RemeshAll() { InvalidateMeshes(); }
+        // the loading screen: build server blocks flat out, and tell when every chunk that waited on one is drawn again
+        void SetFastBuild(bool fast) { fastBuild = fast; }
+        bool ServerBlocksSettled();
         void SetGlassMode(int mode) {
             if (blocks->GlassMode() != mode) {
                 const bool rebuild = blocks->NeedsGlassRebuild(mode);
@@ -110,6 +113,8 @@ namespace perlin {
         void Schedule(Level& level, float camX, float camZ, const Frustum& frustum);
         void InvalidateMeshes();
         void RemeshWaiting();
+        bool fastBuild = false;
+        PosSet remeshOutstanding;
         std::chrono::steady_clock::time_point lastCustomBuild{};
         std::chrono::steady_clock::time_point firstWaitAt;
         size_t captured = 0;

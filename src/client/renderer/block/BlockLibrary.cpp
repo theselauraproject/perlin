@@ -1222,118 +1222,126 @@ namespace perlin {
         if (!ServerBlocks::Instance().Pending())
             return false;
         std::vector<CustomBlockDef> defs = ServerBlocks::Instance().Take();
-        std::unordered_map<std::string, std::string> pathByKey;
-        for (const std::string& dir : ServerPacks::Instance().Directories()) {
-            std::string text;
+        // the per-pack lookups cost a scan of every server texture folder: once per set of packs, not per slice
+        const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
+        std::string ctxKey = vanillaRpRoot;
+        for (const std::string& dir : serverDirs)
+            ctxKey += "|" + dir;
+        auto& pathByKey = customCtx.pathByKey;
+        auto& vanillaPathByKey = customCtx.vanillaPathByKey;
+        auto& legacyFaces = customCtx.legacyFaces;
+        auto& stems = customCtx.stems;
+        if (customCtx.key != ctxKey) {
+            customCtx = CustomContext{};
+            customCtx.key = ctxKey;
+            for (const std::string& dir : ServerPacks::Instance().Directories()) {
+                std::string text;
+                {
+                    std::ifstream in(dir + "/textures/terrain_texture.json", std::ios::binary);
+                    if (!in)
+                        continue;
+                    std::stringstream ss;
+                    ss << in.rdbuf();
+                    text = ss.str();
+                }
+                ui::Json doc;
+                std::string error;
+                if (!ui::Json::Parse(text, doc, error))
+                    continue;
+                const ui::Json* data = doc.Find("texture_data");
+                if (!data || !data->IsObject())
+                    continue;
+                for (const auto& [key, value] : data->object) {
+                    const ui::Json* tex = value.Find("textures");
+                    if (!tex)
+                        continue;
+                    if (tex->IsArray() && !tex->array.empty())
+                        tex = &tex->array[0];
+                    if (tex->IsObject())
+                        tex = tex->Find("path");
+                    if (tex && tex->IsString())
+                        pathByKey[key] = tex->string;
+                }
+            }
             {
-                std::ifstream in(dir + "/textures/terrain_texture.json", std::ios::binary);
+                std::ifstream in(vanillaRpRoot + "/textures/terrain_texture.json", std::ios::binary);
+                if (in) {
+                    std::stringstream ss;
+                    ss << in.rdbuf();
+                    if (const auto doc = json::Document::Parse(ss.str(), true))
+                        for (const auto member : doc->root()["texture_data"].members()) {
+                            json::View tex = member.value["textures"];
+                            if (tex.isArray())
+                                tex = tex[static_cast<size_t>(0)];
+                            if (tex.isObject())
+                                tex = tex["path"];
+                            if (tex.isString())
+                                vanillaPathByKey.emplace(member.key, tex.str());
+                        }
+                }
+            }
+            for (const std::string& dir : serverDirs) {
+                std::ifstream in(dir + "/blocks.json", std::ios::binary);
                 if (!in)
                     continue;
                 std::stringstream ss;
                 ss << in.rdbuf();
-                text = ss.str();
-            }
-            ui::Json doc;
-            std::string error;
-            if (!ui::Json::Parse(text, doc, error))
-                continue;
-            const ui::Json* data = doc.Find("texture_data");
-            if (!data || !data->IsObject())
-                continue;
-            for (const auto& [key, value] : data->object) {
-                const ui::Json* tex = value.Find("textures");
-                if (!tex)
+                ui::Json doc;
+                std::string error;
+                if (!ui::Json::Parse(ss.str(), doc, error) || !doc.IsObject())
                     continue;
-                if (tex->IsArray() && !tex->array.empty())
-                    tex = &tex->array[0];
-                if (tex->IsObject())
-                    tex = tex->Find("path");
-                if (tex && tex->IsString())
-                    pathByKey[key] = tex->string;
-            }
-        }
-        std::unordered_map<std::string, std::string> vanillaPathByKey;
-        {
-            std::ifstream in(vanillaRpRoot + "/textures/terrain_texture.json", std::ios::binary);
-            if (in) {
-                std::stringstream ss;
-                ss << in.rdbuf();
-                if (const auto doc = json::Document::Parse(ss.str(), true))
-                    for (const auto member : doc->root()["texture_data"].members()) {
-                        json::View tex = member.value["textures"];
-                        if (tex.isArray())
-                            tex = tex[static_cast<size_t>(0)];
-                        if (tex.isObject())
-                            tex = tex["path"];
-                        if (tex.isString())
-                            vanillaPathByKey.emplace(member.key, tex.str());
+                for (const auto& [blockName, entry] : doc.object) {
+                    if (!entry.IsObject())
+                        continue;
+                    const ui::Json* tex = entry.Find("textures");
+                    if (!tex)
+                        continue;
+                    std::string key = blockName;
+                    if (!key.contains(':'))
+                        key = "minecraft:" + key;
+                    std::map<std::string, std::string> faces;
+                    if (tex->IsString()) {
+                        faces["*"] = tex->string;
+                    } else if (tex->IsObject()) {
+                        for (const auto& [face, v] : tex->object)
+                            if (v.IsString())
+                                faces[face] = v.string;
                     }
+                    if (!faces.empty())
+                        legacyFaces[key] = std::move(faces);
+                }
+            }
+            for (const std::string& dir : serverDirs) {
+                std::error_code ec;
+                for (std::filesystem::recursive_directory_iterator
+                         it(std::filesystem::path(dir) / "textures",
+                            std::filesystem::directory_options::skip_permission_denied, ec),
+                     end;
+                     !ec && it != end; it.increment(ec)) {
+                    if (!it->is_regular_file(ec))
+                        continue;
+                    std::string name = it->path().filename().string();
+                    constexpr std::string_view kSet = ".texture_set.json";
+                    std::string stem;
+                    size_t extSize = 0;
+                    if (name.size() > kSet.size() &&
+                        name.compare(name.size() - kSet.size(), kSet.size(), kSet) == 0) {
+                        stem = name.substr(0, name.size() - kSet.size());
+                        extSize = kSet.size();
+                    } else {
+                        const std::string ext = it->path().extension().string();
+                        if (ext != ".png" && ext != ".tga")
+                            continue;
+                        stem = it->path().stem().string();
+                        extSize = ext.size();
+                    }
+                    std::string rel = std::filesystem::relative(it->path(), dir, ec).generic_string();
+                    rel.resize(rel.size() - extSize);
+                    stems.emplace(std::move(stem), std::move(rel));
+                }
             }
         }
         bool any = false;
-        const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
-        std::unordered_map<std::string, std::map<std::string, std::string>> legacyFaces;
-        for (const std::string& dir : serverDirs) {
-            std::ifstream in(dir + "/blocks.json", std::ios::binary);
-            if (!in)
-                continue;
-            std::stringstream ss;
-            ss << in.rdbuf();
-            ui::Json doc;
-            std::string error;
-            if (!ui::Json::Parse(ss.str(), doc, error) || !doc.IsObject())
-                continue;
-            for (const auto& [blockName, entry] : doc.object) {
-                if (!entry.IsObject())
-                    continue;
-                const ui::Json* tex = entry.Find("textures");
-                if (!tex)
-                    continue;
-                std::string key = blockName;
-                if (!key.contains(':'))
-                    key = "minecraft:" + key;
-                std::map<std::string, std::string> faces;
-                if (tex->IsString()) {
-                    faces["*"] = tex->string;
-                } else if (tex->IsObject()) {
-                    for (const auto& [face, v] : tex->object)
-                        if (v.IsString())
-                            faces[face] = v.string;
-                }
-                if (!faces.empty())
-                    legacyFaces[key] = std::move(faces);
-            }
-        }
-        std::unordered_map<std::string, std::string> stems;
-        for (const std::string& dir : serverDirs) {
-            std::error_code ec;
-            for (std::filesystem::recursive_directory_iterator
-                     it(std::filesystem::path(dir) / "textures",
-                        std::filesystem::directory_options::skip_permission_denied, ec),
-                 end;
-                 !ec && it != end; it.increment(ec)) {
-                if (!it->is_regular_file(ec))
-                    continue;
-                std::string name = it->path().filename().string();
-                constexpr std::string_view kSet = ".texture_set.json";
-                std::string stem;
-                size_t extSize = 0;
-                if (name.size() > kSet.size() &&
-                    name.compare(name.size() - kSet.size(), kSet.size(), kSet) == 0) {
-                    stem = name.substr(0, name.size() - kSet.size());
-                    extSize = kSet.size();
-                } else {
-                    const std::string ext = it->path().extension().string();
-                    if (ext != ".png" && ext != ".tga")
-                        continue;
-                    stem = it->path().stem().string();
-                    extSize = ext.size();
-                }
-                std::string rel = std::filesystem::relative(it->path(), dir, ec).generic_string();
-                rel.resize(rel.size() - extSize);
-                stems.emplace(std::move(stem), std::move(rel));
-            }
-        }
         const BlockGeometry::FetchFn fetchGeometry = [this, &stems](const std::string& p,
                                                                     const std::string& root) {
             fetchingGeometry = true;

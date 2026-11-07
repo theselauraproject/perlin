@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -138,6 +139,11 @@ namespace perlin {
         mutable std::unordered_map<int32_t, bool> unknownLogged;
         mutable std::vector<const BlockAppearance*> localLook;
         mutable std::mutex lookMutex;
+        struct CustomContext {
+            std::string key;
+            std::unordered_map<std::string, std::string> pathByKey, vanillaPathByKey, stems;
+            std::unordered_map<std::string, std::map<std::string, std::string>> legacyFaces;
+        } customCtx;
         mutable std::shared_mutex alphaMutex;
     };
 

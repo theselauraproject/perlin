@@ -61,6 +61,7 @@ namespace perlin {
         // meshed before its blocks are built would ask again for nothing
         std::vector<std::pair<int, int>> TakeWaitingChunks();
         bool Pending() const;
+        bool HasWaiting() const;
         // a fresh library: everything wanted so far is built again
         void Requeue();
         void Reset();

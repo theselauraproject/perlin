@@ -178,9 +178,10 @@ namespace perlin {
             // server blocks get textures when a mesh or an icon first needs them: a slice per frame, then only
             // the chunks that were waiting on them mesh again
             const auto now = std::chrono::steady_clock::now();
-            if (ServerBlocks::Instance().Pending() && now - lastCustomBuild >= std::chrono::milliseconds(60)) {
+            if (ServerBlocks::Instance().Pending() &&
+                (fastBuild || now - lastCustomBuild >= std::chrono::milliseconds(60))) {
                 lastCustomBuild = now;
-                if (blocks->ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack", 6.0) &&
+                if (blocks->ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack", fastBuild ? 40.0 : 6.0) &&
                     blocks->TilesLoaded() > uploadedTiles) {
                     const int tiles = blocks->TilesLoaded();
                     if (!context.AppendAtlasTiles(blocks->AtlasPixels().data(), BlockLibrary::TilePx(), uploadedTiles,
@@ -362,9 +363,23 @@ namespace perlin {
         for (const ChunkPos& pos : inFlight)
             targets.insert(pos);
         for (const ChunkPos& pos : targets) {
-            meshKey.erase(pos);
+            // a chunk never meshed yet picks the textures up on its first mesh
+            if (meshKey.erase(pos))
+                remeshOutstanding.insert(pos);
             Recompute(pos);
         }
+    }
+
+    bool LevelRenderer::ServerBlocksSettled() {
+        if (ServerBlocks::Instance().Pending() || ServerBlocks::Instance().HasWaiting())
+            return false;
+        for (auto it = remeshOutstanding.begin(); it != remeshOutstanding.end();) {
+            if (inFlight.contains(*it) || wantKey.contains(*it))
+                ++it;
+            else
+                it = remeshOutstanding.erase(it);
+        }
+        return remeshOutstanding.empty();
     }
 
     void LevelRenderer::Recompute(const ChunkPos& pos) {
