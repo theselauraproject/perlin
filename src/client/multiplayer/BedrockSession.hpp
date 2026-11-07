@@ -1296,6 +1296,7 @@ namespace perlin {
              workbenchJustOpened = false;
         bool horseJustOpened = false;
         int inventoryWindow = 0;
+        std::atomic<int64_t> ownInventoryAskedAt{0};
         int32_t nextStackRequestId = -3;
         struct PendingDrop {
             int slot;

@@ -495,6 +495,7 @@ namespace perlin {
         p.actionId = InteractPacketActionId::OpenInventory;
         p.targetEntityId = runtimeId;
         p.hasPosition = false;
+        ownInventoryAskedAt = std::chrono::steady_clock::now().time_since_epoch().count();
         Log("inventory", "open (Interact OpenInventory, runtime id {})", runtimeId);
         return Send(p);
     }

@@ -109,6 +109,8 @@ namespace perlin {
         bool Ready(const ChunkPos& pos, uint64_t now) const;
         void Schedule(Level& level, float camX, float camZ, const Frustum& frustum);
         void InvalidateMeshes();
+        void RemeshWaiting();
+        std::chrono::steady_clock::time_point lastCustomBuild{};
         std::chrono::steady_clock::time_point firstWaitAt;
         size_t captured = 0;
         double captureMs = 0;
@@ -152,6 +154,11 @@ namespace perlin {
         bool assetsStale = false;
         // bumped by every reload; a load started for an older epoch is thrown away
         uint32_t assetEpoch = 0, stagedEpoch = 0;
+        // server pack generation the live set was built from, and the one a running load is building from
+        uint32_t builtForPacks = 0, stagedPacks = 0;
+        // the live set matches the mounted packs and nothing newer is loading: only then are meshes worth building.
+        // meshing with a stale set draws the world wrong first (old textures, custom blocks untextured), then again
+        bool AssetsCurrent() const;
 
         std::unique_ptr<ThreadPool> meshPool;
         size_t maxInFlight = 8;

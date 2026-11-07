@@ -1964,9 +1964,11 @@ namespace perlin::entity {
                 // measured with the bold the line inherits
                 const float width = font.Width(style.Codes() + text);
                 const float left = -width * 0.5f;
+                // rows sit 10px apart but a plate is 9 tall: stretch to the next row so stacked plates touch
+                const bool joinsNext = row + 1 < rows.size() && !rows[row + 1].empty();
                 if (!text.empty())
-                    quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + 8.0f, 0, 0, 0, 0,
-                         PackColor(glm::vec3(0.0f), 0.25f));
+                    quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + (joinsNext ? 9.0f : 8.0f),
+                         0, 0, 0, 0, PackColor(glm::vec3(0.0f), 0.25f));
                 float pen = left;
                 for (size_t i = 0; i < text.size();) {
                     uint32_t cp = 0;

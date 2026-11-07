@@ -8,14 +8,52 @@ namespace perlin {
 
     void ServerBlocks::Add(CustomBlockDef def) {
         std::lock_guard lock(mutex);
-        all.push_back(def);
-        pending.push_back(std::move(def));
+        index[def.name] = all.size();
+        built.erase(def.name);
+        // a server that sends its definitions again keeps what was already in use
+        if (wanted.contains(def.name))
+            pending.push_back(def);
+        all.push_back(std::move(def));
+    }
+
+    void ServerBlocks::Want(const std::string& name, int chunkX, int chunkZ) {
+        std::lock_guard lock(mutex);
+        const auto it = index.find(name);
+        if (it == index.end())
+            return;
+        if (wanted.insert(name).second)
+            pending.push_back(all[it->second]);
+        else if (built.contains(name))
+            return;
+        if (chunkX != kNoChunk &&
+            waitingSet.insert((static_cast<int64_t>(chunkX) << 32) | static_cast<uint32_t>(chunkZ)).second)
+            waiting.emplace_back(chunkX, chunkZ);
+    }
+
+    void ServerBlocks::MarkBuilt(const std::string& name) {
+        std::lock_guard lock(mutex);
+        built.insert(name);
     }
 
     std::vector<CustomBlockDef> ServerBlocks::Take() {
         std::lock_guard lock(mutex);
         std::vector<CustomBlockDef> out;
         out.swap(pending);
+        return out;
+    }
+
+    void ServerBlocks::Return(std::vector<CustomBlockDef> rest) {
+        std::lock_guard lock(mutex);
+        pending.insert(pending.begin(), std::make_move_iterator(rest.begin()), std::make_move_iterator(rest.end()));
+    }
+
+    std::vector<std::pair<int, int>> ServerBlocks::TakeWaitingChunks() {
+        std::lock_guard lock(mutex);
+        std::vector<std::pair<int, int>> out;
+        if (!pending.empty())
+            return out;
+        out.swap(waiting);
+        waitingSet.clear();
         return out;
     }
 
@@ -26,13 +64,22 @@ namespace perlin {
 
     void ServerBlocks::Requeue() {
         std::lock_guard lock(mutex);
-        pending = all;
+        pending.clear();
+        built.clear();
+        for (const std::string& name : wanted)
+            if (const auto it = index.find(name); it != index.end())
+                pending.push_back(all[it->second]);
     }
 
     void ServerBlocks::Reset() {
         std::lock_guard lock(mutex);
         pending.clear();
         all.clear();
+        index.clear();
+        wanted.clear();
+        built.clear();
+        waiting.clear();
+        waitingSet.clear();
         collisions.clear();
         collisionRevision.fetch_add(1, std::memory_order_release);
     }

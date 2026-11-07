@@ -873,16 +873,24 @@ namespace perlin {
             }
             // plain chests on boats and minecarts arrive as their own window types
             const auto wt = p.windowType;
+            // our own inventory request can be answered in a numbered window too: still the player's inventory
+            const auto askedNs = ownInventoryAskedAt.exchange(0);
+            const bool ownInventory =
+                wt == WindowType::Inventory && askedNs != 0 &&
+                std::chrono::steady_clock::now() -
+                        std::chrono::steady_clock::time_point(std::chrono::steady_clock::duration(askedNs)) <
+                    std::chrono::seconds(3);
             // an actor with a generic inventory (loot crates, custom chests) opens as "inventory" in a window of its own;
             // window 0 is the player's own inventory
-            const bool actorInventory = wt == WindowType::Inventory && static_cast<int>(p.windowId) != 0;
+            const bool actorInventory =
+                wt == WindowType::Inventory && static_cast<int>(p.windowId) != 0 && !ownInventory;
             // the open names its owning actor (-1 for a block): an npc shop arrives as a plain container this way
             const bool actorOwned =
                 actorInventory || (wt == WindowType::Container && p.runtimeEntityId != -1 && p.runtimeEntityId != 0);
             const bool plainContainer = wt == WindowType::Container || wt == WindowType::MinecartChest ||
                                         wt == WindowType::ChestBoat || wt == WindowType::Hopper ||
                                         wt == WindowType::Dropper || wt == WindowType::Dispenser || actorInventory;
-            if (!plainContainer && wt != WindowType::Horse && wt != WindowType::Workbench &&
+            if (!plainContainer && !ownInventory && wt != WindowType::Horse && wt != WindowType::Workbench &&
                 inventory.furnaceKind < 0)
                 Log("bedrock", "container open window {} type {} (unhandled)", static_cast<int>(p.windowId),
                     static_cast<int>(wt));

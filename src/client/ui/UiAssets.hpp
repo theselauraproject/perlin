@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace perlin {
@@ -74,6 +75,7 @@ namespace perlin::ui {
         const BlockLibrary* blocks = nullptr;
         std::mutex mutex;
         std::unordered_map<std::string, ItemSprite> items;
+        std::unordered_set<std::string> unbuiltIcons;
         std::unordered_map<std::string, Texture> heads;
         std::unordered_map<std::string, std::vector<std::string>> itemTextures;
         bool itemTableLoaded = false;

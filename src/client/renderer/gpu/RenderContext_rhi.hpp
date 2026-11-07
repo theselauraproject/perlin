@@ -178,6 +178,7 @@ namespace perlin {
         void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) override;
         void UploadEndSkyTexture(const Texture& endSky) override;
         void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) override;
+        bool AppendAtlasTiles(const uint8_t* rgba, int tilePx, int first, int tiles) override;
         void UploadTileFlags(const std::vector<uint8_t>& flags) override;
         int MaxAtlasLayers(int tilePx) const override;
         void UpdateAtlasRegion(int tile, const uint8_t* rgba) override;

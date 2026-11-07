@@ -448,11 +448,14 @@ namespace perlin {
         }
         alpha.centerHollow = tilePixels[((size_t)(kTilePx / 2) * kTilePx + kTilePx / 2) * 4 + 3] < 128;
         alpha.translucent = partialAlpha >= kTilePx * kTilePx / 2;
-        alphaByTile[tile] = alpha;
         if (satN > 0)
-            alphaByTile[tile].saturation = (float)(satSum / satN);
-        alphaByTile[tile].frame = (float)frameOpaque / (float)(4 * (kTilePx - 1));
-        alphaByTile[tile].holeFrac = 1.0f - (float)opaqueAll / (float)(kTilePx * kTilePx);
+            alpha.saturation = (float)(satSum / satN);
+        alpha.frame = (float)frameOpaque / (float)(4 * (kTilePx - 1));
+        alpha.holeFrac = 1.0f - (float)opaqueAll / (float)(kTilePx * kTilePx);
+        {
+            std::unique_lock alphaLock(alphaMutex);
+            alphaByTile[tile] = alpha;
+        }
         if (frames == 1) {
             uint64_t hash = 1469598103934665603ull;
             const uint64_t* words = reinterpret_cast<const uint64_t*>(tilePixels);
@@ -463,7 +466,10 @@ namespace perlin {
             if (same != tileByHash.end() &&
                 std::memcmp(atlas.data() + (size_t)same->second * kTilePx * kTilePx * 4, tilePixels,
                             (size_t)kTilePx * kTilePx * 4) == 0) {
-                alphaByTile.erase(tile);
+                {
+                    std::unique_lock alphaLock(alphaMutex);
+                    alphaByTile.erase(tile);
+                }
                 nextTile--;
                 atlas.resize((size_t)nextTile * kTilePx * kTilePx * 4);
                 tileByPng[pngRelPath] = same->second;
@@ -514,7 +520,10 @@ namespace perlin {
                     p[c] = static_cast<uint8_t>(std::min(255.0f, base[c] * shade));
                 p[3] = 255;
             }
-        alphaByTile[tile] = TileAlpha{};
+        {
+            std::unique_lock alphaLock(alphaMutex);
+            alphaByTile[tile] = TileAlpha{};
+        }
         pathByTile[tile] = "synthetic/" + label;
         synthTiles.push_back(tile);
         return tile;
@@ -551,6 +560,8 @@ namespace perlin {
     BlockLibrary::TileAlpha BlockLibrary::AlphaOf(int tile) const {
         if (tile <= 0)
             return {};
+        // mesh threads read while a late build adds tiles
+        std::shared_lock alphaLock(alphaMutex);
         auto it = alphaByTile.find(tile);
         return it == alphaByTile.end() ? TileAlpha{} : it->second;
     }
@@ -558,6 +569,7 @@ namespace perlin {
     float BlockLibrary::SaturationOf(int tile) const {
         if (tile <= 0)
             return 0;
+        std::shared_lock alphaLock(alphaMutex);
         auto it = alphaByTile.find(tile);
         return it == alphaByTile.end() ? 0 : it->second.saturation;
     }
@@ -1206,7 +1218,7 @@ namespace perlin {
         }
     }
 
-    bool BlockLibrary::ApplyCustom(const std::string& vanillaRpRoot) {
+    bool BlockLibrary::ApplyCustom(const std::string& vanillaRpRoot, double budgetMs) {
         if (!ServerBlocks::Instance().Pending())
             return false;
         std::vector<CustomBlockDef> defs = ServerBlocks::Instance().Take();
@@ -1337,7 +1349,28 @@ namespace perlin {
             fetchingGeometry = false;
             return tile;
         };
-        for (const CustomBlockDef& def : defs) {
+        // slab sheets first: if the atlas runs short, a slab is the block whose faces fill whole cells
+        // and a squeezed sheet shows on all of them
+        const auto isSlabSheet = [](const CustomBlockDef& d) {
+            const std::string shortName = AfterColon(d.name);
+            return d.json.contains(".slab.") || (shortName.size() > 5 && shortName.ends_with("_slab"));
+        };
+        const auto buildStart = std::chrono::steady_clock::now();
+        const size_t slabCount =
+            static_cast<size_t>(std::stable_partition(defs.begin(), defs.end(), isSlabSheet) - defs.begin());
+        for (size_t defIndex = 0; defIndex < defs.size(); defIndex++) {
+            // a live library builds a slice per frame: what is left waits for the next call
+            if (budgetMs > 0 && defIndex > 0 &&
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count() >
+                    budgetMs) {
+                ServerBlocks::Instance().Return(
+                    std::vector<CustomBlockDef>(defs.begin() + static_cast<std::ptrdiff_t>(defIndex), defs.end()));
+                defs.resize(defIndex);
+                break;
+            }
+            const CustomBlockDef& def = defs[defIndex];
+            if (defIndex == slabCount && slabCount > 0)
+                geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
             if (!def.json.empty()) {
                 geometry.AddCustom(def.name, def.json, serverDirs, vanillaRpRoot, fetchGeometry);
                 any = true;
@@ -1434,6 +1467,8 @@ namespace perlin {
             }
             any = true;
         }
+        for (const CustomBlockDef& def : defs)
+            ServerBlocks::Instance().MarkBuilt(def.name);
         // last: model sheets get full-resolution cells from whatever atlas room every block's own textures left
         if (any)
             geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
@@ -1497,7 +1532,12 @@ namespace perlin {
 
     const BlockAppearance* BlockLibrary::LookByName(const std::string& name) const {
         auto it = appearances.find(name);
-        return it == appearances.end() ? nullptr : &it->second;
+        if (it == appearances.end()) {
+            if (name.contains(':') && !name.starts_with("minecraft:"))
+                ServerBlocks::Instance().Want(name, ServerBlocks::kNoChunk, 0);
+            return nullptr;
+        }
+        return &it->second;
     }
 
     bool BlockLibrary::TilePixels(int tile, std::vector<uint8_t>& rgba) const {

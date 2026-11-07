@@ -703,6 +703,15 @@ namespace perlin::ui {
             stemIndexBuilt = false;
         }
         auto it = items.find(key);
+        if (it != items.end()) {
+            // a server block's icon made before its textures were built: make it again once they are
+            if (it->second.generic && blocks && blocks->Ready() && unbuiltIcons.contains(key) &&
+                blocks->LookByName(key.substr(0, key.find_first_of(";@"))) != nullptr) {
+                unbuiltIcons.erase(key);
+                items.erase(it);
+                it = items.end();
+            }
+        }
         if (it != items.end())
             return it->second.ok ? &it->second : nullptr;
         ItemSprite sprite;
@@ -845,6 +854,8 @@ namespace perlin::ui {
                 Log("items", "no texture found for {}{}, using a generic icon", id,
                     (customItem ? " (icon '" + custom.icon + "')" : std::string()));
             MakeGenericIcon(id, sprite);
+            if (id.contains(':') && !id.starts_with("minecraft:"))
+                unbuiltIcons.insert(key);
         }
         auto inserted = items.emplace(key, std::move(sprite)).first;
         return &inserted->second;

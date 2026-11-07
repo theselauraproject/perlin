@@ -5,6 +5,7 @@
 #include "client/renderer/block/BiomeTints.hpp"
 #include "client/renderer/block/BlockLibrary.hpp"
 #include "client/renderer/block/BlockModels.hpp"
+#include "client/resources/ServerBlocks.hpp"
 #include "world/level/block/BlockPalette.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "world/level/lighting/ChunkLighting.hpp"
@@ -957,6 +958,7 @@ namespace perlin {
         static const std::string kPlainsName = "minecraft:plains";
 
         int baseX = pos.x * 16, baseZ = pos.z * 16;
+        std::unordered_set<uint16_t> askedFor;
         for (int y = faceLo; y <= yHi; y++) {
             tess.EnterSection(y >> 4);
             for (int z = 0; z < 16; z++)
@@ -1005,6 +1007,12 @@ namespace perlin {
                             app = LookupApp(library, id);
                         const ModelEntry* modelEntry = textured ? ModelFor(library, id) : nullptr;
                         if (app && !modelEntry && (app->top | app->side | app->bottom) == 0) {
+                            // a server block whose textures are not built yet: ask for them, this chunk meshes again after
+                            if (askedFor.insert(id).second) {
+                                const std::string& wantName = BlockPalette::Instance().Name(id);
+                                if (!wantName.empty() && !wantName.starts_with("minecraft:"))
+                                    ServerBlocks::Instance().Want(wantName, pos.x, pos.z);
+                            }
                             static std::mutex logMutex;
                             static std::unordered_set<uint16_t> logged;
                             std::lock_guard<std::mutex> lk(logMutex);

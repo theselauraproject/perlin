@@ -211,6 +211,8 @@ namespace perlin {
         virtual void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) = 0;
         virtual void UploadEndSkyTexture(const Texture&) {}
         virtual void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) = 0;
+        // writes tiles [first, tiles) into the live atlas; false when it must be uploaded whole instead
+        virtual bool AppendAtlasTiles(const uint8_t*, int, int, int) { return false; }
         virtual void UploadTileFlags(const std::vector<uint8_t>&) {}
         virtual int MaxAtlasLayers(int) const { return 2048; }
         virtual void UpdateAtlasRegion(int tile, const uint8_t* rgba) = 0;

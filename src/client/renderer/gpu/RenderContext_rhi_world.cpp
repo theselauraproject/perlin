@@ -166,6 +166,29 @@ namespace perlin {
             jpack->SetAtlas(rgba, tilePx, count);
     }
 
+    bool RenderContext_rhi::AppendAtlasTiles(const uint8_t* rgba, int tilePx, int first, int tiles) {
+        // layers are allocated in steps of 256: a build that stays inside them needs no new texture
+        if (!initialized || !atlas.used || !rgba || tilePx != tileSize || first != atlasTiles || tiles <= first ||
+            tiles > atlasLayers)
+            return false;
+        const size_t stride = static_cast<size_t>(tilePx) * 4;
+        const size_t tileBytes = static_cast<size_t>(tilePx) * tilePx * 4;
+        for (int tile = first; tile < tiles; tile++) {
+            const auto mips = BuildTileMips(tilePx, rgba + tileBytes * static_cast<size_t>(tile), stride);
+            for (size_t l = 0; l < mips.size(); l++) {
+                const uint32_t w = static_cast<uint32_t>(std::max(1, tilePx >> static_cast<int>(l)));
+                gpu.WriteTexture(atlas.handle, static_cast<uint32_t>(tile), 0, 0, w, w, mips[l].data(), 0,
+                                 static_cast<uint32_t>(l));
+            }
+        }
+        atlasSource.insert(atlasSource.end(), rgba + tileBytes * static_cast<size_t>(first),
+                           rgba + tileBytes * static_cast<size_t>(tiles));
+        atlasTiles = tiles;
+        if (jpack)
+            jpack->SetAtlas(atlasSource.data(), tilePx, tiles);
+        return true;
+    }
+
     void RenderContext_rhi::UpdateAtlasRegion(int tile, const uint8_t* rgba) {
         if (!initialized || !atlas.used || !rgba || tile < 0 || tile >= atlasLayers)
             return;
