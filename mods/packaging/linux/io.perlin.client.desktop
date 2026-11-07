@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Perlin
-Exec=perlin
-TryExec=perlin
-Icon=io.perlin.client
-Terminal=false
-Categories=Game;
-StartupWMClass=io.perlin.client
