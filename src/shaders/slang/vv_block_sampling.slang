@@ -15,7 +15,7 @@ vec4 sampleNearest(vec2 uv, float layer, vec2 pixelSize, vec2 du, vec2 dv, vec2 
     texelOffset = (texelOffset - 0.5) * pixelSize / max(texelScreenSize, vec2_splat(1.0e-8)) + 0.5;
     texelOffset = clamp(texelOffset, vec2_splat(0.0), vec2_splat(1.0));
     vec2 sampleUv = (texelCenter + texelOffset) * pixelSize;
-    return texture2DArrayLod(s_atlas, vec3(sampleUv, layer), lod);
+    return perlinAtlasLod(vec3(sampleUv, layer), lod);
 }
 
 vec4 sampleBlock(vec2 uv, float layer)
@@ -52,8 +52,8 @@ vec4 sampleBlock(vec2 uv, float layer)
     for (int i = 0; i < 4; i++)
     {
         vec3 coord = vec3(uv + offsets[i] * pixelSize, layer);
-        low += texture2DArrayLod(s_atlas, coord, mipLow);
-        high += texture2DArrayLod(s_atlas, coord, mipHigh);
+        low += perlinAtlasLod(coord, mipLow);
+        high += perlinAtlasLod(coord, mipHigh);
     }
     vec4 rgss = mix(low * 0.25, high * 0.25, mipBlend);
     result = mix(nearest, rgss, blendFactor);

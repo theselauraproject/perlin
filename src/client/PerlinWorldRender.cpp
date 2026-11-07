@@ -1460,40 +1460,32 @@ namespace perlin {
         }
         particleQuads.clear();
         particles.Collect(static_cast<float>(particleClock / 0.05), pw, particleQuads);
-        if (const int fireTile = levelRenderer->Blocks().TileContaining("fire_1"); fireTile >= 0) {
-            const int soulTile = levelRenderer->Blocks().TileContaining("soul_fire_1");
-            for (const entity::Entity& burner : entities) {
-                const bool selfBurning = burner.isSelf && hudState.burning;
-                if (!selfBurning && !(burner.flags & entity::flag::Onfire))
-                    continue;
-                if ((burner.flags & entity::flag::FireImmune) || burner.dying || burner.isItem)
-                    continue;
-                const glm::dvec3 at = burner.pos;
-                const float scale = burner.scale;
-                int tile = fireTile;
-                {
-                    bool loaded = false;
-                    const uint16_t below = live->NetLevel().GetBlock(
-                        static_cast<int>(std::floor(at.x)), static_cast<int>(std::floor(at.y - 0.5)),
-                        static_cast<int>(std::floor(at.z)), loaded);
-                    if (loaded && soulTile >= 0) {
-                        const std::string bn = BlockPalette::Instance().Name(below);
-                        if (bn == "soul_sand" || bn == "soul_soil")
-                            tile = soulTile;
-                    }
-                }
-                for (int k = 0; k < 6; k++) {
-                    const float a = static_cast<float>(k) * 1.0472f + 0.5f;
-                    const float h = 0.15f + 0.3f * static_cast<float>(k % 3);
-                    particle::Quad q;
-                    q.centre = at + glm::dvec3(std::cos(a) * 0.3 * scale, (h + 0.35f * (k / 3)) * scale,
-                                               std::sin(a) * 0.3 * scale);
-                    q.half = 0.4f * scale;
-                    q.terrainTile = tile;
-                    particleQuads.push_back(q);
-                }
+        fireSprites.clear();
+        for (const entity::Entity& burner : entities) {
+            const bool selfBurning = burner.isSelf && hudState.burning;
+            if (!selfBurning && !(burner.flags & entity::flag::Onfire))
+                continue;
+            if ((burner.flags & entity::flag::FireImmune) || burner.dying || burner.isItem)
+                continue;
+            // the camera's own flames are the overlay: planes around the head would sit in the view
+            if (burner.isSelf && ein.firstPerson)
+                continue;
+            entity::EntityRenderer::FrameIn::FireSprite sprite;
+            sprite.pos = burner.pos;
+            sprite.width = (burner.boxWidth > 0.0f ? burner.boxWidth : 0.6f * burner.scale);
+            sprite.height = (burner.boxHeight > 0.0f ? burner.boxHeight : 1.8f * burner.scale);
+            bool loaded = false;
+            const uint16_t below = live->NetLevel().GetBlock(static_cast<int>(std::floor(burner.pos.x)),
+                                                             static_cast<int>(std::floor(burner.pos.y - 0.5)),
+                                                             static_cast<int>(std::floor(burner.pos.z)), loaded);
+            if (loaded) {
+                const std::string blockName = BlockPalette::Instance().Name(below);
+                sprite.soul = blockName == "minecraft:soul_sand" || blockName == "minecraft:soul_soil";
             }
+            fireSprites.push_back(sprite);
         }
+        ein.fire = &fireSprites;
+        ein.screenFire = hudState.burning && ein.firstPerson && hudState.mode != ui::GameMode::Spectator;
         ein.particles = &particleQuads;
         ein.dataParticles = &dataParticles;
         ein.dataWorld = dataWorld;

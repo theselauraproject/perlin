@@ -158,6 +158,10 @@ namespace perlin {
         std::vector<std::string> values;
     };
 
+    // tiles per atlas page and pages in all: the shaders split a tile index at this size (PERLIN_ATLAS_PAGE_LAYERS)
+    constexpr int kAtlasPageLayers = 2048;
+    constexpr int kAtlasMaxPages = 4;
+
     class RenderContext {
     public:
         virtual ~RenderContext() = default;
@@ -210,11 +214,13 @@ namespace perlin {
         virtual void DrawHudCursor(float x, float y, float w, float h) = 0;
         virtual void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) = 0;
         virtual void UploadEndSkyTexture(const Texture&) {}
+        // the block atlas is one texture array per page of kAtlasPageLayers tiles: a tile past the first page's last
+        // layer continues in the next page, so the tile count is no longer bound by one array's layer limit
         virtual void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) = 0;
         // writes tiles [first, tiles) into the live atlas; false when it must be uploaded whole instead
         virtual bool AppendAtlasTiles(const uint8_t*, int, int, int) { return false; }
         virtual void UploadTileFlags(const std::vector<uint8_t>&) {}
-        virtual int MaxAtlasLayers(int) const { return 2048; }
+        virtual int MaxAtlasLayers(int) const { return kAtlasPageLayers; }
         virtual void UpdateAtlasRegion(int tile, const uint8_t* rgba) = 0;
 
         virtual uint32_t UiCreateTexture(int width, int height, const uint8_t* rgba, bool linear,

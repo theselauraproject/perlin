@@ -676,9 +676,9 @@ def _rewrite_atlas_taps(body: str) -> str:
         args.append(cur)
         uv = args[0].strip()
         if name == "texture2DArrayLod":
-            out.append(f"texture2DArrayLod(s_atlas, float3({uv}, jLayer), {args[1].strip()})")
+            out.append(f"perlinAtlasLod(float3({uv}, jLayer), {args[1].strip()})")
         else:
-            out.append(f"texture2DArray(s_atlas, float3({uv}, jLayer))")
+            out.append(f"perlinAtlas(float3({uv}, jLayer))")
         i = j
     return "".join(out)
 

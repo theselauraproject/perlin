@@ -143,6 +143,12 @@ namespace perlin {
         double accumulator = 0.0;
         WalkBob walkBob;
         uint64_t tickCounter = 0;
+        // where the server last placed us far from where we were: a drop right after is logged with the column below
+        struct PlacementProbe {
+            bool active = false;
+            double x = 0, y = 0, z = 0;
+            uint64_t tick = 0;
+        } placement;
         TickObserver tickObserver;
 
         PlayerFov fov;

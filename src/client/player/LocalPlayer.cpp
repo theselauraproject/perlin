@@ -258,6 +258,12 @@ namespace perlin {
                               {motion.tick, {motion.velocity[0], motion.velocity[1], motion.velocity[2]}});
             return;
         }
+        if (motion.teleport && !motion.filterTravel && !motion.correction) {
+            const double jump = std::abs(motion.pos[0] - state.x) + std::abs(motion.pos[1] - state.y) +
+                                std::abs(motion.pos[2] - state.z);
+            if (jump > 16.0)
+                placement = {true, motion.pos[0], motion.pos[1], motion.pos[2], tickCounter};
+        }
         bool handled = false;
         if (motion.teleport && motion.filterTravel && motion.tick != 0 && !history.empty() &&
             motion.tick >= history.front().tick) {
@@ -1383,6 +1389,28 @@ namespace perlin {
                                                          : standEye;
             eyeDropPrevious = eyeDrop;
             eyeDrop = (standEye - targetEye - eyeDrop) * 0.5f + eyeDrop;
+        }
+
+        if (placement.active) {
+            if (tickCounter - placement.tick > 400) {
+                placement.active = false;
+            } else if (state.y < placement.y - 2.5) {
+                placement.active = false;
+                // enough to tell a missing floor from a floor we walked off: what the level holds under the spot
+                const Level& level = session.NetLevel();
+                const int bx = static_cast<int>(std::floor(placement.x));
+                const int bz = static_cast<int>(std::floor(placement.z));
+                Log("spawn", "placed at ({},{},{}), {} ticks later at ({},{},{}): column below the placement",
+                    placement.x, placement.y, placement.z, tickCounter - placement.tick, state.x, state.y, state.z);
+                for (int dy = 0; dy >= -3; dy--) {
+                    const int by = static_cast<int>(std::floor(placement.y)) + dy;
+                    bool loaded = false;
+                    const uint16_t id = level.GetBlock(bx, by, bz, loaded);
+                    const auto shape = world.Query(bx, by, bz);
+                    Log("spawn", "  y={} loaded={} block='{}' collision boxes={}", by, loaded,
+                        BlockPalette::Instance().Name(id), shape.boxes.size());
+                }
+            }
         }
 
         const double t = std::clamp(accumulator / physics::kTickSeconds, 0.0, 1.0);

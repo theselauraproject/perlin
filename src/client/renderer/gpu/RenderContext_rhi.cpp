@@ -478,9 +478,10 @@ namespace perlin {
         cloudVertexCapacity = cloudIndexCapacity = 0;
         cloudBuilt = false;
         for (TexRec* t :
-             {&atlas, &lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
+             {&lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
               &javaNormalDef, &javaSpecDef, &javaBlack, &javaCloudWater, &javaMaterials})
             FreeTexture(*t);
+        FreeAtlas();
         javaTexReady = false;
         javaMaterialCount = 0;
         DestroyScreenTargets();

@@ -114,6 +114,15 @@ namespace perlin::entity {
             bool skins3d = false;
             const std::vector<particle::Quad>* particles = nullptr;
             const particle::DataParticles* dataParticles = nullptr;
+            // burning actors: flame planes that stack up the body and turn to the camera
+            struct FireSprite {
+                glm::dvec3 pos{0.0};
+                float width = 0.6f, height = 1.8f;
+                bool soul = false;
+            };
+            const std::vector<FireSprite>* fire = nullptr;
+            // the camera is burning: flames fill the lower view
+            bool screenFire = false;
             particle::DataWorld dataWorld;
             std::function<bool(int, std::vector<uint8_t>&)> tilePixels;
             glm::dvec3 playerPos{0.0};
@@ -197,10 +206,13 @@ namespace perlin::entity {
         uint32_t TextureByPath(const std::string& path);
         void DrawPainting(const Entity& e, const FrameIn& in);
         void DrawParticles(const FrameIn& in);
+        int FlipbookFrames(const std::string& name);
         uint32_t particleSheet = 0;
         bool particleSheetTried = false;
         std::unordered_map<int, uint32_t> particleTiles;
         std::unordered_map<std::string, uint32_t> particleTextures;
+        // frames in a flipbook strip texture, by name (0: the texture is missing)
+        std::unordered_map<std::string, int> flipbookFrames;
         uint32_t fontTexture = 0;
         uint32_t fontTextureVersion = 0;
 

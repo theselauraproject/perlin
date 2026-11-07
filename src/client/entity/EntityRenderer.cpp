@@ -175,6 +175,9 @@ namespace perlin::entity {
         double born = 0, lastSeen = 0, now = 0;
         float dt = 0;
         float animTime = 0;
+        // projectiles point along their flight: kept between ticks, a stuck one keeps its last heading
+        float flightYaw = 0, flightPitch = 0;
+        bool flightKnown = false;
         float glideTime = 0, yawSpeed = 0, standAmount = 0, sitAmount = 0, swimAmount = 0, lieAmount = 0,
               swellAmount = 0;
         molang::Scope scope;
@@ -470,7 +473,9 @@ namespace perlin::entity {
                                 e.type == "minecraft:small_fireball" ||
                                 e.type == "minecraft:shulker_bullet" || e.type == "minecraft:llama_spit" ||
                                 e.type == "minecraft:dragon_fireball";
-        const bool buffered = !e.isSelf && !projectile;
+        // projectiles draw between the last two ticks like everything else: easing toward the newest position
+        // trailed a fast arrow several blocks behind where it really was
+        const bool buffered = !e.isSelf;
         const double follow = e.isSelf ? 1.0 : 1.0 - std::exp(-static_cast<double>(dt) / 0.06);
         v.lastPos = v.pos;
         const float prevYaw = v.yaw;
@@ -499,14 +504,26 @@ namespace perlin::entity {
             v.pitch = v.pitch + WrapDegrees(e.pitch - v.pitch) * static_cast<float>(follow);
         }
         if (projectile) {
-            const double len = glm::length(d);
-            if (len > 0.04) {
-                const float targetYaw = static_cast<float>(std::atan2(-d.x, d.z) * 180.0 / 3.14159265358979);
-                const float targetPitch = static_cast<float>(-std::asin(std::clamp(d.y / len, -1.0, 1.0)) *
+            const glm::dvec3 flight = e.pos - e.prevPos;
+            const double len = glm::length(flight);
+            if (len > 0.01 && len < 16.0) {
+                const float targetYaw = static_cast<float>(std::atan2(-flight.x, flight.z) * 180.0 / 3.14159265358979);
+                const float targetPitch = static_cast<float>(-std::asin(std::clamp(flight.y / len, -1.0, 1.0)) *
                                                              180.0 / 3.14159265358979);
-                const float aim = 1.0f - std::exp(-dt / 0.03f);
-                v.yaw = v.yaw + WrapDegrees(targetYaw - v.yaw) * aim;
-                v.pitch = v.pitch + (targetPitch - v.pitch) * aim;
+                if (!v.flightKnown) {
+                    v.flightYaw = targetYaw;
+                    v.flightPitch = targetPitch;
+                    v.flightKnown = true;
+                } else {
+                    // a short ease hides the tick-to-tick jitter of the heading without lagging a turn
+                    const float aim = 1.0f - std::exp(-dt / 0.02f);
+                    v.flightYaw += WrapDegrees(targetYaw - v.flightYaw) * aim;
+                    v.flightPitch += (targetPitch - v.flightPitch) * aim;
+                }
+            }
+            if (v.flightKnown) {
+                v.yaw = v.flightYaw;
+                v.pitch = v.flightPitch;
             }
             v.headYaw = v.yaw;
             v.yawSpeed = 0.0f;
@@ -1411,12 +1428,6 @@ namespace perlin::entity {
             model = glm::rotate(model, (90.0f + v.pitch) * kDeg, glm::vec3(1, 0, 0));
             model = glm::translate(model, glm::vec3(0.0f, -12.0f / 16.0f * scale, 0.0f));
         }
-        if (e.type == "minecraft:xp_bottle" || e.type == "minecraft:splash_potion" ||
-            e.type == "minecraft:lingering_potion" || e.type == "minecraft:snowball" ||
-            e.type == "minecraft:egg" || e.type == "minecraft:ender_pearl") {
-            const float spin = std::fmod(static_cast<float>((in.time - v.born) * 10800.0), 360.0f);
-            model = glm::rotate(model, spin * kDeg, glm::vec3(1, 0, 0));
-        }
         model = glm::scale(model, glm::vec3(scale / 16.0f) * modScale);
         glm::vec3 light(1.0f);
         if (in.light)
@@ -1761,9 +1772,23 @@ namespace perlin::entity {
         renderer->UiSubmit(UiLayer::World, draw);
     }
 
+    int EntityRenderer::FlipbookFrames(const std::string& name) {
+        const auto cached = flipbookFrames.find(name);
+        if (cached != flipbookFrames.end())
+            return cached->second;
+        int frames = 0;
+        Texture t;
+        // every pack format stores flames as a strip of square frames, so the height says how many there are
+        if (ui::UiAssets::Instance().Image(name, t) && t.width > 0 && t.height >= t.width)
+            frames = std::max(1, t.height / t.width);
+        flipbookFrames.emplace(name, frames);
+        return frames;
+    }
+
     void EntityRenderer::DrawParticles(const FrameIn& in) {
         const bool haveCustom = in.dataParticles && in.dataParticles->Count() > 0;
-        if (!renderer || ((!in.particles || in.particles->empty()) && !haveCustom))
+        const bool haveFire = !shadowOnlyPass && (in.screenFire || (in.fire && !in.fire->empty()));
+        if (!renderer || ((!in.particles || in.particles->empty()) && !haveCustom && !haveFire))
             return;
         if (!particleSheet && !particleSheetTried) {
             particleSheetTried = true;
@@ -1805,7 +1830,7 @@ namespace perlin::entity {
                 b.indices.push_back(i0 + k);
         }
         const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(base));
-        if (haveCustom) {
+        if (haveCustom || haveFire) {
             particle::CameraView view;
             view.position = in.camera;
             view.right = right;
@@ -1813,7 +1838,88 @@ namespace perlin::entity {
             view.forward = forward;
             static std::vector<particle::CustomQuad> custom;
             custom.clear();
-            in.dataParticles->Collect(view, in.dataWorld, custom);
+            if (haveCustom)
+                in.dataParticles->Collect(view, in.dataWorld, custom);
+            if (haveFire) {
+                const int64_t tick = static_cast<int64_t>(std::floor(std::max(in.worldTicks, 0.0)));
+                // the flames play one frame per tick, whatever the frame rate
+                const auto frameRows = [&](int frames, float& top, float& bottom) {
+                    const int frame = frames > 1 ? static_cast<int>(tick % frames) : 0;
+                    top = static_cast<float>(frame) / static_cast<float>(std::max(frames, 1));
+                    bottom = static_cast<float>(frame + 1) / static_cast<float>(std::max(frames, 1));
+                };
+                const auto flameName = [&](int layer, bool soul) {
+                    std::string name = std::string("textures/blocks/") + (soul ? "soul_fire_" : "fire_") +
+                                       (layer % 2 == 0 ? "0" : "1");
+                    if (soul && FlipbookFrames(name) == 0)
+                        name = std::string("textures/blocks/fire_") + (layer % 2 == 0 ? "0" : "1");
+                    return name;
+                };
+                // flames on an actor: planes parallel to the view, 1.4 tall per 1.0 wide, stacked up the body a
+                // layer per 0.45 and narrowing, the lowest nearest the camera, alternating the two flame textures
+                // and flipping every second layer so the pattern doesn't repeat
+                const glm::vec3 flatForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z) +
+                                                             glm::vec3(0.0f, 0.0f, 1e-6f));
+                const glm::vec3 flatRight(right.x, 0.0f, right.z);
+                if (in.fire)
+                    for (const FrameIn::FireSprite& sprite : *in.fire) {
+                        const float scale = std::max(sprite.width, 0.05f) * 1.4f;
+                        float remaining = sprite.height / scale;
+                        const float zBase = -0.3f + static_cast<float>(static_cast<int>(remaining)) * 0.02f;
+                        float half = 0.5f, lift = 0.0f, depth = 0.0f;
+                        for (int layer = 0; remaining > 0.0f && layer < 24; layer++) {
+                            const std::string name = flameName(layer, sprite.soul);
+                            const int frames = FlipbookFrames(name);
+                            if (frames == 0)
+                                break;
+                            particle::CustomQuad q;
+                            q.texture = name;
+                            q.blend = 2;
+                            q.centre = sprite.pos + glm::dvec3((flatForward * ((zBase + depth) * scale)) +
+                                                               glm::vec3(0.0f, (0.7f + lift) * scale, 0.0f));
+                            q.right = flatRight * (half * scale);
+                            q.up = glm::vec3(0.0f, 0.7f * scale, 0.0f);
+                            frameRows(frames, q.v0, q.v1);
+                            // the actor's own +x is the camera's left: the unflipped layers read mirrored
+                            const bool flipped = (layer / 2) % 2 == 0;
+                            q.u0 = flipped ? 0.0f : 1.0f;
+                            q.u1 = flipped ? 1.0f : 0.0f;
+                            custom.push_back(std::move(q));
+                            remaining -= 0.45f;
+                            lift += 0.45f;
+                            half *= 0.9f;
+                            depth += 0.03f;
+                        }
+                    }
+                // flames on the camera itself: two copies of the second flame texture a half block ahead, pushed
+                // out to either side and low, each turned ten degrees about the vertical
+                if (in.screenFire) {
+                    const std::string name = "textures/blocks/fire_1";
+                    if (const int frames = FlipbookFrames(name); frames > 0) {
+                        const auto toWorld = [&](const glm::vec3& v) {
+                            return right * v.x + up * v.y + forward * -v.z;
+                        };
+                        for (int copy = 0; copy < 2; copy++) {
+                            const float side = static_cast<float>(copy * 2 - 1);
+                            const glm::mat4 place =
+                                glm::translate(glm::mat4(1.0f), glm::vec3(-side * 0.24f, -0.3f, 0.0f)) *
+                                glm::rotate(glm::mat4(1.0f), side * 10.0f * kDeg, glm::vec3(0, 1, 0));
+                            const glm::mat3 turn(place);
+                            particle::CustomQuad q;
+                            q.texture = name;
+                            q.blend = 3;
+                            q.abgr = 0xE6FFFFFFu;
+                            q.centre = in.camera + glm::dvec3(toWorld(glm::vec3(place * glm::vec4(0, 0, -0.5f, 1))));
+                            q.right = toWorld(turn * glm::vec3(0.5f, 0, 0));
+                            q.up = toWorld(turn * glm::vec3(0, 0.5f, 0));
+                            frameRows(frames, q.v0, q.v1);
+                            q.u0 = 1.0f;
+                            q.u1 = 0.0f;
+                            custom.push_back(std::move(q));
+                        }
+                    }
+                }
+            }
             struct CustomBatch {
                 std::vector<UiVertex> vertices;
                 std::vector<uint32_t> indices;
@@ -1858,8 +1964,11 @@ namespace perlin::entity {
                 draw.premultiplied = false;
                 StyleFromMaterial(draw, keyPair.second == 1
                                             ? "particles_add"
-                                            : (keyPair.second == 2 ? "particles_blend" : "particles_alpha"));
+                                            : (keyPair.second >= 2 ? "particles_blend" : "particles_alpha"));
                 draw.alphaCutoff = keyPair.second == 0 ? 0.5f : 0.02f;
+                // flames over the view draw on top of whatever is nearer than the half block they sit at
+                if (keyPair.second == 3)
+                    draw.depth = false;
                 draw.emissive = 2;
                 draw.shadowOnly = shadowOnlyPass;
                 draw.vertexLight = b.light.data();

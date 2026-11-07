@@ -372,6 +372,7 @@ namespace perlin {
         const Level* particleLevel = nullptr;
         double particleClock = 0;
         std::vector<particle::Quad> particleQuads;
+        std::vector<entity::EntityRenderer::FrameIn::FireSprite> fireSprites;
         FogDefs fogDefs;
         audio::AudioEngine audioEngine;
         audio::SoundSystem sounds{audioEngine};

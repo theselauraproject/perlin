@@ -7,10 +7,12 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <thread>
 #include <cstdio>
 #include "util/Log.hpp"
 
@@ -125,11 +127,73 @@ namespace perlin {
         const int limit =
             initialized ? std::max<int>(
                               1, static_cast<int>(const_cast<gpu::Gpu&>(gpu).Caps().limits.max_texture_layers))
-                        : 2048;
+                        : kAtlasPageLayers;
         const double perLayer =
             static_cast<double>(std::max(1, tilePx)) * std::max(1, tilePx) * 4.0 * 4.0 / 3.0;
         const double budget = 1.3e9;
-        return std::max(256, std::min(limit, static_cast<int>(budget / perLayer)));
+        // pages only exist when the device takes a full page: a smaller limit stays one short page
+        const int total = limit >= kAtlasPageLayers ? kAtlasPageLayers * kAtlasMaxPages : limit;
+        return std::max(256, std::min(total, static_cast<int>(budget / perLayer)));
+    }
+
+    int RenderContext_rhi::AtlasLayersFor(int tiles, int tilePx) const {
+        const double perLayer =
+            static_cast<double>(std::max(1, tilePx)) * std::max(1, tilePx) * 4.0 * 4.0 / 3.0;
+        // small tiles: take the whole page now, so tiles added later never reallocate it
+        if (perLayer * atlasPageCap <= 96.0e6)
+            return atlasPageCap;
+        return std::min(atlasPageCap, (tiles + 255) / 256 * 256 + 256);
+    }
+
+    bool RenderContext_rhi::MakeAtlasPage(int page, int tiles, int tilePx) {
+        const int layers = AtlasLayersFor(tiles, tilePx);
+        TexRec& rec = AtlasPage(page);
+        FreeTexture(rec);
+        const std::string name = "block atlas " + std::to_string(page);
+        if (!MakeTexture(rec, static_cast<uint32_t>(tilePx), static_cast<uint32_t>(tilePx),
+                         static_cast<uint32_t>(layers), static_cast<uint32_t>(MipCount(tilePx)),
+                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipClamp, name.c_str())) {
+            Log("render", "atlas page {} failed ({} layers of {}px)", page, layers, tilePx);
+            return false;
+        }
+        return true;
+    }
+
+    void RenderContext_rhi::FreeAtlas() {
+        for (int page = 0; page < kAtlasMaxPages; page++)
+            FreeTexture(AtlasPage(page));
+    }
+
+    void RenderContext_rhi::BindAtlas() {
+        static constexpr const char* names[kAtlasMaxPages] = {"s_atlas", "s_atlas2", "s_atlas3", "s_atlas4"};
+        for (int page = 0; page < kAtlasMaxPages; page++) {
+            const TexRec& rec = AtlasPage(page);
+            BindTexture(names[page], rec.used ? rec.handle : gpu.WhiteArray(), gpu::SamplerKind::PointMipClamp);
+        }
+    }
+
+    namespace {
+        // the mips are the slow part of an atlas upload and every tile is independent: spread them over the cores
+        std::vector<std::vector<std::vector<uint8_t>>> BuildMipsParallel(const uint8_t* rgba, int tilePx, int first,
+                                                                         int count) {
+            std::vector<std::vector<std::vector<uint8_t>>> built(static_cast<size_t>(std::max(count, 0)));
+            const size_t stride = static_cast<size_t>(tilePx) * 4;
+            const size_t tileBytes = static_cast<size_t>(tilePx) * tilePx * 4;
+            std::atomic<int> next{0};
+            const auto work = [&] {
+                for (int i; (i = next.fetch_add(1)) < count;)
+                    built[static_cast<size_t>(i)] =
+                        BuildTileMips(tilePx, rgba + tileBytes * static_cast<size_t>(first + i), stride);
+            };
+            const unsigned workers = std::max(1u, std::min(8u, std::thread::hardware_concurrency()));
+            std::vector<std::thread> threads;
+            for (unsigned i = 1; i < workers && count > 64; i++)
+                threads.emplace_back(work);
+            work();
+            for (std::thread& t : threads)
+                t.join();
+            return built;
+        }
     }
 
     void RenderContext_rhi::UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) {
@@ -137,48 +201,64 @@ namespace perlin {
             return;
         animatedTiles.clear();
         const int limit = std::max<int>(1, static_cast<int>(gpu.Caps().limits.max_texture_layers));
-        const int layers = std::min(limit, (tiles + 255) / 256 * 256);
-        TexRec tex;
-        if (!MakeTexture(tex, static_cast<uint32_t>(tilePx), static_cast<uint32_t>(tilePx),
-                         static_cast<uint32_t>(layers), static_cast<uint32_t>(MipCount(tilePx)),
-                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipClamp, "block atlas")) {
-            Log("render", "atlas upload failed ({} layers of {}px)", layers, tilePx);
-            return;
-        }
-        const size_t stride = static_cast<size_t>(tilePx) * 4;
+        atlasPageCap = std::min(limit, kAtlasPageLayers);
+        const int capacity = limit >= kAtlasPageLayers ? kAtlasPageLayers * kAtlasMaxPages : limit;
+        const int count = std::min(tiles, capacity);
+        const int pages = (count + atlasPageCap - 1) / atlasPageCap;
         const size_t tileBytes = static_cast<size_t>(tilePx) * tilePx * 4;
-        const int count = std::min(tiles, layers);
-        for (int tile = 0; tile < count; tile++) {
-            const auto mips = BuildTileMips(tilePx, rgba + tileBytes * static_cast<size_t>(tile), stride);
-            for (size_t l = 0; l < mips.size(); l++) {
-                const uint32_t w = static_cast<uint32_t>(std::max(1, tilePx >> static_cast<int>(l)));
-                gpu.WriteTexture(tex.handle, static_cast<uint32_t>(tile), 0, 0, w, w, mips[l].data(), 0,
-                                 static_cast<uint32_t>(l));
-            }
-        }
-        FreeTexture(atlas);
-        atlas = tex;
-        atlasLayers = layers;
+        const auto built = BuildMipsParallel(rgba, tilePx, 0, count);
+        FreeAtlas();
         tileSize = tilePx;
-        atlasTiles = count;
-        atlasSource.assign(rgba, rgba + tileBytes * static_cast<size_t>(count));
+        atlasTiles = 0;
+        for (int page = 0; page < pages; page++) {
+            const int first = page * atlasPageCap;
+            const int end = std::min(count, first + atlasPageCap);
+            // a page that cannot exist ends the atlas there: the tiles before it still draw
+            if (!MakeAtlasPage(page, end - first, tilePx))
+                break;
+            const TexRec& rec = AtlasPage(page);
+            for (int tile = first; tile < end; tile++) {
+                const auto& mips = built[static_cast<size_t>(tile)];
+                for (size_t l = 0; l < mips.size(); l++) {
+                    const uint32_t w = static_cast<uint32_t>(std::max(1, tilePx >> static_cast<int>(l)));
+                    gpu.WriteTexture(rec.handle, static_cast<uint32_t>(tile - first), 0, 0, w, w, mips[l].data(),
+                                     0, static_cast<uint32_t>(l));
+                }
+            }
+            atlasTiles = end;
+        }
+        if (!atlas.used)
+            return;
+        atlasSource.assign(rgba, rgba + tileBytes * static_cast<size_t>(atlasTiles));
         if (jpack)
-            jpack->SetAtlas(rgba, tilePx, count);
+            jpack->SetAtlas(rgba, tilePx, atlasTiles);
     }
 
     bool RenderContext_rhi::AppendAtlasTiles(const uint8_t* rgba, int tilePx, int first, int tiles) {
-        // layers are allocated in steps of 256: a build that stays inside them needs no new texture
+        const int capacity = atlasPageCap >= kAtlasPageLayers ? kAtlasPageLayers * kAtlasMaxPages : atlasPageCap;
         if (!initialized || !atlas.used || !rgba || tilePx != tileSize || first != atlasTiles || tiles <= first ||
-            tiles > atlasLayers)
+            tiles > capacity)
             return false;
-        const size_t stride = static_cast<size_t>(tilePx) * 4;
+        // a page that exists and is too short for the new tiles needs the whole atlas rebuilt
+        const int firstPage = first / atlasPageCap, lastPage = (tiles - 1) / atlasPageCap;
+        for (int page = firstPage; page <= lastPage; page++) {
+            const TexRec& rec = AtlasPage(page);
+            if (rec.used && static_cast<int>(rec.layers) < std::min(tiles - page * atlasPageCap, atlasPageCap))
+                return false;
+        }
+        for (int page = firstPage; page <= lastPage; page++)
+            if (!AtlasPage(page).used &&
+                !MakeAtlasPage(page, std::min(tiles - page * atlasPageCap, atlasPageCap), tilePx))
+                return false;
         const size_t tileBytes = static_cast<size_t>(tilePx) * tilePx * 4;
+        const auto built = BuildMipsParallel(rgba, tilePx, first, tiles - first);
         for (int tile = first; tile < tiles; tile++) {
-            const auto mips = BuildTileMips(tilePx, rgba + tileBytes * static_cast<size_t>(tile), stride);
+            const TexRec& rec = AtlasPage(tile / atlasPageCap);
+            const auto& mips = built[static_cast<size_t>(tile - first)];
             for (size_t l = 0; l < mips.size(); l++) {
                 const uint32_t w = static_cast<uint32_t>(std::max(1, tilePx >> static_cast<int>(l)));
-                gpu.WriteTexture(atlas.handle, static_cast<uint32_t>(tile), 0, 0, w, w, mips[l].data(), 0,
-                                 static_cast<uint32_t>(l));
+                gpu.WriteTexture(rec.handle, static_cast<uint32_t>(tile % atlasPageCap), 0, 0, w, w,
+                                 mips[l].data(), 0, static_cast<uint32_t>(l));
             }
         }
         atlasSource.insert(atlasSource.end(), rgba + tileBytes * static_cast<size_t>(first),
@@ -190,7 +270,13 @@ namespace perlin {
     }
 
     void RenderContext_rhi::UpdateAtlasRegion(int tile, const uint8_t* rgba) {
-        if (!initialized || !atlas.used || !rgba || tile < 0 || tile >= atlasLayers)
+        if (!initialized || !atlas.used || !rgba || tile < 0)
+            return;
+        const int pageIndex = tile / atlasPageCap;
+        if (pageIndex >= kAtlasMaxPages)
+            return;
+        const TexRec& page = AtlasPage(pageIndex);
+        if (!page.used || tile % atlasPageCap >= static_cast<int>(page.layers))
             return;
         auto it = animatedTiles.find(rgba);
         if (it == animatedTiles.end()) {
@@ -207,7 +293,7 @@ namespace perlin {
             jpack->UpdateTile(tile, mips[0].data());
         for (size_t l = 0; l < mips.size(); l++) {
             const uint32_t w = static_cast<uint32_t>(std::max(1, tileSize >> static_cast<int>(l)));
-            gpu.WriteTexture(atlas.handle, static_cast<uint32_t>(tile), 0, 0, w, w, mips[l].data(), 0,
+            gpu.WriteTexture(page.handle, static_cast<uint32_t>(tile % atlasPageCap), 0, 0, w, w, mips[l].data(), 0,
                              static_cast<uint32_t>(l));
         }
     }
@@ -310,7 +396,8 @@ namespace perlin {
 
     void RenderContext_rhi::UnloadLevelResources() {
         ClearChunkMeshes();
-        for (TexRec* texture : {&atlas, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair})
+        FreeAtlas();
+        for (TexRec* texture : {&sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair})
             FreeTexture(*texture);
         animatedTiles.clear();
         std::vector<uint8_t>().swap(atlasSource);
@@ -318,7 +405,7 @@ namespace perlin {
         sunSource = moonSource = endSkySource = cloudSource = iconSource = Texture{};
         cloudTexture = {};
         cloudBuilt = false;
-        atlasLayers = atlasTiles = crosshairPx = 0;
+        atlasTiles = crosshairPx = 0;
     }
 
     void RenderContext_rhi::ClearChunkMeshes() {
@@ -388,7 +475,7 @@ namespace perlin {
         state.layout = gpu::VertexLayout::Terrain;
 
         SetMatrix(mvp);
-        BindTexture("s_atlas", atlas.used ? atlas.handle : gpu.WhiteArray(), gpu::SamplerKind::PointMipClamp);
+        BindAtlas();
         BindTexture("s_lightmap", lightmap.handle, gpu::SamplerKind::LinearClamp);
         if (cloudMapTex.used)
             BindTexture("s_clouds", cloudMapTex.handle, gpu::SamplerKind::PointRepeat);

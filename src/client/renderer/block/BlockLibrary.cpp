@@ -306,6 +306,47 @@ namespace perlin {
                     cache.emplace(std::move(paths[i]), std::move(decoded[i]));
         }
 
+        std::unordered_map<std::string, Texture>& ServerPrefetchCache() {
+            static std::unordered_map<std::string, Texture> cache;
+            return cache;
+        }
+
+        // decoding on every core up front: the build loop would otherwise decode one file at a time
+        void PrefetchServerTextures(const std::vector<std::string>& dirs) {
+            namespace fs = std::filesystem;
+            std::vector<std::string> paths;
+            std::error_code ec;
+            for (const std::string& dir : dirs) {
+                const fs::path root = fs::path(dir) / "textures";
+                if (!fs::is_directory(root, ec))
+                    continue;
+                for (fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec), end;
+                     !ec && it != end; it.increment(ec)) {
+                    const std::string name = it->path().filename().string();
+                    if (it->is_directory(ec)) {
+                        if (name == "entity" || name == "items" || name == "item" || name == "ui" || name == "gui" ||
+                            name == "particle" || name == "environment" || name == "painting" || name == "map")
+                            it.disable_recursion_pending();
+                        continue;
+                    }
+                    const std::string ext = it->path().extension().string();
+                    if ((ext == ".png" || ext == ".tga") && it->file_size(ec) < (4u << 20))
+                        paths.push_back(it->path().generic_string());
+                }
+            }
+            std::vector<Texture> decoded(paths.size());
+            std::vector<char> ok(paths.size(), 0);
+            ThreadPool pool(HardwareThreads());
+            pool.ParallelFor(paths.size(),
+                             [&](size_t i) { ok[i] = LoadTexture(paths[i], decoded[i]) ? 1 : 0; });
+            auto& cache = ServerPrefetchCache();
+            cache.clear();
+            cache.reserve(paths.size());
+            for (size_t i = 0; i < paths.size(); i++)
+                if (ok[i])
+                    cache.emplace(std::move(paths[i]), std::move(decoded[i]));
+        }
+
         struct PrefetchGuard {
             ~PrefetchGuard() { PrefetchCache().clear(); }
         };
@@ -347,13 +388,19 @@ namespace perlin {
         bool ok = false;
         TexturePack& pack = TexturePack::Instance();
         for (const std::string& dir : ServerPacks::Instance().Directories()) {
-            for (auto& t : tries)
-                if (LoadTexture(dir + "/" + t, tex) && tex.width > 0 && tex.height > 0) {
+            for (auto& t : tries) {
+                const std::string path = dir + "/" + t;
+                const auto warm = ServerPrefetchCache().find(path);
+                if (warm != ServerPrefetchCache().end())
+                    tex = warm->second;
+                if ((warm != ServerPrefetchCache().end() || LoadTexture(path, tex)) && tex.width > 0 &&
+                    tex.height > 0) {
                     w = tex.width;
                     h = tex.height;
                     ok = true;
                     break;
                 }
+            }
             if (ok)
                 break;
         }
@@ -1223,8 +1270,11 @@ namespace perlin {
     }
 
     bool BlockLibrary::ApplyCustom(const std::string& vanillaRpRoot, double budgetMs) {
-        if (!ServerBlocks::Instance().Pending())
+        if (!ServerBlocks::Instance().Pending()) {
+            // decoded server textures are only worth their memory while definitions are still being built
+            ServerPrefetchCache().clear();
             return false;
+        }
         std::vector<CustomBlockDef> defs = ServerBlocks::Instance().Take();
         // the per-pack lookups cost a scan of every server texture folder: once per set of packs, not per slice
         const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
@@ -1238,6 +1288,7 @@ namespace perlin {
         if (customCtx.key != ctxKey) {
             customCtx = CustomContext{};
             customCtx.key = ctxKey;
+            PrefetchServerTextures(serverDirs);
             for (const std::string& dir : ServerPacks::Instance().Directories()) {
                 std::string text;
                 {

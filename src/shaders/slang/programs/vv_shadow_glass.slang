@@ -56,7 +56,7 @@ static float v_depth;
 
 void stageMain()
 {
-    vec4 tex = texture2DArrayLod(s_atlas, vec3(v_texcoord0, v_layer), 0.0);
+    vec4 tex = perlinAtlasLod(vec3(v_texcoord0, v_layer), 0.0);
     float water = max(step(abs(v_layer - u_tiles.x), 0.5), step(abs(v_layer - u_tiles.z), 0.5));
     float opaque = texture2DLod(s_shadow, gl_FragCoord.xy * u_shadowInfo.x * 2.0, 0.0).r;
     if (tex.a < 0.05 || water > 0.5 || v_depth >= opaque)

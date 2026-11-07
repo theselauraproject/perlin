@@ -508,6 +508,11 @@ namespace perlin {
         bool MakeTexture(TexRec& rec, uint32_t w, uint32_t h, uint32_t layers, uint32_t mips,
                          conduit::format format, gpu::SamplerKind sampler, const char* name);
         void FreeTexture(TexRec& rec);
+        TexRec& AtlasPage(int page) { return page == 0 ? atlas : atlasMore[static_cast<size_t>(page - 1)]; }
+        int AtlasLayersFor(int tiles, int tilePx) const;
+        bool MakeAtlasPage(int page, int tiles, int tilePx);
+        void FreeAtlas();
+        void BindAtlas();
 
         gpu::Gpu gpu;
         gpu::GpuSettings settings;
@@ -596,8 +601,10 @@ namespace perlin {
         conduit::texture_handle screenDepth;
         uint32_t screenDepthW = 0, screenDepthH = 0;
 
+        // atlas page 0 and the pages after it; a tile lives in page tile / atlasPageCap, layer tile % atlasPageCap
         TexRec atlas, lightmap, sunTex, moonTex, endSkyTex, cloudMapTex, tileFlagsTex, crosshair;
-        int atlasLayers = 0;
+        std::array<TexRec, kAtlasMaxPages - 1> atlasMore;
+        int atlasPageCap = kAtlasPageLayers;
         int tileSize = 16;
         std::unordered_map<const uint8_t*, std::vector<std::vector<uint8_t>>> animatedTiles;
         uint8_t lastLightmap[kLightmapBytes] = {};

@@ -337,8 +337,7 @@ namespace perlin {
                 SetMatrix(m.raster);
                 uni.Mat4("u_shadowMtx", m.sample);
                 uni.Set("u_shadowInfo", m.info, 4);
-                BindTexture("s_atlas", atlas.used ? atlas.handle : gpu.WhiteArray(),
-                            gpu::SamplerKind::PointMipClamp);
+                BindAtlas();
                 BindTexture("s_lightmap", lightmap.handle, gpu::SamplerKind::LinearClamp);
                 if (!tileFlagsTex.used)
                     UploadTileFlags({});
