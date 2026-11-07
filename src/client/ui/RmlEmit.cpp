@@ -149,7 +149,8 @@ namespace perlin::ui {
                 (id.empty() ? std::string() : " id=\"" + EscapeRml(id) + "\"") + extraAttrs +
                 " style=\"position:absolute;" + (cls == "hv" || cls == "df" ? "" : "display:block;") +
                 "left:" + Num(ax - ox) + "px;top:" + Num(ay - oy) + "px;width:" + Num(w) +
-                "px;height:" + Num(h) + "px;z-index:" + std::to_string(z) + ";" +
+                "px;height:" + Num(h) +
+                "px;z-index:" + (z == kAutoZ ? std::string("auto") : std::to_string(z)) + ";" +
                 (clip ? "overflow:hidden;clip:always;" : "") + "\">\n";
         origins.emplace_back(ox, oy);
         ox = ax;
@@ -455,18 +456,19 @@ namespace perlin::ui {
                           pressedName = n.Str("pressed_control"), lockedName = n.Str("locked_control");
         const bool hasHover = FindKid(n, hoverName) != nullptr && (!command.empty() || inSlot);
         const std::string soundAttrs = SoundAttrs(n);
-        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() && !inSlot ? "" : "bt", command, false, 0.0f,
+        out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, command.empty() && !inSlot ? "" : "bt", command,
+                     false, 0.0f,
                      command.empty() && !inSlot ? std::string() : soundAttrs);
         for (const auto& kid : n.kids) {
             if (!kid->visible)
                 continue;
             if (kid->id == defName) {
-                out.BeginBox(n.ax, n.ay, n.w, n.h, 0, hasHover ? "df" : "", "", false);
+                out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, hasHover ? "df" : "", "", false);
                 Visit(*kid, out);
                 out.EndBox();
             } else if (kid->id == hoverName) {
                 if (hasHover) {
-                    out.BeginBox(n.ax, n.ay, n.w, n.h, 0, "hv", "", false);
+                    out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, "hv", "", false);
                     Visit(*kid, out);
                     out.EndBox();
                 }
@@ -518,18 +520,18 @@ namespace perlin::ui {
                 states.push_back(std::move(name));
         const std::string command = WidgetCommand(n);
         const bool hasHover = !hover.empty() && FindKid(n, hover) != nullptr && !command.empty();
-        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() ? "" : "bt", command, false, 0.0f,
-                     command.empty() ? std::string() : SoundAttrs(n));
+        out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, command.empty() ? "" : "bt", command, false,
+                     0.0f, command.empty() ? std::string() : SoundAttrs(n));
         for (const auto& kid : n.kids) {
             if (!kid->visible)
                 continue;
             if (!rest.empty() && kid->id == rest) {
-                out.BeginBox(n.ax, n.ay, n.w, n.h, 0, hasHover ? "df" : "", "", false);
+                out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, hasHover ? "df" : "", "", false);
                 Visit(*kid, out);
                 out.EndBox();
             } else if (kid->id == hover) {
                 if (hasHover) {
-                    out.BeginBox(n.ax, n.ay, n.w, n.h, 0, "hv", "", false);
+                    out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, "hv", "", false);
                     Visit(*kid, out);
                     out.EndBox();
                 }
@@ -557,7 +559,7 @@ namespace perlin::ui {
         progressHoverName = n.Str("progress_hover_control", "slider_progress_hover");
         progressLeft = n.ax;
         progressWidth = boxW * 0.5f + f * (n.w - boxW);
-        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() ? "" : "bt", command, false);
+        out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, command.empty() ? "" : "bt", command, false);
         const std::string barHover = n.Str("hover_control");
         for (const auto& kid : n.kids)
             if (kid->visible && kid->id != barHover && kid->id != boxName)
@@ -570,13 +572,13 @@ namespace perlin::ui {
             const LNode* rest = FindKid(*kid, kid->Str("default_control", "default"));
             const LNode* hover = FindKid(*kid, kid->Str("hover_control", "hover"));
             if (rest) {
-                out.BeginBox(kid->ax, kid->ay, kid->w, kid->h, kid->layer,
+                out.BeginBox(kid->ax, kid->ay, kid->w, kid->h, RmlWriter::kAutoZ,
                              hover && !command.empty() ? "df" : "", "", false);
                 Visit(*rest, out);
                 out.EndBox();
             }
             if (hover && !command.empty()) {
-                out.BeginBox(kid->ax, kid->ay, kid->w, kid->h, kid->layer, "hv", "", false);
+                out.BeginBox(kid->ax, kid->ay, kid->w, kid->h, RmlWriter::kAutoZ, "hv", "", false);
                 Visit(*hover, out);
                 out.EndBox();
             }
@@ -603,18 +605,19 @@ namespace perlin::ui {
         const std::string pressed = n.Str("pressed_control", "pressed"),
                           locked = n.Str("locked_control", "locked");
         const bool hasHover = FindKid(n, hover) != nullptr && !command.empty();
-        out.BeginBox(n.ax, n.ay, n.w, n.h, TopLayer(n), command.empty() ? "" : "bt", command, false);
+        out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, command.empty() ? "" : "bt", command, false);
         for (const auto& kid : n.kids) {
             if (!kid->visible || kid->id == locked)
                 continue;
             const bool shownRest = focused ? kid->id == pressed : kid->id == rest;
             if (shownRest) {
-                out.BeginBox(n.ax, n.ay, n.w, n.h, 0, hasHover && !focused ? "df" : "", "", false);
+                out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, hasHover && !focused ? "df" : "", "",
+                             false);
                 Visit(*kid, out);
                 out.EndBox();
             } else if (kid->id == hover) {
                 if (hasHover && !focused) {
-                    out.BeginBox(n.ax, n.ay, n.w, n.h, 0, "hv", "", false);
+                    out.BeginBox(n.ax, n.ay, n.w, n.h, RmlWriter::kAutoZ, "hv", "", false);
                     Visit(*kid, out);
                     out.EndBox();
                 }

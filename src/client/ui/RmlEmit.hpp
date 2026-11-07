@@ -1,6 +1,7 @@
 #pragma once
 #include "client/ui/UiLayout.hpp"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -47,6 +48,8 @@ namespace perlin::ui {
                       const float c2[4]);
         void Link(float ax, float ay, float w, float h, int z, const std::string& command);
 
+        // no stacking context: the box's children keep their absolute layer against the whole screen
+        static constexpr int kAutoZ = INT32_MIN;
         void BeginBox(float ax, float ay, float w, float h, int z, const std::string& cls,
                       const std::string& id, bool clip, float scroll = 0.0f,
                       const std::string& extraAttrs = {});
