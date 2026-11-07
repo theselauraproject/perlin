@@ -182,6 +182,8 @@ namespace perlin::entity {
         struct AnimStamp {
             double start = 0;
             uint32_t seen = 0;
+            // the animation's clock last frame (-1 before its first): particle cues fire as it passes them
+            double last = -1.0;
         };
         std::unordered_map<std::string, AnimStamp> animStart;
         uint32_t animEpoch = 0;
@@ -659,6 +661,25 @@ namespace perlin::entity {
             return it->second.start;
         };
         EntityHost* host = static_cast<EntityHost*>(scope.host);
+        // a cue names an effect through the entity's particle_effects map; at a locator if the model has it, else the
+        // actor's position. the locator is placed like the model: pixels to blocks, scaled, mirrored z, turned by yaw
+        const auto fire = [&](const attachable::ParticleCue& cue) {
+            const auto fx = def.particleEffects.find(LowerCase(cue.effect));
+            if (fx == def.particleEffects.end() || v.fp)
+                return;
+            glm::dvec3 at = v.pos;
+            if (!cue.locator.empty() && bindGeometry)
+                if (const auto loc = bindGeometry->locators.find(LowerCase(cue.locator));
+                    loc != bindGeometry->locators.end()) {
+                    const float scale = e.scale > 0.0f ? e.scale : 1.0f;
+                    const glm::vec3 local = loc->second / 16.0f * scale * glm::vec3(1.0f, 1.0f, -1.0f);
+                    const float yaw = glm::radians(-v.yaw);
+                    const float c = std::cos(yaw), s = std::sin(yaw);
+                    at += glm::dvec3(c * local.x + s * local.z, local.y, -s * local.x + c * local.z);
+                }
+            if (particleRequests.size() < 256)
+                particleRequests.push_back({fx->second, at, cue.preScript});
+        };
 
         std::function<void(const std::string&, float, int, const std::string&)> run;
         std::function<void(const std::string&, float, int, const std::string&)> runId;
@@ -675,6 +696,8 @@ namespace perlin::entity {
                 return;
             if (const auto* controller = assets.animations.FindController(id)) {
                 auto& cs = v.ctrl[path + id];
+                const std::string stateBefore = cs.state;
+                const bool startedBefore = cs.started;
                 attachable::StartController(*controller, scope, cs.state, cs.entered, cs.started, now);
                 std::string key;
                 if (const auto st = controller->states.find(cs.state); st != controller->states.end()) {
@@ -709,6 +732,10 @@ namespace perlin::entity {
                 const auto st = controller->states.find(cs.state);
                 if (st == controller->states.end())
                     return;
+                // entering a state starts its particle_effects
+                if (!startedBefore || cs.state != stateBefore)
+                    for (const attachable::ParticleCue& cue : st->second.particles)
+                        fire(cue);
                 if (PERLIN_ENV("PERLIN_POSE_DEBUG"))
                     Log("ctrl", "{} state {}", id, cs.state);
                 const std::string childPath = path + id + "/" + cs.state + "/";
@@ -733,6 +760,19 @@ namespace perlin::entity {
                     since = std::min(since, static_cast<double>(a->length));
             }
             host->animTime = static_cast<float>(since);
+            if (!a->particles.empty()) {
+                // fire every cue the clock passed since last frame; a loop that wrapped passes the end and the start
+                View::AnimStamp& stamp = v.animStart[path + id];
+                const double prev = stamp.last;
+                for (const auto& [time, cue] : a->particles) {
+                    const bool passed = prev < 0.0      ? time <= since
+                                        : since >= prev ? time > prev && time <= since
+                                                        : time > prev || time <= since;
+                    if (passed)
+                        fire(cue);
+                }
+                stamp.last = since;
+            }
             if (PERLIN_ENV("PERLIN_POSE_DEBUG"))
                 Log("anim", "{} {} w={}", e.type, id, weight);
             attachable::Apply(*a, scope, static_cast<float>(since), weight, pose, restRotation,
@@ -1123,7 +1163,32 @@ namespace perlin::entity {
             }
             layer.translucent = rc->translucent;
             layer.ignoreLighting = rc->ignoreLighting;
-            layer.lightMultiplier = rc->lightMultiplier;
+            layer.lightMultiplier = rc->lightMultiplierExpr
+                                        ? static_cast<float>(rc->lightMultiplierExpr->Number(v.scope))
+                                        : rc->lightMultiplier;
+            const auto rgba = [&](const ExprPtr* exprs, float* out, float fallback) {
+                for (int i = 0; i < 4; i++) {
+                    v.scope.thisValue = fallback;
+                    out[i] = exprs[i] ? static_cast<float>(exprs[i]->Number(v.scope)) : fallback;
+                }
+            };
+            if (rc->hasOverlay) {
+                rgba(rc->overlay, layer.overlay, 0.0f);
+                layer.hasOverlay = true;
+            }
+            if (rc->hasHurtColor)
+                rgba(rc->hurtColor, layer.hurtColor, 0.0f);
+            if (rc->hasFireColor) {
+                rgba(rc->fireColor, layer.fireColor, 0.0f);
+                layer.hasFireColor = true;
+            }
+            if (rc->hasUvAnim) {
+                for (int i = 0; i < 2; i++) {
+                    layer.uvOffset[i] = rc->uvOffset[i] ? static_cast<float>(rc->uvOffset[i]->Number(v.scope)) : 0.0f;
+                    layer.uvScale[i] = rc->uvScale[i] ? static_cast<float>(rc->uvScale[i]->Number(v.scope)) : 1.0f;
+                }
+                layer.uvAnim = true;
+            }
             for (const std::string& group : groups) {
                 const bool single = groups.size() == 1;
                 const attachable::BoneFilter groupFilter =
@@ -1395,7 +1460,8 @@ namespace perlin::entity {
                 char maskKey[16] = "";
                 if (layer.material.colorMask)
                     std::snprintf(maskKey, sizeof(maskKey), "#mask%06x", layer.maskRgb & 0xFFFFFFu);
-                const std::string key = layer.texture + maskKey;
+                // a uv_anim layer samples past the edges: its own repeating copy of the texture
+                const std::string key = layer.texture + maskKey + (layer.uvAnim ? "#repeat" : "");
                 auto it = textures.find(key);
                 if (it == textures.end()) {
                     Texture t;
@@ -1403,7 +1469,7 @@ namespace perlin::entity {
                     if (ui::UiAssets::Instance().Image(layer.texture, t) && t.width > 0) {
                         if (layer.material.colorMask)
                             BakeColorMask(t, layer.maskRgb);
-                        id = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), false);
+                        id = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), false, layer.uvAnim);
                     } else if (!warned[layer.texture]) {
                         warned[layer.texture] = true;
                         Log("entity", "texture {} not found", layer.texture);
@@ -1429,13 +1495,18 @@ namespace perlin::entity {
             const glm::vec3 layerLight = layer.ignoreLighting ? glm::vec3(layer.lightMultiplier) : light;
             for (const attachable::Quad& q : layer.quads) {
                 const glm::vec3 n = rot * q.n;
-                const float lit = std::min(
-                    1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
+                const float lit =
+                    !layer.material.faceShading
+                        ? 1.0f
+                        : std::min(1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f +
+                                             0.4f);
                 const uint32_t color = fullbright || packLit ? PackColor(tint, layer.tint[3])
                                                              : PackColor(layerLight * lit * tint, layer.tint[3]);
                 const uint32_t base = static_cast<uint32_t>(vertices.size());
                 for (int i = 0; i < 4; i++)
-                    vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
+                    vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color,
+                                        q.uv[i].x * layer.uvScale[0] + layer.uvOffset[0],
+                                        q.uv[i].y * layer.uvScale[1] + layer.uvOffset[1]});
                 for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
                     indices.push_back(base + i);
             }
@@ -1478,12 +1549,13 @@ namespace perlin::entity {
             }
             draw.colorMask = layer.material.colorMask;
             draw.emissive = layer.material.emissive;
-            if (layerHurt > 0.0f) {
-                draw.overlay[0] = 1.0f;
-                draw.overlay[1] = 0.0f;
-                draw.overlay[2] = 0.0f;
-                draw.overlay[3] = 0.3f;
-            }
+            // hurt flash first (is_hurt_color may recolour or switch it off), then fire, then the controller's overlay
+            const float* overlay = layerHurt > 0.0f && layer.hurtColor[3] > 0.0f    ? layer.hurtColor
+                                   : layer.hasFireColor && e.Has(flag::Onfire)        ? layer.fireColor
+                                   : layer.hasOverlay && layer.overlay[3] > 0.0f      ? layer.overlay
+                                                                                      : nullptr;
+            if (overlay)
+                std::copy_n(overlay, 4, draw.overlay);
             draw.depthWrite = layer.material.depthWrite && draw.blend != 2;
             draw.depth = layer.material.depthTest;
             draw.depthFunc = layer.material.depthFunc;
@@ -2117,14 +2189,16 @@ namespace perlin::entity {
                     continue;
                 }
             }
+            // no box, no shadow: the game sizes the blob from the box, so decorations sent without one cast none
             if (in.blobShadows && !modelHidden && !e.Has(flag::Invisible) && e.type != "minecraft:cushion" &&
-                !(e.isSelf && in.firstPerson)) {
+                !e.NoBox() && !(e.isSelf && in.firstPerson)) {
                 if (e.isItem) {
                     DrawShadow(v.pos, 0.15f, 0.75f, in);
                 } else if (!e.dying || v.deathTime < 0.9f) {
+                    // HitBox is already scaled: cap the unscaled width, then scale once (scale squared before)
+                    const float scale = e.scale > 0 ? e.scale : 1.0f;
                     const auto hb = HitBox(e);
-                    DrawShadow(v.pos, std::min(hb.first, 1.4f) * 0.8f * (e.scale > 0 ? e.scale : 1.0f), 1.0f,
-                               in);
+                    DrawShadow(v.pos, std::min(hb.first / scale, 1.4f) * 0.8f * scale, 1.0f, in);
                 }
             }
             const bool nameHidden = e.Has(flag::Invisible) && (e.isPlayer || !e.Has(flag::AlwaysShowName));
@@ -2157,7 +2231,7 @@ namespace perlin::entity {
                     t.text = label;
                     t.at =
                         v.pos +
-                        glm::dvec3(0.0, static_cast<double>(hb.second * (e.scale > 0 ? e.scale : 1.0f)) + 0.5,
+                        glm::dvec3(0.0, static_cast<double>(hb.second) + 0.5,  // HitBox is already scaled
                                    0.0);
                     t.sneaking = e.Has(flag::Sneaking);
                     tags.push_back(std::move(t));

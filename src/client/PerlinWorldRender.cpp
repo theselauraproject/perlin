@@ -1427,6 +1427,10 @@ namespace perlin {
                 }
             }
         }
+        // effects started by entity animations and controllers (pack particle_effects)
+        for (const auto& request : entityRenderer.TakeParticleRequests())
+            if (!dataParticles.Spawn(request.effect, request.at, {}, request.preScript))
+                particles.SpawnNamed(request.effect, request.at);
         if (!live)
             if (const char* pb = PERLIN_ENV("PERLIN_PREVIEW_BREAK")) {
                 static double burstClock = 0;

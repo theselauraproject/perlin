@@ -41,14 +41,17 @@ namespace perlin::particle {
     public:
         void Configure(const std::vector<std::string>& packDirs);
         bool Has(const std::string& identifier) const;
-        bool Spawn(const std::string& identifier, const glm::dvec3& at,
-                   const std::string& molangVariables = {});
+        // preScript: an animation cue's pre_effect_script, run in the emitter's scope before its creation expressions
+        bool Spawn(const std::string& identifier, const glm::dvec3& at, const std::string& molangVariables = {},
+                   const std::string& preScript = {});
         void Update(float dt, const DataWorld& world);
         void Collect(const CameraView& camera, const DataWorld& world, std::vector<CustomQuad>& out) const;
         size_t Count() const;
         void Clear();
 
     private:
+        // parsed pre_effect_scripts, by source text
+        std::unordered_map<std::string, std::shared_ptr<molang::Expr>> preScripts;
         using ExprPtr = std::shared_ptr<molang::Expr>;
 
         struct Curve {

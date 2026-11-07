@@ -350,7 +350,8 @@ namespace perlin {
                                   const std::string& packRoot, const BlockGeometry::FetchFn& fetch,
                                   std::string& geometryOut, bool& hasGeometry, bool& hasMaterials,
                                   std::unordered_map<std::string, int>& tiles,
-                                  std::unordered_map<std::string, bool>& dimming, bool& hasTransform,
+                                  std::unordered_map<std::string, bool>& dimming,
+                                  std::unordered_map<std::string, std::string>& paths, bool& hasTransform,
                                   float* rot, float* trans, float* scale) {
         const json::View g = comps["minecraft:geometry"];
         if (g.isString()) {
@@ -373,8 +374,8 @@ namespace perlin {
                 const std::string tex = m.value["texture"].str();
                 int tile = 0;
                 auto it = terrain.find(tex);
-                if (it != terrain.end())
-                    tile = fetch(it->second, packRoot);
+                if (it != terrain.end() && (tile = fetch(it->second, packRoot)) != 0)
+                    paths[key] = it->second;
                 if (!tile) {
                     // Network material names are namespaced ("hive:small_pot"); the atlas stems
                     // and terrain_texture.json paths are not, so retry with the bare name.
@@ -383,6 +384,8 @@ namespace perlin {
                     if (colon != std::string::npos)
                         bare.erase(0, colon + 1);
                     tile = fetch("textures/blocks/" + bare, packRoot);
+                    if (tile)
+                        paths[key] = "textures/blocks/" + bare;
                 }
                 tiles[key] = tile;
                 dimming[key] = m.value["face_dimming"].boolean(true);
@@ -395,6 +398,8 @@ namespace perlin {
                     if (target != tiles.end() && !tiles.contains(m.key)) {
                         tiles[m.key] = target->second;
                         dimming[m.key] = dimming[m.value.str()];
+                        if (const auto path = paths.find(m.value.str()); path != paths.end())
+                            paths[m.key] = path->second;
                     }
                 }
         }
@@ -477,13 +482,13 @@ namespace perlin {
             Block block;
             ParseComponentSet(def["components"], terrain, packRoot, fetch, block.base.geometry,
                               block.base.hasGeometry, block.base.hasMaterials, block.base.tiles,
-                              block.base.dimming, block.base.hasTransform, block.base.rot, block.base.trans,
+                              block.base.dimming, block.base.paths, block.base.hasTransform, block.base.rot, block.base.trans,
                               block.base.scale);
             bool any = block.base.hasGeometry;
             for (const json::View p : def["permutations"].items()) {
                 Components c;
                 if (ParseComponentSet(p["components"], terrain, packRoot, fetch, c.geometry, c.hasGeometry,
-                                      c.hasMaterials, c.tiles, c.dimming, c.hasTransform, c.rot, c.trans,
+                                      c.hasMaterials, c.tiles, c.dimming, c.paths, c.hasTransform, c.rot, c.trans,
                                       c.scale)) {
                     any = any || c.hasGeometry;
                     block.perms.emplace_back(p["condition"].str(), std::move(c));
@@ -491,11 +496,88 @@ namespace perlin {
             }
             if (!any)
                 continue;
+            CutSheets(block, packRoot, fetch);
             blocks[id] = std::move(block);
             found++;
         }
         std::printf("[geometry] %s: %zu geometries, %d geometry blocks\n", packRoot.c_str(),
                     geometries.size(), found);
+    }
+
+    namespace {
+        // a face's uv rectangle and the 16x16 uv cell holding it; false when it spans more than one
+        bool FaceCell(float u0, float v0, float u1, float v1, int& cx, int& cy) {
+            constexpr float kEps = 1e-3f;
+            const float lu = std::min(u0, u1), hu = std::max(u0, u1), lv = std::min(v0, v1), hv = std::max(v0, v1);
+            cx = static_cast<int>(std::floor(lu / 16.0f + kEps));
+            cy = static_cast<int>(std::floor(lv / 16.0f + kEps));
+            return cx >= 0 && cy >= 0 && hu <= cx * 16.0f + 16.0f + kEps && hv <= cy * 16.0f + 16.0f + kEps;
+        }
+
+        std::string CellKey(const std::string& mat, int cx, int cy) {
+            return mat + "|" + std::to_string(cx) + "," + std::to_string(cy);
+        }
+    }
+
+    // atlas tiles hold one 16x16 face: a model sheet larger than that (hive's 32x32 slab and plant textures) squeezed
+    // into one tile loses half its resolution, so each 16x16 cell a face reads from becomes its own tile
+    void BlockGeometry::CutSheets(Block& block, const std::string& root, const FetchFn& fetch) const {
+        std::vector<const Geometry*> used;
+        const auto add = [&](const Components& c) {
+            if (!c.hasGeometry)
+                return;
+            auto git = geometries.find(c.geometry);
+            if (git == geometries.end() && c.geometry.starts_with("minecraft:"))
+                git = geometries.find(c.geometry.substr(10));
+            if (git != geometries.end() && (git->second.tw > 16 || git->second.th > 16))
+                used.push_back(&git->second);
+        };
+        add(block.base);
+        for (const auto& [cond, c] : block.perms)
+            add(c);
+        if (used.empty())
+            return;
+        const auto cut = [&](Components& c) {
+            if (c.paths.empty())
+                return;
+            for (const Geometry* g : used)
+                for (const Bone& bone : g->bones)
+                    for (const Cube& cube : bone.cubes) {
+                        if (cube.boxUv)
+                            continue;
+                        for (const auto& face : cube.faces) {
+                            if (!face.has)
+                                continue;
+                            std::string mat = face.mat.empty() ? "*" : face.mat;
+                            if (!c.tiles.contains(mat))
+                                mat = "*";
+                            const auto path = c.paths.find(mat);
+                            int cx = 0, cy = 0;
+                            if (path == c.paths.end() ||
+                                !FaceCell(face.uv[0], face.uv[1], face.uv[0] + face.size[0],
+                                          face.uv[1] + face.size[1], cx, cy))
+                                continue;
+                            const std::string key = CellKey(mat, cx, cy);
+                            if (c.cells.contains(key))
+                                continue;
+                            char crop[96];
+                            std::snprintf(crop, sizeof crop, "#%g,%g,%g,%g", cx * 16.0f / g->tw, cy * 16.0f / g->th,
+                                          (cx + 1) * 16.0f / g->tw, (cy + 1) * 16.0f / g->th);
+                            if (const int tile = fetch(path->second + crop, root))
+                                c.cells[key] = tile;
+                        }
+                    }
+        };
+        cut(block.base);
+        for (auto& [cond, c] : block.perms)
+            cut(c);
+    }
+
+    void BlockGeometry::CutCustomSheets(const std::string& root, const FetchFn& fetch) {
+        std::unique_lock lock(mutex);
+        for (auto& [name, block] : blocks)
+            CutSheets(block, root, fetch);
+        byId.clear();
     }
 
     std::vector<ModelQuad> BlockGeometry::Bake(const Geometry& g, const Components& c) const {
@@ -600,10 +682,14 @@ namespace perlin {
                         tit = c.tiles.find("*");
                     if (tit == c.tiles.end() || tit->second == 0)
                         continue;
+                    int cellX = 0, cellY = 0, cellTile = 0;
+                    if (!cube.boxUv && (g.tw > 16 || g.th > 16) && FaceCell(u0, v0, u1, v1, cellX, cellY))
+                        if (const auto cell = c.cells.find(CellKey(tit->first, cellX, cellY)); cell != c.cells.end())
+                            cellTile = cell->second;
                     if (cube.mirror)
                         std::swap(u0, u1);
                     ModelQuad q{};
-                    q.tile = tit->second;
+                    q.tile = cellTile ? cellTile : tit->second;
                     q.tex = 0xFFFF;
                     q.tint = -1;
                     q.cull = -1;
@@ -640,8 +726,8 @@ namespace perlin {
                         place(p);
                         for (int a = 0; a < 3; a++)
                             q.pos[i][a] = p[a];
-                        q.uv[i][0] = cu[i] * 16.0f / g.tw;
-                        q.uv[i][1] = cv[i] * 16.0f / g.th;
+                        q.uv[i][0] = cellTile ? cu[i] - cellX * 16.0f : cu[i] * 16.0f / g.tw;
+                        q.uv[i][1] = cellTile ? cv[i] - cellY * 16.0f : cv[i] * 16.0f / g.th;
                     }
                     const float e1[3] = {q.pos[1][0] - q.pos[0][0], q.pos[1][1] - q.pos[0][1],
                                          q.pos[1][2] - q.pos[0][2]};
@@ -762,13 +848,13 @@ namespace perlin {
         Block block;
         ParseComponentSet(root["components"], customTerrain, textureRoot, fetch, block.base.geometry,
                           block.base.hasGeometry, block.base.hasMaterials, block.base.tiles,
-                          block.base.dimming, block.base.hasTransform, block.base.rot, block.base.trans,
-                          block.base.scale);
+                          block.base.dimming, block.base.paths, block.base.hasTransform, block.base.rot,
+                          block.base.trans, block.base.scale);
         bool any = block.base.hasGeometry;
         for (const json::View p : root["permutations"].items()) {
             Components c;
             if (ParseComponentSet(p["components"], customTerrain, textureRoot, fetch, c.geometry,
-                                  c.hasGeometry, c.hasMaterials, c.tiles, c.dimming, c.hasTransform, c.rot,
+                                  c.hasGeometry, c.hasMaterials, c.tiles, c.dimming, c.paths, c.hasTransform, c.rot,
                                   c.trans, c.scale)) {
                 any = any || c.hasGeometry;
                 block.perms.emplace_back(p["condition"].str(), std::move(c));
@@ -808,8 +894,13 @@ namespace perlin {
                     eff.geometry = comp.geometry;
                 }
                 if (comp.hasMaterials) {
-                    for (const auto& [k, v] : comp.tiles)
+                    for (const auto& [k, v] : comp.tiles) {
                         eff.tiles[k] = v;
+                        // a permutation's own texture replaces the base's cells for that material
+                        std::erase_if(eff.cells, [&](const auto& cell) { return cell.first.starts_with(k + "|"); });
+                    }
+                    for (const auto& [k, v] : comp.cells)
+                        eff.cells[k] = v;
                     for (const auto& [k, v] : comp.dimming)
                         eff.dimming[k] = v;
                 }

@@ -12,6 +12,7 @@
 #include "util/Resources.hpp"
 #include "client/resources/TexturePack.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -321,7 +322,14 @@ namespace perlin {
         int w = 0, h = 0;
         Texture tex;
         std::vector<std::string> tries;
+        // "path#x0,y0,x1,y1": one cell of a model sheet, corners as fractions of the texture
         std::string stem = pngRelPath;
+        float crop[4] = {0, 0, 1, 1};
+        bool cropped = false;
+        if (const size_t hash = stem.find('#'); hash != std::string::npos) {
+            cropped = std::sscanf(stem.c_str() + hash + 1, "%f,%f,%f,%f", &crop[0], &crop[1], &crop[2], &crop[3]) == 4;
+            stem.resize(hash);
+        }
         const std::string suffix = "_opaque";
         if (stem.size() > suffix.size() &&
             stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0)
@@ -370,6 +378,19 @@ namespace perlin {
         if (!ok) {
             fetchFails++;
             return 0;
+        }
+        if (cropped) {
+            const int x0 = std::clamp(static_cast<int>(std::lround(crop[0] * w)), 0, w - 1);
+            const int y0 = std::clamp(static_cast<int>(std::lround(crop[1] * h)), 0, h - 1);
+            const int x1 = std::clamp(static_cast<int>(std::lround(crop[2] * w)), x0 + 1, w);
+            const int y1 = std::clamp(static_cast<int>(std::lround(crop[3] * h)), y0 + 1, h);
+            std::vector<unsigned char> cell(static_cast<size_t>(x1 - x0) * (y1 - y0) * 4);
+            for (int y = y0; y < y1; y++)
+                std::copy_n(tex.pixels.data() + (static_cast<size_t>(y) * w + x0) * 4, (x1 - x0) * 4,
+                            cell.data() + static_cast<size_t>(y - y0) * (x1 - x0) * 4);
+            tex.pixels = std::move(cell);
+            tex.width = w = x1 - x0;
+            tex.height = h = y1 - y0;
         }
         if (stem.contains("water_") && !stem.contains("lava")) {
             double luma = 0;
@@ -1306,10 +1327,12 @@ namespace perlin {
             fetchingGeometry = true;
             int tile = FetchTile(p, root);
             if (tile == 0) {
-                const size_t slash = p.find_last_of('/');
-                const auto found = stems.find(slash == std::string::npos ? p : p.substr(slash + 1));
+                const size_t hash = p.find('#');
+                const std::string base = p.substr(0, hash), cell = hash == std::string::npos ? "" : p.substr(hash);
+                const size_t slash = base.find_last_of('/');
+                const auto found = stems.find(slash == std::string::npos ? base : base.substr(slash + 1));
                 if (found != stems.end())
-                    tile = FetchTile(found->second, root);
+                    tile = FetchTile(found->second + cell, root);
             }
             fetchingGeometry = false;
             return tile;
@@ -1411,6 +1434,9 @@ namespace perlin {
             }
             any = true;
         }
+        // last: model sheets get full-resolution cells from whatever atlas room every block's own textures left
+        if (any)
+            geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
         return any;
     }
 

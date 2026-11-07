@@ -109,7 +109,7 @@ namespace perlin {
         void ApplyMetadata(entity::EntityTracker& tracker, uint64_t rid,
                            const std::vector<MetadataDictionaryEntry>& metadata) {
             std::optional<int> variant, mark, color;
-            float boxWidth = 0.0f, boxHeight = 0.0f;
+            float boxWidth = -1.0f, boxHeight = -1.0f;
             static const bool debugTags = std::getenv("PERLIN_DEBUG_NAMETAGS") != nullptr;
             for (const MetadataDictionaryEntry& m : metadata) {
                 if (m.key == MetadataDictionaryEntryKey::Nametag) {
@@ -194,7 +194,8 @@ namespace perlin {
             const auto clamp = [](std::optional<int> v) { return v ? std::optional<int>(std::max(*v, 0)) : v; };
             if (variant || mark || color)
                 tracker.SetVariant(rid, clamp(variant), clamp(mark), clamp(color));
-            if (boxWidth > 0.0f && boxHeight > 0.0f)
+            // a 0 box is sent on purpose (decorations: nothing to hit, no shadow); only an absent one is unknown
+            if (boxWidth >= 0.0f || boxHeight >= 0.0f)
                 tracker.SetBoundingBox(rid, boxWidth, boxHeight);
         }
 

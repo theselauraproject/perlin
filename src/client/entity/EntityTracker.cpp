@@ -306,8 +306,10 @@ namespace perlin::entity {
     PERLIN_ENTITY_SET(SetCrawling(uint64_t rid, bool crawling), e.crawling = crawling)
     PERLIN_ENTITY_SET(SetScale(uint64_t rid, float scale), e.scale = scale)
     // server hitbox: draw/collide with what it simulates
-    PERLIN_ENTITY_SET(SetBoundingBox(uint64_t rid, float width, float height), e.boxWidth = width;
-                      e.boxHeight = height)
+    // one lane may come alone: the other keeps what was there
+    PERLIN_ENTITY_SET(SetBoundingBox(uint64_t rid, float width, float height),
+                      if (width >= 0.0f) e.boxWidth = width;
+                      if (height >= 0.0f) e.boxHeight = height; e.boxSent = true)
     PERLIN_ENTITY_SET(SetNameTag(uint64_t rid, const std::string& nameTag), e.nameTag = nameTag)
     PERLIN_ENTITY_SET(SetVariant(uint64_t rid, std::optional<int> variant, std::optional<int> markVariant,
                                  std::optional<int> color),

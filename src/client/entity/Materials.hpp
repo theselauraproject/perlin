@@ -27,6 +27,9 @@ namespace perlin::entity {
         bool glint = false;
         bool skinning = false;
         bool colorMask = false;
+        // the entity shader's per-face shading (top bright, sides darker) lives behind FANCY; a material that
+        // removes it (pack holograms, text) draws flat
+        bool faceShading = true;
     };
 
     MaterialInfo InfoFromDef(const material::Def& def);

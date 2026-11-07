@@ -46,6 +46,11 @@ namespace perlin {
         renderReady = true;
         StartSampleProfiler();
         levelRenderer = std::make_unique<LevelRenderer>(*renderer, options);
+        levelRenderer->OnLibrarySwap([](const BlockLibrary* library) {
+            auto& assets = ui::UiAssets::Instance();
+            if (!assets.VanillaRoot().empty())
+                assets.Configure(assets.VanillaRoot(), library);
+        });
         handRenderer.Initialize(*renderer);
         entityRenderer.Initialize(*renderer);
         entityRenderer.SetItemRenderer(&handRenderer);

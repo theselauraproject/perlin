@@ -876,6 +876,9 @@ namespace perlin {
             // an actor with a generic inventory (loot crates, custom chests) opens as "inventory" in a window of its own;
             // window 0 is the player's own inventory
             const bool actorInventory = wt == WindowType::Inventory && static_cast<int>(p.windowId) != 0;
+            // the open names its owning actor (-1 for a block): an npc shop arrives as a plain container this way
+            const bool actorOwned =
+                actorInventory || (wt == WindowType::Container && p.runtimeEntityId != -1 && p.runtimeEntityId != 0);
             const bool plainContainer = wt == WindowType::Container || wt == WindowType::MinecartChest ||
                                         wt == WindowType::ChestBoat || wt == WindowType::Hopper ||
                                         wt == WindowType::Dropper || wt == WindowType::Dispenser || actorInventory;
@@ -887,7 +890,7 @@ namespace perlin {
                 bool loaded = false;
                 // actor containers carry no block: whatever sits at their coordinates says nothing about them
                 const std::string name =
-                    actorInventory
+                    actorOwned
                         ? std::string()
                         : BlockPalette::Instance().Name(
                               netLevel.GetBlock(p.coordinates.x, p.coordinates.y, p.coordinates.z, loaded));
@@ -899,8 +902,8 @@ namespace perlin {
                                        : has("shulker_box") ? "container.shulkerBox"
                                        : has("barrel")      ? "container.barrel"
                                                             : "container.chest";
-                inventory.chestFitRows = actorInventory;
-                if (actorInventory) {
+                inventory.chestFitRows = actorOwned;
+                if (actorOwned) {
                     // the actor's own name heads the window, as in the game; the container open names its unique id
                     entity::Entity holder;
                     if ((entities.FindUnique(p.runtimeEntityId, holder) ||
@@ -1110,11 +1113,18 @@ namespace perlin {
             std::lock_guard lock(statusMutex);
             const auto now = std::chrono::steady_clock::now();
             switch (p.type) {
+            // clear and reset take the title and subtitle off screen; the action bar is its own line and stays.
+            // reset also puts the durations back to the game's defaults: servers send it before a countdown that
+            // relies on them, after an earlier short "times" for something else
             case SetTitlePacketType::Clear:
             case SetTitlePacketType::Reset:
                 titleText.title.clear();
                 titleText.subtitle.clear();
-                titleText.actionBar.clear();
+                if (p.type == SetTitlePacketType::Reset) {
+                    titleText.fadeIn = 10;
+                    titleText.stay = 70;
+                    titleText.fadeOut = 20;
+                }
                 titleText.serial++;
                 break;
             case SetTitlePacketType::SetTitle:

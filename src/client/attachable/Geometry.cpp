@@ -105,6 +105,10 @@ namespace perlin::attachable {
                     continue;
                 Bone bone;
                 bone.name = str::Lower(b.Find("name") ? b.Find("name")->StringOr("") : "");
+                // a locator is [x, y, z] or {"offset": [x, y, z], "rotation": ...}
+                if (const Json* locs = b.Find("locators"); locs && locs->IsObject())
+                    for (const auto& [name, at] : locs->object)
+                        g.locators[str::Lower(name)] = at.IsObject() ? Vec3(at.Find("offset")) : Vec3(&at);
                 bone.pivot = Vec3(b.Find("pivot"));
                 bone.rotation = Vec3(b.Find("rotation"));
                 if (const Json* binding = b.Find("binding"))

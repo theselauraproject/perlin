@@ -93,7 +93,8 @@ namespace perlin {
         }
 
         for (const entity::Entity& e : entities) {
-            if (e.isSelf || e.isItem)
+            // a server-sent 0 box (world borders, holograms) is nothing to hit: blocks behind it stay targetable
+            if (e.isSelf || e.isItem || e.NoBox())
                 continue;
             {
                 const double far = (entityReach >= 0.0 ? entityReach : reach) + 6.0;

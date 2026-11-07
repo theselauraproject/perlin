@@ -7,6 +7,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <vector>
 
 namespace perlin::attachable {
@@ -59,6 +60,8 @@ namespace perlin::attachable {
         bool linked = false;
         float textureWidth = 64, textureHeight = 64;
         std::vector<Bone> bones;
+        // named points from the bones' "locators", model space pixels at rest (effects spawn there)
+        std::map<std::string, glm::vec3> locators;
     };
 
     class GeometryLibrary {

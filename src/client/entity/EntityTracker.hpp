@@ -106,6 +106,9 @@ namespace perlin::entity {
         float scale = 1.0f;
         // hitbox the server reported (metadata BOUNDINGBOX_WIDTH/HEIGHT); 0 if never sent
         float boxWidth = 0.0f, boxHeight = 0.0f;
+        // boxSent tells a server's explicit 0 (decorations: nothing to hit, no shadow) from a box never sent
+        bool boxSent = false;
+        bool NoBox() const { return boxSent && (boxWidth <= 0.0f || boxHeight <= 0.0f); }
         int variant = 0, markVariant = 0, color = 0;
         float health = -1.0f;
         uint32_t moveSerial = 0;

@@ -18,6 +18,8 @@ namespace perlin::entity {
         std::string identifier;
         std::map<std::string, std::string> textures, geometries, animations, controllers;
         std::map<std::string, std::string> materials;
+        // particle_effects: short name used by animations and controllers -> particle effect identifier
+        std::map<std::string, std::string> particleEffects;
         std::vector<ExprPtr> initialize, preAnimation;
         struct Animate {
             std::string name;
@@ -53,6 +55,15 @@ namespace perlin::entity {
         // ignore_lighting: drawn at full brightness whatever the world light where the actor stands
         bool ignoreLighting = false;
         float lightMultiplier = 1.0f;
+        // light_color_multiplier written as molang (a pulsing glow): evaluated per frame, replaces the number
+        ExprPtr lightMultiplierExpr;
+        // overlay_color: a colour laid over the texture by its alpha; is_hurt_color and on_fire_color replace the
+        // game's own red hurt flash and fire tint (alpha 0 turns them off)
+        ExprPtr overlay[4], hurtColor[4], fireColor[4];
+        bool hasOverlay = false, hasHurtColor = false, hasFireColor = false;
+        // uv_anim: texture coordinates become uv * scale + offset, both molang (scrolling force fields, water)
+        ExprPtr uvOffset[2], uvScale[2];
+        bool hasUvAnim = false;
     };
 
     class EntityAssets {

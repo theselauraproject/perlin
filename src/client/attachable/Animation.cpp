@@ -37,6 +37,28 @@ namespace perlin::attachable {
             return false;
         }
 
+        // one cue object, or an array of them
+        void ParseCues(const Json& v, std::vector<ParticleCue>& out) {
+            const auto one = [&](const Json& o) {
+                if (!o.IsObject())
+                    return;
+                ParticleCue cue;
+                if (const Json* e = o.Find("effect"))
+                    cue.effect = e->StringOr("");
+                if (const Json* l = o.Find("locator"))
+                    cue.locator = l->StringOr("");
+                if (const Json* s = o.Find("pre_effect_script"); s && s->IsString())
+                    cue.preScript = s->string;
+                if (!cue.effect.empty())
+                    out.push_back(std::move(cue));
+            };
+            if (v.IsArray())
+                for (const Json& item : v.array)
+                    one(item);
+            else
+                one(v);
+        }
+
         void ParseChannel(const Json& v, Channel& out) {
             if (ParseVec3(v, out.constant)) {
                 out.present = true;
@@ -159,13 +181,27 @@ namespace perlin::attachable {
                             a.length = std::max(a.length, c->keys.back().time);
                 }
             }
-            if (!def.Find("animation_length"))
+            if (const Json* fx = def.Find("particle_effects"); fx && fx->IsObject()) {
+                for (const auto& [key, cues] : fx->object) {
+                    std::vector<ParticleCue> list;
+                    ParseCues(cues, list);
+                    const float time = static_cast<float>(std::atof(key.c_str()));
+                    for (ParticleCue& cue : list)
+                        a.particles.emplace_back(time, std::move(cue));
+                }
+                std::sort(a.particles.begin(), a.particles.end(),
+                          [](const auto& x, const auto& y) { return x.first < y.first; });
+            }
+            if (!def.Find("animation_length")) {
                 for (const auto& [bone, channels] : a.bones) {
                     (void)bone;
                     for (const Channel* channel : {&channels.position, &channels.rotation, &channels.scale})
                         if (!channel->keys.empty())
                             a.length = std::max(a.length, channel->keys.back().time);
                 }
+                if (!a.particles.empty())
+                    a.length = std::max(a.length, a.particles.back().first);
+            }
             animations[id] = std::move(a);
         }
     }
@@ -218,6 +254,8 @@ namespace perlin::attachable {
                                 (std::string(key) == "on_entry" ? s.onEntry : s.onExit)
                                     .push_back(Expr::Parse(item.string));
                     }
+                    if (const Json* fx = st.Find("particle_effects"))
+                        ParseCues(*fx, s.particles);
                     c.states[name] = std::move(s);
                 }
             }

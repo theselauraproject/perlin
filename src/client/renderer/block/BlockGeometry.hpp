@@ -22,6 +22,9 @@ namespace perlin {
         void AddCustom(const std::string& name, const std::string& definitionJson,
                        const std::vector<std::string>& packRoots, const std::string& textureRoot,
                        const FetchFn& fetch);
+        // after every custom block has its textures: cells only take atlas room left over, a full atlas keeps the
+        // whole-sheet tile
+        void CutCustomSheets(const std::string& root, const FetchFn& fetch);
         void Clear();
         bool Empty() const {
             std::shared_lock lock(mutex);
@@ -71,6 +74,10 @@ namespace perlin {
             bool hasMaterials = false;
             std::unordered_map<std::string, int> tiles;
             std::unordered_map<std::string, bool> dimming;
+            // texture each material was fetched from, and tiles cut from sheets larger than one face:
+            // "<material>|<cell x>,<cell y>" -> tile of that 16x16 uv cell
+            std::unordered_map<std::string, std::string> paths;
+            std::unordered_map<std::string, int> cells;
             bool hasTransform = false;
             float rot[3] = {0, 0, 0}, trans[3] = {0, 0, 0}, scale[3] = {1, 1, 1};
         };
@@ -80,6 +87,7 @@ namespace perlin {
         };
 
         void LoadGeometries(const std::string& dir);
+        void CutSheets(Block& block, const std::string& root, const FetchFn& fetch) const;
         static void ReadPolyMesh(json::View mesh, Bone& bone);
         std::vector<ModelQuad> Bake(const Geometry& g, const Components& c) const;
 

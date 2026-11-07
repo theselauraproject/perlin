@@ -10,6 +10,8 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace perlin {
     class HandRenderer;
@@ -39,6 +41,13 @@ namespace perlin::entity {
         ~EntityRenderer();
         void Initialize(RenderContext& renderer);
         std::pair<float, float> HitBox(const Entity& e) const;
+        // particle effects the entities' animations and controllers started this frame, for the particle system
+        struct ParticleRequest {
+            std::string effect;
+            glm::dvec3 at{0.0};
+            std::string preScript;
+        };
+        std::vector<ParticleRequest> TakeParticleRequests() { return std::exchange(particleRequests, {}); }
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider = true) const;
         // the seat of a vehicle standing at pos/yaw, for the previous tick's end of the interpolation
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider, glm::dvec3 pos, float yaw) const;
@@ -138,6 +147,7 @@ namespace perlin::entity {
         size_t Culled() const { return culled; }
 
     private:
+        std::vector<ParticleRequest> particleRequests;
         HandRenderer* itemRenderer = nullptr;
         struct View;
         struct Layer {
@@ -147,6 +157,14 @@ namespace perlin::entity {
             float tint[4] = {1, 1, 1, 1};
             bool ignoreLighting = false;
             float lightMultiplier = 1.0f;
+            // render controller overlays, already evaluated: overlay_color, is_hurt_color, on_fire_color (rgba)
+            float overlay[4] = {0, 0, 0, 0};
+            float hurtColor[4] = {1.0f, 0.0f, 0.0f, 0.3f};
+            float fireColor[4] = {0, 0, 0, 0};
+            bool hasOverlay = false, hasFireColor = false;
+            // uv_anim: uv * uvScale + uvOffset; the texture repeats so scrolling wraps
+            float uvOffset[2] = {0, 0}, uvScale[2] = {1, 1};
+            bool uvAnim = false;
             MaterialInfo material;
             uint32_t maskRgb = 0xFFFFFF;
             // entity's own model; invisibility hides it, keeps armor and attached items
