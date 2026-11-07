@@ -38,6 +38,7 @@ namespace perlin {
                                                  ui::Json(data ? data->StringOr("") : std::string())}});
                                 d.FactoryItems("buttons").push_back({"button", {}, "form_buttons", i++});
                             }
+                        d.Set("#form_button_length", ui::Json(static_cast<double>(i)));
                         d.FactoryItems("server_form_factory").push_back({"long_form", {}, {}, -1});
                         return d;
                     }
