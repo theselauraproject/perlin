@@ -178,7 +178,10 @@ namespace perlin {
             // server blocks get textures when a mesh or an icon first needs them: a slice per frame, then only
             // the chunks that were waiting on them mesh again
             const auto now = std::chrono::steady_clock::now();
-            if (ServerBlocks::Instance().Pending() &&
+            // packs still mounting or about to reload: the full build runs in the background job right after, so
+            // slices built now would only be thrown away
+            const bool packsSettling = serverPackReloadPending || ServerPacks::Instance().Mounting();
+            if (!packsSettling && ServerBlocks::Instance().Pending() &&
                 (fastBuild || now - lastCustomBuild >= std::chrono::milliseconds(60))) {
                 lastCustomBuild = now;
                 if (blocks->ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack", fastBuild ? 40.0 : 6.0) &&

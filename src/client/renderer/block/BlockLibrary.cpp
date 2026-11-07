@@ -1484,9 +1484,10 @@ namespace perlin {
         // last: model sheets get full-resolution cells from whatever atlas room every block's own textures left
         if (any)
             geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
-        Log("blocks", "custom blocks built: {} definitions, {} atlas tiles in total, {:.0f} ms", defs.size(),
+        Log("blocks", "custom blocks built: {} definitions, {} atlas tiles in total, {} ms", defs.size(),
             TilesLoaded(),
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count());
+            static_cast<int>(
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count()));
         return any;
     }
 
