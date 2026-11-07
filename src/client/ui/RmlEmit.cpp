@@ -804,7 +804,7 @@ namespace perlin::ui {
 <style>
 body { position: absolute; left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; margin: 0; padding: 0; background: transparent; }
 mcimg, mcitem { display: block; position: absolute; }
-.t { display: block; position: absolute; font-family: minecraft; white-space: nowrap; overflow: visible; }
+.t { display: block; position: absolute; font-family: minecraft; white-space: pre; overflow: visible; }
 .t.s { font-family: minecraft-shadow; }
 .t.o { font-family: minecraft-outline; }
 .t.ten { font-family: minecraft-ten; }
@@ -941,7 +941,7 @@ mcimg, mcitem { display: block; position: absolute; }
         Replace(doc, "hud", writer.Body());
         static const char* kEngineCss =
             "\nmcimg, mcitem { display: block; position: absolute; }\n"
-            ".t { display: block; position: absolute; font-family: minecraft; white-space: nowrap; overflow: "
+            ".t { display: block; position: absolute; font-family: minecraft; white-space: pre; overflow: "
             "visible; }\n"
             ".t.s { font-family: minecraft-shadow; }\n.t.o { font-family: minecraft-outline; }\n"
             ".t.ten { font-family: minecraft-ten; }\n.t.ten.s { font-family: minecraft-ten-shadow; }\n"
