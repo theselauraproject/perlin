@@ -16,12 +16,21 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include "util/Log.hpp"
 
 namespace perlin::ui {
     namespace {
         const char* const kScreens[] = {"small_chest_screen", "large_chest_screen", "ender_chest_screen",
                                         "barrel_screen", "shulker_box_screen"};
+
+        // a server picks its own chest layout with a four character marker in front of the title ("@@@4" for four
+        // rows): the marker steers which panel a pack builds and is never shown. empty when there is none
+        std::string TitleMarker(const std::string& title) {
+            if (title.size() >= 4 && title.compare(0, 3, "@@@") == 0 && title[3] >= '1' && title[3] <= '6')
+                return title.substr(0, 4);
+            return {};
+        }
 
         const HudItem* SlotItem(const InventoryView& v, const std::string& collection, int index) {
             if (index < 0)
@@ -54,7 +63,7 @@ namespace perlin::ui {
 
             bool Global(const std::string& name, Json& out) const override {
                 if (name == "#container_title") {
-                    out = Json(v.title);
+                    out = Json(TitleMarker(v.title).empty() ? v.title : v.title.substr(4));
                     return true;
                 }
                 return false;
@@ -227,6 +236,25 @@ div { display: block; position: absolute; }
                 if (auto tree = BuildTree(library, std::string("chest.") + screen, vars, report))
                     trees[screen] = std::move(tree);
             }
+            // markers are read from the title text while the tree is built, so each one gets its own tree; the
+            // title itself stays a binding with the marker prepended, which the pack's own "- marker" strips again
+            bool marked = false;
+            for (const std::string& root : roots) {
+                std::ifstream in(root + "/chest_screen.json", std::ios::binary);
+                std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+                if (text.contains("'%.4s'")) {
+                    marked = true;
+                    break;
+                }
+            }
+            if (marked)
+                for (char digit = '1'; digit <= '6'; digit++) {
+                    Vars marker = vars;
+                    marker["$container_title"] = Json(std::string("@@@") + digit + "#container_title");
+                    BuildReport report;
+                    if (auto tree = BuildTree(library, "chest.small_chest_screen", marker, report))
+                        trees[std::string("small_chest_screen@@@") + digit] = std::move(tree);
+                }
             if (!trees.contains("small_chest_screen") || !trees.contains("large_chest_screen")) {
                 problem = "chest.small_chest_screen / chest.large_chest_screen could not be built";
                 state = 3;
@@ -247,7 +275,11 @@ div { display: block; position: absolute; }
                         std::string& rml, float (&panel)[4]) {
         if (state.load() != 2)
             return false;
-        auto it = trees.find(screen);
+        auto it = trees.end();
+        if (const std::string marker = TitleMarker(view.title); !marker.empty())
+            it = trees.find("small_chest_screen" + marker);
+        if (it == trees.end())
+            it = trees.find(screen);
         if (it == trees.end())
             it = trees.find(view.chestRows > 3 ? "large_chest_screen" : "small_chest_screen");
         if (it == trees.end() || !it->second)
