@@ -242,9 +242,6 @@ namespace perlin {
         else if (!friendLease && versionOverride.protocol > 0 && versionOverride.server == options.server)
             session->SetProtocolOverride(versionOverride.protocol, versionOverride.version);
         session->SetRecordTap(replayCtl.NewSessionTap());
-        if (connectsInFlight.load() == 0)
-            std::erase_if(retiredSessions,
-                          [](const std::unique_ptr<BedrockSession>& s) { return !s->Transferring(); });
         session->SetPacketHandler([this](uint32_t id, const std::vector<uint8_t>& body) {
             if (!modWantPackets.load() || body.size() > 65536)
                 return;

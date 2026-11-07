@@ -549,6 +549,8 @@ namespace perlin {
             ownFlagWordsKnown = {};
             ownAttributes.clear();
             movementAttribute.reset();
+            ownNameTag.clear();
+            ownSeatOffset.reset();
         }
         {
             std::lock_guard lk(statusMutex);

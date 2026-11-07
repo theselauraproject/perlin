@@ -154,6 +154,10 @@ namespace perlin {
         bool atlasUploaded = false;
         bool skyTexturesLoaded = false;
         bool texturePackResolved = false;
+        // server packs mount after the vanilla assets loaded (during the join): their block textures need a reload
+        uint32_t serverPackGeneration = 0;
+        bool serverPackGenerationKnown = false, serverPackReloadPending = false;
+        std::chrono::steady_clock::time_point serverPacksChangedAt;
         bool crosshairLoaded = false;
         bool tintsWereReady = false;
         int uploadedTiles = 0;

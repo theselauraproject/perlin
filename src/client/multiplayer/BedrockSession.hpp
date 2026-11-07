@@ -208,6 +208,11 @@ namespace perlin {
             std::lock_guard lock(attrMutex);
             return ownSeatOffset;
         }
+        // NAMETAG the server set on us (ranks, colours, a second line); empty until it sends one
+        std::string OwnNameTag() const {
+            std::lock_guard lock(attrMutex);
+            return ownNameTag;
+        }
         bool RidingAsDriver() const { return ridingDriver.load(); }
         void SetPredictedVehicle(uint64_t runtime) { predictedVehicleRuntime = runtime; }
 
@@ -1224,6 +1229,7 @@ namespace perlin {
         std::atomic<bool> ridingDriver{false};
         std::atomic<uint64_t> predictedVehicleRuntime{0};
         std::optional<std::array<float, 3>> ownSeatOffset;
+        std::string ownNameTag;
         std::mutex vehicleCorrectionMutex;
         std::deque<VehicleCorrection> vehicleCorrections;
         proto::ItemV4 extraRaw[20];

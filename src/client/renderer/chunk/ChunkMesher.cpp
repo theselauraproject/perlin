@@ -455,10 +455,14 @@ namespace perlin {
         if (!m.modelKnown[id]) {
             m.modelKnown[id] = 1;
             const ModelEntry* geo = library->Geometry().Empty() ? nullptr : library->Geometry().Find(id);
-            m.model[id] = geo ? geo
-                          : !GeomFor(id).kelp && library->Models().Loaded()
-                              ? library->Models().Find(BlockPalette::Instance().NetworkId(id))
-                              : nullptr;
+            if (!geo && !GeomFor(id).kelp && library->Models().Loaded()) {
+                const BlockPalette& pal = BlockPalette::Instance();
+                geo = library->Models().Find(pal.NetworkId(id));
+                if (!geo)
+                    if (const int32_t current = pal.CurrentHash(id); current != pal.NetworkId(id))
+                        geo = library->Models().Find(current);
+            }
+            m.model[id] = geo;
         }
         return m.model[id];
     }

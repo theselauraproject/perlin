@@ -236,17 +236,22 @@ namespace perlin::entity {
     }
 
     glm::dvec3 EntityRenderer::SeatPosition(const Entity& v, bool playerRider) const {
+        return SeatPosition(v, playerRider, v.pos, v.yaw);
+    }
+
+    glm::dvec3 EntityRenderer::SeatPosition(const Entity& v, bool playerRider, glm::dvec3 pos,
+                                            float yaw) const {
         float sx = 0, sy = 0, sz = 0;
         if (!assets.Seat(v.type, sx, sy, sz))
             sy = -0.2f;
-        const double yawRad = glm::radians(static_cast<double>(v.yaw));
+        const double yawRad = glm::radians(static_cast<double>(yaw));
         const glm::dvec3 forward(-std::sin(yawRad), 0.0, std::cos(yawRad)),
             side(std::cos(yawRad), 0.0, std::sin(yawRad));
         const bool rails = v.type.contains("boat") || v.type.contains("minecart");
         double lift = rails ? 0.1 : 0.0;
         if (playerRider && !rails)
             lift -= v.type == "minecraft:cushion" ? 0.35 : 0.6;
-        return v.pos + side * static_cast<double>(sx) + forward * static_cast<double>(sz) +
+        return pos + side * static_cast<double>(sx) + forward * static_cast<double>(sz) +
                glm::dvec3(0.0, sy + lift, 0.0);
     }
 
@@ -262,11 +267,16 @@ namespace perlin::entity {
                 continue;
             const Entity& v = entities[it->second];
             const bool rails = v.type.contains("boat") || v.type.contains("minecart");
-            e.pos = SeatPosition(v, e.isPlayer);
+            // both ends of the tick: riders are drawn between prevPos and pos, a raw prevPos left here would
+            // make them flicker between the seat and wherever the server last placed them
+            e.pos = SeatPosition(v, e.isPlayer, v.pos, v.yaw);
+            e.prevPos = SeatPosition(v, e.isPlayer, v.prevPos, v.prevYaw);
             e.flags |= flag::Riding;
             e.onGround = true;
-            if (rails)
+            if (rails) {
                 e.yaw = v.yaw;
+                e.prevYaw = v.prevYaw;
+            }
         }
     }
 
@@ -283,7 +293,8 @@ namespace perlin::entity {
         float w, h;
         if (assets.CollisionBox(e.type, w, h))
             return {w * scale, h * scale};
-        return {0.6f, 1.0f};
+        // no server box and no definition: minecraft:collision_box defaults to 0.6 x 1.8 (0x142EBA9A0)
+        return {0.6f * scale, 1.8f * scale};
     }
 
     void EntityRenderer::ClearCaches() {
@@ -888,8 +899,9 @@ namespace perlin::entity {
                 Log("pose", "{} {} rot {},{},{} pos {},{},{}", e.type, bn, xf.rotation.x, xf.rotation.y,
                     xf.rotation.z, xf.position.x, xf.position.y, xf.position.z);
         if (e.isPlayer && e.Has(flag::Riding) && v.swimAmount < 0.01f && v.lieAmount < 0.01f) {
-            pose["rightleg"].rotation = {-81.0f, -18.0f, -4.5f};
-            pose["leftleg"].rotation = {-81.0f, 18.0f, 4.5f};
+            // animation.player.riding.legs: absolute ("- this"), feet spread outward
+            pose["rightleg"].rotation = {-81.0f, 18.0f, 0.0f};
+            pose["leftleg"].rotation = {-81.0f, -18.0f, 0.0f};
             pose["rightarm"].rotation.x += -36.0f;
             pose["leftarm"].rotation.x += -36.0f;
         }
@@ -1110,6 +1122,8 @@ namespace perlin::entity {
                 }
             }
             layer.translucent = rc->translucent;
+            layer.ignoreLighting = rc->ignoreLighting;
+            layer.lightMultiplier = rc->lightMultiplier;
             for (const std::string& group : groups) {
                 const bool single = groups.size() == 1;
                 const attachable::BoneFilter groupFilter =
@@ -1412,12 +1426,13 @@ namespace perlin::entity {
             const float layerHurt = layer.material.hurtTint ? hurt : 0.0f;
             const bool fullbright = layer.material.emissive == 2;
             const glm::vec3 tint(layer.tint[0], layer.tint[1], layer.tint[2]);
+            const glm::vec3 layerLight = layer.ignoreLighting ? glm::vec3(layer.lightMultiplier) : light;
             for (const attachable::Quad& q : layer.quads) {
                 const glm::vec3 n = rot * q.n;
                 const float lit = std::min(
                     1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
                 const uint32_t color = fullbright || packLit ? PackColor(tint, layer.tint[3])
-                                                             : PackColor(light * lit * tint, layer.tint[3]);
+                                                             : PackColor(layerLight * lit * tint, layer.tint[3]);
                 const uint32_t base = static_cast<uint32_t>(vertices.size());
                 for (int i = 0; i < 4; i++)
                     vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
@@ -1454,7 +1469,7 @@ namespace perlin::entity {
             draw.material = DrawMaterial::Entity;
             draw.player = e.isPlayer;
             draw.entityType = e.type.c_str();
-            if (fullbright) {
+            if (fullbright || layer.ignoreLighting) {
                 draw.blockLight = 15;
                 draw.skyLight = 15;
             } else if (levels.x >= 0) {
@@ -1472,6 +1487,13 @@ namespace perlin::entity {
             draw.depthWrite = layer.material.depthWrite && draw.blend != 2;
             draw.depth = layer.material.depthTest;
             draw.depthFunc = layer.material.depthFunc;
+            // one-sided materials (no DisableCulling) hide faces seen from behind: some packs build a background
+            // box from inward-facing planes that must not cover the model; the world mirrors model z, which
+            // turns the faces' winding around
+            CullMode cull = layer.material.noCull ? CullMode::None : layer.material.cull;
+            if (cull != CullMode::None && glm::determinant(glm::mat3(model)) < 0.0f)
+                cull = cull == CullMode::Back ? CullMode::Front : CullMode::Back;
+            draw.cull = cull;
             draw.colorWrite = layer.material.colorWrite;
             draw.alphaWrite = layer.material.alphaWrite;
             if (layer.material.customBlend && layer.material.blend != Blend::AlphaTest &&
@@ -1848,12 +1870,13 @@ namespace perlin::entity {
             bgI.clear();
             textI.clear();
             const auto corner = [&](float x, float y) { return right * (x * kScale) + up * (-y * kScale); };
+            // slant: italic shear in pixels at y0 (the game's glyph top leans 1px right, bottom 1px left)
             const auto quad = [&](std::vector<UiVertex>& vv, std::vector<uint32_t>& ii, float x0, float y0,
-                                  float x1, float y1, float u0, float v0, float u1, float v1,
-                                  uint32_t color) {
+                                  float x1, float y1, float u0, float v0, float u1, float v1, uint32_t color,
+                                  float slantTop = 0.0f, float slantBottom = 0.0f) {
                 const uint32_t base = static_cast<uint32_t>(vv.size());
-                const glm::vec3 p0 = corner(x0, y1), p1 = corner(x1, y1), p2 = corner(x1, y0),
-                                p3 = corner(x0, y0);
+                const glm::vec3 p0 = corner(x0 + slantBottom, y1), p1 = corner(x1 + slantBottom, y1),
+                                p2 = corner(x1 + slantTop, y0), p3 = corner(x0 + slantTop, y0);
                 vv.push_back({p0.x, p0.y, p0.z, color, u0, v1});
                 vv.push_back({p1.x, p1.y, p1.z, color, u1, v1});
                 vv.push_back({p2.x, p2.y, p2.z, color, u1, v0});
@@ -1861,12 +1884,13 @@ namespace perlin::entity {
                 for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u, 0u, 2u, 1u, 0u, 3u, 2u})
                     ii.push_back(base + i);
             };
-            glm::vec3 col(1.0f);
-            bool bold = false;
+            // one state for the whole tag: a colour set on the first line carries onto the second
+            ui::FormatState style;
             for (size_t row = 0; row < rows.size(); row++) {
                 const std::string& text = rows[row];
                 const float rowY = (static_cast<float>(row) - static_cast<float>(rows.size() - 1)) * 10.0f;
-                const float width = font.Width(text);
+                // measured with the bold the line inherits
+                const float width = font.Width(style.Codes() + text);
                 const float left = -width * 0.5f;
                 if (!text.empty())
                     quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + 8.0f, 0, 0, 0, 0,
@@ -1876,31 +1900,32 @@ namespace perlin::entity {
                     uint32_t cp = 0;
                     if (!ui::McFont::Next(text, i, cp))
                         break;
-                    if (cp == 0xA7 && i < text.size()) {
-                        const char c = static_cast<char>(std::tolower(static_cast<unsigned char>(text[i++])));
-                        uint32_t rgb = 0;
-                        if (ui::FormatCodeColor(c, rgb)) {
-                            col = glm::vec3(static_cast<float>((rgb >> 16) & 0xFF),
-                                            static_cast<float>((rgb >> 8) & 0xFF),
-                                            static_cast<float>(rgb & 0xFF)) /
-                                  255.0f;
-                            bold = false;
-                        } else if (c == 'l') {
-                            bold = true;
-                        } else if (c == 'r') {
-                            col = glm::vec3(1.0f);
-                            bold = false;
-                        }
+                    if (cp == 0xA7) {
+                        uint32_t code = 0;
+                        if (ui::McFont::Next(text, i, code))
+                            style.Apply(code);
                         continue;
                     }
                     if (cp < 0x20)
                         continue;
-                    const ui::McFont::Glyph& g = font.Get(cp);
-                    if (g.width > 0)
-                        quad(textV, textI, pen + g.left, rowY + g.top, pen + g.left + g.width,
-                             rowY + g.top + g.height, g.u0, g.v0, g.u1, g.v1,
-                             PackColor(g.colored ? glm::vec3(1.0f) : col));
-                    pen += static_cast<float>(g.advance) + (bold ? 1.0f : 0.0f);
+                    const ui::McFont::Glyph& g = font.Get(style.obfuscated ? font.Obfuscated(cp) : cp);
+                    if (g.width > 0) {
+                        const uint32_t rgb = style.hasColor ? style.rgb : 0xFFFFFFu;
+                        const glm::vec3 col =
+                            glm::vec3(static_cast<float>((rgb >> 16) & 0xFF),
+                                      static_cast<float>((rgb >> 8) & 0xFF), static_cast<float>(rgb & 0xFF)) /
+                            255.0f;
+                        const float y0 = rowY + g.top, y1 = y0 + g.height;
+                        const float slantTop = style.italic ? 1.0f - 0.25f * (y0 - rowY) : 0.0f,
+                                    slantBottom = style.italic ? 1.0f - 0.25f * (y1 - rowY) : 0.0f;
+                        // bold: the glyph again one pixel over
+                        for (int pass = 0; pass < (style.bold ? 2 : 1); pass++) {
+                            const float x0 = pen + g.left + static_cast<float>(pass);
+                            quad(textV, textI, x0, y0, x0 + g.width, y1, g.u0, g.v0, g.u1, g.v1,
+                                 PackColor(g.colored ? glm::vec3(1.0f) : col), slantTop, slantBottom);
+                        }
+                    }
+                    pen += static_cast<float>(g.advance) + (style.bold ? 1.0f : 0.0f);
                 }
             }
             glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(tag.at.x, tag.at.y, tag.at.z));
@@ -3337,38 +3362,33 @@ namespace perlin::entity {
                 const glm::vec3 ink(baseB, baseG, baseR);
                 const glm::vec3 lit = glow ? glm::vec3(1.0f) : light;
                 const float top = -static_cast<float>(lines.size()) * lineHeight * 0.5f;
+                // one string on the sign: formatting runs on into the next line
+                ui::FormatState style;
                 for (size_t row = 0; row < lines.size(); row++) {
                     const std::string& line = lines[row];
-                    const float width = font.Width(line);
+                    const float width = font.Width(style.Codes() + line);
                     float pen = -width * 0.5f;
-                    glm::vec3 col = ink;
-                    bool bold = false;
                     const float y0 = top + static_cast<float>(row) * lineHeight;
                     for (size_t i = 0; i < line.size();) {
                         uint32_t cp = 0;
                         if (!ui::McFont::Next(line, i, cp))
                             break;
-                        if (cp == 0xA7 && i < line.size()) {
-                            const char code =
-                                static_cast<char>(std::tolower(static_cast<unsigned char>(line[i++])));
-                            uint32_t rgb = 0;
-                            if (ui::FormatCodeColor(code, rgb)) {
-                                col = glm::vec3(static_cast<float>((rgb >> 16) & 0xFF),
-                                                static_cast<float>((rgb >> 8) & 0xFF),
-                                                static_cast<float>(rgb & 0xFF)) /
-                                      255.0f;
-                                bold = false;
-                            } else if (code == 'l')
-                                bold = true;
-                            else if (code == 'r') {
-                                col = ink;
-                                bold = false;
-                            }
+                        if (cp == 0xA7) {
+                            uint32_t code = 0;
+                            if (ui::McFont::Next(line, i, code))
+                                style.Apply(code);
                             continue;
                         }
                         if (cp < 0x20)
                             continue;
-                        const ui::McFont::Glyph& g = font.Get(cp);
+                        const glm::vec3 col = style.hasColor
+                                                  ? glm::vec3(static_cast<float>((style.rgb >> 16) & 0xFF),
+                                                              static_cast<float>((style.rgb >> 8) & 0xFF),
+                                                              static_cast<float>(style.rgb & 0xFF)) /
+                                                        255.0f
+                                                  : ink;
+                        const bool bold = style.bold;
+                        const ui::McFont::Glyph& g = font.Get(style.obfuscated ? font.Obfuscated(cp) : cp);
                         if (g.width > 0) {
                             const uint32_t color = PackColor(g.colored ? glm::vec3(1.0f) : col * lit);
                             for (int pass = 0; pass < (bold ? 2 : 1); pass++) {

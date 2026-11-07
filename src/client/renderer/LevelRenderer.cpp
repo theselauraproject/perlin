@@ -151,6 +151,21 @@ namespace perlin {
     }
 
     void LevelRenderer::ReloadAssetsIfNeeded() {
+        if (const uint32_t packs = ServerPacks::Instance().Generation(); !serverPackGenerationKnown) {
+            serverPackGeneration = packs;
+            serverPackGenerationKnown = true;
+        } else if (packs != serverPackGeneration) {
+            serverPackGeneration = packs;
+            serverPacksChangedAt = std::chrono::steady_clock::now();
+            serverPackReloadPending = true;
+        }
+        // packs mount one by one: wait for the last before paying for a reload
+        if (serverPackReloadPending &&
+            std::chrono::steady_clock::now() - serverPacksChangedAt > std::chrono::milliseconds(300)) {
+            serverPackReloadPending = false;
+            Log("packs", "server packs changed: reloading block textures");
+            ReloadResources();
+        }
         const bool complete = atlasUploaded && blocks.Complete() && biomeTints.Ready();
         if (complete) {
             if (blocks.ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack")) {

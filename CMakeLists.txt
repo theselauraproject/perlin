@@ -914,6 +914,14 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(panorama_blur_selftest PRIVATE src)
     target_compile_features(panorama_blur_selftest PRIVATE cxx_std_23)
     add_test(NAME panorama_blur_selftest COMMAND panorama_blur_selftest)
+    add_executable(format_codes_selftest tests/format_codes_selftest.cpp src/client/ui/Json.cpp src/client/ui/UiExpr.cpp
+        src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/ui/McFont.cpp src/client/ui/TenFont.cpp
+        src/client/ui/RmlEmit.cpp src/client/ui/FormatCodes.cpp src/client/ui/HudData.cpp src/client/ui/EffectData.cpp
+        src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp
+        src/util/Resources.cpp src/util/Paths.cpp)
+    target_include_directories(format_codes_selftest PRIVATE src "${stb_SOURCE_DIR}")
+    target_compile_features(format_codes_selftest PRIVATE cxx_std_23)
+    add_test(NAME format_codes_selftest COMMAND format_codes_selftest)
     add_executable(block_box_definition_selftest tests/block_box_definition_selftest.cpp
         src/client/resources/BlockBoxDefinition.cpp src/client/ui/Json.cpp)
     target_include_directories(block_box_definition_selftest PRIVATE src "${glm_SOURCE_DIR}")

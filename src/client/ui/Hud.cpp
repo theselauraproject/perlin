@@ -296,6 +296,15 @@ namespace perlin::ui {
 
         const double now = Now();
         bool rebuilt = false;
+        if (const uint32_t packs = ServerPacks::Instance().Generation(); packs != serverPackGeneration) {
+            serverPackGeneration = packs;
+            serverPacksChangedAt = now;
+        }
+        // packs mount one at a time: one rebuild once the last is in
+        if (serverPacksChangedAt >= 0.0 && now - serverPacksChangedAt > 0.3) {
+            serverPacksChangedAt = -1.0;
+            reloadRequested = true;
+        }
         if (reloadRequested || now - sinceCheck > 3.0) {
             sinceCheck = now;
             std::string freshRcss = ReadUserRcss();

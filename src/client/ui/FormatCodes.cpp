@@ -100,7 +100,64 @@ namespace perlin::ui {
         }
     }
 
+    bool FormatState::Apply(uint32_t code) {
+        if (code >= 0x80)
+            return false;
+        const char c = static_cast<char>(std::tolower(static_cast<int>(code)));
+        uint32_t color = 0;
+        if (FormatCodeColor(c, color)) {
+            hasColor = true;
+            rgb = color;
+            colorCode = c;
+            return true;
+        }
+        switch (c) {
+        case 'l':
+            bold = true;
+            return true;
+        case 'o':
+            italic = true;
+            return true;
+        case 'k':
+            obfuscated = true;
+            return true;
+        case 'r':
+            *this = FormatState{};
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    std::string FormatState::Codes() const {
+        std::string out;
+        const auto add = [&](char c) {
+            out += "\xC2\xA7";
+            out += c;
+        };
+        if (hasColor)
+            add(colorCode);
+        if (bold)
+            add('l');
+        if (italic)
+            add('o');
+        if (obfuscated)
+            add('k');
+        return out;
+    }
+
     namespace {
+        // bytes of the UTF-8 sequence starting at s[i] (1 for a stray continuation byte)
+        size_t CodepointBytes(const std::string& s, size_t i) {
+            const unsigned char b = static_cast<unsigned char>(s[i]);
+            const size_t n = b < 0x80           ? 1
+                             : (b >> 5) == 0x6  ? 2
+                             : (b >> 4) == 0xE  ? 3
+                             : (b >> 3) == 0x1E ? 4
+                                                : 1;
+            return std::min(n, s.size() - i);
+        }
+
         bool IsSection(const std::string& s, size_t i) {
             return i + 2 < s.size() && static_cast<unsigned char>(s[i]) == 0xC2 &&
                    static_cast<unsigned char>(s[i + 1]) == 0xA7;
@@ -116,7 +173,7 @@ namespace perlin::ui {
         out.reserve(text.size());
         for (size_t i = 0; i < text.size();) {
             if (IsSection(text, i)) {
-                i += 3;
+                i += 2 + CodepointBytes(text, i + 2);
                 continue;
             }
             out += text[i++];
@@ -158,74 +215,39 @@ namespace perlin::ui {
     std::string FormatCodesToRml(const std::string& text, float alpha, bool breaks) {
         std::string out;
         std::string chunk;
-        bool bold = false, italic = false, underline = false, strike = false;
-        bool haveColor = false;
-        bool obfuscated = false;
-        uint32_t color = 0;
-        bool open = false;
+        FormatState st;
         const int alphaByte = std::clamp(static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
-        const auto close = [&] {
-            if (open)
-                out += "</span>";
-            open = false;
-        };
         const auto flush = [&] {
             if (chunk.empty())
                 return;
-            const bool styled = haveColor || bold || italic || underline || strike;
-            if (styled) {
+            std::string style;
+            if (st.hasColor) {
                 char buf[32];
-                std::string style;
-                if (haveColor) {
-                    if (alphaByte < 255)
-                        std::snprintf(buf, sizeof buf, "color:#%06X%02X;", color & 0xFFFFFFu, alphaByte);
-                    else
-                        std::snprintf(buf, sizeof buf, "color:#%06X;", color & 0xFFFFFFu);
-                    style += buf;
-                }
-                if (bold)
-                    style += "font-weight:bold;";
-                if (italic)
-                    style += "font-style:italic;";
-                if (underline || strike)
-                    style += std::string("text-decoration:") + (underline ? "underline" : "") +
-                             (underline && strike ? " " : "") + (strike ? "line-through" : "") + ";";
-                out += "<span style=\"" + style + "\">";
-                open = true;
+                if (alphaByte < 255)
+                    std::snprintf(buf, sizeof buf, "color:#%06X%02X;", st.rgb & 0xFFFFFFu, alphaByte);
+                else
+                    std::snprintf(buf, sizeof buf, "color:#%06X;", st.rgb & 0xFFFFFFu);
+                style += buf;
             }
-            out += EscapeRml(obfuscated ? Scramble(chunk) : chunk);
+            if (st.bold)
+                style += "font-weight:bold;";
+            if (st.italic)
+                style += "font-style:italic;";
+            if (!style.empty())
+                out += "<span style=\"" + style + "\">";
+            out += EscapeRml(st.obfuscated ? Scramble(chunk) : chunk);
+            if (!style.empty())
+                out += "</span>";
             chunk.clear();
-            close();
         };
         for (size_t i = 0; i < text.size();) {
             if (IsSection(text, i)) {
                 flush();
-                const char code = text[i + 2];
-                i += 3;
-                uint32_t rgb;
-                if (FormatCodeColor(code, rgb)) {
-                    haveColor = true;
-                    color = rgb;
-                } else {
-                    switch (std::tolower(static_cast<unsigned char>(code))) {
-                    case 'l':
-                        bold = true;
-                        break;
-                    case 'o':
-                        italic = true;
-                        break;
-                    case 'k':
-                        obfuscated = true;
-                        break;
-                    case 'r':
-                        haveColor = bold = italic = underline = strike = obfuscated = false;
-                        break;
-                    default:
-                        break;
-                    }
-                }
+                st.Apply(static_cast<unsigned char>(text[i + 2]));
+                i += 2 + CodepointBytes(text, i + 2);
                 continue;
             }
+            // a section sign as the last character: nothing to apply
             if (i + 1 < text.size() && static_cast<unsigned char>(text[i]) == 0xC2 &&
                 static_cast<unsigned char>(text[i + 1]) == 0xA7) {
                 i += 2;
@@ -238,7 +260,8 @@ namespace perlin::ui {
                 if (breaks) {
                     flush();
                     out += "<br/>";
-                }
+                } else
+                    chunk += ' ';
                 continue;
             }
             chunk += c;

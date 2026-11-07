@@ -757,6 +757,15 @@ namespace perlin {
                     bare = bare.substr(10);
                 auto al = aliases.find(bare);
                 std::string vkey = (al == aliases.end()) ? bare : al->second;
+                // aliases run both ways: older servers and older samples still use the name before a rename
+                if (!vBlocks.contains(vkey) && vBlocks.contains(bare))
+                    vkey = bare;
+                if (!vBlocks.contains(vkey))
+                    for (const auto& [current, previous] : aliases)
+                        if (previous == bare && vBlocks.contains(current)) {
+                            vkey = current;
+                            break;
+                        }
                 if (!vBlocks.contains(vkey)) {
                     std::string rpKey = BlockPalette::Instance().ResourcePackKey(name);
                     if (!rpKey.empty() && vBlocks.contains(rpKey))

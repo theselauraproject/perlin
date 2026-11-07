@@ -40,6 +40,8 @@ namespace perlin::entity {
         void Initialize(RenderContext& renderer);
         std::pair<float, float> HitBox(const Entity& e) const;
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider = true) const;
+        // the seat of a vehicle standing at pos/yaw, for the previous tick's end of the interpolation
+        glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider, glm::dvec3 pos, float yaw) const;
         bool CollisionBoxOf(const std::string& type, float& width, float& height) const {
             return assets.CollisionBox(type, width, height);
         }
@@ -143,6 +145,8 @@ namespace perlin::entity {
             std::string texture;
             bool translucent = false;
             float tint[4] = {1, 1, 1, 1};
+            bool ignoreLighting = false;
+            float lightMultiplier = 1.0f;
             MaterialInfo material;
             uint32_t maskRgb = 0xFFFFFF;
             // entity's own model; invisibility hides it, keeps armor and attached items

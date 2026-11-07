@@ -478,7 +478,9 @@ namespace perlin {
         }
         if (info.kind == Kind::Plain || info.kind == Kind::Door) {
             const SelectionTable& t = Selections();
-            const auto it = t.byHash.find(BlockPalette::Instance().NetworkId(id));
+            auto it = t.byHash.find(BlockPalette::Instance().NetworkId(id));
+            if (it == t.byHash.end())
+                it = t.byHash.find(BlockPalette::Instance().CurrentHash(id));
             if (it != t.byHash.end()) {
                 const SelectionTable::Shape& s = t.shapes[it->second];
                 if (s.pick != 1 || s.boxes.empty())
@@ -682,7 +684,9 @@ namespace perlin {
             return info;
         {
             const auto& reg = Registry();
-            const auto it = reg.find(BlockPalette::Instance().NetworkId(id));
+            auto it = reg.find(BlockPalette::Instance().NetworkId(id));
+            if (it == reg.end())
+                it = reg.find(BlockPalette::Instance().CurrentHash(id));
             if (it != reg.end()) {
                 const PhysRecord& r = it->second;
                 // EndPortalFrameBlock 0x14a42b620 adds the eye box without the block position: no eye in the world

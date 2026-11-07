@@ -608,6 +608,20 @@ namespace perlin {
         return netByLocal[local];
     }
 
+    int32_t BlockPalette::CurrentHash(uint16_t local) const {
+        static const std::unordered_map<std::string, std::string> kRenamed = {
+            {"minecraft:chain", "minecraft:iron_chain"},
+        };
+        const int32_t hash = NetworkId(local);
+        const auto it = kRenamed.find(Name(local));
+        if (it == kRenamed.end())
+            return hash;
+        auto states = States(local);
+        std::sort(states.begin(), states.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        return HashState(it->second, states);
+    }
+
     bool BlockPalette::LearnName(int32_t networkId, const std::string& name) {
         if (name.empty())
             return false;

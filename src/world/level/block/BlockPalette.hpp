@@ -64,6 +64,10 @@ namespace perlin {
         void LearnState(int32_t networkId, const std::string& name,
                         std::vector<std::pair<std::string, StateValue>> states);
         int32_t NetworkId(uint16_t local) const;
+        // the state's hash under the block's current name: older registries still send renamed blocks
+        // (chain before iron_chain) and the bundled models, shapes and collision are keyed by the new name;
+        // NetworkId when the block was never renamed
+        int32_t CurrentHash(uint16_t local) const;
         std::string Name(uint16_t local) const;
         std::vector<std::pair<std::string, StateValue>> States(uint16_t local) const;
         int StateInt(uint16_t local, const std::string& key, int fallback) const;

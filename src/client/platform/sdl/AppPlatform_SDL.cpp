@@ -1328,6 +1328,20 @@ void AppPlatform_SDL::PumpFrame() {
 #endif
     PumpGamepad();
 
+#if !defined(PERLIN_MOBILE) && !defined(__EMSCRIPTEN__)
+    // a fullscreen switch can settle after its last size event (from a maximized window, on a
+    // second monitor): the swap chain then keeps the old height and the bottom of the hud is cut off
+    if (window) {
+        int w = 0, h = 0;
+        if (SDL_GetWindowSizeInPixels(window, &w, &h) && w > 0 && h > 0 &&
+            (w != framebufferWidth || h != framebufferHeight)) {
+            framebufferWidth = w;
+            framebufferHeight = h;
+            ResizeRenderSurface();
+        }
+    }
+#endif
+
 #ifdef SDL_PLATFORM_ANDROID
     {
         void* nw = SDL_GetPointerProperty(SDL_GetWindowProperties(window),

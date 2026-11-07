@@ -108,7 +108,7 @@ namespace perlin {
 
         void ApplyMetadata(entity::EntityTracker& tracker, uint64_t rid,
                            const std::vector<MetadataDictionaryEntry>& metadata) {
-            int variant = -1, mark = -1, color = -1;
+            std::optional<int> variant, mark, color;
             float boxWidth = 0.0f, boxHeight = 0.0f;
             static const bool debugTags = std::getenv("PERLIN_DEBUG_NAMETAGS") != nullptr;
             for (const MetadataDictionaryEntry& m : metadata) {
@@ -191,8 +191,9 @@ namespace perlin {
                     break;
                 }
             }
-            if (variant >= 0 || mark >= 0 || color >= 0)
-                tracker.SetVariant(rid, std::max(variant, 0), std::max(mark, 0), std::max(color, 0));
+            const auto clamp = [](std::optional<int> v) { return v ? std::optional<int>(std::max(*v, 0)) : v; };
+            if (variant || mark || color)
+                tracker.SetVariant(rid, clamp(variant), clamp(mark), clamp(color));
             if (boxWidth > 0.0f && boxHeight > 0.0f)
                 tracker.SetBoundingBox(rid, boxWidth, boxHeight);
         }
@@ -1399,6 +1400,12 @@ namespace perlin {
                         if (const auto* inner = std::get_if<4>(&m.value))
                             if (const auto* seat = std::get_if<9>(inner))
                                 ownSeatOffset = std::array<float, 3>{seat->x, seat->y, seat->z};
+                        continue;
+                    }
+                    if (m.key == MetadataDictionaryEntryKey::Nametag) {
+                        if (const auto* inner = std::get_if<4>(&m.value))
+                            if (const auto* str = std::get_if<5>(inner))
+                                ownNameTag = *str;
                         continue;
                     }
                     double n = 0;
