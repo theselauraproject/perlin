@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Perlin
+Comment=A Minecraft Bedrock compatible client
+Exec=Perlin
+Icon=io.perlin.client
+Terminal=false
+Categories=Game;
+StartupWMClass=io.perlin.client

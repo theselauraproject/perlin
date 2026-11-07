@@ -1,0 +1,433 @@
+struct Item @cpp("bool Empty() const { return name.empty() || count <= 0; }") {
+    name: string;
+    count: i32 = 0;
+    aux: i32 = 0;
+    damage: i32 = 0;
+    enchanted: bool = false;
+    customName: string;
+    enchants: list<pair<i32, i32>>;
+    lore: list<string>;
+}
+
+struct PlayerState {
+    runtimeId: u64 = 0;
+    uniqueId: i64 = 0;
+    name: string;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    vx: f64 = 0; vy: f64 = 0; vz: f64 = 0;
+    yaw: f32 = 0; pitch: f32 = 0; headYaw: f32 = 0; eyeHeight: f32 = 1.62;
+    onGround: bool = false; sprinting: bool = false; sneaking: bool = false; swimming: bool = false;
+    gliding: bool = false; flying: bool = false; mayFly: bool = false; spectator: bool = false;
+    onFire: bool = false; riding: bool = false; connected: bool = false;
+    gameMode: GameMode = Survival;
+    dimension: Dimension = Overworld;
+    selectedSlot: i32 = 0;
+    permission: PermissionLevel = Unknown;
+    health: f32 = 20; maxHealth: f32 = 20; absorption: f32 = 0; hunger: f32 = 20; saturation: f32 = 5;
+    xpProgress: f32 = 0; walkSpeed: f32 = 0.1;
+    xpLevel: i32 = 0; air: i32 = 300; maxAir: i32 = 300;
+}
+
+struct Effect {
+    id: EffectId;
+    amplifier: i32 = 0; ticks: i32 = 0;
+    ambient: bool = false; particles: bool = true;
+}
+
+struct Inventory {
+    slots: array<Item, 36>;
+    armor: array<Item, 4>;
+    offhand: Item; cursor: Item;
+    selected: i32 = 0;
+    open: bool = false;
+}
+
+struct Attribute {
+    name: string;
+    min: f32 = 0; value: f32 = 0; max: f32 = 0;
+}
+
+struct Entity {
+    runtimeId: u64 = 0;
+    uniqueId: i64 = 0;
+    type: string; name: string; nameTag: string; uuid: string;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    yaw: f32 = 0; pitch: f32 = 0; headYaw: f32 = 0; health: f32 = -1; scale: f32 = 1;
+    onGround: bool = false; isPlayer: bool = false; isItem: bool = false; isSelf: bool = false;
+    flags: EntityFlags;
+    itemName: string;
+    itemCount: i32 = 0;
+    mainHand: string; offHand: string;
+    armor: array<string, 4>;
+    vehicleUid: i64 = 0; ownerUid: i64 = 0; targetUid: i64 = 0;
+    variant: i32 = 0; markVariant: i32 = 0; color: i32 = 0;
+    maxHealth: f32 = -1;
+    dying: bool = false;
+    attributes: list<Attribute>;
+    properties: list<pair<string, f32>>;
+    propertyText: list<pair<string, string>>;
+}
+
+struct PlayerEntry {
+    uuid: string; name: string;
+    uid: i64 = 0;
+    permission: PermissionLevel = Unknown;
+}
+
+struct WorldState {
+    dimension: Dimension = Overworld;
+    difficulty: Difficulty = Normal;
+    worldGameMode: GameMode = Survival;
+    day: i64 = 0;
+    timeOfDay: i32 = 0;
+    totalTicks: f64 = 0;
+    rain: f32 = 0; thunder: f32 = 0;
+    commandsEnabled: bool = true; haveSpawn: bool = false;
+    spawnX: i32 = 0; spawnY: i32 = 0; spawnZ: i32 = 0;
+    rules: list<pair<string, i32>>;
+}
+
+struct BlockInfo {
+    loaded: bool = false;
+    runtimeId: u32 = 0;
+    name: string;
+    biome: i32 = 0;
+    liquid: u32 = 0;
+    states: list<pair<string, string>>;
+}
+
+struct BlockProps {
+    known: bool = false;
+    hardness: f32 = 0;
+    tool: Tool = None;
+    harvestLevel: i32 = 0;
+    needsSupportBelow: bool = false; breaksWholeStack: bool = false;
+    displayName: string;
+    properties: list<string>;
+}
+
+struct BlockEntityInfo {
+    present: bool = false;
+    id: string;
+    color: i32 = -1;
+    waxed: bool = false;
+    rotation: f32 = 0;
+    frontText: string; backText: string;
+    frontGlow: bool = false; backGlow: bool = false;
+    base: i32 = -1; bannerType: i32 = 0;
+    patterns: list<pair<string, i32>>;
+    nbt: string;
+}
+
+struct BreakState {
+    active: bool = false;
+    x: i32 = 0; y: i32 = 0; z: i32 = 0;
+    progress: f32 = 0;
+}
+
+struct RayHit {
+    hit: bool = false;
+    x: i32 = 0; y: i32 = 0; z: i32 = 0;
+    face: Face = Up;
+    hx: f64 = 0; hy: f64 = 0; hz: f64 = 0; distance: f64 = 0;
+    block: string;
+}
+
+struct AimState {
+    kind: AimKind = None;
+    block: RayHit;
+    entity: u64 = 0;
+    entityType: string;
+    distance: f64 = 0;
+}
+
+struct ScreenState {
+    guiWidth: i32 = 0; guiHeight: i32 = 0; guiScale: i32 = 1; framebufferWidth: i32 = 0; framebufferHeight: i32 = 0;
+    fps: f32 = 0; frameMs: f32 = 0;
+    screen: Screen = None;
+    paused: bool = false; connected: bool = false; hudHidden: bool = false; debug: bool = false;
+    server: string; language: string; platform: string; gameVersion: string;
+}
+
+struct Meta {
+    apiVersion: u32 = ApiVersion;
+    gameVersion: string; plugin: string; platform: string;
+    permissions: Permissions;
+    nowMs: i64 = 0;
+    tick: u64 = 0;
+}
+
+struct InputOverrideState {
+    forward: f32 = 0; strafe: f32 = 0;
+    jump: bool = false; sneak: bool = false; sprint: bool = false; attack: bool = false; use: bool = false;
+    ticks: i32 = 1 @unit("ticks");
+}
+
+struct CameraControlState {
+    roll: f32 = 0 @unit("degrees");
+    fovAdd: f32 = 0;
+    fovSet: f32 = 0;
+    offsetX: f32 = 0; offsetY: f32 = 0; offsetZ: f32 = 0;
+    yawAdd: f32 = 0; pitchAdd: f32 = 0;
+    ticks: i32 = 2 @unit("ticks");
+}
+
+struct CameraInfo {
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    yaw: f32 = 0; pitch: f32 = 0; fov: f32 = 70; aspect: f32 = 1.78; nearPlane: f32 = 0.1; farPlane: f32 = 600;
+    perspective: i32 = 0;
+    viewProjection: array<f32, 16>;
+}
+
+struct WorldPoint { x: f64 = 0; y: f64 = 0; z: f64 = 0; }
+
+struct ScreenPoint {
+    x: f32 = 0; y: f32 = 0;
+    depth: f32 = 0;
+    visible: bool = false;
+}
+
+struct MotionRequest {
+    add: bool = false;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    axisX: bool = true; axisY: bool = true; axisZ: bool = true;
+}
+
+struct TeleportRequest {
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    keepVelocity: bool = false;
+}
+
+struct ModelPose {
+    roll: f32 = 0; pitch: f32 = 0; yaw: f32 = 0;
+    ticks: i32 = 2;
+}
+
+struct LookSet { x: f64 = 0; y: f64 = 0; z: f64 = -1; }
+
+struct WorldLine {
+    x1: f64 = 0; y1: f64 = 0; z1: f64 = 0; x2: f64 = 0; y2: f64 = 0; z2: f64 = 0;
+    color: u32 = 0xFFFFFFFF;
+    width: f32 = 1.0;
+}
+
+struct WorldLines { ticks: i32 = 2; lines: list<WorldLine>; }
+
+struct WorldBox {
+    x0: f64 = 0; y0: f64 = 0; z0: f64 = 0; x1: f64 = 1; y1: f64 = 1; z1: f64 = 1;
+    color: u32 = 0xFFFFFFFF;
+    width: f32 = 1.0;
+}
+
+struct WorldBoxes { ticks: i32 = 2; boxes: list<WorldBox>; }
+
+struct ClientBlockEdit { x: i32 = 0; y: i32 = 0; z: i32 = 0; runtimeId: u32 = 0; }
+
+struct ClientBlockEdits { edits: list<ClientBlockEdit>; }
+
+struct BlockQuery { name: string; states: list<pair<string, string>>; }
+
+struct BlockQueryResult { found: bool = false; runtimeId: u32 = 0; }
+
+struct PacketDropRequest {
+    ticks: i32 = 20;
+    ids: list<u32>;
+    outgoing: bool = false;
+}
+
+struct PacketCount { id: u32 = 0; count: u32 = 0; }
+
+struct Region @cpp("const std::string& at(int x, int y, int z) const { static const std::string empty; if (x < x0 || y < y0 || z < z0 || x >= x0 + sx || y >= y0 + sy || z >= z0 + sz) return empty; const size_t i = (static_cast<size_t>(y - y0) * static_cast<size_t>(sz) + static_cast<size_t>(z - z0)) * static_cast<size_t>(sx) + static_cast<size_t>(x - x0); return i < cells.size() && cells[i] < palette.size() ? palette[cells[i]] : empty; }") {
+    x0: i32 = 0; y0: i32 = 0; z0: i32 = 0; sx: i32 = 0; sy: i32 = 0; sz: i32 = 0;
+    palette: list<string>;
+    cells: list<u16>;
+}
+
+struct FoundBlock { x: i32 = 0; y: i32 = 0; z: i32 = 0; name: string; }
+
+struct SettingDef {
+    id: string;
+    kind: SettingKind = Toggle;
+    label: string; description: string;
+    icon: string;
+    value: string; fallback: string;
+    min: f64 = 0; max: f64 = 1; step: f64 = 0;
+    choices: list<string>; choiceLabels: list<string>;
+    unit: string;
+    restart: bool = false;
+}
+
+struct SettingEntry { id: string; value: string; }
+
+struct FileLocation { area: Area = Mod; path: string; }
+
+struct ModEntry {
+    name: string; displayName: string; description: string; version: string; author: string; state: string;
+    enabled: bool = true; self: bool = false; hasSettings: bool = false;
+    website: string; arch: string;
+    hooks: list<string>;
+    priority: i32 = 0;
+    permissions: Permissions;
+}
+
+struct HudElementState {
+    element: HudElement = Hearts;
+    visible: bool = true;
+    dx: f32 = 0; dy: f32 = 0;
+}
+
+struct DebugLinesData { left: list<string>; right: list<string>; }
+
+struct FogOverride {
+    enabled: bool = true;
+    color: u32 = 0 @doc("0 keeps the vanilla colour; else 0xAARRGGBB");
+    start: f32 = -1 @unit("blocks") @doc("negative keeps vanilla");
+    end: f32 = -1 @unit("blocks");
+    ticks: i32 = 2;
+}
+
+struct ScreenTintData {
+    color: u32 = 0 @doc("0xAARRGGBB drawn over the world");
+    vignette: f32 = 0 @doc("0..1 darkening at the edges");
+    ticks: i32 = 2;
+}
+
+struct EntityOverride {
+    entity: u64 = 0 @doc("runtime id, or 0 to match every entity of type");
+    type: string;
+    hidden: bool = false;
+    scaleX: f32 = 1; scaleY: f32 = 1; scaleZ: f32 = 1;
+    tint: u32 = 0xFFFFFFFF;
+    texture: string @doc("resource-pack texture path; empty keeps the vanilla one");
+    nameTag: i32 = 0 @doc("0 keep, 1 hide, 2 replace with nameText");
+    nameText: string;
+    ticks: i32 = 2;
+}
+
+struct MeshVertex {
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    u: f32 = 0; v: f32 = 0;
+    color: u32 = 0xFFFFFFFF;
+}
+
+struct WorldMeshData {
+    id: string;
+    stage: RenderStage = AfterEntities;
+    texture: u32 = 0 @doc("gfx texture id, 0 for plain colour");
+    depthTest: bool = true;
+    ticks: i32 = 2;
+    triangles: list<MeshVertex> @doc("three vertices per triangle");
+}
+
+struct FrameLimitData {
+    fps: i32 = 0 @doc("0 keeps the player's setting");
+    unfocusedFps: i32 = 0 @doc("while unfocused or minimized; 0 keeps fps");
+}
+
+struct WindowInfo {
+    focused: bool = true; minimized: bool = false;
+    width: i32 = 0; height: i32 = 0;
+}
+
+struct ScreenButtonDef {
+    screen: Screen = Pause;
+    id: string; label: string;
+    x: i32 = 0; y: i32 = 0; width: i32 = 98; height: i32 = 20 @unit("gui pixels");
+}
+
+struct LoadingOverlayData { hidden: bool = false; }
+
+struct SkinOverrideData {
+    player: string @doc("player name, empty for yourself");
+    slim: bool = false;
+    png: bytes @doc("empty removes the override");
+}
+
+struct AmbientSoundData {
+    id: string; sound: string;
+    volume: f32 = 1; pitch: f32 = 1;
+    play: bool = true;
+}
+
+struct ServerPingRequest { host: string; port: u16 = 19132; }
+
+struct ModMessageData {
+    to: string @doc("empty sends to every other mod");
+    channel: string;
+    body: bytes;
+}
+
+struct PackRegistration {
+    path: string @doc("folder or .zip inside the mod's area");
+    enabled: bool = true;
+}
+
+struct ParticleRequest {
+    name: string;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    count: i32 = 1;
+    spread: f32 = 0;
+}
+
+struct KeyBindEx {
+    id: string; label: string; key: string;
+    ctrl: bool = false; shift: bool = false; alt: bool = false;
+    context: KeyContext = InGame;
+}
+
+struct ChatLine { text: string; alpha: f32 = 1; }
+
+struct PackEntry { name: string; server: bool = false; }
+
+struct TitleStateData {
+    title: string; subtitle: string; actionBar: string;
+    titleAlpha: f32 = 0; actionBarAlpha: f32 = 0;
+}
+
+struct GfxVertex @layout(packed) @size(20) {
+    x: f32 = 0; y: f32 = 0; u: f32 = 0; v: f32 = 0;
+    color: u32 = 0xFFFFFFFF;
+}
+
+struct GfxCmd @layout(packed) @size(32) {
+    clip: array<f32, 4>;
+    texture: u32 = 0;
+    indexOffset: u32 = 0; indexCount: u32 = 0; vertexOffset: u32 = 0;
+}
+
+struct GfxHeader @layout(packed) @size(16) {
+    vertexCount: u32 = 0; indexCount: u32 = 0; commandCount: u32 = 0;
+    flags: u32 = 0;
+}
+
+struct NativeHandles {
+    api: string;
+    adapter: string;
+    window: u64 = 0;
+    display: u64 = 0;
+    device: u64 = 0;
+}
+
+struct GfxDisplayInfo {
+    width: i32 = 0; height: i32 = 0;
+    guiScale: i32 = 1;
+    mouseX: f32 = 0; mouseY: f32 = 0;
+    mouseFree: bool = false;
+    inGame: bool = false;
+}
+
+struct TextMessage { text: string; }
+struct PlayerText { player: u64 = 0; text: string; }
+struct OnlinePlayer { id: u64 = 0; name: string; x: f64 = 0; y: f64 = 0; z: f64 = 0; }
+struct OnlinePlayerList { players: list<OnlinePlayer>; }
+struct ServerTeleport { player: u64 = 0; x: f64 = 0; y: f64 = 0; z: f64 = 0; }
+struct BlockCoord { x: i32 = 0; y: i32 = 0; z: i32 = 0; }
+struct BlockWrite { x: i32 = 0; y: i32 = 0; z: i32 = 0; block: string; }
+struct ServerStatus {
+    name: string;
+    players: u32 = 0; maxPlayers: u32 = 0;
+    tick: u64 = 0;
+    backend: string;
+}
+struct GiveItemRequest { player: u64 = 0; item: string; count: u32 = 1; }
+struct GiveItemResult { leftover: u32 = 0 @doc("what did not fit in the inventory"); }

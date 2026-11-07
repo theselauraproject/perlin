@@ -1,0 +1,896 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  # builds of main are what the nightly release carries: they know their commit and where to look for a newer one,
+  # which is what the in-game updater compares against. Pull requests and tags build without it (no auto-update).
+  PERLIN_UPDATE_FLAGS: ${{ github.ref == 'refs/heads/main' && format('-DPERLIN_BUILD_COMMIT={0} -DPERLIN_UPDATE_REPO={1} -DPERLIN_BUNDLE_VERSION=1.0.{2}', github.sha, github.repository, github.run_number) || '' }}
+  EMSDK_VERSION: 4.0.10
+  OPENSSL_VERSION: openssl-3.0.15
+  SDL_REF: release-3.4.18
+  NDK_VERSION: 27.2.12479018
+  CMAKE_VERSION: 3.31.5
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_COMPRESS: "true"
+  CCACHE_COMPRESSLEVEL: "6"
+  # FFmpeg on Windows is skipped for now (video export uses the built-in AVI encoder). Set to "true" to build/bundle it again;
+  # it is installed once and restored from the cache below, never rebuilt per run.
+  WINDOWS_FFMPEG: "false"
+
+jobs:
+  native:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # new targets report failures without holding back the nightly; drop `experimental` once they are green
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+          - name: linux-x64
+            os: ubuntu-24.04
+            appimage: x86_64
+          # native arm64 runner (free for public repositories): Raspberry Pi 5, Asahi, Snapdragon Linux laptops
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            appimage: aarch64
+            experimental: true
+          - name: macos-arm64
+            os: macos-15
+          - name: macos-x64
+            os: macos-15-intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache dependencies
+        id: cpm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cpm-cache
+          key: cpm-complete-v2-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          restore-keys: cpm-complete-v2-${{ matrix.name }}-
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
+            libxtst-dev libxrender-dev libwayland-dev wayland-protocols libxkbcommon-dev libasound2-dev \
+            libpulse-dev libudev-dev libdbus-1-dev
+
+      - name: Select Xcode
+        if: runner.os == 'macOS'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.4"
+
+      - name: Install macOS packages
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja
+          # Homebrew's fmt is a dynamic library that would get picked up by a dependency's find_package/pkg-config and then
+          # be missing on other Macs (libfmt.12.dylib). Remove it so everything is built from the pinned sources instead.
+          brew uninstall --ignore-dependencies fmt || true
+
+      - name: Cache OpenSSL (macOS)
+        if: runner.os == 'macOS'
+        id: openssl-mac-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/ossl-mac
+          key: openssl-mac12-${{ matrix.name }}-${{ env.OPENSSL_VERSION }}-v1
+
+      - name: Build OpenSSL for macOS 12 (static)
+        if: runner.os == 'macOS' && steps.openssl-mac-cache.outputs.cache-hit != 'true'
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET=12.0
+          git clone --depth 1 -b "$OPENSSL_VERSION" https://github.com/openssl/openssl openssl-src
+          cd openssl-src
+          if [ "$(uname -m)" = arm64 ]; then T=darwin64-arm64-cc; else T=darwin64-x86_64-cc; fi
+          ./Configure "$T" no-shared no-tests -mmacosx-version-min=12.0 --prefix="$GITHUB_WORKSPACE/ossl-mac" --openssldir="$GITHUB_WORKSPACE/ossl-mac/ssl"
+          make -j"$(sysctl -n hw.ncpu)" build_libs
+          make install_dev
+
+      - name: Cache OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        id: openssl-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/openssl-install
+          key: openssl-static-x64-v2-${{ env.OPENSSL_VERSION }}
+
+      - name: Install OpenSSL
+        if: runner.os == 'Windows' && steps.openssl-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:x64-windows-static --x-install-root="$env:GITHUB_WORKSPACE/openssl-install"
+
+      # Saved right away (not at the end of the job) so a later failing step cannot throw the cache away.
+      - name: Save OpenSSL cache
+        if: runner.os == 'Windows' && steps.openssl-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/openssl-install
+          key: openssl-static-x64-v2-${{ env.OPENSSL_VERSION }}
+
+      - name: Cache FFmpeg (Windows)
+        if: runner.os == 'Windows' && env.WINDOWS_FFMPEG == 'true'
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/ffmpeg-install
+          key: ffmpeg-static-x64-v3
+
+      - name: Install FFmpeg libraries (Windows)
+        if: runner.os == 'Windows' && env.WINDOWS_FFMPEG == 'true' && steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install "ffmpeg[core,avcodec,avformat,swscale,swresample,gpl,x264,x265,vpx,aom,webp]:x64-windows-static" --x-install-root="$env:GITHUB_WORKSPACE/ffmpeg-install"
+
+      - name: Save FFmpeg cache
+        if: runner.os == 'Windows' && env.WINDOWS_FFMPEG == 'true' && steps.ffmpeg-cache.outputs.cache-hit != 'true' && hashFiles('ffmpeg-install/x64-windows-static/lib/avcodec.lib') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/ffmpeg-install
+          key: ffmpeg-static-x64-v3
+
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.name }}
+          max-size: 500M
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: >
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON
+          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static"
+          -DPERLIN_WINDOWS_FFMPEG=${{ env.WINDOWS_FFMPEG }}
+          -DFFMPEG_ROOT="$env:GITHUB_WORKSPACE/ffmpeg-install/x64-windows-static"
+          ${{ env.PERLIN_UPDATE_FLAGS }}
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: >
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          ${{ env.PERLIN_UPDATE_FLAGS }}
+          ${{ runner.os == 'macOS' && format('-DOPENSSL_ROOT_DIR={0}/ossl-mac -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON', github.workspace) || '' }}
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package
+        run: cmake --install build --config Release --prefix dist
+
+      - name: Slim the package
+        # the dependencies install their headers and libraries too; a player needs none of them, nor symbol files
+        shell: bash
+        run: |
+          rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
+          find dist \( -name '*.pdb' -o -name '*.map' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.a' \) -delete
+          find dist -type d -empty -delete
+          du -sh dist
+
+      - name: Check macOS binary only needs system libraries
+        if: runner.os == 'macOS'
+        run: |
+          bin=$(find dist -type f -perm +111 -name 'Perlin*' | head -1)
+          echo "$bin"; otool -L "$bin"; otool -l "$bin" | grep -A3 LC_BUILD_VERSION
+          if otool -L "$bin" | tail -n +2 | grep -Ev '^\s+(/usr/lib/|/System/Library/)' ; then echo "::error::links a non-system dylib"; exit 1; fi
+
+      # Apple silicon refuses to run code whose signature does not cover the bundle ("Perlin is damaged"): cmake
+      # --install adds files after the linker signed the executable, so the finished bundle is signed again here.
+      # With a Developer ID (repository secrets below) it is also notarized and opens with no warning at all;
+      # without one it is ad-hoc signed and opens after right-click > Open (or System Settings > Open Anyway).
+      - name: Sign macOS app
+        if: runner.os == 'macOS'
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          app=$(find dist -maxdepth 1 -name '*.app' | head -1)
+          chmod -R u+w,go-w "$app"; chmod +x "$app/Contents/MacOS/"*
+          xattr -cr "$app"
+          if [ -n "$MACOS_CERTIFICATE_P12" ]; then
+            kc="$RUNNER_TEMP/sign.keychain-db"
+            security create-keychain -p ci "$kc" && security set-keychain-settings "$kc" && security unlock-keychain -p ci "$kc"
+            echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$kc" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k ci "$kc"
+            security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+            codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$app"
+            for exe in dist/perlin-server; do [ -f "$exe" ] && codesign --force --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$exe"; done
+            if [ -n "$APPLE_ID" ]; then
+              ditto -c -k --keepParent "$app" "$RUNNER_TEMP/notarize.zip"
+              xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+              xcrun stapler staple "$app"
+            fi
+          else
+            codesign --force --deep --sign - "$app"
+            [ -f dist/perlin-server ] && codesign --force --sign - dist/perlin-server
+          fi
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+      # archives are made here, on the runner that built them: upload-artifact drops unix permissions and macOS
+      # extended attributes, so a bundle zipped later by the release job would lose its executable bit and signature
+      - name: Archive
+        shell: bash
+        run: |
+          mkdir -p pkg
+          out="$PWD/pkg/Perlin-${{ matrix.name }}.zip"
+          case "${{ runner.os }}" in
+            macOS) (cd dist && ditto -c -k --sequesterRsrc . "$out") ;;
+            Windows) (cd dist && 7z a -tzip -bso0 "$out" .) ;;
+            *) (cd dist && zip -qry "$out" .) ;;
+          esac
+          ls -l pkg
+
+      - name: Save dependency cache
+        # Failed configuration can leave incomplete submodule checkouts that
+        # CPM reuses without fetching again. Cache only successful builds.
+        if: success() && steps.cpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cpm-cache
+          key: cpm-complete-v2-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+
+      - name: Keep debug symbols (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir symbols
+          cp build/perlin.pdb symbols/ 2>/dev/null || cp build/*.pdb symbols/ 2>/dev/null || true
+
+      - name: Upload symbols (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Perlin-${{ matrix.name }}-symbols
+          path: symbols
+          if-no-files-found: ignore
+
+      # the package is already an archive: uploaded as that file (the artifact is named after it), so downloading
+      # it gives Perlin-<platform>.zip itself and not a zip holding the zip
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}.zip
+          archive: false
+          if-no-files-found: error
+
+      # Linux also as one AppImage: runs on any distribution, and updates itself by replacing that one file
+      - name: AppImage
+        if: matrix.appimage
+        run: |
+          curl -fsSL -o /usr/local/bin/appimagetool \
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage }}.AppImage"
+          chmod +x /usr/local/bin/appimagetool
+          sh tools/package/make-appimage.sh dist "pkg/Perlin-${{ matrix.name }}.AppImage" ${{ matrix.appimage }}
+          "pkg/Perlin-${{ matrix.name }}.AppImage" --appimage-extract >/dev/null
+          test -x squashfs-root/usr/lib/perlin/Perlin && test -s squashfs-root/io.perlin.client.desktop
+      - name: Upload AppImage
+        if: matrix.appimage
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}.AppImage
+          archive: false
+          if-no-files-found: error
+
+  # the Vulkan shader pack on its own, so the FreeBSD build (which has no slang compiler) starts at once instead of
+  # waiting for every native package to finish; the file is identical to the one the linux-x64 build makes
+  shader-pack:
+    name: shader-pack
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-complete-v2-linux-x64-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          restore-keys: cpm-complete-v2-linux-x64-
+      - name: Install Linux packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
+            libxtst-dev libxrender-dev libwayland-dev wayland-protocols libxkbcommon-dev libasound2-dev \
+            libpulse-dev libudev-dev libdbus-1-dev
+      - name: Build shaders only
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target perlin_shader_pack --parallel
+      - name: Upload shader pack
+        uses: actions/upload-artifact@v7
+        with:
+          name: shader-pack-vulkan
+          path: build/shaders/perlin_shaders.pack
+          if-no-files-found: error
+
+  # Windows on ARM (Snapdragon X and friends), cross-compiled on the x64 runner: its compilers, vcpkg and the
+  # x64 shader compilers are all there; the arm64 binary cannot run on it, so there are no tests here
+  windows-arm64:
+    name: windows-arm64
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-windows-arm64-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+      - name: Cache OpenSSL (arm64)
+        id: openssl-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/openssl-arm64
+          key: openssl-static-arm64-v1-${{ env.OPENSSL_VERSION }}
+      - name: Install OpenSSL (arm64)
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:arm64-windows-static --x-install-root="$env:GITHUB_WORKSPACE/openssl-arm64"
+      - name: Set up MSVC environment (x64 host, arm64 target)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: windows-arm64
+          max-size: 500M
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64
+          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link
+          -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static"
+          -DPERLIN_WINDOWS_FFMPEG=OFF
+          ${{ env.PERLIN_UPDATE_FLAGS }}
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Package
+        shell: bash
+        run: |
+          cmake --install build --config Release --prefix dist
+          rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
+          find dist \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.a' \) -delete
+          find dist -type d -empty -delete
+          # an arm64 image (IMAGE_FILE_MACHINE_ARM64 = 0xaa64 at the PE header)
+          python - <<'PY'
+          import struct, glob
+          exe = glob.glob("dist/*.exe")[0]
+          data = open(exe, "rb").read(4096)
+          pe = struct.unpack_from("<I", data, 0x3C)[0]
+          machine = struct.unpack_from("<H", data, pe + 4)[0]
+          print(exe, hex(machine))
+          assert machine == 0xAA64, "not an arm64 executable"
+          PY
+          mkdir -p pkg
+          (cd dist && 7z a -tzip -bso0 ../pkg/Perlin-windows-arm64.zip .)
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-windows-arm64.zip
+          archive: false
+          if-no-files-found: error
+
+  # FreeBSD (x64) in a VM. Slang publishes no FreeBSD compiler, so the Vulkan shader pack comes from the linux-x64
+  # build (the same backends, the same file)
+  freebsd:
+    name: freebsd-x64
+    needs: shader-pack
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v8
+        with:
+          name: shader-pack-vulkan
+          path: prebuilt
+      - name: Build in FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.3"
+          mem: 12288
+          envs: "PERLIN_UPDATE_FLAGS"
+          usesh: true
+          prepare: |
+            pkg install -y cmake ninja git python3 pkgconf perl5 bash \
+              libX11 libXext libXrandr libXcursor libXi libXfixes libXrender libXScrnSaver libXtst \
+              libxkbcommon wayland wayland-protocols libdrm mesa-libs vulkan-loader evdev-proto \
+              pulseaudio alsa-lib libinotify dbus zip
+          run: |
+            set -e
+            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+              -DPERLIN_SHADER_PACK_PREBUILT="$PWD/prebuilt/perlin_shaders.pack" $PERLIN_UPDATE_FLAGS
+            cmake --build build --parallel
+            ctest --test-dir build --output-on-failure || echo "::warning::some tests failed on FreeBSD"
+            cmake --install build --prefix dist
+            rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
+            find dist -name '*.a' -delete
+            mkdir -p pkg
+            (cd dist && zip -qry ../pkg/Perlin-freebsd-x64.zip .)
+            ls -l pkg
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-freebsd-x64.zip
+          archive: false
+          if-no-files-found: error
+
+  # a Flatpak bundle for sideloading (flatpak install Perlin.flatpak); not on Flathub yet, because Flathub builds
+  # without network access and this build fetches its pinned dependencies
+  flatpak:
+    name: flatpak-x64
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: Perlin.flatpak
+          manifest-path: packaging/flatpak/io.perlin.client.yml
+          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          upload-artifact: false
+      - uses: actions/upload-artifact@v7
+        with:
+          path: Perlin.flatpak
+          archive: false
+          if-no-files-found: error
+
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    env:
+      CCACHE_COMPILERCHECK: string:emsdk-4.0.10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-web-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-cache
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build python3 perl ccache
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: web
+          max-size: 600M
+      - name: Cache OpenSSL for wasm
+        id: openssl-cache
+        uses: actions/cache@v4
+        with:
+          path: ossl-wasm
+          key: openssl-wasm-${{ env.OPENSSL_VERSION }}-${{ env.EMSDK_VERSION }}
+      - name: Build OpenSSL for wasm
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b "$OPENSSL_VERSION" https://github.com/openssl/openssl openssl-src
+          cd openssl-src
+          CC=emcc CXX=em++ AR=emar RANLIB=emranlib ./Configure linux-generic32 no-asm no-threads no-shared no-sock no-dso no-engine no-afalgeng no-ui-console no-tests no-stdio -pthread -fwasm-exceptions --prefix="$GITHUB_WORKSPACE/ossl-wasm" --openssldir="$GITHUB_WORKSPACE/ossl-wasm/ssl" -static
+          make -j"$(nproc)" build_libs
+          make install_dev
+      - name: Configure
+        run: |
+          emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-wasm" \
+            -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-wasm/include" \
+            -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-wasm/lib/libcrypto.a" \
+            -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-wasm/lib/libssl.a" \
+            ${{ env.PERLIN_UPDATE_FLAGS }}
+      - name: Build
+        run: cmake --build build-web
+      - name: Check build output
+        run: |
+          test -s build-web/index.wasm && test -s build-web/index.js && test -s build-web/index.html
+          ! grep -q 'id="launcher"' build-web/index.html
+          grep -q 'perlin-loader.js' build-web/index.html
+      - name: Generate asset manifest
+        run: |
+          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
+          python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out build-web/assets-manifest.json
+      - name: Assemble site
+        run: |
+          mkdir site
+          cp build-web/index.html build-web/index.js build-web/index.wasm site/
+          cp build-web/*.worker.js site/ 2>/dev/null || true
+          cp build-web/*.data site/ 2>/dev/null || true
+          cp build-web/perlin-*.js build-web/coi-sw.js build-web/perlin.css build-web/assets-manifest.json site/
+          cp tools/web/serve.py tools/web/HOSTING.txt site/
+          cp -r tools/web/auth-relay site/
+          # the running page compares this with the commit it was built from and offers a reload when they differ
+          printf '{"commit":"%s","run":%s}\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" > site/version.json
+          # Microsoft sign-in in the browser goes through the relay in tools/web/auth-relay (repository variable)
+          if [ -n "${{ vars.WEB_AUTH_RELAY }}" ]; then
+            printf '{"authRelay":"%s"}\n' "${{ vars.WEB_AUTH_RELAY }}" > site/perlin-config.json
+          fi
+      # the artifact is zipped by the action itself; the release job makes Perlin-web.zip from it
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Perlin-web
+          path: site/
+          if-no-files-found: error
+
+  android:
+    name: android
+    runs-on: ubuntu-24.04
+    env:
+      CCACHE_COMPILERCHECK: string:ndk-27.2.12479018
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-android-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle*
+            android/gradle/wrapper/gradle-wrapper.properties
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: android
+          max-size: 800M
+      - name: Cache Android NDK and CMake
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
+            /usr/local/lib/android/sdk/cmake/${{ env.CMAKE_VERSION }}
+          key: android-sdk-${{ env.NDK_VERSION }}-${{ env.CMAKE_VERSION }}
+      - name: Install SDK components
+        run: |
+          SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -n1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          packages=("platforms;android-35" "build-tools;35.0.0")
+          [ -d "$ANDROID_HOME/ndk/$NDK_VERSION" ] || packages+=("ndk;${NDK_VERSION}")
+          [ -d "$ANDROID_HOME/cmake/$CMAKE_VERSION" ] || packages+=("cmake;${CMAKE_VERSION}")
+          "$SDKMANAGER" "${packages[@]}"
+      - name: Fetch SDL
+        run: git clone --depth 1 -b "$SDL_REF" https://github.com/libsdl-org/SDL android/sdl
+      - name: Cache OpenSSL for Android
+        id: openssl-cache
+        uses: actions/cache@v4
+        with:
+          path: ossl-android
+          key: openssl-android-${{ env.OPENSSL_VERSION }}-${{ env.NDK_VERSION }}-arm64-v3
+      - name: Build OpenSSL for Android
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
+        run: |
+          export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+          git clone --depth 1 -b "$OPENSSL_VERSION" https://github.com/openssl/openssl openssl-src
+          for pair in arm64-v8a:android-arm64; do
+            abi="${pair%%:*}"
+            target="${pair##*:}"
+            rm -rf "openssl-build-$abi"
+            mkdir "openssl-build-$abi"
+            (cd "openssl-build-$abi" && ../openssl-src/Configure "$target" -D__ANDROID_API__=26 no-shared no-tests no-ui-console no-engine no-dso --prefix="$GITHUB_WORKSPACE/ossl-android/$abi" --openssldir="$GITHUB_WORKSPACE/ossl-android/$abi/ssl" && make -j"$(nproc)" build_libs && make install_dev)
+          done
+      - name: Generate asset manifest
+        run: |
+          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
+          mkdir -p android/app/src/main/assets
+          python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out android/app/src/main/assets/assets-manifest.json
+      # every nightly apk must carry the same signature or Android refuses it as an update: set the
+      # ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD secrets
+      # (without them each build is signed with that runner's throwaway debug key)
+      - name: Signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/perlin.jks"
+            {
+              echo "PERLIN_KEYSTORE=$RUNNER_TEMP/perlin.jks"
+              echo "PERLIN_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+              echo "PERLIN_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+              echo "PERLIN_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning::no ANDROID_KEYSTORE_BASE64 secret: this apk cannot update an install from another run"
+          fi
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease \
+            -PsdlDir="$GITHUB_WORKSPACE/android/sdl" \
+            -PopensslBase="$GITHUB_WORKSPACE/ossl-android" \
+            -Pccache=true \
+            -PndkVersion="$NDK_VERSION" \
+            -PcmakeVersion="$CMAKE_VERSION" \
+            -Pabis="arm64-v8a" \
+            --build-cache \
+            -PappVersionCode="$GITHUB_RUN_NUMBER" \
+            -PappVersionName="1.0.$GITHUB_RUN_NUMBER" \
+            ${{ github.ref == 'refs/heads/main' && format('-PbuildCommit={0} -PupdateRepo={1}', github.sha, github.repository) || '' }}
+      - name: Check APK contents
+        run: |
+          apk=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
+          unzip -l "$apk" | grep -q 'lib/arm64-v8a/libmain.so'
+          unzip -l "$apk" | grep -q 'lib/arm64-v8a/libSDL3.so'
+          unzip -l "$apk" | grep -q 'assets-manifest.json'
+      - name: Collect APK
+        run: |
+          mkdir dist
+          cp android/app/build/outputs/apk/release/*.apk dist/Perlin.apk
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/Perlin.apk
+          archive: false
+          if-no-files-found: error
+
+  ios:
+    name: ios
+    runs-on: macos-15
+    env:
+      IOS_DEPLOYMENT_TARGET: "15.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-ios-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.4"
+      - name: Install tools
+        run: |
+          brew install ninja
+          brew uninstall --ignore-dependencies fmt || true
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ios
+          max-size: 600M
+      - name: Cache OpenSSL for iOS
+        id: openssl-cache
+        uses: actions/cache@v4
+        with:
+          path: ossl-ios
+          key: openssl-ios-${{ env.OPENSSL_VERSION }}-${{ env.IOS_DEPLOYMENT_TARGET }}-arm64-v1
+      - name: Build OpenSSL for iOS
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b "$OPENSSL_VERSION" https://github.com/openssl/openssl openssl-src
+          cd openssl-src
+          ./Configure ios64-xcrun no-shared no-tests no-ui-console no-engine no-dso "-mios-version-min=$IOS_DEPLOYMENT_TARGET" \
+            --prefix="$GITHUB_WORKSPACE/ossl-ios" --openssldir="$GITHUB_WORKSPACE/ossl-ios/ssl"
+          make -j"$(sysctl -n hw.ncpu)" build_libs
+          make install_dev
+      - name: Generate asset manifest
+        run: |
+          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
+          python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out assets-manifest.json
+      - name: Configure
+        run: >
+          cmake -B build-ios -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }}
+          -DPERLIN_IOS_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }}
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON
+          -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-ios"
+          -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-ios/include"
+          -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libcrypto.a"
+          -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libssl.a"
+          -DPERLIN_ASSET_MANIFEST="$GITHUB_WORKSPACE/assets-manifest.json"
+          ${{ env.PERLIN_UPDATE_FLAGS }}
+      - name: Build
+        run: cmake --build build-ios --target Perlin --parallel
+      - name: Check app bundle
+        run: |
+          app=build-ios/Perlin.app
+          test -x "$app/Perlin"
+          plutil -lint "$app/Info.plist"
+          test -s "$app/cacert.pem"
+          test -s "$app/assets-manifest.json"
+          test -s "$app/AppIcon60x60@2x.png"
+          otool -l "$app/Perlin" | grep -A4 LC_BUILD_VERSION | grep -q 'platform 2'
+          otool -L "$app/Perlin"
+          if otool -L "$app/Perlin" | tail -n +2 | grep -Ev '^\s+(/usr/lib/|/System/Library/)'; then echo "::error::links a non-system dylib"; exit 1; fi
+      - name: Package IPA
+        # ad-hoc signed only: sideload with AltStore / Sideloadly (they re-sign with your Apple ID) or install with TrollStore
+        run: |
+          mkdir -p Payload dist
+          cp -R build-ios/Perlin.app Payload/
+          codesign --force --sign - --timestamp=none Payload/Perlin.app
+          zip -qry dist/Perlin.ipa Payload
+          du -h dist/Perlin.ipa
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/Perlin.ipa
+          archive: false
+          if-no-files-found: error
+
+  # the web build on GitHub Pages, redeployed by every nightly: the site is always the newest build and the page
+  # offers a reload when it notices it. Off until Pages is set up: Settings > Pages > Source: GitHub Actions, then
+  # Settings > Secrets and variables > Actions > Variables: DEPLOY_PAGES = true
+  pages:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
+    needs: web
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: Perlin-web
+          path: site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  release:
+    if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+    needs: [native, windows-arm64, freebsd, flatpak, web, android, ios]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        if: github.ref == 'refs/heads/main'
+
+      # finished packages (Perlin-<platform>.zip, Perlin.apk, Perlin.ipa: names with a dot) are kept exactly as
+      # uploaded; the web site and debug symbols arrive as folders and are zipped once here
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "Perlin*.*"
+          path: packages
+          skip-decompress: true
+      - name: Download web build
+        uses: actions/download-artifact@v8
+        with:
+          name: Perlin-web
+          path: folders/Perlin-web
+      - name: Download debug symbols
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*-symbols"
+          path: folders
+
+      - name: Archive
+        run: |
+          mkdir release
+          find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' -o -name '*.AppImage' -o -name '*.flatpak' \) -exec cp {} release/ \;
+          for dir in folders/*/; do
+            name=$(basename "$dir")
+            (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)
+          done
+          ls -l release
+          # a package that is itself a zip of a single zip means an artifact got wrapped again: fail loudly
+          for z in release/Perlin-*.zip; do
+            if [ "$(unzip -Z1 "$z" | grep -vc '/$')" = 1 ] && unzip -Z1 "$z" | grep -q '\.zip$'; then
+              echo "::error::$z only holds another zip"; exit 1
+            fi
+          done
+
+      # AltStore / SideStore source: add
+      # https://github.com/<owner>/<repo>/releases/download/nightly/altstore-source.json and iOS updates itself
+      - name: iOS app source
+        if: github.ref == 'refs/heads/main'
+        run: |
+          [ -f release/Perlin.ipa ] || exit 0
+          size=$(stat -c %s release/Perlin.ipa)
+          python3 - "$size" <<'PY'
+          import json, sys, datetime, os
+          repo = os.environ["GITHUB_REPOSITORY"]
+          version = "1.0." + os.environ["GITHUB_RUN_NUMBER"]
+          source = {
+              "name": "Perlin nightly",
+              "identifier": "io.perlin.client.source",
+              "sourceURL": f"https://github.com/{repo}/releases/download/nightly/altstore-source.json",
+              "apps": [{
+                  "name": "Perlin",
+                  "bundleIdentifier": "io.perlin.client",
+                  "developerName": repo.split("/")[0],
+                  "localizedDescription": "Nightly build of Perlin.",
+                  "iconURL": f"https://raw.githubusercontent.com/{repo}/main/packaging/icon/perlin.png",
+                  "versions": [{
+                      "version": version,
+                      "date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      "downloadURL": f"https://github.com/{repo}/releases/download/nightly/Perlin.ipa",
+                      "size": int(sys.argv[1]),
+                      "minOSVersion": "15.0",
+                  }],
+              }],
+              "news": [],
+          }
+          open("release/altstore-source.json", "w").write(json.dumps(source, indent=2))
+          PY
+
+      - name: Move the nightly tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git tag -f nightly "$GITHUB_SHA"
+          git push -f origin refs/tags/nightly
+
+      - uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: nightly
+          name: Nightly build
+          prerelease: true
+          files: release/*
+          body: "Automatic build of the latest commit on main (${{ github.sha }})."
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: release/*
+          generate_release_notes: true

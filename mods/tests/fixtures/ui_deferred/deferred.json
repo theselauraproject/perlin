@@ -1,0 +1,29 @@
+{
+  "namespace": "regression",
+  "deferred_screen": {
+    "type": "label",
+    "text": "#text",
+    "bindings": [
+      {
+        "binding_type": "view",
+        "source_control_name": "source",
+        "source_property_name": "#value",
+        "target_property_name": "#text"
+      }
+    ],
+    "controls": [
+      {
+        "source": {
+          "type": "panel",
+          "property_bag": {
+            "#value": "deferred-label-correct"
+          }
+        }
+      }
+    ]
+  },
+  "base": {
+    "type": "panel"
+  },
+  "inherited_screen@regression.base": {}
+}

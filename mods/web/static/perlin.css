@@ -1,0 +1,11 @@
+:root { color-scheme: dark; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; color: #ddd; }
+canvas#canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
+/* Only a loading strip while the engine and Mojang's data come in; the game draws its own start screen. */
+#boot { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 0 0 max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; background: linear-gradient(transparent, rgba(0, 0, 0, 0.85)); pointer-events: none; }
+#boot[hidden] { display: none; }
+#progress { width: min(420px, 80%); height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+#progress[hidden] { display: none; }
+#bar { height: 100%; width: 0; background: #5cb85c; transition: width 0.15s; }
+#status { margin: 8px 16px 0; min-height: 1.3em; max-width: 520px; text-align: center; color: #ccc; font-size: 13px; white-space: pre-wrap; }
+#status.error { color: #f88; }

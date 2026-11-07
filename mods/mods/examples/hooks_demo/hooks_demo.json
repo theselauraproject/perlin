@@ -1,0 +1,8 @@
+{
+  "name": "Hooks Demo",
+  "description": "Shows the client hooks: HUD, F3, fog, entities, world meshes, screen buttons, tooltips and more.",
+  "version": "1.0.0",
+  "author": "Perlin",
+  "priority": 10,
+  "permissions": ["control", "network"]
+}

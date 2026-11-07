@@ -1,0 +1,481 @@
+{
+  "name": "WAILA",
+  "description": "What Am I Looking At: a tooltip for the block or entity under your crosshair, styled after Jade.",
+  "version": "1.0.0",
+  "author": "Perlin",
+  "permissions": [],
+  "settings": [
+    {
+      "type": "header",
+      "label": "General"
+    },
+    {
+      "id": "display_tooltip",
+      "type": "toggle",
+      "label": "Display tooltip",
+      "default": true,
+      "description": "Master switch. Also bound to F8.",
+      "icon": {
+        "item": "minecraft:spyglass"
+      }
+    },
+    {
+      "id": "show_when",
+      "type": "choice",
+      "label": "Show when",
+      "default": "Always",
+      "choices": [
+        {
+          "value": "Always",
+          "label": "Always"
+        },
+        {
+          "value": "WhileSneaking",
+          "label": "While sneaking"
+        }
+      ],
+      "icon": {
+        "item": "minecraft:leather_boots"
+      }
+    },
+    {
+      "id": "show_blocks",
+      "type": "toggle",
+      "label": "Display blocks",
+      "default": true
+    },
+    {
+      "id": "show_entities",
+      "type": "toggle",
+      "label": "Display entities",
+      "default": true
+    },
+    {
+      "id": "show_fluids",
+      "type": "toggle",
+      "label": "Display fluids",
+      "default": false,
+      "description": "Look through water and lava at what is underneath, or at the fluid itself.",
+      "icon": {
+        "item": "minecraft:water_bucket"
+      }
+    },
+    {
+      "type": "header",
+      "label": "Appearance"
+    },
+    {
+      "id": "theme",
+      "type": "choice",
+      "label": "Theme",
+      "default": "Dark",
+      "choices": [
+        {
+          "value": "Dark",
+          "label": "Dark"
+        },
+        {
+          "value": "Waila",
+          "label": "Waila"
+        },
+        {
+          "value": "Create",
+          "label": "Create"
+        }
+      ],
+      "description": "The tooltip frame.",
+      "icon": {
+        "item": "minecraft:painting"
+      }
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "label": "Display scale",
+      "default": 1.0,
+      "min": 0.5,
+      "max": 2.0,
+      "step": 0.05,
+      "description": "Size of the whole tooltip."
+    },
+    {
+      "id": "opacity",
+      "type": "number",
+      "label": "Background opacity",
+      "default": 0.9,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05
+    },
+    {
+      "id": "anchor_x",
+      "type": "number",
+      "label": "Horizontal position",
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "description": "0 is the left edge, 1 the right edge."
+    },
+    {
+      "id": "anchor_y",
+      "type": "number",
+      "label": "Vertical position",
+      "default": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01,
+      "description": "0 is the top edge, 1 the bottom edge."
+    },
+    {
+      "id": "show_icon",
+      "type": "toggle",
+      "label": "Show icon",
+      "default": true,
+      "description": "The block or item picture at the left.",
+      "icon": {
+        "item": "minecraft:item_frame"
+      }
+    },
+    {
+      "id": "animation",
+      "type": "toggle",
+      "label": "Fade in and out",
+      "default": true
+    },
+    {
+      "id": "reset_position",
+      "type": "button",
+      "label": "Reset position",
+      "icon": {
+        "item": "minecraft:compass"
+      }
+    },
+    {
+      "type": "header",
+      "label": "Core features"
+    },
+    {
+      "id": "mod_name",
+      "type": "toggle",
+      "label": "Mod name",
+      "default": true,
+      "description": "Where the thing comes from, under its name.",
+      "icon": {
+        "item": "minecraft:book"
+      }
+    },
+    {
+      "id": "registry_name",
+      "type": "toggle",
+      "label": "Registry name",
+      "default": false,
+      "description": "The identifier, like minecraft:stone.",
+      "icon": {
+        "item": "minecraft:name_tag"
+      }
+    },
+    {
+      "id": "coordinates",
+      "type": "toggle",
+      "label": "Coordinates",
+      "default": false,
+      "description": "Where the target is.",
+      "icon": {
+        "item": "minecraft:map"
+      }
+    },
+    {
+      "id": "distance",
+      "type": "toggle",
+      "label": "Distance",
+      "default": false,
+      "description": "How far away the target is.",
+      "icon": {
+        "item": "minecraft:arrow"
+      }
+    },
+    {
+      "id": "block_face",
+      "type": "toggle",
+      "label": "Block face",
+      "default": false,
+      "description": "Which face of the block you are looking at.",
+      "icon": {
+        "item": "minecraft:observer"
+      }
+    },
+    {
+      "id": "block_states",
+      "type": "toggle",
+      "label": "Block states",
+      "default": false,
+      "description": "Every state of the block, like growth or facing.",
+      "icon": {
+        "item": "minecraft:structure_block"
+      }
+    },
+    {
+      "id": "debug_data",
+      "type": "toggle",
+      "label": "Debug data",
+      "default": false,
+      "description": "Every attribute and property the game reports for an entity, and a block's entity data.",
+      "icon": {
+        "item": "minecraft:command_block"
+      }
+    },
+    {
+      "type": "header",
+      "label": "Blocks"
+    },
+    {
+      "id": "harvest_tool",
+      "type": "toggle",
+      "label": "Harvest tool",
+      "default": true,
+      "description": "The tool that mines the block, with a check mark when the item in your hand does.",
+      "icon": {
+        "item": "minecraft:iron_pickaxe"
+      }
+    },
+    {
+      "id": "harvest_new_line",
+      "type": "toggle",
+      "label": "Harvest tool on its own line",
+      "default": false
+    },
+    {
+      "id": "harvest_effective_tool",
+      "type": "toggle",
+      "label": "Show effective tool",
+      "default": true,
+      "description": "Show the right tool even when any tool can break the block."
+    },
+    {
+      "id": "harvest_show_unbreakable",
+      "type": "toggle",
+      "label": "Show Unbreakable",
+      "default": true
+    },
+    {
+      "id": "harvest_creative",
+      "type": "toggle",
+      "label": "Show in creative mode",
+      "default": false
+    },
+    {
+      "id": "breaking_progress",
+      "type": "toggle",
+      "label": "Breaking progress",
+      "default": true,
+      "description": "A bar along the bottom while you mine.",
+      "icon": {
+        "item": "minecraft:diamond_pickaxe"
+      }
+    },
+    {
+      "id": "crop_progress",
+      "type": "toggle",
+      "label": "Crop growth",
+      "default": true,
+      "icon": {
+        "item": "minecraft:wheat"
+      }
+    },
+    {
+      "id": "redstone",
+      "type": "toggle",
+      "label": "Redstone",
+      "default": true,
+      "description": "Signal strength, repeater delay, comparator mode.",
+      "icon": {
+        "item": "minecraft:redstone"
+      }
+    },
+    {
+      "id": "block_details",
+      "type": "toggle",
+      "label": "Block details",
+      "default": true,
+      "description": "Honey, composter and cauldron levels, anchor charge, moisture and the like.",
+      "icon": {
+        "item": "minecraft:composter"
+      }
+    },
+    {
+      "id": "note_block",
+      "type": "toggle",
+      "label": "Note block",
+      "default": true,
+      "icon": {
+        "item": "minecraft:note_block"
+      }
+    },
+    {
+      "id": "spawner",
+      "type": "toggle",
+      "label": "Mob spawner",
+      "default": true,
+      "icon": {
+        "item": "minecraft:spawner"
+      }
+    },
+    {
+      "id": "jukebox",
+      "type": "toggle",
+      "label": "Jukebox record",
+      "default": true,
+      "icon": {
+        "item": "minecraft:jukebox"
+      }
+    },
+    {
+      "id": "sign_text",
+      "type": "toggle",
+      "label": "Sign text",
+      "default": false,
+      "icon": {
+        "item": "minecraft:oak_sign"
+      }
+    },
+    {
+      "id": "waxed",
+      "type": "toggle",
+      "label": "Waxed state",
+      "default": true
+    },
+    {
+      "id": "item_storage",
+      "type": "toggle",
+      "label": "Item storage",
+      "default": true,
+      "description": "What a chest or furnace holds, when the server has told your game.",
+      "icon": {
+        "item": "minecraft:chest"
+      }
+    },
+    {
+      "id": "storage_normal",
+      "type": "integer",
+      "label": "Items shown",
+      "default": 9,
+      "min": 1,
+      "max": 54,
+      "description": "How many items to list."
+    },
+    {
+      "id": "storage_detailed",
+      "type": "integer",
+      "label": "Items shown with Shift held",
+      "default": 27,
+      "min": 1,
+      "max": 54
+    },
+    {
+      "type": "header",
+      "label": "Entities"
+    },
+    {
+      "id": "entity_health",
+      "type": "toggle",
+      "label": "Health",
+      "default": true,
+      "icon": {
+        "item": "minecraft:golden_apple"
+      }
+    },
+    {
+      "id": "health_style",
+      "type": "choice",
+      "label": "Health style",
+      "default": "Hearts",
+      "choices": [
+        {
+          "value": "Hearts",
+          "label": "Hearts"
+        },
+        {
+          "value": "Number",
+          "label": "Number"
+        },
+        {
+          "value": "Both",
+          "label": "Both"
+        }
+      ]
+    },
+    {
+      "id": "health_max_hearts",
+      "type": "integer",
+      "label": "Hearts before switching to numbers",
+      "default": 20,
+      "min": 1,
+      "max": 100,
+      "description": "Entities with more health than this show a number instead."
+    },
+    {
+      "id": "hearts_per_line",
+      "type": "integer",
+      "label": "Hearts per line",
+      "default": 10,
+      "min": 5,
+      "max": 20
+    },
+    {
+      "id": "entity_armor",
+      "type": "toggle",
+      "label": "Armor",
+      "default": true,
+      "icon": {
+        "item": "minecraft:iron_chestplate"
+      }
+    },
+    {
+      "id": "entity_owner",
+      "type": "toggle",
+      "label": "Owner",
+      "default": true,
+      "description": "Who tamed a pet.",
+      "icon": {
+        "item": "minecraft:bone"
+      }
+    },
+    {
+      "id": "entity_state",
+      "type": "toggle",
+      "label": "Mob state",
+      "default": true,
+      "description": "Baby, sheared, saddled, angry, charged, sitting and the like.",
+      "icon": {
+        "item": "minecraft:lead"
+      }
+    },
+    {
+      "id": "horse_stats",
+      "type": "toggle",
+      "label": "Horse stats",
+      "default": true,
+      "description": "Speed and jump height.",
+      "icon": {
+        "item": "minecraft:saddle"
+      }
+    },
+    {
+      "id": "entity_items",
+      "type": "toggle",
+      "label": "Held items",
+      "default": false,
+      "description": "What a mob or player holds.",
+      "icon": {
+        "item": "minecraft:iron_sword"
+      }
+    },
+    {
+      "id": "item_entities",
+      "type": "toggle",
+      "label": "Dropped items",
+      "default": true
+    }
+  ]
+}
