@@ -217,6 +217,12 @@ namespace perlin {
                     c.heldItem = held.Empty() ? std::string() : held.name;
                     c.onGround = player.State().onGround;
                     c.inWater = hudState.inWater;
+                    for (const auto& fx : live->GetEffects()) {
+                        if (fx.id == 3 || fx.id == 26)
+                            c.haste = std::max(c.haste, fx.amplifier + 1);
+                        else if (fx.id == 4)
+                            c.miningFatigue = fx.amplifier + 1;
+                    }
                     step = destroy::ProgressPerTick(destroy::Lookup(blockName), c);
                 }
                 if (!live->ServerAuthoritativeBlockBreaking() && !creative)

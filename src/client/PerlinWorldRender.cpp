@@ -853,6 +853,23 @@ namespace perlin {
         lightmap.ambientColor = env.ambientColor;
         lightmap.blockLightTint = env.blockLightTint;
         lightmap.nightVisionColor = env.nightVisionColor;
+        // light texture tick 0x1453E5F40: night vision or conduit power, the longer one wins (-1 = infinite);
+        // flickers sin((ticks - 1) * pi / 5) over its last 200 ticks
+        if (sessionReady && session) {
+            bool active = false;
+            int ticks = 0;
+            for (const auto& fx : session->GetEffects())
+                if (fx.id == 16 || fx.id == 26) {
+                    if (!active || fx.ticks == -1 || (ticks != -1 && fx.ticks > ticks))
+                        ticks = fx.ticks;
+                    active = true;
+                }
+            if (active)
+                lightmap.nightVisionFactor =
+                    ticks == -1 || ticks > 200
+                        ? 1.0f
+                        : std::sin(static_cast<float>(ticks - 1) * 3.1415927f * 0.2f) * 0.3f + 0.7f;
+        }
         lightmap.brightness = options.gamma;
         BuildLightmap(lightmap, params.lightmap);
     }
