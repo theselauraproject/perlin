@@ -257,12 +257,6 @@ namespace perlin {
         return false;
     }
 
-    bool HandRenderer::IsThrowable(const std::string& full) {
-        const std::string n = full.starts_with("minecraft:") ? full.substr(10) : full;
-        return n == "experience_bottle" || n == "splash_potion" || n == "lingering_potion" ||
-               n == "snowball" || n == "egg" || n == "ender_pearl";
-    }
-
     void HandRenderer::Tick(const TickIn& in, const HandSettings& s) {
         armSwing.Tick(s.swingSpeed == 1.0f ? in.swingTicks
                                            : static_cast<int>(std::lround(static_cast<float>(in.swingTicks) /
@@ -1119,11 +1113,6 @@ namespace perlin {
                 const float f3 = 1.0f - std::pow(f0, 27.0f);
                 m = m * T(side * f3 * 0.6f, f3 * -0.5f, 0.0f) * Ry(side * f3 * 90.0f) * Rx(f3 * 10.0f) *
                     Rz(side * f3 * 30.0f);
-            } else if (IsThrowable(item.name) && swing > 0.0f) {
-                const float lift = std::sin(std::min(swing * 1.4f, 1.0f) * kPi * 0.5f);
-                const float snap = std::sin(swing * kPi);
-                m = m * T(side * -0.15f * lift, 0.35f * lift, -0.25f * lift) *
-                    Rx(-38.0f * lift + 42.0f * snap);
             } else {
                 m = m * T(side * (-0.4f * std::sin(sq * kPi)), 0.2f * std::sin(sq * kPi * 2.0f),
                           -0.2f * std::sin(swing * kPi));

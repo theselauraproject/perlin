@@ -278,6 +278,11 @@ div { display: block; position: absolute; }
         auto it = trees.end();
         if (const std::string marker = TitleMarker(view.title); !marker.empty())
             it = trees.find("small_chest_screen" + marker);
+        // a pack that builds its chest from a marker sized the panel for the row count: a title without one
+        // would land on the six row layout with the grid only partly filled (a gap above the inventory)
+        if (it == trees.end() && view.chestRows >= 1 && view.chestRows <= 6 &&
+            (screen == "small_chest_screen" || screen == "large_chest_screen"))
+            it = trees.find("small_chest_screen@@@" + std::to_string(view.chestRows));
         if (it == trees.end())
             it = trees.find(screen);
         if (it == trees.end())

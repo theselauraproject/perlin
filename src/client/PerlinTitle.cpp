@@ -1373,7 +1373,10 @@ namespace perlin {
                 levelRenderer ? levelRenderer->MeshedChunks() -
                                     std::min(levelRenderer->MeshedChunks(), levelRenderer->MeshesInFlight())
                               : 0;
-            const bool enough = freshChunks >= 9 && assets && placed && meshed >= 9;
+            // no mesh may still be in flight: one started before its custom blocks had textures would come out with
+            // them invisible. the gate must then hold steady for a moment, so a block seen late re-arms it
+            const bool enough = freshChunks >= 9 && assets && placed && meshed >= 9 && levelRenderer &&
+                                levelRenderer->MeshesInFlight() == 0;
             if (enough) {
                 if (!loading.readyArmed) {
                     loading.readyArmed = true;
@@ -1388,7 +1391,7 @@ namespace perlin {
             const bool settled = assets && placed && freshChunks > 0 && levelRenderer &&
                                  levelRenderer->PendingMeshes() == 0 &&
                                  levelRenderer->MeshesInFlight() == 0 && waited > std::chrono::seconds(8);
-            if (loading.readyArmed || settled) {
+            if ((loading.readyArmed && now - loading.readyAt >= std::chrono::milliseconds(600)) || settled) {
                 loading.done = true;
                 show = false;
             } else if (!assets) {

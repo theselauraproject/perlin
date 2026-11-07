@@ -866,14 +866,6 @@ namespace perlin {
         mutable std::mutex propertyMutex;
         std::unordered_map<std::string, std::vector<PropertyDef>> propertySchemas;
         CameraEffects cameraEffects;
-        struct CameraPreset {
-            std::string name, parent;
-            std::optional<glm::vec3> position;
-            std::optional<glm::vec2> rotation;
-            std::optional<glm::vec2> offset;
-            std::optional<glm::vec3> entityOffset;
-        };
-        std::vector<CameraPreset> cameraPresets;
         mutable std::mutex worldExtraMutex;
         std::deque<SignEditRequest> signRequests;
         std::map<uint32_t, SignEditRequest> signForms;

@@ -177,6 +177,50 @@ namespace perlin {
                 entities.SetProperty(rid, defs[f.index].name, f.value);
     }
 
+    namespace {
+        int EaseIndex(const std::string& name) {
+            static const char* const kEases[] = {
+                "linear",      "spring",       "in_quad",     "out_quad",    "in_out_quad",   "in_cubic",
+                "out_cubic",   "in_out_cubic", "in_quart",    "out_quart",   "in_out_quart",  "in_quint",
+                "out_quint",   "in_out_quint", "in_sine",     "out_sine",    "in_out_sine",   "in_expo",
+                "out_expo",    "in_out_expo",  "in_circ",     "out_circ",    "in_out_circ",   "in_bounce",
+                "out_bounce",  "in_out_bounce", "in_back",    "out_back",    "in_out_back",   "in_elastic",
+                "out_elastic", "in_out_elastic", "inverse_lerp"};
+            for (int i = 0; i < static_cast<int>(sizeof(kEases) / sizeof(kEases[0])); i++)
+                if (name == kEases[i])
+                    return i;
+            return 0;
+        }
+
+        template <class Points, class Progress, class Rotation>
+        CameraSpline SplineFrom(const std::string& name, float total, const std::string& type, const Points& curve,
+                                const Progress& progress, const Rotation& rotation) {
+            CameraSpline sp;
+            sp.name = name;
+            sp.type = type;
+            sp.totalTime = total;
+            for (const auto& c : curve)
+                sp.curve.emplace_back(c.x, c.y, c.z);
+            for (const auto& k : progress) {
+                CameraSpline::Progress q;
+                q.value = k.value;
+                q.time = k.time;
+                if (k.hasEaseType && k.easeType)
+                    q.ease = EaseIndex(*k.easeType);
+                sp.progress.push_back(q);
+            }
+            for (const auto& k : rotation) {
+                CameraSpline::Rotation q;
+                q.value = {k.value.x, k.value.y, k.value.z};
+                q.time = k.time;
+                if (k.hasEaseType && k.easeType)
+                    q.ease = EaseIndex(*k.easeType);
+                sp.rotation.push_back(q);
+            }
+            return sp;
+        }
+    }
+
     void BedrockSession::RegisterWorldExtraHandlers() {
         On<SyncEntityPropertyPacket>(
             [this](const SyncEntityPropertyPacket& p) { ParsePropertySchema(p.nbt.bytes); });
@@ -305,8 +349,7 @@ namespace perlin {
         On<PlayerFogPacket>([this](const PlayerFogPacket& p) { cameraEffects.SetFog(p.stack); });
 
         On<CameraPresetsPacket>([this](const CameraPresetsPacket& p) {
-            std::lock_guard<std::mutex> lk(worldExtraMutex);
-            cameraPresets.clear();
+            std::vector<CameraPreset> list;
             for (const auto& c : p.presets) {
                 CameraPreset r;
                 r.name = c.name;
@@ -319,32 +362,56 @@ namespace perlin {
                     r.offset = glm::vec2(c.offset->x, c.offset->z);
                 if (c.entityOffset)
                     r.entityOffset = glm::vec3(c.entityOffset->x, c.entityOffset->y, c.entityOffset->z);
-                cameraPresets.push_back(std::move(r));
+                if (c.rotationSpeed)
+                    r.rotationSpeed = *c.rotationSpeed;
+                if (c.snapToTarget)
+                    r.snapToTarget = *c.snapToTarget;
+                if (c.continueTargeting)
+                    r.continueTargeting = *c.continueTargeting;
+                if (c.trackingRadius)
+                    r.trackingRadius = *c.trackingRadius;
+                if (c.radius)
+                    r.radius = *c.radius;
+                if (c.startingRotation)
+                    r.startingRotation = glm::vec2(c.startingRotation->x, c.startingRotation->z);
+                r.applyStartingRotation = c.applyInheritedStartingRotation;
+                if (c.controlScheme)
+                    r.controlScheme = static_cast<int>(*c.controlScheme);
+                if (c.audioListener)
+                    r.audioListener = *c.audioListener;
+                if (c.horizontalRotationLimit)
+                    r.horizontalLimit = glm::vec2(c.horizontalRotationLimit->x, c.horizontalRotationLimit->z);
+                if (c.verticalRotationLimit)
+                    r.verticalLimit = glm::vec2(c.verticalRotationLimit->x, c.verticalRotationLimit->z);
+                list.push_back(std::move(r));
             }
+            cameraEffects.SetPresets(std::move(list));
+        });
+
+        On<CameraSplinePacket>([this](const CameraSplinePacket& p) {
+            std::vector<CameraSpline> list;
+            for (const auto& d : p.splines)
+                list.push_back(SplineFrom(d.name, d.totalTime, d.splineType ? *d.splineType : std::string(),
+                                          d.controlPoints, d.progressKeyFrames, d.rotationKeyFrames));
+            cameraEffects.SetSplines(std::move(list));
         });
 
         On<CameraInstructionPacket>([this](const CameraInstructionPacket& p) {
             if (p.clear && *p.clear)
                 cameraEffects.Clear();
-            if (p.fade && p.fade->timeData) {
-                const auto& t = *p.fade->timeData;
+            if (p.fade && (p.fade->timeData || p.fade->colorRgb)) {
+                // defaults: 1 s in, 0.5 s held, 1 s out, black
+                float in = 1.0f, wait = 0.5f, out = 1.0f;
+                if (p.fade->timeData) {
+                    in = p.fade->timeData->fadeInDuration;
+                    wait = p.fade->timeData->waitDuration;
+                    out = p.fade->timeData->fadeOutDuration;
+                }
                 const Vec3F c = p.fade->colorRgb ? *p.fade->colorRgb : Vec3F{};
-                cameraEffects.Fade(t.fadeInDuration, t.waitDuration, t.fadeOutDuration, {c.x, c.y, c.z});
+                cameraEffects.Fade(in, wait, out, {c.x, c.y, c.z});
             }
-            if (p.fov) {
-                static const char* const kEases[] = {
-                    "linear",      "spring",         "in_quad",     "out_quad",  "in_out_quad",  "in_cubic",
-                    "out_cubic",   "in_out_cubic",   "in_quart",    "out_quart", "in_out_quart", "in_quint",
-                    "out_quint",   "in_out_quint",   "in_sine",     "out_sine",  "in_out_sine",  "in_expo",
-                    "out_expo",    "in_out_expo",    "in_circ",     "out_circ",  "in_out_circ",  "in_bounce",
-                    "out_bounce",  "in_out_bounce",  "in_back",     "out_back",  "in_out_back",  "in_elastic",
-                    "out_elastic", "in_out_elastic", "inverse_lerp"};
-                int ease = 0;
-                for (int i = 0; i < static_cast<int>(sizeof(kEases) / sizeof(kEases[0])); i++)
-                    if (p.fov->easeType == kEases[i])
-                        ease = i;
-                cameraEffects.SetFov(p.fov->fieldOfView, p.fov->easeTime, ease, p.fov->clear);
-            }
+            if (p.fov)
+                cameraEffects.SetFov(p.fov->fieldOfView, p.fov->easeTime, EaseIndex(p.fov->easeType), p.fov->clear);
             if (p.target) {
                 std::optional<glm::vec3> off;
                 if (p.target->offset)
@@ -360,34 +427,7 @@ namespace perlin {
             if (p.instructionSet) {
                 const auto& s = *p.instructionSet;
                 CameraSet set;
-                {
-                    std::lock_guard<std::mutex> lk(worldExtraMutex);
-                    std::string name;
-                    int guard = 0;
-                    if (s.runtimeId >= 0 && static_cast<size_t>(s.runtimeId) < cameraPresets.size()) {
-                        const CameraPreset* cur = &cameraPresets[static_cast<size_t>(s.runtimeId)];
-                        while (cur && guard++ < 8) {
-                            if (!set.position && cur->position)
-                                set.position = cur->position;
-                            if (!set.rotation && cur->rotation)
-                                set.rotation = cur->rotation;
-                            if (!set.offset && cur->offset)
-                                set.offset = cur->offset;
-                            if (!set.entityOffset && cur->entityOffset)
-                                set.entityOffset = cur->entityOffset;
-                            const CameraPreset* next = nullptr;
-                            if (!cur->parent.empty()) {
-                                for (const auto& c : cameraPresets) {
-                                    if (c.name == cur->parent) {
-                                        next = &c;
-                                        break;
-                                    }
-                                }
-                            }
-                            cur = next;
-                        }
-                    }
-                }
+                set.presetIndex = s.runtimeId;
                 if (s.position)
                     set.position = glm::vec3(s.position->x, s.position->y, s.position->z);
                 if (s.rotation)
@@ -398,12 +438,27 @@ namespace perlin {
                     set.offset = glm::vec2(s.offset->x, s.offset->z);
                 if (s.entityOffset)
                     set.entityOffset = glm::vec3(s.entityOffset->x, s.entityOffset->y, s.entityOffset->z);
+                set.useDefault = s.default_ && *s.default_;
                 if (s.easeData) {
                     set.hasEase = true;
                     set.easeType = static_cast<int>(s.easeData->type);
                     set.easeDuration = s.easeData->duration;
                 }
                 cameraEffects.Set(set);
+            }
+            if (p.spline) {
+                const auto& d = *p.spline;
+                CameraSpline sp;
+                if (d.splineIdentifier && !d.splineIdentifier->empty() && d.curve.empty()) {
+                    const int idx = cameraEffects.SplineIndex(*d.splineIdentifier);
+                    if (idx >= 0)
+                        sp = cameraEffects.SplineAt(idx);
+                } else {
+                    sp = SplineFrom(d.splineIdentifier ? *d.splineIdentifier : std::string(), d.totalTime,
+                                    d.splineType ? *d.splineType : std::string(), d.curve, d.progressKeyFrames,
+                                    d.rotationOptions);
+                }
+                cameraEffects.StartSpline(sp);
             }
         });
     }

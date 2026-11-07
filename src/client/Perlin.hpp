@@ -136,6 +136,7 @@ namespace perlin {
         void ImportDroppedFiles();
         void UpdateLook(FrameContext& f);
         void UpdateCameraEffects();
+        void RestorePlayerCamera();
         void TrackDamage();
         void UpdateSession(FrameContext& f);
         void UpdateRiding(BedrockSession& live, const std::vector<entity::Entity>& entities);
@@ -421,6 +422,11 @@ namespace perlin {
         heldbuild::HeldBuild heldBuild;
         RecentBreak lastLocalBreak;
         bool usingItem = false;
+        // a server camera (/camera set, a spline, a focus target, attach) is placing the view away from the player
+        bool cameraDetached = false;
+        bool cameraModeForced = false, cameraOverridden = false;
+        float cameraPlayerView[5] = {0, 0, 0, 0, 0};
+        PerspectiveMode cameraSavedMode = PerspectiveMode::FirstPerson;
 
         struct FrameLoop;
         std::unique_ptr<FrameLoop> loop;

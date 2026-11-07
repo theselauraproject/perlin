@@ -86,11 +86,29 @@ namespace perlin {
             return LoadTexture(root + file, out);
         };
         if (!crosshairLoaded) {
-            Texture icons;
-            const std::string guiRoot = options.bedrockSamplesDir + "/repo/resource_pack/textures/gui/";
-            if ((TexturePack::Instance().Load("textures/gui/icons.png", icons) && icons.width >= 16) ||
-                LoadTexture(guiRoot + "icons.png", icons)) {
-                context.UploadCrosshair(icons);
+            // bedrock packs restyle textures/ui/cross_hair; java packs reach the same name through their icons sheet
+            Texture cross;
+            bool found = TexturePack::Instance().Load("textures/ui/cross_hair.png", cross) && cross.width > 0;
+            if (!found)
+                found = LoadTexture(options.bedrockSamplesDir + "/repo/resource_pack/textures/ui/cross_hair.png",
+                                    cross) &&
+                        cross.width > 0;
+            if (!found) {
+                Texture icons;
+                const std::string guiRoot = options.bedrockSamplesDir + "/repo/resource_pack/textures/gui/";
+                if (LoadTexture(guiRoot + "icons.png", icons) && icons.width >= 16) {
+                    const int size = std::max(1, icons.width * 15 / 256);
+                    cross.width = cross.height = size;
+                    cross.pixels.resize(static_cast<size_t>(size) * size * 4);
+                    for (int y = 0; y < size; y++)
+                        std::copy_n(icons.pixels.data() + static_cast<size_t>(y) * icons.width * 4,
+                                    static_cast<size_t>(size) * 4,
+                                    cross.pixels.data() + static_cast<size_t>(y) * size * 4);
+                    found = true;
+                }
+            }
+            if (found) {
+                context.UploadCrosshair(cross);
                 crosshairLoaded = true;
             }
         }

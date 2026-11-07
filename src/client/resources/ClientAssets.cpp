@@ -1,6 +1,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "client/resources/ClientAssets.hpp"
 
+#include <cstdlib>
 #include <stb_image.h>
 #include <stb_image_write.h>
 
@@ -238,6 +239,19 @@ namespace perlin::clientassets {
             Paste(btn, gui("sprites/recipe_book/button.png"), 0, 0);
             Paste(btn, gui("sprites/recipe_book/button_highlighted.png"), 0, 18);
             emit("ui_recipe_button.png", btn);
+            // the book alone: the button's own fill is cut away, so it sits on whatever button texture is in use
+            const Image face = gui("sprites/recipe_book/button.png");
+            if (face.Valid() && face.w >= 20 && face.h >= 18) {
+                Image icon = Crop(face, 3, 3, 14, 12);
+                const uint8_t* fill = &face.px[(static_cast<size_t>(3) * face.w + 3) * 4];
+                for (size_t i = 0; i < icon.px.size(); i += 4) {
+                    const int d = std::abs(icon.px[i] - fill[0]) + std::abs(icon.px[i + 1] - fill[1]) +
+                                  std::abs(icon.px[i + 2] - fill[2]);
+                    if (d < 30)
+                        icon.px[i + 3] = 0;
+                }
+                emit("ui_recipe_icon.png", icon);
+            }
         }
         {
             Image tabs = Blank(70, 27);

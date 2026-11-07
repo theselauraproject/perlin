@@ -173,7 +173,7 @@ namespace perlin {
         void RequestFrameCapture(CaptureSink sink) override;
         bool QueryNativeHandles(NativeHandleInfo& out) const override;
 
-        void UploadCrosshair(const Texture& icons) override;
+        void UploadCrosshair(const Texture& image) override;
         void DrawHudCursor(float x, float y, float w, float h) override;
         void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) override;
         void UploadEndSkyTexture(const Texture& endSky) override;

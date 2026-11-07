@@ -40,6 +40,11 @@ namespace perlin {
         void SetSwimming(bool value) { swimming = value; }
         bool InWater() const { return state.inWater; }
         bool Swimming() const { return swimming; }
+        // a server camera preset's control scheme: movement relative to the camera's yaw (scheme -1: off)
+        void SetCameraControl(int scheme, float cameraYaw) {
+            cameraScheme = scheme;
+            cameraControlYaw = cameraYaw;
+        }
         void SetToggleModes(bool sprint, bool sneak) {
             sprintToggle = sprint;
             sneakToggle = sneak;
@@ -159,6 +164,9 @@ namespace perlin {
         bool tooHungryToSprint = false;
         bool swimming = false;
         bool sentSwimming = false;
+        int cameraScheme = -1;
+        std::optional<float> forcedYaw;
+        float cameraControlYaw = 0.0f;
         bool sprintToggle = false, sneakToggle = false, sprintLatch = false, sneakLatch = false;
         bool gliding = false;
         bool crawling = false;

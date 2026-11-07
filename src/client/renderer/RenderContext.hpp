@@ -210,7 +210,7 @@ namespace perlin {
         virtual bool QueryNativeHandles(NativeHandleInfo&) const { return false; }
         virtual void RequestFrameCapture(CaptureSink) {}
 
-        virtual void UploadCrosshair(const Texture& icons) = 0;
+        virtual void UploadCrosshair(const Texture& image) = 0;
         virtual void DrawHudCursor(float x, float y, float w, float h) = 0;
         virtual void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) = 0;
         virtual void UploadEndSkyTexture(const Texture&) {}

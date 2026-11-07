@@ -450,8 +450,10 @@ namespace perlin {
         }
     }
 
-    void LocalPlayer::Tick(BedrockSession& session, const InputManager& input, const Camera& camera,
+    void LocalPlayer::Tick(BedrockSession& session, const InputManager& input, const Camera& cameraIn,
                            const physics::World& world) {
+        Camera camera = cameraIn;
+        forcedYaw.reset();
         const uint64_t nextTick = session.LastAuthTick() + 1;
         std::optional<BedrockSession::ServerMotion> tickTeleport;
         for (auto it = futureTeleports.begin(); it != futureTeleports.end();) {
@@ -477,8 +479,31 @@ namespace perlin {
         const bool savePrediction = !asleep && !rideLock && !dimensionChanged && !dimensionChanging;
         if (!savePrediction)
             history.clear();
-        const float forwardKeys = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
-        const float strafeKeys = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
+        float forwardKeys = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
+        float strafeKeys = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
+        if (cameraScheme >= 0 && cameraScheme <= 2 && !asleep && !rideLock) {
+            // preset control schemes (camera yaw and the player's yaw use the same convention here)
+            const float cy = glm::radians(cameraControlYaw);
+            if (cameraScheme == 1 || cameraScheme == 2) {
+                const float wx = forwardKeys * std::cos(cy) - strafeKeys * std::sin(cy);
+                const float wz = forwardKeys * std::sin(cy) + strafeKeys * std::cos(cy);
+                const float len = std::sqrt(wx * wx + wz * wz);
+                if (cameraScheme == 1) {
+                    // camera relative: the player turns to face where it goes and walks forward
+                    if (len > 0.001f) {
+                        camera.yaw = glm::degrees(std::atan2(wz, wx)), forcedYaw = camera.yaw;
+                        forwardKeys = 1.0f;
+                        strafeKeys = 0.0f;
+                    }
+                } else {
+                    // camera relative strafe: the player faces the camera's way, keys are the camera's axes
+                    camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
+                }
+            } else {
+                // locked player relative strafe: the player is locked to the camera's facing
+                camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
+            }
+        }
         const float forward = forwardKeys;
         const float strafe = strafeKeys;
         const bool jump = !asleep && input.IsDown(Action::Jump);
@@ -1377,6 +1402,8 @@ namespace perlin {
             input.SetControlTick(tickCounter);
             session.Entities().TickInterpolation();
             Tick(session, input, camera, world);
+            if (forcedYaw)
+                camera.yaw = *forcedYaw;
             // VanillaOffsetSystem::ClientSide 0x142CED480: the drop below eye level moves halfway each tick
             const float standEye = static_cast<float>(physics::kStandEye);
             // no riding case in 0x142CED480: a rider placed from RiderSeatPosition keeps the standing eye;

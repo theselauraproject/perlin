@@ -709,6 +709,9 @@ namespace perlin::entity {
             runId(found->second, weight, depth, path);
         };
         runId = [&](const std::string& id, float weight, int depth, const std::string& path) {
+            // the draw turns these models to the camera itself; running the animation too would turn them twice
+            if (id == "animation.actor.billboard")
+                return;
             if (weight == 0.0f || depth > 4)
                 return;
             if (const auto* controller = assets.animations.FindController(id)) {
@@ -1379,6 +1382,16 @@ namespace perlin::entity {
     }
 
     namespace {
+        // thrown items and fireballs are flat sprites that always turn to face the viewer, like java's
+        // billboard renderers; a model whose definition asks for the billboard animation does the same
+        bool FacesCamera(const std::string& type) {
+            return type == "minecraft:snowball" || type == "minecraft:egg" || type == "minecraft:ender_pearl" ||
+                   type == "minecraft:splash_potion" || type == "minecraft:lingering_potion" ||
+                   type == "minecraft:xp_bottle" || type == "minecraft:fireball" ||
+                   type == "minecraft:small_fireball" || type == "minecraft:dragon_fireball" ||
+                   type == "minecraft:eye_of_ender_signal" || type == "minecraft:fishing_hook";
+        }
+
         double gEntityProf[3] = {};
         int gEntityProfFrames = 0;
     }
@@ -1394,14 +1407,26 @@ namespace perlin::entity {
                     billboard = true;
                     break;
                 }
-        const bool mirrored = !fpModel && !billboard;
-        const float rotation = (fpModel || billboard) ? 180.0f : -v.yaw;
+        const bool faceCamera = !fpModel && (billboard || FacesCamera(e.type));
+        // turned toward the camera: the heading a mob would need to look at it, tilted up or down by the same
+        // elevation, so the sprite is square on from any side
+        float toCameraYaw = 0.0f, toCameraPitch = 0.0f;
+        if (faceCamera) {
+            const glm::dvec3 d = in.camera - (v.pos + glm::dvec3(0.0, 0.15, 0.0));
+            const double flat = std::sqrt(d.x * d.x + d.z * d.z);
+            toCameraYaw = static_cast<float>(std::atan2(-d.x, d.z) * 180.0 / 3.14159265358979);
+            toCameraPitch = static_cast<float>(-std::atan2(d.y, std::max(flat, 1e-6)) * 180.0 / 3.14159265358979);
+        }
+        const bool mirrored = !fpModel;
+        const float rotation = fpModel ? 180.0f : faceCamera ? -toCameraYaw : -v.yaw;
         const glm::mat4 mirrorZ =
             mirrored ? glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f)) : glm::mat4(1.0f);
+        const glm::mat4 tilt = faceCamera ? glm::rotate(glm::mat4(1.0f), toCameraPitch * kDeg, glm::vec3(1, 0, 0))
+                                          : glm::mat4(1.0f);
         const glm::mat3 rot =
-            glm::mat3(glm::rotate(glm::mat4(1.0f), rotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ);
+            glm::mat3(glm::rotate(glm::mat4(1.0f), rotation * kDeg, glm::vec3(0, 1, 0)) * tilt * mirrorZ);
         glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(v.pos));
-        model = glm::rotate(model, rotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ;
+        model = glm::rotate(model, rotation * kDeg, glm::vec3(0, 1, 0)) * tilt * mirrorZ;
         if (v.deathTime > 0.0f) {
             const float t = v.deathTime * 20.0f;
             const float f = std::min(std::sqrt(std::max(0.0f, (t - 1.0f) / 20.0f * 1.6f)), 1.0f);

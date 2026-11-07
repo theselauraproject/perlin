@@ -130,8 +130,8 @@ namespace perlin {
         FrameContext f;
         BeginFrame(f);
         ImportDroppedFiles();
+        RestorePlayerCamera();
         UpdateLook(f);
-        UpdateCameraEffects();
         TrackDamage();
         UpdateSession(f);
         UpdateDiscord();
@@ -157,6 +157,8 @@ namespace perlin {
             StartBenchmark(std::move(s));
         }
         UpdateBenchmark(f);
+        // last before the view is built: input, aim and movement above all used the player's own view
+        UpdateCameraEffects();
         PrepareView(f);
         BuildFrameParams(f);
         RenderLevel(f);
@@ -328,18 +330,84 @@ namespace perlin {
         }
     }
 
+    void Perlin::RestorePlayerCamera() {
+        if (!cameraOverridden)
+            return;
+        cameraOverridden = false;
+        camera.x = cameraPlayerView[0];
+        camera.y = cameraPlayerView[1];
+        camera.z = cameraPlayerView[2];
+        camera.yaw = cameraPlayerView[3];
+        camera.pitch = cameraPlayerView[4];
+    }
+
     void Perlin::UpdateCameraEffects() {
-        if (sessionReady && session) {
-            CameraEffects& fx = session->Camera();
-            fx.Tick({glm::vec3(camera.x, camera.y, camera.z), camera.yaw - 90.0f, -camera.pitch});
-            if (fx.PoseActive()) {
-                const CameraPose pose = fx.Pose();
-                camera.x = pose.position.x;
-                camera.y = pose.position.y;
-                camera.z = pose.position.z;
-                camera.yaw = pose.yaw + 90.0f;
-                camera.pitch = glm::clamp(-pose.pitch, -89.0f, 89.0f);
+        cameraDetached = false;
+        if (!(sessionReady && session)) {
+            if (cameraModeForced) {
+                camera.mode = cameraSavedMode;
+                cameraModeForced = false;
             }
+            return;
+        }
+        CameraEffects& fx = session->Camera();
+        const CameraPose base{glm::vec3(camera.x, camera.y, camera.z), camera.yaw, camera.pitch};
+        const EntityLookup lookup = [this, &base](int64_t uid, TrackedEntity& out) {
+            entity::Entity e;
+            if (!session->Entities().FindUnique(uid, e))
+                return false;
+            const float h = e.boxHeight > 0.0f ? e.boxHeight : 1.8f;
+            if (e.isSelf) {
+                out.eye = base.position;
+                out.center = base.position - glm::vec3(0.0f, 0.2f, 0.0f);
+                out.yaw = base.yaw;
+                out.pitch = base.pitch;
+                return true;
+            }
+            const glm::vec3 feet(static_cast<float>(e.pos.x), static_cast<float>(e.pos.y), static_cast<float>(e.pos.z));
+            out.center = feet + glm::vec3(0.0f, h * 0.5f, 0.0f);
+            out.eye = feet + glm::vec3(0.0f, e.isPlayer ? 1.62f : h * 0.9f, 0.0f);
+            out.yaw = e.headYaw + 90.0f;
+            out.pitch = -e.pitch;
+            return true;
+        };
+        fx.Tick(base, lookup);
+        using Kind = CameraEffects::Kind;
+        const Kind kind = fx.PresetKind();
+        std::optional<PerspectiveMode> wanted;
+        if (kind == Kind::FirstPerson)
+            wanted = PerspectiveMode::FirstPerson;
+        else if (kind == Kind::ThirdPerson)
+            wanted = PerspectiveMode::ThirdPersonBack;
+        else if (kind == Kind::ThirdPersonFront)
+            wanted = PerspectiveMode::ThirdPersonFront;
+        const bool pose = fx.PoseActive();
+        if (pose)
+            wanted = PerspectiveMode::FirstPerson;
+        if (wanted) {
+            if (!cameraModeForced) {
+                cameraSavedMode = camera.mode;
+                cameraModeForced = true;
+            }
+            camera.mode = *wanted;
+        } else if (cameraModeForced) {
+            camera.mode = cameraSavedMode;
+            cameraModeForced = false;
+        }
+        if (pose) {
+            cameraPlayerView[0] = camera.x;
+            cameraPlayerView[1] = camera.y;
+            cameraPlayerView[2] = camera.z;
+            cameraPlayerView[3] = camera.yaw;
+            cameraPlayerView[4] = camera.pitch;
+            cameraOverridden = true;
+            const CameraPose p = fx.Pose();
+            camera.x = p.position.x;
+            camera.y = p.position.y;
+            camera.z = p.position.z;
+            camera.yaw = p.yaw;
+            camera.pitch = glm::clamp(p.pitch, -89.9f, 89.9f);
+            cameraDetached = true;
         }
     }
 
@@ -411,6 +479,11 @@ namespace perlin {
         player.SetToggleModes(options.sprintMode == "toggle", options.sneakMode == "toggle");
         hudState.moveStatus.clear();
         UpdateEatingAndDrinking(f, *live);
+        {
+            CameraEffects& cam = live->Camera();
+            const int scheme = cam.ControlScheme();
+            player.SetCameraControl(scheme, scheme >= 0 ? cam.Pose().yaw : 0.0f);
+        }
         if (!replayCtl.Playing()) {
             player.Update(*live, inputManager, camera, levelRenderer->Blocks(), dt);
         } else {
@@ -503,7 +576,8 @@ namespace perlin {
                             name == "minecraft:enchanted_golden_apple" || name == "minecraft:chorus_fruit" ||
                             name == "minecraft:suspicious_stew";
         const bool eating =
-            hudState.Survival() && HandRenderer::IsFood(name) && (always || hudState.food < 20);
+            hudState.Survival() && HandRenderer::IsFood(name);  // the server decides whether it can be eaten (hunger is often pinned full)
+        (void)always;
         blockedFoodUse = HandRenderer::IsFood(name) && !eating;
         bool aimInteracts = false;
         if (aimHit.kind == AimHit::Kind::Block) {

@@ -354,20 +354,16 @@ namespace perlin {
             gpu.WriteTexture(tileFlagsTex.handle, 0, 0, 0, kW, kH, rgba.data());
     }
 
-    void RenderContext_rhi::UploadCrosshair(const Texture& icons) {
-        if (!initialized || icons.width < 16 || icons.height < 16)
+    void RenderContext_rhi::UploadCrosshair(const Texture& image) {
+        if (!initialized || image.width < 1 || image.height < 1 ||
+            image.pixels.size() < static_cast<size_t>(image.width) * image.height * 4)
             return;
-        iconSource = icons;
-        const int size = std::max(1, icons.width * 15 / 256);
-        std::vector<uint8_t> crop(static_cast<size_t>(size) * size * 4);
-        for (int y = 0; y < size; y++)
-            std::memcpy(crop.data() + static_cast<size_t>(y) * size * 4,
-                        icons.pixels.data() + static_cast<size_t>(y) * icons.width * 4,
-                        static_cast<size_t>(size) * 4);
-        if (MakeTexture(crosshair, static_cast<uint32_t>(size), static_cast<uint32_t>(size), 1, 1,
+        // kept whole: a device reset uploads it again
+        iconSource = image;
+        if (MakeTexture(crosshair, static_cast<uint32_t>(image.width), static_cast<uint32_t>(image.height), 1, 1,
                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp, "crosshair")) {
-            gpu.WriteTexture(crosshair.handle, 0, 0, 0, crosshair.w, crosshair.h, crop.data());
-            crosshairPx = size;
+            gpu.WriteTexture(crosshair.handle, 0, 0, 0, crosshair.w, crosshair.h, image.pixels.data());
+            crosshairPx = image.width;
         }
     }
 

@@ -430,8 +430,8 @@ namespace perlin {
                     const bool always =
                         mn == "minecraft:golden_apple" || mn == "minecraft:enchanted_golden_apple" ||
                         mn == "minecraft:chorus_fruit" || drink || mn == "minecraft:suspicious_stew";
-                    handIn.eating = handIn.survival && handIn.useHeld && HandRenderer::IsFood(mn) &&
-                                    (always || hudState.food < 20);
+                    handIn.eating = handIn.survival && handIn.useHeld && HandRenderer::IsFood(mn);
+                    (void)always;
                 }
                 handRenderer.Tick(handIn, options.hand);
                 {
@@ -1025,7 +1025,7 @@ namespace perlin {
                     previewEntities.Move(pe.runtimeId, pe.pos, pe.pitch, pe.yaw, pe.headYaw, true);
                 }
         }
-        const bool firstPerson = camera.mode == PerspectiveMode::FirstPerson;
+        const bool firstPerson = camera.mode == PerspectiveMode::FirstPerson && !cameraDetached;
         if (live || !firstPerson || PERLIN_ENV("PERLIN_PREVIEW_SELF")) {
             entity::Entity self;
             self.runtimeId = 0xFFFFFFFFFFFF0001ull;
@@ -1543,7 +1543,7 @@ namespace perlin {
         auto& handBlock = loop->handBlock;
         if ((live || preview) &&
             (!replayCtl.Playing() || replayCtl.cameraMode == replay::CameraMode::Follow) &&
-            camera.mode == PerspectiveMode::FirstPerson && options.showHud &&
+            camera.mode == PerspectiveMode::FirstPerson && !cameraDetached && options.showHud &&
             hudState.mode != ui::GameMode::Spectator && !death.shown &&
             !ui::UiAssets::Instance().VanillaRoot().empty()) {
             HandRenderer::FrameIn handFrame;
