@@ -1,7 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Perlin
-Exec=perlin
+Exec=perlin %u
+MimeType=x-scheme-handler/perlin;
 TryExec=perlin
 Icon=io.perlin.client
 Terminal=false

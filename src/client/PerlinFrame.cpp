@@ -227,6 +227,12 @@ namespace perlin {
     void Perlin::ImportDroppedFiles() {
         namespace fsys = std::filesystem;
         for (const std::string& dropped : platform->TakeDropped()) {
+            // macOS hands a clicked perlin:// link over as a drop
+            if (dropped.starts_with("perlin://")) {
+                if (const std::string server = discord::ServerFromUrl(dropped); !server.empty())
+                    JoinServer(server);
+                continue;
+            }
             std::error_code e;
             const fsys::path src(dropped);
             const std::string ext = str::Lower(src.extension().string());

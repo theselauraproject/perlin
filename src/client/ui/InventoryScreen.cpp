@@ -40,7 +40,6 @@ mcitem { display: block; position: absolute; }
 .rbtn .rh { display: none; left: 0px; top: 0px; }
 .rbtn:hover .rh { display: block; }
 .rbtn .rn { left: 0px; top: 0px; }
-.rbtn .ri { left: 0px; top: 0px; }
 .fx { z-index: 2; }
 .fxn { font-family: minecraft-shadow; font-size: 8px; line-height: 9px; color: #ffffff; white-space: nowrap; z-index: 4; }
 .fxd { font-family: minecraft-shadow; font-size: 8px; line-height: 9px; color: #7f7f7f; white-space: nowrap; z-index: 4; }
@@ -364,11 +363,8 @@ mcitem { display: block; position: absolute; }
                 ? std::string()
                 : "  <div id=\"rb\" class=\"rbtn\" style=\"left:" + std::to_string(btnX) +
                       "px;top:" + std::to_string(btnY) + "px;\"><div class=\"rn\">" +
-                      "<mcimg src=\"mcres:ui_menu_btn.png\" nine=\"3 3 3 3\" style=\"left:0px;top:0px;width:20px;"
-                      "height:18px;\"></mcimg></div><div class=\"rh\">" +
-                      "<mcimg src=\"mcres:ui_menu_btn_hi.png\" nine=\"3 3 3 3\" style=\"left:0px;top:0px;width:20px;"
-                      "height:18px;\"></mcimg></div><div class=\"ri\">" +
-                      SpriteRml("ui_recipe_icon.png", 0, 0, 14, 12, 3, 3) + "</div></div>\n";
+                      SpriteRml("ui_recipe_button.png", 0, 0, 20, 18, 0, 0) + "</div><div class=\"rh\">" +
+                      SpriteRml("ui_recipe_button.png", 0, 18, 20, 18, 0, 0) + "</div></div>\n";
 
         std::string effects = BuildEffectsPanel(v.effects, px + kInvPanelW + 2, py, guiW);
 

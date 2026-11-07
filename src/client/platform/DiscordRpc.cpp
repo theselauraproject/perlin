@@ -1,5 +1,7 @@
 #include "client/platform/DiscordRpc.hpp"
 
+#include <cctype>
+
 #include "util/Json.hpp"
 #include "util/Log.hpp"
 
@@ -467,6 +469,129 @@ namespace perlin::discord {
         }
     }
 
+    std::string ServerFromUrl(const std::string& url) {
+        constexpr const char* kScheme = "perlin://";
+        if (url.size() <= 9 || url.compare(0, 9, kScheme) != 0)
+            return {};
+        std::string rest = url.substr(9);
+        if (const size_t q = rest.find_first_of("?#"); q != std::string::npos) {
+            // perlin://join?server=host:port
+            const std::string query = rest.substr(q + 1);
+            rest.erase(q);
+            if (rest.empty() || rest == "join" || rest == "connect") {
+                const size_t k = query.find("server=");
+                if (k == std::string::npos)
+                    return {};
+                rest = query.substr(k + 7);
+                rest = rest.substr(0, rest.find('&'));
+            }
+        }
+        for (const char* verb : {"join/", "connect/", "server/"})
+            if (rest.starts_with(verb))
+                rest.erase(0, std::char_traits<char>::length(verb));
+        while (!rest.empty() && rest.back() == '/')
+            rest.pop_back();
+        std::string out;
+        for (size_t i = 0; i < rest.size(); i++) {
+            if (rest[i] == '%' && i + 2 < rest.size() + 0 && std::isxdigit(static_cast<unsigned char>(rest[i + 1])) &&
+                std::isxdigit(static_cast<unsigned char>(rest[i + 2]))) {
+                out += static_cast<char>(std::stoi(rest.substr(i + 1, 2), nullptr, 16));
+                i += 2;
+            } else
+                out += rest[i];
+        }
+        // a hostname or address with an optional port, nothing else
+        for (char c : out)
+            if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '-' || c == ':' || c == '_' ||
+                  c == '[' || c == ']'))
+                return {};
+        return out;
+    }
+
+    bool RegisterUrlScheme(const std::string& scheme, const std::string& executable) {
+        if (scheme.empty() || executable.empty())
+            return false;
+        std::error_code ec;
+#if defined(_WIN32)
+        const std::string key = "Software\\Classes\\" + scheme;
+        HKEY root = nullptr;
+        if (RegCreateKeyExA(HKEY_CURRENT_USER, key.c_str(), 0, nullptr, 0, KEY_WRITE, nullptr, &root, nullptr) !=
+            ERROR_SUCCESS)
+            return false;
+        const auto set = [](HKEY k, const char* name, const std::string& value) {
+            RegSetValueExA(k, name, 0, REG_SZ, reinterpret_cast<const BYTE*>(value.c_str()),
+                           static_cast<DWORD>(value.size() + 1));
+        };
+        std::string exe = executable;
+        std::replace(exe.begin(), exe.end(), '/', '\\');
+        set(root, nullptr, "URL:Perlin");
+        set(root, "URL Protocol", "");
+        HKEY icon = nullptr;
+        if (RegCreateKeyExA(root, "DefaultIcon", 0, nullptr, 0, KEY_WRITE, nullptr, &icon, nullptr) == ERROR_SUCCESS) {
+            set(icon, nullptr, exe);
+            RegCloseKey(icon);
+        }
+        HKEY command = nullptr;
+        if (RegCreateKeyExA(root, "shell\\open\\command", 0, nullptr, 0, KEY_WRITE, nullptr, &command, nullptr) ==
+            ERROR_SUCCESS) {
+            set(command, nullptr, "\"" + exe + "\" \"%1\"");
+            RegCloseKey(command);
+        }
+        RegCloseKey(root);
+        return true;
+#elif defined(__APPLE__)
+        (void)ec;
+        return false; // declared by the bundle (CFBundleURLTypes)
+#elif defined(PERLIN_DISCORD_UNIX)
+        std::string exe = executable;
+        if (const char* appimage = std::getenv("APPIMAGE"); appimage && *appimage)
+            exe = appimage;
+        std::filesystem::path dir;
+        if (const char* data = std::getenv("XDG_DATA_HOME"); data && *data)
+            dir = std::filesystem::path(data) / "applications";
+        else if (const char* home = std::getenv("HOME"); home && *home)
+            dir = std::filesystem::path(home) / ".local/share/applications";
+        else
+            return false;
+        std::filesystem::create_directories(dir, ec);
+        const std::string file = "perlin-url-" + scheme + ".desktop";
+        std::string quoted = "\"";
+        for (char c : exe) {
+            if (c == '"' || c == '`' || c == '$' || c == '\\')
+                quoted += '\\';
+            quoted += c;
+        }
+        quoted += '"';
+        const std::string desktop = "[Desktop Entry]\nName=Perlin\nExec=" + quoted +
+                                    " %u\nType=Application\nNoDisplay=true\nCategories=Game;\nMimeType=x-scheme-handler/" +
+                                    scheme + ";\n";
+        const std::filesystem::path path = dir / file;
+        std::string existing;
+        if (std::ifstream in(path); in)
+            existing.assign(std::istreambuf_iterator<char>(in), {});
+        if (existing == desktop)
+            return true;
+        std::ofstream(path, std::ios::trunc) << desktop;
+        const std::string mime = "x-scheme-handler/" + scheme;
+        const pid_t child = fork();
+        if (child == 0) {
+            const int devnull = open("/dev/null", O_WRONLY);
+            if (devnull >= 0) {
+                dup2(devnull, 1);
+                dup2(devnull, 2);
+            }
+            execlp("xdg-mime", "xdg-mime", "default", file.c_str(), mime.c_str(), static_cast<char*>(nullptr));
+            _exit(127);
+        }
+        if (child > 0)
+            waitpid(child, nullptr, 0);
+        return child > 0;
+#else
+        (void)ec;
+        return false;
+#endif
+    }
+
     bool RegisterLaunch(const std::string& applicationId, const std::string& executable) {
         if (applicationId.empty() || executable.empty())
             return false;
@@ -493,7 +618,7 @@ namespace perlin::discord {
         HKEY command = nullptr;
         if (RegCreateKeyExA(root, "shell\\open\\command", 0, nullptr, 0, KEY_WRITE, nullptr, &command, nullptr) ==
             ERROR_SUCCESS) {
-            set(command, nullptr, "\"" + exe + "\"");
+            set(command, nullptr, "\"" + exe + "\" \"%1\"");
             RegCloseKey(command);
         }
         RegCloseKey(root);

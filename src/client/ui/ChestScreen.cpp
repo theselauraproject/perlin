@@ -242,7 +242,8 @@ div { display: block; position: absolute; }
             for (const std::string& root : roots) {
                 std::ifstream in(root + "/chest_screen.json", std::ios::binary);
                 std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-                if (text.contains("'%.4s'")) {
+                // the apostrophes are often written as \u0027 in the json
+                if (text.contains("%.4s") && text.contains("@@@")) {
                     marked = true;
                     break;
                 }

@@ -2277,8 +2277,15 @@ namespace perlin::entity {
         tags.clear();
         for (const Entity& e : entities) {
             const bool shadowOnlySelf = e.isSelf && in.firstPerson;
-            if (shadowOnlySelf && !in.selfShadow)
+            if (shadowOnlySelf && !in.selfShadow) {
+                // not drawn, so not tracked: a hurt flash started here would stay frozen on the model and show up
+                // the moment the view goes third person. take the hits as seen
+                if (auto& hidden = views[e.runtimeId]; hidden) {
+                    hidden->hurtSerial = e.hurtSerial;
+                    hidden->hurtTimer = 0.0f;
+                }
                 continue;
+            }
             shadowOnlyPass = shadowOnlySelf;
             considered++;
             if (e.type == "minecraft:painting") {
@@ -2290,6 +2297,9 @@ namespace perlin::entity {
                 slot = std::make_unique<View>();
             View& v = *slot;
             v.lastSeen = in.time;
+            // first person sees the shadow only: the model flash is not worth carrying over
+            if (shadowOnlySelf)
+                v.hurtTimer = 0.0f;
             Track(e, v, in);
             const FrameIn::ModStyle* style = in.modStyle ? in.modStyle(e) : nullptr;
             if (style && style->hidden)
