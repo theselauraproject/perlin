@@ -134,6 +134,7 @@ namespace perlin {
         std::unordered_map<int, std::vector<int>> glassTiles;
         inline static int tilePxValue = 16;
         inline static int maxTilesValue = 2048;
+        std::atomic<bool> atlasFullLogged{false};
         std::unordered_map<uint64_t, int> tileByHash;
         std::unordered_map<std::string, std::array<float, 3>> baseTints;
         mutable std::unordered_map<int32_t, bool> unknownLogged;

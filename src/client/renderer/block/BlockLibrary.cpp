@@ -315,8 +315,12 @@ namespace perlin {
         auto it = tileByPng.find(pngRelPath);
         if (it != tileByPng.end())
             return it->second;
-        if (nextTile >= MaxTiles())
+        if (nextTile >= MaxTiles()) {
+            // one line per library: a full atlas is the only reason a texture would show as missing
+            if (!atlasFullLogged.exchange(true))
+                Log("blocks", "atlas full at {} tiles: further textures fall back to tile 0", MaxTiles());
             return 0;
+        }
         const int kTilePx = tilePxValue;
         std::string full;
         int w = 0, h = 0;
@@ -1480,6 +1484,9 @@ namespace perlin {
         // last: model sheets get full-resolution cells from whatever atlas room every block's own textures left
         if (any)
             geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
+        Log("blocks", "custom blocks built: {} definitions, {} atlas tiles in total, {:.0f} ms", defs.size(),
+            TilesLoaded(),
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count());
         return any;
     }
 

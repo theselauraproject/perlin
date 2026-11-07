@@ -10,9 +10,9 @@ namespace perlin {
         std::lock_guard lock(mutex);
         index[def.name] = all.size();
         built.erase(def.name);
-        // a server that sends its definitions again keeps what was already in use
-        if (wanted.contains(def.name))
-            pending.push_back(def);
+        // every block builds up front: waiting for a chunk to need one shows it untextured for a while
+        wanted.insert(def.name);
+        pending.push_back(def);
         all.push_back(std::move(def));
     }
 
@@ -74,6 +74,11 @@ namespace perlin {
         for (const std::string& name : wanted)
             if (const auto it = index.find(name); it != index.end())
                 pending.push_back(all[it->second]);
+        for (const auto& [name, at] : index)
+            if (!wanted.contains(name)) {
+                wanted.insert(name);
+                pending.push_back(all[at]);
+            }
     }
 
     void ServerBlocks::Reset() {
