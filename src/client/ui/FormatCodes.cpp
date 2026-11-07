@@ -3,39 +3,18 @@
 #include "client/ui/RmlEmit.hpp"
 
 #include <algorithm>
-#include <array>
-#include <atomic>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <string_view>
 
 namespace perlin::ui {
-    namespace {
-        // pack colours ($<c>_color_format, $material_*_color in ui/_global_variables.json); read from render threads.
-        // bit 24 marks a set entry, so the zero-initialised table means "no override"
-        constexpr uint32_t kSet = 0x1000000u;
-        std::array<std::atomic<uint32_t>, 128> colorOverrides{};
-    }
-
-    void SetFormatColorOverrides(const std::vector<std::pair<char, uint32_t>>& colors) {
-        for (auto& v : colorOverrides)
-            v.store(0, std::memory_order_relaxed);
-        for (const auto& [code, rgb] : colors)
-            colorOverrides[static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(code))) & 0x7F].store(
-                (rgb & 0xFFFFFFu) | kSet, std::memory_order_relaxed);
-    }
-
     static bool BuiltinFormatCodeColor(char code, uint32_t& rgb);
 
     bool FormatCodeColor(char code, uint32_t& rgb) {
         if (!BuiltinFormatCodeColor(code, rgb))
             return false;
-        const uint32_t o =
-            colorOverrides[static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(code))) & 0x7F].load(
-                std::memory_order_relaxed);
-        if (o & kSet)
-            rgb = o & 0xFFFFFFu;
+        FormatColorOverride(code, rgb);
         return true;
     }
 

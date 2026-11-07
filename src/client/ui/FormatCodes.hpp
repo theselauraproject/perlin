@@ -1,8 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
-#include <utility>
-#include <vector>
+#include "client/ui/FormatColors.hpp"
 
 namespace perlin::ui {
     std::string FormatCodesToRml(const std::string& text, float alpha = 1.0f);
@@ -10,8 +9,6 @@ namespace perlin::ui {
     std::string FormatCodesToRml(const std::string& text, float alpha, bool breaks);
     std::string StripFormatCodes(const std::string& text);
     bool FormatCodeColor(char code, uint32_t& rgb);
-    // replaces every pack override; an empty list restores the built-in palette
-    void SetFormatColorOverrides(const std::vector<std::pair<char, uint32_t>>& colors);
     bool IsFormatCode(const std::string& text, size_t i);
 
     // running section-sign state as the game's font renderer keeps it: a colour leaves bold, italic and

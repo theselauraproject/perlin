@@ -1,7 +1,7 @@
 #include <deque>
 #include <optional>
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/FormatCodes.hpp"
+#include "client/ui/FormatColors.hpp"
 #include "client/ui/UiExpr.hpp"
 #include "util/FileIo.hpp"
 
