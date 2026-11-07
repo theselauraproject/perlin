@@ -1388,14 +1388,27 @@ namespace perlin {
         if (live) {
             static double itemAcc = 0.0;
             itemAcc = std::min(itemAcc + static_cast<double>(dt), 0.15);
-            const auto itemSolid = [&](int x, int y, int z) {
-                bool loaded = false;
-                const uint16_t id = entityLevel.GetBlock(x, y, z, loaded);
-                return !loaded || (id != 0 && !LevelCollision::ShapeOf(id).Empty());
+            const auto itemHit = [&](double x0, double y0, double z0, double x1, double y1, double z1) {
+                for (int bx = static_cast<int>(std::floor(x0)); bx <= static_cast<int>(std::floor(x1)); bx++)
+                    for (int by = static_cast<int>(std::floor(y0)); by <= static_cast<int>(std::floor(y1)); by++)
+                        for (int bz = static_cast<int>(std::floor(z0)); bz <= static_cast<int>(std::floor(z1));
+                             bz++) {
+                            bool loaded = false;
+                            const uint16_t id = entityLevel.GetBlock(bx, by, bz, loaded);
+                            if (!loaded)
+                                return true;
+                            if (id == 0)
+                                continue;
+                            for (const auto& b : LevelCollision::ShapeOf(id).boxes)
+                                if (x0 < bx + b.x1 && x1 > bx + b.x0 && y0 < by + b.y1 && y1 > by + b.y0 &&
+                                    z0 < bz + b.z1 && z1 > bz + b.z0)
+                                    return true;
+                        }
+                return false;
             };
             while (itemAcc >= 0.05) {
                 itemAcc -= 0.05;
-                live->Entities().StepItems(itemSolid);
+                live->Entities().StepItems(itemHit);
             }
         }
         pw.light = ein.light;

@@ -178,6 +178,8 @@ namespace perlin::entity {
         // projectiles point along their flight: kept between ticks, a stuck one keeps its last heading
         float flightYaw = 0, flightPitch = 0;
         bool flightKnown = false;
+        // a projectile that has not moved or been given a velocity yet has no heading: not drawn until it does
+        bool headingPending = false;
         float glideTime = 0, yawSpeed = 0, standAmount = 0, sitAmount = 0, swimAmount = 0, lieAmount = 0,
               swellAmount = 0;
         molang::Scope scope;
@@ -522,6 +524,8 @@ namespace perlin::entity {
                 v.yaw = v.flightYaw;
                 v.pitch = v.flightPitch;
             }
+            // one already stuck in a block never moves: after a moment its own rotation is all there is
+            v.headingPending = !v.flightKnown && in.time - v.born < 0.3;
             v.headYaw = v.yaw;
             v.yawSpeed = 0.0f;
         }
@@ -2299,6 +2303,8 @@ namespace perlin::entity {
             if (shadowOnlySelf)
                 v.hurtTimer = 0.0f;
             Track(e, v, in);
+            if (v.headingPending)
+                continue;
             const FrameIn::ModStyle* style = in.modStyle ? in.modStyle(e) : nullptr;
             if (style && style->hidden)
                 continue;

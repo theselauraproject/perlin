@@ -180,7 +180,8 @@ namespace perlin::entity {
         void SetViewer(uint64_t rid, glm::dvec3 feet);
         void SetMotion(uint64_t rid, glm::dvec3 velocity);
         void SetSleeping(uint64_t rid, bool sleeping, bool playerFlag = false);
-        void StepItems(const std::function<bool(int, int, int)>& solid);
+        // hit: does the box (x0,y0,z0,x1,y1,z1) overlap collision? the real block shapes, not whole cells
+        void StepItems(const std::function<bool(double, double, double, double, double, double)>& hit);
         // how a server position reaches the actor: Place sets it now (our own predicted vehicles), Lerp and
         // Teleport go through Actor::lerpTo like the game's move_entity / move_entity_delta handler
         enum class MoveKind { Place, Lerp, Teleport };

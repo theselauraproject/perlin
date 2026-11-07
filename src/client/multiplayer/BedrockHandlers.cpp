@@ -1266,6 +1266,7 @@ namespace perlin {
             entities.AddEntity(p.runtimeId, p.uniqueId, p.entityType,
                                {p.position.x, p.position.y, p.position.z}, p.pitch, p.yaw, p.headYaw,
                                MetaFlags(p.metadata), 1.0f, 0, 0, 0);
+            entities.SetMotion(p.runtimeId, {p.velocity.x, p.velocity.y, p.velocity.z});
             ApplyMetadata(entities, p.runtimeId, p.metadata);
             ApplyEntityProperties(p.runtimeId, p.entityType, p.properties);
             for (const EntityAttributesEntry& a : p.attributes) {

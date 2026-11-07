@@ -464,25 +464,19 @@ namespace perlin::entity {
     void EntityTracker::SetMotion(uint64_t rid, glm::dvec3 velocity) {
         std::lock_guard lock(mutex);
         const auto it = entities.find(rid);
-        if (it == entities.end() || !it->second.isItem)
+        if (it == entities.end())
             return;
+        // kept for every actor (a projectile points along its spawn velocity); only items are simulated from it
         it->second.vel = velocity;
-        it->second.simulated = true;
+        if (it->second.isItem)
+            it->second.simulated = true;
     }
 
-    void EntityTracker::StepItems(const std::function<bool(int, int, int)>& solid) {
+    void EntityTracker::StepItems(const std::function<bool(double, double, double, double, double, double)>& hit) {
         std::lock_guard lock(mutex);
         constexpr double kHalf = 0.125, kHeight = 0.25;
         const auto blocked = [&](double x, double y, double z) {
-            for (int bx = static_cast<int>(std::floor(x - kHalf));
-                 bx <= static_cast<int>(std::floor(x + kHalf)); bx++)
-                for (int by = static_cast<int>(std::floor(y));
-                     by <= static_cast<int>(std::floor(y + kHeight)); by++)
-                    for (int bz = static_cast<int>(std::floor(z - kHalf));
-                         bz <= static_cast<int>(std::floor(z + kHalf)); bz++)
-                        if (solid(bx, by, bz))
-                            return true;
-            return false;
+            return hit(x - kHalf, y, z - kHalf, x + kHalf, y + kHeight, z + kHalf);
         };
         for (auto& [rid, e] : entities) {
             if (!e.isItem || !e.simulated)
@@ -497,9 +491,15 @@ namespace perlin::entity {
             if (blocked(p.x, ny, p.z)) {
                 if (e.vel.y < 0.0) {
                     grounded = true;
-                    const double top = std::floor(ny) + 1.0;
-                    if (!blocked(p.x, top, p.z))
-                        p.y = top;
+                    // come to rest on the surface itself (slabs, carpets and custom shapes are lower than a cell)
+                    double lo = ny, hi = p.y;
+                    if (!blocked(p.x, hi, p.z)) {
+                        for (int i = 0; i < 10; i++) {
+                            const double mid = (lo + hi) * 0.5;
+                            (blocked(p.x, mid, p.z) ? lo : hi) = mid;
+                        }
+                        p.y = hi;
+                    }
                 }
                 e.vel.y = 0.0;
             } else {

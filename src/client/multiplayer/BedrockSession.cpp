@@ -1795,6 +1795,19 @@ namespace perlin {
         const bool requestMode = IsRequestMode(pkt);
         const bool far = requestMode && std::max(std::abs(pkt.x - viewCenterChunk[0]),
                                                  std::abs(pkt.z - viewCenterChunk[1])) > nearRadius;
+        // a level_chunk replaces the whole column: sub-chunks the new one does not carry are air again. keeping the
+        // old column left remnants of a previous map standing wherever the new one is shorter or empty
+        {
+            bool had = false;
+            {
+                std::lock_guard<std::mutex> lock(netLevel.mutex);
+                had = netLevel.chunks.contains(ChunkPos{pkt.x, pkt.z});
+            }
+            if (had) {
+                netLevel.RemoveChunk(pkt.x, pkt.z);
+                blockEntities.RemoveChunk(pkt.x, pkt.z);
+            }
+        }
         netLevel.EnsureChunk(pkt.x, pkt.z, true, far);
         {
             std::lock_guard<std::mutex> lk(reqMutex);
