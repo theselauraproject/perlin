@@ -1,9 +1,12 @@
 #pragma once
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <array>
 #include <unordered_map>
@@ -51,7 +54,8 @@ namespace perlin {
         bool Ready() const { return ready; }
         void SetFancy(bool value) { fancy = value; }
         bool Complete() const { return complete; }
-        bool ApplyCustom(const std::string& vanillaRpRoot);
+        // budgetMs > 0: stop after that long and leave the rest queued
+        bool ApplyCustom(const std::string& vanillaRpRoot, double budgetMs = 0);
 
         enum TechnicalBits { kBarrier = 1, kLightBlock = 2, kStructureVoid = 4 };
         void SetTechnicalVisible(int mask) const;
@@ -129,12 +133,19 @@ namespace perlin {
         std::atomic<int> betterGrass{0};
         std::unordered_map<int, std::vector<int>> glassTiles;
         inline static int tilePxValue = 16;
-        inline static int maxTilesValue = 2048;
+        inline static int maxTilesValue = 2048; // replaced by what the renderer can hold once it is known
+        std::atomic<bool> atlasFullLogged{false};
         std::unordered_map<uint64_t, int> tileByHash;
         std::unordered_map<std::string, std::array<float, 3>> baseTints;
         mutable std::unordered_map<int32_t, bool> unknownLogged;
         mutable std::vector<const BlockAppearance*> localLook;
         mutable std::mutex lookMutex;
+        struct CustomContext {
+            std::string key;
+            std::unordered_map<std::string, std::string> pathByKey, vanillaPathByKey, stems;
+            std::unordered_map<std::string, std::map<std::string, std::string>> legacyFaces;
+        } customCtx;
+        mutable std::shared_mutex alphaMutex;
     };
 
 }

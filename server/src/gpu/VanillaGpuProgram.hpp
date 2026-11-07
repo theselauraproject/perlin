@@ -12,7 +12,7 @@
 namespace perlin::server::vanilla {
 
     struct GpuProgram {
-        static constexpr uint32_t kNodeStride = 12;
+        static constexpr uint32_t kNodeStride = 14;
         static constexpr uint32_t kLayerStride = 12;
         static constexpr uint32_t kBlendStride = 16;
         // the kernel keeps every node's value in a per-thread array of this size
@@ -33,6 +33,7 @@ namespace perlin::server::vanilla {
         std::vector<uint32_t>
             interpolatedInputs; // node whose value each interpolated node samples at the corners
         uint32_t nodeCount = 0, innerCount = 0, outerCount = 0, root = 0;
+        uint32_t cellXz = kCellXz, cellY = kCellY;
         // the graph node behind each flattened node (tests and debugging; valid while the graph lives)
         std::vector<const DfNode*> source;
 

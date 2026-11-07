@@ -38,11 +38,9 @@ namespace perlin {
             bool useHeld = false;
             bool eating = false;
             int slot = 0;
-            // Mob::getCurrentSwingDuration ticks, before the swing speed option
             int swingTicks = 6;
         };
         static bool IsFood(const std::string& name);
-        static bool IsThrowable(const std::string& name);
         int EatTicks() const { return eatTicks; }
         bool Scoping() const { return scoping; }
         void RenderScope(int width, int height, float partial);
@@ -69,16 +67,15 @@ namespace perlin {
         void BeginWorldItems();
         void DrawWorldItem(const ui::HudItem& item, const glm::dvec3& feet, float age, uint64_t seed,
                            const glm::vec3& light);
+        void DrawWorldBlock(const ui::HudItem& item, const glm::dvec3& feet, float scale, const glm::vec3& light);
 
         void DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left, const glm::vec3& light,
                           float bowUseTicks = -1.0f);
         void SetWorldShadowOnly(bool on) { worldShadowOnly = on; }
-        // java packs: the light levels of what holds the next items drawn (-1: the eye's)
         void SetPackLight(int blockLevel, int skyLevel) {
             packBlockLight = static_cast<int8_t>(blockLevel);
             packSkyLight = static_cast<int8_t>(skyLevel);
         }
-        // java packs: the entity holding (or being) the next items drawn (entityId)
         void SetPackEntity(const char* type) { packEntity = type; }
         void SetDollClip(const int* clip) { dollClip = clip; }
 

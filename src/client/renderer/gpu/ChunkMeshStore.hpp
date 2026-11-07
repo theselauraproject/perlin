@@ -37,10 +37,21 @@ namespace perlin::gpu {
             bool fullyInside;
             uint32_t secBegin = 0, secEnd = 0;
         };
-        // contiguous index range of one page: a single draw
         struct Run {
             uint32_t page, first, count;
         };
+        struct CullRecord {
+            float minX, minY, minZ, maxX, maxY, maxZ;
+            uint32_t first, count;
+            int32_t chunkX, chunkZ;
+            uint32_t flags, pad;
+        };
+        struct CullBucket {
+            uint32_t page, first, count;
+        };
+        void BuildCullRecords(RenderLayer layer, std::vector<CullRecord>& records, std::vector<CullBucket>& buckets) const;
+        uint64_t CaveEpoch() const { return caveEpoch; }
+        uint64_t MeshEpoch() const { return meshEpoch; }
 
         void Init(Gpu& gpu) { this->gpu = &gpu; }
         void Shutdown();
@@ -123,6 +134,8 @@ namespace perlin::gpu {
         std::vector<const Section*> visibleSections;
         uint64_t generation = 1;
         uint64_t caveGeneration = 0;
+        uint64_t caveEpoch = 0;
+        uint64_t meshEpoch = 0;
         double caveLastRun = 0.0;
         int caveCam[3] = {0, 0, 0};
     };

@@ -1,0 +1,93 @@
+plugins {
+    id 'com.android.application'
+}
+
+def sdlDir = (project.findProperty('sdlDir') ?: "${rootDir}/sdl").toString()
+def opensslBase = (project.findProperty('opensslBase') ?: '').toString()
+def abiList = (project.findProperty('abis') ?: 'arm64-v8a').toString().split(',').collect { it.trim() }.findAll { !it.isEmpty() }
+def useCcache = (project.findProperty('ccache') ?: 'false').toString() == 'true'
+def appVersionCode = (project.findProperty('appVersionCode') ?: '1').toString().toInteger()
+def appVersionName = (project.findProperty('appVersionName') ?: '1.0.0').toString()
+// nightly builds: the commit and repository the in-game updater compares against (empty = no auto update)
+def buildCommit = (project.findProperty('buildCommit') ?: '').toString()
+def updateRepo = (project.findProperty('updateRepo') ?: '').toString()
+
+android {
+    namespace = 'io.perlin.client'
+    compileSdk 35
+    if (project.hasProperty('ndkVersion')) {
+        ndkVersion = project.property('ndkVersion').toString()
+    }
+
+    defaultConfig {
+        applicationId 'io.perlin.client'
+        minSdk 26
+        targetSdk 34
+        versionCode appVersionCode
+        versionName appVersionName
+        ndk {
+            abiFilters(*abiList)
+        }
+        externalNativeBuild {
+            cmake {
+                abiFilters(*abiList)
+                arguments '-DANDROID_PLATFORM=android-26',
+                        '-DANDROID_STL=c++_static',
+                        "-DPERLIN_ANDROID_OPENSSL_BASE=${opensslBase}",
+                        "-DCPM_SDL3_SOURCE=${sdlDir}",
+                        "-DPERLIN_BUILD_COMMIT=${buildCommit}",
+                        "-DPERLIN_UPDATE_REPO=${updateRepo}"
+                if (useCcache) {
+                    arguments '-DCMAKE_C_COMPILER_LAUNCHER=ccache', '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'
+                }
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file('../../CMakeLists.txt')
+            version = (project.findProperty('cmakeVersion') ?: '3.31.5').toString()
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDir "${sdlDir}/android-project/app/src/main/java"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv('PERLIN_KEYSTORE')
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv('PERLIN_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('PERLIN_KEY_ALIAS')
+                keyPassword System.getenv('PERLIN_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig System.getenv('PERLIN_KEYSTORE') ? signingConfigs.release : signingConfigs.debug
+            externalNativeBuild {
+                cmake {
+                    arguments '-DCMAKE_BUILD_TYPE=Release'
+                }
+            }
+        }
+    }
+
+    lint {
+        abortOnError = false
+    }
+}

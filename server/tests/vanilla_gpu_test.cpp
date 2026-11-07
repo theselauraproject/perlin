@@ -5,6 +5,7 @@
 #include "world/vanilla/VanillaSurface.hpp"
 #include "test_util.hpp"
 #include "world/BlockCatalog.hpp"
+#include "world/vanilla/VanillaDimension.hpp"
 #include "world/vanilla/VanillaTerrain.hpp"
 
 #include <chrono>
@@ -117,8 +118,11 @@ static bool Gpu(int64_t seed, bool& ran) {
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++)
                 for (int y = kMinY; y < kMinY + kHeight; y++)
-                    if (a[n].Get(x, y, z) != b[n].Get(x, y, z))
-                        differing++;
+                    if (a[n].Get(x, y, z) != b[n].Get(x, y, z)) {
+                        if (differing++ < 6)
+                            std::fprintf(stderr, "differs chunk (%d,%d) at %d %d %d: gpu %s cpu %s\n", positions[n].x, positions[n].z, x, y, z,
+                                         BlockRegistry::Instance().Name(a[n].Get(x, y, z)).c_str(), BlockRegistry::Instance().Name(b[n].Get(x, y, z)).c_str());
+                    }
     std::printf("%zu chunks: gpu %.0f ms, cpu %.0f ms (one thread); %zu blocks differ\n", positions.size(),
                 gpuMs, cpuMs, differing);
     CHECK(differing == 0);
@@ -145,6 +149,54 @@ static bool Gpu(int64_t seed, bool& ran) {
     return true;
 }
 
+static void GpuDimension(int64_t seed, int dimension) {
+    ServerConfig config;
+    config.seed = static_cast<uint64_t>(seed);
+    config.terrainBackend = "gpu";
+    std::string note;
+    std::unique_ptr<TerrainBackend> gpu = CreateGpuDimensionBackend(config, dimension, note);
+    const char* label = dimension == kNether ? "nether" : "end";
+    if (!gpu) {
+        std::printf("%s: no gpu path: %s\n", label, note.c_str());
+        if (note.contains("differs")) {
+            std::fprintf(stderr, "FAIL %s gate: %s\n", label, note.c_str());
+            g_failed++;
+        }
+        return;
+    }
+    std::printf("%s seed %lld: %s\n", label, static_cast<long long>(seed), note.c_str());
+    std::string error;
+    auto cpu = vanilla::VanillaDimensionBackend::Create(config, dimension, error);
+    CHECK(cpu != nullptr);
+    if (!cpu)
+        return;
+    const std::vector<ChunkPos> positions = {{0, 0}, {3, -2}, {-1, -1}, {40, -30}, {-60, 0}, {80, 20}, {-200, 150}, {300, -12}};
+    std::vector<ChunkColumn> a(positions.size()), b(positions.size());
+    auto t0 = std::chrono::steady_clock::now();
+    gpu->Generate(positions, a);
+    const double gpuMs = Ms(t0);
+    t0 = std::chrono::steady_clock::now();
+    cpu->Generate(positions, b);
+    const double cpuMs = Ms(t0);
+    size_t differing = 0, solid = 0;
+    for (size_t n = 0; n < positions.size(); n++)
+        for (int x = 0; x < 16; x++)
+            for (int z = 0; z < 16; z++)
+                for (int y = 0; y < 256; y++) {
+                    if (b[n].Get(x, y, z) != 0)
+                        solid++;
+                    if (a[n].Get(x, y, z) != b[n].Get(x, y, z) && differing++ < 4)
+                        std::fprintf(stderr, "%s differs chunk (%d,%d) at %d %d %d\n", label, positions[n].x, positions[n].z, x, y, z);
+                    for (int qy = 0; qy < ChunkColumn::kQuartLayers && x < 4 && z < 4 && y == 0; qy++)
+                        if (a[n].QuartBiome(x, qy, z) != b[n].QuartBiome(x, qy, z))
+                            differing++;
+                }
+    std::printf("%s: %zu chunks, gpu %.0f ms, cpu %.0f ms (one thread); %zu solid, %zu differ\n", label, positions.size(), gpuMs,
+                cpuMs, solid, differing);
+    CHECK(differing == 0);
+    CHECK(solid > 0);
+}
+
 int main() {
     BlockCatalog::Instance().LoadBuiltin();
     TestProgram();
@@ -153,6 +205,11 @@ int main() {
     Gpu(12345, ran);
     if (ran)
         Gpu(-987654321, ran);
+    if (ran) {
+        GpuDimension(12345, kNether);
+        GpuDimension(12345, kEnd);
+        GpuDimension(7, kNether);
+    }
     if (!ran && std::getenv("PS_REQUIRE_GPU")) {
         std::fprintf(stderr, "FAIL no gpu path and PS_REQUIRE_GPU is set\n");
         g_failed++;

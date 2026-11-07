@@ -32,7 +32,15 @@ namespace perlin {
         volumes.v = {v.master,  v.music,   v.record, v.weather, v.block,
                      v.hostile, v.neutral, v.player, v.ambient, v.voice};
         audioEngine.SetVolumes(volumes);
-        audioEngine.SetListener({camera.x, camera.y, camera.z}, camera.yaw - 90.0f);
+        {
+            // a camera preset can keep the listener on the camera (default) or on the player
+            const bool atCamera = live && live->Camera().PoseActive() && !live->Camera().AudioAtPlayer();
+            const CameraPose p = atCamera ? live->Camera().Pose() : CameraPose{};
+            if (atCamera)
+                audioEngine.SetListener({p.position.x, p.position.y, p.position.z}, p.yaw - 90.0f);
+            else
+                audioEngine.SetListener({camera.x, camera.y, camera.z}, camera.yaw - 90.0f);
+        }
 
         static double nextMusic = 0;
         if (live && options.sound.music > 0.0f) {

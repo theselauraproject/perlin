@@ -42,6 +42,12 @@ namespace perlin::javapack {
             int x, y, w, h;
         };
 
+        // the hotbar and button strips live in widgets.png on java and in gui.png on bedrock
+        void AddWidgets(std::vector<Source>& out, int x, int y, int w, int h) {
+            AddSheet(out, "textures/gui/widgets.png", x, y, w, h);
+            AddSheet(out, "textures/gui/gui.png", x, y, w, h);
+        }
+
         const char* const kColors[] = {"white", "orange", "magenta", "light_blue", "yellow", "lime",
                                        "pink",  "gray",   "silver",  "cyan",       "purple", "blue",
                                        "brown", "green",  "red",     "black"};
@@ -345,14 +351,14 @@ namespace perlin::javapack {
                 const int slot = name[7] - '0';
                 Add(out, "textures/gui/sprites/hud/hotbar.png", (1 + 20 * slot) / 182.0f, 0,
                     (21 + 20 * slot) / 182.0f, 1);
-                AddSheet(out, "textures/gui/widgets.png", 1 + 20 * slot, 0, 20, 22);
+                AddWidgets(out, 1 + 20 * slot, 0, 20, 22);
                 return true;
             }
             if (name == "hotbar_start_cap" || name == "hotbar_end_cap") {
                 const bool start = name == "hotbar_start_cap";
                 Add(out, "textures/gui/sprites/hud/hotbar.png", start ? 0.0f : 181 / 182.0f, 0,
                     start ? 1 / 182.0f : 1.0f, 1);
-                AddSheet(out, "textures/gui/widgets.png", start ? 0 : 181, 0, 1, 22);
+                AddWidgets(out, start ? 0 : 181, 0, 1, 22);
                 return true;
             }
             if (StartsWith(name, "ping_anim_") && name.size() == 11 && name[10] >= '0' && name[10] <= '4') {
@@ -372,18 +378,45 @@ namespace perlin::javapack {
                     AddSheet(out, "textures/gui/container/crafting_table.png", 0, 0, 176, 166);
                 else if (n == "horse")
                     AddSheet(out, "textures/gui/container/horse.png", 0, 0, 176, 166);
-                else if (n == "menu_btn") {
+                else if (n == "horse_slot")
+                    AddSheet(out, "textures/gui/container/horse.png", 7, 83, 18, 18);
+                else if (n == "chest")
+                    AddSheet(out, "textures/gui/container/generic_54.png", 0, 0, 176, 222);
+                else if (n == "furnace" || n == "blast_furnace" || n == "smoker") {
+                    AddSheet(out, (std::string("textures/gui/container/") + n + ".png").c_str(), 0, 0, 176, 166);
+                    // older packs only restyle the furnace: the blast furnace and smoker share its layout
+                    AddSheet(out, "textures/gui/container/furnace.png", 0, 0, 176, 166);
+                } else if (n == "creative_items" || n == "creative_search" || n == "creative_survival") {
+                    const std::string tab = n == "creative_items"    ? "tab_items"
+                                            : n == "creative_search" ? "tab_item_search"
+                                                                     : "tab_inventory";
+                    AddSheet(out, ("textures/gui/container/creative_inventory/" + tab + ".png").c_str(), 0, 0, 195,
+                             136);
+                } else if (n == "recipe_book")
+                    AddSheet(out, "textures/gui/recipe_book.png", 1, 1, 147, 166);
+                else if (n == "menu_field") {
+                    Add(out, "textures/gui/sprites/widget/text_field.png");
+                } else if (n == "menu_field_hi") {
+                    Add(out, "textures/gui/sprites/widget/text_field_highlighted.png");
+                } else if (n == "menu_scroller") {
+                    Add(out, "textures/gui/sprites/widget/scroller.png");
+                } else if (n == "menu_bg") {
+                    Add(out, "textures/gui/menu_background.png");
+                    Add(out, "textures/gui/options_background.png");
+                } else if (n == "menu_btn") {
                     Add(out, "textures/gui/sprites/widget/button.png");
-                    AddSheet(out, "textures/gui/widgets.png", 0, 66, 200, 20);
+                    AddWidgets(out, 0, 66, 200, 20);
                 } else if (n == "menu_btn_hi") {
                     Add(out, "textures/gui/sprites/widget/button_highlighted.png");
-                    AddSheet(out, "textures/gui/widgets.png", 0, 86, 200, 20);
+                    AddWidgets(out, 0, 86, 200, 20);
                 } else if (n == "menu_btn_off") {
                     Add(out, "textures/gui/sprites/widget/button_disabled.png");
-                    AddSheet(out, "textures/gui/widgets.png", 0, 46, 200, 20);
+                    AddWidgets(out, 0, 46, 200, 20);
                 } else if (n == "inv_effect_background") {
                     Add(out, "textures/gui/sprites/container/inventory/effect_background.png");
-                    AddSheet(out, "textures/gui/container/inventory.png", 0, 166, 140, 32);
+                    AddSheet(out, "textures/gui/container/inventory.png", 0, 166, 120, 32);
+                } else if (n == "inv_effect_background_ambient") {
+                    Add(out, "textures/gui/sprites/container/inventory/effect_background_ambient.png");
                 } else
                     return false;
                 return true;
@@ -393,8 +426,11 @@ namespace perlin::javapack {
                     continue;
                 if (s.sprite)
                     Add(out, std::string("textures/gui/sprites/") + s.sprite + ".png");
-                if (s.sheet && s.rect.w > 0)
+                if (s.sheet && s.rect.w > 0) {
                     AddSheet(out, s.sheet, s.rect.x, s.rect.y, s.rect.w, s.rect.h);
+                    if (std::string_view(s.sheet) == "textures/gui/widgets.png")
+                        AddSheet(out, "textures/gui/gui.png", s.rect.x, s.rect.y, s.rect.w, s.rect.h);
+                }
                 return true;
             }
             return false;
@@ -455,8 +491,135 @@ namespace perlin::javapack {
             }
         } else if (path == "textures/gui/icons" || path == "textures/gui/widgets") {
             Add(out, path + ".png");
+            if (path == "textures/gui/widgets")
+                Add(out, "textures/gui/gui.png");
         }
         return out;
+    }
+
+    namespace {
+        struct Piece {
+            std::string path;
+            // source rectangle in 256-unit sheet space; zero width takes the whole file
+            int sx, sy, sw, sh;
+            // destination cell in the composed sheet, in base pixels
+            int dx, dy, dw, dh;
+        };
+
+        // pixels per base pixel: hi-res packs keep their detail through the composition
+        int ScaleFor(const Texture& sheet, int baseWidth) {
+            return std::max(1, static_cast<int>(std::lround(static_cast<double>(sheet.width) / baseWidth)));
+        }
+
+        void Blit(const Texture& src, int sx, int sy, int sw, int sh, Texture& dst, int dx, int dy, int dw,
+                  int dh) {
+            if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0)
+                return;
+            for (int y = 0; y < dh; y++)
+                for (int x = 0; x < dw; x++) {
+                    const int px = std::clamp(sx + x * sw / dw, 0, src.width - 1);
+                    const int py = std::clamp(sy + y * sh / dh, 0, src.height - 1);
+                    const int ox = dx + x, oy = dy + y;
+                    if (ox < 0 || oy < 0 || ox >= dst.width || oy >= dst.height)
+                        continue;
+                    std::copy_n(src.pixels.begin() + (static_cast<size_t>(py) * src.width + px) * 4, 4,
+                                dst.pixels.begin() + (static_cast<size_t>(oy) * dst.width + ox) * 4);
+                }
+        }
+
+        bool Assemble(const std::vector<Piece>& pieces, int baseW, int baseH, const SheetLoader& load,
+                      Texture& out) {
+            Texture result;
+            bool any = false;
+            int k = 0;
+            std::vector<Texture> sheets(pieces.size());
+            for (size_t i = 0; i < pieces.size(); i++)
+                if (load(pieces[i].path, sheets[i]) && sheets[i].width > 0 && sheets[i].height > 0) {
+                    const int sheetBase = pieces[i].sw ? 256 : std::max(1, pieces[i].dw);
+                    k = std::max(k, ScaleFor(sheets[i], sheetBase));
+                }
+            if (!k)
+                return false;
+            result.width = baseW * k;
+            result.height = baseH * k;
+            result.pixels.assign(static_cast<size_t>(result.width) * result.height * 4, 0);
+            for (size_t i = 0; i < pieces.size(); i++) {
+                const Piece& p = pieces[i];
+                const Texture& sheet = sheets[i];
+                if (sheet.width <= 0)
+                    continue;
+                int sx = 0, sy = 0, sw = sheet.width, sh = sheet.height;
+                if (p.sw) {
+                    const double u = sheet.width / 256.0, v = sheet.height / 256.0;
+                    sx = static_cast<int>(std::lround(p.sx * u));
+                    sy = static_cast<int>(std::lround(p.sy * v));
+                    sw = static_cast<int>(std::lround(p.sw * u));
+                    sh = static_cast<int>(std::lround(p.sh * v));
+                }
+                Blit(sheet, sx, sy, sw, sh, result, p.dx * k, p.dy * k, p.dw * k, p.dh * k);
+                any = true;
+            }
+            if (!any)
+                return false;
+            out = std::move(result);
+            return true;
+        }
+    }
+
+    bool Compose(const std::string& bedrockPath, const SheetLoader& load, Texture& out) {
+        const std::string path = StripExtension(str::Lower(bedrockPath));
+        if (!StartsWith(path, "textures/ui/screen_"))
+            return false;
+        const std::string n = path.substr(19);
+        std::vector<Piece> pieces;
+        int w = 0, h = 0;
+        if (n == "furnace_progress") {
+            w = 24;
+            h = 30;
+            pieces = {{"textures/gui/container/furnace.png", 176, 0, 14, 14, 0, 0, 14, 14},
+                      {"textures/gui/container/furnace.png", 176, 14, 24, 16, 0, 14, 24, 16}};
+        } else if (n == "creative_misc") {
+            w = 24;
+            h = 15;
+            pieces = {{"textures/gui/container/creative_inventory/tab_items.png", 232, 0, 12, 15, 0, 0, 12, 15},
+                      {"textures/gui/container/creative_inventory/tab_items.png", 244, 0, 12, 15, 12, 0, 12, 15}};
+        } else if (n == "creative_tabs") {
+            w = 26 * 7;
+            h = 32 * 4;
+            for (int row = 0; row < 4; row++)
+                for (int col = 0; col < 7; col++)
+                    pieces.push_back({"textures/gui/container/creative_inventory/tabs.png", 28 * col, 32 * row, 27,
+                                      32, 26 * col, 32 * row, 26, 32});
+        } else if (n == "hud_effect") {
+            w = 48;
+            h = 24;
+            pieces = {{"textures/gui/sprites/hud/effect_background.png", 0, 0, 0, 0, 0, 0, 24, 24},
+                      {"textures/gui/sprites/hud/effect_background_ambient.png", 0, 0, 0, 0, 24, 0, 24, 24}};
+        } else if (n == "slot_icons") {
+            w = 80;
+            h = 16;
+            const char* names[] = {"helmet", "chestplate", "leggings", "boots", "shield"};
+            for (int i = 0; i < 5; i++)
+                pieces.push_back({std::string("textures/items/empty_armor_slot_") + names[i] + ".png", 0, 0, 0, 0,
+                                  16 * i, 0, 16, 16});
+        } else if (n == "menu_logo") {
+            Texture sheet;
+            if (!load("textures/gui/title/minecraft.png", sheet) || sheet.width <= 0)
+                return false;
+            // modern packs ship the whole wordmark; older ones stack its two halves in a square sheet
+            if (sheet.width != sheet.height) {
+                out = std::move(sheet);
+                return true;
+            }
+            // padded to the 4:1 box the title screen draws it in, so it keeps its proportions
+            w = 310;
+            h = 78;
+            pieces = {{"textures/gui/title/minecraft.png", 0, 0, 155, 44, 0, 17, 155, 44},
+                      {"textures/gui/title/minecraft.png", 0, 45, 155, 44, 155, 17, 155, 44}};
+        } else {
+            return false;
+        }
+        return Assemble(pieces, w, h, load, out);
     }
 
     bool Crop(const Texture& sheet, const Source& source, Texture& out) {

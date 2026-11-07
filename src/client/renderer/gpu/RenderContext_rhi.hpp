@@ -3,6 +3,7 @@
 #include "client/renderer/SkyGeometry.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
+#include "client/renderer/gpu/GpuChunkCull.hpp"
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/UniformStore.hpp"
@@ -23,7 +24,6 @@
 #include <vector>
 
 namespace perlin {
-    // programs the renderer asks for; the pack maps each to a slang program (built-in or shader pack variant)
     enum class Program : uint8_t {
         TerrainSolid,
         TerrainCutout,
@@ -66,7 +66,6 @@ namespace perlin {
         Count
     };
 
-    // draw lists, executed in this order
     enum class View : uint8_t {
         ShadowBuild,
         ShadowGlass,
@@ -174,11 +173,12 @@ namespace perlin {
         void RequestFrameCapture(CaptureSink sink) override;
         bool QueryNativeHandles(NativeHandleInfo& out) const override;
 
-        void UploadCrosshair(const Texture& icons) override;
+        void UploadCrosshair(const Texture& image) override;
         void DrawHudCursor(float x, float y, float w, float h) override;
         void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) override;
         void UploadEndSkyTexture(const Texture& endSky) override;
         void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) override;
+        bool AppendAtlasTiles(const uint8_t* rgba, int tilePx, int first, int tiles) override;
         void UploadTileFlags(const std::vector<uint8_t>& flags) override;
         int MaxAtlasLayers(int tilePx) const override;
         void UpdateAtlasRegion(int tile, const uint8_t* rgba) override;
@@ -186,6 +186,7 @@ namespace perlin {
         uint32_t UiCreateTexture(int w, int h, const uint8_t* rgba, bool linear,
                                  bool repeat = false) override;
         void UiDestroyTexture(uint32_t texture) override;
+        bool UiUpdateTexture(uint32_t texture, int x, int y, int w, int h, const uint8_t* rgba, int rowBytes) override;
         uint32_t UiCreateMesh(const UiVertex* vertices, uint32_t vertexCount, const uint32_t* indices,
                               uint32_t indexCount) override;
         uint32_t UiCreateFrameMesh(const UiVertex* vertices, uint32_t vertexCount, const uint32_t* indices,
@@ -210,15 +211,12 @@ namespace perlin {
             return meshes.SectionReached(sx, sy, sz, caveCulling);
         }
 
-        // live renderer switch: applied on the render thread at the start of the next frame, keeping every resource
         bool RequestRendererSwitch(const std::string& id) override;
         bool RendererSwitchPending() const override;
-        // tears the device down and rebuilds every resource on it (api switch, or recovery on the same api); between frames only
         bool RebuildDevice(const std::string& id);
         std::string ActiveRendererId() const override {
             return initialized ? conduit::api_id(gpu.Api()) : std::string();
         }
-        // headless init for tests: renders into an owned image instead of a window
         bool InitializeOffscreen(const gpu::GpuSettings& settings, std::span<const uint8_t> pack,
                                  std::string* error = nullptr);
         bool ReadBackFrame(std::vector<uint8_t>& rgba, uint32_t& w, uint32_t& h);
@@ -253,7 +251,6 @@ namespace perlin {
         size_t savedPipelineBytes = 0;
         uint64_t pipelineSaveCounter = 0;
 
-        // everything a draw needs besides its uniforms and textures
         struct DrawState {
             Program program = Program::Ui;
             gpu::VertexLayout layout = gpu::VertexLayout::Ui;
@@ -278,13 +275,10 @@ namespace perlin {
         struct ViewData {
             glm::mat4 view{1.0f};
             glm::mat4 proj{1.0f};
-            // scene passes use reversed depth (1 at the near plane, 0 at the far plane, cleared to 0); shadow maps stay conventional
             bool reversedZ = true;
             uint32_t x = 0, y = 0, w = 0, h = 0;
-            // attachments the draws of this view render into; the pipelines are built for them
             conduit::format colorFormat = conduit::format::bgra8_unorm;
             conduit::format depthFormat = conduit::format::d32_float;
-            // second MRT attachment for java gbuffer passes; 1 keeps single-target
             uint32_t colorCount = 1;
             conduit::format colorFormat1 = conduit::format::rgba8_unorm;
             conduit::format colorFormat2 = conduit::format::rgba8_unorm;
@@ -294,9 +288,7 @@ namespace perlin {
         struct Target {
             conduit::texture_handle color;
             conduit::texture_handle depth;
-            // optional second MRT color attachment (java colortex1)
             conduit::texture_handle color1;
-            // optional third MRT color attachment (java deferred colortex4)
             conduit::texture_handle color2;
             uint32_t w = 0, h = 0;
             conduit::format colorFormat = conduit::format::rgba8_unorm;
@@ -308,17 +300,14 @@ namespace perlin {
             conduit::format format = conduit::format::rgba8_unorm;
             gpu::SamplerKind sampler = gpu::SamplerKind::LinearClamp;
             bool used = false;
-            // pixels kept only for textures nothing else can regenerate (ui sheets), so a renderer switch can re-upload them
             std::vector<uint8_t> backup;
         };
 
-        // ui meshes live in shared pages; ids carry a generation so a stale id never draws something else
         struct UiPage {
             gpu::Arena vb, ib;
             bool live = false;
         };
         struct UiMeshGpu {
-            // a copy the java pack path reads to rebuild the mesh in its own vertex layout
             std::shared_ptr<const std::vector<UiVertex>> cpuVertices;
             std::shared_ptr<const std::vector<uint32_t>> cpuIndices;
             int page = -1;
@@ -329,16 +318,12 @@ namespace perlin {
             bool lazyRing = false;
             gpu::RingSlice tv, ti;
         };
-        // a world, late world or hand draw handed to the running java pack instead of drawn here (iris draws
-        // entities, the hand, particles and weather through the pack)
         bool RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
                              conduit::texture_handle texture, bool glint);
 
-        // one step of a frame: a render pass over some views, or a texture copy between passes
         struct Stage {
             enum class Kind : uint8_t { Pass, Copy } kind = Kind::Pass;
             Target target;
-            // the swapchain image (with or without the screen depth buffer), known only when the frame is executed
             bool toScreen = false, useScreenDepth = false;
             std::vector<View> views;
             bool clearColor = false, clearDepth = false;
@@ -351,7 +336,6 @@ namespace perlin {
         };
         std::vector<Stage> stages;
 
-        // frame-to-frame camera state for temporal filters
         struct CameraHistory {
             glm::dmat4 view{1.0}, proj{1.0}, prevView{1.0}, prevProj{1.0}, prev2View{1.0};
             glm::dvec3 eye{0.0}, prevEye{0.0};
@@ -361,7 +345,6 @@ namespace perlin {
             double time = 0.0, prevTime = 0.0;
         } cam;
 
-        // what this frame asks of the post chain
         struct PostPlan {
             bool active = false;
             int w = 0, h = 0;
@@ -375,7 +358,6 @@ namespace perlin {
             bool packUpscale = false;
             bool packSharpen = false;
         } plan;
-        // offscreen targets of the post chain; recreated when the output size or the feature set changes
         struct PostTargets {
             conduit::texture_handle worldColor, worldDepth;
             uint32_t worldW = 0, worldH = 0;
@@ -394,10 +376,7 @@ namespace perlin {
             conduit::texture_handle sceneColor, sceneDepth;
             bool sceneValid = false;
             bool failed = false;
-            // second MRT attachment for java gbuffer passes (colortex1 content)
             conduit::texture_handle javaAux;
-            // java composite chain ping-pong buffers (colortex1-5,7) and
-            // temps; colortex0 is worldColor, colortex6 is javaAux
             conduit::texture_handle javaC1, javaC2, javaC3, javaC4, javaC5, javaC7;
             conduit::texture_handle javaTempA, javaTempB, javaTempC;
             bool javaChainClear = false;
@@ -440,7 +419,6 @@ namespace perlin {
         void ReadyForSampling(conduit::command_list& list, conduit::texture_handle except0, conduit::texture_handle except1);
         std::vector<conduit::texture_handle> postTextures;
 
-        // sun shadow maps: two are kept so a finished rebuild fades in over the old one
         struct ShadowMap {
             conduit::texture_handle color, tint;
             float sample[16] = {}, raster[16] = {}, info[4] = {};
@@ -473,18 +451,14 @@ namespace perlin {
         void RenderShadows(float camX, float camY, float camZ);
         void BindShadowSampling();
 
-        // setup
         bool CreateStaticResources();
         void DestroyStaticResources();
         bool CreateScreenTargets();
         void DestroyScreenTargets();
         void ApplySwitchTo(const std::string& id);
-        // picks an adapter and starts the device; strict keeps to the forced api only
         bool StartDevice(const std::string& forced, std::span<const uint8_t> pack, bool strict);
 
-        // frame
         void PlanViews(const FrameParams& params);
-        // snapshots uniforms and textures for a draw; Push then adds as many ranges as needed against that snapshot
         bool Prepare(View view, const DrawState& state, DrawCall& out);
         void Push(View view, const DrawCall& templ, const Source& vertices, const Source* indices,
                   conduit::index_type indexType, uint32_t first, uint32_t count,
@@ -507,7 +481,6 @@ namespace perlin {
         static void SaveBmp(const std::string& path, uint32_t w, uint32_t h, uint32_t pitch,
                             const uint8_t* bgra);
 
-        // ui
         UiMeshGpu* LookupUiMesh(uint32_t id);
         uint32_t StoreUiMesh(const UiMeshGpu& mesh);
         void ReleaseUiMeshSlot(uint32_t slot);
@@ -515,7 +488,6 @@ namespace perlin {
         bool AllocUiMesh(uint32_t vertices, uint32_t indices, UiMeshGpu& out);
         void DestroyUi();
 
-        // world
         void DrawSky();
         void DrawClouds();
         void DrawScreenTint();
@@ -524,6 +496,8 @@ namespace perlin {
         conduit::cull_mode cullMode = conduit::cull_mode::back;
         conduit::front_face frontFace = conduit::front_face::clockwise;
         std::vector<gpu::ChunkMeshStore::Run> runs;
+        gpu::GpuChunkCull cull;
+        bool gpuCullFrame = false;
         gpu::PipelineKey KeyFor(const ViewData& view, const DrawState& state) const;
 
         void ConvertDepth(const float in[16], float out[16]) const;
@@ -534,8 +508,12 @@ namespace perlin {
         bool MakeTexture(TexRec& rec, uint32_t w, uint32_t h, uint32_t layers, uint32_t mips,
                          conduit::format format, gpu::SamplerKind sampler, const char* name);
         void FreeTexture(TexRec& rec);
+        TexRec& AtlasPage(int page) { return page == 0 ? atlas : atlasMore[static_cast<size_t>(page - 1)]; }
+        int AtlasLayersFor(int tiles, int tilePx) const;
+        bool MakeAtlasPage(int page, int tiles, int tilePx);
+        void FreeAtlas();
+        void BindAtlas();
 
-        // state
         gpu::Gpu gpu;
         gpu::GpuSettings settings;
         gpu::UniformStore uni;
@@ -563,10 +541,8 @@ namespace perlin {
         bool frameOpen = false;
         bool packActive = false;
         bool shaderReloadPending = false;
-        // converted java pack drives terrain through the baked java programs
         bool javaActive = false;
         std::string javaPackPath;
-        // generated/default java samplers (noise, pbr fallbacks, cleared buffers)
         TexRec javaNoise, javaNormalDef, javaSpecDef, javaBlack, javaCloudWater, javaMaterials;
         struct JavaMaterialRule {
             int id = 0;
@@ -582,17 +558,13 @@ namespace perlin {
         bool EnsureJavaSamplers();
         void FeedJavaUniforms(const FrameParams& params);
         void BindJavaExtras();
-        // full java chain (deferred + composite + final); false when any
-        // converted program is missing, and only terrain+sky run instead
         bool JavaChainReady() const;
         bool EnsureJavaChainTargets(uint32_t w, uint32_t h);
         void BuildJavaChainStages();
         void RecordJavaChain();
         void JavaChainBinds();
 
-        // java shader pack: loaded as soon as it is set, drawn once its programs have compiled
         std::unique_ptr<gpu::JavaPack> jpack;
-        // meshing threads convert chunks for the pack under a shared lock; replacing the pack takes it exclusively
         mutable std::shared_mutex jpackMutex;
         std::atomic<uint64_t> jpackStamp{1};
         std::string jpackPath, jpackError, jpackDimension = "world0";
@@ -626,13 +598,13 @@ namespace perlin {
         std::vector<UniformCache> uniformCache;
         uint64_t uniformCacheFrame = 0;
 
-        // targets
         conduit::texture_handle screenDepth;
         uint32_t screenDepthW = 0, screenDepthH = 0;
 
-        // textures
+        // atlas page 0 and the pages after it; a tile lives in page tile / atlasPageCap, layer tile % atlasPageCap
         TexRec atlas, lightmap, sunTex, moonTex, endSkyTex, cloudMapTex, tileFlagsTex, crosshair;
-        int atlasLayers = 0;
+        std::array<TexRec, kAtlasMaxPages - 1> atlasMore;
+        int atlasPageCap = kAtlasPageLayers;
         int tileSize = 16;
         std::unordered_map<const uint8_t*, std::vector<std::vector<uint8_t>>> animatedTiles;
         uint8_t lastLightmap[kLightmapBytes] = {};
@@ -640,21 +612,18 @@ namespace perlin {
         int crosshairPx = 0;
         std::vector<TexRec> uiTextures;
         std::vector<uint8_t> tileFlagData;
-        // cpu copies that let a renderer switch rebuild the textures on the new device
         std::vector<uint8_t> atlasSource;
         int atlasTiles = 0;
         Texture sunSource, moonSource, endSkySource, cloudSource, iconSource;
 
-        // static geometry
         conduit::buffer_handle topSky, bottomSky, skyBox, skyBoxIdx, screenTri, starVerts, starIdx, sunriseVerts,
             sunriseIdx, sunVerts, moonVerts, quadIdx, fanIdx;
         uint32_t starIndexCount = 0, skyFanIndexCount = 0, sunriseIndexCount = 0;
 
-        // clouds
         CloudTexture cloudTexture;
         gpu::Arena cloudVb, cloudIb;
         uint32_t cloudVertexCapacity = 0, cloudIndexCapacity = 0, cloudIndexCount = 0;
-        CloudMesh cloudCpu; // the uploaded cloud mesh, for java packs (gbuffers_clouds)
+        CloudMesh cloudCpu;
         CloudFrame cloudBuiltFrame;
         bool cloudBuiltFancy = false;
         int cloudBuiltRange = 0;
@@ -663,7 +632,6 @@ namespace perlin {
         bool cloudJobRunning = false;
         CloudFrame cloudJobFrame;
 
-        // ui
         static constexpr uint32_t kUiMeshSlotBits = 20;
         static constexpr uint32_t kUiMeshSlotMask = (1u << kUiMeshSlotBits) - 1u;
         std::vector<UiPage> uiPages;
@@ -672,7 +640,6 @@ namespace perlin {
         uint32_t staticUiMeshes = 0;
         uint32_t staticUiMeshWarnAt = 2048;
 
-        // capture: one readback buffer per frame serves every request made for it
         struct Readback {
             conduit::buffer_handle buffer;
             uint32_t w = 0, h = 0, pitch = 0;

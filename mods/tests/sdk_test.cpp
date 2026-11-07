@@ -1,4 +1,5 @@
 #include <perlin/perlin.hpp>
+#include <perlin/host.hpp>
 
 #include <mod_settings.hpp>
 
@@ -23,6 +24,7 @@ namespace {
         std::vector<uint8_t> in;
     };
     std::vector<Call> calls;
+    int schemaMismatches = 0;
     std::string localMessages;
     std::vector<std::string> unregistered;
     Status denyAll = Status::Ok;
@@ -39,6 +41,10 @@ extern "C" int32_t perlin_host_call(uint32_t op, const void* in, uint32_t inLen,
     const auto o = static_cast<Op>(op);
     const auto* bytes = static_cast<const uint8_t*>(in);
     calls.push_back({o, std::vector<uint8_t>(bytes, bytes + inLen)});
+    if (!abi::host::RequestMatchesSchema(o, {bytes, inLen})) {
+        std::fprintf(stderr, "FAIL: the SDK sent %s bytes the schema does not describe\n", std::string(abi::NameOf(o)).c_str());
+        schemaMismatches++;
+    }
     abi::Reader r(bytes, inLen);
     abi::Writer w;
     switch (o) {
@@ -291,6 +297,7 @@ int main() {
     CHECK(std::format("{}", abi::Tool::Pickaxe) == "Pickaxe" &&
           std::format("{}", abi::NameKind::Entity) == "Entity");
 
+    CHECK(schemaMismatches == 0);
     std::printf(failures ? "sdk_test: %d failure(s)\n" : "sdk_test: ok\n", failures);
     return failures ? 1 : 0;
 }

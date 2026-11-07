@@ -1,3 +1,4 @@
+#include "client/SampleProfiler.hpp"
 #include "util/Relaunch.hpp"
 #include "client/EmbeddedProvider.hpp"
 #include "client/Perlin.hpp"
@@ -206,7 +207,6 @@ namespace {
 
     perlin::LaunchArgs ParseArgs(int argc, char** argv) {
         perlin::LaunchArgs args;
-        // a preview screenshot runs on its own: no window needed (PERLIN_PREVIEW_VISIBLE=1 shows it anyway)
         if (std::getenv("PERLIN_PREVIEW_SHOT") && !std::getenv("PERLIN_PREVIEW_VISIBLE"))
             args.hidden = true;
         for (int i = 1; i < argc; i++) {
@@ -289,6 +289,8 @@ int main(int argc, char** argv) {
     mallopt(M_TRIM_THRESHOLD, 512 * 1024);
 #endif
     BootMark("main reached");
+    if (std::getenv("PERLIN_SAMPLE_ALL"))
+        perlin::StartSampleProfiler();
     perlin::RememberCommandLine(argc, argv);
     AttachParentConsole();
     const std::string dataDir = perlin::paths::DataDir();

@@ -336,9 +336,6 @@ namespace perlin {
                                    : 1 << 20);
         session->SetPackDirectory(paths::DataDir() + "/server_packs");
         sessionReady = true;
-        if (connectsInFlight.load() == 0)
-            std::erase_if(retiredSessions,
-                          [](const std::unique_ptr<BedrockSession>& r) { return !r->Transferring(); });
     }
 
     void Perlin::MountReplayPacks() {

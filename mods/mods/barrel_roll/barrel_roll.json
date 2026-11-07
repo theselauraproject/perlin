@@ -1,0 +1,44 @@
+{
+  "name": "Do a Barrel Roll",
+  "description": "Free elytra flight: roll, pitch and yaw around your own axes with the mouse, banking turns, thrust and smoothing, ported from the Do a Barrel Roll mod.",
+  "version": "1.0.0",
+  "author": "Perlin",
+  "permissions": ["control"],
+  "settings": [
+    {"type": "header", "label": "General"},
+    {"id": "mod_enabled", "type": "toggle", "label": "Mod enabled", "default": true, "description": "Turns the whole mod on or off.", "icon": {"item": "minecraft:elytra"}},
+    {"id": "switch_roll_and_yaw", "type": "toggle", "label": "Switch roll and yaw", "default": false, "description": "Puts yaw on the mouse and roll on the roll keys, which is closer to vanilla flying. A and D always yaw."},
+    {"id": "momentum_based_mouse", "type": "toggle", "label": "Momentum based mouse", "default": false, "description": "The mouse sets a turning rate instead of a turning amount, which makes long continuous turns easier."},
+    {"id": "momentum_mouse_deadzone", "type": "number", "label": "Momentum mouse deadzone", "default": 0.2, "min": 0.0, "max": 1.0, "step": 0.01, "description": "Size of the area around the centre where the momentum mouse does nothing."},
+    {"id": "activation_behaviour", "type": "choice", "label": "Activation behaviour", "default": "Vanilla", "choices": [
+      {"value": "Vanilla", "label": "Vanilla"},
+      {"value": "Hybrid", "label": "Hybrid"},
+      {"value": "HybridToggle", "label": "Hybrid toggle"}
+    ], "description": "Vanilla: rolling is available whenever you glide. Hybrid: jump again while gliding to unlock it. Hybrid toggle: jumping again switches it on and off."},
+    {"id": "invert_pitch", "type": "toggle", "label": "Invert pitch", "default": false},
+    {"id": "disable_when_submerged", "type": "toggle", "label": "Disable when submerged", "default": true},
+
+    {"type": "header", "label": "Flight options"},
+    {"id": "enable_banking", "type": "toggle", "label": "Enable banking", "default": true, "description": "Adds a gentle turn and pull-up while you are rolled, like a plane."},
+    {"id": "banking_strength", "type": "number", "label": "Banking strength", "default": 20.0, "min": 0.0, "max": 100.0, "step": 1.0},
+    {"id": "simulate_control_surface_efficacy", "type": "toggle", "label": "Simulate control surface efficacy", "default": false, "description": "Scales turning by how fast you are moving along your look direction."},
+    {"id": "automatic_righting", "type": "toggle", "label": "Automatic righting", "default": false, "description": "Levels you out when you are rolled 90 degrees or less."},
+    {"id": "righting_strength", "type": "number", "label": "Righting strength", "default": 50.0, "min": 0.0, "max": 100.0, "step": 1.0},
+
+    {"type": "header", "label": "Thrusting"},
+    {"id": "enable_thrust", "type": "toggle", "label": "Enable thrusting", "default": false, "description": "W accelerates and S slows you down while flying. Only use this where it is allowed."},
+    {"id": "max_thrust", "type": "number", "label": "Max thrusting speed", "default": 2.0, "min": 0.5, "max": 6.0, "step": 0.1, "description": "Blocks per tick."},
+    {"id": "thrust_acceleration", "type": "number", "label": "Thrusting acceleration", "default": 0.1, "min": 0.01, "max": 0.5, "step": 0.01, "description": "Blocks per tick squared."},
+
+    {"type": "header", "label": "Smoothing"},
+    {"id": "smoothing_enabled", "type": "toggle", "label": "Enable smoothing", "default": true},
+    {"id": "smoothing_pitch", "type": "number", "label": "Pitch smoothing", "default": 1.0, "min": 0.0, "max": 5.0, "step": 0.05},
+    {"id": "smoothing_yaw", "type": "number", "label": "Yaw smoothing", "default": 0.4, "min": 0.0, "max": 5.0, "step": 0.05},
+    {"id": "smoothing_roll", "type": "number", "label": "Roll smoothing", "default": 1.0, "min": 0.0, "max": 5.0, "step": 0.05},
+
+    {"type": "header", "label": "Mouse and keyboard sensitivity"},
+    {"id": "sensitivity_pitch", "type": "number", "label": "Pitch", "default": 1.0, "min": 0.0, "max": 4.0, "step": 0.05},
+    {"id": "sensitivity_yaw", "type": "number", "label": "Yaw", "default": 0.4, "min": 0.0, "max": 4.0, "step": 0.05},
+    {"id": "sensitivity_roll", "type": "number", "label": "Roll", "default": 1.0, "min": 0.0, "max": 4.0, "step": 0.05}
+  ]
+}

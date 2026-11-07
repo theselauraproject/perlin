@@ -105,6 +105,10 @@ namespace perlin::attachable {
                     continue;
                 Bone bone;
                 bone.name = str::Lower(b.Find("name") ? b.Find("name")->StringOr("") : "");
+                // a locator is [x, y, z] or {"offset": [x, y, z], "rotation": ...}
+                if (const Json* locs = b.Find("locators"); locs && locs->IsObject())
+                    for (const auto& [name, at] : locs->object)
+                        g.locators[str::Lower(name)] = at.IsObject() ? Vec3(at.Find("offset")) : Vec3(&at);
                 bone.pivot = Vec3(b.Find("pivot"));
                 bone.rotation = Vec3(b.Find("rotation"));
                 if (const Json* binding = b.Find("binding"))
@@ -400,13 +404,14 @@ namespace perlin::attachable {
                 }
             }
             for (int i = 0; i < 6; i++) {
-                if (!c.boxUv && !c.faces[i].present)
-                    continue;
                 int fi = i;
                 const bool mirrored = c.mirror != mirrorTextures;
                 bool flip = mirrored;
                 if (mirrored && i < 2)
                     fi = 1 - i;
+                // the x mirror moves east/west to the other side: a face the cube lists sits on that other side
+                if (!c.boxUv && !c.faces[fi].present)
+                    continue;
                 const FaceDef& f = faces[i];
                 const glm::vec2 o = uvOrigin[fi], s = uvSize[fi];
                 glm::vec2 a = o, b = o + glm::vec2(s.x, 0), cc = o + s, dd = o + glm::vec2(0, s.y);

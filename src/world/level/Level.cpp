@@ -1,6 +1,7 @@
 #include "world/level/Level.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstring>
 
@@ -539,7 +540,8 @@ namespace perlin {
             it->second.lodOnly = lodOnly;
             if (lodOnly)
                 lodOnlyCount++;
-            it->second.version++;
+            static std::atomic<uint64_t> loads{0};
+            it->second.version = (loads.fetch_add(1, std::memory_order_relaxed) + 1) << 24;
             it->second.streaming = streaming;
             it->second.firstSeen = NowMs();
             it->second.readyAt = streaming ? 0 : it->second.firstSeen;

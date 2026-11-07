@@ -24,7 +24,10 @@ namespace perlin::ui {
         Hud();
         ~Hud();
 
-        bool Initialize(RenderContext& renderer, const std::string& vanillaRoot, const std::string& dataDir);
+        bool Initialize(RenderContext& renderer, const std::string& vanillaRoot, const std::string& dataDir,
+                        bool allowEmpty = false);
+        void RequestReload() { reloadRequested = true; }
+        bool HasLevelUi() const { return tree != nullptr; }
         void Shutdown();
         void UnloadLevelUi();
 
@@ -54,9 +57,7 @@ namespace perlin::ui {
         const std::string& LastDocument() const { return lastRml; }
         size_t Rebuilds() const { return rebuilds; }
         void Reload() { reloadRequested = true; }
-        // java style: java-like overrides over the bedrock hud; bedrock style: hud as packs define it
         void SetJavaStyle(bool java);
-        // true when a server or resource pack (not just vanilla/our defaults) defines namespace `ns`
         bool Overrides(const std::string& ns) const {
             return tree && library.RootCount() > 3 && library.DefinedBefore(ns, library.RootCount() - 3);
         }
@@ -94,6 +95,9 @@ namespace perlin::ui {
         bool probeLaunched = false;
         size_t rebuilds = 0;
         bool reloadRequested = false;
+        // server packs bring their own ui and font/glyph_XX.png pages: rebuild when they mount or unmount
+        uint32_t serverPackGeneration = 0;
+        double serverPacksChangedAt = -1.0;
         bool templatesStale = true, emitterDefault = false;
         double templateCheck = 0;
         uint64_t hudTemplateVersion = 0, chatTemplateVersion = 0;

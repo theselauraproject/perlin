@@ -554,7 +554,10 @@ namespace perlin::ui {
                         EvalDim(hd, ch, h);
                 };
                 resolve();
+                // min/max bound the control before its children size against it (NaN axes stay unknown)
+                ClampSize(n, pw, ph, w, h);
                 const bool wKnown0 = Known(w), hKnown0 = Known(h);
+                const float w0 = w, h0 = h;
 
                 const bool needsChildrenW =
                     UsesKind(wd, Term::PctChildren) || UsesKind(wd, Term::PctChildrenMax);
@@ -659,7 +662,8 @@ namespace perlin::ui {
                 {
                     bool redo = false;
                     for (LNode* k : live)
-                        if ((k->dependsW && !wKnown0) || (k->dependsH && !hKnown0))
+                        if ((k->dependsW && (!wKnown0 || w0 != n.w)) ||
+                            (k->dependsH && (!hKnown0 || h0 != n.h)))
                             redo = true;
                     if (redo)
                         MeasureChildren(n, live, n.w, n.h, isStack, vertical, isGrid);
@@ -1387,6 +1391,9 @@ namespace perlin::ui {
                         c.children = c.childrenMax = c.sibling = kUnknown;
                         float value = 0;
                         if (!EvalDim(d, c, value))
+                            continue;
+                        // max 0 leaves the axis unbounded: packs default max_size to [0, 0] on shown controls
+                        if (isMax && value <= 0.0f)
                             continue;
                         float& target = axis == 0 ? w : h;
                         target = isMax ? std::min(target, value) : std::max(target, value);

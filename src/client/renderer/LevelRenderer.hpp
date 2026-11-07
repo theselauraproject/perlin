@@ -11,6 +11,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -26,12 +28,20 @@ namespace perlin {
         void Stop();
 
         void ReloadAssetsIfNeeded();
+        // blocks until a background asset load finishes: call before changing what it reads (the texture pack stack)
+        void WaitAssetJob() {
+            if (assetJob.valid())
+                assetJob.wait();
+        }
         void ReloadResources();
         void RemeshAll() { InvalidateMeshes(); }
+        // the loading screen: build server blocks flat out, and tell when every chunk that waited on one is drawn again
+        void SetFastBuild(bool fast) { fastBuild = fast; }
+        bool ServerBlocksSettled();
         void SetGlassMode(int mode) {
-            if (blocks.GlassMode() != mode) {
-                const bool rebuild = blocks.NeedsGlassRebuild(mode);
-                blocks.SetGlassMode(mode);
+            if (blocks->GlassMode() != mode) {
+                const bool rebuild = blocks->NeedsGlassRebuild(mode);
+                blocks->SetGlassMode(mode);
                 if (rebuild)
                     ReloadResources();
                 else
@@ -39,8 +49,8 @@ namespace perlin {
             }
         }
         void SetBetterGrass(int mode) {
-            if (blocks.BetterGrass() != mode) {
-                blocks.SetBetterGrass(mode);
+            if (blocks->BetterGrass() != mode) {
+                blocks->SetBetterGrass(mode);
                 InvalidateMeshes();
             }
         }
@@ -52,8 +62,11 @@ namespace perlin {
         void Render(const Frustum& frustum, float camX, float camZ);
         void TickAnimation(uint64_t step);
 
-        const BlockLibrary& Blocks() const { return blocks; }
-        const BiomeTints& Tints() const { return biomeTints; }
+        // called on the render thread right after a background load replaces the live set, for holders of Blocks()
+        void OnLibrarySwap(std::function<void(const BlockLibrary*)> fn) { onLibrarySwap = std::move(fn); }
+        // render thread: the live set, replaced whole when a background load finishes
+        const BlockLibrary& Blocks() const { return *blocks; }
+        const BiomeTints& Tints() const { return *biomeTints; }
         size_t PendingMeshes() const { return pending.size(); }
         size_t MeshesInFlight() const { return inFlight.size(); }
         size_t MaxMeshesInFlight() const { return maxInFlight; }
@@ -99,6 +112,10 @@ namespace perlin {
         bool Ready(const ChunkPos& pos, uint64_t now) const;
         void Schedule(Level& level, float camX, float camZ, const Frustum& frustum);
         void InvalidateMeshes();
+        void RemeshWaiting();
+        bool fastBuild = false;
+        PosSet remeshOutstanding;
+        std::chrono::steady_clock::time_point lastCustomBuild{};
         std::chrono::steady_clock::time_point firstWaitAt;
         size_t captured = 0;
         double captureMs = 0;
@@ -118,8 +135,35 @@ namespace perlin {
         uint32_t urgentTick = 0;
         RenderContext& context;
         const Options& options;
-        BlockLibrary blocks;
-        BiomeTints biomeTints;
+        // written only by the render thread, under libraryMutex; other threads read through LiveBlocks()
+        std::shared_ptr<BlockLibrary> blocks = std::make_shared<BlockLibrary>();
+        std::shared_ptr<BiomeTints> biomeTints = std::make_shared<BiomeTints>();
+        mutable std::mutex libraryMutex;
+        std::shared_ptr<BlockLibrary> LiveBlocks() const {
+            std::lock_guard lock(libraryMutex);
+            return blocks;
+        }
+        // block textures load off the render thread (cold disk: seconds), into a fresh set swapped in when done
+        struct AssetLoad {
+            bool blocksOk = false, tintsOk = false;
+            long long blocksMs = 0, tintsMs = 0;
+        };
+        std::future<AssetLoad> assetJob;
+        std::shared_ptr<BlockLibrary> stagedBlocks;
+        // the set before the last swap stays alive one more round: pointers handed out earlier remain valid
+        std::shared_ptr<BlockLibrary> retiredBlocks;
+        std::shared_ptr<BiomeTints> retiredTints;
+        std::function<void(const BlockLibrary*)> onLibrarySwap;
+        std::shared_ptr<BiomeTints> stagedTints;
+        // the live set no longer matches the packs: a reload is wanted, the old one keeps drawing meanwhile
+        bool assetsStale = false;
+        // bumped by every reload; a load started for an older epoch is thrown away
+        uint32_t assetEpoch = 0, stagedEpoch = 0;
+        // server pack generation the live set was built from, and the one a running load is building from
+        uint32_t builtForPacks = 0, stagedPacks = 0;
+        // the live set matches the mounted packs and nothing newer is loading: only then are meshes worth building.
+        // meshing with a stale set draws the world wrong first (old textures, custom blocks untextured), then again
+        bool AssetsCurrent() const;
 
         std::unique_ptr<ThreadPool> meshPool;
         size_t maxInFlight = 8;
@@ -154,6 +198,10 @@ namespace perlin {
         bool atlasUploaded = false;
         bool skyTexturesLoaded = false;
         bool texturePackResolved = false;
+        // server packs mount after the vanilla assets loaded (during the join): their block textures need a reload
+        uint32_t serverPackGeneration = 0;
+        bool serverPackGenerationKnown = false, serverPackReloadPending = false;
+        std::chrono::steady_clock::time_point serverPacksChangedAt;
         bool crosshairLoaded = false;
         bool tintsWereReady = false;
         int uploadedTiles = 0;

@@ -8,9 +8,9 @@
 
 namespace perlin::server {
     namespace {
-        int64_t Key(int x, int y, int z) {
+        int64_t Key(int x, int y, int z, int dimension) {
             return (static_cast<int64_t>(x) & 0x3FFFFFF) << 38 | (static_cast<int64_t>(z) & 0x3FFFFFF) << 12 |
-                   static_cast<int64_t>(y + 2048);
+                   static_cast<int64_t>(dimension & 3) << 10 | static_cast<int64_t>((y + 512) & 1023);
         }
 
         std::string Bare(const std::string& n) { return n.starts_with("minecraft:") ? n.substr(10) : n; }
@@ -69,12 +69,16 @@ namespace perlin::server {
     }
 
     bool Server::UseBlock(Session& by, int x, int y, int z) {
-        if (by.Spectator() || by.Visitor() || !by.InReach(x, y, z) || !chunks->Peek({x >> 4, z >> 4}))
+        const int dim = by.DimensionId();
+        ChunkManager& world = World(dim);
+        if (by.Spectator() || by.Visitor() || !by.InReach(x, y, z) || !world.Peek({x >> 4, z >> 4}))
             return false;
-        const std::string name = BlockRegistry::Instance().Name(chunks->GetBlock(x, y, z));
+        const std::string name = BlockRegistry::Instance().Name(world.GetBlock(x, y, z));
         const int kind = ContainerKindOf(name);
         if (kind < 0)
             return false;
+        if (HookContainerOpen(by, x, y, z, name))
+            return true;
         CloseContainer(by);
         static int windowCounter = 0;
         const int window = 1 + (windowCounter++ % 99);
@@ -84,10 +88,11 @@ namespace perlin::server {
             by.OpenWindow(window, WindowOf(kind), x, y, z);
             return true;
         }
-        auto [it, fresh] = containers.try_emplace(Key(x, y, z));
+        auto [it, fresh] = containers.try_emplace(Key(x, y, z, dim));
         BlockContainer& c = it->second;
         if (fresh) {
             c.kind = kind;
+            c.dimension = dim;
             c.x = x;
             c.y = y;
             c.z = z;
@@ -95,7 +100,7 @@ namespace perlin::server {
         }
         by.Inventory().containerKind = kind;
         by.Inventory().container = c.slots;
-        by.openContainer = Key(x, y, z);
+        by.openContainer = Key(x, y, z, dim);
         by.OpenWindow(window, WindowOf(kind), x, y, z);
         by.SendWindowContents(SlotType(kind), c.slots);
         if (kind >= 2) {
@@ -123,7 +128,7 @@ namespace perlin::server {
         bool gave = false;
         for (ItemStack& s : inv.craft)
             if (!s.Empty()) {
-                const int left = inv.Give(s.networkId, s.count);
+                const int left = inv.Give(s);
                 if (left > 0) {
                     ItemStack rest = s;
                     rest.count = static_cast<uint16_t>(left);
@@ -143,8 +148,8 @@ namespace perlin::server {
             by.SendInventory();
     }
 
-    void Server::DropContainer(int x, int y, int z) {
-        const auto it = containers.find(Key(x, y, z));
+    void Server::DropContainer(int dimension, int x, int y, int z) {
+        const auto it = containers.find(Key(x, y, z, dimension));
         if (it == containers.end())
             return;
         for (Session* s : InGamePlayers())
@@ -156,12 +161,12 @@ namespace perlin::server {
             }
         for (const ItemStack& stack : it->second.slots)
             if (!stack.Empty())
-                SpawnItem(stack, x + 0.5, y + 0.5, z + 0.5, 0.0, 0.15, 0.0, 10);
+                SpawnItem(stack, x + 0.5, y + 0.5, z + 0.5, 0.0, 0.15, 0.0, 10, dimension);
         containers.erase(it);
     }
 
     void Server::PushContainer(BlockContainer& c, bool slotsChanged) {
-        const int64_t key = Key(c.x, c.y, c.z);
+        const int64_t key = Key(c.x, c.y, c.z, c.dimension);
         for (Session* s : InGamePlayers())
             if (s->openContainer == key) {
                 if (slotsChanged) {
@@ -221,8 +226,9 @@ namespace perlin::server {
                 c.cook = std::max(0, c.cook - 2);
             }
             const bool lit = c.burn > 0;
-            if (lit != wasLit && chunks->Peek({c.x >> 4, c.z >> 4})) {
-                const uint16_t block = chunks->GetBlock(c.x, c.y, c.z);
+            ChunkManager* world = LoadedWorld(c.dimension);
+            if (lit != wasLit && world && world->Peek({c.x >> 4, c.z >> 4})) {
+                const uint16_t block = world->GetBlock(c.x, c.y, c.z);
                 std::string text = BlockCatalog::Instance().StateText(block);
                 const std::string name = text.substr(0, text.find('['));
                 const std::string bare = Bare(name);
@@ -232,7 +238,7 @@ namespace perlin::server {
                 if (!lit && bare.starts_with("lit_"))
                     target = bare.substr(4);
                 if (target != bare)
-                    ApplyBlock(c.x, c.y, c.z, BlockCatalog::Instance().Resolve("minecraft:" + target + text.substr(name.size())));
+                    ApplyBlock(c.dimension, c.x, c.y, c.z, BlockCatalog::Instance().Resolve("minecraft:" + target + text.substr(name.size())));
             }
             if (changed)
                 for (ItemStack& s : c.slots)

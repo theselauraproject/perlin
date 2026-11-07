@@ -148,60 +148,208 @@ namespace perlin {
         shakeMatrix = glm::mat4(1.0f);
     }
 
+    float CameraEffects::FadeAt(double now) const {
+        if (!fadeActive)
+            return 0.0f;
+        if (now >= fadeEnd)
+            return 0.0f;
+        if (now >= fadeOutAt)
+            return static_cast<float>((fadeEnd - now) / std::max(fadeEnd - fadeOutAt, 1e-4));
+        if (now >= fadeFull)
+            return 1.0f;
+        const double span = std::max(fadeFull - fadeT0, 1e-4);
+        return fadeFrom + (1.0f - fadeFrom) * static_cast<float>((now - fadeT0) / span);
+    }
+
     void CameraEffects::Fade(float in, float wait, float out, glm::vec3 rgb) {
         std::lock_guard lock(mutex);
-        fadeIn = std::max(in, 0.0f);
-        fadeWait = std::max(wait, 0.0f);
-        fadeOut = std::max(out, 0.0f);
+        const double now = Now();
+        // each part is capped at 10 s and a fade lasts at least half a second: a short one holds longer
+        in = std::clamp(in, 0.0f, 10.0f);
+        wait = std::clamp(wait, 0.0f, 10.0f);
+        out = std::clamp(out, 0.0f, 10.0f);
+        if (in + wait + out < 0.5f)
+            wait = 0.5f - in - out;
+        if (rgb.x > 1.0f || rgb.y > 1.0f || rgb.z > 1.0f)
+            rgb /= 255.0f;
+        const float current = FadeAt(now);
+        if (fadeActive && now < fadeEnd) {
+            // merge: opacity continues from where it is, the faster fade-in wins, the fade-out starts once both
+            // are ready and ends when both would end; the running fade keeps its colour
+            const double remainingIn = std::max(0.0, fadeFull - now);
+            const double newFull = now + std::min(remainingIn > 0.0 ? remainingIn : 0.0, static_cast<double>(in));
+            const double newOutAt = std::max(fadeOutAt, now + in + wait);
+            const double newEnd = std::max(fadeEnd, now + in + wait + out);
+            fadeFrom = current;
+            fadeT0 = now;
+            fadeFull = current >= 1.0f ? now : (remainingIn > 0.0 ? newFull : now + in * (1.0f - current));
+            fadeOutAt = std::max(newOutAt, fadeFull);
+            fadeEnd = std::max(newEnd, fadeOutAt);
+            return;
+        }
         fadeColor = rgb;
-        fadeStart = Now();
+        fadeFrom = 0.0f;
+        fadeT0 = now;
+        fadeFull = now + in;
+        fadeOutAt = fadeFull + wait;
+        fadeEnd = fadeOutAt + out;
         fadeActive = true;
     }
 
     void CameraEffects::SetFov(float fov, float easeTime, int easeType, bool clear) {
         std::lock_guard lock(mutex);
-        fovFrom = fovHave ? fovCurrent : 0.0f;
+        fovFromSet = false;
         fovStart = Now();
-        fovEase = std::max(easeTime, 0.0f);
+        fovDuration = std::max(easeTime, 0.0f);
         fovType = easeType;
         fovClearing = clear;
         fovTo = fov;
         fovActive = true;
-        if (!fovHave)
-            fovFrom = 0.0f;
+    }
+
+    void CameraEffects::SetPresets(std::vector<CameraPreset> list) {
+        std::lock_guard lock(mutex);
+        presets = std::move(list);
+    }
+
+    void CameraEffects::SetSplines(std::vector<CameraSpline> list) {
+        std::lock_guard lock(mutex);
+        splines = std::move(list);
+    }
+
+    const CameraPreset* CameraEffects::PresetAt(int index) const {
+        std::lock_guard lock(mutex);
+        return index >= 0 && static_cast<size_t>(index) < presets.size() ? &presets[static_cast<size_t>(index)]
+                                                                           : nullptr;
+    }
+
+    int CameraEffects::SplineIndex(const std::string& name) const {
+        std::lock_guard lock(mutex);
+        for (size_t i = 0; i < splines.size(); i++)
+            if (splines[i].name == name)
+                return static_cast<int>(i);
+        return -1;
+    }
+
+    CameraSpline CameraEffects::SplineAt(int index) const {
+        std::lock_guard lock(mutex);
+        return index >= 0 && static_cast<size_t>(index) < splines.size() ? splines[static_cast<size_t>(index)]
+                                                                           : CameraSpline{};
     }
 
     void CameraEffects::Set(const CameraSet& set) {
         std::lock_guard lock(mutex);
-        lastSet = set;
-        poseFrom = poseActive ? poseNow : CameraPose{};
-        const bool wasActive = poseActive;
-        poseActive = true;
-        poseStart = Now();
-        poseDuration = set.hasEase ? set.easeDuration : 0.0f;
-        poseType = set.easeType;
-        if (!wasActive)
-            poseFrom = CameraPose{};
-        facingPoint = set.facing;
-        if (set.position)
-            poseTo.position = *set.position;
-        if (set.rotation) {
-            poseTo.pitch = -set.rotation->x;
-            poseTo.yaw = set.rotation->y + 90.0f;
+        CameraSet r = set;
+        Kind k = Kind::Free;
+        float speed = 0.0f, radius = 50.0f;
+        bool snap = false, cont = false;
+        glm::vec2 hl{0.0f, 360.0f}, vl{0.0f, 180.0f};
+        // walk the preset chain: the nearest definition of each value wins, then the instruction's own
+        bool haveOrbit = false, haveScheme = false, haveAudio = false;
+        bool havePos = false, haveRot = false, haveOff = false, haveEnt = false, haveSpeed = false,
+             haveSnap = false, haveCont = false, haveH = false, haveV = false, haveRadius = false;
+        std::string name;
+        if (set.presetIndex >= 0 && static_cast<size_t>(set.presetIndex) < presets.size()) {
+            const CameraPreset* cur = &presets[static_cast<size_t>(set.presetIndex)];
+            name = cur->name;
+            for (int guard = 0; cur && guard < 16; guard++) {
+                if (cur->name == "minecraft:first_person")
+                    k = Kind::FirstPerson;
+                else if (cur->name == "minecraft:third_person")
+                    k = Kind::ThirdPerson;
+                else if (cur->name == "minecraft:third_person_front")
+                    k = Kind::ThirdPersonFront;
+                if (!havePos && cur->position)
+                    r.position = set.useDefault || !set.position ? cur->position : set.position, havePos = true;
+                if (!haveRot && cur->rotation)
+                    r.rotation = set.useDefault || !set.rotation ? cur->rotation : set.rotation, haveRot = true;
+                if (!haveOff && cur->offset)
+                    r.offset = set.useDefault || !set.offset ? cur->offset : set.offset, haveOff = true;
+                if (!haveEnt && cur->entityOffset)
+                    r.entityOffset = set.useDefault || !set.entityOffset ? cur->entityOffset : set.entityOffset,
+                    haveEnt = true;
+                if (!haveSpeed && cur->rotationSpeed)
+                    speed = *cur->rotationSpeed, haveSpeed = true;
+                if (!haveSnap && cur->snapToTarget)
+                    snap = *cur->snapToTarget, haveSnap = true;
+                if (!haveCont && cur->continueTargeting)
+                    cont = *cur->continueTargeting, haveCont = true;
+                if (!haveH && cur->horizontalLimit)
+                    hl = *cur->horizontalLimit, haveH = true;
+                if (!haveV && cur->verticalLimit)
+                    vl = *cur->verticalLimit, haveV = true;
+                if (!haveScheme && cur->controlScheme)
+                    r.controlScheme = *cur->controlScheme, haveScheme = true;
+                if (!haveAudio && cur->audioListener)
+                    r.audioListener = *cur->audioListener, haveAudio = true;
+                if (!haveOrbit && cur->radius && *cur->radius > 0.0f)
+                    r.orbitRadius = *cur->radius, haveOrbit = true;
+                // a preset that only gives a starting rotation begins there
+                if (!haveRot && !cur->rotation && cur->startingRotation && cur->applyStartingRotation &&
+                    !set.rotation)
+                    r.rotation = cur->startingRotation, haveRot = true;
+                if (!haveRadius && cur->trackingRadius)
+                    radius = *cur->trackingRadius, haveRadius = true;
+                const CameraPreset* next = nullptr;
+                if (!cur->parent.empty())
+                    for (const auto& c : presets)
+                        if (c.name == cur->parent) {
+                            next = &c;
+                            break;
+                        }
+                cur = next;
+            }
         }
-        if (!wasActive)
-            poseFrom = poseTo;
+        if (set.useDefault) {
+            if (!havePos)
+                r.position.reset();
+            if (!haveRot)
+                r.rotation.reset();
+        }
+        // a free camera facing a point: the instruction's rotation is dropped
+        if (r.facing)
+            r.rotation.reset();
+        const bool wasShown = setActive || splineActive || targetActive;
+        resolved = r;
+        kind = k;
+        rotationSpeed = speed;
+        trackingRadius = radius;
+        snapToTarget = snap;
+        continueTargeting = cont;
+        hLimit = hl;
+        vLimit = vl;
+        setActive = true;
+        splineActive = false;
+        // eases start from the camera as it is now; one cut short starts from where it had got to
+        easePending = true;
+        poseValid = wasShown && poseValid;
+        poseStart = Now();
+        poseDuration = set.hasEase && set.easeDuration > 0.0f ? set.easeDuration : 0.0f;
+        poseType = set.easeType;
+        // an eased move to the built-in perspectives is not allowed: they snap
+        if (k != Kind::Free)
+            poseDuration = 0.0f;
+        (void)name;
+    }
+
+    void CameraEffects::StartSpline(const CameraSpline& sp) {
+        std::lock_guard lock(mutex);
+        spline = sp;
+        splineStart = Now();
+        splineActive = sp.curve.size() >= 2 && sp.totalTime > 0.0f;
+        if (splineActive) {
+            setActive = false;
+            kind = Kind::Free;
+        }
     }
 
     void CameraEffects::Clear() {
         std::lock_guard lock(mutex);
-        poseActive = false;
-        facingPoint.reset();
-        fovActive = false;
-        fovHave = false;
-        fadeActive = false;
-        shakeActive = false;
-        shakeMatrix = glm::mat4(1.0f);
+        setActive = false;
+        easePending = false;
+        poseValid = false;
+        splineActive = false;
+        kind = Kind::None;
         targetActive = false;
         targetUid = 0;
         attachedUid = 0;
@@ -212,6 +360,7 @@ namespace perlin {
         targetUid = entityUid;
         targetOffset = offset ? *offset : glm::vec3(0.0f);
         targetActive = true;
+        targetFresh = true;
     }
 
     void CameraEffects::RemoveTarget() {
@@ -241,15 +390,66 @@ namespace perlin {
     }
 
     void CameraEffects::Reset() {
+        {
+            std::lock_guard lock(mutex);
+            fadeActive = false;
+            fovActive = false;
+            fovFromSet = false;
+            shakeActive = false;
+            shakeMatrix = glm::mat4(1.0f);
+            fogStack.clear();
+            presets.clear();
+            splines.clear();
+        }
         Clear();
-        std::lock_guard lock(mutex);
-        fogStack.clear();
-        poseTo = CameraPose{};
     }
 
-    void CameraEffects::Tick(const CameraPose& base) {
+    glm::vec3 CameraEffects::Sample(const std::vector<glm::vec3>& c, float p, bool smooth) {
+        const int n = static_cast<int>(c.size());
+        if (n == 0)
+            return glm::vec3(0.0f);
+        if (n == 1)
+            return c[0];
+        const float f = std::clamp(p, 0.0f, 1.0f) * static_cast<float>(n - 1);
+        const int i = std::min(static_cast<int>(f), n - 2);
+        const float u = f - static_cast<float>(i);
+        if (!smooth)
+            return c[static_cast<size_t>(i)] + (c[static_cast<size_t>(i) + 1] - c[static_cast<size_t>(i)]) * u;
+        const glm::vec3 p0 = c[static_cast<size_t>(std::max(i - 1, 0))], p1 = c[static_cast<size_t>(i)],
+                        p2 = c[static_cast<size_t>(i) + 1], p3 = c[static_cast<size_t>(std::min(i + 2, n - 1))];
+        const float u2 = u * u, u3 = u2 * u;
+        return 0.5f * ((2.0f * p1) + (-p0 + p2) * u + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * u2 +
+                       (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * u3);
+    }
+
+    void CameraEffects::Tick(const CameraPose& base, const EntityLookup& lookup) {
         std::lock_guard lock(mutex);
+        TickLocked(base, lookup);
+    }
+
+    namespace {
+        float WrapDeg(float a) {
+            while (a > 180.0f)
+                a -= 360.0f;
+            while (a < -180.0f)
+                a += 360.0f;
+            return a;
+        }
+
+        CameraPose LookAt(const glm::vec3& from, const glm::vec3& to) {
+            const glm::vec3 d = to - from;
+            CameraPose p;
+            p.position = from;
+            p.yaw = glm::degrees(std::atan2(d.z, d.x));
+            p.pitch = glm::degrees(std::atan2(d.y, std::sqrt(d.x * d.x + d.z * d.z)));
+            return p;
+        }
+    }
+
+    void CameraEffects::TickLocked(const CameraPose& baseIn, const EntityLookup& lookup) {
         const double now = Now();
+        const float dt = lastTick > 0.0 ? static_cast<float>(std::min(now - lastTick, 0.25)) : 0.0f;
+        lastTick = now;
         shakeMatrix = glm::mat4(1.0f);
         if (shakeActive) {
             const float elapsed = static_cast<float>(now - shakeStart);
@@ -272,92 +472,196 @@ namespace perlin {
                 }
             }
         }
-        if (fadeActive) {
-            const float elapsed = static_cast<float>(now - fadeStart);
-            if (elapsed < fadeIn)
-                fadeAlpha = fadeIn > 0.0f ? elapsed / fadeIn : 1.0f;
-            else if (elapsed < fadeIn + fadeWait)
-                fadeAlpha = 1.0f;
-            else if (elapsed < fadeIn + fadeWait + fadeOut)
-                fadeAlpha = 1.0f - (elapsed - fadeIn - fadeWait) / std::max(fadeOut, 1e-4f);
-            else {
-                fadeActive = false;
-                fadeAlpha = 0.0f;
-            }
-        } else
-            fadeAlpha = 0.0f;
-        if (fovActive) {
-            const float t = fovEase > 0.0f ? static_cast<float>((now - fovStart) / fovEase) : 1.0f;
-            const float e = EaseValue(fovType, t);
-            if (fovClearing) {
-                fovCurrent = 0.0f;
-                if (t >= 1.0f) {
-                    fovActive = false;
-                    fovHave = false;
-                }
-            } else {
-                const float from = fovHave && fovFrom > 0.0f ? fovFrom : fovTo;
-                fovCurrent = from + (fovTo - from) * e;
-                fovHave = true;
-                if (t >= 1.0f)
-                    fovActive = false;
-            }
-        }
-        if (poseActive) {
-            CameraPose target = poseTo;
-            if (!lastSet.position)
-                target.position = base.position;
-            if (!lastSet.rotation && !facingPoint)
-                target.yaw = base.yaw, target.pitch = base.pitch;
-            if (facingPoint) {
-                const glm::vec3 d = *facingPoint - target.position;
-                const float horizontal = std::sqrt(d.x * d.x + d.z * d.z);
-                target.yaw = glm::degrees(std::atan2(d.z, d.x));
-                target.pitch = glm::degrees(std::atan2(d.y, horizontal));
-            }
-            if (lastSet.offset)
-                target.position += glm::vec3(lastSet.offset->x, lastSet.offset->y, 0.0f);
-            const float t = poseDuration > 0.0f ? static_cast<float>((now - poseStart) / poseDuration) : 1.0f;
-            const float e = EaseValue(poseType, t);
-            CameraPose from = poseFrom;
-            if (t >= 1.0f)
-                poseNow = target;
-            else {
-                float dyaw = target.yaw - from.yaw;
-                while (dyaw > 180.0f)
-                    dyaw -= 360.0f;
-                while (dyaw < -180.0f)
-                    dyaw += 360.0f;
-                poseNow.position = from.position + (target.position - from.position) * e;
-                poseNow.yaw = from.yaw + dyaw * e;
-                poseNow.pitch = from.pitch + (target.pitch - from.pitch) * e;
-            }
-            if (t >= 1.0f)
-                poseFrom = poseNow;
-        }
-    }
+        fadeAlpha = FadeAt(now);
+        if (fadeActive && now >= fadeEnd)
+            fadeActive = false;
 
-    void CameraEffects::ResolveTarget(const glm::vec3& worldPos, const CameraPose& base) {
-        std::lock_guard lock(mutex);
-        if (!targetActive)
-            return;
-        const glm::vec3 from = poseActive ? poseNow.position : base.position;
-        const glm::vec3 d = worldPos + targetOffset - from;
-        const float horizontal = std::sqrt(d.x * d.x + d.z * d.z);
-        poseNow.position = from;
-        poseNow.yaw = glm::degrees(std::atan2(d.z, d.x));
-        poseNow.pitch = glm::degrees(std::atan2(d.y, horizontal));
-        poseActive = true;
+        // the camera the player would have: attached to an entity it is that entity's eyes
+        CameraPose base = baseIn;
+        TrackedEntity attached;
+        const bool isAttached = attachedUid != 0 && lookup && lookup(attachedUid, attached);
+        if (isAttached) {
+            base.position = attached.eye;
+            base.yaw = attached.yaw;
+            base.pitch = attached.pitch;
+        }
+
+        const bool wasValid = poseValid;
+        bool have = false;
+        CameraPose goal = base;
+        if (splineActive) {
+            const float el = static_cast<float>(now - splineStart);
+            const float t = std::clamp(el / spline.totalTime, 0.0f, 1.0f);
+            float p = t;
+            if (!spline.progress.empty()) {
+                const auto& k = spline.progress;
+                const float secs = std::min(el, spline.totalTime);
+                p = k.back().value;
+                if (secs <= k.front().time)
+                    p = k.front().value;
+                else
+                    for (size_t i = 1; i < k.size(); i++)
+                        if (secs <= k[i].time) {
+                            const float span = std::max(k[i].time - k[i - 1].time, 1e-4f);
+                            p = k[i - 1].value +
+                                (k[i].value - k[i - 1].value) *
+                                    EaseValue(k[i].ease, (secs - k[i - 1].time) / span);
+                            break;
+                        }
+            }
+            const bool smooth = spline.type != "linear";
+            goal.position = Sample(spline.curve, p, smooth);
+            if (!spline.rotation.empty()) {
+                const auto& k = spline.rotation;
+                const float secs = std::min(el, spline.totalTime);
+                glm::vec3 r = k.back().value;
+                if (secs <= k.front().time)
+                    r = k.front().value;
+                else
+                    for (size_t i = 1; i < k.size(); i++)
+                        if (secs <= k[i].time) {
+                            const float span = std::max(k[i].time - k[i - 1].time, 1e-4f);
+                            const float e = EaseValue(k[i].ease, (secs - k[i - 1].time) / span);
+                            const glm::vec3 a = k[i - 1].value, b = k[i].value;
+                            r = {a.x + (b.x - a.x) * e, a.y + WrapDeg(b.y - a.y) * e, 0.0f};
+                            break;
+                        }
+                goal.pitch = -r.x;
+                goal.yaw = r.y + 90.0f;
+            } else {
+                const glm::vec3 ahead = Sample(spline.curve, std::min(p + 0.01f, 1.0f), smooth);
+                if (glm::length(ahead - goal.position) > 1e-4f) {
+                    const CameraPose l = LookAt(goal.position, ahead);
+                    goal.yaw = l.yaw;
+                    goal.pitch = l.pitch;
+                }
+            }
+            poseNow = goal;
+            poseValid = have = true;
+        } else if (setActive && kind == Kind::Free) {
+            const CameraSet& r = resolved;
+            goal.position = r.position ? *r.position : base.position;
+            if (r.entityOffset)
+                goal.position += *r.entityOffset;
+            if (r.facing) {
+                const CameraPose l = LookAt(goal.position, *r.facing);
+                goal.yaw = l.yaw;
+                goal.pitch = l.pitch;
+            } else if (r.rotation) {
+                goal.pitch = -r.rotation->x;
+                goal.yaw = r.rotation->y + 90.0f;
+            }
+            if (r.orbitRadius > 0.0f && !r.position) {
+                // follow_orbit: the camera sits behind the player on a sphere, turning with the player's view
+                const float yr0 = glm::radians(goal.yaw), pr0 = glm::radians(goal.pitch);
+                const glm::vec3 dir(std::cos(yr0) * std::cos(pr0), std::sin(pr0), std::sin(yr0) * std::cos(pr0));
+                goal.position -= dir * r.orbitRadius;
+            }
+            if (r.offset) {
+                const float yr = glm::radians(goal.yaw);
+                const glm::vec3 right(-std::sin(yr), 0.0f, std::cos(yr));
+                goal.position += right * r.offset->x + glm::vec3(0.0f, r.offset->y, 0.0f);
+            }
+            if (easePending) {
+                easePending = false;
+                poseFrom = poseValid ? poseNow : base;
+                poseStart = now;
+            }
+            const float t = poseDuration > 0.0f ? static_cast<float>((now - poseStart) / poseDuration) : 1.0f;
+            if (t >= 1.0f)
+                poseNow = goal;
+            else {
+                const float e = EaseValue(poseType, t);
+                poseNow.position = poseFrom.position + (goal.position - poseFrom.position) * e;
+                poseNow.yaw = poseFrom.yaw + WrapDeg(goal.yaw - poseFrom.yaw) * e;
+                poseNow.pitch = poseFrom.pitch + (goal.pitch - poseFrom.pitch) * e;
+            }
+            poseValid = have = true;
+        } else if (setActive) {
+            // first/third person presets: the player's own view decides the pose, only the perspective changes
+            poseValid = false;
+        } else if (isAttached) {
+            poseNow = base;
+            poseValid = have = true;
+        } else if (!targetActive) {
+            poseValid = false;
+        }
+
+        // focus target: a free camera that stays where it is and turns to follow an entity
+        if (targetActive) {
+            TrackedEntity victim;
+            if (!lookup || !lookup(targetUid, victim)) {
+                // not in view (unloaded or far): tracking ends once it is clearly gone, until then it holds
+                if (!continueTargeting && targetUid != 0 && lookup)
+                    targetActive = false;
+            } else {
+                if (!have) {
+                    // no preset running: freeze the player's view where it is, like a security camera
+                    if (targetFresh || !poseValid) {
+                        frozenPos = base.position;
+                        poseNow = base;
+                    }
+                    poseValid = have = true;
+                }
+                const glm::vec3 aim = victim.center + targetOffset;
+                const float dist = glm::length(aim - poseNow.position);
+                if (targetFresh) {
+                    targetFresh = false;
+                    targetStartYaw = poseNow.yaw;
+                }
+                const CameraPose want = LookAt(poseNow.position, aim);
+                const float dyaw = WrapDeg(want.yaw - targetStartYaw);
+                const float fromDown = 90.0f - want.pitch;
+                const float lo = std::min(vLimit.x, vLimit.y), hi = std::max(vLimit.x, vLimit.y);
+                const bool inLimits = dyaw >= -hLimit.x - 0.01f && dyaw <= hLimit.y + 0.01f &&
+                                      fromDown >= lo - 0.01f && fromDown <= hi + 0.01f;
+                if (dist > 1024.0f) {
+                    targetActive = false;
+                } else if (dist <= trackingRadius && inLimits) {
+                    if (rotationSpeed <= 0.0f || (snapToTarget && dt == 0.0f)) {
+                        poseNow.yaw = want.yaw;
+                        poseNow.pitch = want.pitch;
+                    } else {
+                        const float step = rotationSpeed * dt;
+                        const float ay = WrapDeg(want.yaw - poseNow.yaw), ap = want.pitch - poseNow.pitch;
+                        const float len = std::sqrt(ay * ay + ap * ap);
+                        const float k = len > step && len > 0.0f ? step / len : 1.0f;
+                        poseNow.yaw += ay * k;
+                        poseNow.pitch += ap * k;
+                    }
+                } else if (!continueTargeting) {
+                    targetActive = false;
+                }
+            }
+        }
+        if (!have)
+            poseValid = false;
+        (void)wasValid;
     }
 
     bool CameraEffects::PoseActive() const {
         std::lock_guard lock(mutex);
-        return poseActive;
+        return poseValid;
     }
 
     CameraPose CameraEffects::Pose() const {
         std::lock_guard lock(mutex);
         return poseNow;
+    }
+
+    CameraEffects::Kind CameraEffects::PresetKind() const {
+        std::lock_guard lock(mutex);
+        return setActive && !splineActive ? kind : Kind::None;
+    }
+
+    int CameraEffects::ControlScheme() const {
+        std::lock_guard lock(mutex);
+        return setActive && poseValid && kind == Kind::Free ? resolved.controlScheme : -1;
+    }
+
+    bool CameraEffects::AudioAtPlayer() const {
+        std::lock_guard lock(mutex);
+        return setActive && resolved.audioListener == 1;
     }
 
     glm::mat4 CameraEffects::ShakeMatrix() const {
@@ -367,7 +671,26 @@ namespace perlin {
 
     float CameraEffects::Fov(float base) const {
         std::lock_guard lock(mutex);
-        return fovHave && fovCurrent > 1.0f ? fovCurrent : base;
+        if (!fovActive && fovShown <= 0.0f)
+            return base;
+        const double now = Now();
+        if (!fovFromSet) {
+            fovFrom = fovShown > 1.0f ? fovShown : base;
+            fovFromSet = true;
+        }
+        const float t = fovDuration > 0.0f ? static_cast<float>((now - fovStart) / fovDuration) : 1.0f;
+        const float goal = fovClearing ? base : fovTo;
+        const float v = fovFrom + (goal - fovFrom) * EaseValue(fovType, t);
+        if (t >= 1.0f && fovActive) {
+            fovActive = false;
+            fovFromSet = false;
+            fovShown = fovClearing ? 0.0f : fovTo;
+            return fovClearing ? base : fovTo;
+        }
+        if (!fovActive)
+            return fovShown > 1.0f ? fovShown : base;
+        fovShown = v;
+        return v;
     }
 
     glm::vec4 CameraEffects::Tint() const {
@@ -378,11 +701,6 @@ namespace perlin {
     int64_t CameraEffects::TargetUid() const {
         std::lock_guard lock(mutex);
         return targetActive ? targetUid : 0;
-    }
-
-    glm::vec3 CameraEffects::TargetOffset() const {
-        std::lock_guard lock(mutex);
-        return targetOffset;
     }
 
     int64_t CameraEffects::AttachedUid() const {

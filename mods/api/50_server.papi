@@ -1,0 +1,229 @@
+struct ServerItem @since(3) {
+    name: string;
+    count: u32 = 0;
+    damage: u32 = 0;
+}
+
+struct ServerInventory @since(3) {
+    main: list<ServerItem> @doc("36 slots: hotbar first");
+    armor: list<ServerItem> @doc("helmet, chestplate, leggings, boots");
+    offhand: ServerItem;
+    selected: i32 = 0;
+}
+
+struct PlayerDetails @since(3) {
+    id: u64 = 0;
+    name: string; xuid: string; uuid: string;
+    dimension: Dimension = Overworld;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    yaw: f32 = 0; pitch: f32 = 0;
+    gameMode: GameMode = Survival;
+    health: f32 = 20; maxHealth: f32 = 20; absorption: f32 = 0;
+    food: i32 = 20; saturation: f32 = 5;
+    xpLevel: i32 = 0; xpProgress: f32 = 0;
+    onGround: bool = true; sneaking: bool = false; sprinting: bool = false; dead: bool = false;
+    isOperator: bool = false;
+    effects: list<Effect>;
+}
+
+struct ServerEntity @since(3) {
+    id: u64 = 0;
+    type: string;
+    dimension: Dimension = Overworld;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    yaw: f32 = 0;
+    health: f32 = 0; maxHealth: f32 = 0;
+    baby: bool = false;
+}
+
+struct FormButton @since(3) { text: string; image: string @doc("texture path or https url; empty for none"); }
+
+struct FormControl @since(3) {
+    kind: FormElement = Label;
+    text: string;
+    options: list<string> @doc("dropdown and step slider choices");
+    min: f32 = 0; max: f32 = 100; step: f32 = 1;
+    defaultNumber: f32 = 0;
+    defaultText: string @doc("input default, or the toggle default as true or false");
+    placeholder: string;
+}
+
+struct Form @since(3) {
+    kind: FormKind = Message;
+    title: string;
+    body: string;
+    buttons: list<FormButton> @doc("menu buttons; a message form uses the first two");
+    controls: list<FormControl> @doc("custom form controls");
+}
+
+struct EventServerDamage @since(3) {
+    player: u64 = 0;
+    amount: f32 = 0;
+    cause: DamageCause = Generic;
+    attacker: u64 = 0 @doc("player or entity id; 0 when there is none");
+    attackerType: string;
+}
+
+struct EventServerDeath @since(3) {
+    player: u64 = 0;
+    cause: DamageCause = Generic;
+    attacker: u64 = 0;
+    message: string;
+}
+
+struct EventPlayerUse @since(3) {
+    player: u64 = 0;
+    x: i32 = 0; y: i32 = 0; z: i32 = 0;
+    face: Face = Up;
+    block: string;
+    item: string;
+}
+
+struct EventPlayerAttack @since(3) {
+    player: u64 = 0;
+    target: u64 = 0;
+    targetType: string;
+    damage: f32 = 0;
+}
+
+struct EventEntityDamage @since(3) {
+    entity: u64 = 0;
+    type: string;
+    amount: f32 = 0;
+    cause: DamageCause = Generic;
+    attacker: u64 = 0;
+}
+
+struct EventEntityDeath @since(3) {
+    entity: u64 = 0;
+    type: string;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    killer: u64 = 0 @doc("player id when a player got the kill");
+}
+
+struct EventEntitySpawn @since(3) {
+    entity: u64 = 0;
+    type: string;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    natural: bool = false @doc("spawned by the world rather than a command, egg or plugin");
+}
+
+struct EventItem @since(3) { player: u64 = 0; item: string; count: u32 = 0; }
+
+struct EventGameModeChange @since(3) { player: u64 = 0; from: GameMode; to: GameMode; }
+
+struct EventFormResponse @since(3) {
+    player: u64 = 0;
+    form: u32 = 0;
+    closed: bool = false @doc("the player closed the form without answering");
+    button: i32 = -1 @doc("menu: index of the pressed button; message: 0 or 1");
+    values: list<string> @doc("custom form: one value per control, as text");
+}
+
+struct EventPlayerMove @since(3) {
+    player: u64 = 0;
+    dimension: Dimension = Overworld;
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    yaw: f32 = 0; pitch: f32 = 0;
+    onGround: bool = true;
+}
+
+struct EventExplosion @since(3) {
+    x: f64 = 0; y: f64 = 0; z: f64 = 0;
+    power: f32 = 0;
+    source: u64 = 0;
+    sourceType: string;
+}
+
+struct EventContainer @since(3) { player: u64 = 0; x: i32 = 0; y: i32 = 0; z: i32 = 0; block: string; }
+
+struct EventPlayerDimension @since(3) { player: u64 = 0; from: Dimension; to: Dimension; }
+
+struct EventServerCommand @since(3) { player: u64 = 0 @doc("0 for the console"); line: string; }
+
+struct EventPreLogin @since(3) { name: string; xuid: string; address: string; }
+
+op Broadcast = 0x7000 @hosts(server) @category(server) TextMessage;
+op PlayerMessage = 0x7001 @hosts(server) @category(server) PlayerText;
+op Kick = 0x7002 @hosts(server) @permission(Admin) @category(server) PlayerText;
+op OnlinePlayers = 0x7003 @hosts(server) @category(server) -> OnlinePlayerList;
+op Teleport = 0x7004 @hosts(server) @permission(Players) @category(players) ServerTeleport;
+op SetBlock = 0x7005 @hosts(server) @permission(World) @category(world) BlockWrite;
+op BlockName = 0x7006 @hosts(server) @category(world) BlockCoord -> TextMessage;
+op ServerInfo = 0x7007 @hosts(server) @category(server) -> ServerStatus;
+op GiveItem = 0x7008 @hosts(server) @permission(Players) @category(inventory) GiveItemRequest -> GiveItemResult;
+
+op PlayerInfo = 0x7010 @hosts(server) @since(3) @category(players) (player: u64) -> PlayerDetails;
+op PlayerSetGameMode = 0x7011 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, mode: GameMode);
+op PlayerSetHealth = 0x7012 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, health: f32);
+op PlayerDamage = 0x7013 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, amount: f32, cause: DamageCause, knockback: bool) -> bool;
+op PlayerKill = 0x7014 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64);
+op PlayerSetFood = 0x7015 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, food: i32, saturation: f32);
+op PlayerAddExperience = 0x7016 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, points: i32, levels: i32);
+op PlayerEffectAdd = 0x7017 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, effect: EffectId, amplifier: i32, ticks: i32, particles: bool);
+op PlayerEffectRemove = 0x7018 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, effect: i32 @doc("0 removes every effect"));
+op PlayerInventory = 0x7019 @hosts(server) @since(3) @category(inventory) (player: u64) -> ServerInventory;
+op PlayerSetSlot = 0x701A @hosts(server) @since(3) @permission(Players) @category(inventory) (player: u64, container: i32 @doc("0 main, 1 armor, 2 offhand"), slot: i32, item: ServerItem);
+op PlayerClearInventory = 0x701B @hosts(server) @since(3) @permission(Players) @category(inventory) (player: u64);
+op PlayerSetVelocity = 0x701C @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, x: f64, y: f64, z: f64);
+op PlayerTransferDimension = 0x701D @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, dimension: Dimension, x: f64, y: f64, z: f64);
+op PlayerTitle = 0x701E @hosts(server) @since(3) @category(players) (player: u64, title: string, subtitle: string, fadeIn: i32, stay: i32, fadeOut: i32);
+op PlayerActionBar = 0x701F @hosts(server) @since(3) @category(players) (player: u64, text: string);
+op PlayerSound = 0x7020 @hosts(server) @since(3) @category(players) (player: u64 @doc("0 plays to everyone nearby"), sound: string, x: f64, y: f64, z: f64, volume: f32, pitch: f32);
+op PlayerTransfer = 0x7021 @hosts(server) @since(3) @permission(Admin) @category(players) (player: u64, host: string, port: u16);
+op PlayerSetOperator = 0x7022 @hosts(server) @since(3) @permission(Admin) @category(players) (player: u64, isOperator: bool);
+op PlayerForm = 0x7023 @hosts(server) @since(3) @category(ui) (player: u64, form: Form) -> u32 @doc("form id; the answer arrives as FormResponse");
+op PlayerRunCommand = 0x7024 @hosts(server) @since(3) @permission(Admin) @category(players) (player: u64, line: string);
+op PlayerSetSpawn = 0x7025 @hosts(server) @since(3) @permission(Players) @category(players) (player: u64, x: i32, y: i32, z: i32);
+op PlayerByName = 0x7026 @hosts(server) @since(3) @category(players) (name: string) -> u64;
+
+op BlockState = 0x7040 @hosts(server) @since(3) @category(world) (dimension: Dimension, x: i32, y: i32, z: i32) -> BlockInfo;
+op BlockStateSet = 0x7041 @hosts(server) @since(3) @permission(World) @category(world) (dimension: Dimension, x: i32, y: i32, z: i32, name: string, states: list<pair<string, string>>);
+op Fill = 0x7042 @hosts(server) @since(3) @permission(World) @category(world) (dimension: Dimension, x0: i32, y0: i32, z0: i32, x1: i32, y1: i32, z1: i32, block: string) -> u32;
+op TimeGet = 0x7043 @hosts(server) @since(3) @category(world) -> (time: i64, day: i64, timeOfDay: i32);
+op TimeSet = 0x7044 @hosts(server) @since(3) @permission(World) @category(world) (time: i64);
+op WeatherSet = 0x7045 @hosts(server) @since(3) @permission(World) @category(world) (weather: Weather, ticks: i32);
+op GameRuleGet = 0x7046 @hosts(server) @since(3) @category(world) (name: string) -> i32;
+op GameRuleSet = 0x7047 @hosts(server) @since(3) @permission(Admin) @category(world) (name: string, value: i32);
+op DifficultySet = 0x7048 @hosts(server) @since(3) @permission(Admin) @category(world) (difficulty: Difficulty);
+op Explode = 0x7049 @hosts(server) @since(3) @permission(World) @category(world) (dimension: Dimension, x: f64, y: f64, z: f64, power: f32, breakBlocks: bool);
+op HighestBlock = 0x704A @hosts(server) @since(3) @category(world) (dimension: Dimension, x: i32, z: i32) -> i32;
+op ParticleAt = 0x704B @hosts(server) @since(3) @category(world) (dimension: Dimension, name: string, x: f64, y: f64, z: f64);
+op DropItem = 0x704C @hosts(server) @since(3) @permission(World) @category(world) (dimension: Dimension, item: ServerItem, x: f64, y: f64, z: f64);
+op WorldSpawnGet = 0x704D @hosts(server) @since(3) @category(world) -> BlockCoord;
+op WorldSpawnSet = 0x704E @hosts(server) @since(3) @permission(Admin) @category(world) BlockCoord;
+
+op EntitySpawn = 0x7060 @hosts(server) @since(3) @permission(World) @category(entity) (type: string, x: f64, y: f64, z: f64, baby: bool) -> u64;
+op EntityList = 0x7061 @hosts(server) @since(3) @category(entity) (x: f64, y: f64, z: f64, radius: f64 @doc("0 lists every entity"), type: string) -> (entities: list<ServerEntity>);
+op EntityRemove = 0x7062 @hosts(server) @since(3) @permission(World) @category(entity) (entity: u64);
+op EntityDamage = 0x7063 @hosts(server) @since(3) @permission(World) @category(entity) (entity: u64, amount: f32) -> bool;
+op EntityTeleport = 0x7064 @hosts(server) @since(3) @permission(World) @category(entity) (entity: u64, x: f64, y: f64, z: f64);
+op EntitySetVelocity = 0x7065 @hosts(server) @since(3) @permission(World) @category(entity) (entity: u64, x: f64, y: f64, z: f64);
+op EntityInfo = 0x7066 @hosts(server) @since(3) @category(entity) (entity: u64) -> ServerEntity;
+op EntitySetHealth = 0x7067 @hosts(server) @since(3) @permission(World) @category(entity) (entity: u64, health: f32);
+
+op RunCommand = 0x7080 @hosts(server) @since(3) @permission(Admin) @category(server) (line: string) -> rest_text;
+op MotdSet = 0x7081 @hosts(server) @since(3) @permission(Admin) @category(server) (motd: string);
+op LootTableOverride = 0x7082 @hosts(server) @since(3) @permission(World) @category(loot) (key: string @doc("blocks/stone, entities/zombie"), json: string @doc("a Java loot table; empty restores the built-in one"));
+op LootTableGet = 0x7083 @hosts(server) @since(3) @category(loot) (key: string) -> rest_text;
+op EventAmend = 0x7084 @hosts(server) @since(3) @category(events) (field: string, number: f64, text: string) @doc("changes the event being handled: PlayerDamage amount, EntityDamage amount, PlayerChat message, Explosion power, ServerCommand line, PreLogin reason");
+
+event PlayerDamage = 52 @hosts(server) @since(3) @cancellable EventServerDamage;
+event PlayerDeath = 53 @hosts(server) @since(3) EventServerDeath;
+event PlayerRespawn = 54 @hosts(server) @since(3) EventPlayer;
+event PlayerUseBlock = 55 @hosts(server) @since(3) @cancellable EventPlayerUse;
+event PlayerAttack = 56 @hosts(server) @since(3) @cancellable EventPlayerAttack;
+event EntityDamage = 57 @hosts(server) @since(3) @cancellable EventEntityDamage;
+event EntityDeath = 58 @hosts(server) @since(3) EventEntityDeath;
+event EntitySpawn = 59 @hosts(server) @since(3) @cancellable EventEntitySpawn;
+event ItemConsume = 60 @hosts(server) @since(3) @cancellable EventItem;
+event GameModeChange = 61 @hosts(server) @since(3) EventGameModeChange;
+event FormResponse = 62 @hosts(server) @since(3) EventFormResponse;
+event PlayerMove = 63 @hosts(server) @since(3) @hot EventPlayerMove;
+event Explosion = 64 @hosts(server) @since(3) @cancellable EventExplosion;
+event ItemDrop = 65 @hosts(server) @since(3) @cancellable EventItem;
+event ItemPickup = 66 @hosts(server) @since(3) @cancellable EventItem;
+event ContainerOpen = 67 @hosts(server) @since(3) @cancellable EventContainer;
+event DimensionChange = 68 @hosts(server) @since(3) EventPlayerDimension;
+event ServerCommand = 69 @hosts(server) @since(3) @cancellable EventServerCommand;
+event PreLogin = 70 @hosts(server) @since(3) @cancellable EventPreLogin;

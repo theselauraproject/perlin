@@ -53,6 +53,7 @@ namespace perlin::gpu {
     }
 
     void ChunkMeshStore::Clear() {
+        meshEpoch++;
         chunks.clear();
         lods.clear();
         lodGroups.clear();
@@ -86,6 +87,7 @@ namespace perlin::gpu {
     }
 
     void ChunkMeshStore::ReleaseGpu() {
+        meshEpoch++;
         const auto drop = [&](Arena& a) {
             if (a.Buffer()) {
                 gpu->ForgetBuffer(a.Buffer());
@@ -105,6 +107,7 @@ namespace perlin::gpu {
     }
 
     bool ChunkMeshStore::Load(Backup&& backup) {
+        meshEpoch++;
         size_t next = 0;
         bool ok = true;
         const auto restore = [&](Arena& a) {
@@ -209,6 +212,7 @@ namespace perlin::gpu {
             for (Arena& a : p.ib)
                 a.Destroy(gpu->Dev());
             p.live = false;
+            meshEpoch++;
         }
     }
 
@@ -226,10 +230,12 @@ namespace perlin::gpu {
 
     void ChunkMeshStore::Update(bool lod, int cx, int cz, int size, const Tessellator& tess,
                                 uint64_t version) {
+        meshEpoch++;
         Upload(lod ? lods : chunks, lod, cx, cz, size, tess, version);
     }
 
     void ChunkMeshStore::Remove(bool lod, int cx, int cz) {
+        meshEpoch++;
         auto& target = lod ? lods : chunks;
         const auto it = target.find(Key(cx, cz));
         if (it == target.end())
@@ -494,6 +500,56 @@ namespace perlin::gpu {
         }
     }
 
+    void ChunkMeshStore::BuildCullRecords(RenderLayer layer, std::vector<CullRecord>& records,
+                                          std::vector<CullBucket>& buckets) const {
+        records.clear();
+        buckets.clear();
+        const size_t slot = static_cast<size_t>(layer);
+        std::vector<std::pair<uint64_t, CullRecord>> keyed;
+        const auto add = [&](const Chunk& g, bool lod) {
+            if (g.page < 0 || !g.layerCount[slot])
+                return;
+            const float s = static_cast<float>(g.size);
+            const float x0 = g.cx * s, z0 = g.cz * s;
+            for (const Section& sec : g.sections) {
+                if (!sec.count[slot])
+                    continue;
+                CullRecord r{};
+                r.minX = x0;
+                r.minY = sec.minY;
+                r.minZ = z0;
+                r.maxX = x0 + s;
+                r.maxY = sec.maxY;
+                r.maxZ = z0 + s;
+                r.first = g.iOff[slot] + sec.start[slot];
+                r.count = sec.count[slot];
+                r.chunkX = g.cx;
+                r.chunkZ = g.cz;
+                if (g.secVis != ~0u) {
+                    const int bit = sec.sy - g.visMin;
+                    if (bit >= 0 && bit < 32 && !(g.secVis & (1u << bit)))
+                        r.flags |= 1u;
+                }
+                if (lod)
+                    r.flags |= 2u;
+                keyed.push_back({(static_cast<uint64_t>(static_cast<uint32_t>(g.page)) << 32) | r.first, r});
+            }
+        };
+        for (const auto& entry : chunks)
+            add(entry.second, false);
+        for (const auto& entry : lods)
+            add(entry.second, true);
+        std::sort(keyed.begin(), keyed.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        records.reserve(keyed.size());
+        for (const auto& [key, r] : keyed) {
+            const uint32_t page = static_cast<uint32_t>(key >> 32);
+            if (buckets.empty() || buckets.back().page != page)
+                buckets.push_back({page, static_cast<uint32_t>(records.size()), 0});
+            buckets.back().count++;
+            records.push_back(r);
+        }
+    }
+
     void ChunkMeshStore::CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out) {
         out.clear();
         const size_t slot = static_cast<size_t>(layer);
@@ -552,6 +608,7 @@ namespace perlin::gpu {
                 return;
         }
         caveLastRun = now;
+        caveEpoch++;
 
         int minX = INT_MAX, maxX = INT_MIN, minZ = INT_MAX, maxZ = INT_MIN, minS = INT_MAX, maxS = INT_MIN;
         bool allData = true;

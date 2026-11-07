@@ -101,6 +101,11 @@ namespace perlin::server {
         return id < entries.size() ? entries[id].name : entries[0].name;
     }
 
+    StateList BlockRegistry::States(uint16_t id) const {
+        std::lock_guard lock(mutex);
+        return id < entries.size() ? entries[id].states : StateList{};
+    }
+
     size_t BlockRegistry::Size() const {
         std::lock_guard lock(mutex);
         return entries.size();

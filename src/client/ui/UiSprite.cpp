@@ -12,16 +12,56 @@
 #include <vector>
 
 namespace perlin::ui {
-    namespace {
-        bool PackReplacement(const std::string& resource, Texture& out) {
-            if (!TexturePack::Instance().Active() || !resource.starts_with("ui_") || resource.size() < 8)
-                return false;
-            std::string stem = resource.substr(3);
-            if (stem.size() > 4 && stem.compare(stem.size() - 4, 4, ".png") == 0)
-                stem.resize(stem.size() - 4);
-            return TexturePack::Instance().Load("textures/ui/screen_" + stem + ".png", out);
-        }
+    bool PackSpriteNative(const std::string& resource, Texture& out) {
+        if (!TexturePack::Instance().Active() || !resource.starts_with("ui_") || resource.size() < 8)
+            return false;
+        std::string stem = resource.substr(3);
+        if (stem.size() > 4 && stem.compare(stem.size() - 4, 4, ".png") == 0)
+            stem.resize(stem.size() - 4);
+        return TexturePack::Instance().Load("textures/ui/screen_" + stem + ".png", out) && out.width > 0 &&
+               out.height > 0;
+    }
 
+    bool PackSpriteFor(const std::string& resource, int baseWidth, int baseHeight, Texture& out) {
+        Texture pack;
+        if (baseWidth <= 0 || baseHeight <= 0 || !PackSpriteNative(resource, pack))
+            return false;
+        std::vector<uint8_t> scaled(static_cast<size_t>(baseWidth) * static_cast<size_t>(baseHeight) * 4, 0);
+        for (int y = 0; y < baseHeight; y++)
+            for (int x = 0; x < baseWidth; x++) {
+                const int x0 = x * pack.width / baseWidth, x1 = std::max(x0 + 1, (x + 1) * pack.width / baseWidth);
+                const int y0 = y * pack.height / baseHeight,
+                          y1 = std::max(y0 + 1, (y + 1) * pack.height / baseHeight);
+                double r = 0, g = 0, b = 0, a = 0;
+                int n = 0;
+                for (int yy = y0; yy < y1 && yy < pack.height; yy++)
+                    for (int xx = x0; xx < x1 && xx < pack.width; xx++) {
+                        const uint8_t* p = &pack.pixels[(static_cast<size_t>(yy) * static_cast<size_t>(pack.width) +
+                                                         static_cast<size_t>(xx)) *
+                                                        4];
+                        r += p[0] * p[3];
+                        g += p[1] * p[3];
+                        b += p[2] * p[3];
+                        a += p[3];
+                        n++;
+                    }
+                uint8_t* o = &scaled[(static_cast<size_t>(y) * static_cast<size_t>(baseWidth) +
+                                      static_cast<size_t>(x)) *
+                                     4];
+                if (a > 0 && n > 0) {
+                    o[0] = static_cast<uint8_t>(r / a + 0.5);
+                    o[1] = static_cast<uint8_t>(g / a + 0.5);
+                    o[2] = static_cast<uint8_t>(b / a + 0.5);
+                    o[3] = static_cast<uint8_t>(a / n + 0.5);
+                }
+            }
+        out.width = baseWidth;
+        out.height = baseHeight;
+        out.pixels = std::move(scaled);
+        return true;
+    }
+
+    namespace {
         struct Decoded {
             bool ok = false;
             int width = 0, height = 0;
@@ -49,42 +89,9 @@ namespace perlin::ui {
                 d.width = tex.width;
                 d.height = tex.height;
                 d.rgba.assign(tex.pixels.begin(), tex.pixels.end());
-                Texture pack;
-                if (PackReplacement(resource, pack) && pack.width > 0 && pack.height > 0) {
-                    std::vector<uint8_t> scaled(static_cast<size_t>(d.width) * static_cast<size_t>(d.height) *
-                                                4);
-                    for (int y = 0; y < d.height; y++)
-                        for (int x = 0; x < d.width; x++) {
-                            const int x0 = x * pack.width / d.width,
-                                      x1 = std::max(x0 + 1, (x + 1) * pack.width / d.width);
-                            const int y0 = y * pack.height / d.height,
-                                      y1 = std::max(y0 + 1, (y + 1) * pack.height / d.height);
-                            double r = 0, g = 0, b = 0, a = 0;
-                            int n = 0;
-                            for (int yy = y0; yy < y1 && yy < pack.height; yy++)
-                                for (int xx = x0; xx < x1 && xx < pack.width; xx++) {
-                                    const uint8_t* p = &pack.pixels[(static_cast<size_t>(yy) *
-                                                                         static_cast<size_t>(pack.width) +
-                                                                     static_cast<size_t>(xx)) *
-                                                                    4];
-                                    r += p[0] * p[3];
-                                    g += p[1] * p[3];
-                                    b += p[2] * p[3];
-                                    a += p[3];
-                                    n++;
-                                }
-                            uint8_t* o = &scaled[(static_cast<size_t>(y) * static_cast<size_t>(d.width) +
-                                                  static_cast<size_t>(x)) *
-                                                 4];
-                            if (a > 0 && n > 0) {
-                                o[0] = static_cast<uint8_t>(r / a + 0.5);
-                                o[1] = static_cast<uint8_t>(g / a + 0.5);
-                                o[2] = static_cast<uint8_t>(b / a + 0.5);
-                                o[3] = static_cast<uint8_t>(a / n + 0.5);
-                            }
-                        }
-                    d.rgba = std::move(scaled);
-                }
+                Texture replaced;
+                if (PackSpriteFor(resource, d.width, d.height, replaced))
+                    d.rgba.assign(replaced.pixels.begin(), replaced.pixels.end());
             }
             return cache.emplace(resource, std::move(d)).first->second;
         }

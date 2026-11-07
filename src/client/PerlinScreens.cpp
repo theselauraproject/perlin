@@ -88,8 +88,7 @@ namespace perlin {
             serverLayer.shown = false;
             serverLayer.signature.clear();
         };
-        if (!live || !options.showHud || !hudState.visible || death.shown || disconnect.shown ||
-            loading.shown)
+        if (!live || !options.showHud || !hudState.visible || death.shown || WorldCovered())
             return hide();
 
         const auto now = Clock::now();

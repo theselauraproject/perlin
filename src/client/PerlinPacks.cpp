@@ -40,6 +40,9 @@ namespace perlin {
                 for (const auto& pack : modHooks.packs)
                     stack.push_back(pack.second);
             }
+            // a background block load reads the stack being replaced
+            if (levelRenderer)
+                levelRenderer->WaitAssetJob();
             TexturePack::Instance().OpenStack(paths::DataDir() + "/texturepacks", stack, error);
             if (!error.empty())
                 Log("textures", "{} (using default textures)", error);
@@ -79,6 +82,11 @@ namespace perlin {
         if (renderer) {
             renderer->UnloadLevelResources();
             levelRenderer = std::make_unique<LevelRenderer>(*renderer, options);
+            levelRenderer->OnLibrarySwap([](const BlockLibrary* library) {
+                auto& assets = ui::UiAssets::Instance();
+                if (!assets.VanillaRoot().empty())
+                    assets.Configure(assets.VanillaRoot(), library);
+            });
         }
         auto& assets = ui::UiAssets::Instance();
         const std::string vanilla = assets.VanillaRoot();

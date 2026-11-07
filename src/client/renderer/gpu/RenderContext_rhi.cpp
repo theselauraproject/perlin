@@ -375,6 +375,12 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::CreateStaticResources() {
+        if (!PERLIN_ENV("PERLIN_NO_GPU_CULL") && !cull.Ready()) {
+            if (cull.Init(gpu))
+                Log("render", "chunk culling runs on the gpu");
+            else
+                cull.Shutdown();
+        }
         if (!ResolvePrograms())
             return false;
 
@@ -451,6 +457,7 @@ namespace perlin {
     }
 
     void RenderContext_rhi::DestroyStaticResources() {
+        cull.Shutdown();
         auto& dev = gpu.Dev();
         DestroyPostTargets();
         DestroyFrameGenTargets();
@@ -471,9 +478,10 @@ namespace perlin {
         cloudVertexCapacity = cloudIndexCapacity = 0;
         cloudBuilt = false;
         for (TexRec* t :
-             {&atlas, &lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
+             {&lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
               &javaNormalDef, &javaSpecDef, &javaBlack, &javaCloudWater, &javaMaterials})
             FreeTexture(*t);
+        FreeAtlas();
         javaTexReady = false;
         javaMaterialCount = 0;
         DestroyScreenTargets();
@@ -1093,6 +1101,9 @@ namespace perlin {
             return;
         gpu.SetState(image.texture, conduit::state::undefined);
         gpu.Flush(*list);
+        if (gpuCullFrame)
+            cull.Record(*list);
+        gpuCullFrame = false;
 
         Target screen;
         screen.color = image.texture;

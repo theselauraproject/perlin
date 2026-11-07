@@ -350,17 +350,27 @@ namespace perlin {
         std::error_code zec;
         if (fs::exists(zipDone, zec) || DownloadReleaseZip(targetDir)) {
             std::ofstream(zipDone.string()).close();
+            const fs::path skipped = fs::path(targetDir) / "repo" / ".extras-skipped";
+            if (fs::exists(skipped, zec))
+                return true;
             std::vector<std::string> extra;
+            bool listed = true;
             for (const std::string& dir : Directories())
                 if (!fs::exists(fs::path(targetDir) / "repo" / dir, zec) && !CollectDirectory(dir, extra))
-                    return false;
-            if (extra.empty())
-                return true;
-            perlin::Log("samples", "fetching {} files missing from the release archive", extra.size());
-            perlin::assets::Samples().stage = perlin::assets::Stage::Downloading;
-            perlin::assets::Samples().bytes.total = 0;
-            return FetchAll(std::string("/") + kRepository + "/" + kBranch + "/", extra,
-                            fs::path(targetDir) / "repo", "extra");
+                    listed = false;
+            if (!extra.empty()) {
+                perlin::Log("samples", "fetching {} files missing from the release archive", extra.size());
+                perlin::assets::Samples().stage = perlin::assets::Stage::Downloading;
+                perlin::assets::Samples().bytes.total = 0;
+                if (!FetchAll(std::string("/") + kRepository + "/" + kBranch + "/", extra,
+                              fs::path(targetDir) / "repo", "extra"))
+                    listed = false;
+            }
+            if (!listed) {
+                perlin::Log("samples", "some optional files could not be fetched; continuing with the archive");
+                std::ofstream(skipped.string()).close();
+            }
+            return true;
         }
 #ifdef PERLIN_MOBILE
         if (DownloadFromManifest(targetDir))

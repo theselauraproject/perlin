@@ -175,5 +175,17 @@
   "s_javaMaterials": [
     42,
     "2d"
+  ],
+  "s_atlas2": [
+    43,
+    "2darray"
+  ],
+  "s_atlas3": [
+    44,
+    "2darray"
+  ],
+  "s_atlas4": [
+    45,
+    "2darray"
   ]
 }

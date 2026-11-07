@@ -401,7 +401,7 @@ namespace perlin::particle {
     }
 
     bool DataParticles::Spawn(const std::string& identifier, const glm::dvec3& at,
-                              const std::string& molangVariables) {
+                              const std::string& molangVariables, const std::string& preScript) {
         const auto it = defs.find(identifier);
         if (it == defs.end())
             return false;
@@ -437,6 +437,13 @@ namespace perlin::particle {
         }
         molang::Scope scope;
         Prepare(scope, live.e, nullptr);
+        if (!preScript.empty()) {
+            auto& parsed = preScripts[preScript];
+            if (!parsed)
+                parsed = molang::Expr::Parse(preScript);
+            if (parsed)
+                parsed->Eval(scope);
+        }
         const Def& d = it->second;
         for (const ExprPtr& c : d.creation)
             if (c)

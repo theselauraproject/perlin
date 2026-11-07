@@ -108,8 +108,8 @@ namespace perlin {
 
         void ApplyMetadata(entity::EntityTracker& tracker, uint64_t rid,
                            const std::vector<MetadataDictionaryEntry>& metadata) {
-            int variant = -1, mark = -1, color = -1;
-            float boxWidth = 0.0f, boxHeight = 0.0f;
+            std::optional<int> variant, mark, color;
+            float boxWidth = -1.0f, boxHeight = -1.0f;
             static const bool debugTags = std::getenv("PERLIN_DEBUG_NAMETAGS") != nullptr;
             for (const MetadataDictionaryEntry& m : metadata) {
                 if (m.key == MetadataDictionaryEntryKey::Nametag) {
@@ -191,9 +191,11 @@ namespace perlin {
                     break;
                 }
             }
-            if (variant >= 0 || mark >= 0 || color >= 0)
-                tracker.SetVariant(rid, std::max(variant, 0), std::max(mark, 0), std::max(color, 0));
-            if (boxWidth > 0.0f && boxHeight > 0.0f)
+            const auto clamp = [](std::optional<int> v) { return v ? std::optional<int>(std::max(*v, 0)) : v; };
+            if (variant || mark || color)
+                tracker.SetVariant(rid, clamp(variant), clamp(mark), clamp(color));
+            // a 0 box is sent on purpose (decorations: nothing to hit, no shadow); only an absent one is unknown
+            if (boxWidth >= 0.0f || boxHeight >= 0.0f)
                 tracker.SetBoundingBox(rid, boxWidth, boxHeight);
         }
 
@@ -285,8 +287,6 @@ namespace perlin {
 
         On<PlayStatusPacket>([this](const PlayStatusPacket& p) {
             Log("bedrock", "PlayStatus {}", static_cast<int>(p.status));
-            // status 1: our client outdated; 2 (FailedSpawn in protocol data, LoginFailedServer in bedrock): server outdated;
-            // either can arrive before network settings, not only after Login
             if ((p.status == PlayStatusPacketStatus::FailedClient ||
                  p.status == PlayStatusPacketStatus::FailedSpawn) &&
                 state != State::InGame) {
@@ -501,6 +501,11 @@ namespace perlin {
         });
 
         OnPartial<StartGamePacket>([this](const StartGamePacket& p) {
+            BlockPalette::Instance().UseProtocol(serverProtocol);
+            {
+                std::lock_guard lock(worldNameMutex);
+                worldName = p.worldName;
+            }
             ParsePropertySchema(p.propertyData.bytes);
             if (!p.blockProperties.empty()) {
                 const size_t n = RegisterCustomBlocks(p.blockProperties);
@@ -539,7 +544,6 @@ namespace perlin {
                 haveStartPos = true;
             }
             clientGen = p.clientSideGeneration;
-            // generator 2 is the flat type
             flatWorld = p.generator == 2;
             serverAuthBreaking = p.serverAuthoritativeBlockBreaking;
             Log("bedrock", "serverAuthoritativeBlockBreaking={}",
@@ -615,7 +619,6 @@ namespace perlin {
         });
 
         On<ItemRegistryPacket>([this](const ItemRegistryPacket& p) {
-            // Some proxies follow the real registry with an empty one; it carries nothing, so it must not wipe the names.
             if (p.itemstates.empty()) {
                 std::lock_guard lock(statusMutex);
                 if (!itemNames.empty()) {
@@ -888,7 +891,6 @@ namespace perlin {
                 named("portal.portal");
                 break;
             case LevelEventPacketEvent::SoundOrb: {
-                // suppress the server echo of a pickup already predicted locally
                 const auto nowMs =
                     static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                               std::chrono::steady_clock::now().time_since_epoch())
@@ -1236,7 +1238,6 @@ namespace perlin {
             if (const auto it = itemNames.find(p.heldItem.networkId);
                 p.heldItem.networkId != 0 && it != itemNames.end())
                 held = it->second;
-            // AddPlayer carries the feet position; move packets carry the eye
             entities.AddPlayer(p.runtimeId, p.uniqueId, UuidKey(p.uuid), p.username,
                                {p.position.x, p.position.y, p.position.z}, p.pitch, p.yaw, p.headYaw,
                                MetaFlags(p.metadata), held);
@@ -1314,7 +1315,6 @@ namespace perlin {
                     r.pitch = 1.4f + (static_cast<float>(taken.runtimeId % 7) * 0.03f);
                     PushSound(std::move(r));
                 } else if (taken.type == "minecraft:xp_orb") {
-                    // vanilla predicts the orb pickup sound locally; server echo (SoundOrb) suppressed below for the same pickup
                     SoundRequest r;
                     r.kind = SoundRequest::Kind::Named;
                     r.name = "random.orb";
@@ -1338,13 +1338,14 @@ namespace perlin {
         On<MoveEntityPacket>([this](const MoveEntityPacket& p) {
             if (runtimeId != 0 && p.runtimeEntityId == runtimeId)
                 return;
-            // the client-predicted vehicle is moved by our own simulation
             if (p.runtimeEntityId == predictedVehicleRuntime.load())
                 return;
             constexpr float kByte = 360.0f / 256.0f;
             entities.Move(p.runtimeEntityId, {p.position.x, p.position.y, p.position.z},
                           p.rotation.pitch * kByte, p.rotation.yaw * kByte, p.rotation.headYaw * kByte,
-                          (p.flags & 1) != 0);
+                          (p.flags & 1) != 0,
+                          (p.flags & 2) != 0 ? entity::EntityTracker::MoveKind::Teleport
+                                             : entity::EntityTracker::MoveKind::Lerp);
         });
 
         On<MoveEntityDeltaPacket>([this](const MoveEntityDeltaPacket& p) {
@@ -1369,14 +1370,17 @@ namespace perlin {
                 head = *p.rotZ * kByte;
             entities.MoveDelta(p.runtimeEntityId, p.x ? &x : nullptr, p.y ? &y : nullptr, p.z ? &z : nullptr,
                                p.rotX ? &pitch : nullptr, p.rotY ? &yaw : nullptr, p.rotZ ? &head : nullptr,
-                               p.onGround);
+                               p.onGround, p.forceMove, p.ticks, p.forceCompletion);
         });
 
         On<MovePlayerPacket>([this](const MovePlayerPacket& p) {
             if (runtimeId != 0 && p.runtimeId == runtimeId)
                 return;
             entities.Move(p.runtimeId, {p.position.x, p.position.y, p.position.z}, p.pitch, p.yaw, p.headYaw,
-                          p.onGround);
+                          p.onGround,
+                          p.mode == MovePlayerPacketMode::Normal || p.mode == MovePlayerPacketMode::Rotation
+                              ? entity::EntityTracker::MoveKind::Lerp
+                              : entity::EntityTracker::MoveKind::Teleport);
         });
 
         On<SetEntityDataPacket>([this](const SetEntityDataPacket& p) {
@@ -1397,6 +1401,12 @@ namespace perlin {
                         if (const auto* inner = std::get_if<4>(&m.value))
                             if (const auto* seat = std::get_if<9>(inner))
                                 ownSeatOffset = std::array<float, 3>{seat->x, seat->y, seat->z};
+                        continue;
+                    }
+                    if (m.key == MetadataDictionaryEntryKey::Nametag) {
+                        if (const auto* inner = std::get_if<4>(&m.value))
+                            if (const auto* str = std::get_if<5>(inner))
+                                ownNameTag = *str;
                         continue;
                     }
                     double n = 0;
@@ -1507,6 +1517,10 @@ namespace perlin {
             if (p.eventId == EntityEventPacketEventId::DeathAnimation &&
                 !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
                 entities.Die(p.runtimeEntityId);
+            // some servers send other players' swings as an actor event, never as animate
+            if (p.eventId == EntityEventPacketEventId::ArmSwing &&
+                !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
+                entities.Swing(p.runtimeEntityId);
         });
 
         On<UpdateAttributesPacket>([this](const UpdateAttributesPacket& p) {
@@ -1691,8 +1705,10 @@ namespace perlin {
             }
             if (runtimeId != 0 && p.entityUniqueId != 0 && uniqueId != 0 && p.entityUniqueId != uniqueId)
                 return;
-            bool fly = false, flying = false, clip = false, build = false;
+            bool fly = false, flying = false, clip = false, build = false, mine = true;
             for (const AbilityLayers& layer : p.abilities) {
+                if (layer.allowed & (1u << 1))
+                    mine = (layer.enabled & (1u << 1)) != 0;
                 if (layer.allowed & (1u << 10))
                     fly = (layer.enabled & (1u << 10)) != 0;
                 if (layer.allowed & (1u << 11))
@@ -1709,6 +1725,7 @@ namespace perlin {
                     walkSpeed = layer.walkSpeed;
             }
             mayFly = fly;
+            mayMine = mine;
             instabuild = build;
             isFlying = flying;
             ++abilitiesSeq;

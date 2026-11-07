@@ -32,7 +32,7 @@ namespace perlin::server::vanilla {
         const NormalNoise* noise = nullptr;
         double lo = 0, hi = 0;
         bool is3d = false;
-        Xoroshiro::Factory random;
+        WorldRandom::Factory random;
         int a = 0, b = 0, c = 0;
         bool flag = false, ceiling = false;
         int inner = -1;
@@ -65,13 +65,13 @@ namespace perlin::server::vanilla {
             return v < static_cast<double>(i) ? i - 1 : i;
         }
 
-        int Anchor(const json::Value& v) {
+        int Anchor(const json::Value& v, int bottom, int top) {
             if (v["absolute"].kind != json::Value::Kind::Null)
                 return static_cast<int>(v["absolute"].Int());
             if (v["above_bottom"].kind != json::Value::Kind::Null)
-                return kMinY + static_cast<int>(v["above_bottom"].Int());
+                return bottom + static_cast<int>(v["above_bottom"].Int());
             if (v["below_top"].kind != json::Value::Kind::Null)
-                return kMaxY - static_cast<int>(v["below_top"].Int());
+                return top - static_cast<int>(v["below_top"].Int());
             return 0;
         }
 
@@ -134,11 +134,11 @@ namespace perlin::server::vanilla {
         } else if (type == "vertical_gradient") {
             c.kind = K::Gradient;
             c.random = graph->Positional().FromHashOf(v["random_name"].String()).ForkPositional();
-            c.a = Anchor(v["true_at_and_below"]);
-            c.b = Anchor(v["false_at_and_above"]);
+            c.a = Anchor(v["true_at_and_below"], genMinY, genMaxY);
+            c.b = Anchor(v["false_at_and_above"], genMinY, genMaxY);
         } else if (type == "y_above") {
             c.kind = K::YAbove;
-            c.a = Anchor(v["anchor"]);
+            c.a = Anchor(v["anchor"], genMinY, genMaxY);
             c.b = static_cast<int>(v["surface_depth_multiplier"].Int());
             c.flag = v["add_stone_depth"].Bool();
         } else if (type == "water") {
@@ -216,15 +216,24 @@ namespace perlin::server::vanilla {
     }
 
     std::unique_ptr<VanillaMaterials> VanillaMaterials::Load(const DataPack& pack, DensityGraph& graph, int seaLevel) {
+        Options o;
+        o.seaLevel = seaLevel;
+        o.preliminary = graph.Load("minecraft:overworld/chunk_surface_level");
+        return Load(pack, graph, o);
+    }
+
+    std::unique_ptr<VanillaMaterials> VanillaMaterials::Load(const DataPack& pack, DensityGraph& graph, const Options& o) {
         json::Value top;
-        if (!json::Parse(pack.Read("worldgen/material_rule/overworld.json"), top))
+        if (!json::Parse(pack.Read("worldgen/material_rule/" + o.rules + ".json"), top))
             return nullptr;
         std::unique_ptr<VanillaMaterials> m(new VanillaMaterials());
         m->pack = &pack;
         m->graph = &graph;
-        m->seaLevel = seaLevel;
+        m->seaLevel = o.seaLevel;
+        m->genMinY = o.minY;
+        m->genMaxY = o.minY + o.height - 1;
         m->root = m->RuleFrom(top, 0);
-        m->preliminary = graph.Load("minecraft:overworld/chunk_surface_level");
+        m->preliminary = o.preliminary;
         m->surfaceNoise = graph.Noise("minecraft:surface");
         m->surfaceSecondary = graph.Noise("minecraft:surface_secondary");
         m->bandOffset = graph.Noise("minecraft:clay_bands_offset");
@@ -239,7 +248,7 @@ namespace perlin::server::vanilla {
         m->noiseRandom = graph.Positional();
         m->oreRandom = graph.Positional().FromHashOf("minecraft:ore").ForkPositional();
         const BlockCatalog& c = BlockCatalog::Instance();
-        m->stone = c.DefaultBlock("stone");
+        m->stone = o.defaultBlock.empty() ? c.DefaultBlock("stone") : m->BlockOf(o.defaultBlock);
         m->water = c.DefaultBlock("water");
         m->lava = c.DefaultBlock("lava");
         m->packedIce = c.DefaultBlock("packed_ice");
@@ -252,7 +261,7 @@ namespace perlin::server::vanilla {
                        yellow = m->BlockOf("yellow_terracotta"), brown = m->BlockOf("brown_terracotta"),
                        red = m->BlockOf("red_terracotta"), white = m->BlockOf("white_terracotta"),
                        lightGray = m->BlockOf("light_gray_terracotta");
-        Xoroshiro r = graph.Positional().FromHashOf("minecraft:clay_bands");
+        WorldRandom r = graph.Positional().FromHashOf("minecraft:clay_bands");
         auto& bands = m->bands;
         const int n = static_cast<int>(bands.size());
         bands.fill(terracotta);
@@ -341,7 +350,7 @@ namespace perlin::server::vanilla {
                 if (y >= c.b)
                     return false;
                 const double probability = 1.0 + (static_cast<double>(y) - c.a) / (static_cast<double>(c.b) - c.a) * (0.0 - 1.0);
-                Xoroshiro r = c.random.At(x, y, z);
+                WorldRandom r = c.random.At(x, y, z);
                 return static_cast<double>(r.NextFloat()) < probability;
             }
             case K::YAbove:
@@ -396,7 +405,7 @@ namespace perlin::server::vanilla {
                 const float density = r.density->Eval(x, y, z);
                 if (density <= 0.0f)
                     return false;
-                Xoroshiro random = m.oreRandom.At(x, y, z);
+                WorldRandom random = m.oreRandom.At(x, y, z);
                 if (random.NextFloat() > density)
                     return false;
                 const float richness = r.richness->Eval(x, y, z);
@@ -430,7 +439,7 @@ namespace perlin::server::vanilla {
         ctx.biome = biomes[x * 16 + z];
         ctx.gradientX = heightAt(std::min(x + 1, 15), z) - heightAt(std::max(x - 1, 0), z);
         ctx.gradientZ = heightAt(x, std::min(z + 1, 15)) - heightAt(x, std::max(z - 1, 0));
-        Xoroshiro depthRandom = noiseRandom.At(ctx.x, 0, ctx.z);
+        WorldRandom depthRandom = noiseRandom.At(ctx.x, 0, ctx.z);
         ctx.surfaceDepth = static_cast<int>(static_cast<double>(surfaceNoise->Get(ctx.x, 0.0, ctx.z)) * 2.75 + 3.0 +
                                             depthRandom.NextDouble() * 0.25);
         ctx.y = y;
@@ -504,7 +513,7 @@ namespace perlin::server::vanilla {
                 ctx.biome = biome;
                 ctx.gradientX = height(std::min(x + 1, 15), z) - height(std::max(x - 1, 0), z);
                 ctx.gradientZ = height(x, std::min(z + 1, 15)) - height(x, std::max(z - 1, 0));
-                Xoroshiro depthRandom = noiseRandom.At(bx, 0, bz);
+                WorldRandom depthRandom = noiseRandom.At(bx, 0, bz);
                 ctx.surfaceDepth = static_cast<int>(static_cast<double>(surfaceNoise->Get(bx, 0.0, bz)) * 2.75 + 3.0 +
                                                     depthRandom.NextDouble() * 0.25);
                 const int columnHeight = height(x, z);
@@ -553,7 +562,7 @@ namespace perlin::server::vanilla {
                         continue;
                     const double bottom = static_cast<double>(seaLevel) - top - 7.0;
                     top += static_cast<double>(seaLevel);
-                    Xoroshiro random = noiseRandom.At(bx, 0, bz);
+                    WorldRandom random = noiseRandom.At(bx, 0, bz);
                     const int maxSnowDepth = 2 + random.NextInt(4);
                     const int minSnowHeight = seaLevel + 18 + random.NextInt(10);
                     int snowDepth = 0;

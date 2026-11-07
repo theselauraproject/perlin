@@ -3043,7 +3043,7 @@ void stageMain() {
     mipDelta = max(dot(mipx, mipx), dot(mipy, mipy));
     miplevel = max(0.5 * log2(mipDelta), 0.0);
     atlasSizeM = atlasSize;
-        vec4 color = texture2DArray(s_atlas, float3(texCoord, jLayer));
+        vec4 color = perlinAtlas(float3(texCoord, jLayer));
 
     float smoothnessD = 0.0, materialMask = 0.0;
 
@@ -3152,7 +3152,7 @@ smoothnessD = color.r;
                                 }
                             } else {
                                 if (mat < 10044) { // Rails
-                                    color = texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0);
+                                    color = perlinAtlasLod(float3(texCoord, jLayer), 0);
 
                                     noSmoothLighting = true;
                                     if (color.r > 0.1  &&  color.g + color.b < 0.1) { // Redstone Parts
@@ -4329,7 +4329,7 @@ smoothnessG = color.g * 0.25;
                                 else /*if (mat < 10408)*/ { // Sea Pickle:Waterlogged
                                     noSmoothLighting = true;
 
-                                        color = texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0);
+                                        color = perlinAtlasLod(float3(texCoord, jLayer), 0);
 
                                     if (color.b > 0.5) { // Sea Pickle:Emissive Part
                                             color.g *= 1.1;
@@ -4458,7 +4458,7 @@ smoothnessD = smoothnessG;
                                 }
                             } else {
                                 if (mat < 10460) { // Command Block+
-                                        color = texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0);
+                                        color = perlinAtlasLod(float3(texCoord, jLayer), 0);
 
                                     vec2 coord = signMidCoordPos;
                                     float blockRes = absMidCoordPos.x * atlasSize.x;
@@ -4653,7 +4653,7 @@ smoothnessG = color.r * 0.1 + 0.1;
                         if (mat < 10528) {
                             if (mat < 10520) {
                                 if (mat < 10516) { // Chorus Flower:Dead
-                                        vec3 checkColor = texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0).rgb;
+                                        vec3 checkColor = perlinAtlasLod(float3(texCoord, jLayer), 0).rgb;
 
                                     if (CheckForColor(checkColor, vec3(164, 157, 126))  || 
                                         CheckForColor(checkColor, vec3(201, 197, 176))  || 
@@ -6351,7 +6351,7 @@ for (int j = 0; j < repeat; j++) {
         vec2 coord = float2x2(Cos, Sin, -Sin, Cos) * pos + wind;
         if (mod(float(i), 4) < 1.5) coord = coord.yx + vec2(-1.0, 1.0) * wind.y;
 
-        vec3 psample = pow(texture2DArray(s_atlas, float3(coord, jLayer)).rgb, vec3(0.85)) * colors[i-1] * colormult;
+        vec3 psample = pow(perlinAtlas(float3(coord, jLayer)).rgb, vec3(0.85)) * colors[i-1] * colormult;
         color.rgb += psample * length(psample.rgb) * (3000.0 / repeat);
     }
 }

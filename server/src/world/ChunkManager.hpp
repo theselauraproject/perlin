@@ -25,7 +25,8 @@ namespace perlin::server {
     class ChunkManager {
     public:
         // maxThreads caps the generation workers (max-threads); 0 = from the core count
-        explicit ChunkManager(std::unique_ptr<TerrainBackend> backend, size_t maxThreads = 0);
+        explicit ChunkManager(std::unique_ptr<TerrainBackend> backend, size_t maxThreads = 0, int dimension = kOverworld);
+        int DimensionId() const { return dimension; }
         ~ChunkManager();
 
         const char* BackendName() const { return backend->Name(); }
@@ -35,6 +36,7 @@ namespace perlin::server {
         // null while the column is still being generated; asks for it on the first miss
         std::shared_ptr<ChunkEntry> Get(ChunkPos pos);
         std::shared_ptr<ChunkEntry> Peek(ChunkPos pos) const;
+        std::shared_ptr<ChunkEntry> Load(ChunkPos pos);
         // moves finished columns into the map; call once per tick
         void Pump();
         std::vector<ChunkPos> TakeReady() { return std::exchange(ready, {}); }
@@ -54,6 +56,7 @@ namespace perlin::server {
         void Finish(const std::vector<ChunkPos>& batch, std::vector<ChunkColumn>& columns);
 
         std::unique_ptr<TerrainBackend> backend;
+        int dimension = kOverworld;
         std::unordered_map<ChunkPos, std::shared_ptr<ChunkEntry>, ChunkPosHash> chunks;
         std::unordered_set<ChunkPos, ChunkPosHash> requested;
         std::vector<ChunkPos> ready;

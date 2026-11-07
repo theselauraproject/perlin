@@ -258,6 +258,12 @@ namespace perlin {
                               {motion.tick, {motion.velocity[0], motion.velocity[1], motion.velocity[2]}});
             return;
         }
+        if (motion.teleport && !motion.filterTravel && !motion.correction) {
+            const double jump = std::abs(motion.pos[0] - state.x) + std::abs(motion.pos[1] - state.y) +
+                                std::abs(motion.pos[2] - state.z);
+            if (jump > 16.0)
+                placement = {true, motion.pos[0], motion.pos[1], motion.pos[2], tickCounter};
+        }
         bool handled = false;
         if (motion.teleport && motion.filterTravel && motion.tick != 0 && !history.empty() &&
             motion.tick >= history.front().tick) {
@@ -444,8 +450,10 @@ namespace perlin {
         }
     }
 
-    void LocalPlayer::Tick(BedrockSession& session, const InputManager& input, const Camera& camera,
+    void LocalPlayer::Tick(BedrockSession& session, const InputManager& input, const Camera& cameraIn,
                            const physics::World& world) {
+        Camera camera = cameraIn;
+        forcedYaw.reset();
         const uint64_t nextTick = session.LastAuthTick() + 1;
         std::optional<BedrockSession::ServerMotion> tickTeleport;
         for (auto it = futureTeleports.begin(); it != futureTeleports.end();) {
@@ -471,8 +479,31 @@ namespace perlin {
         const bool savePrediction = !asleep && !rideLock && !dimensionChanged && !dimensionChanging;
         if (!savePrediction)
             history.clear();
-        const float forwardKeys = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
-        const float strafeKeys = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
+        float forwardKeys = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
+        float strafeKeys = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
+        if (cameraScheme >= 0 && cameraScheme <= 2 && !asleep && !rideLock) {
+            // preset control schemes (camera yaw and the player's yaw use the same convention here)
+            const float cy = glm::radians(cameraControlYaw);
+            if (cameraScheme == 1 || cameraScheme == 2) {
+                const float wx = forwardKeys * std::cos(cy) - strafeKeys * std::sin(cy);
+                const float wz = forwardKeys * std::sin(cy) + strafeKeys * std::cos(cy);
+                const float len = std::sqrt(wx * wx + wz * wz);
+                if (cameraScheme == 1) {
+                    // camera relative: the player turns to face where it goes and walks forward
+                    if (len > 0.001f) {
+                        camera.yaw = glm::degrees(std::atan2(wz, wx)), forcedYaw = camera.yaw;
+                        forwardKeys = 1.0f;
+                        strafeKeys = 0.0f;
+                    }
+                } else {
+                    // camera relative strafe: the player faces the camera's way, keys are the camera's axes
+                    camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
+                }
+            } else {
+                // locked player relative strafe: the player is locked to the camera's facing
+                camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
+            }
+        }
         const float forward = forwardKeys;
         const float strafe = strafeKeys;
         const bool jump = !asleep && input.IsDown(Action::Jump);
@@ -1369,7 +1400,10 @@ namespace perlin {
                 break;
             }
             input.SetControlTick(tickCounter);
+            session.Entities().TickInterpolation();
             Tick(session, input, camera, world);
+            if (forcedYaw)
+                camera.yaw = *forcedYaw;
             // VanillaOffsetSystem::ClientSide 0x142CED480: the drop below eye level moves halfway each tick
             const float standEye = static_cast<float>(physics::kStandEye);
             // no riding case in 0x142CED480: a rider placed from RiderSeatPosition keeps the standing eye;
@@ -1382,6 +1416,28 @@ namespace perlin {
                                                          : standEye;
             eyeDropPrevious = eyeDrop;
             eyeDrop = (standEye - targetEye - eyeDrop) * 0.5f + eyeDrop;
+        }
+
+        if (placement.active) {
+            if (tickCounter - placement.tick > 400) {
+                placement.active = false;
+            } else if (state.y < placement.y - 2.5) {
+                placement.active = false;
+                // enough to tell a missing floor from a floor we walked off: what the level holds under the spot
+                const Level& level = session.NetLevel();
+                const int bx = static_cast<int>(std::floor(placement.x));
+                const int bz = static_cast<int>(std::floor(placement.z));
+                Log("spawn", "placed at ({},{},{}), {} ticks later at ({},{},{}): column below the placement",
+                    placement.x, placement.y, placement.z, tickCounter - placement.tick, state.x, state.y, state.z);
+                for (int dy = 0; dy >= -3; dy--) {
+                    const int by = static_cast<int>(std::floor(placement.y)) + dy;
+                    bool loaded = false;
+                    const uint16_t id = level.GetBlock(bx, by, bz, loaded);
+                    const auto shape = world.Query(bx, by, bz);
+                    Log("spawn", "  y={} loaded={} block='{}' collision boxes={}", by, loaded,
+                        BlockPalette::Instance().Name(id), shape.boxes.size());
+                }
+            }
         }
 
         const double t = std::clamp(accumulator / physics::kTickSeconds, 0.0, 1.0);

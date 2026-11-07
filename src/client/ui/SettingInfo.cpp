@@ -35,7 +35,8 @@ namespace perlin::ui {
             {"Motion Blur", "options.motionBlur", "", "Blurs the screen while you turn the camera quickly.",
              2},
             {"Menu Blur", "options.accessibility.menu_background_blurriness", "",
-             "How strongly the world is blurred behind menus.", 2},
+             "How strongly the world, or the panorama on loading screens and menus, is blurred behind them.",
+             2},
             {"Entity Shadows", "options.entityShadows", "", "Draws simple shadows beneath mobs and players.",
              1},
             {"FOV Effects", "options.fovEffectScale", "options.fov.toggle.description",
@@ -92,6 +93,28 @@ namespace perlin::ui {
             {"Hot Reload On Save", "", "",
              "Automatically reloads texture packs, shader packs and mods when their files change on disk.",
              1},
+            {"Renderer", "", "",
+             "The graphics API Perlin draws with. Auto picks the best one for this machine. Takes effect "
+             "after a "
+             "restart.",
+             2},
+            {"Auto Update", "perlin.options.autoUpdate", "",
+             "Download new Perlin builds in the background and install them on the next launch.", 0},
+            {"Discord Status", "perlin.options.discordPresence", "",
+             "Show what you are playing on your Discord profile.", 0},
+            {"Show Server in Discord", "perlin.options.discordShowServer", "",
+             "Include the server address in your Discord status.", 0},
+            {"Discord Friends Can Join", "perlin.options.discordJoin", "",
+             "Let Discord friends join the server you are on from your profile.", 0},
+            {"Connection", "perlin.options.transport", "",
+             "Network protocol for servers. Auto checks for NetherNet and falls back to RakNet. Applies on "
+             "the "
+             "next join.",
+             0},
+            {"Ask On Version Mismatch", "perlin.options.versionMismatchAsk", "",
+             "Ask before joining an older server as its version. Off joins as the server's version without "
+             "asking.",
+             0},
             {"Sensitivity", "options.sensitivity", "options.sensitivity.description",
              "Adjust the speed of the camera when looking around.", 0},
             {"Invert Mouse", "options.invertMouse", "options.invertYAxis.Mouse.description",

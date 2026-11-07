@@ -45,6 +45,7 @@ namespace perlin::server {
         uint16_t Resolve(std::string_view state) const;
         std::string StateText(uint16_t id) const;
         bool KnownHash(int32_t hash) const { return states.contains(hash); }
+        bool Knows(const std::string& fullName) const { return defaultByName.contains(fullName); }
         size_t StateCount() const { return states.size(); }
 
         // search order for the data files: explicit dir, then next to the executable, then the source tree

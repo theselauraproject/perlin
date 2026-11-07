@@ -478,7 +478,9 @@ namespace perlin {
         }
         if (info.kind == Kind::Plain || info.kind == Kind::Door) {
             const SelectionTable& t = Selections();
-            const auto it = t.byHash.find(BlockPalette::Instance().NetworkId(id));
+            auto it = t.byHash.find(BlockPalette::Instance().NetworkId(id));
+            if (it == t.byHash.end())
+                it = t.byHash.find(BlockPalette::Instance().CurrentHash(id));
             if (it != t.byHash.end()) {
                 const SelectionTable::Shape& s = t.shapes[it->second];
                 if (s.pick != 1 || s.boxes.empty())
@@ -548,7 +550,27 @@ namespace perlin {
             for (const auto& [condition, set] : custom.permutations)
                 if (EvaluateBlockCondition(condition, id))
                     chosen = &set;
-        Info info = chosen ? Info{} : ClassifyVanilla(id, blocks);
+        // a block from another namespace is not a vanilla block: its name ("hive:dirt_path_slab") says nothing about
+        // its shape, so the vanilla name rules must not turn it into a half slab or a fence
+        const std::string ownName = id != 0 ? BlockPalette::Instance().Name(id) : std::string();
+        const bool foreign = ownName.contains(':') && !ownName.starts_with("minecraft:");
+        Info info;
+        bool voxelShaped = false;
+        if (!chosen) {
+            std::vector<Box> voxel;
+            if (foreign && VoxelShapeRegistry::Instance().Find(ownName, voxel) && !voxel.empty()) {
+                // the shape the server baked from the block's own geometry
+                info.shape.isAir = false;
+                info.shape.boxes = std::move(voxel);
+                voxelShaped = true;
+            } else if (foreign) {
+                info.shape.isAir = false;
+                Add(info.shape, 0, 0, 0, 1, 1, 1);
+                info.full = true;
+            } else {
+                info = ClassifyVanilla(id, blocks);
+            }
+        }
         const CollisionSet* selection = hasCustom && custom.selection.defined ? &custom.selection : nullptr;
         if (hasCustom)
             for (const auto& [condition, set] : custom.selectionPermutations)
@@ -558,13 +580,17 @@ namespace perlin {
             info.selectionDefined = true;
             for (const auto& b : selection->boxes)
                 info.selection.push_back({b[0], b[1], b[2], b[3], b[4], b[5]});
+        } else if (voxelShaped) {
+            // the outline follows the same baked shape, so it sits on the geometry instead of a full cube
+            info.selectionDefined = true;
+            info.selection = info.shape.boxes;
         }
         const std::string blockName = BlockPalette::Instance().Name(id);
         if (blockName == "minecraft:honey_block" || blockName == "honey_block") {
             info.shape.jumpProperties |= physics::bds::ReducedJumpSurfaceProperty;
             info.shape.honey = true;
         }
-        bool replacedGeometry = chosen != nullptr;
+        bool replacedGeometry = chosen != nullptr || voxelShaped;
         if (chosen)
             for (const CollisionBox& box : chosen->boxes)
                 Add(info.shape, box[0], box[1], box[2], box[3], box[4], box[5]);
@@ -682,7 +708,9 @@ namespace perlin {
             return info;
         {
             const auto& reg = Registry();
-            const auto it = reg.find(BlockPalette::Instance().NetworkId(id));
+            auto it = reg.find(BlockPalette::Instance().NetworkId(id));
+            if (it == reg.end())
+                it = reg.find(BlockPalette::Instance().CurrentHash(id));
             if (it != reg.end()) {
                 const PhysRecord& r = it->second;
                 // EndPortalFrameBlock 0x14a42b620 adds the eye box without the block position: no eye in the world

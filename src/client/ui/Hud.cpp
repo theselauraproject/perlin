@@ -95,7 +95,8 @@ namespace perlin::ui {
         reloadRequested = true;
     }
 
-    bool Hud::Initialize(RenderContext& renderer, const std::string& vanilla, const std::string& data_dir) {
+    bool Hud::Initialize(RenderContext& renderer, const std::string& vanilla, const std::string& data_dir,
+                         bool allowEmpty) {
         dataDir = data_dir;
         vanillaRoot = vanilla;
         if (!backend.Initialize(renderer))
@@ -147,7 +148,8 @@ namespace perlin::ui {
         };
         data = std::make_unique<HudData>(state);
         RegisterHudRenderers(emitter, state, services);
-        return Rebuild();
+        const bool built = Rebuild();
+        return built || allowEmpty;
     }
 
     void Hud::UnloadLevelUi() {
@@ -174,8 +176,6 @@ namespace perlin::ui {
     }
 
     namespace {
-        // font/glyph_XX.png: vanilla, then server packs low to high priority (first listed wins);
-        // servers draw logos/icons in chat, titles, sidebars with these
         void LoadGlyphPages(const std::string& vanillaRoot) {
             McFont& font = McFont::Instance();
             font.ClearGlyphPages();
@@ -296,6 +296,15 @@ namespace perlin::ui {
 
         const double now = Now();
         bool rebuilt = false;
+        if (const uint32_t packs = ServerPacks::Instance().Generation(); packs != serverPackGeneration) {
+            serverPackGeneration = packs;
+            serverPacksChangedAt = now;
+        }
+        // packs mount one at a time: one rebuild once the last is in
+        if (serverPacksChangedAt >= 0.0 && now - serverPacksChangedAt > 0.3 && !ServerPacks::Instance().Mounting()) {
+            serverPacksChangedAt = -1.0;
+            reloadRequested = true;
+        }
         if (reloadRequested || now - sinceCheck > 3.0) {
             sinceCheck = now;
             std::string freshRcss = ReadUserRcss();

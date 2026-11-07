@@ -1,0 +1,191 @@
+{
+  "s_atlas": [
+    0,
+    "2darray"
+  ],
+  "s_lightmap": [
+    1,
+    "2d"
+  ],
+  "s_shadow": [
+    2,
+    "2d",
+    "unfilterable"
+  ],
+  "s_clouds": [
+    3,
+    "2d"
+  ],
+  "s_sceneColor": [
+    4,
+    "2d"
+  ],
+  "s_sceneDepth": [
+    5,
+    "2d",
+    "unfilterable"
+  ],
+  "s_tileFlags": [
+    6,
+    "2d"
+  ],
+  "s_shadowTint": [
+    7,
+    "2d"
+  ],
+  "s_shadowB": [
+    8,
+    "2d",
+    "unfilterable"
+  ],
+  "s_shadowTintB": [
+    9,
+    "2d"
+  ],
+  "s_shadowEnt": [
+    10,
+    "2d",
+    "unfilterable"
+  ],
+  "s_sky": [
+    11,
+    "2d"
+  ],
+  "s_uiTex": [
+    12,
+    "2d"
+  ],
+  "s_uiGlint": [
+    13,
+    "2d"
+  ],
+  "s_cur": [
+    14,
+    "2d"
+  ],
+  "s_hist": [
+    15,
+    "2d"
+  ],
+  "s_bloom": [
+    16,
+    "2d"
+  ],
+  "s_depth": [
+    17,
+    "2d",
+    "unfilterable"
+  ],
+  "s_world": [
+    18,
+    "2d"
+  ],
+  "s_final": [
+    19,
+    "2d"
+  ],
+  "s_javaAtlas": [
+    20,
+    "2d"
+  ],
+  "s_noise": [
+    21,
+    "2d"
+  ],
+  "s_normals": [
+    22,
+    "2d"
+  ],
+  "s_specular": [
+    23,
+    "2d"
+  ],
+  "s_colortex0": [
+    24,
+    "2d"
+  ],
+  "s_colortex1": [
+    25,
+    "2d"
+  ],
+  "s_colortex2": [
+    26,
+    "2d"
+  ],
+  "s_colortex3": [
+    27,
+    "2d"
+  ],
+  "s_colortex4": [
+    28,
+    "2d"
+  ],
+  "s_colortex5": [
+    29,
+    "2d"
+  ],
+  "s_colortex6": [
+    30,
+    "2d"
+  ],
+  "s_colortex7": [
+    31,
+    "2d"
+  ],
+  "s_colortex8": [
+    32,
+    "2d"
+  ],
+  "s_gaux2": [
+    33,
+    "2d"
+  ],
+  "s_gaux4": [
+    34,
+    "2d"
+  ],
+  "s_colortex9": [
+    35,
+    "2d"
+  ],
+  "s_colortex10": [
+    36,
+    "2d"
+  ],
+  "s_colortex11": [
+    37,
+    "2d"
+  ],
+  "s_colortex12": [
+    38,
+    "2d"
+  ],
+  "s_colortex13": [
+    39,
+    "2d"
+  ],
+  "s_colortex14": [
+    40,
+    "2d"
+  ],
+  "s_colortex15": [
+    41,
+    "2d"
+  ],
+  "s_javaMaterials": [
+    42,
+    "2d"
+  ],
+  "s_atlas2": [
+    43,
+    "2darray"
+  ],
+  "s_atlas3": [
+    44,
+    "2darray"
+  ],
+  "s_atlas4": [
+    45,
+    "2darray"
+  ]
+}

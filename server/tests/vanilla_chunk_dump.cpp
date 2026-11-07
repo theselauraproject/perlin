@@ -1,6 +1,7 @@
 #include "core/Config.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
+#include "world/vanilla/VanillaDimension.hpp"
 #include "world/vanilla/VanillaTerrain.hpp"
 
 #include <atomic>
@@ -21,6 +22,44 @@ int main(int argc, char** argv) {
     config.seed = std::strtoll(argv[1], nullptr, 10);
     const int cx0 = std::atoi(argv[2]), cz0 = std::atoi(argv[3]), n = std::atoi(argv[4]);
     std::string error;
+    const char* dimEnv = std::getenv("PERLIN_DUMP_DIM");
+    if (dimEnv && (std::string(dimEnv) == "nether" || std::string(dimEnv) == "end")) {
+        const int dim = std::string(dimEnv) == "nether" ? kNether : kEnd;
+        auto other = vanilla::VanillaDimensionBackend::Create(config, dim, error);
+        if (!other) {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return 1;
+        }
+        for (int cx = cx0; cx < cx0 + n; cx++)
+            for (int cz = cz0; cz < cz0 + n; cz++) {
+                std::vector<ChunkPos> pos = {{cx, cz}};
+                std::vector<ChunkColumn> col(1);
+                other->Generate(pos, col);
+                std::printf("C %d %d\n", cx, cz);
+                for (int x = 0; x < 16; x++)
+                    for (int z = 0; z < 16; z++) {
+                        std::string line, last;
+                        int run = 0;
+                        for (int y = 0; y < 256; y++) {
+                            const uint16_t b = col[0].Get(x, y, z);
+                            std::string name = b == 0 ? "air" : BlockRegistry::Instance().Name(b);
+                            if (name.starts_with("minecraft:"))
+                                name = name.substr(10);
+                            if (name == last) {
+                                run++;
+                                continue;
+                            }
+                            if (!last.empty())
+                                line += last + "*" + std::to_string(run) + " ";
+                            last = name;
+                            run = 1;
+                        }
+                        line += last + "*" + std::to_string(run);
+                        std::printf("%d %d %s\n", x, z, line.c_str());
+                    }
+            }
+        return 0;
+    }
     auto backend = vanilla::VanillaCpuBackend::Create(config, error);
     if (!backend) {
         std::fprintf(stderr, "%s\n", error.c_str());

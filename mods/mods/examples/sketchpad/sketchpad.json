@@ -1,0 +1,10 @@
+{
+  "name": "Sketchpad",
+  "description": "A panel drawn with the raw graphics API.",
+  "version": "1.0.0",
+  "permissions": ["control"],
+  "settings": [
+    {"id": "brush", "type": "integer", "label": "Brush size", "default": 6, "min": 1, "max": 32},
+    {"id": "clear", "type": "button", "label": "Clear drawing"}
+  ]
+}

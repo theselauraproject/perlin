@@ -17,12 +17,12 @@
 #include "protocol/Packets.hpp"
 
 #include <climits>
+#include <map>
 
 namespace perlin::server {
 
     class Server;
 
-    // one connected player: the bedrock login handshake, chunk streaming and packet handling
     class Session {
     public:
         enum class State : uint8_t {
@@ -40,16 +40,13 @@ namespace perlin::server {
         ~Session();
 
         void OnMessage(std::span<const uint8_t> wire);
-        // per tick: stream chunks, then flush whatever was queued
         void Tick(uint64_t tick);
 
         template <class P> void Send(const P& packet);
         void SendText(uint8_t type, const std::string& source, const std::string& message);
-        // one chat line per line of text: the client draws a newline inside a message as a single odd-looking row
         void SendRaw(const std::string& message);
         void Kick(const std::string& reason);
         void Teleport(double x, double y, double z);
-        // also turns the player: yaw and pitch in degrees
         void Teleport(double x, double y, double z, float yawDegrees, float pitchDegrees);
         void Close();
 
@@ -61,6 +58,10 @@ namespace perlin::server {
         bool IsClosed() const { return state == State::Closed; }
         bool Operator() const { return isOperator; }
         bool Visitor() const { return isVisitor; }
+        int DimensionId() const { return dimension; }
+        void SwitchDimension(int dimension, double x, double y, double z);
+        int portalTicks = 0;
+        int portalCooldown = 0;
         double X() const { return posX; }
         double Y() const { return posY; }
         double Z() const { return posZ; }
@@ -68,17 +69,15 @@ namespace perlin::server {
         const proto2225::Skin& GetSkin() const;
         const std::array<uint8_t, 16>& UuidBytes() const { return uuid; }
 
-        // other players entering / leaving this player's world
         void ShowPlayer(const Session& other);
-        // what another player (or this one) wears, for this client to draw
         void ShowArmor(const Session& wearer);
-        // puts the held armor piece on, swapping with what was worn (use in air with armor in hand)
         bool EquipHeldArmor();
         void HidePlayer(const Session& other);
         void SendBlockUpdate(int x, int y, int z, int32_t networkId);
-        // items lying in the world
         void ShowItem(const ItemEntity& item);
         void HideItem(uint64_t id);
+        void PlaySound(const std::string& sound, double x, double y, double z, int extra = -1);
+        void SendLevelEvent(int event, double x, double y, double z, int data = 0);
         void MoveItem(const ItemEntity& item);
         void TakeItem(uint64_t itemId, uint64_t takerRuntimeId);
         void ShowMob(const Mob& mob);
@@ -86,10 +85,56 @@ namespace perlin::server {
         void MobData(const Mob& mob);
         void MobMotion(const Mob& mob);
         void MobEvent(uint64_t id, int event, int data);
+        enum class DamageCause : uint8_t {
+            Generic,
+            Mob,
+            Player,
+            Projectile,
+            Explosion,
+            Fall,
+            Void,
+            Lava,
+            Fire,
+            Burning,
+            Drowning,
+            Starving,
+            Suffocation,
+            Cactus,
+            Magma,
+            BerryBush,
+            Poison,
+            Wither,
+            Magic,
+            FallingBlock,
+            Kill
+        };
         void Hurt(float amount, double fromX, double fromZ);
+        bool Damage(float amount, DamageCause cause, double fromX, double fromZ, const std::string& source = {},
+                    Session* attacker = nullptr, float knockback = 0.4f);
+        void Kill();
         bool Dead() const { return dead; }
         float Health() const { return health; }
+        float MaxHealth() const;
         void Heal(float amount);
+        int Food() const { return food; }
+        float Saturation() const { return saturation; }
+        void SetFood(int value, float sat);
+        void Exhaust(float amount);
+        void OnBlockMined(float hardness);
+        int XpLevel() const { return xpLevel; }
+        float XpProgress() const { return xpProgress; }
+        void AddExperience(int points);
+        void AddLevels(int levels);
+        void AddEffect(int id, int amplifier, int ticks, bool particles = true, bool ambient = false);
+        bool RemoveEffect(int id);
+        void ClearEffects();
+        int EffectLevel(int id) const;
+        bool OnGround() const { return onGround; }
+        bool Sprinting() const { return sprinting; }
+        float FallDistance() const { return fallDistance; }
+        int ArmorValue() const;
+        void DamageHeld(int amount);
+        bool Shielding(double fromX, double fromZ) const;
         void OpenWindow(int window, proto2225::WindowType type, int x, int y, int z);
         void SendWindowContents(proto2225::ContainerSlotType type, const std::vector<ItemStack>& slots);
         void SendWindowData(int property, int value);
@@ -101,40 +146,44 @@ namespace perlin::server {
         float Yaw() const { return yaw; }
         float Pitch() const { return pitch; }
         void SendMove(const Session& other, uint8_t mode);
-        // sends a chunk to the player if inside their radius and not already sent
         bool WantsChunk(ChunkPos pos) const;
         bool HasSent(ChunkPos pos) const { return sent.contains(pos); }
         PlayerInventory& Inventory() { return inventory; }
         bool Creative() const { return creative; }
         int GameMode() const { return gameMode; }
         bool Spectator() const { return gameMode == 6; }
-        // spectator flight speed as a multiple of the normal one: 1, 2, 5, 10 or 20
         int FlySpeedLevel() const { return flySpeedLevel; }
-        // false when the level is not one of the five or the player is not a spectator; resends the abilities
         bool SetFlySpeedLevel(int level);
-        // one line over the hotbar
         void SendActionBar(const std::string& text);
-        // world state pushed by commands
         void SendTime(int32_t ticks);
         void SendWeather(bool rain, bool thunder);
         void SendGameRule(const std::string& lowerName, bool boolean, int value);
         void SendSpawnPosition(int x, int y, int z, bool world);
         void SendDifficulty(int difficulty);
-        // type: 0 clear, 1 reset, 2 title, 3 subtitle, 4 action bar, 5 times (fade in, stay, fade out in ticks)
         void SendTitle(int type, const std::string& text, int fadeIn = 10, int stay = 70, int fadeOut = 20);
-        // 0 survival, 1 creative, 2 adventure; tells the client so its abilities (flying, instant break) follow
         void SetGameMode(int mode);
-        // permission changes take effect without rejoining: the client gets its abilities and command list again
         void SetOperator(bool op);
-        // whole inventory again, e.g. after the server changed it
         void SendInventory();
         void SendSlot(int slot);
         void SendHeldSelection();
-        // the world's real block at a position, to undo a client prediction
         void CorrectBlock(int x, int y, int z);
         bool InReach(int x, int y, int z) const;
-        // true once after the position changed
         bool TakeMoved() { return std::exchange(moved, false); }
+
+        struct EffectState {
+            int id = 0, amplifier = 0, ticks = 0;
+            bool particles = true, ambient = false;
+        };
+        std::vector<EffectState> Effects() const;
+        float Absorption() const { return absorption; }
+        void SetHealth(float value);
+        void SetVelocity(double x, double y, double z);
+        void SetSpawnPoint(int x, int y, int z);
+        void Transfer(const std::string& host, uint16_t port);
+        uint32_t ShowForm(const std::string& json);
+        void PlaySoundTo(const std::string& sound, double x, double y, double z, float volume, float pitch);
+        void SpawnParticle(const std::string& particle, double x, double y, double z);
+        const std::string& Address() const { return address; }
 
     private:
         void Dispatch(uint32_t id, std::span<const uint8_t> body);
@@ -165,8 +214,26 @@ namespace perlin::server {
         void OnEmote(std::span<const uint8_t> body);
         void OnSound(std::span<const uint8_t> body);
         void OnRespawn(std::span<const uint8_t> body);
+        void OnFormResponse(std::span<const uint8_t> body);
 
         void SendStartGame();
+        void SurvivalTick();
+        void MovementTick(const proto2225::PlayerAuthInputPacket& in, double previousY);
+        void FoodTick();
+        void EffectTick();
+        void EnvironmentTick();
+        void FinishUsing();
+        void StartUsing();
+        void StopUsing();
+        void ReleaseBow();
+        void SendEffect(int id, int event);
+        void SendSelfData();
+        void SendArmorSlot(int slot);
+        void DamageArmor(float amount);
+        void Die(DamageCause cause, const std::string& source);
+        std::string BlockNameAt(double x, double y, double z) const;
+        float AttackDamage(const ItemStack& held) const;
+        void AttackPlayer(Session& victim, const ItemStack& held);
         void SendAbilities();
         void SendAttributes();
         void SendCommands();
@@ -186,21 +253,62 @@ namespace perlin::server {
         std::array<uint8_t, 16> uuid{};
         std::unique_ptr<proto2225::Skin> skin;
         bool isOperator = false;
-        // permissions.json "visitor": no building, breaking, fighting or opening things
         bool isVisitor = false;
         int flySpeedLevel = 1;
         bool creative = false;
         int gameMode = 0;
         PlayerInventory inventory;
         float health = 20.0f;
+        float absorption = 0.0f;
+        int food = 20;
+        float saturation = 5.0f;
+        float exhaustion = 0.0f;
+        int foodTimer = 0;
+        int xpLevel = 0;
+        float xpProgress = 0.0f;
+        int xpTotal = 0;
+        struct ActiveEffect {
+            int amplifier = 0;
+            int ticks = 0;
+            bool particles = true;
+            bool ambient = false;
+        };
+        std::map<int, ActiveEffect> effects;
+        int invulnerable = 0;
+        float lastHurt = 0.0f;
+        float fallDistance = 0.0f;
+        bool onGround = true;
+        bool sprinting = false;
+        bool swimming = false;
+        bool gliding = false;
+        bool flying = false;
+        bool jumping = false;
+        int air = 300;
+        int fireTicks = 0;
+        int envTicks = 0;
+        int useTicks = -1;
+        int useSlot = -1;
+        int16_t useItem = 0;
+        bool attributesDirty = false;
+        bool dataDirty = false;
+        int lastAirSent = 300;
+        bool lastFireSent = false;
+        double lastMoveX = 0, lastMoveZ = 0;
         bool sneaking = false;
         int openWindow = -1;
         proto2225::WindowType openType = proto2225::WindowType::Inventory;
         bool dead = false;
-        int hurtCooldown = 0;
-        int regenTicks = 0;
+        bool hasSpawnPoint = false;
+        int spawnPointX = 0, spawnPointY = 0, spawnPointZ = 0;
+        uint32_t nextFormId = 1;
+        std::unordered_set<uint32_t> openForms;
+        std::string address;
+        double lastHookX = 0, lastHookY = 0, lastHookZ = 0;
 
         double posX = 0.5, posY = 0, posZ = 0.5;
+        int dimension = kOverworld;
+        bool awaitingDimensionAck = false;
+        std::chrono::steady_clock::time_point dimensionChangedAt;
         float pitch = 0, yaw = 0;
         int32_t radius = 0;
         ChunkPos center{0, 0};
@@ -209,7 +317,6 @@ namespace perlin::server {
         bool moved = false;
         std::unordered_set<ChunkPos, ChunkPosHash> sent;
         std::chrono::steady_clock::time_point lastPacket = std::chrono::steady_clock::now();
-        // last time the player moved, looked, acted or chatted (player-idle-timeout)
         std::chrono::steady_clock::time_point lastActive = std::chrono::steady_clock::now();
         std::chrono::steady_clock::time_point lastHeartbeat = std::chrono::steady_clock::now();
         std::chrono::steady_clock::time_point stateSince = std::chrono::steady_clock::now();

@@ -1,6 +1,7 @@
 #include "world/vanilla/DensityFunction.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <unordered_map>
 #include <vector>
@@ -118,6 +119,8 @@ namespace perlin::server::vanilla {
     namespace {
         thread_local CornerMap* t_keptCorners = nullptr;
         thread_local Memo* t_keptMemo = nullptr;
+        thread_local uint64_t t_keptEpoch = 0;
+        std::atomic<uint64_t> g_graphEpoch{1};
     }
 
     DfCacheScope::DfCacheScope(bool keep) {
@@ -126,9 +129,17 @@ namespace perlin::server::vanilla {
         owner = true;
         kept = keep;
         if (keep) {
+            const uint64_t epoch = g_graphEpoch.load(std::memory_order_acquire);
+            if (t_keptCorners && t_keptEpoch != epoch) {
+                delete t_keptCorners;
+                delete t_keptMemo;
+                t_keptCorners = nullptr;
+                t_keptMemo = nullptr;
+            }
             if (!t_keptCorners) {
                 t_keptCorners = new CornerMap();
                 t_keptMemo = new Memo();
+                t_keptEpoch = epoch;
             }
             t_corners = t_keptCorners;
             t_memo = t_keptMemo;
@@ -357,6 +368,42 @@ namespace perlin::server::vanilla {
         }
         case O::OldBlendedNoise:
             return blended->Get(x, y, z);
+        case O::Slice:
+            return in[0]->Eval(axis == 0 ? fromCoordinate : x, axis == 1 ? fromCoordinate : y, axis == 2 ? fromCoordinate : z);
+        case O::DistanceToPoint: {
+            const float dx = static_cast<float>(point[0] - x), dy = static_cast<float>(point[1] - y),
+                        dz = static_cast<float>(point[2] - z);
+            switch (metric) {
+            case 1:
+                return dx * dx + dy * dy + dz * dz;
+            case 2:
+                return std::abs(dx) + std::abs(dy) + std::abs(dz);
+            case 3:
+                return std::max(std::max(std::abs(dx), std::abs(dy)), std::abs(dz));
+            default:
+                return static_cast<float>(std::sqrt(static_cast<double>(dx * dx + dy * dy + dz * dz)));
+            }
+        }
+        case O::EndIslands: {
+            const int sectionX = x / 8, sectionZ = z / 8;
+            const int chunkX = sectionX / 2, chunkZ = sectionZ / 2;
+            const int subX = sectionX % 2, subZ = sectionZ % 2;
+            float offs = -100.0f;
+            for (int xo = -12; xo <= 12; xo++)
+                for (int zo = -12; zo <= 12; zo++) {
+                    const int64_t tx = static_cast<int64_t>(chunkX + xo), tz = static_cast<int64_t>(chunkZ + zo);
+                    if (tx * tx + tz * tz <= 4096 ||
+                        !(simplex->Get(static_cast<double>(tx), static_cast<double>(tz)) < -0.9f))
+                        continue;
+                    const float size =
+                        std::fmod(std::abs(static_cast<float>(tx)) * 3439.0f + std::abs(static_cast<float>(tz)) * 147.0f, 13.0f) + 9.0f;
+                    const float xd = static_cast<float>(subX - xo * 2), zd = static_cast<float>(subZ - zo * 2);
+                    float v = 100.0f - std::sqrt(xd * xd + zd * zd) * size;
+                    v = std::clamp(v, -100.0f, 80.0f);
+                    offs = std::max(offs, v);
+                }
+            return (offs - 8.0f) / 128.0f;
+        }
         case O::FindTopSurface: {
             const float upper = in[1]->Eval(x, 0, z);
             const float q = upper / static_cast<float>(cellY);
@@ -377,8 +424,16 @@ namespace perlin::server::vanilla {
         return 0.0f;
     }
 
-    DensityGraph::DensityGraph(const DataPack& p, int64_t seed) : pack(p) {
-        Xoroshiro root = Xoroshiro::FromSeed(seed);
+    uint64_t NextBackendInstance() {
+        static std::atomic<uint64_t> next{1};
+        return next.fetch_add(1);
+    }
+
+    DensityGraph::~DensityGraph() { g_graphEpoch.fetch_add(1, std::memory_order_acq_rel); }
+
+    DensityGraph::DensityGraph(const DataPack& p, int64_t worldSeed, bool legacyRandom)
+        : pack(p), seed(worldSeed), legacy(legacyRandom) {
+        WorldRandom root = legacyRandom ? WorldRandom::Legacy(worldSeed) : WorldRandom::FromSeed(worldSeed);
         positional = root.ForkPositional();
     }
 
@@ -395,7 +450,12 @@ namespace perlin::server::vanilla {
         p.octaveCount = static_cast<int>(v["octave_count"].Int(1));
         for (const json::Value& m : v["amplitude_modifiers"].items)
             p.amplitudeModifiers.push_back(m.Number());
-        auto noise = std::make_unique<NormalNoise>(p, positional.FromHashOf(full));
+        std::unique_ptr<NormalNoise> noise;
+        if (full == "minecraft:nether/temperature" || full == "minecraft:nether/vegetation")
+            noise = std::make_unique<NormalNoise>(NormalNoise::LegacyNetherBiome(
+                p, WorldRandom::Legacy(seed + (full == "minecraft:nether/vegetation" ? 1 : 0))));
+        else
+            noise = std::make_unique<NormalNoise>(p, positional.FromHashOf(full));
         const NormalNoise* raw = noise.get();
         noises[full] = std::move(noise);
         return raw;
@@ -447,7 +507,14 @@ namespace perlin::server::vanilla {
             case O::ShiftA:
             case O::ShiftB:
             case O::FindTopSurface:
+            case O::EndIslands:
                 return false;
+            case O::DistanceToPoint:
+                return true;
+            case O::Slice:
+                if (n.axis == 1)
+                    return false;
+                break;
             case O::Gradient:
                 return n.axis == 1;
             case O::Shift:
@@ -581,7 +648,24 @@ namespace perlin::server::vanilla {
             node->blended = std::make_shared<BlendedNoise>(
                 v["xz_scale"].Number(1.0), v["y_scale"].Number(1.0), v["xz_factor"].Number(80.0),
                 v["y_factor"].Number(160.0), v["smear_scale_multiplier"].Number(8.0),
-                positional.FromHashOf("minecraft:terrain"));
+                legacy ? WorldRandom::Legacy(seed) : positional.FromHashOf("minecraft:terrain"));
+        } else if (type == "slice") {
+            node->op = O::Slice;
+            node->in = {child("input")};
+            const std::string axis = v["axis"].String();
+            node->axis = axis == "x" ? 0 : axis == "y" ? 1 : 2;
+            node->fromCoordinate = static_cast<int>(v["coordinate"].Int());
+        } else if (type == "distance_to_point") {
+            node->op = O::DistanceToPoint;
+            for (size_t i = 0; i < 3 && i < v["point"].items.size(); i++)
+                node->point[i] = static_cast<int>(v["point"].items[i].Int());
+            const std::string metric = v["metric"].String();
+            node->metric = metric == "euclidean_squared" ? 1 : metric == "manhattan" ? 2 : metric == "chebyshev" ? 3 : 0;
+        } else if (type == "end_outer_islands") {
+            node->op = O::EndIslands;
+            WorldRandom r = WorldRandom::Legacy(seed);
+            r.Consume(17292);
+            node->simplex = std::make_shared<SimplexNoise>(r, true);
         } else if (type == "blend_alpha") {
             node->op = O::Constant;
             node->value = 1.0f;

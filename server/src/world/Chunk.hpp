@@ -20,12 +20,25 @@ namespace perlin::server {
         }
     };
 
-    // overworld height: y -64 .. 319
     constexpr int kMinY = -64;
     constexpr int kHeight = 384;
     constexpr int kSections = kHeight / 16;
     constexpr int kCells = 4096;
     constexpr uint8_t kDefaultBiome = 1;
+
+    enum Dimension : int { kOverworld = 0, kNether = 1, kEnd = 2, kDimensionCount = 3 };
+
+    struct DimensionRange {
+        int minY;
+        int height;
+        int MaxY() const { return minY + height - 1; }
+        int FirstSection() const { return (minY - kMinY) >> 4; }
+        int SectionCount() const { return height >> 4; }
+    };
+
+    constexpr DimensionRange RangeOf(int dimension) {
+        return dimension == kNether ? DimensionRange{0, 128} : dimension == kEnd ? DimensionRange{0, 256} : DimensionRange{kMinY, kHeight};
+    }
 
     // cell index inside a section, the order the wire uses: x outermost, y innermost
     constexpr int CellIndex(int x, int y, int z) {
@@ -71,8 +84,7 @@ namespace perlin::server {
 
         uint64_t version = 0;
 
-        // full LevelChunk payload for protocol 2225: sub chunks, biomes, border byte
-        void EncodeNetwork(std::vector<uint8_t>& out) const;
+        void EncodeNetwork(std::vector<uint8_t>& out, int dimension = kOverworld) const;
 
     private:
         std::array<Section, kSections> sections;

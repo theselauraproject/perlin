@@ -1,59 +1,58 @@
-#pragma once
-#include <stdint.h>
+#ifndef PERLIN_H
+#define PERLIN_H
 
-/* every call and event id, from the shared table (perlin/abi_table.h) */
-#include "perlin/abi_table.h"
-#define PERLIN_C_OP(Name, Id, ...) PERLIN_OP_##Name = Id,
-#define PERLIN_C_EVENT(Name, Id, ...) PERLIN_EVENT_##Name = Id,
-enum PerlinOp { PERLIN_ABI_OPS(PERLIN_C_OP) };
-enum PerlinEvent { PERLIN_ABI_EVENTS(PERLIN_C_EVENT) };
-#undef PERLIN_C_OP
-#undef PERLIN_C_EVENT
+#include "perlin_abi.h"
 
-/* the one host function every call goes through: >= 0 bytes written to out, < 0 a status
- * (below -16: out was too small, -(16 + needed)) */
-#if defined(__wasm__)
-__attribute__((import_module("perlin"), import_name("call")))
+#ifdef __cplusplus
+extern "C" {
 #endif
-int32_t
-perlin_call(uint32_t op, const void* in, uint32_t in_len, void* out, uint32_t out_cap);
 
-#define PERLIN_IMPORT(name) __attribute__((import_module("perlin"), import_name(#name)))
-#define PERLIN_EXPORT(name) __attribute__((export_name(#name)))
+#define PERLIN_EXPORT(name) PERLIN_C_EXPORT(name)
 
-PERLIN_IMPORT(log) void perlin_log(const char* text, uint32_t length);
-PERLIN_IMPORT(chat) void perlin_chat(const char* text, uint32_t length);
-PERLIN_IMPORT(hud_text) void perlin_hud_text(const char* text, uint32_t length);
-PERLIN_IMPORT(player_x) double perlin_player_x(void);
-PERLIN_IMPORT(player_y) double perlin_player_y(void);
-PERLIN_IMPORT(player_z) double perlin_player_z(void);
-PERLIN_IMPORT(player_yaw) float perlin_player_yaw(void);
-PERLIN_IMPORT(player_pitch) float perlin_player_pitch(void);
-PERLIN_IMPORT(game_mode) int32_t perlin_game_mode(void);
-PERLIN_IMPORT(connected) int32_t perlin_connected(void);
-PERLIN_IMPORT(time_ms) int64_t perlin_time_ms(void);
-PERLIN_IMPORT(vel_x) double perlin_vel_x(void);
-PERLIN_IMPORT(vel_y) double perlin_vel_y(void);
-PERLIN_IMPORT(vel_z) double perlin_vel_z(void);
-PERLIN_IMPORT(on_ground) int32_t perlin_on_ground(void);
-PERLIN_IMPORT(sprinting) int32_t perlin_sprinting(void);
-PERLIN_IMPORT(sneaking) int32_t perlin_sneaking(void);
+#ifndef PERLIN_HEAP_SIZE
+#define PERLIN_HEAP_SIZE (1u << 20)
+#endif
 
-static inline uint32_t perlin_strlen(const char* s) {
-    uint32_t n = 0;
-    while (s[n])
-        n++;
-    return n;
+#ifdef PERLIN_DEFINE_RUNTIME
+static unsigned char perlin_heap_[PERLIN_HEAP_SIZE];
+static uint32_t perlin_heap_top_;
+static unsigned char perlin_scratch_[1u << 16];
+
+PERLIN_EXPORT(perlin_alloc) void* perlin_alloc(uint32_t size) {
+    if (perlin_heap_top_ + size > sizeof perlin_heap_)
+        perlin_heap_top_ = 0;
+    void* p = perlin_heap_ + perlin_heap_top_;
+    perlin_heap_top_ += (size + 7u) & ~7u;
+    return p;
 }
-static inline void perlin_say(const char* s) {
-    perlin_chat(s, perlin_strlen(s));
+PERLIN_EXPORT(perlin_free) void perlin_free(void* p) {
+    (void)p;
 }
-static inline void perlin_hud(const char* s) {
-    perlin_hud_text(s, perlin_strlen(s));
+
+static perlin_arena perlin_frame(void) {
+    return perlin_arena_make(perlin_scratch_, sizeof perlin_scratch_);
 }
-static inline void perlin_print(const char* s) {
-    perlin_log(s, perlin_strlen(s));
+
+static uint32_t perlin_subscribed_[PERLIN_SUBSCRIPTION_WORDS];
+static void perlin_subscribe(uint32_t event) {
+    if (event / 32 < PERLIN_SUBSCRIPTION_WORDS)
+        perlin_subscribed_[event / 32] |= 1u << (event % 32);
 }
+PERLIN_EXPORT(perlin_subscriptions_word) uint32_t perlin_subscriptions_word(uint32_t word) {
+    return word < PERLIN_SUBSCRIPTION_WORDS ? perlin_subscribed_[word] : 0u;
+}
+PERLIN_EXPORT(perlin_subscriptions) uint32_t perlin_subscriptions(void) {
+    return perlin_subscribed_[0];
+}
+
+static void perlin_print(const char* text) {
+    perlin_arena a = perlin_frame();
+    PerlinLogRequest r;
+    r.level = PERLIN_LOG_LEVEL_INFO;
+    r.text = perlin_cstr(text);
+    perlin_log(&r, &a);
+}
+#endif
 
 static inline uint32_t perlin_itoa(char* out, int64_t v) {
     char tmp[24];
@@ -71,3 +70,9 @@ static inline uint32_t perlin_itoa(char* out, int64_t v) {
     out[len] = 0;
     return len;
 }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

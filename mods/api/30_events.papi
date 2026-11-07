@@ -1,0 +1,111 @@
+struct EventNothing {}
+struct EventTick { dt: f32 = 0.05; tick: u64 = 0; }
+struct EventFrame { dt: f32 = 0; fps: f32 = 0; guiWidth: i32 = 0; guiHeight: i32 = 0; }
+struct EventChat { type: ChatType = Raw; sender: string; message: string; raw: string; }
+struct EventKey { id: string; down: bool = false; }
+struct EventCommand {
+    name: string; args: string;
+    player: u64 = 0 @doc("the player who ran it on a server; 0 on the client");
+}
+struct EventConnection { server: string; message: string; reason: DisconnectReason = Unknown; }
+struct EventDamage { known: bool = false; dx: f32 = 0; dz: f32 = 0; health: f32 = 0; }
+struct EventText { text: string; }
+struct EventDimension { from: Dimension; to: Dimension; }
+struct EventScreen { from: Screen; to: Screen; }
+struct EventSlot { slot: i32 = 0; item: Item; }
+struct EventEntity { entity: Entity; }
+struct EventSound { name: string; x: f64 = 0; y: f64 = 0; z: f64 = 0; volume: f32 = 1; pitch: f32 = 1; }
+struct EventHttp {
+    id: u32 = 0;
+    status: i32 = 0;
+    error: string;
+    headers: list<pair<string, string>>;
+    body: bytes;
+}
+struct EventPacket { id: u32 = 0; outgoing: bool = false; body: bytes; }
+struct EventTitle { title: string; subtitle: string; actionBar: string; }
+struct EventLook {
+    dx: f32 = 0; dy: f32 = 0; dt: f32 = 0;
+    dirX: f64 = 0; dirY: f64 = 0; dirZ: f64 = -1;
+    vx: f64 = 0; vy: f64 = 0; vz: f64 = 0;
+    keys: u32 = 0;
+    gliding: bool = false; underwater: bool = false; thirdPerson: bool = false; onGround: bool = false;
+}
+struct EventSettingChanged { id: string; value: string; kind: SettingKind = Toggle; }
+struct EventMouseMove { x: f32 = 0; y: f32 = 0; }
+struct EventMouseButton { button: i32 = 0; down: bool = false; x: f32 = 0; y: f32 = 0; }
+struct EventMouseWheel { dx: f32 = 0; dy: f32 = 0; }
+struct EventKeyRaw { key: i32 = 0; down: bool = false; repeat: bool = false; ctrl: bool = false; shift: bool = false; alt: bool = false; }
+struct EventScreenRender { screen: Screen = None; guiWidth: i32 = 0; guiHeight: i32 = 0; mouseX: f32 = 0; mouseY: f32 = 0; }
+struct EventSlotClick { slot: i32 = 0 @doc("same slot address as InventoryClick"); right: bool = false; shift: bool = false; }
+struct EventInteract { kind: InteractKind = StartBreak; x: i32 = 0; y: i32 = 0; z: i32 = 0; face: Face = Up; entity: u64 = 0; }
+struct EventChunk { x: i32 = 0; z: i32 = 0; dimension: Dimension = Overworld; }
+struct EventBlockChanged { x: i32 = 0; y: i32 = 0; z: i32 = 0; from: string; to: string; }
+struct EventLevel { dimension: Dimension = Overworld; server: string; }
+struct EventToast { title: string; body: string; }
+struct EventModMessage { from: string; channel: string; body: bytes; }
+struct EventTooltip { item: Item; lines: list<string>; }
+struct EventScreenButton { id: string; }
+struct EventWindow { focused: bool = true; minimized: bool = false; }
+struct EventServerPing {
+    id: u32 = 0;
+    ok: bool = false;
+    motd: string; version: string;
+    players: i32 = 0; maxPlayers: i32 = 0; protocol: i32 = 0;
+    latencyMs: f32 = 0;
+}
+struct EventPlayer { player: u64 = 0; name: string; }
+struct EventPlayerChat { player: u64 = 0; name: string; message: string; }
+struct EventPlayerBlock { player: u64 = 0; x: i32 = 0; y: i32 = 0; z: i32 = 0; block: string; }
+
+event Load = 1 @hosts(client, server) @internal;
+event Unload = 2 @hosts(client, server) @internal;
+event Tick = 3 @hosts(client, server) @hot EventTick;
+event Frame = 4 @hosts(client) @hot EventFrame;
+event ChatReceived = 5 @hosts(client) @cancellable EventChat;
+event ChatSending = 6 @hosts(client) @cancellable EventText;
+event Connected = 7 @hosts(client) EventConnection;
+event Disconnected = 8 @hosts(client) EventConnection;
+event Key = 9 @hosts(client) EventKey;
+event Command = 10 @hosts(client, server) @internal EventCommand;
+event Damage = 11 @hosts(client) EventDamage;
+event Death = 12 @hosts(client) EventText;
+event Respawned = 13 @hosts(client);
+event DimensionChanged = 14 @hosts(client) EventDimension;
+event ScreenChanged = 15 @hosts(client) EventScreen;
+event SlotChanged = 16 @hosts(client) EventSlot;
+event EntityAdded = 17 @hosts(client) EventEntity;
+event EntityRemoved = 18 @hosts(client) EventEntity;
+event Sound = 19 @hosts(client) @cancellable EventSound;
+event HttpResponse = 20 @hosts(client, server) @internal EventHttp;
+event Packet = 21 @hosts(client) @cancellable @hot EventPacket;
+event Title = 22 @hosts(client) @cancellable EventTitle;
+event SettingChanged = 23 @hosts(client) EventSettingChanged;
+event Look = 24 @hosts(client) @hot @cancellable EventLook;
+event MouseMove = 25 @hosts(client) @hot EventMouseMove;
+event MouseButton = 26 @hosts(client) @cancellable EventMouseButton;
+event MouseWheel = 27 @hosts(client) @cancellable EventMouseWheel;
+event KeyRaw = 28 @hosts(client) @cancellable EventKeyRaw;
+event TextInput = 29 @hosts(client) @cancellable EventText;
+event ScreenRender = 30 @hosts(client) @hot EventScreenRender;
+event SlotClick = 31 @hosts(client) @cancellable EventSlotClick;
+event Interact = 32 @hosts(client) @cancellable EventInteract;
+event ChunkLoaded = 33 @hosts(client) EventChunk;
+event ChunkUnloaded = 34 @hosts(client) EventChunk;
+event BlockChanged = 35 @hosts(client, server) EventBlockChanged;
+event ResourcesReloaded = 36 @hosts(client);
+event LevelLoaded = 37 @hosts(client) EventLevel;
+event LevelUnloaded = 38 @hosts(client);
+event ModsLoaded = 39 @hosts(client, server);
+event ClientStopping = 40 @hosts(client);
+event Toast = 41 @hosts(client) @cancellable EventToast;
+event ModMessage = 42 @hosts(client, server) EventModMessage;
+event Tooltip = 43 @hosts(client) EventTooltip;
+event ScreenButton = 44 @hosts(client) EventScreenButton;
+event WindowFocus = 45 @hosts(client) EventWindow;
+event ServerPing = 46 @hosts(client) EventServerPing;
+event PlayerJoin = 47 @hosts(server) EventPlayer;
+event PlayerQuit = 48 @hosts(server) EventPlayer;
+event PlayerChat = 49 @hosts(server) @cancellable EventPlayerChat;
+event BlockBreak = 50 @hosts(server) @cancellable EventPlayerBlock;
+event BlockPlace = 51 @hosts(server) @cancellable EventPlayerBlock;

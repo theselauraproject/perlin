@@ -1,0 +1,7 @@
+name = "perlin-auth-relay"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# comma-separated origins allowed to use the relay, e.g. "https://you.github.io,http://localhost:8080"
+ALLOWED_ORIGINS = "*"

@@ -1,0 +1,73 @@
+{
+  "namespace": "stack_regression",
+  "vertical_screen": {
+    "type": "stack_panel",
+    "size": [
+      320,
+      240
+    ],
+    "controls": [
+      {
+        "content": {
+          "type": "panel",
+          "size": [
+            "100%",
+            "fill"
+          ]
+        }
+      },
+      {
+        "footer": {
+          "type": "stack_panel",
+          "controls": [
+            {
+              "bar": {
+                "type": "panel",
+                "size": [
+                  "100%",
+                  19
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "horizontal_screen": {
+    "type": "stack_panel",
+    "orientation": "horizontal",
+    "size": [
+      320,
+      240
+    ],
+    "controls": [
+      {
+        "content": {
+          "type": "panel",
+          "size": [
+            "fill",
+            "100%"
+          ]
+        }
+      },
+      {
+        "sidebar": {
+          "type": "stack_panel",
+          "orientation": "horizontal",
+          "controls": [
+            {
+              "bar": {
+                "type": "panel",
+                "size": [
+                  19,
+                  "100%"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

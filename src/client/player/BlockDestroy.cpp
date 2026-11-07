@@ -3,6 +3,7 @@
 #include "util/Resources.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <unordered_map>
 
@@ -120,12 +121,14 @@ namespace perlin::destroy {
             used = 1.0f;
         if (used > 1.0f && c.efficiency > 0)
             used += static_cast<float>(c.efficiency * c.efficiency + 1);
+        // Player::getDestroySpeed 0x14297EC40 scales by 1 + 0.2 L and 0.3^F, then GameMode's rate 0x14376B0B0
+        // by 1.2^L and 0.7^F on top (L = max(haste, conduit power) amplifier + 1, F = fatigue amplifier + 1)
         if (c.haste > 0)
-            used *= 1.0f + 0.2f * static_cast<float>(c.haste);
-        if (c.miningFatigue > 0) {
-            static const float f[] = {1.0f, 0.3f, 0.09f, 0.0027f, 0.00081f};
-            used *= f[std::min(c.miningFatigue, 4)];
-        }
+            used *= (1.0f + 0.2f * static_cast<float>(c.haste)) *
+                    static_cast<float>(std::pow(1.2, static_cast<double>(c.haste)));
+        if (c.miningFatigue > 0)
+            used *= static_cast<float>(std::pow(0.3, static_cast<double>(c.miningFatigue))) *
+                    static_cast<float>(std::pow(0.7, static_cast<double>(c.miningFatigue)));
         if (c.inWater)
             used /= 5.0f;
         if (!c.onGround)

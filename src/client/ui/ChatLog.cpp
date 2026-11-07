@@ -1,5 +1,6 @@
 #include <cstring>
 #include "client/ui/ChatLog.hpp"
+#include "client/ui/FormatCodes.hpp"
 #include "client/ui/McFont.hpp"
 #include "client/ui/TextEdit.hpp"
 #include "util/Strings.hpp"
@@ -77,7 +78,7 @@ namespace perlin::ui {
             for (size_t i = 0; i < rest.size();) {
                 size_t next;
                 if (rest.compare(i, 2, "\xC2\xA7") == 0 && i + 2 < rest.size()) {
-                    next = i + 3;
+                    next = NextChar(rest, i + 2);
                 } else {
                     next = NextChar(rest, i);
                 }
@@ -101,20 +102,18 @@ namespace perlin::ui {
                 cut = lastSpace;
             const std::string head = rest.substr(0, cut);
             out.push_back(carry + head);
-            std::string state = carry;
-            for (size_t i = 0; i + 2 < head.size(); i++) {
-                if (head.compare(i, 2, "\xC2\xA7") != 0)
-                    continue;
-                const char code = static_cast<char>(std::tolower(static_cast<unsigned char>(head[i + 2])));
-                if (code == 'r')
-                    state.clear();
-                else if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f'))
-                    state = std::string("\xC2\xA7") + code;
-                else
-                    state += std::string("\xC2\xA7") + code;
-                i += 2;
+            // the state the cut line ends in starts the next one: a colour keeps bold on, as in the game
+            FormatState state;
+            const std::string line = carry + head;
+            for (size_t i = 0; i < line.size();) {
+                uint32_t cp = 0;
+                if (!McFont::Next(line, i, cp))
+                    break;
+                uint32_t code = 0;
+                if (cp == 0xA7 && McFont::Next(line, i, code))
+                    state.Apply(code);
             }
-            carry = state;
+            carry = state.Codes();
             rest = rest.substr(cut);
             if (rest.empty())
                 break;

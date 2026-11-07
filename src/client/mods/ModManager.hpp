@@ -14,6 +14,7 @@
 
 #include "perlin/abi.hpp"
 #include "perlin/host.hpp"
+#include "host/PluginCore.hpp"
 
 namespace perlin::mods {
     struct ModInfo {
@@ -31,7 +32,8 @@ namespace perlin::mods {
         bool hasSettings = false;
         uint32_t requested = 0;
         bool needsApproval = false;
-        int priority = 0; // manifest "priority": higher runs first
+        int priority = 0;
+        double frameRate = 0;
     };
 
     struct PluginCommand {
@@ -40,7 +42,7 @@ namespace perlin::mods {
 
     struct PluginKey {
         std::string plugin, id, label, binding;
-        bool ctrl = false, shift = false, alt = false; // required held modifiers (KeyRegisterEx)
+        bool ctrl = false, shift = false, alt = false;
         abi::KeyContext context = abi::KeyContext::InGame;
     };
 
@@ -64,6 +66,8 @@ namespace perlin::mods {
         bool linear = true;
         uint64_t version = 0;
         std::shared_ptr<const std::vector<uint8_t>> rgba;
+        uint64_t rectFrom = 0;
+        int rx0 = 0, ry0 = 0, rx1 = 0, ry1 = 0;
     };
 
     struct CallContext {
@@ -91,13 +95,10 @@ namespace perlin::mods {
         void SetAutoReload(bool value) { autoReload = value; }
 
         void SetEnvironment(const std::string& gameVersion, const std::string& platform);
-        // the permission a call needs comes from abi_table.h
         void Register(abi::Op op, OpHandler handler);
-        // typed: fn(CallContext&, const Request&) -> Response; encoding from the op's table entry
         template <abi::Op O, class Fn> void Handle(Fn&& fn) {
             Register(O, abi::host::Typed<O, CallContext>(std::forward<Fn>(fn)));
         }
-        // typed event: the payload type comes from the event's table entry
         template <abi::Event E> bool Dispatch(const abi::payload_t<E>& payload, double budgetMs = 250.0) {
             return Dispatch(E, abi::host::Encode<E>(payload), budgetMs);
         }
@@ -133,9 +134,8 @@ namespace perlin::mods {
 
         void PostMain(std::function<void()> task);
         std::function<bool(const std::string& path, int& width, int& height, std::vector<uint8_t>& rgba)> imageLoader;
-        // thread-safe: delivered on main thread at next Pump if a mod wants it
         void Queue(abi::Event event, abi::Writer payload);
-        bool Wants(abi::Event event) const { return (wanted.load() >> static_cast<uint32_t>(event)) & 1; }
+        bool Wants(abi::Event event) const { return wanted.Has(event); }
         void Pump();
         bool HasPermission(const std::string& plugin, abi::Permission p) const;
         uint64_t Tick() const { return tickCounter.load(); }
@@ -147,7 +147,7 @@ namespace perlin::mods {
 
     private:
         ModManager() = default;
-        std::atomic<uint64_t> wanted{0};
+        AtomicSubscriptions wanted{Subscriptions{}};
         bool modsSettled = false;
         size_t settledCount = 0;
         void RefreshWanted();

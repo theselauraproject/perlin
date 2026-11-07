@@ -65,9 +65,29 @@ namespace perlin::server {
         std::array<double, 3> pos{};
         // a matched table entry (biome) or the catalog's network id (item)
         int index = -1;
+        int block = -1;
     };
 
-    // what a handler gets
+    struct CommandOrigin {
+        double x = 0, y = 0, z = 0;
+        float yaw = 0, pitch = 0;
+        int dimension = 0;
+        bool eyes = false;
+    };
+    const CommandOrigin* ActiveOrigin();
+    class OriginScope {
+    public:
+        explicit OriginScope(const CommandOrigin& origin);
+        ~OriginScope();
+        OriginScope(const OriginScope&) = delete;
+        OriginScope& operator=(const OriginScope&) = delete;
+
+    private:
+        const CommandOrigin* previous;
+        CommandOrigin current;
+    };
+    int CommandDimension(Session* source);
+
     struct CommandCtx {
         Server& server;
         // null for the console

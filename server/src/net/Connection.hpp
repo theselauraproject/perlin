@@ -9,7 +9,6 @@
 
 namespace perlin::server {
 
-    // one remote peer; Send is only called from the tick thread
     class Connection {
     public:
         virtual ~Connection() = default;
@@ -17,8 +16,8 @@ namespace perlin::server {
         virtual void Close() = 0;
         virtual bool Alive() const = 0;
         virtual std::string Describe() const = 0;
+        virtual bool Local() const { return false; }
         uint64_t id = 0;
-        // the sdp offer this connection came from (nethernet), empty for local connections
         std::string offerSdp;
     };
 
@@ -29,7 +28,6 @@ namespace perlin::server {
         std::vector<uint8_t> data;
     };
 
-    // listeners run on their own threads and hand everything to the tick thread through here
     class EventQueue {
     public:
         void Push(NetEvent event) {
@@ -57,12 +55,10 @@ namespace perlin::server {
         virtual void Stop() = 0;
     };
 
-    // webrtc data channels carry each message as [remaining fragments][payload]; this reassembles and splits them
     constexpr size_t kFragmentSize = 262143;
 
     class FragmentAssembler {
     public:
-        // true when a whole message is ready in `out`
         bool Push(const uint8_t* data, size_t size, std::vector<uint8_t>& out) {
             if (size == 0)
                 return false;
@@ -78,6 +74,5 @@ namespace perlin::server {
         std::vector<uint8_t> buffer;
     };
 
-    // fragments of at most kFragmentSize, each prefixed with how many follow; empty when it needs more than 256
     std::vector<std::vector<uint8_t>> SplitFragments(const uint8_t* data, size_t size);
 }

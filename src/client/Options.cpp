@@ -1,5 +1,6 @@
 #include "client/Options.hpp"
 #include "util/Paths.hpp"
+#include "util/Platform.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -77,7 +78,6 @@ namespace perlin {
             float bloom = 0.5f;
             std::string renderer = "auto";
             std::string capePhysics = "off";
-            bool bedrockBridging = true;
             bool webTuned = false;
             std::map<std::string, std::string> padKeys;
             float padSensitivity = 1.0f;
@@ -92,6 +92,9 @@ namespace perlin {
             bool centerCursor = true;
             bool autoUpdate = true;
             bool versionMismatchNoAsk = false;
+            bool discordPresence = true;
+            bool discordShowServer = true;
+            bool discordJoin = true;
         };
     }
 
@@ -118,12 +121,30 @@ namespace perlin {
             o.dynamicLights = "off";
             o.webTuned = true;
         }
+
+        void TuneForMobile(Options& o) {
+            o.renderDistance = 8;
+            o.maxFps = 60;
+            o.shadows = false;
+            o.shadowQuality = 1;
+            o.shadowEntities = false;
+            o.bloom = 0.0f;
+            o.motionBlur = 0.0f;
+            o.rgss = false;
+            o.cloudRange = 64;
+            o.menuBlur = 0;
+            o.dynamicLights = "off";
+            o.upscaler = "off";
+            o.webTuned = true;
+        }
     }
 
     Options Options::Load() {
         Options o;
 #ifdef __EMSCRIPTEN__
         TuneForWeb(o);
+#elif defined(PERLIN_MOBILE)
+        TuneForMobile(o);
 #endif
         const std::string dir = paths::DataDir();
         paths::EnsureDir(dir);
@@ -198,8 +219,7 @@ namespace perlin {
                       o.shadowEntities,
                       o.bloom,
                       o.renderer,
-                      o.capePhysics,
-                      o.bedrockBridging};
+                      o.capePhysics};
         auto parsed = json::Read<Stored>(text);
         if (!parsed)
             return o;
@@ -246,7 +266,6 @@ namespace perlin {
         o.betterGrass = stored.betterGrass;
         o.enableLods = stored.enableLods;
         o.skins3d = stored.skins3d;
-        o.bedrockBridging = stored.bedrockBridging;
         o.upscaler = stored.upscaler;
         o.upscaleQuality = stored.upscaleQuality;
         o.upscaleSharpness = std::clamp(stored.upscaleSharpness, 0, 100);
@@ -328,6 +347,13 @@ namespace perlin {
             TuneForWeb(o);
         else
             o.webTuned = true;
+#elif defined(PERLIN_MOBILE)
+        if (!stored.webTuned)
+            TuneForMobile(o);
+        else
+            o.webTuned = true;
+        if (o.upscaler == "fsr1" && o.upscaleCustom == 75)
+            o.upscaler = "off";
 #endif
         o.padSensitivity = std::clamp(stored.padSensitivity, 0.1f, 3.0f);
         o.padDeadzone = std::clamp(stored.padDeadzone, 0.0f, 0.6f);
@@ -341,6 +367,9 @@ namespace perlin {
         o.centerCursor = stored.centerCursor;
         o.autoUpdate = stored.autoUpdate;
         o.versionMismatchNoAsk = stored.versionMismatchNoAsk;
+        o.discordPresence = stored.discordPresence;
+        o.discordShowServer = stored.discordShowServer;
+        o.discordJoin = stored.discordJoin;
         return o;
     }
 
@@ -408,8 +437,7 @@ namespace perlin {
                       shadowEntities,
                       bloom,
                       renderer,
-                      capePhysics,
-                      bedrockBridging};
+                      capePhysics};
         for (size_t i = 0; i < kActionCount; i++)
             stored.keys[ActionId(static_cast<Action>(i))] = keys[i].Serialize();
         for (size_t i = 0; i < kActionCount; i++)
@@ -427,6 +455,9 @@ namespace perlin {
         stored.centerCursor = centerCursor;
         stored.autoUpdate = autoUpdate;
         stored.versionMismatchNoAsk = versionMismatchNoAsk;
+        stored.discordPresence = discordPresence;
+        stored.discordShowServer = discordShowServer;
+        stored.discordJoin = discordJoin;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))

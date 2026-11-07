@@ -1,6 +1,7 @@
 #pragma once
 #include "client/resources/TextureLoader.hpp"
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,11 @@ namespace perlin::javapack {
     };
 
     std::vector<Source> Sources(const std::string& bedrockPath);
+
+    using SheetLoader = std::function<bool(const std::string& path, Texture& out)>;
+
+    // sprite sheets the ui builds from several java sprites at once (tab strips, progress arrows, the title logo)
+    bool Compose(const std::string& bedrockPath, const SheetLoader& load, Texture& out);
 
     bool Crop(const Texture& sheet, const Source& source, Texture& out);
 }

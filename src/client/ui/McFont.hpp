@@ -43,6 +43,8 @@ namespace perlin::ui {
 
         const Glyph& Get(uint32_t codepoint) const;
         float Width(const std::string& utf8, float scale = 1.0f) const;
+        // §k: a random printable ascii character of the same advance, picked anew on every call
+        uint32_t Obfuscated(uint32_t codepoint) const;
         static constexpr int kLineHeight = 9;
         static constexpr int kCell = 8;
 

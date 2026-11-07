@@ -78,6 +78,7 @@ namespace perlin::entity {
             readMap("geometry", d.geometries);
             readMap("animations", d.animations);
             readMap("materials", d.materials);
+            readMap("particle_effects", d.particleEffects);
             if (const Json* scripts = desc->Find("scripts")) {
                 const auto readScripts = [&](const char* key, std::vector<ExprPtr>& dest) {
                     if (const Json* l = scripts->Find(key); l && l->IsArray())
@@ -153,6 +154,35 @@ namespace perlin::entity {
                         if (entry.IsObject())
                             for (const auto& [pattern, expr] : entry.object)
                                 rc.parts.push_back({LowerCase(pattern), ParseValue(expr)});
+                if (const Json* il = def.Find("ignore_lighting"); il && il->IsBool())
+                    rc.ignoreLighting = il->boolean;
+                if (const Json* lm = def.Find("light_color_multiplier"); lm && lm->IsNumber())
+                    rc.lightMultiplier = static_cast<float>(lm->number);
+                else if (lm && lm->IsString())
+                    rc.lightMultiplierExpr = ParseValue(*lm);
+                const auto readRgba = [&](const char* key, ExprPtr* out, bool& has) {
+                    const Json* c = def.Find(key);
+                    if (!c || !c->IsObject())
+                        return;
+                    has = true;
+                    static const char* kKeys[4] = {"r", "g", "b", "a"};
+                    for (int i = 0; i < 4; i++)
+                        if (const Json* v = c->Find(kKeys[i]))
+                            out[i] = ParseValue(*v);
+                };
+                readRgba("overlay_color", rc.overlay, rc.hasOverlay);
+                readRgba("is_hurt_color", rc.hurtColor, rc.hasHurtColor);
+                readRgba("on_fire_color", rc.fireColor, rc.hasFireColor);
+                if (const Json* uv = def.Find("uv_anim"); uv && uv->IsObject()) {
+                    const auto pair = [&](const char* key, ExprPtr* out) {
+                        if (const Json* a = uv->Find(key); a && a->IsArray())
+                            for (size_t i = 0; i < 2 && i < a->array.size(); i++)
+                                out[i] = ParseValue(a->array[i]);
+                    };
+                    pair("offset", rc.uvOffset);
+                    pair("scale", rc.uvScale);
+                    rc.hasUvAnim = true;
+                }
                 if (const Json* c = def.Find("color"); c && c->IsObject()) {
                     rc.hasColor = true;
                     static const char* kKeys[4] = {"r", "g", "b", "a"};
@@ -198,7 +228,7 @@ namespace perlin::entity {
 
     void EntityAssets::SyncOverlays() {
         const uint32_t gen = ServerPacks::Instance().Generation();
-        if (gen == overlayGeneration)
+        if (gen == overlayGeneration || ServerPacks::Instance().Mounting())
             return;
         const std::vector<std::string> dirs = ServerPacks::Instance().Directories();
         if (dirs.size() < overlaysLoaded) {

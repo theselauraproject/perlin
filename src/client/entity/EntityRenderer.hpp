@@ -10,6 +10,8 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace perlin {
     class HandRenderer;
@@ -39,7 +41,16 @@ namespace perlin::entity {
         ~EntityRenderer();
         void Initialize(RenderContext& renderer);
         std::pair<float, float> HitBox(const Entity& e) const;
+        // particle effects the entities' animations and controllers started this frame, for the particle system
+        struct ParticleRequest {
+            std::string effect;
+            glm::dvec3 at{0.0};
+            std::string preScript;
+        };
+        std::vector<ParticleRequest> TakeParticleRequests() { return std::exchange(particleRequests, {}); }
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider = true) const;
+        // the seat of a vehicle standing at pos/yaw, for the previous tick's end of the interpolation
+        glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider, glm::dvec3 pos, float yaw) const;
         bool CollisionBoxOf(const std::string& type, float& width, float& height) const {
             return assets.CollisionBox(type, width, height);
         }
@@ -51,6 +62,8 @@ namespace perlin::entity {
         struct FrameIn {
             double time = 0;
             float dt = 0.016f;
+            // client tick progress (0..1) since the last actor interpolation step
+            float partialTick = 1.0f;
             glm::dvec3 camera{0.0};
             std::function<glm::vec3(const glm::dvec3&)> light;
             std::function<glm::ivec2(const glm::dvec3&)> lightLevels; // block, sky (0-15)
@@ -101,6 +114,15 @@ namespace perlin::entity {
             bool skins3d = false;
             const std::vector<particle::Quad>* particles = nullptr;
             const particle::DataParticles* dataParticles = nullptr;
+            // burning actors: flame planes that stack up the body and turn to the camera
+            struct FireSprite {
+                glm::dvec3 pos{0.0};
+                float width = 0.6f, height = 1.8f;
+                bool soul = false;
+            };
+            const std::vector<FireSprite>* fire = nullptr;
+            // the camera is burning: flames fill the lower view
+            bool screenFire = false;
             particle::DataWorld dataWorld;
             std::function<bool(int, std::vector<uint8_t>&)> tilePixels;
             glm::dvec3 playerPos{0.0};
@@ -134,6 +156,7 @@ namespace perlin::entity {
         size_t Culled() const { return culled; }
 
     private:
+        std::vector<ParticleRequest> particleRequests;
         HandRenderer* itemRenderer = nullptr;
         struct View;
         struct Layer {
@@ -141,6 +164,16 @@ namespace perlin::entity {
             std::string texture;
             bool translucent = false;
             float tint[4] = {1, 1, 1, 1};
+            bool ignoreLighting = false;
+            float lightMultiplier = 1.0f;
+            // render controller overlays, already evaluated: overlay_color, is_hurt_color, on_fire_color (rgba)
+            float overlay[4] = {0, 0, 0, 0};
+            float hurtColor[4] = {1.0f, 0.0f, 0.0f, 0.3f};
+            float fireColor[4] = {0, 0, 0, 0};
+            bool hasOverlay = false, hasFireColor = false;
+            // uv_anim: uv * uvScale + uvOffset; the texture repeats so scrolling wraps
+            float uvOffset[2] = {0, 0}, uvScale[2] = {1, 1};
+            bool uvAnim = false;
             MaterialInfo material;
             uint32_t maskRgb = 0xFFFFFF;
             // entity's own model; invisibility hides it, keeps armor and attached items
@@ -173,10 +206,13 @@ namespace perlin::entity {
         uint32_t TextureByPath(const std::string& path);
         void DrawPainting(const Entity& e, const FrameIn& in);
         void DrawParticles(const FrameIn& in);
+        int FlipbookFrames(const std::string& name);
         uint32_t particleSheet = 0;
         bool particleSheetTried = false;
         std::unordered_map<int, uint32_t> particleTiles;
         std::unordered_map<std::string, uint32_t> particleTextures;
+        // frames in a flipbook strip texture, by name (0: the texture is missing)
+        std::unordered_map<std::string, int> flipbookFrames;
         uint32_t fontTexture = 0;
         uint32_t fontTextureVersion = 0;
 

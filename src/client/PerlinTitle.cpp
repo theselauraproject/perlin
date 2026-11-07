@@ -38,6 +38,7 @@ namespace perlin {
                                                  ui::Json(data ? data->StringOr("") : std::string())}});
                                 d.FactoryItems("buttons").push_back({"button", {}, "form_buttons", i++});
                             }
+                        d.Set("#form_button_length", ui::Json(static_cast<double>(i)));
                         d.FactoryItems("server_form_factory").push_back({"long_form", {}, {}, -1});
                         return d;
                     }
@@ -277,7 +278,7 @@ namespace perlin {
         inSingleplayer = false;
     }
 
-    void Perlin::DrawTitlePanorama(int fbW, int fbH) {
+    bool Perlin::DrawTitlePanorama(int fbW, int fbH, bool blurred) {
         const auto now = Clock::now();
         const uint64_t packStamp =
             (TexturePack::Instance().Generation() << 32) ^ ServerPacks::Instance().Generation();
@@ -288,12 +289,12 @@ namespace perlin {
                     renderer->UiDestroyTexture(id);
                 id = 0;
             }
+            // the old blurred faces stay up until the new pack's are ready: server packs land mid-join
+            panorama.blurKey = -1;
             panorama.ready = false;
             panorama.retryAt = {};
         }
-        if (!panorama.ready) {
-            if (now < panorama.retryAt)
-                return;
+        if (!panorama.ready && now >= panorama.retryAt) {
             panorama.retryAt = now + std::chrono::seconds(2);
             int loaded = 0;
             for (int i = 0; i < 6; i++) {
@@ -308,10 +309,19 @@ namespace perlin {
             for (uint32_t id : panorama.textures)
                 loaded += id != 0;
             panorama.ready = loaded == 6;
-            if (!panorama.ready)
-                return;
-            panorama.clock = now;
+            if (panorama.ready && !panorama.clock.time_since_epoch().count())
+                panorama.clock = now;
         }
+        const bool wantBlur = blurred && options.menuBlur > 0;
+        if (!panorama.ready && !(wantBlur && panorama.blurred[0]))
+            return false;
+        const uint32_t* faceTextures = panorama.textures;
+        // polled on every panorama frame: the title screen warms the blur up before a menu needs it.
+        // a blurred screen waits for it the first time rather than show the sharp faces
+        if (options.menuBlur > 0 && PollBlurredPanorama(fbH, wantBlur) && wantBlur)
+            faceTextures = panorama.blurred;
+        else if (!panorama.ready)
+            return false;
         const double seconds = std::chrono::duration<double>(now - panorama.clock).count();
         ui::PanoramaFace faces[6];
         ui::BuildPanorama(ui::PanoramaViewAt(seconds), fbW, fbH, faces);
@@ -331,11 +341,72 @@ namespace perlin {
                 continue;
             UiDraw draw;
             draw.mesh = mesh;
-            draw.texture = panorama.textures[i];
+            draw.texture = faceTextures[i];
             draw.premultiplied = true;
             renderer->UiSubmit(UiLayer::Gui, draw);
             renderer->UiDestroyMesh(mesh);
         }
+        return true;
+    }
+
+    bool Perlin::PollBlurredPanorama(int fbH, bool wait) {
+        const auto now = Clock::now();
+        const auto take = [&] {
+            std::vector<ui::PanoramaImage> faces = panorama.blurJob.get();
+            if (faces.size() != 6) {
+                panorama.blurRetryAt = now + std::chrono::seconds(2);
+                return;
+            }
+            for (int i = 0; i < 6; i++) {
+                if (panorama.blurred[i])
+                    renderer->UiDestroyTexture(panorama.blurred[i]);
+                const ui::PanoramaImage& img = faces[static_cast<size_t>(i)];
+                panorama.blurred[i] = renderer->UiCreateTexture(img.width, img.height, img.rgba.data(), true);
+            }
+            // faces from before a pack change still beat sharp ones: shown, then redone
+            panorama.blurKey = panorama.blurJobStamp == panorama.packStamp ? panorama.blurJobKey : -1;
+            Log("ui", "blurred panorama ready: {}px faces, radius {}", faces[0].width, panorama.blurJobKey);
+        };
+        const bool needNow = wait && !panorama.blurred[0];
+        if (panorama.blurJob.valid() &&
+            (needNow || panorama.blurJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready))
+            take();
+        // keyed on the radius at full face size: a resize only re-blurs when the strength really changes
+        const int radius = ui::PanoramaBlurRadius(options.menuBlur, 512, fbH);
+        if (!panorama.blurJob.valid() && radius != panorama.blurKey && now >= panorama.blurRetryAt) {
+            panorama.blurJobKey = radius;
+            panorama.blurJobStamp = panorama.packStamp;
+            // ~100 ms at 512px: off the frame unless nothing blurred exists yet
+            panorama.blurJob = std::async(std::launch::async, [radius] {
+                ui::PanoramaImage in[6];
+                int size = 512;
+                for (int i = 0; i < 6; i++) {
+                    Texture t;
+                    if (!ui::UiAssets::Instance().Image("textures/ui/panorama_" + std::to_string(i), t) ||
+                        t.width <= 0)
+                        return std::vector<ui::PanoramaImage>{};
+                    size = std::min(size, std::max(t.width, t.height));
+                    in[i].width = t.width;
+                    in[i].height = t.height;
+                    in[i].rgba = std::move(t.pixels);
+                }
+                ui::PanoramaImage out[6];
+                if (!ui::BlurPanorama(in, size, std::max(1, radius * size / 512), out))
+                    return std::vector<ui::PanoramaImage>{};
+                return std::vector<ui::PanoramaImage>(std::make_move_iterator(std::begin(out)),
+                                                      std::make_move_iterator(std::end(out)));
+            });
+            if (needNow)
+                take();
+        }
+        return panorama.blurred[0] != 0;
+    }
+
+    bool Perlin::WorldCovered() const {
+        // also true the frame before the loading screen opens (connect, dimension change): the hud would
+        // flash for a frame otherwise. a mod that hid the loading screen gets the game back
+        return titleScreen.active || titleScreen.shown || loading.shown || disconnect.shown ||
+               (session && !loading.done && !loading.modHidden);
     }
 
     bool Perlin::UpdateAssetScreen(ui::Hud& hud, int fbW, int fbH) {
@@ -493,7 +564,7 @@ namespace perlin {
                 titleScreen.shown = false;
                 titleScreen.signature.clear();
             }
-            DrawTitlePanorama(fbW, fbH);
+            DrawTitlePanorama(fbW, fbH, true);
             return false;
         }
         if (!titleScreen.active) {
@@ -749,9 +820,11 @@ namespace perlin {
         if (connectsInFlight.load() == 0)
             UnloadServerPacks();
 
-        if (title.page == ui::TitlePage::Main || title.page == ui::TitlePage::Accounts ||
-            title.page == ui::TitlePage::AccountName || title.page == ui::TitlePage::AccountSignIn)
-            DrawTitlePanorama(fbW, fbH);
+        // sub-screens blur it, like the game's menus
+        DrawTitlePanorama(fbW, fbH,
+                          !(title.page == ui::TitlePage::Main || title.page == ui::TitlePage::Accounts ||
+                            title.page == ui::TitlePage::AccountName ||
+                            title.page == ui::TitlePage::AccountSignIn));
 
         {
             std::lock_guard lock(signIn.mutex);
@@ -1288,14 +1361,22 @@ namespace perlin {
             const int freshChunks = chunks - loading.chunkBase;
             // the world shows only once it can be drawn: block textures loaded, the player placed and the
             // chunks around it meshed. hiding the screen earlier leaves an empty sky behind the touch controls
+            // server blocks build as the meshes meet them: the world shows once those are built and drawn again
+            // (a server with a huge set gets a limit, the rest fills in behind the world)
+            if (levelRenderer)
+                levelRenderer->SetFastBuild(true);
             const bool assets =
-                levelRenderer && levelRenderer->Blocks().Complete() && levelRenderer->TexturesLoaded();
+                levelRenderer && levelRenderer->Blocks().Complete() && levelRenderer->TexturesLoaded() &&
+                (levelRenderer->ServerBlocksSettled() || now - loading.startAt > std::chrono::seconds(30));
             const bool placed = session->Initialized();
             const size_t meshed =
                 levelRenderer ? levelRenderer->MeshedChunks() -
                                     std::min(levelRenderer->MeshedChunks(), levelRenderer->MeshesInFlight())
                               : 0;
-            const bool enough = freshChunks >= 9 && assets && placed && meshed >= 9;
+            // no mesh may still be in flight: one started before its custom blocks had textures would come out with
+            // them invisible. the gate must then hold steady for a moment, so a block seen late re-arms it
+            const bool enough = freshChunks >= 9 && assets && placed && meshed >= 9 && levelRenderer &&
+                                levelRenderer->MeshesInFlight() == 0;
             if (enough) {
                 if (!loading.readyArmed) {
                     loading.readyArmed = true;
@@ -1310,7 +1391,7 @@ namespace perlin {
             const bool settled = assets && placed && freshChunks > 0 && levelRenderer &&
                                  levelRenderer->PendingMeshes() == 0 &&
                                  levelRenderer->MeshesInFlight() == 0 && waited > std::chrono::seconds(8);
-            if (loading.readyArmed || settled) {
+            if ((loading.readyArmed && now - loading.readyAt >= std::chrono::milliseconds(600)) || settled) {
                 loading.done = true;
                 show = false;
             } else if (!assets) {
@@ -1330,6 +1411,8 @@ namespace perlin {
             }
         }
         if (!show) {
+            if (levelRenderer)
+                levelRenderer->SetFastBuild(false);
             if (loading.shown) {
                 hud.Overlay().ClearOverlay();
                 loading.shown = false;
@@ -1364,13 +1447,16 @@ namespace perlin {
             loading.signature.clear();
         const auto [scale, guiW, guiH] = detail::OverlayViewport(hud, fbW, fbH);
         const double time = std::chrono::duration<double>(now.time_since_epoch()).count();
-        const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
-                                      "|" + t.message + "|" + t.detail + "|" + t.cancel;
         bool modHidden = false;
         {
             std::lock_guard lock(modHooks.mutex);
             modHidden = !modHooks.loadingHidden.empty();
         }
+        loading.modHidden = modHidden;
+        t.panorama = !modHidden && DrawTitlePanorama(fbW, fbH, true);
+        const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
+                                      "|" + t.message + "|" + t.detail + "|" + t.cancel +
+                                      (t.panorama ? "|p" : "|d");
         // a mod hid the loading screen: connection carries on underneath, nothing drawn over it
         if (modHidden) {
             if (hud.Overlay().HasOverlay())
@@ -1561,8 +1647,9 @@ namespace perlin {
                                     std::chrono::milliseconds(400), now, "disconnect screen"))
             disconnect.signature.clear();
         const auto [scale, guiW, guiH] = detail::OverlayViewport(hud, fbW, fbH);
-        const std::string signature =
-            std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title + "|" + t.reason + "|" + t.code;
+        t.panorama = DrawTitlePanorama(fbW, fbH, true);
+        const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
+                                      "|" + t.reason + "|" + t.code + (t.panorama ? "|p" : "|d");
         if (signature != disconnect.signature || !hud.Overlay().HasOverlay()) {
             disconnect.signature = signature;
             std::string error;

@@ -15,3 +15,4 @@
 #include "perlin/ui.hpp"
 #include "perlin/server.hpp"
 #include "perlin/plugin.hpp"
+#include "perlin/gen/calls.hpp"

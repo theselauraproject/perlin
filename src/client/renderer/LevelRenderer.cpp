@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <utility>
 #include "util/Log.hpp"
 
 namespace perlin {
@@ -33,7 +34,7 @@ namespace perlin {
 
     LevelRenderer::LevelRenderer(RenderContext& context, const Options& options)
         : context(context), options(options) {
-        blocks.SetFancy(options.fancyGraphics);
+        blocks->SetFancy(options.fancyGraphics);
         const unsigned cores = HardwareThreads();
         const unsigned threads = std::clamp(cores > 3 ? cores - 2 : 2u, 2u, 16u);
         meshPool = std::make_unique<ThreadPool>(threads, true);
@@ -65,7 +66,8 @@ namespace perlin {
         if (!rules.empty())
             registry.LoadRules(rules);
         registry.LoadBehaviorPack(options.bedrockSamplesDir + "/repo/behavior_pack/blocks");
-        registry.SetDerivedOpacity([this](uint16_t id) { return BlockLightOpacity(blocks, id); });
+        // lighting asks from its own threads: read the live set under the lock, never the member mid-swap
+        registry.SetDerivedOpacity([this](uint16_t id) { return BlockLightOpacity(*LiveBlocks(), id); });
         registry.SetOcclusion([](uint16_t id, FaceOcclusion& out) { return BlockFaceOcclusion(id, out); });
         lightingConfigured = true;
     }
@@ -84,11 +86,29 @@ namespace perlin {
             return LoadTexture(root + file, out);
         };
         if (!crosshairLoaded) {
-            Texture icons;
-            const std::string guiRoot = options.bedrockSamplesDir + "/repo/resource_pack/textures/gui/";
-            if ((TexturePack::Instance().Load("textures/gui/icons.png", icons) && icons.width >= 16) ||
-                LoadTexture(guiRoot + "icons.png", icons)) {
-                context.UploadCrosshair(icons);
+            // bedrock packs restyle textures/ui/cross_hair; java packs reach the same name through their icons sheet
+            Texture cross;
+            bool found = TexturePack::Instance().Load("textures/ui/cross_hair.png", cross) && cross.width > 0;
+            if (!found)
+                found = LoadTexture(options.bedrockSamplesDir + "/repo/resource_pack/textures/ui/cross_hair.png",
+                                    cross) &&
+                        cross.width > 0;
+            if (!found) {
+                Texture icons;
+                const std::string guiRoot = options.bedrockSamplesDir + "/repo/resource_pack/textures/gui/";
+                if (LoadTexture(guiRoot + "icons.png", icons) && icons.width >= 16) {
+                    const int size = std::max(1, icons.width * 15 / 256);
+                    cross.width = cross.height = size;
+                    cross.pixels.resize(static_cast<size_t>(size) * size * 4);
+                    for (int y = 0; y < size; y++)
+                        std::copy_n(icons.pixels.data() + static_cast<size_t>(y) * icons.width * 4,
+                                    static_cast<size_t>(size) * 4,
+                                    cross.pixels.data() + static_cast<size_t>(y) * size * 4);
+                    found = true;
+                }
+            }
+            if (found) {
+                context.UploadCrosshair(cross);
                 crosshairLoaded = true;
             }
         }
@@ -138,78 +158,163 @@ namespace perlin {
             Recompute(entry.first);
     }
 
+    bool LevelRenderer::AssetsCurrent() const {
+        return !assetsStale && !assetJob.valid() && !serverPackReloadPending &&
+               builtForPacks == ServerPacks::Instance().Generation();
+    }
+
     void LevelRenderer::ReloadResources() {
-        blocks.Reset();
+        // the live set keeps drawing; a fresh one loads in the background and replaces it whole
+        assetsStale = true;
+        assetEpoch++;
         ServerBlocks::Instance().Requeue();
-        biomeTints.Reset();
         texturePackResolved = false;
-        atlasUploaded = false;
-        uploadedTiles = 0;
         lastAssetAttempt = {};
         crosshairLoaded = false;
         skyTexturesLoaded = false;
     }
 
     void LevelRenderer::ReloadAssetsIfNeeded() {
-        const bool complete = atlasUploaded && blocks.Complete() && biomeTints.Ready();
+        if (const uint32_t packs = ServerPacks::Instance().Generation(); !serverPackGenerationKnown) {
+            serverPackGeneration = packs;
+            serverPackGenerationKnown = true;
+        } else if (packs != serverPackGeneration) {
+            serverPackGeneration = packs;
+            serverPacksChangedAt = std::chrono::steady_clock::now();
+            serverPackReloadPending = true;
+        }
+        // packs mount one by one (encrypted ones take seconds each): reload once, after the last
+        if (serverPackReloadPending && !ServerPacks::Instance().Mounting() &&
+            std::chrono::steady_clock::now() - serverPacksChangedAt > std::chrono::milliseconds(300)) {
+            serverPackReloadPending = false;
+            Log("packs", "server packs changed: reloading block textures");
+            ReloadResources();
+        }
+        const bool complete =
+            !assetsStale && !assetJob.valid() && atlasUploaded && blocks->Complete() && biomeTints->Ready();
         if (complete) {
-            if (blocks.ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack")) {
-                uploadedTiles = blocks.TilesLoaded();
-                context.UploadAtlas(blocks.AtlasPixels().data(), BlockLibrary::TilePx(),
-                                    blocks.TilesLoaded());
-                InvalidateMeshes();
+            // server blocks get textures when a mesh or an icon first needs them: a slice per frame, then only
+            // the chunks that were waiting on them mesh again
+            const auto now = std::chrono::steady_clock::now();
+            // packs still mounting or about to reload: the full build runs in the background job right after, so
+            // slices built now would only be thrown away
+            const bool packsSettling = serverPackReloadPending || ServerPacks::Instance().Mounting();
+            if (!packsSettling && ServerBlocks::Instance().Pending() &&
+                (fastBuild || now - lastCustomBuild >= std::chrono::milliseconds(60))) {
+                lastCustomBuild = now;
+                if (blocks->ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack", fastBuild ? 40.0 : 6.0) &&
+                    blocks->TilesLoaded() > uploadedTiles) {
+                    const int tiles = blocks->TilesLoaded();
+                    if (!context.AppendAtlasTiles(blocks->AtlasPixels().data(), BlockLibrary::TilePx(), uploadedTiles,
+                                                  tiles))
+                        context.UploadAtlas(blocks->AtlasPixels().data(), BlockLibrary::TilePx(), tiles);
+                    uploadedTiles = tiles;
+                }
             }
+            RemeshWaiting();
             return;
         }
-
-        const auto now = std::chrono::steady_clock::now();
-        if (now - lastAssetAttempt < kAssetRetry)
-            return;
-        lastAssetAttempt = now;
 
         const std::string packDir = options.resourcePackDir + "/Perlin";
         const std::string vanillaDir = options.bedrockSamplesDir + "/repo/resource_pack";
-        if (!BedrockSamples::Available(options.bedrockSamplesDir)) {
+        bool blocksOk = false, tintsOk = false;
+        if (assetJob.valid()) {
+            if (assetJob.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                return;
+            const AssetLoad result = assetJob.get();
+            Log("startup", "asset pass: blocks {} ms, tints {} ms (in the background)", result.blocksMs,
+                result.tintsMs);
             if (PERLIN_ENV("PERLIN_PREVIEW"))
-                Log("preview", "samples not available at {}", options.bedrockSamplesDir);
+                Log("preview", "blocksOk={} tintsOk={}", result.blocksOk, result.tintsOk);
+            // packs changed again while it loaded: start over from the newer set
+            if (stagedEpoch != assetEpoch || !result.blocksOk) {
+                if (stagedEpoch != assetEpoch) {
+                    stagedBlocks.reset();
+                    stagedTints.reset();
+                }
+                return;
+            }
+            {
+                std::lock_guard lock(libraryMutex);
+                retiredBlocks = std::exchange(blocks, std::move(stagedBlocks));
+                retiredTints = std::exchange(biomeTints, std::move(stagedTints));
+            }
+            builtForPacks = stagedPacks;
+            // the load already built the server blocks in use; the meshes about to start meet no stale waits
+            ServerBlocks::Instance().TakeWaitingChunks();
+            if (onLibrarySwap)
+                onLibrarySwap(blocks.get());
+            assetsStale = false;
+            atlasUploaded = false;
+            tintsWereReady = false;
+            uploadedTiles = 0;
+            blocksOk = true;
+            tintsOk = result.tintsOk;
+        } else if (!assetsStale && blocks->Complete()) {
+            // blocks are in, tints were not yet: those are cheap, finish them here
+            blocksOk = true;
+            tintsOk = biomeTints->EnsureLoaded(vanillaDir);
+        } else {
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastAssetAttempt < kAssetRetry)
+                return;
+            lastAssetAttempt = now;
+            if (!BedrockSamples::Available(options.bedrockSamplesDir)) {
+                if (PERLIN_ENV("PERLIN_PREVIEW"))
+                    Log("preview", "samples not available at {}", options.bedrockSamplesDir);
+                return;
+            }
+            if (!texturePackResolved) {
+                texturePackResolved = true;
+                std::string error;
+                TexturePack::Instance().OpenStack(paths::DataDir() + "/texturepacks", options.texturePacks,
+                                                  error);
+                if (!error.empty())
+                    Log("textures", "{} (using default textures)", error);
+                BlockLibrary::SetMaxTiles(context.MaxAtlasLayers(BlockLibrary::TilePx()));
+                stagedBlocks.reset();
+            }
+            LoadSkyTextures();
+            if (!stagedBlocks || stagedEpoch != assetEpoch) {
+                stagedBlocks = std::make_shared<BlockLibrary>();
+                stagedBlocks->SetFancy(options.fancyGraphics);
+                stagedBlocks->SetTexturePack(TexturePack::Instance().Active());
+                stagedBlocks->SetGlassMode(blocks->GlassMode());
+                stagedBlocks->SetBetterGrass(blocks->BetterGrass());
+                stagedTints = std::make_shared<BiomeTints>();
+                stagedEpoch = assetEpoch;
+                stagedPacks = ServerPacks::Instance().Generation();
+            }
+            // only this job touches the staged set until it is swapped in
+            assetJob = std::async(std::launch::async, [lib = stagedBlocks, tints = stagedTints, packDir, vanillaDir] {
+                AssetLoad r;
+                const auto t0 = std::chrono::steady_clock::now();
+                r.blocksOk = lib->EnsureLoaded(packDir, vanillaDir);
+                // here, not on the render thread: a pack change rebuilds every server block in use
+                if (r.blocksOk)
+                    lib->ApplyCustom(vanillaDir);
+                const auto t1 = std::chrono::steady_clock::now();
+                r.tintsOk = r.blocksOk && tints->EnsureLoaded(vanillaDir);
+                const auto t2 = std::chrono::steady_clock::now();
+                r.blocksMs = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+                r.tintsMs = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+                return r;
+            });
             return;
         }
-        if (!texturePackResolved) {
-            texturePackResolved = true;
-            std::string error;
-            TexturePack::Instance().OpenStack(paths::DataDir() + "/texturepacks", options.texturePacks,
-                                              error);
-            if (!error.empty())
-                Log("textures", "{} (using default textures)", error);
-            blocks.SetTexturePack(TexturePack::Instance().Active());
-            BlockLibrary::SetMaxTiles(context.MaxAtlasLayers(BlockLibrary::TilePx()));
-        }
-        LoadSkyTextures();
-        const auto loadStart = std::chrono::steady_clock::now();
-        const bool blocksOk = blocks.EnsureLoaded(packDir, vanillaDir);
-        const auto blocksDone = std::chrono::steady_clock::now();
-        const bool tintsOk = blocksOk && biomeTints.EnsureLoaded(vanillaDir);
-        {
-            const auto end = std::chrono::steady_clock::now();
-            Log("startup", "asset pass: blocks {} ms, tints {} ms",
-                std::chrono::duration_cast<std::chrono::milliseconds>(blocksDone - loadStart).count(),
-                std::chrono::duration_cast<std::chrono::milliseconds>(end - blocksDone).count());
-        }
-        if (PERLIN_ENV("PERLIN_PREVIEW"))
-            Log("preview", "blocksOk={} tintsOk={}", blocksOk, tintsOk);
         if (!blocksOk)
             return;
         if (!lightingConfigured)
             ConfigureLighting(packDir);
 
         const bool changed =
-            !atlasUploaded || blocks.TilesLoaded() > uploadedTiles || (tintsOk && !tintsWereReady);
+            !atlasUploaded || blocks->TilesLoaded() > uploadedTiles || (tintsOk && !tintsWereReady);
         if (!changed)
             return;
 
         tintsWereReady = tintsOk;
-        uploadedTiles = blocks.TilesLoaded();
-        context.UploadAtlas(blocks.AtlasPixels().data(), BlockLibrary::TilePx(), blocks.TilesLoaded());
+        uploadedTiles = blocks->TilesLoaded();
+        context.UploadAtlas(blocks->AtlasPixels().data(), BlockLibrary::TilePx(), blocks->TilesLoaded());
         atlasUploaded = true;
         InvalidateMeshes();
     }
@@ -263,6 +368,39 @@ namespace perlin {
         inFlight.clear();
         ResetLod();
         level.MarkAllDirty();
+    }
+
+    void LevelRenderer::RemeshWaiting() {
+        const auto chunks = ServerBlocks::Instance().TakeWaitingChunks();
+        if (chunks.empty())
+            return;
+        MesherInvalidateCaches();
+        PosSet targets;
+        // neighbours cull their border faces against these blocks; a job in flight started with the old textures
+        for (const auto& [cx, cz] : chunks)
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++)
+                    targets.insert(ChunkPos{cx + dx, cz + dz});
+        for (const ChunkPos& pos : inFlight)
+            targets.insert(pos);
+        for (const ChunkPos& pos : targets) {
+            // a chunk never meshed yet picks the textures up on its first mesh
+            if (meshKey.erase(pos))
+                remeshOutstanding.insert(pos);
+            Recompute(pos);
+        }
+    }
+
+    bool LevelRenderer::ServerBlocksSettled() {
+        if (ServerBlocks::Instance().Pending() || ServerBlocks::Instance().HasWaiting())
+            return false;
+        for (auto it = remeshOutstanding.begin(); it != remeshOutstanding.end();) {
+            if (inFlight.contains(*it) || wantKey.contains(*it))
+                ++it;
+            else
+                it = remeshOutstanding.erase(it);
+        }
+        return remeshOutstanding.empty();
     }
 
     void LevelRenderer::Recompute(const ChunkPos& pos) {
@@ -341,9 +479,9 @@ namespace perlin {
     }
 
     void LevelRenderer::Schedule(Level& level, float camX, float camZ, const Frustum& frustum) {
-        if (wantKey.empty())
+        if (wantKey.empty() || !AssetsCurrent())
             return;
-        const bool async = atlasUploaded && blocks.Complete() && biomeTints.Ready();
+        const bool async = atlasUploaded && blocks->Complete() && biomeTints->Ready();
         size_t freeSlots = async ? (maxInFlight > inFlight.size() ? maxInFlight - inFlight.size() : 0) : 64;
         bool urgentOnly = false;
         if (!freeSlots && async) {
@@ -405,7 +543,7 @@ namespace perlin {
                 wantKey.erase(job.pos);
                 Tessellator mesh;
                 mesh.Begin();
-                BuildChunkMesh(level, job.pos, mesh, &blocks, &biomeTints);
+                BuildChunkMesh(level, job.pos, mesh, blocks.get(), biomeTints.get());
                 mesh.End();
                 context.UpdateChunkMesh(job.pos.x, job.pos.z, mesh, job.key);
             }
@@ -420,13 +558,14 @@ namespace perlin {
 
             const uint32_t gen = generation.load();
             Level* target = &level;
-            meshPool->Submit([this, target, job, gen] {
+            // the job keeps the set it started with alive: a background load may swap the live one meanwhile
+            meshPool->Submit([this, target, job, gen, lib = blocks, tints = biomeTints] {
                 if (stopping)
                     return;
                 auto mesh = std::make_unique<Tessellator>();
                 const auto t0 = std::chrono::steady_clock::now();
                 mesh->Begin();
-                BuildChunkMesh(*target, job.pos, *mesh, &blocks, &biomeTints);
+                BuildChunkMesh(*target, job.pos, *mesh, lib.get(), tints.get());
                 mesh->End();
                 context.PrepareChunkMesh(*mesh);
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -468,7 +607,7 @@ namespace perlin {
     void LevelRenderer::ProcessLod(Level& level, float camX, float camZ) {
         if (!LodEnabled())
             return;
-        const bool assets = atlasUploaded && blocks.Complete() && biomeTints.Ready();
+        const bool assets = AssetsCurrent() && atlasUploaded && blocks->Complete() && biomeTints->Ready();
         if (!assets)
             return;
         using Clock = std::chrono::steady_clock;
@@ -483,7 +622,7 @@ namespace perlin {
             const ChunkPos pos = capQueue[taken++];
             capSet.erase(pos);
             captured++;
-            if (lod.Capture(level, pos, blocks, biomeTints))
+            if (lod.Capture(level, pos, *blocks, *biomeTints))
                 MarkLodTile(pos);
             level.RemoveLodOnly(pos.x, pos.z);
         }
@@ -675,7 +814,7 @@ namespace perlin {
             for (const auto& entry : meshKey) {
                 Tessellator mesh;
                 mesh.Begin();
-                BuildChunkMesh(level, entry.first, mesh, &blocks, &biomeTints);
+                BuildChunkMesh(level, entry.first, mesh, blocks.get(), biomeTints.get());
                 mesh.End();
                 quads += mesh.Vertices().size();
             }
@@ -689,7 +828,7 @@ namespace perlin {
     void LevelRenderer::TickAnimation(uint64_t step) {
         if (!atlasUploaded)
             return;
-        blocks.PollAnimation(step,
+        blocks->PollAnimation(step,
                              [&](int tile, const uint8_t* rgba) { context.UpdateAtlasRegion(tile, rgba); });
     }
 }

@@ -191,7 +191,6 @@ namespace perlin {
         return yawUnwrapped;
     }
 
-    // runs with the swing option off too: the third person body reads it, first person hides it
     void HandRenderer::Swing(const HandSettings&) {
         armSwing.Start();
     }
@@ -258,12 +257,6 @@ namespace perlin {
         return false;
     }
 
-    bool HandRenderer::IsThrowable(const std::string& full) {
-        const std::string n = full.starts_with("minecraft:") ? full.substr(10) : full;
-        return n == "experience_bottle" || n == "splash_potion" || n == "lingering_potion" ||
-               n == "snowball" || n == "egg" || n == "ender_pearl";
-    }
-
     void HandRenderer::Tick(const TickIn& in, const HandSettings& s) {
         armSwing.Tick(s.swingSpeed == 1.0f ? in.swingTicks
                                            : static_cast<int>(std::lround(static_cast<float>(in.swingTicks) /
@@ -317,7 +310,6 @@ namespace perlin {
             offHandHeight = oOffHandHeight = 1.0f;
             firstTick = false;
         }
-        // no attack cooldown in bedrock: no dip after swing (java 1.9+ only)
         if (!s.equipAnimation) {
             mainShown = in.main;
             offShown = in.off;
@@ -327,7 +319,6 @@ namespace perlin {
         } else {
             hand::TickEquip(mainShown, mainSlot, mainHandHeight, in.main, in.slot,
                             SameItem(mainShown, in.main));
-            // the offhand check never sees a slot change
             int offSlot = 0;
             hand::TickEquip(offShown, offSlot, offHandHeight, in.off, 0, SameItem(offShown, in.off));
         }
@@ -592,8 +583,6 @@ namespace perlin {
                 const int w = sprite->w, h = sprite->h;
                 model.texture = renderer->UiCreateTexture(w, h, sprite->rgba.data(), false);
                 const float sx = 16.0f / static_cast<float>(w), sy = 16.0f / static_cast<float>(h);
-                // pixels under shader alpha cutoff (0.1) count as empty: sides follow what's drawn;
-                // else soft-glow packs get walls on the invisible glow edge, blade looks flat
                 auto alpha = [&](int x, int y) -> int {
                     if (x < 0 || y < 0 || x >= w || y >= h)
                         return 0;
@@ -797,7 +786,6 @@ namespace perlin {
                 n /= len;
             const float lit = std::min(
                 1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
-            // a java pack lights the item itself: plain colour
             const uint32_t color = packLit ? 0xFFFFFFFFu : PackColor(light * lit);
             const uint32_t base = static_cast<uint32_t>(vertices.size());
             for (int i = 0; i < 4; i++)
@@ -865,7 +853,7 @@ namespace perlin {
 
     void HandRenderer::DrawWorldItem(const ui::HudItem& item, const glm::dvec3& feet, float age,
                                      uint64_t seed, const glm::vec3& light) {
-        currentItem = item.name; // java packs: currentRenderedItemId
+        currentItem = item.name;
         if (!renderer || item.Empty())
             return;
         const Model& model = ItemModel(item);
@@ -896,7 +884,6 @@ namespace perlin {
                 T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z));
             m = m * T(0.0f, yOff + 0.25f * scale, 0.0f) * Ry(spin);
             if (i > 0)
-                // spread stacked copies so higher counts stay readable
                 m = m * T((hash(10 + i) * 2.0f - 1.0f) * 0.15f, (hash(20 + i) * 2.0f - 1.0f) * 0.15f,
                           (hash(30 + i) * 2.0f - 1.0f) * 0.15f);
             if (tabled)
@@ -908,9 +895,24 @@ namespace perlin {
         worldPass = false;
     }
 
+    void HandRenderer::DrawWorldBlock(const ui::HudItem& item, const glm::dvec3& feet, float scale,
+                                      const glm::vec3& light) {
+        currentItem = item.name;
+        if (!renderer || item.Empty())
+            return;
+        const Model& model = ItemModel(item);
+        if (!model.valid)
+            return;
+        const glm::mat4 m = T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z)) *
+                            T(0.0f, 0.5f, 0.0f) * S(scale) * T(-0.5f, -0.5f, -0.5f);
+        worldPass = true;
+        DrawModel(model.quads, model.texture, m, light, 0.1f, false);
+        worldPass = false;
+    }
+
     void HandRenderer::DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left,
                                     const glm::vec3& light, float bowUseTicks) {
-        currentItem = item.name; // java packs: currentRenderedItemId
+        currentItem = item.name;
         if (!renderer || item.Empty())
             return;
         ui::HudItem renderedItem = item;
@@ -1065,7 +1067,7 @@ namespace perlin {
 
     void HandRenderer::RenderItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                   bool rightArm, float swing, float equip) {
-        currentItem = item.name; // java packs: currentRenderedItemId
+        currentItem = item.name;
         const float side = rightArm ? 1.0f : -1.0f;
         glm::mat4 m = in.viewEffect;
         m = m * Custom(s.itemX, s.itemY, s.itemZ, s.itemRotX, s.itemRotY, s.itemRotZ, s.itemScale, side);
@@ -1111,12 +1113,6 @@ namespace perlin {
                 const float f3 = 1.0f - std::pow(f0, 27.0f);
                 m = m * T(side * f3 * 0.6f, f3 * -0.5f, 0.0f) * Ry(side * f3 * 90.0f) * Rx(f3 * 10.0f) *
                     Rz(side * f3 * 30.0f);
-            } else if (IsThrowable(item.name) && swing > 0.0f) {
-                // overhead throw, arm rises then snaps forward
-                const float lift = std::sin(std::min(swing * 1.4f, 1.0f) * kPi * 0.5f);
-                const float snap = std::sin(swing * kPi);
-                m = m * T(side * -0.15f * lift, 0.35f * lift, -0.25f * lift) *
-                    Rx(-38.0f * lift + 42.0f * snap);
             } else {
                 m = m * T(side * (-0.4f * std::sin(sq * kPi)), 0.2f * std::sin(sq * kPi * 2.0f),
                           -0.2f * std::sin(swing * kPi));
@@ -1207,7 +1203,7 @@ namespace perlin {
 
     void HandRenderer::RenderShield(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                     bool rightArm, const glm::mat4& hand) {
-        currentItem = item.name; // java packs: currentRenderedItemId
+        currentItem = item.name;
         if (!shieldTexture)
             shieldTexture = AttachableTexture("textures/entity/shield");
         if (!shieldTexture)
@@ -1248,7 +1244,7 @@ namespace perlin {
 
     bool HandRenderer::DrawGeometryItem(const ui::HudItem& item, const glm::mat4& base, bool leftHand,
                                         bool firstPerson, const glm::vec3& light) {
-        currentItem = item.name; // java packs: currentRenderedItemId
+        currentItem = item.name;
         const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, false);
         const itemdisplay::Transform& t = firstPerson ? (leftHand ? display.firstLeft : display.firstRight)
                                                       : (leftHand ? display.thirdLeft : display.thirdRight);
@@ -1335,7 +1331,7 @@ namespace perlin {
 
     bool HandRenderer::RenderAttachable(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                         bool rightArm, const glm::mat4& hand) {
-        currentItem = item.name; // java packs: currentRenderedItemId
+        currentItem = item.name;
         attachables.Configure(ui::UiAssets::Instance().VanillaRoot());
         static const bool debug = PERLIN_ENV("PERLIN_ATTACH_DEBUG") != nullptr;
         if (!attachables.Has(item.name)) {

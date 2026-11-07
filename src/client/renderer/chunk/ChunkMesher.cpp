@@ -5,6 +5,7 @@
 #include "client/renderer/block/BiomeTints.hpp"
 #include "client/renderer/block/BlockLibrary.hpp"
 #include "client/renderer/block/BlockModels.hpp"
+#include "client/resources/ServerBlocks.hpp"
 #include "world/level/block/BlockPalette.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "world/level/lighting/ChunkLighting.hpp"
@@ -455,10 +456,14 @@ namespace perlin {
         if (!m.modelKnown[id]) {
             m.modelKnown[id] = 1;
             const ModelEntry* geo = library->Geometry().Empty() ? nullptr : library->Geometry().Find(id);
-            m.model[id] = geo ? geo
-                          : !GeomFor(id).kelp && library->Models().Loaded()
-                              ? library->Models().Find(BlockPalette::Instance().NetworkId(id))
-                              : nullptr;
+            if (!geo && !GeomFor(id).kelp && library->Models().Loaded()) {
+                const BlockPalette& pal = BlockPalette::Instance();
+                geo = library->Models().Find(pal.NetworkId(id));
+                if (!geo)
+                    if (const int32_t current = pal.CurrentHash(id); current != pal.NetworkId(id))
+                        geo = library->Models().Find(current);
+            }
+            m.model[id] = geo;
         }
         return m.model[id];
     }
@@ -953,6 +958,7 @@ namespace perlin {
         static const std::string kPlainsName = "minecraft:plains";
 
         int baseX = pos.x * 16, baseZ = pos.z * 16;
+        std::unordered_set<uint16_t> askedFor;
         for (int y = faceLo; y <= yHi; y++) {
             tess.EnterSection(y >> 4);
             for (int z = 0; z < 16; z++)
@@ -1001,6 +1007,12 @@ namespace perlin {
                             app = LookupApp(library, id);
                         const ModelEntry* modelEntry = textured ? ModelFor(library, id) : nullptr;
                         if (app && !modelEntry && (app->top | app->side | app->bottom) == 0) {
+                            // a server block whose textures are not built yet: ask for them, this chunk meshes again after
+                            if (askedFor.insert(id).second) {
+                                const std::string& wantName = BlockPalette::Instance().Name(id);
+                                if (!wantName.empty() && !wantName.starts_with("minecraft:"))
+                                    ServerBlocks::Instance().Want(wantName, pos.x, pos.z);
+                            }
                             static std::mutex logMutex;
                             static std::unordered_set<uint16_t> logged;
                             std::lock_guard<std::mutex> lk(logMutex);
@@ -1137,7 +1149,8 @@ namespace perlin {
                             if (app) {
                                 static const char* kGrassKeys[] = {
                                     "grass_top",   "grass_carried",      "tallgrass", "tall_grass",
-                                    "short_grass", "double_plant_grass", "fern",      "large_fern"};
+                                    "short_grass", "double_plant_grass", "fern",      "large_fern",
+                                    "reeds",       "sugar_cane"};
                                 std::string tpath = library ? library->TilePathOf(tile) : std::string();
                                 bool grassLike = false;
                                 for (const char* k : kGrassKeys)
@@ -1174,6 +1187,11 @@ namespace perlin {
                             }
                             if (library && library->SaturationOf(tile) > 0.25f)
                                 return {1, 1, 1, 1};
+                            if (TexHas(tex, "vine") && !TexHas(tex, "cave_vines") && !TexHas(tex, "twisting") &&
+                                !TexHas(tex, "weeping")) {
+                                auto c = tints->Foliage(biomeName);
+                                return {c[0], c[1], c[2], 1};
+                            }
                             if (TexHas(tex, "leaves") || TexHas(tex, "leaf")) {
                                 if (TexHas(tex, "birch"))
                                     return {tints->MapAverage("birch")[0], tints->MapAverage("birch")[1],
@@ -1472,8 +1490,6 @@ namespace perlin {
                                 }
 
                                 float base[3] = {1, 1, 1};
-                                // Custom geometry has a direct atlas tile and tex=0xFFFF.
-                                // It must never index the Java model texture table.
                                 const std::string tintTexture = q.tile || q.tex >= bm.Textures().size()
                                                                     ? library->TilePathOf(tile)
                                                                     : bm.Textures()[q.tex];

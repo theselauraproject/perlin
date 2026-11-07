@@ -47,10 +47,12 @@ namespace perlin {
             const ui::Json* n = v;
             if (v->IsObject())
                 n = v->Find(key);
-            if (!n || !n->IsNumber())
+            // network nbt bytes arrive as bools that keep their value ("lightLevel": false is a 0 filter, not absent);
+            // a byte is a level already, only floats are 0..1 fractions
+            if (!n || !(n->IsNumber() || n->IsBool()))
                 return -1;
-            double d = n->NumberOr(0);
-            if (fraction && d <= 1.0)
+            double d = n->IsBool() ? n->number : n->NumberOr(0);
+            if (fraction && !n->IsBool() && d <= 1.0)
                 d *= 15.0;
             return std::clamp(static_cast<int>(std::lround(d)), 0, 15);
         }
