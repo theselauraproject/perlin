@@ -12,6 +12,7 @@
 #include "client/ui/McFont.hpp"
 #include "client/ui/TenFont.hpp"
 #include "client/ui/UiAssets.hpp"
+#include "client/ui/UiSprite.hpp"
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Element.h>
@@ -141,12 +142,22 @@ namespace perlin::ui {
                 std::string bytes;
                 std::string stem = source.substr(6);
                 bool fromPack = false;
-                if (TexturePack::Instance().Active() && stem.starts_with("ui_menu_btn")) {
-                    if (stem.size() > 4 && stem.compare(stem.size() - 4, 4, ".png") == 0)
-                        stem.resize(stem.size() - 4);
-                    fromPack =
-                        TexturePack::Instance().Load("textures/ui/screen_" + stem.substr(3) + ".png", t) &&
-                        t.width > 0;
+                if (TexturePack::Instance().Active() && stem.starts_with("ui_")) {
+                    std::string name = stem;
+                    if (name.size() > 4 && name.compare(name.size() - 4, 4, ".png") == 0)
+                        name.resize(name.size() - 4);
+                    if (name.starts_with("ui_menu_btn") || name == "ui_menu_logo") {
+                        // drawn at an explicit size, so the pack's own resolution is kept
+                        fromPack = PackSpriteNative(name + ".png", t);
+                    } else {
+                        // other sheets are addressed in pixels of the built-in size
+                        std::string baseBytes;
+                        Texture base;
+                        if (resources::Read(stem, baseBytes) &&
+                            LoadTextureMemory(reinterpret_cast<const unsigned char*>(baseBytes.data()),
+                                              baseBytes.size(), base))
+                            fromPack = PackSpriteFor(name + ".png", base.width, base.height, t);
+                    }
                 }
                 if (!fromPack && (!resources::Read(source.substr(6), bytes) ||
                                   !LoadTextureMemory(reinterpret_cast<const unsigned char*>(bytes.data()),

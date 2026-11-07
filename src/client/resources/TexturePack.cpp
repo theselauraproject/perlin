@@ -23,6 +23,8 @@ namespace perlin {
         struct Layer {
             bool zipMode = false;
             bool java = false;
+            // bedrock packs often carry the java gui sheets (gui/container, gui/icons): those map the same way
+            bool legacyGui = false;
             std::string folder;
             mz_zip_archive zip{};
             FILE* zipFile = nullptr;
@@ -40,6 +42,7 @@ namespace perlin {
                 zipOpen = false;
                 zipMode = false;
                 java = false;
+                legacyGui = false;
                 folder.clear();
                 index.clear();
                 label.clear();
@@ -122,6 +125,7 @@ namespace perlin {
                 }
                 layer.label = name;
                 layer.java = fs::path(layer.folder).parent_path().filename() == "assets";
+                layer.legacyGui = fs::is_directory(fs::path(layer.folder) / "textures" / "gui", ec);
                 if (layer.java)
                     Log("textures", "{} is a Java Edition pack", name);
                 return true;
@@ -175,6 +179,11 @@ namespace perlin {
             layer.label = name;
             layer.java =
                 prefix.size() >= 17 && prefix.compare(prefix.size() - 17, 17, "assets/minecraft/") == 0;
+            for (const auto& entry : layer.index)
+                if (entry.first.starts_with("textures/gui/")) {
+                    layer.legacyGui = true;
+                    break;
+                }
             Log("textures", "opened {} ({} files{})", name, layer.index.size(),
                 (layer.java ? ", Java Edition" : ""));
             return true;
@@ -208,7 +217,7 @@ namespace perlin {
     bool TexturePack::Has(const std::string& rel) const {
         std::lock_guard lock(impl->mutex);
         for (const auto& l : impl->layers) {
-            if (l->java)
+            if (l->java || l->legacyGui)
                 for (const javapack::Source& source : javapack::Sources(rel)) {
                     if (l->zipMode ? (l->zipOpen && l->index.contains(str::Lower(source.path)))
                                    : (!l->folder.empty() && fs::exists(fs::path(l->folder) / source.path)))
@@ -320,6 +329,9 @@ namespace perlin {
         }
 
         bool LoadJava(TexturePack::Impl::Layer& l, const std::string& rel, Texture& out) {
+            if (javapack::Compose(rel, [&](const std::string& path, Texture& sheet) { return LoadJavaFile(l, path, sheet); },
+                                  out))
+                return true;
             for (const javapack::Source& source : javapack::Sources(rel)) {
                 Texture sheet;
                 if (LoadJavaFile(l, source.path, sheet) && javapack::Crop(sheet, source, out))
@@ -340,7 +352,7 @@ namespace perlin {
         for (const auto& l : impl->layers) {
             if (LoadDirect(l.get(), rel, out))
                 return finish();
-            if (l->java && LoadJava(*l, rel, out))
+            if ((l->java || l->legacyGui) && LoadJava(*l, rel, out))
                 return finish();
         }
         return false;
