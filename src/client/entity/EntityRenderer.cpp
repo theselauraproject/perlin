@@ -504,22 +504,19 @@ namespace perlin::entity {
             v.pitch = v.pitch + WrapDegrees(e.pitch - v.pitch) * static_cast<float>(follow);
         }
         if (projectile) {
-            const glm::dvec3 flight = e.pos - e.prevPos;
-            const double len = glm::length(flight);
+            // always straight along the flight, no easing: the heading comes from the movement between ticks, or
+            // the spawn velocity before there is any, so a new projectile never swings round from a default pose
+            glm::dvec3 flight = e.pos - e.prevPos;
+            double len = glm::length(flight);
+            if (!(len > 0.01 && len < 16.0)) {
+                flight = e.vel;
+                len = glm::length(flight);
+            }
             if (len > 0.01 && len < 16.0) {
-                const float targetYaw = static_cast<float>(std::atan2(-flight.x, flight.z) * 180.0 / 3.14159265358979);
-                const float targetPitch = static_cast<float>(-std::asin(std::clamp(flight.y / len, -1.0, 1.0)) *
-                                                             180.0 / 3.14159265358979);
-                if (!v.flightKnown) {
-                    v.flightYaw = targetYaw;
-                    v.flightPitch = targetPitch;
-                    v.flightKnown = true;
-                } else {
-                    // a short ease hides the tick-to-tick jitter of the heading without lagging a turn
-                    const float aim = 1.0f - std::exp(-dt / 0.02f);
-                    v.flightYaw += WrapDegrees(targetYaw - v.flightYaw) * aim;
-                    v.flightPitch += (targetPitch - v.flightPitch) * aim;
-                }
+                v.flightYaw = static_cast<float>(std::atan2(-flight.x, flight.z) * 180.0 / 3.14159265358979);
+                v.flightPitch = static_cast<float>(-std::asin(std::clamp(flight.y / len, -1.0, 1.0)) * 180.0 /
+                                                   3.14159265358979);
+                v.flightKnown = true;
             }
             if (v.flightKnown) {
                 v.yaw = v.flightYaw;

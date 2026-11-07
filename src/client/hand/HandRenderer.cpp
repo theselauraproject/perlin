@@ -879,18 +879,29 @@ namespace perlin {
                            : item.count <= 48 ? 4
                                               : 5;
         worldPass = true;
+        // ItemEntityRenderer.renderMultipleFromCount: solid (3d) models scatter their copies on all three axes;
+        // flat items stack along their thickness, centred, with a small scatter in the plane
+        const bool solid = model.block;
+        const float kz = tabled ? groundDisplay.ground.scale.z : scale;
+        glm::mat4 base =
+            T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z)) *
+            T(0.0f, yOff + 0.25f * scale, 0.0f) * Ry(spin);
+        if (!solid)
+            base = base * T(0.0f, 0.0f, -0.09375f * static_cast<float>(copies - 1) * 0.5f * kz);
         for (int i = 0; i < copies; i++) {
-            glm::mat4 m =
-                T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z));
-            m = m * T(0.0f, yOff + 0.25f * scale, 0.0f) * Ry(spin);
-            if (i > 0)
-                m = m * T((hash(10 + i) * 2.0f - 1.0f) * 0.15f, (hash(20 + i) * 2.0f - 1.0f) * 0.15f,
-                          (hash(30 + i) * 2.0f - 1.0f) * 0.15f);
+            glm::mat4 m = base;
+            if (i > 0) {
+                const float fx = (hash(10 + i) * 2.0f - 1.0f), fy = (hash(20 + i) * 2.0f - 1.0f),
+                            fz = (hash(30 + i) * 2.0f - 1.0f);
+                m = solid ? m * T(fx * 0.15f, fy * 0.15f, fz * 0.15f) : m * T(fx * 0.075f, fy * 0.075f, 0.0f);
+            }
             if (tabled)
                 m = m * itemdisplay::Apply(groundDisplay.ground, false) * T(-0.5f, -0.5f, -0.5f);
             else
                 m = m * T(0.0f, display, 0.0f) * S(scale) * T(-0.5f, -0.5f, -0.5f);
             DrawModel(model.quads, model.texture, m, light, 0.1f, false);
+            if (!solid)
+                base = base * T(0.0f, 0.0f, 0.09375f * kz);
         }
         worldPass = false;
     }

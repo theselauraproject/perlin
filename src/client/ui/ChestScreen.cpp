@@ -32,6 +32,40 @@ namespace perlin::ui {
             return {};
         }
 
+        // the marker tree is built with "@@@N#container_title" as the title; the pack's "- marker" normally strips it
+        // again, but where that assignment does not reach a label the marker would be drawn: cut it from every text
+        void StripTitleMarker(Json& json) {
+            if (json.IsString()) {
+                std::string& t = json.string;
+                for (size_t at = t.find("@@@"); at != std::string::npos; at = t.find("@@@", at)) {
+                    if (at + 4 < t.size() && t[at + 3] >= '1' && t[at + 3] <= '6' && t[at + 4] == '#')
+                        t.erase(at, 4);
+                    else
+                        at += 3;
+                }
+            } else if (json.IsObject()) {
+                for (auto& member : json.object)
+                    StripTitleMarker(member.second);
+            } else if (json.IsArray()) {
+                for (auto& item : json.array)
+                    StripTitleMarker(item);
+            }
+        }
+
+        void StripTitleMarker(Node& node) {
+            StripTitleMarker(node.props);
+            for (Json& b : node.bindings)
+                StripTitleMarker(b);
+            for (auto& child : node.children)
+                if (child)
+                    StripTitleMarker(*child);
+            if (node.gridTemplate)
+                StripTitleMarker(*node.gridTemplate);
+            for (auto& entry : node.factoryControls)
+                if (entry.second)
+                    StripTitleMarker(*entry.second);
+        }
+
         const HudItem* SlotItem(const InventoryView& v, const std::string& collection, int index) {
             if (index < 0)
                 return nullptr;
@@ -253,8 +287,10 @@ div { display: block; position: absolute; }
                     Vars marker = vars;
                     marker["$container_title"] = Json(std::string("@@@") + digit + "#container_title");
                     BuildReport report;
-                    if (auto tree = BuildTree(library, "chest.small_chest_screen", marker, report))
+                    if (auto tree = BuildTree(library, "chest.small_chest_screen", marker, report)) {
+                        StripTitleMarker(*tree);
                         trees[std::string("small_chest_screen@@@") + digit] = std::move(tree);
+                    }
                 }
             if (!trees.contains("small_chest_screen") || !trees.contains("large_chest_screen")) {
                 problem = "chest.small_chest_screen / chest.large_chest_screen could not be built";
