@@ -9,6 +9,7 @@
 #include <string_view>
 
 namespace perlin::ui {
+    // 26.50 palette: blue and the material colours (h..v) were recoloured in that release
     bool FormatCodeColor(char code, uint32_t& rgb) {
         switch (std::tolower(static_cast<unsigned char>(code))) {
         case '0':
@@ -39,7 +40,7 @@ namespace perlin::ui {
             rgb = 0x555555;
             return true;
         case '9':
-            rgb = 0x5555FF;
+            rgb = 0x447FFF;
             return true;
         case 'a':
             rgb = 0x55FF55;
@@ -63,37 +64,37 @@ namespace perlin::ui {
             rgb = 0xDDD605;
             return true;
         case 'h':
-            rgb = 0xE3D4D1;
+            rgb = 0xD9CCB8;
             return true;
         case 'i':
-            rgb = 0xCECACA;
+            rgb = 0xA9B4B7;
             return true;
         case 'j':
-            rgb = 0x443A3B;
+            rgb = 0x8F727D;
             return true;
         case 'm':
-            rgb = 0x971607;
+            rgb = 0xEE222C;
             return true;
         case 'n':
-            rgb = 0xB4684D;
+            rgb = 0xC87363;
             return true;
         case 'p':
-            rgb = 0xDEB12D;
+            rgb = 0xFFBF1E;
             return true;
         case 'q':
-            rgb = 0x47A036;
+            rgb = 0x13A045;
             return true;
         case 's':
-            rgb = 0x2CBAA8;
+            rgb = 0x5FECFF;
             return true;
         case 't':
-            rgb = 0x21497B;
+            rgb = 0x577BFF;
             return true;
         case 'u':
-            rgb = 0x9A5CC6;
+            rgb = 0xB66CDD;
             return true;
         case 'v':
-            rgb = 0xEB7114;
+            rgb = 0xFF6A00;
             return true;
         default:
             return false;

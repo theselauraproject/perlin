@@ -1516,6 +1516,10 @@ namespace perlin {
             if (p.eventId == EntityEventPacketEventId::DeathAnimation &&
                 !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
                 entities.Die(p.runtimeEntityId);
+            // some servers send other players' swings as an actor event, never as animate
+            if (p.eventId == EntityEventPacketEventId::ArmSwing &&
+                !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
+                entities.Swing(p.runtimeEntityId);
         });
 
         On<UpdateAttributesPacket>([this](const UpdateAttributesPacket& p) {
