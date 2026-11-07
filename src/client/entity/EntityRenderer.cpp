@@ -2280,9 +2280,10 @@ namespace perlin::entity {
             if (shadowOnlySelf && !in.selfShadow) {
                 // not drawn, so not tracked: a hurt flash started here would stay frozen on the model and show up
                 // the moment the view goes third person. take the hits as seen
-                if (auto& hidden = views[e.runtimeId]; hidden) {
-                    hidden->hurtSerial = e.hurtSerial;
-                    hidden->hurtTimer = 0.0f;
+                // find, never operator[]: a null entry in `views` is dereferenced by the pruning pass
+                if (const auto hidden = views.find(e.runtimeId); hidden != views.end() && hidden->second) {
+                    hidden->second->hurtSerial = e.hurtSerial;
+                    hidden->second->hurtTimer = 0.0f;
                 }
                 continue;
             }
