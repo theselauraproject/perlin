@@ -1,5 +1,6 @@
 #include "client/renderer/gpu/RenderContext_rhi.hpp"
 
+#include "client/platform/AppPlatform.hpp"
 #include "client/resources/ShaderPack.hpp"
 #include "util/Env.hpp"
 
@@ -1032,7 +1033,8 @@ namespace perlin {
 
         bool shown = false;
         conduit::swapchain::image image;
-        if (!views[static_cast<size_t>(View::Top)].draws.empty() && gpu.AcquireImage(image)) {
+        if (!views[static_cast<size_t>(View::Top)].draws.empty() &&
+            !(!offscreen && platform && platform->WindowMinimized()) && gpu.AcquireImage(image)) {
             if (conduit::command_list* list = dev.acquire_command_list(conduit::queue_type::graphics)) {
                 gpu.SetState(image.texture, conduit::state::undefined);
                 gpu.Flush(*list);

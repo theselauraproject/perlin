@@ -1,3 +1,5 @@
+#include <thread>
+#include <chrono>
 #include "client/renderer/gpu/RenderContext_rhi.hpp"
 #include "util/GraphicsDebugger.hpp"
 
@@ -1066,6 +1068,12 @@ namespace perlin {
 
     void RenderContext_rhi::ExecuteFrame() {
         conduit::swapchain::image image;
+        // A minimized window has nothing to draw to. Do not ask the swapchain for an image (it can block),
+        // do not "heal" the surface, and do not spin: skip the frame and wait a little.
+        if (!offscreen && platform && platform->WindowMinimized()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            return;
+        }
         if (!gpu.AcquireImage(image)) {
             if (!offscreen && platform) {
                 const uint32_t failures = gpu.AcquireFailures();
