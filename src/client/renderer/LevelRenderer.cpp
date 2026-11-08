@@ -35,6 +35,7 @@ namespace perlin {
     LevelRenderer::LevelRenderer(RenderContext& context, const Options& options)
         : context(context), options(options) {
         blocks->SetFancy(options.fancyGraphics);
+        BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
         const unsigned cores = HardwareThreads();
         const unsigned threads = std::clamp(cores > 3 ? cores - 2 : 2u, 2u, 16u);
         meshPool = std::make_unique<ThreadPool>(threads, true);
@@ -237,6 +238,7 @@ namespace perlin {
                 retiredBlocks = std::exchange(blocks, std::move(stagedBlocks));
                 retiredTints = std::exchange(biomeTints, std::move(stagedTints));
             }
+            BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
             builtForPacks = stagedPacks;
 
             ServerBlocks::Instance().TakeWaitingChunks();
