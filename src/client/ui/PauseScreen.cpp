@@ -78,7 +78,7 @@ mcimg { display: block; position: absolute; }
 
     namespace {
         std::string Button(const std::string& id, float x, float y, float w, const std::string& label,
-                           bool off) {
+                           bool off, bool fmt = false) {
             const auto px = [](float v) { return std::to_string(static_cast<int>(std::lround(v))); };
             std::string d = "<div id=\"" + id + "\" class=\"btn" + (off ? " off" : "") +
                             "\" style=\"left: " + px(x) + "px; top: " + px(y) + "px; width: " + px(w) +
@@ -88,19 +88,20 @@ mcimg { display: block; position: absolute; }
             d += "<div class=\"shade\" style=\"width: " + px(w - 2) +
                  "px;\"></div><div class=\"edge\" style=\"left: " + px(w - 2) + "px;\"></div>";
             d +=
-                "<div class=\"lbl\" style=\"width: " + px(w) + "px;\">" + EscapeRml(label) + "</div></div>\n";
+                "<div class=\"lbl\" style=\"width: " + px(w) + "px;\">" + (fmt ? FormatCodesToRml(label) : EscapeRml(label)) +
+                "</div></div>\n";
             return d;
         }
 
         std::string Slider(const std::string& id, float x, float y, float w, const std::string& label,
-                           float fraction) {
+                           float fraction, bool fmt = false) {
             const auto px = [](float v) { return std::to_string(static_cast<int>(std::lround(v))); };
             const float handle = x + 1.0f + std::clamp(fraction, 0.0f, 1.0f) * (w - 10.0f);
             std::string d = "<div id=\"" + id + "\" class=\"btn track\" style=\"left: " + px(x) +
                             "px; top: " + px(y) + "px; width: " + px(w) + "px;\">";
             d += "<div class=\"rim\" style=\"width: " + px(w - 3) +
                  "px;\"></div><div class=\"face\" style=\"width: " + px(w - 4) + "px;\"></div>";
-            d += "<div class=\"lbl\" style=\"width: " + px(w) + "px; z-index: 2;\">" + EscapeRml(label) +
+            d += "<div class=\"lbl\" style=\"width: " + px(w) + "px; z-index: 2;\">" + (fmt ? FormatCodesToRml(label) : EscapeRml(label)) +
                  "</div>";
             d += "<div class=\"knob\" style=\"left: " + px(handle - x) +
                  "px; top: 0px;\"><div class=\"krim\"></div><div class=\"kface\"></div><div "
@@ -110,7 +111,8 @@ mcimg { display: block; position: absolute; }
     }
 
     OptionsLayout ComputeOptionsLayout(const std::vector<OptionsRow>& rows, int guiW, int guiH,
-                                       float scroll) {
+                                       float scroll, int columns) {
+        columns = std::clamp(columns, 1, 6);
         OptionsLayout l;
         l.count = static_cast<int>(rows.size());
         l.x.assign(rows.size(), 0.0f);
@@ -121,9 +123,18 @@ mcimg { display: block; position: absolute; }
         const float cx = static_cast<float>(guiW) / 2.0f;
         float y = start;
         int col = 0;
+        float x0 = cx - 155.0f, colW = l.w, stride = 160.0f;
+        if (columns == 1) {
+            colW = 310.0f;
+        } else if (columns > 2) {
+            const float total = std::min(static_cast<float>(guiW) - 16.0f, 400.0f);
+            colW = std::floor((total - static_cast<float>(columns - 1) * 4.0f) / static_cast<float>(columns));
+            stride = colW + 4.0f;
+            x0 = cx - total / 2.0f;
+        }
         for (size_t i = 0; i < rows.size(); i++) {
             if (rows[i].header) {
-                if (col == 1) {
+                if (col > 0) {
                     y += 24.0f;
                     col = 0;
                 }
@@ -133,7 +144,7 @@ mcimg { display: block; position: absolute; }
                 continue;
             }
             if (rows[i].tab > 0) {
-                if (col == 1) {
+                if (col > 0) {
                     y += 24.0f;
                     col = 0;
                 }
@@ -145,7 +156,7 @@ mcimg { display: block; position: absolute; }
                 continue;
             }
             if (rows[i].wide) {
-                if (col == 1) {
+                if (col > 0) {
                     y += 24.0f;
                     col = 0;
                 }
@@ -155,14 +166,15 @@ mcimg { display: block; position: absolute; }
                 y += 24.0f;
                 continue;
             }
-            l.x[i] = cx - 155.0f + static_cast<float>(col) * 160.0f;
+            l.x[i] = x0 + static_cast<float>(col) * stride;
+            l.rowW[i] = colW;
             l.y[i] = y;
-            if (++col == 2) {
+            if (++col >= columns) {
                 col = 0;
                 y += 24.0f;
             }
         }
-        if (col == 1)
+        if (col > 0)
             y += 24.0f;
         l.listTop = start;
         l.listBottom = static_cast<float>(guiH) - 32.0f;
@@ -223,8 +235,9 @@ div { display: block; position: absolute; }
     }
 
     std::string BuildOptionsScreenRml(const std::vector<OptionsRow>& rows, const std::string& title,
-                                      const std::string& done, float scroll, int guiW, int guiH, int hover) {
-        const OptionsLayout l = ComputeOptionsLayout(rows, guiW, guiH, scroll);
+                                      const std::string& done, float scroll, int guiW, int guiH, int hover,
+                                      int columns) {
+        const OptionsLayout l = ComputeOptionsLayout(rows, guiW, guiH, scroll, columns);
         std::string d = ScreenTemplate("options_screen.rml", kOptionsHead);
         ReplaceAll(d, "w", std::to_string(guiW));
         ReplaceAll(d, "h", std::to_string(guiH));
@@ -242,13 +255,15 @@ div { display: block; position: absolute; }
                      EscapeRml(row.label) + "</div>\n";
                 continue;
             }
-            const std::string label = row.value.empty() ? row.label : row.label + ": " + row.value;
+            if (row.label.empty() && row.value.empty())
+                continue;
+            std::string label = row.value.empty() ? row.label : row.label + ": " + row.value;
             if (row.fraction >= 0.0f)
                 d += Slider("row" + std::to_string(i), l.x[static_cast<size_t>(i)],
-                            l.y[static_cast<size_t>(i)], l.rowW[static_cast<size_t>(i)], label, row.fraction);
+                            l.y[static_cast<size_t>(i)], l.rowW[static_cast<size_t>(i)], label, row.fraction, row.formatted);
             else
                 d += Button("row" + std::to_string(i), l.x[static_cast<size_t>(i)],
-                            l.y[static_cast<size_t>(i)], l.rowW[static_cast<size_t>(i)], label, row.locked);
+                            l.y[static_cast<size_t>(i)], l.rowW[static_cast<size_t>(i)], label, row.locked, row.formatted);
             if (!row.icon.empty()) {
                 const std::string at =
                     "left: " + std::to_string(static_cast<int>(l.x[static_cast<size_t>(i)]) + 3) +

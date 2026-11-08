@@ -362,6 +362,40 @@ namespace perlin::gpu {
             return it->second.first;
         }
 
+        const char* ImageQualifierOf(conduit::format f) {
+            using F = conduit::format;
+            switch (f) {
+            case F::rgba8_unorm:
+                return "rgba8";
+            case F::rgba16_float:
+                return "rgba16f";
+            case F::rgba32_float:
+                return "rgba32f";
+            case F::r8_unorm:
+                return "r8";
+            case F::rg8_unorm:
+                return "rg8";
+            case F::r16_float:
+                return "r16f";
+            case F::rg16_float:
+                return "rg16f";
+            case F::r32_float:
+                return "r32f";
+            case F::rg32_float:
+                return "rg32f";
+            case F::rgba16_unorm:
+                return "rgba16";
+            case F::rg16_unorm:
+                return "rg16";
+            case F::rgb10a2_unorm:
+                return "rgb10_a2";
+            case F::r11g11b10_float:
+                return "r11f_g11f_b10f";
+            default:
+                return "rgba8";
+            }
+        }
+
         conduit::format ToFormat(jshader::BufferFormat f) {
             using B = jshader::BufferFormat;
             switch (f) {
@@ -966,6 +1000,45 @@ namespace perlin::gpu {
             readsDepth(src->fragment.text);
             for (const jshader::ExpandedSource& c : src->compute)
                 readsDepth(c.text);
+            // colorimgN is Iris's implicit storage view of colortexN.
+            const auto findColorImages = [&](const std::string& text) {
+                for (size_t at = text.find("colorimg"); at != std::string::npos; at = text.find("colorimg", at + 8)) {
+                    if (at > 0 && (std::isalnum(static_cast<unsigned char>(text[at - 1])) || text[at - 1] == '_'))
+                        continue;
+                    size_t e = at + 8;
+                    while (e < text.size() && std::isdigit(static_cast<unsigned char>(text[e])))
+                        e++;
+                    if (e == at + 8 || (e < text.size() && (std::isalnum(static_cast<unsigned char>(text[e])) || text[e] == '_')))
+                        continue;
+                    const int idx = std::atoi(text.substr(at + 8, e - at - 8).c_str());
+                    if (idx >= 0 && idx < jshader::kMaxColorTex) {
+                        bufs[static_cast<size_t>(idx)].used = true;
+                        bufs[static_cast<size_t>(idx)].asImage = true;
+                    }
+                }
+            };
+            findColorImages(src->vertex.text);
+            findColorImages(src->fragment.text);
+            for (const jshader::ExpandedSource& c : src->compute)
+                findColorImages(c.text);
+        }
+        for (int i = 0; i < jshader::kMaxColorTex; i++) {
+            Buffer& b = bufs[static_cast<size_t>(i)];
+            const std::string name = "colorimg" + std::to_string(i);
+            if (!b.asImage || imageSlotOf.contains(name))
+                continue;
+            if (images.size() >= kImageSlots) {
+                Log("jshader", "{}: no image slot left for the implicit image", name.c_str());
+                b.asImage = false;
+                continue;
+            }
+            Image img;
+            img.colorBuffer = i;
+            img.format = ToFormat(config.color[static_cast<size_t>(i)].format);
+            img.info.name = name;
+            img.info.internalFormat = ImageQualifierOf(img.format);
+            imageSlotOf[name] = static_cast<int>(images.size());
+            images.push_back(std::move(img));
         }
 
         config.shadowEnabled = instance->ProgramExists("shadow") && instance->ProgramEnabled("shadow");
@@ -989,10 +1062,18 @@ namespace perlin::gpu {
             b.h = cfg.fixedHeight > 0
                       ? static_cast<uint32_t>(cfg.fixedHeight)
                       : std::max(1u, static_cast<uint32_t>(static_cast<float>(h) * cfg.scaleY));
-            for (auto& k : b.tex) {
-                k = MakeTexture(b.w, b.h, ToFormat(cfg.format), kColor, "pack color");
-                if (!k)
+            if (b.asImage) {
+                b.tex[0] = MakeTexture(b.w, b.h, ToFormat(cfg.format), kColor | conduit::texture_usage::storage,
+                                       "pack color (image)");
+                if (!b.tex[0])
                     return false;
+                b.tex[1] = b.tex[0];
+            } else {
+                for (auto& k : b.tex) {
+                    k = MakeTexture(b.w, b.h, ToFormat(cfg.format), kColor, "pack color");
+                    if (!k)
+                        return false;
+                }
             }
             b.cur = 0;
         }
@@ -1015,6 +1096,14 @@ namespace perlin::gpu {
             if (!shadowDepth)
                 return false;
         }
+        for (Image& img : images)
+            if (img.colorBuffer >= 0) {
+                const Buffer& b = bufs[static_cast<size_t>(img.colorBuffer)];
+                img.tex = b.tex[0];
+                img.w = b.w;
+                img.h = b.h;
+                img.d = 1;
+            }
         return CreateStorage();
     }
 
@@ -2374,6 +2463,8 @@ namespace perlin::gpu {
             conduit::texture_usage::sampled | conduit::texture_usage::storage | conduit::texture_usage::copy_dst;
         uint64_t zero = 256;
         for (Image& img : images) {
+            if (img.colorBuffer >= 0)
+                continue;
             const jshader::CustomImage& info = img.info;
             img.w = info.relative
                         ? std::max(1u, static_cast<uint32_t>(static_cast<float>(width) * info.relativeWidth))
@@ -2473,7 +2564,7 @@ namespace perlin::gpu {
             gpu.Transition(list, dummyStorage, conduit::state::shader_write);
         }
         for (Image& img : images) {
-            if (!img.tex || !(all || storageFresh || img.info.clear))
+            if (img.colorBuffer >= 0 || !img.tex || !(all || storageFresh || img.info.clear))
                 continue;
             gpu.Transition(list, img.tex, conduit::state::copy_dst);
             conduit::buffer_texture_copy c;

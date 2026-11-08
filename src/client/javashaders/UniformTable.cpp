@@ -661,6 +661,8 @@ namespace perlin::jshader {
 
         Add("iris_ModelViewMat", 16, [=](C c, float* o) { CopyMat(D(c).modelView, o); });
         Add("iris_ModelViewMatInverse", 16, [=](C c, float* o) { Invert(D(c).modelView, o); });
+        Add("modelViewMatrix", 16, [=](C c, float* o) { CopyMat(D(c).modelView, o); });
+        Add("projectionMatrix", 16, [=](C c, float* o) { CopyMat(D(c).projection, o); });
         Add("iris_ProjMat", 16, [=](C c, float* o) { CopyMat(D(c).projection, o); });
         Add("iris_ProjMatInverse", 16, [=](C c, float* o) { Invert(D(c).projection, o); });
         Add("iris_TextureMat", 32, [=](C c, float* o) {

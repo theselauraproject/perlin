@@ -13,9 +13,55 @@
 #include "util/Platform.hpp"
 #if !defined(_WIN32)
 #include <sys/stat.h>
+#else
+#include <windows.h>
+#include <wincrypt.h>
 #endif
 
 namespace perlin::http {
+    extern const char kBundledCaPem[];
+    extern const std::size_t kBundledCaPemSize;
+
+#if defined(_WIN32)
+    const std::string& CombinedCaPem() {
+        static std::once_flag once;
+        static std::string pem;
+        std::call_once(once, [] {
+            static const char kB64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            int fromSystem = 0;
+            for (const wchar_t* storeName : {L"ROOT", L"CA"}) {
+                HCERTSTORE store = CertOpenSystemStoreW(0, storeName);
+                if (!store)
+                    continue;
+                for (PCCERT_CONTEXT c = CertEnumCertificatesInStore(store, nullptr); c;
+                     c = CertEnumCertificatesInStore(store, c)) {
+                    if (!(c->dwCertEncodingType & X509_ASN_ENCODING))
+                        continue;
+                    std::string b64;
+                    const unsigned char* d = c->pbCertEncoded;
+                    const size_t n = c->cbCertEncoded;
+                    for (size_t i = 0; i < n; i += 3) {
+                        const unsigned v = (d[i] << 16) | (i + 1 < n ? d[i + 1] << 8 : 0) | (i + 2 < n ? d[i + 2] : 0);
+                        b64 += kB64[(v >> 18) & 63];
+                        b64 += kB64[(v >> 12) & 63];
+                        b64 += i + 1 < n ? kB64[(v >> 6) & 63] : '=';
+                        b64 += i + 2 < n ? kB64[v & 63] : '=';
+                    }
+                    pem += "-----BEGIN CERTIFICATE-----\n";
+                    for (size_t i = 0; i < b64.size(); i += 64)
+                        pem += b64.substr(i, 64) + "\n";
+                    pem += "-----END CERTIFICATE-----\n";
+                    fromSystem++;
+                }
+                CertCloseStore(store, 0);
+            }
+            pem.append(kBundledCaPem, kBundledCaPemSize);
+            Log("tls", "CA certificates: {} from Windows + bundled roots", fromSystem);
+        });
+        return pem;
+    }
+#endif
+
 #if !defined(__ANDROID__) && !defined(_WIN32) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
     namespace {
         bool IsFile(const char* path) {

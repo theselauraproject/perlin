@@ -173,6 +173,55 @@ namespace perlin::jshader {
             return 1;
         }
 
+
+        // A struct used as a varying takes one location per member (more for matrices and
+        // arrays), not one. Photon's "flat out OverworldFogParameters fog_params;" is three vec3s,
+        // so counting it as one slot made the next varyings overlap it.
+        int StructSlots(const std::string& source, const std::string& name, int depth = 0) {
+            if (depth > 4)
+                return 0;
+            static const std::regex kBlock(R"(\bstruct\s+(\w+)\s*\{([^}]*)\})");
+            for (auto it = std::sregex_iterator(source.begin(), source.end(), kBlock);
+                 it != std::sregex_iterator(); ++it) {
+                if ((*it)[1].str() != name)
+                    continue;
+                int total = 0;
+                std::stringstream members((*it)[2].str());
+                std::string decl;
+                while (std::getline(members, decl, ';')) {
+                    std::istringstream words(decl);
+                    std::string type, word;
+                    std::vector<std::string> parts;
+                    while (words >> word)
+                        parts.push_back(word);
+                    while (!parts.empty() && (parts.front() == "flat" || parts.front() == "highp" ||
+                                              parts.front() == "mediump" || parts.front() == "lowp" ||
+                                              parts.front() == "smooth" || parts.front() == "const"))
+                        parts.erase(parts.begin());
+                    if (parts.size() < 2)
+                        continue;
+                    type = parts[0];
+                    std::string rest;
+                    for (size_t i = 1; i < parts.size(); i++)
+                        rest += parts[i] + " ";
+                    int per = TypeSlots(type);
+                    if (per == 1)
+                        if (const int nested = StructSlots(source, type, depth + 1); nested > 0)
+                            per = nested;
+                    std::stringstream names(rest);
+                    std::string one;
+                    while (std::getline(names, one, ',')) {
+                        int count = 1;
+                        if (const size_t b = one.find('['); b != std::string::npos)
+                            count = std::max(1, std::atoi(one.c_str() + b + 1));
+                        total += per * count;
+                    }
+                }
+                return total;
+            }
+            return 0;
+        }
+
         struct BuiltinUse {
             bool modelView = false, modelViewInv = false, proj = false, projInv = false, normalMat = false;
             bool textureMat = false, fogColor = false, fogDensity = false, fogStart = false, fogEnd = false,
@@ -1819,10 +1868,18 @@ namespace perlin::jshader {
             l.type = "float";
             l.inVertexOut = l.inFragmentIn = true;
         }
+        const std::string allGlsl = program.vertex.glsl + "\n" + program.fragment.glsl;
+        const auto slotsOf = [&](const Link& l) {
+            int per = TypeSlots(l.type);
+            if (per == 1)
+                if (const int members = StructSlots(allGlsl, l.type); members > 0)
+                    per = members;
+            return per * std::max(1, l.arrayCount);
+        };
         std::set<int> taken;
         for (const auto& kv : links)
             if (kv.second.location >= 0) {
-                const int slots = TypeSlots(kv.second.type) * std::max(1, kv.second.arrayCount);
+                const int slots = slotsOf(kv.second);
                 for (int s = 0; s < slots; s++)
                     taken.insert(kv.second.location + s);
             }
@@ -1831,7 +1888,7 @@ namespace perlin::jshader {
             Link& l = kv.second;
             if (l.location >= 0)
                 continue;
-            const int slots = TypeSlots(l.type) * std::max(1, l.arrayCount);
+            const int slots = slotsOf(l);
             for (;;) {
                 bool free = true;
                 for (int s = 0; s < slots; s++)

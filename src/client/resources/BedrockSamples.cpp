@@ -14,13 +14,26 @@ namespace perlin {
             return fs::exists(repo / "resource_pack/blocks.json") &&
                    fs::exists(repo / "resource_pack/textures/terrain_texture.json") &&
                    fs::exists(repo / "metadata/vanilladata_modules/mojang-blocks.json") &&
-                   fs::exists(repo / "behavior_pack/blocks");
+                   fs::exists(repo / "behavior_pack/blocks") &&
+                   fs::exists(repo / "resource_pack/ui/hud_screen.json") &&
+                   fs::exists(repo / "resource_pack/textures/ui/hotbar_0.png");
         }
 
-        constexpr const char* kMarker = ".ready3";
+        constexpr const char* kMarker = ".ready4";
     }
 
     bool BedrockSamples::Available(const std::string& targetDir) {
+        // Extra files that failed to download are retried on the next launches (see DownloadSamples).
+        std::error_code ec;
+        const fs::path skipped = fs::path(targetDir) / "repo" / ".extras-skipped";
+        if (fs::exists(skipped, ec)) {
+            std::ifstream in(skipped);
+            int n = 0;
+            if (!(in >> n))
+                n = 1;
+            if (n < 3)
+                return false;
+        }
         return fs::exists(fs::path(targetDir) / kMarker) && Complete(fs::path(targetDir) / "repo");
     }
 

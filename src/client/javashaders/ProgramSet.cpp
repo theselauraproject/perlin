@@ -657,7 +657,10 @@ namespace perlin::jshader {
         expand(".vsh", program->vertex);
         expand(".gsh", program->geometry);
         expand(".fsh", program->fragment);
-        ParseDrawBuffers(program->fragment.text, macros, *program);
+        // Only the engine's macros: `macros` also holds every `#define` the pack's own files contain (each
+        // GBUFFER_* marker, for instance), which made all programs resolve to the entity branch of a shared
+        // output-writing include.
+        ParseDrawBuffers(program->fragment.text, engineMacros, *program);
         const std::string csh = FindFile(use, ".csh");
         if (!csh.empty()) {
             program->compute.emplace_back();
@@ -695,7 +698,7 @@ namespace perlin::jshader {
             for (const ExpandedSource* part : parts) {
                 if (part->text.empty())
                     continue;
-                MacroMap local = macros;
+                MacroMap local = engineMacros;
                 const std::string active = ResolveConditionals(part->text, local);
                 std::istringstream in(active);
                 std::string line;

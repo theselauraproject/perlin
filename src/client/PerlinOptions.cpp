@@ -26,10 +26,12 @@ namespace perlin {
         bool wide = false;
         int tab = 0;
         std::string icon;
+        bool formatted = false;
     };
 
     struct OptionsModel {
         std::vector<OptRow> rows;
+        int columns = 2;
         std::string title = detail::TrOr("options.title", "Options");
         std::function<void(int)> navigate;
 
@@ -124,6 +126,7 @@ namespace perlin {
                 row.impact = info.impact;
             }
             row.icon = r.icon;
+            row.formatted = r.formatted;
             if ((optionsUi.page == 11 && pause.view == 1) ||
                 (optionsUi.page == 10 && renderer && renderer->JavaShaderPackActive())) {
                 const size_t idx = view.size();
@@ -137,13 +140,13 @@ namespace perlin {
             optionsUi.scrollKey = scrollKey;
             optionsUi.scroll = 0.0f;
         }
-        const ui::OptionsLayout probe = ui::ComputeOptionsLayout(view, guiW, guiH, 0.0f);
+        const ui::OptionsLayout probe = ui::ComputeOptionsLayout(view, guiW, guiH, 0.0f, m.columns);
         if (probe.scrolling && optionsUi.bindCapture < 0)
             optionsUi.scroll =
                 std::clamp(optionsUi.scroll - inputManager.Scroll() * 20.0f, 0.0f, probe.maxScroll);
         else if (!probe.scrolling)
             optionsUi.scroll = 0.0f;
-        const ui::OptionsLayout layout = ui::ComputeOptionsLayout(view, guiW, guiH, optionsUi.scroll);
+        const ui::OptionsLayout layout = ui::ComputeOptionsLayout(view, guiW, guiH, optionsUi.scroll, m.columns);
         const float gx = mx / static_cast<float>(scale), gy = my / static_cast<float>(scale);
         int hoverRow = -1;
         for (int i = 0; i < layout.count; i++)
@@ -161,6 +164,7 @@ namespace perlin {
         const bool showTip =
             hoverRow >= 0 && Clock::now() - optionsUi.hoverSince > std::chrono::milliseconds(350);
         std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + m.title +
+                                std::to_string(m.columns) +
                                 std::to_string(static_cast<int>(optionsUi.scroll)) +
                                 (showTip ? "T" + std::to_string(hoverRow) : "");
         for (const ui::OptionsRow& r : view)
@@ -170,7 +174,7 @@ namespace perlin {
             std::string error;
             if (!hud.Overlay().SetOverlay(
                     ui::BuildOptionsScreenRml(view, m.title, detail::TrOr("gui.done", "Done"),
-                                              optionsUi.scroll, guiW, guiH, showTip ? hoverRow : -1),
+                                              optionsUi.scroll, guiW, guiH, showTip ? hoverRow : -1, m.columns),
                     error))
                 Log("ui", "options screen: {}", error);
         }
@@ -1159,20 +1163,15 @@ namespace perlin {
             jshader::WriteJavaPackOptions(packPath, all);
             javaDirty = true;
         };
-        m.rows.push_back({javaDirty ? detail::TrOr("perlin.shaders.apply", "Apply Changes (reloads shaders)")
-                                    : detail::TrOr("perlin.shaders.reload", "Reload Shaders"),
-                          "", -1.0f, [this, packPath](float, bool click) {
-                              if (!click)
-                                  return;
-                              javaDirty = false;
-                              javaPackPending = packPath;
-                          }});
-        if (!inst) {
-            const std::string err = renderer->JavaShaderPackError();
-            OptRow h{err.empty() ? std::string("The pack is still loading") : err, "", -1.0f,
-                     [](float, bool) {}};
+        const bool shift = input.IsKeyDown(Key::Shift);
+        const auto header = [&](const std::string& text) {
+            OptRow h{text, "", -1.0f, [](float, bool) {}};
             h.header = true;
             m.rows.push_back(h);
+        };
+        if (!inst) {
+            const std::string err = renderer->JavaShaderPackError();
+            header(err.empty() ? std::string("The pack is still loading") : err);
             return;
         }
         jshader::OptionValues current = inst->Overrides();
@@ -1181,23 +1180,37 @@ namespace perlin {
 
         const std::string screen = screenStack.empty() ? std::string() : screenStack.back();
         const jshader::ScreenLayout layout = jshader::BuildScreen(*inst, screen);
-        if (!screenStack.empty()) {
-            m.rows.push_back({"< " + detail::TrOr("gui.back", "Back"), "", -1.0f, [](float, bool click) {
-                                  if (click && !screenStack.empty())
-                                      screenStack.pop_back();
-                              }});
-        } else {
-            m.rows.push_back({detail::TrOr("perlin.shaders.resetAll", "Reset All to Defaults"), "", -1.0f,
-                              [this, packPath](float, bool click) {
-                                  if (!click)
-                                      return;
-                                  javaEdits.clear();
-                                  jshader::WriteJavaPackOptions(packPath, {});
-                                  javaDirty = false;
-                                  javaPackPending = packPath;
-                              }});
-        }
-        OptRow head{layout.title.empty() ? inst->Name() : layout.title, "", -1.0f, [](float, bool) {}};
+        m.columns = layout.columns;
+
+        // Same top row as Iris: Back (or the pack name) / Reset / Apply, then the title.
+        const std::string applyLabel = javaDirty ? "\xC2\xA7" "e" + detail::TrOr("perlin.shaders.apply", "Apply Changes")
+                                                : detail::TrOr("perlin.shaders.reload", "Reload Shaders");
+        m.rows.push_back({"< " + detail::TrOr("gui.back", "Back"), "", -1.0f,
+                          [](float, bool click) {
+                              if (click && !screenStack.empty())
+                                  screenStack.pop_back();
+                          }});
+        m.rows.back().locked = screenStack.empty();
+        m.rows.back().wide = false;
+        m.rows.push_back({detail::TrOr("perlin.shaders.resetAll", "Reset"), "", -1.0f,
+                          [this, packPath](float, bool click) {
+                              if (!click)
+                                  return;
+                              javaEdits.clear();
+                              jshader::WriteJavaPackOptions(packPath, {});
+                              javaDirty = true;
+                          }});
+        tip("Reset every option of this pack to its default. Apply afterwards to reload the shaders.");
+        m.rows.push_back({applyLabel, "", -1.0f, [this, packPath](float, bool click) {
+                              if (!click)
+                                  return;
+                              javaDirty = false;
+                              javaPackPending = packPath;
+                          }});
+        m.rows.back().formatted = true;
+        tip("Reload the shader pack with the current options.");
+        OptRow head{"\xC2\xA7" "f" + (layout.title.empty() ? inst->Name() : layout.title), "", -1.0f,
+                    [](float, bool) {}};
         head.header = true;
         m.rows.push_back(head);
 
@@ -1205,37 +1218,42 @@ namespace perlin {
         for (const jshader::ScreenEntry& e : layout.entries) {
             switch (e.kind) {
             case jshader::ScreenEntry::Kind::Empty:
+                m.rows.push_back({"", "", -1.0f, [](float, bool) {}});
+                m.rows.back().locked = true;
+                m.rows.back().tab = -1;
                 break;
             case jshader::ScreenEntry::Kind::Screen:
-                m.rows.push_back({jshader::ScreenTitle(*inst, e.name) + " >", "", -1.0f,
+                m.rows.push_back({"\xC2\xA7" "f" + jshader::ScreenTitle(*inst, e.name) + " \xC2\xA7" "7>", "", -1.0f,
                                   [name = e.name](float, bool click) {
                                       if (click)
                                           screenStack.push_back(name);
                                   }});
+                m.rows.back().formatted = true;
                 tip(jshader::StripFormatting(inst->Lang("screen." + e.name + ".comment")));
                 break;
             case jshader::ScreenEntry::Kind::Profile: {
+                // One cycling button, like Iris: left click = next profile, Shift = previous.
                 const std::string at = jshader::MatchingProfile(*inst, current);
-                OptRow ph{detail::TrOr("perlin.shaders.profile", "Profile") + ": " + jshader::ProfileLabel(*inst, at),
-                          "", -1.0f, [](float, bool) {}};
-                ph.header = true;
-                m.rows.push_back(ph);
+                size_t idx = profiles.size();
+                for (size_t i = 0; i < profiles.size(); i++)
+                    if (profiles[i].first == at)
+                        idx = i;
+                const std::string shown = at.empty() || idx == profiles.size()
+                                              ? detail::TrOr("perlin.shaders.preset.custom", "Custom")
+                                              : jshader::ProfileLabel(*inst, at);
+                m.rows.push_back({"\xC2\xA7" "f" + detail::TrOr("perlin.shaders.profile", "Profile"),
+                                  "\xC2\xA7" "e" + shown, -1.0f,
+                                  [this, profiles, idx, shift, save](float, bool click) {
+                                      if (!click || profiles.empty())
+                                          return;
+                                      const size_t n = profiles.size();
+                                      const size_t next = idx == n ? 0 : (shift ? (idx + n - 1) % n : (idx + 1) % n);
+                                      for (const auto& [k, v] : profiles[next].second)
+                                          javaEdits[k] = v;
+                                      save();
+                                  }});
+                m.rows.back().formatted = true;
                 tip(jshader::StripFormatting(inst->Lang("profile.comment")));
-                for (const auto& [profileName, profileValues] : profiles) {
-                    const bool chosen = profileName == at;
-                    m.rows.push_back({(chosen ? "> " : "   ") + jshader::ProfileLabel(*inst, profileName),
-                                      chosen ? detail::TrOr("perlin.shaders.profile.active", "Active") : "", -1.0f,
-                                      [this, packPath, values = profileValues, save](float, bool click) {
-                                          if (!click)
-                                              return;
-                                          for (const auto& [k, v] : values)
-                                              javaEdits[k] = v;
-                                          save();
-                                          javaDirty = false;
-                                          javaPackPending = packPath;
-                                      }});
-                    tip(jshader::StripFormatting(inst->Lang("profile." + profileName + ".comment")));
-                }
                 break;
             }
             case jshader::ScreenEntry::Kind::Option: {
@@ -1248,14 +1266,34 @@ namespace perlin {
                 const bool toggle = o->kind == jshader::ShaderOption::Kind::Toggle;
                 const std::vector<std::string> values =
                     toggle ? std::vector<std::string>{"false", "true"} : o->values;
+                const std::string def = toggle ? (o->defaultOn ? "true" : "false") : o->defaultValue;
+                const bool modified = value != def;
                 size_t at = 0;
                 for (size_t i = 0; i < values.size(); i++)
                     if (values[i] == value)
                         at = i;
                 const std::string name = o->name;
+                const std::string head = std::string(modified ? "\xC2\xA7" "e" : "\xC2\xA7" "f") + label;
+                std::string valueText;
+                if (toggle) {
+                    const bool on = value == "true";
+                    valueText = std::string(on ? "\xC2\xA7" "a" : "\xC2\xA7" "c") + (on ? "On" : "Off");
+                    if (!modified)
+                        valueText = std::string("\xC2\xA7" "7") + (on ? "On" : "Off");
+                } else {
+                    valueText = std::string(modified ? "\xC2\xA7" "e" : "\xC2\xA7" "7") + shown;
+                }
+                const auto reset = [name, def, save] {
+                    javaEdits[name] = def;
+                    save();
+                };
                 if (!toggle && values.size() > 2 && jshader::IsSlider(*inst, name)) {
                     const float fraction = static_cast<float>(at) / static_cast<float>(values.size() - 1);
-                    m.Slider(label, shown, fraction, [values, name, value, save](float t) {
+                    m.Slider(head, valueText, fraction, [values, name, value, save, shift, reset](float t) {
+                        if (shift) {
+                            reset();
+                            return;
+                        }
                         const size_t i = static_cast<size_t>(
                             std::lround(std::clamp(t, 0.0f, 1.0f) * static_cast<float>(values.size() - 1)));
                         if (values[i] == value)
@@ -1264,13 +1302,19 @@ namespace perlin {
                         save();
                     });
                 } else {
-                    m.rows.push_back({label, shown, -1.0f, [values, at, name, save](float, bool click) {
+                    m.rows.push_back({head, valueText, -1.0f,
+                                      [values, at, name, save, shift, reset](float, bool click) {
                                           if (!click || values.empty())
                                               return;
+                                          if (shift) {
+                                              reset();
+                                              return;
+                                          }
                                           javaEdits[name] = values[(at + 1) % values.size()];
                                           save();
                                       }});
                 }
+                m.rows.back().formatted = true;
                 tip(jshader::OptionComment(*inst, *o));
                 break;
             }

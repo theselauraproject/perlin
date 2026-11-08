@@ -348,10 +348,27 @@ namespace perlin {
     bool DownloadSamples(const std::string& targetDir) {
         const fs::path zipDone = fs::path(targetDir) / "repo" / ".from-release-zip";
         std::error_code zec;
+        // Files the HUD and chat cannot work without. If an earlier install left them out (interrupted or
+        // failed download), throw the "already extracted" marker away so the archive is fetched again.
+        for (const char* needed : {"resource_pack/ui/hud_screen.json", "resource_pack/textures/ui/hotbar_0.png"})
+            if (fs::exists(zipDone, zec) && !fs::exists(fs::path(targetDir) / "repo" / needed, zec)) {
+                perlin::Log("samples", "{} is missing; downloading the archive again", needed);
+                fs::remove(zipDone, zec);
+                break;
+            }
         if (fs::exists(zipDone, zec) || DownloadReleaseZip(targetDir)) {
             std::ofstream(zipDone.string()).close();
             const fs::path skipped = fs::path(targetDir) / "repo" / ".extras-skipped";
-            if (fs::exists(skipped, zec))
+            // The marker holds how many launches already failed to fetch the extras; after three we give up
+            // so an offline machine is not stuck on the download screen forever.
+            const auto skips = [&] {
+                std::ifstream in(skipped);
+                int n = 0;
+                if (in && !(in >> n))
+                    n = 1;
+                return fs::exists(skipped, zec) ? std::max(n, 1) : 0;
+            };
+            if (skips() >= 3)
                 return true;
             std::vector<std::string> extra;
             bool listed = true;
@@ -367,8 +384,11 @@ namespace perlin {
                     listed = false;
             }
             if (!listed) {
-                perlin::Log("samples", "some optional files could not be fetched; continuing with the archive");
-                std::ofstream(skipped.string()).close();
+                perlin::Log("samples", "some optional files could not be fetched; will retry on the next launch");
+                const int n = skips() + 1;
+                std::ofstream(skipped.string()) << n;
+            } else {
+                fs::remove(skipped, zec);
             }
             return true;
         }

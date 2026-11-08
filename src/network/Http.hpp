@@ -18,6 +18,11 @@ namespace perlin::http {
 
     bool SystemCaPaths(std::string& file, std::string& dir);
 
+#if defined(_WIN32)
+    // The Windows ROOT/CA stores plus the bundled Mozilla roots, as one PEM text.
+    const std::string& CombinedCaPem();
+#endif
+
 #if defined(__ANDROID__)
     const std::string& AndroidCaBundle();
 #endif
@@ -25,6 +30,13 @@ namespace perlin::http {
     template <class HttpClient> void UseSystemCa(HttpClient& cli) {
 #if defined(__ANDROID__)
         const std::string& pem = AndroidCaBundle();
+        if (!pem.empty()) {
+            cli.load_ca_cert_store(pem.c_str(), pem.size());
+            return;
+        }
+#endif
+#if defined(_WIN32)
+        const std::string& pem = CombinedCaPem();
         if (!pem.empty()) {
             cli.load_ca_cert_store(pem.c_str(), pem.size());
             return;

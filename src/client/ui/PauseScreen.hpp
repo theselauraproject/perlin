@@ -62,6 +62,8 @@ namespace perlin::ui {
         std::string tip;
         int impact = 0;
         std::string icon;
+        // The label and value carry Minecraft colour codes (shader pack settings do).
+        bool formatted = false;
     };
 
     struct OptionsLayout {
@@ -76,10 +78,11 @@ namespace perlin::ui {
         bool scrolling = false;
     };
 
-    OptionsLayout ComputeOptionsLayout(const std::vector<OptionsRow>& rows, int guiW, int guiH, float scroll);
+    OptionsLayout ComputeOptionsLayout(const std::vector<OptionsRow>& rows, int guiW, int guiH, float scroll,
+                                       int columns = 2);
     std::string BuildOptionsScreenRml(const std::vector<OptionsRow>& rows, const std::string& title,
                                       const std::string& done, float scroll, int guiW, int guiH,
-                                      int hover = -1);
+                                      int hover = -1, int columns = 2);
 
     struct ListButton {
         std::string text;

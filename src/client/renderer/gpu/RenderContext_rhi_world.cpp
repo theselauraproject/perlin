@@ -544,7 +544,9 @@ namespace perlin {
 
     void RenderContext_rhi::DrawScreenTint() {
         const float* t = frame.screenTint;
-        if (t[3] <= 0.001f || !screenTri)
+        // Java shader packs draw their own world; a flat red quad on top of their composite looks like
+        // a bug (Java edition has no full-screen hit tint), so the pack path never gets one.
+        if (t[3] <= 0.001f || !screenTri || PackRunning())
             return;
         uni.Vec4("u_modulator", t[0], t[1], t[2], t[3]);
         DrawState state = Base(Program::Screen, false, false, conduit::compare_op::less_equal);

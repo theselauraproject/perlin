@@ -76,21 +76,32 @@ namespace perlin::jshader {
     }
 
     ScreenLayout BuildScreen(const ShaderPackInstance& pack, const std::string& name) {
+        // Mirrors Iris' OptionMenuContainer: a missing main "screen" is just "*"; "*" lists every
+        // option that no screen places, boolean options first and then the string ones, each in
+        // declaration order; a name that is not an option leaves a blank slot instead of
+        // shifting the grid; "<profile>" only shows when the pack has profiles; the column count
+        // defaults to 3 for more than 18 entries and 2 otherwise.
         ScreenLayout out;
         const std::string key = name.empty() ? "screen" : "screen." + name;
         out.title = name.empty() ? std::string() : ScreenTitle(pack, name);
-        out.columns = std::clamp(static_cast<int>(pack.RawProps().Number(key + ".columns", 2)), 1, 6);
         std::map<std::string, const ShaderOption*> byName;
+        std::vector<const ShaderOption*> ordered;
         for (const ShaderOption& o : pack.Options())
-            if (Selectable(o))
+            if (Selectable(o) && !byName.contains(o.name)) {
                 byName[o.name] = &o;
-        const std::string layout = pack.RawProps().Get(key);
+                if (o.kind == ShaderOption::Kind::Toggle)
+                    ordered.push_back(&o);
+            }
+        for (const ShaderOption& o : pack.Options())
+            if (Selectable(o) && o.kind != ShaderOption::Kind::Toggle && byName[o.name] == &o)
+                ordered.push_back(&o);
+        std::string layout = pack.RawProps().Get(key);
         if (layout.empty()) {
-            if (name.empty())
-                for (const auto& [n, o] : byName)
-                    out.entries.push_back({ScreenEntry::Kind::Option, n});
-            return out;
+            if (!name.empty())
+                return out;
+            layout = "*";
         }
+        const std::set<std::string> elsewhere = PlacedOptions(pack);
         std::set<std::string> placed;
         for (const std::string& w : SplitWords(layout)) {
             if (w == "<empty>") {
@@ -101,17 +112,18 @@ namespace perlin::jshader {
             } else if (w.size() > 2 && w.front() == '[' && w.back() == ']') {
                 out.entries.push_back({ScreenEntry::Kind::Screen, w.substr(1, w.size() - 2)});
             } else if (w == "*") {
-                const std::set<std::string> elsewhere = PlacedOptions(pack);
-                for (const auto& [n, o] : byName)
-                    if (!elsewhere.contains(n) && placed.insert(n).second)
-                        out.entries.push_back({ScreenEntry::Kind::Option, n});
-            } else if (byName.contains(w) && placed.insert(w).second) {
-                out.entries.push_back({ScreenEntry::Kind::Option, w});
+                for (const ShaderOption* o : ordered)
+                    if (!elsewhere.contains(o->name) && placed.insert(o->name).second)
+                        out.entries.push_back({ScreenEntry::Kind::Option, o->name});
+            } else if (byName.contains(w)) {
+                if (placed.insert(w).second)
+                    out.entries.push_back({ScreenEntry::Kind::Option, w});
+            } else {
+                out.entries.push_back({ScreenEntry::Kind::Empty, {}});
             }
         }
-
-        while (!out.entries.empty() && out.entries.back().kind == ScreenEntry::Kind::Empty)
-            out.entries.pop_back();
+        const int fallback = out.entries.size() > 18 ? 3 : 2;
+        out.columns = std::clamp(static_cast<int>(pack.RawProps().Number(key + ".columns", fallback)), 1, 6);
         return out;
     }
 

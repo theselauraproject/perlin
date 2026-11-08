@@ -162,6 +162,8 @@ namespace perlin::gpu {
             conduit::texture_handle tex[2];
             int cur = 0;
             bool used = false;
+            // Programs write this target through colorimgN; both halves are one storage-capable texture.
+            bool asImage = false;
             uint32_t w = 0, h = 0;
         };
         enum class Kind {
@@ -195,6 +197,7 @@ namespace perlin::gpu {
             conduit::texture_dim dim = conduit::texture_dim::tex2d;
             uint32_t w = 1, h = 1, d = 1;
             bool integer = false;
+            int colorBuffer = -1;
         };
         struct UniformSlot {
             jshader::UniformDecl decl;
