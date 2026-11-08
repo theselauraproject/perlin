@@ -35,6 +35,8 @@ namespace perlin {
             {Mouse::Left, "left"},
             {Mouse::Right, "right"},
             {Mouse::Middle, "middle"},
+            {Mouse::Back, "back"},
+            {Mouse::Forward, "forward"},
         };
 
         constexpr const char* kKeyPrefix = "key.keyboard.";

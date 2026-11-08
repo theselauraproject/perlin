@@ -201,7 +201,7 @@ namespace perlin {
                     SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::KeyboardKey(t.key));
                 captured = true;
             }
-            for (int b = 1; b <= 2 && !captured && optionsUi.bindDevice == 0; b++)
+            for (int b = 1; b <= Mouse::Forward && !captured && optionsUi.bindDevice == 0; b++)
                 if (input.IsMouseDown(b) &&
                     Clock::now() - optionsUi.bindStartedAt > std::chrono::milliseconds(120)) {
                     SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::MouseButton(b));
@@ -1558,6 +1558,8 @@ namespace perlin {
             }
             if (value == "left" || value == "right" || value == "middle")
                 value += " button";
+            else if (value == "back" || value == "forward")
+                value = "mouse " + value;
             if (!waiting && !value.empty()) {
                 bool word = true;
                 for (char& c : value) {

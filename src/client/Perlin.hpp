@@ -434,6 +434,8 @@ namespace perlin {
         heldbuild::HeldBuild heldBuild;
         RecentBreak lastLocalBreak;
         bool usingItem = false;
+        uint64_t useStartTick = 0;
+        bool useConsumed = false, useWasHeld = false;
 
         bool cameraDetached = false;
         bool cameraModeForced = false, cameraOverridden = false;

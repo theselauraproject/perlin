@@ -226,9 +226,22 @@ namespace perlin::ui {
         std::string chunk;
         FormatState st;
         const int alphaByte = std::clamp(static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
-        const auto flush = [&] {
+        // RmlUi drops a text node that is only whitespace, so "§fa§f §fb" lost its space. A run of
+        // spaces is carried into the next visible run (a space has no colour), or emitted with
+        // the last one at the very end.
+        std::string carry;
+        const auto flush = [&](bool last = false) {
             if (chunk.empty())
                 return;
+            if (!last && chunk.find_first_not_of(" \t") == std::string::npos) {
+                carry += chunk;
+                chunk.clear();
+                return;
+            }
+            if (!carry.empty()) {
+                chunk.insert(0, carry);
+                carry.clear();
+            }
             std::string style;
             if (st.hasColor) {
                 char buf[32];
@@ -275,7 +288,8 @@ namespace perlin::ui {
             }
             chunk += c;
         }
-        flush();
+        chunk.insert(0, carry);
+        flush(true);
         return out;
     }
 }

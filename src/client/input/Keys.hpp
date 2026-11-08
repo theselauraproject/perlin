@@ -31,6 +31,8 @@ namespace perlin {
         constexpr int Left = 0;
         constexpr int Right = 1;
         constexpr int Middle = 2;
+        constexpr int Back = 3;
+        constexpr int Forward = 4;
     }
 
     std::string KeyName(int key);

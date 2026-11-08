@@ -744,7 +744,9 @@ namespace perlin {
         bool PredictBridgePlace(int x, int y, int z, int32_t heldRuntimeId, int face, const float click[3]);
         bool SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3], int use, const int dest[3], bool repeat = false);
         bool SendUseItemInAir(const float eye[3], bool held);
-        bool SendReleaseItem(const float eye[3]);
+        // consume=true is the "finished eating or drinking" transaction; servers such as PocketMine only
+        // take the item once they get it.
+        bool SendReleaseItem(const float eye[3], bool consume = false);
         bool SendAttackEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendInteractEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendLeaveVehicle();

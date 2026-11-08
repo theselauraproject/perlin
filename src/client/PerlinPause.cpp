@@ -314,6 +314,8 @@ namespace perlin {
             }
             if (v == "left" || v == "right" || v == "middle")
                 v += " button";
+            else if (v == "back" || v == "forward")
+                v = "mouse " + v;
             else if (v == "shift" || v == "control" || v == "alt")
                 v = "left " + v;
             if (v.empty())

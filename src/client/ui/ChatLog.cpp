@@ -62,6 +62,29 @@ namespace perlin::ui {
         }
     }
 
+    namespace {
+        // Drops code points that are never wanted in chat: the replacement character and other
+        // specials, zero-width and bidi controls, and C0/C1 controls (the newline stays). They show
+        // up as boxes or "random symbols" in the font, and some servers spam them.
+        std::string StripJunk(const std::string& in) {
+            std::string out;
+            out.reserve(in.size());
+            for (size_t i = 0; i < in.size();) {
+                const size_t start = i;
+                uint32_t cp = 0;
+                if (!McFont::Next(in, i, cp))
+                    break;
+                const bool junk = (cp < 0x20 && cp != '\n') || (cp >= 0x7F && cp < 0xA0) || cp == 0xFFFD ||
+                                  (cp >= 0xFFF0 && cp <= 0xFFFF) || (cp >= 0x200B && cp <= 0x200F) ||
+                                  (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2060 && cp <= 0x206F) ||
+                                  cp == 0xFEFF || (cp >= 0xD800 && cp <= 0xDFFF);
+                if (!junk)
+                    out.append(in, start, i - start);
+            }
+            return out;
+        }
+    }
+
     std::vector<std::string> ChatLog::Wrap(const std::string& text, int width) {
         std::vector<std::string> out;
         const McFont& font = McFont::Instance();
@@ -122,7 +145,7 @@ namespace perlin::ui {
     }
 
     void ChatLog::AddMessage(const std::string& original, uint64_t tick) {
-        std::string text = original;
+        std::string text = StripJunk(original);
         if (text.contains(" is at ") && !text.starts_with('<') &&
             !text.contains("\xC2\xA7"
                            "a[")) {

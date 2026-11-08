@@ -97,6 +97,10 @@ namespace {
             return 1;
         case SDL_BUTTON_MIDDLE:
             return 2;
+        case SDL_BUTTON_X1:
+            return 3;
+        case SDL_BUTTON_X2:
+            return 4;
         default:
             return -1;
         }

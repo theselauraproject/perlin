@@ -144,7 +144,7 @@ namespace perlin {
         return Send(p);
     }
 
-    bool BedrockSession::SendReleaseItem(const float eye[3]) {
+    bool BedrockSession::SendReleaseItem(const float eye[3], bool consume) {
         InventoryTransactionPacket p;
         p.transaction.transactionType = TransactionTransactionType::ItemRelease;
         TransactionTransactionDataCase2 r;
@@ -153,7 +153,8 @@ namespace perlin {
             r.hotbarSlot = std::clamp(inventory.selected, 0, 8);
             r.heldItem = inventoryRaw[r.hotbarSlot];
         }
-        r.actionType = TransactionTransactionDataCase2ActionType::Release;
+        r.actionType = consume ? TransactionTransactionDataCase2ActionType::Consume
+                               : TransactionTransactionDataCase2ActionType::Release;
         r.headPos = V(eye);
         p.transaction.transactionData = r;
         return Send(p);

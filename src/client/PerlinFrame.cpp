@@ -609,6 +609,37 @@ namespace perlin {
                                             : name == "minecraft:honey_bottle" ? 40
                                                                                : 32)
                                          : 0;
+        // Eating and drinking finish on the client: the real client sends an ItemRelease "consume"
+        // once the use time has run out, and the server only takes the item (and gives the
+        // effect) when it arrives. Without it the animation plays and nothing is consumed.
+        {
+            const bool consumable = eating || drink || name == "minecraft:chorus_fruit" ||
+                                    name == "minecraft:suspicious_stew" || name == "minecraft:dried_kelp";
+            const uint64_t now = player.TickCount();
+            const bool held_ = use && usingItem && consumable;
+            if (held_ && !useWasHeld) {
+                useStartTick = now;
+                useConsumed = false;
+            }
+            if (held_ && !useConsumed) {
+                CustomItemDef custom;
+                int need = ServerBlocks::Instance().Item(name, custom) && custom.useTicks > 0
+                               ? custom.useTicks
+                               : blockuse::VanillaUseTicks(name, true);
+                if (name == "minecraft:dried_kelp")
+                    need = 16;
+                if (now >= useStartTick + static_cast<uint64_t>(need) + 1) {
+                    const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
+                                          static_cast<float>(camera.z)};
+                    live.SendReleaseItem(eye, true);
+                    useConsumed = true;
+                    usingItem = false;
+                }
+            }
+            useWasHeld = held_ || (use && consumable && useConsumed);
+            if (!use)
+                useWasHeld = false;
+        }
         player.SetItemSlow(use && (eating || name == "minecraft:bow" || name == "minecraft:trident" ||
                                    name == "minecraft:spyglass"),
                            useTicks, inputManager.Pressed(Action::Use));
