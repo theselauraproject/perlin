@@ -31,6 +31,9 @@ if(NOT TARGET perlin_gpu)
         ${PERLIN_JSHADER_SOURCES}
         JavaPack.cpp
         GpuCore.cpp
+        ModGpuHub.cpp
+        ModGpu.cpp
+        ModGpuRun.cpp
         ChunkMeshStore.cpp
         GpuChunkCull.cpp
         RenderContext_rhi.cpp
@@ -42,6 +45,11 @@ if(NOT TARGET perlin_gpu)
         RenderContext_rhi_world.cpp
         ../../../util/GraphicsDebugger.cpp)
     target_include_directories(perlin_gpu PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+    if(PERLIN_API_INCLUDE_DIRS)
+        target_include_directories(perlin_gpu PUBLIC ${PERLIN_API_INCLUDE_DIRS})
+    elseif(PERLIN_API_DIR)
+        target_include_directories(perlin_gpu PUBLIC "${PERLIN_API_DIR}/sdk")
+    endif()
 
     find_package(Threads REQUIRED)
     target_link_libraries(perlin_gpu PUBLIC conduit::conduit perlin_glslang perlin_spirv_cross miniz Threads::Threads ${CMAKE_DL_LIBS})

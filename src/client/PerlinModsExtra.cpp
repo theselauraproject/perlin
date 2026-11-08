@@ -1,6 +1,7 @@
 #include "client/PerlinInternal.hpp"
 #include "client/Perlin.hpp"
 
+#include "client/PerlinModsGpu.hpp"
 #include "client/mods/ModManager.hpp"
 #include "client/platform/AppPlatform.hpp"
 #include "client/ui/HudRenderers.hpp"
@@ -75,6 +76,7 @@ namespace perlin {
     void Perlin::SetupModExtra() {
         using abi::Op;
         auto& mm = mods::ModManager::Instance();
+        RegisterModGpuOps(mm);
 
         mm.Register(Op::ItemInfo, [this](CallContext&, abi::Reader& r, abi::Writer& w) {
             const std::string name = r.str();
@@ -421,6 +423,7 @@ namespace perlin {
                 modExtra.micPending.clear();
             }
         }
+        DropModGpu(plugin);
         sockets.reset();
         for (uint32_t id : streams)
             audioEngine.StreamClose(id);
@@ -453,6 +456,8 @@ namespace perlin {
                 if (!running.contains(owner))
                     DropModExtra(owner);
         }
+
+        PumpModGpuEvents(mm);
 
         std::vector<std::pair<std::string, std::vector<util::SocketEvent>>> socketEvents;
         std::string join;

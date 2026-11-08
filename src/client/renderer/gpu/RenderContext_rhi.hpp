@@ -6,6 +6,7 @@
 #include "client/renderer/gpu/GpuChunkCull.hpp"
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
+#include "client/renderer/gpu/ModGpu.hpp"
 #include "client/renderer/gpu/UniformStore.hpp"
 #include <conduit/render_profile.hpp>
 
@@ -515,6 +516,7 @@ namespace perlin {
         void BindAtlas();
 
         gpu::Gpu gpu;
+        std::unique_ptr<gpu::ModGpu> modGpu;
         gpu::GpuSettings settings;
         gpu::UniformStore uni;
         static constexpr int kBuiltinCount = 7;

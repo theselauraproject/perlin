@@ -180,7 +180,7 @@ namespace perlin::mods {
 
         std::unique_ptr<WasmInstance> instance;
         std::string arch;
-        uint32_t apiRevision = kLegacyApiRevision;
+        uint32_t apiRevision = kDefaultApiRevision;
         GuestExports exports;
     };
 
@@ -279,7 +279,7 @@ namespace perlin::mods {
             {abi::Permission::Control, "control"},     {abi::Permission::Files, "files"},
             {abi::Permission::Native, "native"},       {abi::Permission::Microphone, "microphone"},
             {abi::Permission::Clipboard, "clipboard"}, {abi::Permission::Window, "window"},
-            {abi::Permission::Sockets, "sockets"},
+            {abi::Permission::Sockets, "sockets"},    {abi::Permission::Gpu, "gpu"},
         };
     }
 

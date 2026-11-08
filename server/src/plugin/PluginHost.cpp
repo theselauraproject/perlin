@@ -32,7 +32,7 @@ namespace perlin::server {
         std::unique_ptr<WasmInstance> instance;
         mods::GuestExports exports;
         mods::Subscriptions subscriptions = mods::AllEvents();
-        uint32_t apiRevision = mods::kLegacyApiRevision;
+        uint32_t apiRevision = mods::kDefaultApiRevision;
         std::set<std::string> commands;
         std::map<std::string, std::string> settings;
         std::unique_ptr<util::SocketSet> sockets;
@@ -112,7 +112,7 @@ namespace perlin::server {
             r.revision = abi::kApiRevision;
             r.oldest = abi::kApiOldestRevision;
             const Plugin* p = Find(c.plugin);
-            r.plugin = p ? p->apiRevision : mods::kLegacyApiRevision;
+            r.plugin = p ? p->apiRevision : mods::kDefaultApiRevision;
             return r;
         });
         ops.Handle<Op::Capabilities>([this](Ctx&) {

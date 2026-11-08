@@ -296,6 +296,9 @@ namespace perlin {
         DestroyStaticResources();
         meshes.Shutdown();
         DestroyUi();
+        if (modGpu)
+            modGpu->Shutdown();
+        modGpu.reset();
         gpu.Shutdown();
         initialized = false;
     }
@@ -1090,7 +1093,18 @@ namespace perlin {
         if (!list)
             return;
         gpu.SetState(image.texture, conduit::state::undefined);
+        if (!modGpu)
+            modGpu = std::make_unique<gpu::ModGpu>(gpu);
+        if (!modGpu->Active())
+            modGpu->Start(rendererName);
+        modGpu->BeginFrame(gpu.TargetWidth(), gpu.TargetHeight());
         gpu.Flush(*list);
+        gpu::ModGpu::Screen modScreen;
+        modScreen.color = image.texture;
+        modScreen.width = gpu.TargetWidth();
+        modScreen.height = gpu.TargetHeight();
+        modScreen.format = gpu.TargetFormat();
+        modGpu->Record(*list, gpu::ModStage::Pre, &modScreen);
         if (gpuCullFrame)
             cull.Record(*list);
         gpuCullFrame = false;
@@ -1187,14 +1201,26 @@ namespace perlin {
             RunStage(*list, stage);
         fgen.valid = false;
         bool hudlessTaken = false;
+        bool underHudDone = false;
         for (const Stage& stage : stages) {
             if (generate && !hudlessTaken && stage.kind == Stage::Kind::Pass && !stage.views.empty() &&
                 stage.views.front() == View::Hand) {
                 CaptureHudless(*list, screen);
                 hudlessTaken = true;
             }
+            if (!underHudDone && stage.kind == Stage::Kind::Pass &&
+                std::any_of(stage.views.begin(), stage.views.end(),
+                            [](View v) { return v == View::Hand || v == View::Gui; })) {
+                modGpu->Record(*list, gpu::ModStage::UnderHud, &modScreen);
+                underHudDone = true;
+            }
             RunStage(*list, stage);
         }
+        if (!underHudDone)
+            modGpu->Record(*list, gpu::ModStage::UnderHud, &modScreen);
+        // Plugin drawing is screen-space like the HUD: it is recorded before the final capture, so generated frames
+        // show it unwarped (the frame-gen shader keeps every pixel where the final image differs from the hudless one).
+        modGpu->Record(*list, gpu::ModStage::Overlay, &modScreen);
         if (generate && hudlessTaken)
             CaptureFinal(*list, screen);
 
@@ -1204,6 +1230,7 @@ namespace perlin {
         gpu.FlushRings();
         dev.submit(conduit::queue_type::graphics, list);
         gpu.PresentImage();
+        modGpu->EndFrame();
     }
 
     void RenderContext_rhi::UploadLightmap(const uint8_t* pixels) {
@@ -1482,6 +1509,9 @@ namespace perlin {
                 }
                 a->Detach();
             }
+        if (modGpu)
+            modGpu->Shutdown();
+        modGpu.reset();
         gpu.Shutdown();
         initialized = false;
         uniformCache.clear();

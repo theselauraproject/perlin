@@ -135,6 +135,7 @@ namespace perlin::gpu {
         device_options dop;
         dop.adapter_index = s.adapterIndex;
         dop.validation = s.validation;
+        dop.state_validation = s.validation;
         dop.frames_in_flight = std::max(1u, s.framesInFlight);
         dop.hooks = s.hooks;
         dop.pipeline_cache_data = s.pipelineCache;

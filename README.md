@@ -26,6 +26,6 @@ The plugin SDK, the schema it is generated from and the host core that runs plug
 cmake --preset <preset> -DPERLIN_API_SOURCE_DIR=../perlin-api
 ```
 
-Plugins declare the API revision they were built for and keep working on later games: see `docs/versioning.md` in perlin-api. The old plugin binaries in `tests/data/plugins` and `plugins/prebuilt` are loaded by `mod_selftest` on every build and must not be rebuilt when the API changes.
+Plugins declare the API revision they were built for and keep working on later games: see `docs/versioning.md` in perlin-api. The prebuilt plugin binaries in `tests/data/plugins` and `plugins/prebuilt` are loaded by `mod_selftest` on every build.
 
 The first-party plugins (waila, minimap, barrel roll) and the plugin examples are in `plugins/`; see `plugins/README.md`.
