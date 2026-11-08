@@ -496,6 +496,9 @@ namespace perlin {
             playerName = name;
             runtimeId = localRuntimeId;
             serverProtocol = protocol;
+            // the decoders follow this, not serverProtocol: a recording from an older server otherwise
+            // fails every packet whose layout changed since (level_chunk: no terrain at all)
+            net::context::SetProtocol(protocol);
             state = State::InGame;
             netLevel.EnableUndo(static_cast<size_t>(768) << 20);
         }
