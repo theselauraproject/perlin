@@ -43,7 +43,65 @@ namespace {
             return '0';
         if (sc >= SDL_SCANCODE_F1 && sc <= SDL_SCANCODE_F12)
             return K::F1 + (sc - SDL_SCANCODE_F1);
+        if (sc >= SDL_SCANCODE_F13 && sc <= SDL_SCANCODE_F24)
+            return K::F1 + 12 + (sc - SDL_SCANCODE_F13);
+        if (sc >= SDL_SCANCODE_KP_1 && sc <= SDL_SCANCODE_KP_9)
+            return K::Keypad0 + 1 + (sc - SDL_SCANCODE_KP_1);
         switch (sc) {
+        case SDL_SCANCODE_KP_0:
+            return K::Keypad0;
+        case SDL_SCANCODE_KP_MULTIPLY:
+            return K::KeypadMultiply;
+        case SDL_SCANCODE_KP_PLUS:
+            return K::KeypadAdd;
+        case SDL_SCANCODE_KP_MINUS:
+            return K::KeypadSubtract;
+        case SDL_SCANCODE_KP_PERIOD:
+            return K::KeypadDecimal;
+        case SDL_SCANCODE_KP_DIVIDE:
+            return K::KeypadDivide;
+        case SDL_SCANCODE_KP_ENTER:
+            return K::Enter;
+        case SDL_SCANCODE_NUMLOCKCLEAR:
+            return K::NumLock;
+        case SDL_SCANCODE_SCROLLLOCK:
+            return K::ScrollLock;
+        case SDL_SCANCODE_PAUSE:
+            return K::Pause;
+        case SDL_SCANCODE_CAPSLOCK:
+            return K::CapsLock;
+        case SDL_SCANCODE_PRINTSCREEN:
+            return K::PrintScreen;
+        case SDL_SCANCODE_INSERT:
+            return K::Insert;
+        case SDL_SCANCODE_LGUI:
+            return K::LeftWin;
+        case SDL_SCANCODE_RGUI:
+            return K::RightWin;
+        case SDL_SCANCODE_APPLICATION:
+            return K::Menu;
+        case SDL_SCANCODE_SEMICOLON:
+            return K::Semicolon;
+        case SDL_SCANCODE_EQUALS:
+            return K::Equal;
+        case SDL_SCANCODE_COMMA:
+            return K::Comma;
+        case SDL_SCANCODE_MINUS:
+            return K::Minus;
+        case SDL_SCANCODE_PERIOD:
+            return K::Period;
+        case SDL_SCANCODE_GRAVE:
+            return K::Grave;
+        case SDL_SCANCODE_LEFTBRACKET:
+            return K::LeftBracket;
+        case SDL_SCANCODE_BACKSLASH:
+            return K::Backslash;
+        case SDL_SCANCODE_RIGHTBRACKET:
+            return K::RightBracket;
+        case SDL_SCANCODE_APOSTROPHE:
+            return K::Apostrophe;
+        case SDL_SCANCODE_NONUSBACKSLASH:
+            return K::World2;
         case SDL_SCANCODE_SPACE:
             return K::Space;
         case SDL_SCANCODE_LSHIFT:
