@@ -917,7 +917,7 @@ namespace perlin {
         std::atomic<uint32_t> inputLocks{0};
         std::atomic<bool> immobile{false};
         std::atomic<bool> legacyInventory{false};
-        std::vector<ItemV4> legacyDrops;
+        std::vector<proto::ItemV4> legacyDrops;
         std::atomic<uint32_t> hiddenHud{0};
         net::PacketDispatcher dispatcher;
         bool SendRequestNetworkSettings();
