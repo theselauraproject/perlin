@@ -29,6 +29,32 @@ namespace perlin {
             {Key::Up, "up"},
             {Key::Right, "right"},
             {Key::Down, "down"},
+            // java's key.keyboard.* names so options.txt stays readable
+            {Key::Pause, "pause"},
+            {Key::CapsLock, "caps.lock"},
+            {Key::PrintScreen, "print.screen"},
+            {Key::Insert, "insert"},
+            {Key::LeftWin, "left.win"},
+            {Key::RightWin, "right.win"},
+            {Key::Menu, "menu"},
+            {Key::KeypadMultiply, "keypad.multiply"},
+            {Key::KeypadAdd, "keypad.add"},
+            {Key::KeypadSubtract, "keypad.subtract"},
+            {Key::KeypadDecimal, "keypad.decimal"},
+            {Key::KeypadDivide, "keypad.divide"},
+            {Key::NumLock, "num.lock"},
+            {Key::ScrollLock, "scroll.lock"},
+            {Key::Semicolon, "semicolon"},
+            {Key::Equal, "equal"},
+            {Key::Comma, "comma"},
+            {Key::Minus, "minus"},
+            {Key::Period, "period"},
+            {Key::Grave, "grave.accent"},
+            {Key::LeftBracket, "left.bracket"},
+            {Key::Backslash, "backslash"},
+            {Key::RightBracket, "right.bracket"},
+            {Key::Apostrophe, "apostrophe"},
+            {Key::World2, "world.2"},
         };
 
         constexpr Named kMouse[] = {
@@ -49,7 +75,9 @@ namespace perlin {
             out += static_cast<char>(std::tolower(key));
             return out;
         }
-        if (key >= Key::F1 && key <= Key::F12) {
+        if (key >= Key::Keypad0 && key <= Key::Keypad0 + 9)
+            return out + "keypad." + std::to_string(key - Key::Keypad0);
+        if (key >= Key::F1 && key <= Key::F24) {
             out += 'f';
             out += std::to_string(key - Key::F1 + 1);
             return out;
@@ -57,6 +85,9 @@ namespace perlin {
         for (const auto& n : kNamed)
             if (n.code == key)
                 return out + n.name;
+        // anything else the platform reported still round-trips instead of failing to bind
+        if (key > 0 && key < 256)
+            return out + "code." + std::to_string(key);
         return {};
     }
 
@@ -69,12 +100,20 @@ namespace perlin {
             return std::toupper(static_cast<unsigned char>(tail[0]));
         if (tail.size() >= 2 && tail[0] == 'f' && std::isdigit(static_cast<unsigned char>(tail[1]))) {
             int n = std::atoi(tail.c_str() + 1);
-            if (n >= 1 && n <= 12)
+            if (n >= 1 && n <= 24)
                 return Key::F1 + n - 1;
         }
+        if (tail.size() == 8 && tail.starts_with("keypad.") &&
+            std::isdigit(static_cast<unsigned char>(tail[7])))
+            return Key::Keypad0 + (tail[7] - '0');
         for (const auto& n : kNamed)
             if (tail == n.name)
                 return n.code;
+        if (tail.starts_with("code.")) {
+            const int code = std::atoi(tail.c_str() + 5);
+            if (code > 0 && code < 256)
+                return code;
+        }
         return 0;
     }
 

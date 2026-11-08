@@ -445,8 +445,11 @@ namespace perlin {
                 }
                 captured = true;
             }
-            for (int b = 1; b <= 2 && !captured && optionsUi.bindDevice == 0; b++)
-                if (input.IsMouseDown(b) &&
+            // the click that opened the prompt has to be released before left can be bound
+            if (!input.IsMouseDown(Mouse::Left))
+                optionsUi.bindLeftArmed = true;
+            for (int b = 0; b <= Mouse::Forward && !captured && optionsUi.bindDevice == 0; b++)
+                if ((b != Mouse::Left || optionsUi.bindLeftArmed) && input.IsMouseDown(b) &&
                     Clock::now() - optionsUi.bindStartedAt > std::chrono::milliseconds(120)) {
                     if (optionsUi.bindCapture >= 1000) {
                         if (const size_t k = static_cast<size_t>(optionsUi.bindCapture - 1000);
@@ -484,6 +487,7 @@ namespace perlin {
                     if (inside(kl.keyX, y, kl.keyW, 20.0f)) {
                         optionsUi.bindCapture = action;
                         optionsUi.bindStartedAt = Clock::now();
+                        optionsUi.bindLeftArmed = false;
                         optionsUi.signature.clear();
                         break;
                     }
