@@ -9,6 +9,8 @@ namespace perlin::http {
         int status = 0;
         std::string body;
         std::map<std::string, std::string> headers;
+        // transport failure text when status is 0 (httplib error, plus ssl codes)
+        std::string error;
     };
 
     Response Request(const std::string& host, uint16_t port, bool tls, const std::string& method,

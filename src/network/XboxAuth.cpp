@@ -480,7 +480,8 @@ namespace perlin::xbox {
 
         static std::string NetworkError(const http::Response& r, const char* what) {
             if (r.status == 0)
-                return std::string("cannot reach ") + what + " (no network, or TLS failed)";
+                return std::string("cannot reach ") + what + " (" +
+                       (r.error.empty() ? std::string("no network, or TLS failed") : r.error) + ")";
             return std::string(what) + " answered HTTP " + std::to_string(r.status);
         }
 

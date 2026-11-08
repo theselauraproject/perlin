@@ -14,8 +14,13 @@
 #if !defined(_WIN32)
 #include <sys/stat.h>
 #else
+#include <atomic>
 #include <windows.h>
 #include <wincrypt.h>
+#include <winhttp.h>
+#if defined(_MSC_VER)
+#pragma comment(lib, "winhttp.lib")
+#endif
 #endif
 
 namespace perlin::http {
@@ -170,9 +175,135 @@ namespace perlin::http {
     }
     template std::string Describe<httplib::Result>(const httplib::Result&);
 
-    Response Request(const std::string& host, uint16_t port, bool tls, const std::string& method,
-                     const std::string& path, const std::string& body, const std::string& contentType,
-                     const std::map<std::string, std::string>& extra, int timeoutSecs) {
+#if defined(_WIN32)
+    namespace {
+        std::wstring Wide(const std::string& s) {
+            if (s.empty())
+                return {};
+            const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
+            std::wstring out(static_cast<size_t>(n), L'\0');
+            MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), out.data(), n);
+            return out;
+        }
+
+        struct WinHandle {
+            HINTERNET h = nullptr;
+            ~WinHandle() {
+                if (h)
+                    WinHttpCloseHandle(h);
+            }
+        };
+
+        // schannel path for machines where openssl https dies after the handshake (https-scanning antivirus)
+        Response WinHttpRequest(const std::string& host, uint16_t port, bool tls, const std::string& method,
+                                const std::string& path, const std::string& body,
+                                const std::string& contentType,
+                                const std::map<std::string, std::string>& extra, int timeoutSecs) {
+            Response out;
+            const auto fail = [&](const char* step) {
+                out = {};
+                out.error = std::string("winhttp ") + step + " failed (error " +
+                            std::to_string(GetLastError()) + ")";
+                return out;
+            };
+            std::string agent = "Perlin";
+            std::wstring headerBlock;
+            for (auto& [k, v] : extra) {
+                std::string lower = k;
+                for (char& c : lower)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (lower == "user-agent")
+                    agent = v;
+                else
+                    headerBlock += Wide(k + ": " + v + "\r\n");
+            }
+            if (!contentType.empty())
+                headerBlock += Wide("Content-Type: " + contentType + "\r\n");
+
+            WinHandle session{WinHttpOpen(Wide(agent).c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                                          WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0)};
+            if (!session.h)
+                session.h = WinHttpOpen(Wide(agent).c_str(), WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                                        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+            if (!session.h)
+                return fail("open");
+            const int ms = timeoutSecs * 1000;
+            WinHttpSetTimeouts(session.h, ms, ms, ms, ms);
+            WinHandle conn{WinHttpConnect(session.h, Wide(host).c_str(), port, 0)};
+            if (!conn.h)
+                return fail("connect");
+            WinHandle req{WinHttpOpenRequest(conn.h, Wide(method).c_str(), Wide(path).c_str(), nullptr,
+                                             WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                             tls ? WINHTTP_FLAG_SECURE : 0)};
+            if (!req.h)
+                return fail("request");
+            const DWORD size = static_cast<DWORD>(body.size());
+            const wchar_t* hdrs = headerBlock.empty() ? WINHTTP_NO_ADDITIONAL_HEADERS : headerBlock.c_str();
+            const DWORD hdrLen = headerBlock.empty() ? 0 : static_cast<DWORD>(-1);
+            void* data = size ? const_cast<char*>(body.data()) : WINHTTP_NO_REQUEST_DATA;
+            if (!WinHttpSendRequest(req.h, hdrs, hdrLen, data, size, size, 0))
+                return fail("send");
+            if (!WinHttpReceiveResponse(req.h, nullptr))
+                return fail("receive");
+
+            DWORD status = 0, len = sizeof(status);
+            WinHttpQueryHeaders(req.h, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                WINHTTP_HEADER_NAME_BY_INDEX, &status, &len, WINHTTP_NO_HEADER_INDEX);
+            len = 0;
+            WinHttpQueryHeaders(req.h, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
+                                WINHTTP_NO_OUTPUT_BUFFER, &len, WINHTTP_NO_HEADER_INDEX);
+            if (GetLastError() == ERROR_INSUFFICIENT_BUFFER && len > 0) {
+                std::wstring raw(len / sizeof(wchar_t), L'\0');
+                if (WinHttpQueryHeaders(req.h, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
+                                        raw.data(), &len, WINHTTP_NO_HEADER_INDEX)) {
+                    raw.resize(len / sizeof(wchar_t));
+                    size_t at = raw.find(L"\r\n"); // skip the status line
+                    while (at != std::wstring::npos) {
+                        const size_t start = at + 2;
+                        at = raw.find(L"\r\n", start);
+                        const size_t count = at == std::wstring::npos ? std::wstring::npos : at - start;
+                        const std::wstring line = raw.substr(start, count);
+                        const size_t colon = line.find(L':');
+                        if (colon == std::wstring::npos)
+                            continue;
+                        std::string key, val;
+                        for (wchar_t c : line.substr(0, colon))
+                            key += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                        size_t v = colon + 1;
+                        while (v < line.size() && line[v] == L' ')
+                            v++;
+                        for (wchar_t c : line.substr(v))
+                            val += static_cast<char>(c);
+                        out.headers.emplace(std::move(key), std::move(val));
+                    }
+                }
+            }
+            for (;;) {
+                DWORD avail = 0;
+                if (!WinHttpQueryDataAvailable(req.h, &avail))
+                    return fail("read");
+                if (avail == 0)
+                    break;
+                const size_t had = out.body.size();
+                out.body.resize(had + avail);
+                DWORD got = 0;
+                if (!WinHttpReadData(req.h, out.body.data() + had, avail, &got))
+                    return fail("read");
+                out.body.resize(had + got);
+            }
+            out.status = static_cast<int>(status);
+            return out;
+        }
+
+        // openssl failed once and schannel worked: go straight to schannel, no timeout per call
+        std::atomic<bool> g_preferWinHttp{false};
+    }
+#endif
+
+    static Response OpenSslRequest(const std::string& host, uint16_t port, bool tls,
+                                   const std::string& method, const std::string& path,
+                                   const std::string& body, const std::string& contentType,
+                                   const std::map<std::string, std::string>& extra, int timeoutSecs) {
         auto run = [&](auto& cli) -> Response {
             cli.set_connection_timeout(timeoutSecs);
             cli.set_read_timeout(timeoutSecs);
@@ -186,11 +317,13 @@ namespace perlin::http {
                                   : method == "DELETE" ? cli.Delete(path, headers, body, contentType)
                                                        : cli.Post(path, headers, body, contentType);
             if (!res) {
+                Response failed;
+                failed.error = Describe(res);
                 Log("http", "{} {}{} failed: {}", method, host, path.substr(0, path.find('?')),
-                    Describe(res));
-                return {};
+                    failed.error);
+                return failed;
             }
-            Response out{res->status, res->body, {}};
+            Response out{res->status, res->body, {}, {}};
             for (auto& [k, v] : res->headers) {
                 std::string key = k;
                 for (char& c : key)
@@ -206,6 +339,29 @@ namespace perlin::http {
         }
         httplib::Client cli(host, port);
         return run(cli);
+    }
+
+    Response Request(const std::string& host, uint16_t port, bool tls, const std::string& method,
+                     const std::string& path, const std::string& body, const std::string& contentType,
+                     const std::map<std::string, std::string>& extra, int timeoutSecs) {
+#if defined(_WIN32)
+        if (tls && g_preferWinHttp.load())
+            return WinHttpRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
+        Response r = OpenSslRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
+        if (!tls || r.status != 0)
+            return r;
+        Response w = WinHttpRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
+        if (w.status != 0) {
+            if (!g_preferWinHttp.exchange(true))
+                Log("http", "openssl https failed here but winhttp works; using winhttp from now on");
+            return w;
+        }
+        Log("http", "{} {}{} also failed over winhttp: {}", method, host, path.substr(0, path.find('?')),
+            w.error);
+        return r;
+#else
+        return OpenSslRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
+#endif
     }
 
     Response GetUrl(const std::string& url, const std::map<std::string, std::string>& headers,
