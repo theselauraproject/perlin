@@ -92,7 +92,9 @@ int main(int argc, char** argv) {
 
     BlockLibrary lib;
     lib.SetTexturePack(true);
-    CHECK(BlockLibrary::TilePx() == 64);
+    // a library being staged must not change the size the live atlas is read with
+    CHECK(lib.OwnTilePx() == 64);
+    CHECK(BlockLibrary::TilePx() == 16);
     const std::string vanilla = argv[1];
     for (int attempt = 0; attempt < 12 && !lib.EnsureLoaded((tmp / "perlin").string(), vanilla); attempt++) {}
     CHECK(lib.Ready());
@@ -113,6 +115,8 @@ int main(int argc, char** argv) {
     int animated = 0;
     lib.PollAnimation(1, [&](int, const uint8_t*) { animated++; });
     CHECK(animated > 0);
+    BlockLibrary::SetLiveTilePx(lib.OwnTilePx());
+    CHECK(BlockLibrary::TilePx() == 64);
     float u0, v0, u1, v1;
     BlockLibrary::TileUV(1, u0, v0, u1, v1);
     CHECK(u1 > u0 && v1 > v0);

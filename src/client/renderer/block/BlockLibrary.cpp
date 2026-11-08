@@ -50,7 +50,7 @@ namespace perlin {
 
     int BlockLibrary::NewTile() {
         const int t = nextTile++;
-        atlas.resize((size_t)nextTile * tilePxValue * tilePxValue * 4, 0);
+        atlas.resize((size_t)nextTile * tilePx * tilePx * 4, 0);
         return t;
     }
 
@@ -73,7 +73,7 @@ namespace perlin {
         int size = 16;
         while (size < widest && size < 256)
             size <<= 1;
-        tilePxValue = size;
+        tilePx = size;
         Log("textures", "pack={} tile={}px", (active ? TexturePack::Instance().Description() : "<vanilla>"),
             size);
     }
@@ -138,7 +138,7 @@ namespace perlin {
             return;
         glassBuilt = true;
         glassTiles.clear();
-        const int T = tilePxValue;
+        const int T = tilePx;
         const int fw = std::max(1, T / 16);
         std::vector<int> bases;
         std::unordered_set<int> tinted;
@@ -361,7 +361,7 @@ namespace perlin {
                 Log("blocks", "atlas full at {} tiles: further textures fall back to tile 0", MaxTiles());
             return 0;
         }
-        const int kTilePx = tilePxValue;
+        const int kTilePx = tilePx;
         std::string full;
         int w = 0, h = 0;
         Texture tex;
@@ -550,7 +550,7 @@ namespace perlin {
             if (nextTile >= MaxTiles())
                 return 0;
         }
-        const int px = tilePxValue;
+        const int px = tilePx;
         const int tile = NewTile();
         uint8_t* out = atlas.data() + static_cast<size_t>(tile) * px * px * 4;
         const float base[3] = {90.0f + static_cast<float>(h & 0x7F),
@@ -633,7 +633,7 @@ namespace perlin {
                                      const std::function<void(int tile, const uint8_t* rgba)>& emit) {
         if (!ready || animByTile.empty())
             return;
-        const size_t frameBytes = (size_t)tilePxValue * tilePxValue * 4;
+        const size_t frameBytes = (size_t)tilePx * tilePx * 4;
         for (auto& [tile, src] : animByTile) {
             if (src.frames <= 1)
                 continue;
@@ -746,7 +746,7 @@ namespace perlin {
             }
         }
 
-        const int kTilePx = tilePxValue;
+        const int kTilePx = tilePx;
         if (atlas.empty()) {
             nextTile = 1;
             synthTiles.clear();
@@ -1606,7 +1606,7 @@ namespace perlin {
     }
 
     bool BlockLibrary::TilePixels(int tile, std::vector<uint8_t>& rgba) const {
-        const size_t bytes = (size_t)tilePxValue * tilePxValue * 4;
+        const size_t bytes = (size_t)tilePx * tilePx * 4;
         if (tile < 0 || (size_t)(tile + 1) * bytes > atlas.size())
             return false;
         rgba.assign(atlas.begin() + (size_t)tile * bytes, atlas.begin() + (size_t)(tile + 1) * bytes);
