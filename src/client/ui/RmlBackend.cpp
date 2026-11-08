@@ -1,3 +1,5 @@
+#include <atomic>
+#include "client/resources/AssetJobs.hpp"
 #include "client/resources/TexturePack.hpp"
 #include "util/Resources.hpp"
 #include "client/resources/TextureLoader.hpp"
@@ -60,6 +62,9 @@ namespace perlin::ui {
             return Rml::ColourbPremultiplied(byte(r * a), byte(g * a), byte(b * a), byte(a));
         }
     }
+
+    // Placeholders handed out since the last reload; RmlUi caches them for good unless textures are released.
+    static std::atomic<int> gMissingTextures{0};
 
     class BgfxRenderInterface final : public Rml::RenderInterface {
     public:
@@ -184,6 +189,7 @@ namespace perlin::ui {
                 if (tail == "null" || tail == "null.png" || tail == "null.tga")
                     return 0;
                 Log("ui", "missing texture {}", source);
+                gMissingTextures++;
                 t.width = t.height = 2;
                 t.pixels = {248, 0, 248, 255, 0, 0, 0, 255, 0, 0, 0, 255, 248, 0, 248, 255};
             }
@@ -1018,6 +1024,23 @@ namespace perlin::ui {
             }
         } else {
             ++frameCounter;
+        }
+        // A texture asked for before the downloaded assets were in place stays a magenta placeholder in
+        // RmlUi's cache. Once the downloads settle (or a little later), drop the cache so it is read again.
+        {
+            static bool wasBusy = true;
+            static int retries = 0, sinceRetry = 0;
+            const bool busy = assets::Busy(assets::Samples());
+            sinceRetry++;
+            const bool settled = wasBusy && !busy;
+            wasBusy = busy;
+            if (gMissingTextures.load() > 0 && !busy && retries < 3 &&
+                (settled || sinceRetry > (retries == 0 ? 600 : 1800))) {
+                retries++;
+                sinceRetry = 0;
+                gMissingTextures = 0;
+                ReloadTextures();
+            }
         }
         context->Render();
         gLayer = UiLayer::Gui;

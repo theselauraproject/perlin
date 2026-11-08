@@ -222,6 +222,87 @@ namespace perlin::jshader {
             return 0;
         }
 
+
+        // One piece of a flattened varying: matrices become one vector per column and structs one
+        // varying per member. SPIRV-Cross's HLSL output gives multi-slot varyings overlapping
+        // TEXCOORD semantics (Photon: "output TEXCOORD3 used more than once"), so those are never
+        // handed to it whole.
+        struct VaryingPiece {
+            std::string suffix, type, access;
+        };
+
+        std::string StripGlslComments(std::string text) {
+            for (size_t at = text.find("/*"); at != std::string::npos; at = text.find("/*", at)) {
+                const size_t end = text.find("*/", at + 2);
+                text.erase(at, end == std::string::npos ? std::string::npos : end + 2 - at);
+            }
+            for (size_t at = text.find("//"); at != std::string::npos; at = text.find("//", at)) {
+                const size_t end = text.find('\n', at);
+                text.erase(at, end == std::string::npos ? std::string::npos : end - at);
+            }
+            return text;
+        }
+
+        bool IsPlainVaryingType(const std::string& t) {
+            static const std::set<std::string> ok = {"float", "vec2", "vec3", "vec4", "int",
+                                                     "ivec2", "ivec3", "ivec4", "uint", "uvec2",
+                                                     "uvec3", "uvec4", "bool"};
+            return ok.contains(t);
+        }
+
+        std::vector<VaryingPiece> FlattenVarying(const std::string& source, const std::string& type) {
+            std::vector<VaryingPiece> out;
+            if (type.compare(0, 3, "mat") == 0) {
+                int cols = 0, rows = 0;
+                if (type.size() == 4) {
+                    cols = rows = type[3] - '0';
+                } else if (type.size() == 6 && type[4] == 'x') {
+                    cols = type[3] - '0';
+                    rows = type[5] - '0';
+                }
+                if (cols < 2 || cols > 4 || rows < 2 || rows > 4)
+                    return {};
+                for (int c = 0; c < cols; c++)
+                    out.push_back({"c" + std::to_string(c), "vec" + std::to_string(rows),
+                                   "[" + std::to_string(c) + "]"});
+                return out;
+            }
+            static const std::regex kBlock(R"(\bstruct\s+(\w+)\s*\{([^}]*)\})");
+            for (auto it = std::sregex_iterator(source.begin(), source.end(), kBlock);
+                 it != std::sregex_iterator(); ++it) {
+                if ((*it)[1].str() != type)
+                    continue;
+                std::string body = StripGlslComments((*it)[2].str());
+                std::stringstream members(body);
+                std::string decl;
+                while (std::getline(members, decl, ';')) {
+                    std::istringstream words(decl);
+                    std::vector<std::string> parts;
+                    for (std::string w; words >> w;)
+                        parts.push_back(w);
+                    while (!parts.empty() && (parts.front() == "flat" || parts.front() == "highp" ||
+                                              parts.front() == "mediump" || parts.front() == "lowp" ||
+                                              parts.front() == "smooth" || parts.front() == "const"))
+                        parts.erase(parts.begin());
+                    if (parts.empty())
+                        continue;
+                    if (parts.size() < 2 || !IsPlainVaryingType(parts[0]))
+                        return {};
+                    std::string rest;
+                    for (size_t i = 1; i < parts.size(); i++)
+                        rest += parts[i];
+                    std::stringstream names(rest);
+                    for (std::string one; std::getline(names, one, ',');) {
+                        if (one.empty() || one.find('[') != std::string::npos)
+                            return {};
+                        out.push_back({one, parts[0], "." + one});
+                    }
+                }
+                return out;
+            }
+            return {};
+        }
+
         struct BuiltinUse {
             bool modelView = false, modelViewInv = false, proj = false, projInv = false, normalMat = false;
             bool textureMat = false, fogColor = false, fogDensity = false, fogStart = false, fogEnd = false,
@@ -1869,7 +1950,14 @@ namespace perlin::jshader {
             l.inVertexOut = l.inFragmentIn = true;
         }
         const std::string allGlsl = program.vertex.glsl + "\n" + program.fragment.glsl;
+        const auto piecesOf = [&](const Link& l) {
+            if (l.arrayCount > 0 || IsPlainVaryingType(l.type))
+                return std::vector<VaryingPiece>{};
+            return FlattenVarying(allGlsl, l.type);
+        };
         const auto slotsOf = [&](const Link& l) {
+            if (const auto pieces = piecesOf(l); !pieces.empty())
+                return static_cast<int>(pieces.size());
             int per = TypeSlots(l.type);
             if (per == 1)
                 if (const int members = StructSlots(allGlsl, l.type); members > 0)
@@ -1906,7 +1994,31 @@ namespace perlin::jshader {
             next += slots;
         }
 
-        auto varyingDecl = [&](const std::string& name, const Link& l, bool out) {
+        // Declares the interface for a link; flattened ones also get a private global with the
+        // original name so the user's code is unchanged. `copy` receives the statements that move
+        // the global to/from the pieces.
+        auto varyingDecl = [&](const std::string& name, const Link& l, bool out,
+                               std::string* copy = nullptr, bool zero = false) {
+            if (const auto pieces = piecesOf(l); !pieces.empty()) {
+                std::string s = l.type + " " + name + ";\n";
+                for (size_t i = 0; i < pieces.size(); i++) {
+                    const std::string piece = name + "__" + pieces[i].suffix;
+                    s += "layout(location = " + std::to_string(l.location + static_cast<int>(i)) + ") ";
+                    if (!l.interp.empty())
+                        s += l.interp + " ";
+                    s += std::string(out ? "out " : "in ") + pieces[i].type + " " + piece + ";\n";
+                    if (copy) {
+                        const bool real = pieces[i].type == "float" || pieces[i].type.compare(0, 3, "vec") == 0;
+                        const std::string zeroValue = real ? pieces[i].type + "(0.0)" : pieces[i].type + "(0)";
+                        if (out)
+                            *copy += "    " + piece + " = " +
+                                     (zero ? zeroValue : name + pieces[i].access) + ";\n";
+                        else
+                            *copy += "    " + name + pieces[i].access + " = " + piece + ";\n";
+                    }
+                }
+                return s;
+            }
             std::string s = "layout(location = " + std::to_string(l.location) + ") ";
             if (!l.interp.empty())
                 s += l.interp + " ";
@@ -1976,10 +2088,10 @@ namespace perlin::jshader {
                 emitAttr(loc, v.type, v.name, fallback);
             }
             body = ReplaceAll(body, "/*ATTR*/", "");
-            std::string varyings;
+            std::string varyings, flatCopy;
             for (const InterfaceVar& v : r.outputs) {
                 const Link& l = links[v.name];
-                varyings += varyingDecl(v.name, l, true);
+                varyings += varyingDecl(v.name, l, true, &flatCopy);
             }
             if (fogCoord)
                 varyings += varyingDecl("iris_FogFragCoord", links["iris_FogFragCoord"], true);
@@ -1988,7 +2100,9 @@ namespace perlin::jshader {
             for (const auto& [linkName, l] : links) {
                 if (!l.inFragmentIn || l.inVertexOut)
                     continue;
-                varyings += varyingDecl(linkName, l, true);
+                varyings += varyingDecl(linkName, l, true, &flatCopy, true);
+                if (!piecesOf(l).empty())
+                    continue;
                 const std::string zero =
                     l.type.compare(0, 3, "mat") == 0 || l.type.compare(0, 3, "vec") == 0 || l.type == "float"
                         ? l.type + "(0.0)"
@@ -2006,7 +2120,7 @@ namespace perlin::jshader {
             if (body.find("mc_chunkFade") != std::string::npos &&
                 attrs.find("mc_chunkFade") == std::string::npos)
                 prelude += "const float mc_chunkFade = 1.0;\n";
-            std::string footer = "\nvoid main() {\n" + zeroFill + "    iris_user_main();\n";
+            std::string footer = "\nvoid main() {\n" + zeroFill + "    iris_user_main();\n" + flatCopy;
             if (options.flipVertexY)
                 footer += "    gl_Position.y = -gl_Position.y;\n";
             if (options.zeroToOneDepth)
@@ -2022,10 +2136,10 @@ namespace perlin::jshader {
             std::string text = sharedPrelude(r, false);
             const size_t sep = text.find('\x01');
             std::string samplerText = text.substr(0, sep), body = text.substr(sep + 1);
-            std::string varyings;
+            std::string varyings, flatLoad;
             for (const InterfaceVar& v : r.inputs) {
                 const Link& l = links[v.name];
-                varyings += varyingDecl(v.name, l, false);
+                varyings += varyingDecl(v.name, l, false, &flatLoad);
             }
             if (fogCoord)
                 varyings += varyingDecl("iris_FogFragCoord", links["iris_FogFragCoord"], false);
@@ -2095,7 +2209,7 @@ namespace perlin::jshader {
             if (!options.alphaTest.empty() && outs.contains(" out vec4 iris_FragData0;"))
                 alphaTest = "    if (!(iris_FragData0.a " + options.alphaTest + ")) discard;\n";
             std::string footer =
-                "\nvoid main() {\n" + mainPrefix + "    iris_user_main();\n" + alphaTest + "}\n";
+                "\nvoid main() {\n" + mainPrefix + flatLoad + "    iris_user_main();\n" + alphaTest + "}\n";
             const std::string structs = HoistStructs(body);
             r.glsl = head + structs + varyings + outs + samplerText + prelude + fragCoord + body + footer;
             if (!mainPrefix.empty() && !r.glsl.contains("IrisGlobals")) {

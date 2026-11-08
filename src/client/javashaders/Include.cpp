@@ -190,12 +190,27 @@ namespace perlin::jshader {
             return line;
         }
 
+        // Iris only reads shader options from the top level of a file. A "#define" inside
+        // #if/#ifdef/#ifndef is not an option, which matters for every include guard
+        // ("#ifndef INCLUDE_X / #define INCLUDE_X"): treating those as toggles defined each
+        // guard up front, so Photon's headers (structs and functions) were silently skipped.
+        void TrackConditionalDepth(const std::string& line, int& depth) {
+            const std::string t = str::Trim(line);
+            if (t.empty() || t[0] != '#')
+                return;
+            const std::string directive = str::Trim(t.substr(1));
+            if (directive.compare(0, 2, "if") == 0)
+                depth++;
+            else if (directive.compare(0, 5, "endif") == 0 && depth > 0)
+                depth--;
+        }
+
         void Expand(IncludeContext& ctx, const std::string& path, const std::string& text,
                     ExpandedSource& out, int depth) {
             out.files.insert(path);
             std::istringstream in(text);
             std::string line;
-            int number = 0;
+            int number = 0, condDepth = 0;
             while (std::getline(in, line)) {
                 number++;
                 if (!line.empty() && line.back() == '\r')
@@ -227,7 +242,9 @@ namespace perlin::jshader {
                         continue;
                     }
                 }
-                out.text += ApplyOptions(ctx, path, line);
+                const bool topLevel = condDepth == 0;
+                TrackConditionalDepth(line, condDepth);
+                out.text += topLevel ? ApplyOptions(ctx, path, line) : line;
                 out.text += '\n';
                 out.origins.push_back({path, number});
             }
@@ -237,10 +254,14 @@ namespace perlin::jshader {
     void ScanOptionsInText(IncludeContext& ctx, const std::string& path, const std::string& text) {
         std::istringstream in(text);
         std::string line;
+        int condDepth = 0;
         while (std::getline(in, line)) {
             if (!line.empty() && line.back() == '\r')
                 line.pop_back();
-            ApplyOptions(ctx, path, line);
+            const bool topLevel = condDepth == 0;
+            TrackConditionalDepth(line, condDepth);
+            if (topLevel)
+                ApplyOptions(ctx, path, line);
         }
     }
 
