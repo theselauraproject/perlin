@@ -1368,13 +1368,19 @@ namespace perlin {
             pendingTeleportAck = false;
         }
 
-        bool hasAction = input.hasBlockAction;
-        BlockActionData action = input.blockAction;
-        if (!hasAction && !pendingBlockActions.empty()) {
-            hasAction = true;
-            action = pendingBlockActions.front();
-            pendingBlockActions.pop_front();
+        // one mining tick's actions per input (start + crack, crack + predict...): one at a time let the
+        // queue fall behind and drop predicts, so the server never broke the block
+        std::vector<BlockActionData> actions;
+        if (input.hasBlockAction)
+            actions.push_back(input.blockAction);
+        if (!pendingBlockActions.empty()) {
+            const uint32_t group = pendingBlockActions.front().group;
+            while (!pendingBlockActions.empty() && pendingBlockActions.front().group == group) {
+                actions.push_back(pendingBlockActions.front());
+                pendingBlockActions.pop_front();
+            }
         }
+        const bool hasAction = !actions.empty();
         if (hasAction)
             add(InputFlag::PerformBlockActions);
 
@@ -1414,11 +1420,16 @@ namespace perlin {
         f.tick = ++authTick;
         f.delta = {input.delta[0], input.delta[1], input.delta[2]};
         if (hasAction) {
-            proto::PlayerAuthInputPacketBlockActionEntry entry;
-            entry.action = static_cast<proto::Action>(action.action);
-            entry.position = {action.x, action.y, action.z};
-            entry.face = action.face;
-            f.blockAction = std::vector<proto::PlayerAuthInputPacketBlockActionEntry>{entry};
+            std::vector<proto::PlayerAuthInputPacketBlockActionEntry> entries;
+            entries.reserve(actions.size());
+            for (const BlockActionData& action : actions) {
+                proto::PlayerAuthInputPacketBlockActionEntry entry;
+                entry.action = static_cast<proto::Action>(action.action);
+                entry.position = {action.x, action.y, action.z};
+                entry.face = action.face;
+                entries.push_back(entry);
+            }
+            f.blockAction = std::move(entries);
         }
         if (input.predictedVehicle) {
             f.vehicleRotation = proto::Vec2F{(*input.vehicleRotation)[0], (*input.vehicleRotation)[1]};
@@ -1521,7 +1532,7 @@ namespace perlin {
             return ok;
         }
         if (pendingBlockActions.size() < 64)
-            pendingBlockActions.push_back({action, bx, by, bz, face});
+            pendingBlockActions.push_back({action, bx, by, bz, face, blockActionGroup});
         return true;
     }
 
