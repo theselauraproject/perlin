@@ -151,8 +151,6 @@ namespace perlin::ui {
                 Tex(w, n, right - i * 8 - 9, n.ay, 9, i < full ? "bubble" : "bubble_pop");
         }
 
-        // totem / omen activation: icon rises from below, swells past the crosshair, fades
-        // curve from java GameRenderer item activation
         void ScreenAnimation(const HudState& s, const LNode& n, RmlWriter& w) {
             if (s.screenAnimation < 0)
                 return;
@@ -176,7 +174,7 @@ namespace perlin::ui {
         }
 
         void Fire(const HudState& s, const LNode& n, RmlWriter& w) {
-            // the flames themselves are drawn in the world pass, where the view's perspective belongs to them
+
             ScreenAnimation(s, n, w);
         }
 
@@ -228,13 +226,53 @@ namespace perlin::ui {
                         w);
         }
 
+        void SlotOverlays(const HudState& s, const LNode& n, RmlWriter& w, bool background) {
+            for (const HudSlotOverlay& o : s.slotOverlays) {
+                if (o.slot != n.index)
+                    continue;
+                const auto channel = [](uint32_t argb, int shift) { return static_cast<float>((argb >> shift) & 0xFF) / 255.0f; };
+                if (background) {
+                    if (o.background >> 24)
+                        w.Rect(n.ax, n.ay, n.w, n.h, n.layer, channel(o.background, 16), channel(o.background, 8),
+                               channel(o.background, 0), channel(o.background, 24) * n.alpha);
+                    continue;
+                }
+                if (o.bar >= 0.0f) {
+                    const float fill = std::clamp(o.bar, 0.0f, 1.0f);
+                    const float bx = n.ax + n.w * 0.125f, by = n.ay + n.h * 0.8125f, bw = n.w * 0.8125f;
+                    w.Rect(bx, by, bw, 2, n.layer + 1, 0, 0, 0, n.alpha);
+                    w.Rect(bx, by, bw * fill, 1, n.layer + 2, channel(o.barColor, 16), channel(o.barColor, 8),
+                           channel(o.barColor, 0), channel(o.barColor, 24) * n.alpha);
+                }
+                if (!o.text.empty()) {
+                    const float width = McFont::Instance().Width(o.text);
+                    float x = n.ax, y = n.ay;
+                    if (o.corner == 1 || o.corner == 3)
+                        x = n.ax + n.w - width;
+                    if (o.corner == 2 || o.corner == 3)
+                        y = n.ay + n.h - 9.0f;
+                    if (o.corner == 4) {
+                        x = n.ax + (n.w - width) * 0.5f;
+                        y = n.ay + (n.h - 9.0f) * 0.5f;
+                    }
+                    TextStyle st;
+                    st.shadow = true;
+                    st.r = channel(o.textColor, 16);
+                    st.g = channel(o.textColor, 8);
+                    st.b = channel(o.textColor, 0);
+                    w.Text(x, y, width + 1, 9, n.layer + 3, {o.text}, st);
+                }
+            }
+        }
+
         void InventoryItem(const HudState& s, const LNode& n, RmlWriter& w) {
             if (n.index < 0 || n.index > 8)
                 return;
             const HudItem& item = s.hotbar[n.index];
-            if (item.Empty())
-                return;
-            w.Item(n.ax, n.ay, n.w, n.h, n.layer, item.Key(), n.alpha, item.enchanted);
+            SlotOverlays(s, n, w, true);
+            if (!item.Empty())
+                w.Item(n.ax, n.ay, n.w, n.h, n.layer, item.Key(), n.alpha, item.enchanted);
+            SlotOverlays(s, n, w, false);
         }
 
         void ProgressBar(const HudState& s, const LNode& n, RmlWriter& w) {
@@ -648,7 +686,7 @@ namespace perlin::ui {
 
     void RegisterHudRenderers(RmlEmitter& emitter, const HudState& state, const UiServices&) {
         const HudState* s = &state;
-        // every vanilla element goes through the mod filter: may hide it or shift its node
+
         const auto Reg = [&emitter](const char* name, std::function<void(const LNode&, RmlWriter&)> draw) {
             emitter.Register(name, [name, draw = std::move(draw)](const LNode& n, RmlWriter& w) {
                 float dx = 0, dy = 0;
@@ -658,7 +696,7 @@ namespace perlin::ui {
                     draw(n, w);
                     return;
                 }
-                // nodes own children, can't be copied: shift for this draw, put back
+
                 LNode& moved = const_cast<LNode&>(n);
                 moved.x += dx;
                 moved.ax += dx;

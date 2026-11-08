@@ -1,4 +1,3 @@
-// the c api an embedding host uses: create, start on its own thread, loopback connection, stop
 #include "test_util.hpp"
 
 #include "perlin/server.h"
@@ -50,7 +49,6 @@ int main() {
     BatchCodec::Split(out, [&](uint32_t id, std::span<const uint8_t>) { seen = id; });
     CHECK(seen == proto::NetworkSettingsPacket::kId);
 
-    // a message bigger than the caller's buffer is reported and kept for the next call
     ps_conn* second = ps_connect_loopback(server);
     CHECK(ps_conn_send(second, content.data(), content.size()) == 1);
     std::vector<uint8_t> tiny(1);

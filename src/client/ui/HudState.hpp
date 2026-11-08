@@ -57,9 +57,20 @@ namespace perlin::ui {
         int color = 0, overlay = 0;
     };
 
+    struct HudSlotOverlay {
+        int slot = 0;
+        std::string text;
+        uint32_t textColor = 0xFFFFFFFFu;
+        int corner = 3;
+        uint32_t background = 0;
+        float bar = -1.0f;
+        uint32_t barColor = 0xFF55FF55u;
+    };
+
     struct HudState {
+        std::vector<HudSlotOverlay> slotOverlays;
         std::vector<HudBossBar> bossBars;
-        // server scoreboard in the sidebar slot (SetDisplayObjective "sidebar")
+
         bool sidebarVisible = false;
         std::string sidebarTitle;
         std::vector<HudSidebarRow> sidebar;
@@ -78,7 +89,7 @@ namespace perlin::ui {
         int xpLevel = 0;
         bool burning = false;
         int fireFrame = 0;
-        // OnScreenTextureAnimation / totem: what to show (-1 none, effect id, 1000 totem) and progress 0..1
+
         int screenAnimation = -1;
         float screenAnimationT = 0;
         int air = 300;

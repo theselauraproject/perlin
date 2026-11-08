@@ -440,7 +440,7 @@ namespace perlin::ui {
     }
 
     namespace {
-        // sound_name after inheritance: common.button and toggles declare random.click, container slot buttons none
+
         std::string SoundAttrs(const LNode& n) {
             const Json* sn = n.Get("sound_name");
             if (!sn || !sn->IsString())

@@ -879,8 +879,7 @@ namespace perlin {
                            : item.count <= 48 ? 4
                                               : 5;
         worldPass = true;
-        // ItemEntityRenderer.renderMultipleFromCount: solid (3d) models scatter their copies on all three axes;
-        // flat items stack along their thickness, centred, with a small scatter in the plane
+
         const bool solid = model.block;
         const float kz = tabled ? groundDisplay.ground.scale.z : scale;
         glm::mat4 base =

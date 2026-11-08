@@ -16,8 +16,7 @@ concurrency:
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
-  # builds of main are what the nightly release carries: they know their commit and where to look for a newer one,
-  # which is what the in-game updater compares against. Pull requests and tags build without it (no auto-update).
+
   PERLIN_UPDATE_FLAGS: ${{ github.ref == 'refs/heads/main' && format('-DPERLIN_BUILD_COMMIT={0} -DPERLIN_UPDATE_REPO={1} -DPERLIN_BUNDLE_VERSION=1.0.{2}', github.sha, github.repository, github.run_number) || '' }}
   EMSDK_VERSION: 4.0.10
   OPENSSL_VERSION: openssl-3.0.15
@@ -28,15 +27,14 @@ env:
   CCACHE_NOHASHDIR: "true"
   CCACHE_COMPRESS: "true"
   CCACHE_COMPRESSLEVEL: "6"
-  # FFmpeg on Windows is skipped for now (video export uses the built-in AVI encoder). Set to "true" to build/bundle it again;
-  # it is installed once and restored from the cache below, never rebuilt per run.
+
   WINDOWS_FFMPEG: "false"
 
 jobs:
   native:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    # new targets report failures without holding back the nightly; drop `experimental` once they are green
+
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       fail-fast: false
@@ -47,7 +45,7 @@ jobs:
           - name: linux-x64
             os: ubuntu-24.04
             appimage: x86_64
-          # native arm64 runner (free for public repositories): Raspberry Pi 5, Asahi, Snapdragon Linux laptops
+
           - name: linux-arm64
             os: ubuntu-24.04-arm
             appimage: aarch64
@@ -91,8 +89,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install ninja
-          # Homebrew's fmt is a dynamic library that would get picked up by a dependency's find_package/pkg-config and then
-          # be missing on other Macs (libfmt.12.dylib). Remove it so everything is built from the pinned sources instead.
+
           brew uninstall --ignore-dependencies fmt || true
 
       - name: Cache OpenSSL (macOS)
@@ -128,7 +125,6 @@ jobs:
         run: |
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:x64-windows-static --x-install-root="$env:GITHUB_WORKSPACE/openssl-install"
 
-      # Saved right away (not at the end of the job) so a later failing step cannot throw the cache away.
       - name: Save OpenSSL cache
         if: runner.os == 'Windows' && steps.openssl-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -200,7 +196,7 @@ jobs:
         run: cmake --install build --config Release --prefix dist
 
       - name: Slim the package
-        # the dependencies install their headers and libraries too; a player needs none of them, nor symbol files
+
         shell: bash
         run: |
           rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
@@ -215,10 +211,6 @@ jobs:
           echo "$bin"; otool -L "$bin"; otool -l "$bin" | grep -A3 LC_BUILD_VERSION
           if otool -L "$bin" | tail -n +2 | grep -Ev '^\s+(/usr/lib/|/System/Library/)' ; then echo "::error::links a non-system dylib"; exit 1; fi
 
-      # Apple silicon refuses to run code whose signature does not cover the bundle ("Perlin is damaged"): cmake
-      # --install adds files after the linker signed the executable, so the finished bundle is signed again here.
-      # With a Developer ID (repository secrets below) it is also notarized and opens with no warning at all;
-      # without one it is ad-hoc signed and opens after right-click > Open (or System Settings > Open Anyway).
       - name: Sign macOS app
         if: runner.os == 'macOS'
         env:
@@ -252,8 +244,6 @@ jobs:
           fi
           codesign --verify --deep --strict --verbose=2 "$app"
 
-      # archives are made here, on the runner that built them: upload-artifact drops unix permissions and macOS
-      # extended attributes, so a bundle zipped later by the release job would lose its executable bit and signature
       - name: Archive
         shell: bash
         run: |
@@ -267,8 +257,7 @@ jobs:
           ls -l pkg
 
       - name: Save dependency cache
-        # Failed configuration can leave incomplete submodule checkouts that
-        # CPM reuses without fetching again. Cache only successful builds.
+
         if: success() && steps.cpm-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
@@ -290,8 +279,6 @@ jobs:
           path: symbols
           if-no-files-found: ignore
 
-      # the package is already an archive: uploaded as that file (the artifact is named after it), so downloading
-      # it gives Perlin-<platform>.zip itself and not a zip holding the zip
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
@@ -299,7 +286,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-      # Linux also as one AppImage: runs on any distribution, and updates itself by replacing that one file
       - name: AppImage
         if: matrix.appimage
         run: |
@@ -317,8 +303,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # the Vulkan shader pack on its own, so the FreeBSD build (which has no slang compiler) starts at once instead of
-  # waiting for every native package to finish; the file is identical to the one the linux-x64 build makes
   shader-pack:
     name: shader-pack
     runs-on: ubuntu-24.04
@@ -351,8 +335,6 @@ jobs:
           path: build/shaders/perlin_shaders.pack
           if-no-files-found: error
 
-  # Windows on ARM (Snapdragon X and friends), cross-compiled on the x64 runner: its compilers, vcpkg and the
-  # x64 shader compilers are all there; the arm64 binary cannot run on it, so there are no tests here
   windows-arm64:
     name: windows-arm64
     runs-on: windows-latest
@@ -404,7 +386,7 @@ jobs:
           rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
           find dist \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.a' \) -delete
           find dist -type d -empty -delete
-          # an arm64 image (IMAGE_FILE_MACHINE_ARM64 = 0xaa64 at the PE header)
+
           python - <<'PY'
           import struct, glob
           exe = glob.glob("dist/*.exe")[0]
@@ -422,8 +404,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # FreeBSD (x64) in a VM. Slang publishes no FreeBSD compiler, so the Vulkan shader pack comes from the linux-x64
-  # build (the same backends, the same file)
   freebsd:
     name: freebsd-x64
     needs: shader-pack
@@ -465,8 +445,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # a Flatpak bundle for sideloading (flatpak install Perlin.flatpak); not on Flathub yet, because Flathub builds
-  # without network access and this build fetches its pinned dependencies
   flatpak:
     name: flatpak-x64
     runs-on: ubuntu-24.04
@@ -552,13 +530,13 @@ jobs:
           cp build-web/perlin-*.js build-web/coi-sw.js build-web/perlin.css build-web/assets-manifest.json site/
           cp tools/web/serve.py tools/web/HOSTING.txt site/
           cp -r tools/web/auth-relay site/
-          # the running page compares this with the commit it was built from and offers a reload when they differ
+
           printf '{"commit":"%s","run":%s}\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" > site/version.json
-          # Microsoft sign-in in the browser goes through the relay in tools/web/auth-relay (repository variable)
+
           if [ -n "${{ vars.WEB_AUTH_RELAY }}" ]; then
             printf '{"authRelay":"%s"}\n' "${{ vars.WEB_AUTH_RELAY }}" > site/perlin-config.json
           fi
-      # the artifact is zipped by the action itself; the release job makes Perlin-web.zip from it
+
       - uses: actions/upload-artifact@v7
         with:
           name: Perlin-web
@@ -633,9 +611,7 @@ jobs:
           git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
           mkdir -p android/app/src/main/assets
           python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out android/app/src/main/assets/assets-manifest.json
-      # every nightly apk must carry the same signature or Android refuses it as an update: set the
-      # ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD secrets
-      # (without them each build is signed with that runner's throwaway debug key)
+
       - name: Signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -758,7 +734,7 @@ jobs:
           otool -L "$app/Perlin"
           if otool -L "$app/Perlin" | tail -n +2 | grep -Ev '^\s+(/usr/lib/|/System/Library/)'; then echo "::error::links a non-system dylib"; exit 1; fi
       - name: Package IPA
-        # ad-hoc signed only: sideload with AltStore / Sideloadly (they re-sign with your Apple ID) or install with TrollStore
+
         run: |
           mkdir -p Payload dist
           cp -R build-ios/Perlin.app Payload/
@@ -771,9 +747,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # the web build on GitHub Pages, redeployed by every nightly: the site is always the newest build and the page
-  # offers a reload when it notices it. Off until Pages is set up: Settings > Pages > Source: GitHub Actions, then
-  # Settings > Secrets and variables > Actions > Variables: DEPLOY_PAGES = true
   pages:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
     needs: web
@@ -805,8 +778,6 @@ jobs:
       - uses: actions/checkout@v4
         if: github.ref == 'refs/heads/main'
 
-      # finished packages (Perlin-<platform>.zip, Perlin.apk, Perlin.ipa: names with a dot) are kept exactly as
-      # uploaded; the web site and debug symbols arrive as folders and are zipped once here
       - name: Download packages
         uses: actions/download-artifact@v8
         with:
@@ -833,15 +804,13 @@ jobs:
             (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)
           done
           ls -l release
-          # a package that is itself a zip of a single zip means an artifact got wrapped again: fail loudly
+
           for z in release/Perlin-*.zip; do
             if [ "$(unzip -Z1 "$z" | grep -vc '/$')" = 1 ] && unzip -Z1 "$z" | grep -q '\.zip$'; then
               echo "::error::$z only holds another zip"; exit 1
             fi
           done
 
-      # AltStore / SideStore source: add
-      # https://github.com/<owner>/<repo>/releases/download/nightly/altstore-source.json and iOS updates itself
       - name: iOS app source
         if: github.ref == 'refs/heads/main'
         run: |

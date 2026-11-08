@@ -17,7 +17,6 @@ namespace perlin::http {
         std::mutex relayMutex;
         std::string relayBase;
 
-        // https://host[:443]/path -> <relay>/host/path for the services that send no CORS headers
         std::string ThroughRelay(const std::string& url) {
             constexpr std::string_view kHttps = "https://";
             if (!url.starts_with(kHttps))

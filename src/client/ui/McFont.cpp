@@ -430,7 +430,7 @@ namespace perlin::ui {
                         ink = std::max(ink, px + 1);
                     }
             }
-            // atlas slot is 16 px for an 8 px line: py already holds the font baseline offset
+
             if (ink == 0) {
                 out.width = 0;
                 out.advance =
@@ -502,13 +502,13 @@ namespace perlin::ui {
         int cx = 0, cy = 0;
         if (!ReserveGlyphCell(cellW, cellH, cx, cy))
             return nullptr;
-        // preserve source texels: reducing high-resolution icons to 16x16 destroys their silhouettes
+
         for (int y = 0; y < cellH; y++)
             std::memcpy(&atlas[(static_cast<size_t>(cy + y) * atlasWidth + cx) * 4],
                         &gp.rgba[(static_cast<size_t>(sy0 + y) * gp.width + sx0) * 4],
                         static_cast<size_t>(cellW) * 4);
         Glyph g;
-        // BitmapFont::_scanUnicodeCharacterSize and _buildChar: private-use icons retain native cell size
+
         const bool nativeSize = cp >= 0xe000 && cp <= 0xf8ff;
         const float unit = nativeSize ? 1.0f : 8.0f / static_cast<float>(cellW);
         g.width = nativeSize ? static_cast<float>(cellW) : 8.0f;
@@ -593,7 +593,7 @@ namespace perlin::ui {
     }
 
     const McFont::Glyph& McFont::Get(uint32_t cp) const {
-        // control codes take no space: rml handles line breaks, tabs become a space
+
         if (cp == '\n' || cp == '\r') {
             static const Glyph empty{};
             return empty;

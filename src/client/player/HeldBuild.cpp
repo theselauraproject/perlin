@@ -16,7 +16,7 @@ namespace perlin::heldbuild {
 
     int FacingFromVec(glm::vec3 v) {
         const float ax = std::fabs(v.x), ay = std::fabs(v.y), az = std::fabs(v.z);
-        // ties fall through to z
+
         if (ay > ax && ay > az)
             return v.y > 0.0f ? 1 : 0;
         if (ax > ay && ax > az)
@@ -32,7 +32,6 @@ namespace perlin::heldbuild {
                shape[0].x1 >= 1.0 - 1e-6 && shape[0].y1 >= 1.0 - 1e-6 && shape[0].z1 >= 1.0 - 1e-6;
     }
 
-    // AABB::intersectSegment 0x142D345C0: separating axes on half extents, 0.0001f slack on the cross axes only
     bool SegmentHitsCell(glm::vec3 a, glm::vec3 b, glm::ivec3 cell) {
         const glm::vec3 lo(cell), hi = lo + 1.0f;
         const glm::vec3 d = (b - a) * 0.5f;
@@ -50,7 +49,7 @@ namespace perlin::heldbuild {
     }
 
     bool OverlapsBody(glm::ivec3 cell, const std::vector<physics::Box>& shape, const physics::Box& body) {
-        // hair of tolerance: standing exactly on or against the new block is allowed
+
         constexpr double kEpsilon = 1e-4;
         const physics::Box inner{body.x0 + kEpsilon, body.y0 + kEpsilon, body.z0 + kEpsilon,
                                  body.x1 - kEpsilon, body.y1 - kEpsilon, body.z1 - kEpsilon};
@@ -61,7 +60,7 @@ namespace perlin::heldbuild {
     }
 
     void HeldBuild::Start(uint64_t simulationTick, bool reachedBlock) {
-        // the press tick runs the start path, not a repeat
+
         lastAttemptTick = simulationTick;
         pendingLine = replacedSupport = false;
         if (!reachedBlock)
@@ -76,7 +75,7 @@ namespace perlin::heldbuild {
     }
 
     namespace {
-        // blocks per second squared, scaled before squaring (0x14376BDD7)
+
         float SpeedSquared(glm::vec3 moved) {
             const float x = 20.0f * moved.x, y = moved.y * 20.0f, z = moved.z * 20.0f;
             const float xy = y * y + x * x;
@@ -90,7 +89,7 @@ namespace perlin::heldbuild {
         float delay = 300.0f;
         if (!sneaking && !lastInteractive && !lineless)
             delay = speedSq > 0.0f ? std::min(900.0f / std::sqrt(speedSq), 180.0f) : 200.0f;
-        // mouse input: no 100 ms floor (touch and gamepad); 20 tps: the 20 / ticksPerSecond scale is 1
+
         return static_cast<int64_t>(static_cast<int>(delay)) * 1000000;
     }
 
@@ -100,7 +99,7 @@ namespace perlin::heldbuild {
         if (lastAttemptTick == simulationTick)
             return std::nullopt;
         lastAttemptTick = simulationTick;
-        // which block to click: 0x14376B8D0
+
         Target click;
         if (hasDirection && lastSnappable) {
             if (!SegmentHitsCell(eye, hit.point, nextBuild))
@@ -110,7 +109,7 @@ namespace perlin::heldbuild {
             click = hit.target;
             const float xy = velocity.x * velocity.x + velocity.y * velocity.y;
             if (lastSnappable && !hasDirection && hasLastBuilt && velocity.z * velocity.z + xy > 0.0099999998f) {
-                // sneaking keeps the crosshair block but still takes the movement face
+
                 const int face = FacingFromVec(velocity);
                 click = {sneaking ? hit.target.support : lastBuilt, face};
             }
@@ -118,7 +117,6 @@ namespace perlin::heldbuild {
             return std::nullopt;
         }
 
-        // GameMode::continueBuildBlock 0x14376BB80: a replaceable support is built into, clicked on face 1
         const bool replaces = canBuildOver(click.support);
         if (replaces)
             click.face = 1;
@@ -126,12 +124,12 @@ namespace perlin::heldbuild {
         const int64_t deadline = lastBuildNs + DelayNs(moved, sneaking);
         if (deadline >= nowNs)
             return std::nullopt;
-        // moving: a late repeat banks at most 180 ms of lost time
+
         nextBuildNs = SpeedSquared(moved) > 0.0f ? std::max(deadline, nowNs - 180000000) : nowNs;
         replacedSupport = replaces;
         if (sneaking || !lastSnappable)
             return click;
-        // the attempt goes through either way; only an adjacent cell starts the line
+
         if (!hasDirection && hasLastBuilt) {
             const glm::ivec3 d = cell - lastBuilt;
             if (std::abs(d.x) + std::abs(d.y) + std::abs(d.z) == 1) {
@@ -150,7 +148,7 @@ namespace perlin::heldbuild {
             nextBuild += direction;
         lastInteractive = interactive;
         lastSnappable = !interactive && snappable;
-        // the game re-reads the support after the build: now solid, so the last build lands one above it
+
         lastBuilt = fromRepeat && replacedSupport ? clicked.support + glm::ivec3(0, 1, 0) : cell;
         hasLastBuilt = true;
         lastBuildNs = fromRepeat ? nextBuildNs : nowNs;

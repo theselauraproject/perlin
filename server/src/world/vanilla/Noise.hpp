@@ -1,5 +1,5 @@
 #pragma once
-// Java worldgen noise, ported from the 26.3 jar: gradient (perlin) noise with float lerps, octave stacks, and the "normal noise" definitions in worldgen/noise/*.json
+
 #include "world/vanilla/JavaRandom.hpp"
 
 #include <array>
@@ -13,7 +13,6 @@ namespace perlin::server::vanilla {
         explicit PerlinNoise(WorldRandom& random);
         float Get(double x, double y, double z) const;
 
-        // the lattice walk shared with the smeared variant: `smoothY` drives the y blend, `fy` the gradient offset
         float SampleAndLerp(int ix, int iy, int iz, float fx, float fy, float fz, float smoothY) const;
         const std::array<uint8_t, 256>& Perms() const { return perms; }
         double OffsetX() const { return offsetX; }
@@ -26,7 +25,6 @@ namespace perlin::server::vanilla {
         double offsetX, offsetY, offsetZ;
     };
 
-    // perlin noise whose y coordinate snaps to steps of `fudgeYScale` near the origin (the old terrain noise's vertical smearing)
     class SmearedPerlinNoise : public PerlinNoise {
     public:
         SmearedPerlinNoise(WorldRandom& random, double fudgeYScale)
@@ -38,7 +36,6 @@ namespace perlin::server::vanilla {
         double fudgeYScale;
     };
 
-    // the old_blended_noise density function: two limit noises blended by a third
     class BlendedNoise {
     public:
         BlendedNoise(double xzScale, double yScale, double xzFactor, double yFactor,
@@ -66,7 +63,6 @@ namespace perlin::server::vanilla {
         double xzMultiplier, yMultiplier, xzFactor, yFactor;
     };
 
-    // one entry of worldgen/noise/<name>.json
     struct NoiseParameters {
         double baseAmplitude = 1.0;
         int baseOctave = 0;
@@ -88,12 +84,11 @@ namespace perlin::server::vanilla {
         double offsetX = 0, offsetY = 0, offsetZ = 0;
     };
 
-    // octaves of two perlin noises each, summed in float the way NoiseStack does
     class NormalNoise {
     public:
-        // `random` is the generator forked for this noise (positional.fromHashOf(name))
+
         NormalNoise(const NoiseParameters& parameters, WorldRandom random);
-        // the nether's temperature and vegetation: the old octave initialisation from one sequential generator
+
         static NormalNoise LegacyNetherBiome(const NoiseParameters& parameters, WorldRandom random);
         float Get(double x, double y, double z) const;
 

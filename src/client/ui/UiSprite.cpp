@@ -160,7 +160,7 @@ namespace perlin::ui {
                            "px;height:" + std::to_string(h) + "px;background-color:" + color + ";\"></div>";
                     rects++;
                 }
-            // flat vanilla art becomes a few boxes; detailed pack art thousands (one gpu mesh each): draw as one texture
+
             if (rects > kMaxRects) {
                 Texture crop;
                 crop.width = width;

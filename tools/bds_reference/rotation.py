@@ -21,7 +21,6 @@ from generate import HEAP, INPUT_SHA256, Machine, bits
 
 SINE_SHA256 = "5834520a8a07b71081b530851803cf051427446a99643b9de13368cc17635628"
 
-
 def install_direction_dependencies(machine, sine_path):
     table = sine_path.read_bytes()
     if len(table) != 65536 * 4 or hashlib.sha256(table).hexdigest() != SINE_SHA256:
@@ -43,7 +42,6 @@ def install_direction_dependencies(machine, sine_path):
         cpu.reg_write(x86.UC_X86_REG_RIP, target)
 
     machine.cpu.hook_add(unicorn.UC_HOOK_CODE, fmodf, begin=0x146254354, end=0x146254354)
-
 
 def generate(data, sine_path):
     if data["input_sha256"] != INPUT_SHA256 or data["input_name"] != "Windows Server 1.26.10":
@@ -93,7 +91,6 @@ def generate(data, sine_path):
         result = (yaw, *indices, *machine.get(HEAP + 0x118, 1), *machine.get(HEAP + 0x120, 1))
         lines.append("J " + " ".join(f"{v:08x}" for v in result))
     return "\n".join(lines) + "\n"
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

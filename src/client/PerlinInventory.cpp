@@ -35,7 +35,7 @@ namespace perlin {
             inventory.previewOpened = true;
             OpenInventory(now);
             if (live) {
-                // riding: ask for the mount's inventory first, fall back to the player's after 450 ms
+
                 if (live->RidingUid() != 0 && live->OpenMountInventory()) {
                     inventory.mountAsk = now;
                 } else {

@@ -7,7 +7,7 @@
 
 namespace perlin::server::vanilla {
     namespace {
-        // md5 (rfc 1321)
+
         struct Md5 {
             uint32_t a = 0x67452301, b = 0xefcdab89, c = 0x98badcfe, d = 0x10325476;
             void Block(const uint8_t* p) {
@@ -64,7 +64,6 @@ namespace perlin::server::vanilla {
         constexpr double kHalfRoundOff = 16777216.0;
         constexpr double kRoundOff = 33554432.0;
 
-        // positions beyond +-2^24 are wrapped so float precision does not fall apart (the "farlands" fix)
         double Wrap(double x) {
             if (x >= -kHalfRoundOff && x < kHalfRoundOff)
                 return x;
@@ -106,7 +105,7 @@ namespace perlin::server::vanilla {
     }
 
     Seed128 SeedFromHashOf(std::string_view text) {
-        // md5 over the utf-8 bytes
+
         std::string msg(text);
         const uint64_t bits = static_cast<uint64_t>(msg.size()) * 8;
         msg.push_back(static_cast<char>(0x80));
@@ -165,7 +164,7 @@ namespace perlin::server::vanilla {
         const float g011 = GradDot(Permute(i11 + iz + 1), fx, fy - 1.0f, fz - 1.0f);
         const float g111 = GradDot(Permute(i13 + iz + 1), fx - 1.0f, fy - 1.0f, fz - 1.0f);
         const float sx = Smoothstep(fx), sy = Smoothstep(smoothY), sz = Smoothstep(fz);
-        // lerp3: z blends two xy planes
+
         return Lerp(sz, Lerp2(sx, sy, g000, g100, g010, g110), Lerp2(sx, sy, g001, g101, g011, g111));
     }
 
@@ -175,7 +174,7 @@ namespace perlin::server::vanilla {
         const float fx = static_cast<float>(px - static_cast<double>(ix));
         const double fyd = py - static_cast<double>(iy);
         const float fz = static_cast<float>(pz - static_cast<double>(iz));
-        // snap the fraction down to a multiple of the smear scale while y is within that first step
+
         const double d = (y >= 0.0 && y < fyd) ? y : fyd;
         const double fudge =
             static_cast<double>(JavaFloor(d / fudgeYScale + 1.0000000116860974E-7)) * fudgeYScale;

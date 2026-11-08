@@ -208,7 +208,7 @@ namespace perlin {
             std::lock_guard lock(attrMutex);
             return ownSeatOffset;
         }
-        // NAMETAG the server set on us (ranks, colours, a second line); empty until it sends one
+
         std::string OwnNameTag() const {
             std::lock_guard lock(attrMutex);
             return ownNameTag;
@@ -310,6 +310,16 @@ namespace perlin {
                                           int by = 0, int bz = 0, int face = 1);
         bool SendChat(const std::string& message);
         uint64_t PacketsSent() const { return txPackets; }
+        uint64_t BytesSent() const { return txBytes; }
+        uint64_t BytesReceived() const { return rxBytes; }
+        std::vector<std::string> ItemNameList() {
+            std::lock_guard<std::mutex> lk(statusMutex);
+            std::vector<std::string> out;
+            out.reserve(itemNames.size());
+            for (const auto& [id, name] : itemNames)
+                out.push_back(name);
+            return out;
+        }
         uint64_t PacketsReceived() const { return diagPackets; }
         std::vector<std::string> TakeChat();
         struct SoundRequest {
@@ -623,7 +633,7 @@ namespace perlin {
             int nbtTags = 0;
             std::vector<std::pair<int, int>> enchants;
             std::vector<std::string> lore;
-            // adventure mode: the only blocks this item may break
+
             std::vector<std::string> canDestroy;
             int networkId = 0;
             bool Empty() const { return name.empty() || count <= 0; }
@@ -656,8 +666,7 @@ namespace perlin {
             bool chestOpen = false;
             int chestSlots = 0;
             std::string chestTitle;
-            // actor inventories show as many rows as they have slots (a 36-slot shop is four rows), titled with the
-            // actor's name; block chests stay three or six rows
+
             bool chestFitRows = false;
             int furnaceKind = -1;
         };
@@ -1208,6 +1217,8 @@ namespace perlin {
         std::atomic<int64_t> lastPacketMs{0};
         std::string lastViolation;
         std::atomic<uint64_t> txPackets{0};
+        std::atomic<uint64_t> txBytes{0};
+        std::atomic<uint64_t> rxBytes{0};
         std::mutex idCountMutex;
         std::map<uint32_t, uint64_t> idCounts;
         std::atomic<uint32_t> diagLastId{0};

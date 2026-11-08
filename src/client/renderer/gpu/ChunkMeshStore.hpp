@@ -8,7 +8,7 @@
 #include <vector>
 
 namespace perlin::gpu {
-    // chunk and lod meshes packed into shared vertex / per-layer index pages, with frustum and cave culling over them
+
     class ChunkMeshStore {
     public:
         struct Section {
@@ -57,28 +57,24 @@ namespace perlin::gpu {
         void Shutdown();
         void Clear();
 
-        // contents of every live page, so the meshes survive a device replacement
         struct Backup {
             std::vector<std::vector<uint8_t>> blobs;
         };
         Backup Save();
-        // destroys the page buffers but keeps every range, ready for Load on the next device
+
         void ReleaseGpu();
-        // call after the gpu was re-created: drops the old handles, rebuilds each page and uploads the saved bytes
+
         bool Load(Backup&& backup);
 
         void Update(bool lod, int cx, int cz, int size, const Tessellator& tess, uint64_t version);
         void Remove(bool lod, int cx, int cz);
         void ReleaseEmptyPages();
 
-        // frustum + radius + cave culling; fills the near-to-far visible list
         void Select(const Frustum& frustum, float camX, float camY, float camZ, int cullRadius,
                     bool caveCulling, double now);
         void CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out);
         bool SectionReached(int sx, int sy, int sz, bool caveCulling) const;
 
-        // a second vertex stream parallel to the main one (same vertex offsets), filled by `convert` for every mesh. changing it
-        // drops all meshes: the caller re-meshes. zero bytes turns it off
         using ExtendFn = std::function<void(const Tessellator&, std::vector<uint8_t>&)>;
         void SetExtension(uint32_t bytesPerVertex, ExtendFn convert);
         uint32_t ExtensionBytes() const { return extBytes; }
@@ -114,7 +110,7 @@ namespace perlin::gpu {
         void Upload(std::unordered_map<int64_t, Chunk>& target, bool lod, int cx, int cz, int size,
                     const Tessellator& tess, uint64_t version);
         void UpdateCave(float camX, float camY, float camZ, double now);
-        // lod tiles in 8x8 groups: one box test rejects (or accepts) a whole group before any tile is looked at
+
         struct LodGroup {
             float x0 = 0, z0 = 0, x1 = 0, z1 = 0, minY = 0, maxY = 0;
             std::vector<const Chunk*> members;

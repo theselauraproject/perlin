@@ -110,7 +110,7 @@ namespace perlin::jshader {
 
     bool HlslToSpirv(const std::string& hlslIn, Stage stage, std::vector<uint32_t>& spirv, std::string& log) {
         Init();
-        // stage variables: TEXCOORDn is location n, as the d3d input layout and the pixel inputs match them
+
         std::string hlsl;
         hlsl.reserve(hlslIn.size() + 1024);
         size_t at = 0;
@@ -166,7 +166,7 @@ namespace perlin::jshader {
 
     const std::set<std::string>& BaseFeatureFlags() {
         static const std::set<std::string> flags = {
-            // HIGHER_SHADOWCOLOR (shadowcolor2-7) is left out: there are two shadow colour buffers
+
             "SEPARATE_HARDWARE_SAMPLERS", "ENTITY_TRANSLUCENT",  "REVERSED_CULLING",
             "BLOCK_EMISSION_ATTRIBUTE",   "CAN_DISABLE_WEATHER", "FADE_VARIABLE",
             "PER_BUFFER_BLENDING"};
@@ -178,7 +178,7 @@ namespace perlin::jshader {
         m["MC_VERSION"] = std::to_string(mcVersion);
         m["MC_GL_VERSION"] = "460";
         m["MC_GLSL_VERSION"] = "460";
-        // packs look like they run on iris 1.11.7, which perlin follows (uniforms, features, transforms)
+
         m["IS_IRIS"] = "";
         m["IRIS_VERSION"] = "11107";
         m["IRIS_TAG_SUPPORT"] = "2";
@@ -191,7 +191,7 @@ namespace perlin::jshader {
                                   "WATER",   "GRASS",     "AIR",   "ILLUMINATED"};
         for (int i = 0; i < 16; i++)
             m[std::string("DH_BLOCK_") + dhBlocks[i]] = std::to_string(i);
-        // iris IrisDefines: biome ids, biome categories and precipitation kinds, for shaders and custom uniforms
+
         const auto& biomes = JavaBiomes();
         for (size_t i = 0; i < biomes.size(); i++) {
             std::string name = biomes[i].name;
@@ -221,7 +221,7 @@ namespace perlin::jshader {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const auto starts = [](const std::string& s, const char* p) { return s.rfind(p, 0) == 0; };
         const auto has = [](const std::string& s, const char* p) { return s.find(p) != std::string::npos; };
-        // rhi vendor strings are not opengl's: match on the names inside them as well
+
         if (starts(vendor, "ati") || starts(vendor, "amd") || has(vendor, "amd") || has(vendor, "radeon"))
             m[starts(vendor, "ati") ? "MC_GL_VENDOR_ATI" : "MC_GL_VENDOR_AMD"] = "";
         else if (has(vendor, "intel"))
@@ -243,8 +243,7 @@ namespace perlin::jshader {
             m["MC_GL_RENDERER_MESA"] = "";
         else
             m["MC_GL_RENDERER_OTHER"] = "";
-        // every flag the renderer supports, as iris gives shaders.properties; the instance narrows the set the
-        // shaders see to the pack's iris.features.optional list
+
         for (const std::string& f : env.features.empty() ? BaseFeatureFlags() : env.features)
             m["IRIS_FEATURE_" + f] = "";
         m["MC_NORMAL_MAP"] = "";

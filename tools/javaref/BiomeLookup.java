@@ -2,7 +2,6 @@ import java.lang.reflect.*;
 import java.util.*;
 import java.util.function.Consumer;
 
-// asks the game's own parameter list (r-tree) which biome a set of climate samples lands in, next to its brute-force search
 public class BiomeLookup {
     public static void main(String[] args) throws Exception {
         Class<?> b = Class.forName("net.minecraft.world.level.biome.OverworldBiomeBuilder");
@@ -17,7 +16,7 @@ public class BiomeLookup {
         Method find = listClass.getMethod("findValue", Class.forName("net.minecraft.world.level.biome.Climate$TargetPoint"));
         Method brute = listClass.getMethod("findValueBruteForce", Class.forName("net.minecraft.world.level.biome.Climate$TargetPoint"));
         Constructor<?> tp = Class.forName("net.minecraft.world.level.biome.Climate$TargetPoint").getConstructor(long.class, long.class, long.class, long.class, long.class, long.class);
-        // box edges seen in the table, to land targets exactly on them
+
         TreeSet<Long> edges = new TreeSet<>();
         Class<?> pp = Class.forName("net.minecraft.world.level.biome.Climate$ParameterPoint");
         Class<?> par = Class.forName("net.minecraft.world.level.biome.Climate$Parameter");

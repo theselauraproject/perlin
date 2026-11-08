@@ -20,7 +20,6 @@ namespace perlin::gpu {
     };
     const VertexLayoutInfo& LayoutInfo(VertexLayout layout);
 
-    // everything that selects a pipeline; hashed and compared as raw fields
     struct PipelineKey {
         uint16_t program = 0;
         VertexLayout layout = VertexLayout::Terrain;
@@ -33,19 +32,19 @@ namespace perlin::gpu {
         conduit::blend_factor srcColor = conduit::blend_factor::one, dstColor = conduit::blend_factor::zero;
         conduit::blend_factor srcAlpha = conduit::blend_factor::one, dstAlpha = conduit::blend_factor::zero;
         conduit::color_mask mask = conduit::color_mask::all;
-        // min on alpha keeps the nearest depth when several layers write into one target
+
         conduit::blend_op alphaOp = conduit::blend_op::add;
         bool alphaToCoverage = false;
         conduit::format color = conduit::format::rgba8_unorm;
         conduit::format depth = conduit::format::d32_float;
-        // second color attachment (java gbuffers MRT); count stays 1 unless set
+
         uint8_t colorCount = 1;
         conduit::format color1 = conduit::format::rgba8_unorm;
         conduit::format color2 = conduit::format::rgba8_unorm;
-        // fixed point (x100) so the key stays hashable
+
         int16_t biasConstant = 0;
         int16_t biasSlope = 0;
-        // padding makes a raw compare unreliable, so keys are compared through their packed form
+
         std::array<uint64_t, 4> Pack() const;
         bool operator==(const PipelineKey& o) const { return Pack() == o.Pack(); }
     };
@@ -66,7 +65,6 @@ namespace perlin::gpu {
 
     constexpr uint32_t kTextureSlots = 48;
 
-    // what is bound at set 1; one entry per global texture slot
     struct TextureSet {
         std::array<conduit::texture_handle, kTextureSlots> texture{};
         std::array<SamplerKind, kTextureSlots> sampler{};
@@ -77,7 +75,6 @@ namespace perlin::gpu {
         size_t operator()(const TextureSet& s) const;
     };
 
-    // a view into the current frame's cpu-written gpu memory
     struct RingSlice {
         conduit::buffer_handle buffer;
         uint32_t chunk = 0;
@@ -85,7 +82,6 @@ namespace perlin::gpu {
         uint8_t* data = nullptr;
     };
 
-    // gpu-only buffer carved up by a range allocator; contents change through Gpu::Write
     class Arena {
     public:
         bool Create(conduit::device& device, uint32_t elements, uint32_t elementBytes, conduit::buffer_usage usage,
@@ -101,9 +97,9 @@ namespace perlin::gpu {
         uint32_t ElementBytes() const { return elementBytes; }
         conduit::state BarrierState() const { return state; }
         uint64_t Bytes() const { return static_cast<uint64_t>(ranges.Capacity()) * elementBytes; }
-        // forgets the buffer without destroying it (its device is already gone); ranges stay
+
         void Detach() { buffer = {}; }
-        // new empty buffer of the same size on the current device; ranges stay
+
         bool Rebuild(conduit::device& device);
 
     private:
@@ -124,7 +120,7 @@ namespace perlin::gpu {
         conduit::present_mode present = conduit::present_mode::fifo;
         uint32_t framesInFlight = 2;
         bool hdr = false;
-        // headless runs (tests, capture) render to an owned image instead of a window
+
         bool offscreen = false;
         conduit::vendor_hooks hooks;
         std::span<const uint8_t> pipelineCache;
@@ -145,32 +141,30 @@ namespace perlin::gpu {
         const conduit::shader_library& Library() const { return library; }
         uint32_t Frames() const { return settings.framesInFlight; }
 
-        // -1 when the pack has no such program
         int Program(std::string_view name) const;
         const conduit::program_info& ProgramInfo(int program) const {
             return library.programs()[static_cast<size_t>(program)];
         }
         bool PipelineReady(const PipelineKey& key);
         conduit::pipeline_handle Pipeline(const PipelineKey& key);
-        // every pipeline compiled so far: a renderer switch builds the same set on the new device before the first frame
+
         std::vector<PipelineKey> PipelineKeys() const;
-        // drops compiled pipelines (device reset, pack reload)
+
         void ClearPipelines();
 
-        // frame pacing; call once per frame before any ring use
         void BeginFrame();
-        // false while minimised or out of date: skip the frame
+
         bool AcquireImage(conduit::swapchain::image& out);
         void PresentImage();
-        // true when the window changed size or the surface was lost since the last call
+
         bool Resize(uint32_t width, uint32_t height);
-        // the window surface was replaced (mobile resume, display change): rebuild the swapchain
+
         bool RecreateSurface(uint32_t width, uint32_t height);
         void SetWindow(const conduit::native_window& window) { settings.window = window; }
         void SetPresentMode(conduit::present_mode mode);
         conduit::format TargetFormat() const { return targetFormat; }
         uint32_t TargetWidth() const { return targetWidth; }
-        // frames in a row that found no image to draw to
+
         uint32_t AcquireFailures() const { return acquireFailures; }
         void ClearAcquireFailures() { acquireFailures = 0; }
         uint32_t TargetHeight() const { return targetHeight; }
@@ -178,7 +172,6 @@ namespace perlin::gpu {
 
         uint32_t FrameSlot() const { return device->frame_slot(); }
 
-        // per-frame upload memory (lives until the frame that wrote it retires)
         RingSlice Ring(uint64_t bytes, uint64_t align);
         conduit::bind_group_handle UniformGroup(uint32_t chunk) const { return ringGroups[FrameSlot()][chunk]; }
         conduit::buffer_handle RingBuffer(uint32_t chunk) const { return rings[FrameSlot()][chunk].buffer; }
@@ -192,13 +185,12 @@ namespace perlin::gpu {
         conduit::texture_handle White2D() const { return white2d; }
         conduit::texture_handle WhiteArray() const { return whiteArray; }
 
-        // deferred data movement; applied by Flush at the start of the frame's command list
         void WriteBuffer(const Arena& arena, uint64_t byteOffset, const void* data, uint64_t bytes) {
             WriteBuffer(arena.Buffer(), arena.BarrierState(), byteOffset, data, bytes);
         }
         void WriteBuffer(conduit::buffer_handle buffer, conduit::state resting, uint64_t byteOffset, const void* data,
                          uint64_t bytes);
-        // immutable vertex or index data uploaded at the next flush
+
         void ForgetBuffer(conduit::buffer_handle buffer) { bufferStates.erase(buffer.value); }
         conduit::buffer_handle CreateStatic(const void* data, uint64_t bytes, conduit::buffer_usage usage,
                                        const char* name);
@@ -208,18 +200,17 @@ namespace perlin::gpu {
             uint64_t source = 0;
             uint32_t rowBytes = 0;
         };
-        // data is copied now; rows are tightly packed unless rowBytes says otherwise
+
         void WriteTexture(conduit::texture_handle texture, uint32_t layer, uint32_t x, uint32_t y, uint32_t width,
                           uint32_t height, const void* data, uint32_t rowBytes = 0, uint32_t mip = 0);
-        // texture was created by the caller in this state after the first upload
+
         conduit::texture_handle CreateSampled(conduit::texture_desc desc);
         void DestroyTexture(conduit::texture_handle texture);
         void Flush(conduit::command_list& list);
-        // makes this frame's ring writes visible to the device; call before every submit that reads ring memory
+
         void FlushRings();
         bool HasPendingWrites() const { return !bufferWrites.empty() || !imageWrites.empty(); }
 
-        // state tracking for textures the context transitions by hand
         conduit::state StateOf(conduit::texture_handle texture) const;
         void Transition(conduit::command_list& list, conduit::texture_handle texture, conduit::state to);
         void SetState(conduit::texture_handle texture, conduit::state state);
@@ -231,7 +222,7 @@ namespace perlin::gpu {
             conduit::state resting = conduit::state::vertex_buffer;
             uint64_t bytes = 0;
         };
-        // blocking copy of gpu-only buffers to the cpu, for when the whole device is about to be replaced
+
         std::vector<std::vector<uint8_t>> ReadBuffers(std::span<const BufferSource> sources);
 
     private:

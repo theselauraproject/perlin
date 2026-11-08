@@ -98,7 +98,7 @@ namespace perlin::server::json {
                         uint32_t cp;
                         if (!Hex4(cp))
                             return Fail("bad \\u escape");
-                        // surrogate pair: combine, a lone one becomes U+FFFD
+
                         if (cp >= 0xD800 && cp < 0xDC00) {
                             uint32_t lo = 0;
                             if (i + 1 < s.size() && s[i] == '\\' && s[i + 1] == 'u') {

@@ -121,8 +121,6 @@ namespace perlin::ui {
         std::atomic<uint32_t> gImageVersion{0};
         uint64_t gImageEpoch = 0;
 
-        // tab stops have no defined advance in the bitmap font: long runs push labels out of view,
-        // so server menus treat them as plain word separators
         void NormalizeFormText(std::string& text) {
             for (char& c : text)
                 if (c == '\t')
@@ -178,7 +176,7 @@ namespace perlin::ui {
 
         std::string Button(const std::string& id, const std::string& label, float x, float y, float w,
                            float h) {
-            // fallback-only display copy: tabs have no advance here, wrap them into lines
+
             std::string shown = label;
             NormalizeFormText(shown);
             const int perLine = std::max(8, static_cast<int>(w / 5.2f));
@@ -230,7 +228,7 @@ namespace perlin::ui {
             } catch (...) {}
             {
                 std::lock_guard lock(gImageMutex);
-                // a download from the previous level cannot repopulate the cache
+
                 if (epoch != gImageEpoch)
                     return;
                 gImages[url] = std::move(body);
@@ -349,7 +347,7 @@ namespace perlin::ui {
         }
         out.type = FormModel::Type::Simple;
         out.content = Str(root.Find("content"));
-        // classic simple forms send "buttons"; newer format sends "elements" (buttons mixed with labels, headers, dividers)
+
         const Json* buttons = root.Find("buttons");
         if (!buttons || !buttons->IsArray())
             buttons = root.Find("elements");
@@ -568,7 +566,7 @@ namespace perlin::ui {
                 response = index == 0 ? "true" : "false";
                 return true;
             }
-            // server numbers only buttons; labels, headers, dividers between them don't count
+
             int buttonIndex = 0;
             for (int i = 0; i < index && i < static_cast<int>(form.buttons.size()); i++) {
                 const std::string& k = form.buttons[static_cast<size_t>(i)].kind;
@@ -787,7 +785,7 @@ namespace perlin::ui {
                     } else if (binding == "#custom_dropdown") {
                         out = Json(form.openDropdown == index);
                     } else if (binding == "#custom_slider_value") {
-                        // the slider control reads 0..1
+
                         const double span = e.max - e.min;
                         out = Json(span > 0 ? std::clamp((e.number - e.min) / span, 0.0, 1.0) : 0.0);
                     } else if (binding == "#custom_slider_step_value") {
@@ -813,7 +811,7 @@ namespace perlin::ui {
                     }
                     return true;
                 }
-                // only the open dropdown lists options, so its rows are this collection
+
                 if (collection == "custom_dropdown") {
                     const int owner = form.openDropdown, option = index;
                     if (owner < 0 || static_cast<size_t>(owner) >= form.elements.size())
@@ -837,7 +835,7 @@ namespace perlin::ui {
                     return true;
                 }
                 if (binding == "#form_button_texture") {
-                    // web images report "loading" until downloaded, as the game does; packs show a spinner
+
                     if (b.imageType == "url") {
                         std::string bytes;
                         out = Json(FormImageBytes(b.imageData, bytes)
@@ -974,7 +972,7 @@ namespace perlin::ui {
         roots.push_back(data + "/ui_defaults");
         roots.push_back(UiAssets::Instance().VanillaRoot() + "/ui");
         {
-            // the old text-row stand-ins for form controls; the real controls draw now
+
             std::error_code ec;
             std::filesystem::remove(data + "/ui_defaults/perlin_form.json", ec);
         }
@@ -995,7 +993,7 @@ namespace perlin::ui {
                 state = 3;
                 return;
             }
-            // modal forms use the game's two-button popup
+
             Vars modalVars = EngineRootVariables();
             for (const char* flag :
                  {"$no_buttons_visible", "$single_button_visible", "$single_button_checkbox_visible",
@@ -1060,7 +1058,7 @@ namespace perlin::ui {
                 form.elements[i].trackX = track->second.first;
                 form.elements[i].trackW = track->second.second;
             }
-        // server form designs may draw text as images or encode data in titles: text check only guards vanilla-only layouts
+
         if (!ServerStyled()) {
             std::vector<std::string> samples;
             if (form.type == FormModel::Type::Modal) {
@@ -1101,7 +1099,7 @@ namespace perlin::ui {
         const size_t buttons = form.type == FormModel::Type::Modal    ? 2
                                : form.type == FormModel::Type::Custom ? 0
                                                                       : form.buttons.size();
-        // metadata rows can hide index zero while later collection entries produce the interactive controls
+
         if (buttons > 0 && !rml.contains("id=\"fb:")) {
             problem = "form buttons were not produced by the ui files";
             Log("form", "no buttons in rml for '{}' (modal={} hasModalTree={}), rml head: {}", form.title,

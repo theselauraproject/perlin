@@ -288,7 +288,7 @@ static void TestSoundSystem() {
     CHECK(sounds.PlayNamed("mob.cow.say", {0, 0, 0}, 1.0f, 1.0f, false) && lastGlobal);
     CHECK(!sounds.PlayNamed("does.not.exist", {0, 0, 0}, 1.0f, 1.0f));
     CHECK(sounds.PlayNamed("step.stone", {0, 0, 0}, 1.0f, 1.0f));
-    // Repeated requests are valid events, not an automatic 250 ms mute.
+
     CHECK(sounds.PlayNamed("step.stone", {1, 0, 0}, 1.0f, 1.0f));
     EventSound cow;
     CHECK(sounds.FindEntityEvent("minecraft:cow", "ambient", cow));
@@ -313,10 +313,10 @@ static void TestSoundSystem() {
     AudioEngine layeredEngine;
     SoundSystem layered(layeredEngine);
     layered.Configure(root.string(), {high.string(), low.string()});
-    CHECK(layered.DefinitionCount() == 3); // vanilla plus custom definition
+    CHECK(layered.DefinitionCount() == 3);
     CHECK(layered.PlayNamed("pack.test", {}, 1, 1, false));
     CHECK(std::fabs(RenderPeak(layeredEngine, 2400) - 8000.0f / 32768.0f) < 1e-5f);
-    // Changing the active pack list must invalidate decoded samples.
+
     layered.Configure(root.string(), {low.string()});
     CHECK(layered.PlayNamed("pack.test", {}, 1, 1, false));
     CHECK(std::fabs(RenderPeak(layeredEngine, 2400) - 4000.0f / 32768.0f) < 1e-5f);

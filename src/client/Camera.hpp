@@ -31,13 +31,13 @@ namespace perlin {
         }
 
         float thirdPersonDistance = 5.0f;
-        // CameraAvoidanceComponent runtime spring velocity (+0x38); thirdPersonDistance is its current distance (+0x3C)
+
         float avoidanceVelocity = 0.0f;
 
         glm::vec3 EyePosition() const {
             const glm::vec3 dir = Direction();
             glm::vec3 eye(x, y, z);
-            // negative: third person was just entered and the distance is set on the next update
+
             const float distance = thirdPersonDistance < 0.0f ? 5.0f : thirdPersonDistance;
             if (mode == PerspectiveMode::ThirdPersonBack)
                 eye -= dir * distance;

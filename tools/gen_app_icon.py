@@ -7,7 +7,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, 'packaging', 'icon', 'perlin.png')
 APP_ID = 'io.perlin.client'
 
-
 def load(path):
     image = Image.open(path).convert('RGBA')
     side = max(image.size)
@@ -15,17 +14,14 @@ def load(path):
     square.paste(image, ((side - image.width) // 2, (side - image.height) // 2))
     return square
 
-
 def resized(image, size):
     return image.resize((size, size), Image.LANCZOS)
-
 
 def save(image, *parts):
     path = os.path.join(ROOT, *parts)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     image.save(path)
     return path
-
 
 def full_bleed(image):
     side = image.width
@@ -42,7 +38,6 @@ def full_bleed(image):
     inset = round(side * 0.0154)
     return out.crop((inset, inset, side - inset, side - inset)), fill
 
-
 def padded(image, content):
     side = image.width
     canvas = Image.new('RGBA', (side, side), (0, 0, 0, 0))
@@ -51,14 +46,12 @@ def padded(image, content):
     canvas.paste(inner, (offset, offset), inner)
     return canvas
 
-
 def circle(image):
     mask = Image.new('L', image.size, 0)
     ImageDraw.Draw(mask).ellipse((0, 0, image.width - 1, image.height - 1), fill=255)
     out = Image.new('RGBA', image.size, (0, 0, 0, 0))
     out.paste(image, (0, 0), mask)
     return out
-
 
 def main():
     master = resized(load(sys.argv[1] if len(sys.argv) > 1 else SOURCE), 1024)
@@ -103,7 +96,6 @@ def main():
     with open(os.path.join(ROOT, *res, 'values', 'ic_launcher_background.xml'), 'w', encoding='utf-8', newline='\n') as f:
         f.write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
                 f'    <color name="ic_launcher_background">#{fill[0]:02X}{fill[1]:02X}{fill[2]:02X}</color>\n</resources>\n')
-
 
 if __name__ == '__main__':
     main()

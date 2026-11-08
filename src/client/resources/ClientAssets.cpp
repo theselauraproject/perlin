@@ -304,7 +304,6 @@ namespace perlin::clientassets {
                 emit(dst, gui(src));
         }
 
-        // end poem and mojang's java credits, rolled when leaving the end
         for (const char* text : {"end.txt", "credits.json", "postcredits.txt"}) {
             std::string bytes;
             if (jar.Raw(std::string("assets/minecraft/texts/") + text, bytes))

@@ -1,4 +1,3 @@
-// dedicated server: perlin-server [--data <dir>] [--port <n>] [--config-json '{...}']
 #include "core/Config.hpp"
 #include "core/Log.hpp"
 #include "core/Server.hpp"
@@ -29,7 +28,7 @@ namespace {
 
 int main(int argc, char** argv) {
 #ifdef _WIN32
-    // player names and plugin output are utf-8
+
     SetConsoleOutputCP(CP_UTF8);
 #endif
     std::string dir = ".";
@@ -49,7 +48,7 @@ int main(int argc, char** argv) {
         }
     }
     std::filesystem::create_directories(dir);
-    // bds reads server.properties from its working directory; a server.json from before that is still read when there is no .properties
+
     const std::string propsPath = dir + "/server.properties";
     const bool hadProps = std::filesystem::exists(propsPath);
     const bool hadLegacy = std::filesystem::exists(dir + "/server.json");
@@ -60,7 +59,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (!hadProps && !hadLegacy) {
-        // first run: a random seed, and the file written out so there is something to edit
+
         config.randomSeed = true;
         config.udpPortsSet = true;
         config.udpPortBegin = config.udpPortEnd = config.port;
@@ -68,7 +67,7 @@ int main(int argc, char** argv) {
         LogInfo("wrote default " + propsPath);
     }
     config.dataDir = dir;
-    // a packaged server carries its block tables in resources/ next to the executable
+
     if (config.blockDataDir.empty() && argc > 0) {
         std::error_code ec;
         const std::filesystem::path beside = std::filesystem::path(argv[0]).parent_path() / "resources";
@@ -90,7 +89,6 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, OnSignal);
     std::signal(SIGTERM, OnSignal);
 
-    // console commands: a thread reads stdin; its commands run on the tick thread's behalf under the same single-threaded rules
     std::thread console;
     std::mutex lineMutex;
     std::vector<std::string> lines;

@@ -191,6 +191,7 @@ namespace perlin {
         SetupModActions();
         SetupModAdvanced();
         SetupModHooks();
+        SetupModExtra();
         SetupModInteractionApi();
     }
 
@@ -260,6 +261,37 @@ namespace perlin {
                 out.ticks = e.ticks;
                 out.ambient = e.ambient;
                 out.particles = e.particles;
+                w.write(out);
+            }
+            return Status::Ok;
+        });
+
+        mm.Register(Op::ScoreboardGet, [this](CallContext&, abi::Reader&, abi::Writer& w) {
+            if (!modLive)
+                return Status::Unavailable;
+            const auto board = modLive->Scoreboard();
+            abi::ScoreboardInfo info;
+            info.visible = board.visible;
+            info.title = board.title;
+            info.descending = board.descending;
+            for (const auto& row : board.rows)
+                info.rows.push_back({row.name, row.score});
+            w.write(info);
+            return Status::Ok;
+        });
+
+        mm.Register(Op::BossbarList, [this](CallContext&, abi::Reader&, abi::Writer& w) {
+            if (!modLive)
+                return Status::Unavailable;
+            const auto bars = modLive->BossBars();
+            w.put<uint32_t>(static_cast<uint32_t>(bars.size()));
+            for (const auto& bar : bars) {
+                abi::Bossbar out;
+                out.id = bar.id;
+                out.title = bar.title;
+                out.progress = bar.progress;
+                out.color = bar.color;
+                out.overlay = bar.overlay;
                 w.write(out);
             }
             return Status::Ok;

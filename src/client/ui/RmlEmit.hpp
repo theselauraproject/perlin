@@ -19,7 +19,7 @@ namespace perlin::ui {
         float clipRatio = 1.0f;
         float r = 1, g = 1, b = 1, alpha = 1;
         bool keepRatio = false;
-        std::string id; // lets the game update the image without re-emitting
+        std::string id;
     };
 
     struct TextStyle {
@@ -27,7 +27,7 @@ namespace perlin::ui {
         float r = 1, g = 1, b = 1, a = 1;
         bool shadow = false;
         bool outline = false;
-        bool ten = false; // font_type: MinecraftTen
+        bool ten = false;
         std::string align = "left";
         float linePadding = 0;
     };
@@ -48,7 +48,6 @@ namespace perlin::ui {
                       const float c2[4]);
         void Link(float ax, float ay, float w, float h, int z, const std::string& command);
 
-        // no stacking context: the box's children keep their absolute layer against the whole screen
         static constexpr int kAutoZ = INT32_MIN;
         void BeginBox(float ax, float ay, float w, float h, int z, const std::string& cls,
                       const std::string& id, bool clip, float scroll = 0.0f,
@@ -90,13 +89,13 @@ namespace perlin::ui {
         void SetScroll(float value) { scroll = value; }
         float ContentHeight() const { return contentHeight; }
         float ViewportHeight() const { return viewportHeight; }
-        // edit_box content for a collection row: typed text, placeholder, and whether the box has focus
+
         void SetEditText(
             std::function<bool(const LNode&, std::string& text, std::string& placeholder, bool& focused)>
                 fn) {
             editText = std::move(fn);
         }
-        // slider tracks of the last emit by command ("k:3"): left edge and usable width, gui pixels
+
         const std::unordered_map<std::string, std::pair<float, float>>& SliderTracks() const {
             return sliderTracks;
         }
@@ -112,7 +111,7 @@ namespace perlin::ui {
         void VisitEditBox(const LNode& n, RmlWriter& out);
         std::function<bool(const LNode&, std::string&, std::string&, bool&)> editText;
         std::unordered_map<std::string, std::pair<float, float>> sliderTracks;
-        // set while a slider or an edit box is being drawn: nested controls they style
+
         std::string progressName, progressHoverName;
         float progressWidth = -1, progressLeft = 0;
         std::string editTextName, editShown;

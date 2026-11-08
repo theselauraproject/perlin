@@ -24,8 +24,6 @@ namespace perlin::attachable {
             return {static_cast<float>(v->array[0].NumberOr(0)), static_cast<float>(v->array[1].NumberOr(0))};
         }
 
-        // poly_mesh: indexed polygons ([position, normal, uv] per corner), or parallel arrays grouped by "tri_list" /
-        // "quad_list". Bedrock counts mesh UVs from the bottom of the texture.
         void ParsePolyMesh(const Json& mesh, Bone& bone) {
             const auto list = [&](const char* key) -> const std::vector<Json>* {
                 const Json* v = mesh.Find(key);
@@ -105,7 +103,7 @@ namespace perlin::attachable {
                     continue;
                 Bone bone;
                 bone.name = str::Lower(b.Find("name") ? b.Find("name")->StringOr("") : "");
-                // a locator is [x, y, z] or {"offset": [x, y, z], "rotation": ...}
+
                 if (const Json* locs = b.Find("locators"); locs && locs->IsObject())
                     for (const auto& [name, at] : locs->object)
                         g.locators[str::Lower(name)] = at.IsObject() ? Vec3(at.Find("offset")) : Vec3(&at);
@@ -380,7 +378,7 @@ namespace perlin::attachable {
             const float w = c.size.x, h = c.size.y, d = c.size.z;
             glm::vec2 uvOrigin[6], uvSize[6];
             if (c.boxUv) {
-                // Box UV lays the faces out with whole-pixel sizes.
+
                 const float bw = std::floor(w), bh = std::floor(h), bd = std::floor(d);
                 const float u = c.uv.x, v = c.uv.y;
                 uvOrigin[0] = {u, v + bd};
@@ -409,7 +407,7 @@ namespace perlin::attachable {
                 bool flip = mirrored;
                 if (mirrored && i < 2)
                     fi = 1 - i;
-                // the x mirror moves east/west to the other side: a face the cube lists sits on that other side
+
                 if (!c.boxUv && !c.faces[fi].present)
                     continue;
                 const FaceDef& f = faces[i];
@@ -419,7 +417,7 @@ namespace perlin::attachable {
                     std::swap(a, b);
                     std::swap(dd, cc);
                 }
-                // uv_rotation turns the texture clockwise on the face: each corner takes the UV of the one before it.
+
                 if (const int turns = c.boxUv ? 0 : c.faces[fi].rotation) {
                     const glm::vec2 ring[4] = {a, b, cc, dd};
                     a = ring[(4 - turns) % 4];

@@ -32,15 +32,14 @@ namespace perlin::physics::bds {
                                            bool sneaking, bool minecart, bool hasBounceComponent,
                                            bool isPlayer, std::optional<Float3>& restitution) {
         LandingResult result{velocity, std::nullopt};
-        // ComputeBlockRestitutionSystem 0x1484bc1e0: falls slower than this don't bounce, so a body resting on
-        // slime (gravity alone gives -0.0784 per tick) lands like on any block
+
         constexpr float minimumBounceSpeed = std::bit_cast<float>(0x3da3d71au);
         const bool bounces = velocity.y < 0 && !(minimumBounceSpeed > std::fabs(velocity.y));
         if (surface != LandingSurface::Ordinary && !sneaking && bounces) {
             if (!restitution)
                 restitution = Float3{};
             const float coefficient = surface == LandingSurface::Bed ? 0.75f : 1.0f;
-            // keeps the larger of a pending upward impulse and this bounce
+
             const float bounce = -detail::Round(velocity.y * coefficient);
             restitution->y = bounce > restitution->y ? bounce : restitution->y;
             if (minecart)
@@ -50,8 +49,7 @@ namespace perlin::physics::bds {
                     BlockPosition{FloorBlockCoordinate(position.x), FloorBlockCoordinate(position.y),
                                   FloorBlockCoordinate(position.z)};
         }
-        // ResetVerticalVelocitySystem 0x147b8d6a0 runs after the restitution is computed: every vertical
-        // collision, up or down and on any block, ends with vy = 0 before the impulse is added
+
         result.velocity.y = 0.0f;
         return result;
     }

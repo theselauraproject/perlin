@@ -1,6 +1,5 @@
 #!/bin/sh
-# usage: run.sh <slangc> <server build dir with libperlin_server_core.a and libminiz.a> [seed ...]
-# compiles the vanilla terrain kernel to c++ with slang, builds it with fused multiply-add off (what `precise` does on a gpu) and compares it with the cpu graph
+
 set -e
 slangc="$1"; build="$2"; shift 2
 here="$(cd "$(dirname "$0")" && pwd)"

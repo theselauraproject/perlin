@@ -10,7 +10,7 @@ namespace perlin::ui {
         float progress = -1.0f;
         std::string cancel;
         std::string warning;
-        // blurred panorama already drawn under the overlay: tint it instead of covering it with dirt
+
         bool panorama = false;
     };
     inline constexpr const char* kLoadingCancelId = "cancel";
@@ -30,7 +30,6 @@ namespace perlin::ui {
     inline constexpr const char* kDownloadSkipId = "dl_skip";
     std::string BuildDownloadScreenRml(const DownloadScreenText& text, int guiW, int guiH, double time);
 
-    // {{backdrop}} in the loading and disconnect templates; expects {{w}} {{h}} {{tile_scale}} filled after
     std::string MenuBackdropRml(bool panorama);
 
     std::string DefaultLoadingScreenTemplate();

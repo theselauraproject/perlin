@@ -59,7 +59,7 @@ namespace perlin::gpu {
         lodGroups.clear();
         visible.clear();
         visibleSections.clear();
-        // pages keep their buffers; every range is returned so the next meshes reuse them
+
         for (Page& p : pages) {
             if (!p.live)
                 continue;
@@ -450,7 +450,7 @@ namespace perlin::gpu {
             const float dx = x0 + 8.0f - camX, dz = z0 + 8.0f - camZ;
             visible.push_back({dx * dx + dz * dz, &g, result == Frustum::Result::Inside});
         }
-        // real chunks are drawn near to far; lod tiles go after them grouped by buffer range, which merges them into few draws
+
         std::sort(visible.begin(), visible.end(),
                   [](const Visible& x, const Visible& y) { return x.distance < y.distance; });
         const size_t realCount = visible.size();

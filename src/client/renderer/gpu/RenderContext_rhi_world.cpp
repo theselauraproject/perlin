@@ -51,7 +51,6 @@ namespace perlin {
             return n;
         }
 
-        // transparent texels take their neighbours' colour first so mips do not darken cutout edges
         std::vector<std::vector<uint8_t>> BuildTileMips(int tile, const uint8_t* rgba, size_t stride) {
             const int count = MipCount(tile);
             std::vector<std::vector<uint8_t>> mips;
@@ -121,8 +120,6 @@ namespace perlin {
         constexpr conduit::color_mask kRgbA = conduit::color_mask::all;
     }
 
-    // -- textures ---------------------------------------------------------------------------------------------------
-
     int RenderContext_rhi::MaxAtlasLayers(int tilePx) const {
         const int limit =
             initialized ? std::max<int>(
@@ -131,7 +128,7 @@ namespace perlin {
         const double perLayer =
             static_cast<double>(std::max(1, tilePx)) * std::max(1, tilePx) * 4.0 * 4.0 / 3.0;
         const double budget = 1.3e9;
-        // pages only exist when the device takes a full page: a smaller limit stays one short page
+
         const int total = limit >= kAtlasPageLayers ? kAtlasPageLayers * kAtlasMaxPages : limit;
         return std::max(256, std::min(total, static_cast<int>(budget / perLayer)));
     }
@@ -139,7 +136,7 @@ namespace perlin {
     int RenderContext_rhi::AtlasLayersFor(int tiles, int tilePx) const {
         const double perLayer =
             static_cast<double>(std::max(1, tilePx)) * std::max(1, tilePx) * 4.0 * 4.0 / 3.0;
-        // small tiles: take the whole page now, so tiles added later never reallocate it
+
         if (perLayer * atlasPageCap <= 96.0e6)
             return atlasPageCap;
         return std::min(atlasPageCap, (tiles + 255) / 256 * 256 + 256);
@@ -173,7 +170,7 @@ namespace perlin {
     }
 
     namespace {
-        // the mips are the slow part of an atlas upload and every tile is independent: spread them over the cores
+
         std::vector<std::vector<std::vector<uint8_t>>> BuildMipsParallel(const uint8_t* rgba, int tilePx, int first,
                                                                          int count) {
             std::vector<std::vector<std::vector<uint8_t>>> built(static_cast<size_t>(std::max(count, 0)));
@@ -213,7 +210,7 @@ namespace perlin {
         for (int page = 0; page < pages; page++) {
             const int first = page * atlasPageCap;
             const int end = std::min(count, first + atlasPageCap);
-            // a page that cannot exist ends the atlas there: the tiles before it still draw
+
             if (!MakeAtlasPage(page, end - first, tilePx))
                 break;
             const TexRec& rec = AtlasPage(page);
@@ -239,7 +236,7 @@ namespace perlin {
         if (!initialized || !atlas.used || !rgba || tilePx != tileSize || first != atlasTiles || tiles <= first ||
             tiles > capacity)
             return false;
-        // a page that exists and is too short for the new tiles needs the whole atlas rebuilt
+
         const int firstPage = first / atlasPageCap, lastPage = (tiles - 1) / atlasPageCap;
         for (int page = firstPage; page <= lastPage; page++) {
             const TexRec& rec = AtlasPage(page);
@@ -358,7 +355,7 @@ namespace perlin {
         if (!initialized || image.width < 1 || image.height < 1 ||
             image.pixels.size() < static_cast<size_t>(image.width) * image.height * 4)
             return;
-        // kept whole: a device reset uploads it again
+
         iconSource = image;
         if (MakeTexture(crosshair, static_cast<uint32_t>(image.width), static_cast<uint32_t>(image.height), 1, 1,
                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp, "crosshair")) {
@@ -366,8 +363,6 @@ namespace perlin {
             crosshairPx = image.width;
         }
     }
-
-    // -- meshes -----------------------------------------------------------------------------------------------------
 
     void RenderContext_rhi::UpdateChunkMesh(int cx, int cz, const Tessellator& tess, uint64_t version) {
         if (initialized)
@@ -408,8 +403,6 @@ namespace perlin {
         if (initialized)
             meshes.Clear();
     }
-
-    // -- world ------------------------------------------------------------------------------------------------------
 
     RenderContext_rhi::DrawState RenderContext_rhi::PassState(RenderLayer layer) const {
         DrawState s = Base(Program::TerrainSolid, true, true, conduit::compare_op::less);
@@ -596,7 +589,7 @@ namespace perlin {
         meshes.Select(frustum, camX, frame.cameraPosition[1], camZ, chunkCullRadius, caveCulling,
                       frame.timeSeconds);
         if (pack) {
-            // the pack draws terrain, sky and shadows itself when the frame executes
+
             jpack->SetViewFrustum(frustum);
             jpack->GatherGeometry(camX, camZ);
             jpackGathered = true;
@@ -656,7 +649,6 @@ namespace perlin {
                    conduit::index_type::u16, 0, skyFanIndexCount);
         }
 
-        // converted pack draws its own horizon glow
         if (!javaActive && sky.sunrise[3] > 0.001f) {
             glm::mat4 pose = glm::rotate(view, kHalfPi, glm::vec3(1.0f, 0.0f, 0.0f));
             const float flip = std::sin(sky.sunAngle) < 0.0f ? 3.14159265358979323846f : 0.0f;
@@ -725,7 +717,7 @@ namespace perlin {
         CloudDraw clouds = cloudsIn;
         const bool pack = PackRunning();
         if (pack) {
-            // iris: shaders.properties clouds=off|fast|fancy overrides the player's setting
+
             const std::string& mode = jpack->CloudSetting();
             if (mode == "off")
                 return;
@@ -734,7 +726,7 @@ namespace perlin {
             else if (mode == "fancy")
                 clouds.fancy = true;
             if (cloudCpu.vertices.empty() && cloudBuilt && cloudIndexCount > 0)
-                cloudBuilt = false; // rebuild once to keep a cpu copy
+                cloudBuilt = false;
         }
         material::Registry::Instance().Configure(clouds.fancy);
         if (!clouds.enabled || cloudTexture.solid.empty())
@@ -819,7 +811,7 @@ namespace perlin {
         if (pack) {
             if (cloudCpu.vertices.empty())
                 return;
-            // through the pack (gbuffers_clouds): vanilla bakes each face's shade into the vertex colour
+
             std::vector<UiVertex> verts;
             verts.reserve(cloudCpu.vertices.size());
             for (const TextureVertex& v : cloudCpu.vertices) {

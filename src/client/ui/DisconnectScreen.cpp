@@ -111,7 +111,7 @@ mcimg { display: block; position: absolute; }
         ReplaceAll(d, "title", FormatCodesToRml(t.title));
         ReplaceAll(d, "code", EscapeRml(t.code));
         ReplaceAll(d, "reason", body);
-        // added here rather than in the template so edited disconnect_screen.rml files get it too
+
         if (!t.extra.empty()) {
             const std::string row =
                 "  <div id=\"" + std::string(kDisconnectExtraId) +

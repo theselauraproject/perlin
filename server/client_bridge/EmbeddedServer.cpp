@@ -7,7 +7,7 @@
 
 namespace perlin {
     namespace {
-        // one server instance shared by its transports: a transport that outlives Stop() keeps the server alive
+
         struct Handle {
             ps_server* server;
             explicit Handle(ps_server* s) : server(s) {}
@@ -48,7 +48,7 @@ namespace perlin {
                 return r == 1;
             }
             bool IsConnected() const override { return conn && ps_conn_alive(conn); }
-            // a local server cannot go quiet on a dead link: it is either connected or the connection reports it is gone
+
             bool HasLivenessTimeout() const override { return true; }
             std::string LastError() const override { return {}; }
             const NetherNetServerInfo& Info() const override { return info; }
@@ -103,7 +103,7 @@ namespace perlin {
             return false;
         if (ps_is_running(impl->handle->server))
             return true;
-        // the server's thread ended by itself (it crashed): drop it so the next join starts a fresh one
+
         const_cast<EmbeddedServer*>(this)->Stop();
         return false;
     }

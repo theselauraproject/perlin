@@ -46,11 +46,11 @@
 
 namespace perlin {
     namespace {
-        // a finished Minecraft login, reusable while its token lives: the token and chain are bound to this key pair
+
         struct CachedLogin {
             std::shared_ptr<EC_KEY> key;
             xbox::Credentials creds;
-            int64_t expires = 0; // unix seconds
+            int64_t expires = 0;
             std::shared_future<bool> pending;
         };
         std::mutex gLoginMutex;
@@ -71,7 +71,6 @@ namespace perlin {
                 .count();
         }
 
-        // 5 minutes of margin: a token about to lapse could expire during the join
         bool Fresh(const CachedLogin& c) {
             return c.key && c.expires - NowSeconds() > 300;
         }
@@ -506,7 +505,7 @@ namespace perlin {
 
     void BedrockSession::SetOutdated(int who) {
         const int theirs = net ? net->Info().advertisedProtocol : 0;
-        // plain version mismatch doesn't say which side is behind; the ping reply's protocol does
+
         if (who == 0 && theirs > 0 && theirs != kBedrockProtocol)
             who = theirs > kBedrockProtocol ? 1 : 2;
         if (who == 0)
@@ -568,10 +567,10 @@ namespace perlin {
         packsExpected = 0;
         if (transfer && identity && identity->Valid()) {
         } else {
-            // an early or earlier sign-in for this account skips the whole login
+
             std::shared_ptr<EC_KEY> cachedKey;
             int64_t cachedMinutes = 0;
-            // a sign-in still running in the background: connect meanwhile, take its result before the Login packet
+
             std::shared_future<bool> pendingLogin;
             if (account && !accountKey.empty()) {
                 std::lock_guard lock(gLoginMutex);
@@ -779,6 +778,7 @@ namespace perlin {
         if (!net || !net->IsConnected())
             return false;
         txPackets++;
+        txBytes += body.size();
         std::vector<uint8_t> content;
         wire::WriteVarUint32(content, static_cast<uint32_t>(body.size() + wire::VarUint32Size(packetId)));
         wire::WriteVarUint32(content, packetId);
@@ -891,7 +891,7 @@ namespace perlin {
             const int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now().time_since_epoch())
                                       .count();
-            // a quiet server legitimately sends nothing for a while (a flat empty world, a plugin server): wait a full two minutes
+
             if (nowMs - lastPacketMs.load() > 120000) {
                 diagLostLogged = true;
                 std::string why = "The server stopped responding (no data for 2 minutes).";
@@ -1040,6 +1040,7 @@ namespace perlin {
 
     void BedrockSession::OnGamePacket(uint32_t id, const std::vector<uint8_t>& body) {
         diagPackets++;
+        rxBytes += body.size();
         diagLastId = id;
         lastPacketMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                            std::chrono::steady_clock::now().time_since_epoch())
@@ -1376,7 +1377,7 @@ namespace perlin {
         }
         if (hasAction)
             add(InputFlag::PerformBlockActions);
-        // SendPlayerInputPacketSystem 0x146dab080: bit 45 goes with the vehicle rotation and id, never alone
+
         if (input.predictedVehicle)
             add(static_cast<uint32_t>(proto::InputData::ClientPredictedVehicle));
 
@@ -1735,7 +1736,7 @@ namespace perlin {
                         auto identity = std::make_unique<ClientIdentity>();
                         if (!identity->Valid())
                             return false;
-                        // other startup requests to PlayFab can collide with this one ("A conflict occurred..."): try again
+
                         for (int attempt = 1; attempt <= 3; attempt++) {
                             xbox::Credentials creds;
                             std::string error;
@@ -1795,8 +1796,7 @@ namespace perlin {
         const bool requestMode = IsRequestMode(pkt);
         const bool far = requestMode && std::max(std::abs(pkt.x - viewCenterChunk[0]),
                                                  std::abs(pkt.z - viewCenterChunk[1])) > nearRadius;
-        // a level_chunk replaces the whole column: sub-chunks the new one does not carry are air again. keeping the
-        // old column left remnants of a previous map standing wherever the new one is shorter or empty
+
         {
             bool had = false;
             {
@@ -2073,7 +2073,7 @@ namespace perlin {
 
     bool BedrockSession::ApplySubChunk(int cx, int cz, int absSubY, const SubChunkData& sc) {
         if (sc.storages.empty()) {
-            // zero-storage sub-chunk: the server means all air, store it so the column fills in
+
             static const std::array<uint16_t, ChunkCodec::kCells> air{};
             netLevel.SetSubChunk(cx, cz, absSubY, air.data());
             statSubChunksApplied++;

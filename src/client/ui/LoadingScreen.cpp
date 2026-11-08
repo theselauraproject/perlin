@@ -9,7 +9,7 @@
 
 namespace perlin::ui {
     std::string MenuBackdropRml(bool panorama) {
-        // menu_background.png: flat black at alpha 64 over the blurred panorama
+
         if (panorama)
             return R"(<div style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; background-color: #00000040;"></div>)";
         return R"(<mcimg src="textures/blocks/dirt" tiled="1" tilescale="{{tile_scale}}" color="0.25 0.25 0.25" style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;"></mcimg>)";

@@ -66,7 +66,7 @@ namespace perlin {
         if (!rules.empty())
             registry.LoadRules(rules);
         registry.LoadBehaviorPack(options.bedrockSamplesDir + "/repo/behavior_pack/blocks");
-        // lighting asks from its own threads: read the live set under the lock, never the member mid-swap
+
         registry.SetDerivedOpacity([this](uint16_t id) { return BlockLightOpacity(*LiveBlocks(), id); });
         registry.SetOcclusion([](uint16_t id, FaceOcclusion& out) { return BlockFaceOcclusion(id, out); });
         lightingConfigured = true;
@@ -86,7 +86,7 @@ namespace perlin {
             return LoadTexture(root + file, out);
         };
         if (!crosshairLoaded) {
-            // bedrock packs restyle textures/ui/cross_hair; java packs reach the same name through their icons sheet
+
             Texture cross;
             bool found = TexturePack::Instance().Load("textures/ui/cross_hair.png", cross) && cross.width > 0;
             if (!found)
@@ -164,7 +164,7 @@ namespace perlin {
     }
 
     void LevelRenderer::ReloadResources() {
-        // the live set keeps drawing; a fresh one loads in the background and replaces it whole
+
         assetsStale = true;
         assetEpoch++;
         ServerBlocks::Instance().Requeue();
@@ -183,7 +183,7 @@ namespace perlin {
             serverPacksChangedAt = std::chrono::steady_clock::now();
             serverPackReloadPending = true;
         }
-        // packs mount one by one (encrypted ones take seconds each): reload once, after the last
+
         if (serverPackReloadPending && !ServerPacks::Instance().Mounting() &&
             std::chrono::steady_clock::now() - serverPacksChangedAt > std::chrono::milliseconds(300)) {
             serverPackReloadPending = false;
@@ -193,11 +193,9 @@ namespace perlin {
         const bool complete =
             !assetsStale && !assetJob.valid() && atlasUploaded && blocks->Complete() && biomeTints->Ready();
         if (complete) {
-            // server blocks get textures when a mesh or an icon first needs them: a slice per frame, then only
-            // the chunks that were waiting on them mesh again
+
             const auto now = std::chrono::steady_clock::now();
-            // packs still mounting or about to reload: the full build runs in the background job right after, so
-            // slices built now would only be thrown away
+
             const bool packsSettling = serverPackReloadPending || ServerPacks::Instance().Mounting();
             if (!packsSettling && ServerBlocks::Instance().Pending() &&
                 (fastBuild || now - lastCustomBuild >= std::chrono::milliseconds(60))) {
@@ -226,7 +224,7 @@ namespace perlin {
                 result.tintsMs);
             if (PERLIN_ENV("PERLIN_PREVIEW"))
                 Log("preview", "blocksOk={} tintsOk={}", result.blocksOk, result.tintsOk);
-            // packs changed again while it loaded: start over from the newer set
+
             if (stagedEpoch != assetEpoch || !result.blocksOk) {
                 if (stagedEpoch != assetEpoch) {
                     stagedBlocks.reset();
@@ -240,7 +238,7 @@ namespace perlin {
                 retiredTints = std::exchange(biomeTints, std::move(stagedTints));
             }
             builtForPacks = stagedPacks;
-            // the load already built the server blocks in use; the meshes about to start meet no stale waits
+
             ServerBlocks::Instance().TakeWaitingChunks();
             if (onLibrarySwap)
                 onLibrarySwap(blocks.get());
@@ -251,7 +249,7 @@ namespace perlin {
             blocksOk = true;
             tintsOk = result.tintsOk;
         } else if (!assetsStale && blocks->Complete()) {
-            // blocks are in, tints were not yet: those are cheap, finish them here
+
             blocksOk = true;
             tintsOk = biomeTints->EnsureLoaded(vanillaDir);
         } else {
@@ -285,12 +283,12 @@ namespace perlin {
                 stagedEpoch = assetEpoch;
                 stagedPacks = ServerPacks::Instance().Generation();
             }
-            // only this job touches the staged set until it is swapped in
+
             assetJob = std::async(std::launch::async, [lib = stagedBlocks, tints = stagedTints, packDir, vanillaDir] {
                 AssetLoad r;
                 const auto t0 = std::chrono::steady_clock::now();
                 r.blocksOk = lib->EnsureLoaded(packDir, vanillaDir);
-                // here, not on the render thread: a pack change rebuilds every server block in use
+
                 if (r.blocksOk)
                     lib->ApplyCustom(vanillaDir);
                 const auto t1 = std::chrono::steady_clock::now();
@@ -376,7 +374,7 @@ namespace perlin {
             return;
         MesherInvalidateCaches();
         PosSet targets;
-        // neighbours cull their border faces against these blocks; a job in flight started with the old textures
+
         for (const auto& [cx, cz] : chunks)
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++)
@@ -384,7 +382,7 @@ namespace perlin {
         for (const ChunkPos& pos : inFlight)
             targets.insert(pos);
         for (const ChunkPos& pos : targets) {
-            // a chunk never meshed yet picks the textures up on its first mesh
+
             if (meshKey.erase(pos))
                 remeshOutstanding.insert(pos);
             Recompute(pos);
@@ -558,7 +556,7 @@ namespace perlin {
 
             const uint32_t gen = generation.load();
             Level* target = &level;
-            // the job keeps the set it started with alive: a background load may swap the live one meanwhile
+
             meshPool->Submit([this, target, job, gen, lib = blocks, tints = biomeTints] {
                 if (stopping)
                     return;
@@ -584,7 +582,7 @@ namespace perlin {
         int LodStride(int tx, int tz, int ccx, int ccz) {
             const int d = std::max(std::abs(tx * LodStore::kTileChunks + 2 - ccx),
                                    std::abs(tz * LodStore::kTileChunks + 2 - ccz));
-            // a cell stays a few pixels wide at every range: 4 blocks to 64 chunks, then 8, 16 and 32
+
             return d > 256 ? 8 : d > 128 ? 4 : d > 64 ? 2 : 1;
         }
     }
@@ -650,7 +648,7 @@ namespace perlin {
             for (const ChunkPos& p : evicted)
                 lodDirty.insert(TileKey(LodStore::TileOf(p.x), LodStore::TileOf(p.z)));
             std::unordered_map<int64_t, int> wanted;
-            // tiles, not columns: a 512 chunk radius holds around a million columns but only tens of thousands of tiles
+
             for (const auto& [key, count] : lod.Tiles()) {
                 const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
                 const int a = tx * LodStore::kTileChunks, b = a + LodStore::kTileChunks - 1;

@@ -8,7 +8,6 @@
 
 namespace perlin::server::json {
 
-    // small tree reader for config files, plugin manifests and login tokens; missing keys read as null so chains never throw
     class Value {
     public:
         enum class Kind : uint8_t { Null, Bool, Number, String, Array, Object };
@@ -44,7 +43,6 @@ namespace perlin::server::json {
     bool Parse(std::string_view text, Value& out, std::string* error = nullptr);
     std::string Escape(std::string_view text);
 
-    // jwt payload (middle segment) decoded from base64url; unsigned, callers decide what to trust
     bool DecodeJwtPayload(std::string_view jwt, Value& out);
     std::string Base64UrlDecode(std::string_view text);
 }

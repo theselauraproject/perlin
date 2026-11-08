@@ -42,12 +42,11 @@ namespace perlin::jshader {
 
         const PackSource& Source() const { return *pack; }
         const Properties& Props() const { return props; }
-        // shaders.properties without preprocessing: iris reads screens, sliders, profiles and feature flags
-        // from it so #if branches do not change the option layout
+
         const Properties& RawProps() const { return rawProps; }
-        // iris feature flags the pack asked for that the renderer has (IRIS_FEATURE_* in the shaders)
+
         const std::set<std::string>& ActiveFeatures() const { return activeFeatures; }
-        // required feature flags the renderer lacks: the pack cannot run
+
         const std::vector<std::string>& MissingFeatures() const { return missingFeatures; }
         const MacroMap& Macros() const { return macros; }
         const MacroMap& EngineMacros() const { return engineMacros; }
@@ -66,7 +65,7 @@ namespace perlin::jshader {
         const Directives& GetDirectives();
         const std::map<int, std::vector<std::string>>& BlockIds() const { return blockIds; }
         const std::map<int, std::vector<std::string>>& EntityIds() const { return entityIds; }
-        // the id lines in file order (iris keeps them so; the first block entry matching a state wins)
+
         using IdLines = std::vector<std::pair<int, std::vector<std::string>>>;
         const IdLines& BlockIdLines() const { return blockIdsOrdered; }
         const IdLines& EntityIdLines() const { return entityIdsOrdered; }
@@ -98,7 +97,7 @@ namespace perlin::jshader {
         std::string packName;
         bool ProgramEnabledUncached(const std::string& name) const;
         std::map<std::string, std::shared_ptr<ProgramSource>> cache;
-        // the renderer asks these every frame: answered once per load and dimension
+
         mutable std::map<std::string, bool> existsCache, enabledCache;
         mutable std::map<std::string, std::vector<std::string>> chainCache;
         Directives directives;

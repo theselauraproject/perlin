@@ -24,7 +24,7 @@ namespace perlin::ui {
         bool Changed() const;
 
         const Def* Find(const std::string& ns, const std::string& name);
-        // "parent/child/..." definitions: paths into descendants, keyed by first name in the path
+
         const std::unordered_map<std::string, std::vector<std::pair<std::string, const Json*>>>*
         Nested(const std::string& ns);
         const Vars& GlobalVariables();
@@ -32,7 +32,7 @@ namespace perlin::ui {
         size_t FileCount() const { return files.size(); }
         size_t NamespaceCount() const { return namespaces.size(); }
         bool Has(const std::string& ns) const { return namespaces.contains(ns); }
-        // true when a file for `ns` comes from a root listed before `root` (roots highest priority first)
+
         bool DefinedBefore(const std::string& ns, size_t root) const;
         size_t RootCount() const { return roots.size(); }
 
@@ -48,7 +48,7 @@ namespace perlin::ui {
             std::vector<size_t> files;
             bool loaded = false;
             std::unordered_map<std::string, Def> defs;
-            // "a/b/c" keys: control `a` gets a patch for descendant `b/c`
+
             std::unordered_map<std::string, std::vector<std::pair<std::string, const Json*>>> nested;
         };
 

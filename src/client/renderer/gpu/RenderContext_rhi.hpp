@@ -601,7 +601,6 @@ namespace perlin {
         conduit::texture_handle screenDepth;
         uint32_t screenDepthW = 0, screenDepthH = 0;
 
-        // atlas page 0 and the pages after it; a tile lives in page tile / atlasPageCap, layer tile % atlasPageCap
         TexRec atlas, lightmap, sunTex, moonTex, endSkyTex, cloudMapTex, tileFlagsTex, crosshair;
         std::array<TexRec, kAtlasMaxPages - 1> atlasMore;
         int atlasPageCap = kAtlasPageLayers;

@@ -42,7 +42,6 @@ namespace perlin::javapack {
             int x, y, w, h;
         };
 
-        // the hotbar and button strips live in widgets.png on java and in gui.png on bedrock
         void AddWidgets(std::vector<Source>& out, int x, int y, int w, int h) {
             AddSheet(out, "textures/gui/widgets.png", x, y, w, h);
             AddSheet(out, "textures/gui/gui.png", x, y, w, h);
@@ -384,7 +383,7 @@ namespace perlin::javapack {
                     AddSheet(out, "textures/gui/container/generic_54.png", 0, 0, 176, 222);
                 else if (n == "furnace" || n == "blast_furnace" || n == "smoker") {
                     AddSheet(out, (std::string("textures/gui/container/") + n + ".png").c_str(), 0, 0, 176, 166);
-                    // older packs only restyle the furnace: the blast furnace and smoker share its layout
+
                     AddSheet(out, "textures/gui/container/furnace.png", 0, 0, 176, 166);
                 } else if (n == "creative_items" || n == "creative_search" || n == "creative_survival") {
                     const std::string tab = n == "creative_items"    ? "tab_items"
@@ -474,7 +473,7 @@ namespace perlin::javapack {
         } else if (const std::string n2 = after("textures/items/"); !n2.empty()) {
             AddBlockOrItem(out, "item", n2);
         } else if (const std::string n3 = after("textures/ui/"); !n3.empty()) {
-            // title panorama: both editions number the six cube faces the same
+
             if (StartsWith(n3, "panorama_"))
                 Add(out, "textures/gui/title/background/" + n3 + ".png");
             else
@@ -500,13 +499,12 @@ namespace perlin::javapack {
     namespace {
         struct Piece {
             std::string path;
-            // source rectangle in 256-unit sheet space; zero width takes the whole file
+
             int sx, sy, sw, sh;
-            // destination cell in the composed sheet, in base pixels
+
             int dx, dy, dw, dh;
         };
 
-        // pixels per base pixel: hi-res packs keep their detail through the composition
         int ScaleFor(const Texture& sheet, int baseWidth) {
             return std::max(1, static_cast<int>(std::lround(static_cast<double>(sheet.width) / baseWidth)));
         }
@@ -606,12 +604,12 @@ namespace perlin::javapack {
             Texture sheet;
             if (!load("textures/gui/title/minecraft.png", sheet) || sheet.width <= 0)
                 return false;
-            // modern packs ship the whole wordmark; older ones stack its two halves in a square sheet
+
             if (sheet.width != sheet.height) {
                 out = std::move(sheet);
                 return true;
             }
-            // padded to the 4:1 box the title screen draws it in, so it keeps its proportions
+
             w = 310;
             h = 78;
             pieces = {{"textures/gui/title/minecraft.png", 0, 0, 155, 44, 0, 17, 155, 44},

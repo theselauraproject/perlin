@@ -475,7 +475,7 @@ namespace perlin::discord {
             return {};
         std::string rest = url.substr(9);
         if (const size_t q = rest.find_first_of("?#"); q != std::string::npos) {
-            // perlin://join?server=host:port
+
             const std::string query = rest.substr(q + 1);
             rest.erase(q);
             if (rest.empty() || rest == "join" || rest == "connect") {
@@ -500,7 +500,7 @@ namespace perlin::discord {
             } else
                 out += rest[i];
         }
-        // a hostname or address with an optional port, nothing else
+
         for (char c : out)
             if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '-' || c == ':' || c == '_' ||
                   c == '[' || c == ']'))
@@ -541,7 +541,7 @@ namespace perlin::discord {
         return true;
 #elif defined(__APPLE__)
         (void)ec;
-        return false; // declared by the bundle (CFBundleURLTypes)
+        return false;
 #elif defined(PERLIN_DISCORD_UNIX)
         std::string exe = executable;
         if (const char* appimage = std::getenv("APPIMAGE"); appimage && *appimage)

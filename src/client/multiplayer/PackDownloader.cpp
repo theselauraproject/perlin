@@ -234,7 +234,7 @@ namespace perlin {
     }
 
     PackDownloader::Result PackDownloader::Tick() {
-        // a chunk behind later ones that never shows up is asked for again
+
         if (const auto cur = active.find(currentKey);
             cur != active.end() && !cur->second.early.empty() &&
             std::chrono::steady_clock::now() - cur->second.gapSince > std::chrono::seconds(3)) {
@@ -262,7 +262,7 @@ namespace perlin {
         if (it == active.end())
             return r;
         Active& a = it->second;
-        // chunks may arrive out of order: hold early ones, drain in order
+
         if (chunk.chunkIndex < a.next)
             return r;
         if (chunk.chunkIndex != a.next) {

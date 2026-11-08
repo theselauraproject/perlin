@@ -24,12 +24,11 @@ namespace perlin::server {
 
         struct Token {
             std::string text;
-            // where it ends in the line, for the "<--[HERE]" context
+
             size_t end = 0;
             bool quoted = false;
         };
 
-        // words split at spaces, except inside "quotes", [selector arguments] and {nbt}
         std::vector<Token> Tokenize(const std::string& line) {
             std::vector<Token> out;
             size_t i = 0;
@@ -93,7 +92,6 @@ namespace perlin::server {
             return true;
         }
 
-        // the eyes are 1.62 above the feet; session positions are eyes
         constexpr double kEye = 1.62;
 
         struct Vec {
@@ -114,7 +112,6 @@ namespace perlin::server {
             return {server.SpawnX() + 0.5, server.SpawnY(), server.SpawnZ() + 0.5};
         }
 
-        // a range like "..5", "2..8", "3..", or an exact "4"
         bool ParseRange(const std::string& s, double& lo, double& hi) {
             lo = -1e300;
             hi = 1e300;
@@ -162,7 +159,7 @@ namespace perlin::server {
                 "Unknown selector type '" + text.substr(0, text.size() > 2 && text[2] != '[' ? 3 : 2) + "'";
             return false;
         }
-        // arguments
+
         std::vector<std::pair<std::string, std::string>> options;
         if (text.size() > 2) {
             if (text.back() != ']') {
@@ -213,7 +210,7 @@ namespace perlin::server {
         bool haveDistance = false;
         int limit = (kind == 'p' || kind == 'r' || kind == 's') ? 1 : 1 << 30;
         std::string sort = kind == 'p' ? "nearest" : kind == 'r' ? "random" : "arbitrary";
-        std::vector<std::pair<bool, int>> modes; // (negated, mode)
+        std::vector<std::pair<bool, int>> modes;
         bool typeOk = true;
         bool positional = kind == 'p';
         for (const auto& [key, value] : options) {
@@ -271,7 +268,7 @@ namespace perlin::server {
                 const std::string v = StripNamespace(str::Lower(value));
                 const bool neg = !v.empty() && v[0] == '!';
                 const std::string t = neg ? v.substr(1) : v;
-                // players are the only entities that can be selected
+
                 typeOk = typeOk && ((t == "player") != neg);
             } else {
                 error = "Unknown option '" + key + "' (supported: " + kSelectorOptions + ")";
@@ -440,14 +437,13 @@ namespace perlin::server {
 
     namespace {
         struct Step {
-            // 0 matched, 1 wrong token (incorrect argument), 2 incomplete (ran out of tokens)
+
             int status = 0;
             std::string error;
-            // how many tokens were consumed up to and including the culprit
+
             size_t reached = 0;
         };
 
-        // one coordinate of a position: absolute, ~relative, or ^local
         struct Coord {
             bool relative = false, local = false;
             double value = 0;
@@ -492,7 +488,7 @@ namespace perlin::server {
                 constexpr double kPi = 3.14159265358979323846;
                 const double yaw = (t_origin ? t_origin->yaw : source ? source->Yaw() : 0.0) * kPi / 180.0,
                              pitch = (t_origin ? t_origin->pitch : source ? source->Pitch() : 0.0) * kPi / 180.0;
-                // forward, left, and up = forward x left, for yaw 0 facing +z
+
                 const double fx = -std::sin(yaw) * std::cos(pitch), fy = -std::sin(pitch),
                              fz = std::cos(yaw) * std::cos(pitch);
                 const double lx = std::cos(yaw), lz = std::sin(yaw);
@@ -508,7 +504,7 @@ namespace perlin::server {
                     out[static_cast<size_t>(k)] = origin[k] + (c[k].hasNumber ? c[k].value : 0.0);
                 } else {
                     double v = c[k].value;
-                    // a whole number written without a decimal point means the middle of that block, for x and z (as java does)
+
                     const std::string& text = tokens[at + static_cast<size_t>(k)].text;
                     if (!block && k != 1 && !text.contains('.'))
                         v += 0.5;
@@ -529,7 +525,7 @@ namespace perlin::server {
                     st.reached = at;
                     return st;
                 }
-                // the rest of the line as typed
+
                 std::string text;
                 for (size_t i = at; i < tokens.size(); i++)
                     text += (i > at ? " " : "") + tokens[i].text;
@@ -592,7 +588,7 @@ namespace perlin::server {
                     if (Session* s = server.FindByName(t.text); s && s->InGame())
                         v.players.push_back(s);
                 }
-                // nobody matching is not a syntax problem: java parses the selector and fails when the command runs, so the right overload still wins
+
                 if (p.kind == ArgKind::Target && v.players.size() > 1) {
                     st.status = 1;
                     st.error = "Only one entity is allowed, but the provided selector allows more than one";
@@ -710,7 +706,7 @@ namespace perlin::server {
                              const std::vector<OverloadSpec>& overloads, const std::string& args) {
         MatchResult result;
         const std::vector<Token> tokens = Tokenize(args);
-        // the typed command up to token `upTo` (exclusive of the rest), for the error context
+
         const auto contextUpTo = [&](size_t upTo) {
             std::string c = "/" + name;
             if (upTo > 0 && !tokens.empty())
@@ -743,7 +739,7 @@ namespace perlin::server {
                 }
                 if (st.status == 1) {
                     if (p.optional) {
-                        // an optional argument that does not fit ends this overload here, and the leftover tokens fail it
+
                         failed = true;
                         reach = st.reached;
                         error = st.error;
@@ -765,7 +761,7 @@ namespace perlin::server {
                 contextAt = at + 1;
             }
             if (!failed) {
-                // execution-time errors: a selector or name that matched nobody
+
                 for (const ParamSpec& p : overloads[o]) {
                     const auto found = values.find(p.name);
                     if ((p.kind == ArgKind::Targets || p.kind == ArgKind::Target) && found != values.end() &&
@@ -822,7 +818,7 @@ namespace perlin::server {
             enumIndex[label] = at;
             return at;
         };
-        // biome names complete as you type; they are a soft enum so they can change
+
         int biomeSoft = -1;
         const auto biomes = [&]() {
             if (biomeSoft < 0) {
@@ -845,7 +841,7 @@ namespace perlin::server {
             e.permissionLevel = "any";
             e.alias = -1;
             if (def.overloads.empty()) {
-                // plugin commands: anything goes
+
                 proto::AvailableCommandsPacketCommandDataEntryOverloadsEntry overload;
                 proto::AvailableCommandsPacketCommandDataEntryOverloadsEntryParametersEntry arg;
                 arg.parameterName = "args";

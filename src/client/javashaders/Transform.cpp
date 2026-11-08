@@ -205,7 +205,7 @@ namespace perlin::jshader {
                 {"texelFetch1D", "texelFetch"},
                 {"textureSize2D", "textureSize"},
                 {"textureSize3D", "textureSize"},
-                // GL_ARB_shader_texture_lod / GL_EXT_gpu_shader4 spellings
+
                 {"texture2DGradARB", "textureGrad"},
                 {"texture3DGradARB", "textureGrad"},
                 {"textureCubeGradARB", "textureGrad"},
@@ -370,8 +370,6 @@ namespace perlin::jshader {
             bool compat = false;
         };
 
-        // a pack's local variable, parameter or struct member can share a name with one of its samplers (`float specular`
-        // next to `uniform sampler2D specular`). the sampler names are macros here, so the other uses get renamed first
         void RenameShadowedSamplers(std::vector<Tok>& t) {
             std::set<std::string> names;
             std::set<size_t> declTokens;
@@ -403,7 +401,7 @@ namespace perlin::jshader {
                        (IsType(t[k].text) || structs.contains(t[k].text));
             };
             const auto rename = [&](const std::string& n) { return "iris_local_" + n; };
-            // members are always reached through '.', and a sampler never has any
+
             for (size_t i = 1; i < t.size(); i++)
                 if (t[i].kind == Tok::Ident && names.contains(t[i].text) && t[i - 1].text == ".")
                     t[i].text = rename(t[i].text);
@@ -444,7 +442,7 @@ namespace perlin::jshader {
                             continue;
                         bool declares = j > 0 && typeLike(j - 1);
                         if (!declares && j > 0 && t[j - 1].text == ",") {
-                            // `float a, specular;` : the statement starts with a type
+
                             size_t b = j;
                             int d = 0;
                             while (b > headerStart) {
@@ -478,7 +476,7 @@ namespace perlin::jshader {
                 for (size_t j = sc.begin; j < sc.end; j++)
                     if (t[j].kind == Tok::Ident && t[j].text == sc.name && !declTokens.contains(j))
                         t[j].text = rename(sc.name);
-            // declarations outside any block (globals, function names): rename everywhere but the uniform declaration
+
             for (size_t j = 1; j < t.size(); j++) {
                 if (t[j].kind != Tok::Ident || !names.contains(t[j].text) || declTokens.contains(j) ||
                     !typeLike(j - 1))
@@ -500,7 +498,7 @@ namespace perlin::jshader {
                         open++;
                 }
                 if (open > 0)
-                    continue; // a parameter: its scope is the function, handled above
+                    continue;
                 const std::string n = t[j].text;
                 for (size_t k = 0; k < t.size(); k++)
                     if (t[k].kind == Tok::Ident && t[k].text == n && !declTokens.contains(k))
@@ -508,8 +506,6 @@ namespace perlin::jshader {
             }
         }
 
-        // glslang refuses a sampler built from a texture and a sampler as a function argument, so user functions that take a
-        // sampler get the two halves as separate parameters and their callers pass both
         void SplitSamplerParams(std::vector<Tok>& t) {
             std::set<std::string> globals;
             for (size_t i = 0; i < t.size(); i++) {
@@ -530,13 +526,13 @@ namespace perlin::jshader {
                 return IsOpaqueType(x) && x.contains("sampler");
             };
             struct Fn {
-                std::vector<int> params; // indexes of the sampler parameters
+                std::vector<int> params;
             };
             std::map<std::string, Fn> fns;
             std::set<std::string> paramNames;
             struct Def {
                 size_t open, close, bodyEnd;
-                std::vector<std::pair<size_t, size_t>> params; // type token, name token
+                std::vector<std::pair<size_t, size_t>> params;
             };
             std::vector<Def> defs;
             int brace = 0;
@@ -548,7 +544,7 @@ namespace perlin::jshader {
                 if (brace != 0 || t[i].kind != Tok::Ident || t[i + 1].text != "(" || i == 0 ||
                     !(IsType(t[i - 1].text) || t[i - 1].text == "void"))
                     continue;
-                // a function declaration or definition at file scope
+
                 Def d{i + 1, 0, 0, {}};
                 int depth = 0, index = 0;
                 size_t k = i + 1;
@@ -594,7 +590,7 @@ namespace perlin::jshader {
             }
             if (defs.empty())
                 return;
-            // callers first: the argument at a sampler position becomes the texture and sampler pair
+
             for (size_t i = 0; i + 1 < t.size(); i++) {
                 if (t[i].kind != Tok::Ident || t[i + 1].text != "(")
                     continue;
@@ -641,7 +637,7 @@ namespace perlin::jshader {
                     if (shadow)
                         texture.erase(texture.size() - 6);
                     texture.replace(texture.find("sampler"), 7, "texture");
-                    // uses inside the body (not the ones the callers pass on, those were already split)
+
                     for (size_t k = d.close; k < d.bodyEnd; k++)
                         if (t[k].kind == Tok::Ident && t[k].text == name)
                             t[k].text = type + "(" + name + "_iris_t, " + name + "_iris_s)";
@@ -653,7 +649,6 @@ namespace perlin::jshader {
             }
         }
 
-        // moves the struct definitions the body collected to the front
         std::string HoistStructs(std::string& body) {
             std::string structs;
             for (;;) {
@@ -1126,8 +1121,7 @@ namespace perlin::jshader {
                     ctx.vin.position = true;
                     rep = "vec4(iris_Position, 1.0)";
                 } else if (id == "gl_Color") {
-                    // iris: the fixed-function colour is the vertex colour times the draw's shader colour
-                    // (RenderSystem.setShaderColor: star brightness, the sun fading in rain)
+
                     ctx.vin.color = true;
                     ctx.use.colorMod = true;
                     rep = "(iris_Color * iris_ColorModulator)";
@@ -1138,7 +1132,7 @@ namespace perlin::jshader {
                     ctx.vin.uv0 = true;
                     rep = "vec4(iris_UV0, 0.0, 1.0)";
                 } else if (id == "gl_MultiTexCoord1") {
-                    // texture unit 1 is the lightmap in OptiFine/Iris
+
                     ctx.vin.uv2 = true;
                     rep = "vec4(iris_UV2, 0.0, 1.0)";
                 } else if (id == "gl_MultiTexCoord2") {
@@ -1246,7 +1240,7 @@ namespace perlin::jshader {
                            !ctx.userFunctions.contains(id) &&
                            (id == "texture2D" || (id == "texture" && !userDefinesTexture)) &&
                            lodArgs(i) == 2) {
-                    // full screen passes read buffers without mips: a fixed level avoids implicit derivatives inside loops
+
                     rep = "textureLod";
                     lodClose.insert(closeOf(i + 1));
                 } else if (TextureFunctionMap().contains(id) && nextCall && !ctx.userFunctions.contains(id)) {
@@ -1265,7 +1259,7 @@ namespace perlin::jshader {
                     } else if ((id == "buffer" || id == "shared" || id == "coherent" || id == "restrict" ||
                                 id == "readonly" || id == "writeonly" || id == "patch") &&
                                i + 1 < tokens.size() && tokens[i + 1].kind == Tok::Ident) {
-                        // a qualifier (readonly buffer Name { ... }, shared float x[64]), not a variable name
+
                         rep = id;
                     } else {
                         rep = "iris_kw_" + id;
@@ -1314,7 +1308,7 @@ namespace perlin::jshader {
                     continue;
                 }
                 if (tokens[st.begin].text == "struct" && !st.function) {
-                    // varyings can be struct typed, so the definitions have to come before the interface declarations
+
                     bodyText += "/*STRUCT_BEGIN*/" + emitRange(st.begin, st.end) + "/*STRUCT_END*/";
                     continue;
                 }
@@ -1354,7 +1348,7 @@ namespace perlin::jshader {
                                       d.type.compare(0, 6, "iimage") == 0 ||
                                       d.type.compare(0, 6, "uimage") == 0;
                             s.imageFormat = LayoutWithout(d.layout, "binding");
-                            // memory qualifiers stay with the image (readonly / writeonly / coherent ...)
+
                             for (const char* q :
                                  {"readonly", "writeonly", "coherent", "volatile", "restrict"})
                                 if (HasQualifier(d, q))
@@ -1539,7 +1533,7 @@ namespace perlin::jshader {
     }
 
     namespace {
-        // shader storage blocks (iris bufferObject.<n>) bind at set 3, binding n; the pack only writes binding = n
+
         std::string AssignBufferSets(const std::string& glsl) {
             static const std::regex re(
                 R"(layout\s*\(([^)]*)\)((?:\s+(?:readonly|writeonly|coherent|volatile|restrict))*)\s+buffer\b)");
@@ -1561,7 +1555,6 @@ namespace perlin::jshader {
             return out;
         }
 
-        // the uniform block, the sampler / image declarations and the stage body (split by \x01)
         std::string SharedPrelude(StageResult& r, const TransformOptions& options,
                                   const std::map<std::string, int>& samplerBindings) {
             std::string glsl = StripFlags(r.glsl);
@@ -1644,7 +1637,7 @@ namespace perlin::jshader {
             std::string samplerText;
             for (const SamplerDecl& s : r.samplers) {
                 if (options.splitSamplers && !s.image) {
-                    // sampler2D -> texture2D, isampler2D -> itexture2D, sampler2DShadow -> texture2D + samplerShadow
+
                     std::string texture = s.type;
                     const bool shadow =
                         texture.size() > 6 && texture.compare(texture.size() - 6, 6, "Shadow") == 0;
@@ -1667,7 +1660,7 @@ namespace perlin::jshader {
                     continue;
                 }
                 if (s.image) {
-                    // custom images (iris image.<name>) live in set 2 at the slot the renderer gave them
+
                     const auto slot = options.imageSlots.find(s.name);
                     if (slot == options.imageSlots.end()) {
                         r.ok = false;
@@ -1689,15 +1682,14 @@ namespace perlin::jshader {
             }
             glsl = ReplaceAll(glsl, "/*SAMPLERS*/", "");
             glsl = AssignBufferSets(glsl);
-            // texture() on an integer sampler returns the nearest texel in gl; hlsl below sm 6.7 cannot sample integer
-            // textures at all, so the call becomes the texelFetch it amounts to (every backend, same result)
+
             if (options.splitSamplers) {
                 bool any = false;
                 for (const SamplerDecl& smp : r.samplers) {
                     if (smp.image ||
                         (smp.type.compare(0, 8, "usampler") != 0 && smp.type.compare(0, 8, "isampler") != 0))
                         continue;
-                    const std::string dim = smp.type.substr(8); // 1D 2D 3D 2DArray
+                    const std::string dim = smp.type.substr(8);
                     if (dim != "1D" && dim != "2D" && dim != "3D")
                         continue;
                     const std::string t = smp.name + "_iris_t, " + smp.name + "_iris_s, ";
@@ -1934,8 +1926,7 @@ namespace perlin::jshader {
             }
             if (fogCoord)
                 varyings += varyingDecl("iris_FogFragCoord", links["iris_FogFragCoord"], true);
-            // a varying the fragment shader reads but the vertex shader never declares (packs hide some behind
-            // ifdefs): metal and d3d refuse such a pipeline, so the vertex shader writes it as zero
+
             std::string zeroFill;
             for (const auto& [linkName, l] : links) {
                 if (!l.inFragmentIn || l.inVertexOut)
@@ -1954,7 +1945,7 @@ namespace perlin::jshader {
             body = ReplaceAll(body, "/*VARYING_OUT*/", "");
             std::string prelude;
             prelude += "#define PERLIN_VULKAN_GLSL 1\n";
-            // iris FADE_VARIABLE: sodium's chunk fade-in; perlin shows chunks whole, which is a fade of 1
+
             if (body.find("mc_chunkFade") != std::string::npos &&
                 attrs.find("mc_chunkFade") == std::string::npos)
                 prelude += "const float mc_chunkFade = 1.0;\n";
@@ -2042,8 +2033,7 @@ namespace perlin::jshader {
                 mainPrefix = "    iris_FragCoord = vec4(gl_FragCoord.x, iris_ViewHeight - gl_FragCoord.y, "
                              "gl_FragCoord.z, gl_FragCoord.w);\n";
             }
-            // iris CommonTransformer: the program's alpha test runs on gl_FragData[0] after the pack's main (not
-            // for packs that declare their own outputs)
+
             std::string alphaTest;
             if (!options.alphaTest.empty() && outs.contains(" out vec4 iris_FragData0;"))
                 alphaTest = "    if (!(iris_FragData0.a " + options.alphaTest + ")) discard;\n";
@@ -2069,7 +2059,7 @@ namespace perlin::jshader {
         StageResult& r = out.stage;
         if (!r.ok)
             return out;
-        // the dispatch size is read from the preprocessed body, before the prelude is added
+
         const std::string& text = r.glsl;
         std::smatch m;
         static const std::regex local(R"(local_size_([xyz])\s*=\s*([0-9]+))");

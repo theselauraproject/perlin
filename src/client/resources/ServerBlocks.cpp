@@ -10,7 +10,7 @@ namespace perlin {
         std::lock_guard lock(mutex);
         index[def.name] = all.size();
         built.erase(def.name);
-        // every block builds up front: waiting for a chunk to need one shows it untextured for a while
+
         wanted.insert(def.name);
         pending.push_back(def);
         all.push_back(std::move(def));

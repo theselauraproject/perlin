@@ -61,7 +61,7 @@ namespace perlin {
 #if defined(__linux__)
         execv("/proc/self/exe", argv.data());
 #else
-        // the program's own path; argv[0] may be relative to a directory that is no longer current
+
         const std::string self = paths::ExeDir() + "/" + std::filesystem::path(Args()[0]).filename().string();
         execv(self.c_str(), argv.data());
 #endif

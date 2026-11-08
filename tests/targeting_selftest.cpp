@@ -35,7 +35,7 @@ int main() {
     double t;
     int face;
     const double p = targeting::PickRadius;
-    // 0.6-wide player: pick radius admits a ray 0.05 outside the box
+
     check(targeting::RayBox({0.35, 1.62, 0}, {0, 0, 1}, {-0.3 - p, -p, 2.7 - p}, {0.3 + p, 1.8 + p, 3.3 + p},
                             3, t, face),
           "native pick padding");

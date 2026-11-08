@@ -51,7 +51,7 @@ namespace perlin {
         size_t Size() const { return columns.size(); }
         void Evict(int centreX, int centreZ, int radius, std::vector<ChunkPos>& removed);
         const std::unordered_map<ChunkPos, LodColumn, ChunkPosHash>& All() const { return columns; }
-        // tile key -> number of captured columns in it: lets distance scans walk tiles instead of every column
+
         const std::unordered_map<int64_t, int>& Tiles() const { return tiles; }
         static int64_t TileKeyOf(int tx, int tz) {
             return (static_cast<int64_t>(tx) << 32) | static_cast<uint32_t>(tz);

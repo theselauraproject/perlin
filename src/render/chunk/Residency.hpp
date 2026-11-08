@@ -10,7 +10,6 @@ namespace perlin::render {
         bool operator==(const ColumnPos& o) const { return x == o.x && z == o.z; }
     };
 
-    // a mesh unit is one column at level 0 or an aligned (2^level)-wide square of columns at a coarser level
     struct UnitKey {
         int level = 0;
         int x = 0, z = 0;
@@ -31,20 +30,19 @@ namespace perlin::render {
     };
 
     struct ResidencyConfig {
-        // columns within this chebyshev distance get full meshes
+
         int fullRadius = 12;
-        // beyond fullRadius each coarser level covers a ring twice as wide as the one before, the first being lodStep wide
+
         int lodStep = 4;
         int maxLevel = 3;
-        // nothing is wanted past this distance
+
         int lodRadius = 64;
-        // the camera that rings are measured from only follows once it is this many chunks away, so hovering on a ring
-        // edge does not rebuild every frame
+
         int hysteresis = 1;
-        // a mesh nobody wants stays resident this long in case the camera turns back
+
         uint64_t retainMs = 20000;
         uint64_t retainBudgetBytes = 256ull << 20;
-        // retained meshes ahead of the camera's motion are worth more: eviction scores distance from camera + velocity * this
+
         float lookaheadChunks = 3.0f;
         uint32_t maxBuildsPerTick = 8;
         uint32_t maxInFlight = 16;
@@ -53,7 +51,7 @@ namespace perlin::render {
     struct BuildRequest {
         UnitKey unit;
         uint64_t version = 0;
-        // which sides had loaded neighbours when requested (level 0 only): bit 0 -x, 1 +x, 2 -z, 3 +z
+
         uint8_t neighbourMask = 0;
     };
 
@@ -78,30 +76,27 @@ namespace perlin::render {
         uint64_t retainedOverBudget = 0;
     };
 
-    // decides which meshes exist: what to build and in which order, what to keep after it leaves the wanted set, what
-    // to throw away. It owns no geometry; the renderer reports finished meshes through OnBuilt and draws CollectDraw
     class ChunkResidency {
     public:
         void Configure(const ResidencyConfig& c) { cfg = c; }
         const ResidencyConfig& Config() const { return cfg; }
 
-        // chunk data for a column exists (or stopped existing)
         void SetData(ColumnPos pos, bool present);
-        // blocks changed in the column
+
         void MarkDirty(ColumnPos pos);
 
         void Tick(uint64_t nowMs, ColumnPos camera, float velX, float velZ, Plan& plan);
 
         void OnBuilt(const UnitKey& unit, uint64_t version, uint8_t neighbourMask, uint64_t bytes);
         void OnBuildFailed(const UnitKey& unit);
-        // a mesh the renderer dropped on its own (device loss, renderer switch): forget it so it is rebuilt
+
         void OnLost(const UnitKey& unit);
         void Reset();
 
         struct DrawItem {
             UnitKey unit;
         };
-        // wanted meshes that are current, plus any resident ones still covering a hole while their replacement builds
+
         void CollectDraw(std::vector<DrawItem>& out) const;
 
         ResidencyStats Stats() const;
@@ -111,7 +106,6 @@ namespace perlin::render {
             return it != units.end() && it->second.hasMesh && !it->second.wanted;
         }
 
-        // the level a column at chebyshev distance d gets, -1 when out of range
         int LevelForDistance(int d) const;
 
     private:
@@ -133,7 +127,7 @@ namespace perlin::render {
             uint64_t wantedVersion = 0;
             uint8_t wantedMask = 0;
             uint64_t unusedSince = 0;
-            // set when something unwanted still hides a hole
+
             bool covering = false;
         };
 
@@ -144,7 +138,7 @@ namespace perlin::render {
         ResidencyConfig cfg;
         std::unordered_map<ColumnPos, Column, ColumnPosHash> columns;
         std::unordered_map<UnitKey, Unit, UnitKeyHash> units;
-        // uncovered footprint of the last tick: columns of wanted units without a current mesh
+
         std::unordered_set<ColumnPos, ColumnPosHash> holes;
         uint64_t nextVersion = 1;
         uint64_t lastNow = 0;

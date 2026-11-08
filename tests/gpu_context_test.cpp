@@ -1,4 +1,3 @@
-// renders through the whole gpu layer headless: checks the matrix, winding and chunk draw conventions the shaders rely on
 #include "client/renderer/Frustum.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/RenderContext_rhi.hpp"
@@ -90,7 +89,6 @@ namespace {
         std::ofstream(file, std::ios::binary) << text;
     }
 
-    // smallest useful optifine pack: terrain into colortex0, a composite that swaps red and green, a final that copies it out
     std::filesystem::path WriteSyntheticPack() {
         const std::filesystem::path root = std::filesystem::temp_directory_path() / "perlin_synthetic_pack";
         std::filesystem::remove_all(root);
@@ -120,7 +118,6 @@ namespace {
         return root;
     }
 
-    // same pack with a shadow map: the terrain shader shows what the shadow comparison says (green lit, black in shadow)
     std::filesystem::path WriteShadowPack() {
         const std::filesystem::path root = WriteSyntheticPack();
         WriteText(root / "shaders/shadow.vsh",
@@ -192,7 +189,6 @@ int main(int argc, char** argv) {
     }
     ctx.UploadAtlas(tile.data(), 16, 1);
 
-    // top face exactly as the chunk mesher emits it: clockwise seen from above
     Tessellator tess;
     tess.Begin();
     tess.EnterSection(0);
@@ -217,7 +213,6 @@ int main(int argc, char** argv) {
     if (!rgba.empty())
         Check(!Red(At(rgba, w, w / 2, h / 2)), "back face culled from below");
 
-    // depth ordering (reversed depth): the nearer quad must win whichever one is drawn first
     for (int order = 0; order < 2; order++) {
         Tessellator stack;
         stack.Begin();
@@ -245,7 +240,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // screen orientation: a quad in the +x half must land on the right of the image
     Tessellator right;
     right.Begin();
     right.EnterSection(0);
@@ -260,8 +254,6 @@ int main(int argc, char** argv) {
         Check(Background(At(rgba, w, 20, h / 2)), "-x stays background");
     }
 
-    // everything on the gpu survives a device rebuild: mesh pages, atlas, lightmap
-    // rebuild onto another api when asked, so the frames after it prove the switch
     const char* switchTo = std::getenv("PERLIN_TEST_SWITCH_TO");
     Check(ctx.RebuildDevice(switchTo ? switchTo : conduit::api_id(settings.api)), "device rebuilt");
     Check(Frame(ctx, MakeFrame({0, 3, 0}, {0, 0, 0}, {0, 0, -1}, 128, 96), rgba, w, h),
@@ -271,7 +263,6 @@ int main(int argc, char** argv) {
         Check(Background(At(rgba, w, 20, h / 2)), "layout unchanged after rebuild");
     }
 
-    // post chain: the offscreen path must give the same layout as the direct one
     struct PostCase {
         const char* name;
         float scale;
@@ -283,7 +274,7 @@ int main(int argc, char** argv) {
         PostCase{"scaled spatial sharpened", 0.5f, 2, 0, 0, 0.5f}, PostCase{"bloom", 1.0f, 0, 0.6f, 0, 0},
         PostCase{"motion blur", 1.0f, 0, 0, 0.5f, 0}, PostCase{"temporal", 0.5f, 3, 0.4f, 0.3f, 0.3f}};
     for (const PostCase& pc : cases) {
-        // a blank frame first: a stale image from the previous case must not pass for this one
+
         ctx.RemoveChunkMesh(0, 0);
         Frame(ctx, MakeFrame({0, 3, 0}, {0, 0, 0}, {0, 0, -1}, 128, 96), rgba, w, h);
         ctx.UpdateChunkMesh(0, 0, right, 20 + static_cast<uint64_t>(&pc - cases));
@@ -316,21 +307,19 @@ int main(int argc, char** argv) {
             Check(Red(At(rgba, w, w - 36, h / 2)), "direct path restored");
     }
 
-    // removing the mesh clears the image
     ctx.RemoveChunkMesh(0, 0);
     Check(Frame(ctx, MakeFrame({0, 3, 0}, {0, 0, 0}, {0, 0, -1}, 128, 96), rgba, w, h),
           "frame after removal");
     if (!rgba.empty())
         Check(Background(At(rgba, w, w / 2, h / 2)), "removed mesh is gone");
 
-    // lod tiles: grouped culling must show a tile in view, hide tiles outside it, and let go of removed ones
     {
         Tessellator lodTile;
         lodTile.Begin();
         const float tv[4][3] = {{-64, 60, -192}, {0, 60, -192}, {0, 60, -128}, {-64, 60, -128}};
         lodTile.AddQuad(tv, c, uv, false, 15.0f, 15.0f);
         lodTile.End();
-        // plenty of unrelated tiles around, most of them outside the view
+
         for (int tz = -10; tz <= 10; tz++)
             for (int tx = -10; tx <= 10; tx++)
                 if (!(tx == -1 && tz == -3)) {
@@ -341,7 +330,7 @@ int main(int argc, char** argv) {
                         {fx, 60, fz}, {fx + 64, 60, fz}, {fx + 64, 60, fz + 64}, {fx, 60, fz + 64}};
                     far.AddQuad(fv, c, uv, false, 15.0f, 15.0f);
                     far.End();
-                    // behind the camera and to the sides: none of these may cover the centre of the picture
+
                     if (tz > -1 || std::abs(tx) > 2)
                         ctx.UpdateLodTile(tx, tz, 64, far, 1);
                 }
@@ -356,7 +345,6 @@ int main(int argc, char** argv) {
             Check(!Red(At(rgba, w, w / 2, h / 2)), "removed lod tile is gone");
     }
 
-    // sun shadows: a floating quad must darken the ground it covers, only with shadows on
     perlin::TestSetBundledPack(true);
     Check(ctx.ReloadShaders(), "bundled variant resolves");
     {
@@ -379,7 +367,7 @@ int main(int argc, char** argv) {
                 f.sky.enabled = true;
                 f.waterTile = f.lavaTile = f.waterFlowTile = -1.0f;
                 f.sky.sunAngle = 0.6f;
-                // mid-range pack settings keep the lit ground away from the tonemap ceiling
+
                 for (float& v : f.packSettings)
                     v = 0.5f;
                 f.timeSeconds = 2.0f + 0.5f * static_cast<float>(i);
@@ -411,7 +399,6 @@ int main(int argc, char** argv) {
             Check(darker > 40, "the occluder darkens the ground");
         }
 
-        // scene copy: opaque pass, colour+depth copy, then translucent draws sampling the copy
         {
             bool ok = true;
             for (int i = 0; i < 3 && ok; i++) {
@@ -445,7 +432,7 @@ int main(int argc, char** argv) {
     Check(Frame(ctx, afterLeave, rgba, w, h), "frame after loading the next level");
     if (!rgba.empty())
         Check(Red(At(rgba, w, w / 2, h / 2)), "next level atlas and mesh draw correctly");
-    // java shader pack: terrain through the pack's gbuffers, composite and final
+
     {
         const std::filesystem::path root = WriteSyntheticPack();
         ctx.SetBlockNameLookup([](uint16_t) { return std::string("stone"); });
@@ -497,7 +484,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // a real pack from disk (PERLIN_TEST_PACK=<folder or zip>): compiles every program and renders the scene once
     if (const char* packPath = std::getenv("PERLIN_TEST_PACK")) {
         std::string why;
         const auto loadStart = std::chrono::steady_clock::now();
@@ -553,7 +539,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // java pack with shadows: an occluder above the ground has to darken it through the pack's shadow pass
     {
         const std::filesystem::path root = WriteShadowPack();
         std::string why;
@@ -602,7 +587,7 @@ int main(int argc, char** argv) {
                         const Pixel px = At(rgba, w, x, y);
                         if (Background(px))
                             continue;
-                        // the pack's composite swaps red and green, so lit ground comes out red
+
                         if (px.r > 200)
                             lit++;
                         else if (px.r < 40 && px.g < 40)

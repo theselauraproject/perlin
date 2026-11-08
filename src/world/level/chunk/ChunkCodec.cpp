@@ -393,7 +393,7 @@ namespace perlin {
                                  const char** err) {
         out.clear();
         consumed = 0;
-        // some servers send fewer in the count than the payload holds: read the payload, not the count
+
         if (slots < 0 || (count != 0 && (!data || size == 0))) {
             if (err)
                 *err = "inline subchunk count exceeds dimension height";
@@ -402,18 +402,16 @@ namespace perlin {
         std::vector<std::pair<int, SubChunkData>> parsed;
         size_t offset = 0;
         int nextY = firstSubY;
-        // some proxies declare a raised minY yet still ship the full vanilla span: accept indexes
-        // across the union of both so terrain below the declared floor still applies
+
         const int loY = std::min(firstSubY, -4);
         const int hiY = std::max(firstSubY + slots, 20);
         uint32_t read = 0;
         while (offset < size && static_cast<int>(parsed.size()) < (hiY - loY)) {
-            // trailing block-entity nbt starts with a compound tag, never a sub-chunk version
+
             const uint8_t version = data[offset];
             if (version != 1 && version != 8 && version != 9)
                 break;
-            // past the count come the biome palettes, whose header (bpb << 1 | 1) reads as version 1 or 9:
-            // only a well-formed v8/v9 sub-chunk continuing the heights counts, anything else ends the column
+
             const bool counted = read < count;
             if (!counted && version == 1)
                 break;
@@ -435,7 +433,7 @@ namespace perlin {
                 y = nextY++;
             }
             offset += used;
-            // some proxies repeat or overshoot heights: skip the entry, keep the column
+
             if (y > std::numeric_limits<int>::max() || y < loY || y >= static_cast<int64_t>(hiY))
                 continue;
             if (std::any_of(parsed.begin(), parsed.end(),

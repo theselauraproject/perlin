@@ -31,14 +31,14 @@ int main() {
         const glm::vec3 eye{0.5f, 2, 0.5f}, movement{0.2f, 0, 0};
         build.Start(20, true);
         build.Built(hit.target, {1, 0, 0}, true, false, 1000 * ms, false);
-        // snappable without a line: 300 ms even while moving; extends from the last block on the movement face
+
         CHECK(!build.Next(hit, eye, movement, movement, false, 1300 * ms, 26, solid));
         const auto repeat = build.Next(hit, eye, movement, movement, false, 1300 * ms + 1, 27, solid);
         CHECK(repeat && repeat->support == glm::ivec3(1, 0, 0) && repeat->face == 5);
         if (repeat) build.Built(*repeat, {2, 0, 0}, true, false, 1300 * ms + 1, true);
-        // one attempt per tick
+
         CHECK(!build.Next(hit, eye, movement, movement, false, 1500 * ms, 27, solid));
-        // line: 4 blocks/s gives min(900 / 4, 180) ms, and only while the look ray crosses the next cell
+
         hit.point = {3.5f, 0.5f, 0.5f};
         CHECK(!build.Next(hit, eye, movement, movement, false, 1480 * ms, 28, solid));
         const auto line = build.Next(hit, eye, movement, movement, false, 1481 * ms, 29, solid);
@@ -47,7 +47,7 @@ int main() {
         hit.point = {1, 0.5f, 0.5f};
         CHECK(!build.Next(hit, eye, movement, movement, false, 2000 * ms, 30, solid));
         build.Stop();
-        // a press on nothing keeps the last build time: the first repeat on a block goes at once
+
         build.Start(40, false);
         hit.target = {{10, 0, 0}, 1};
         hit.point = {10.5f, 1, 0.5f};
@@ -55,25 +55,25 @@ int main() {
         const auto retry = build.Next(hit, eye, {}, {}, false, 2000 * ms, 41, solid);
         CHECK(retry && retry->support == hit.target.support && retry->face == 1);
         if (retry) build.Built(*retry, {10, 1, 0}, true, false, 2000 * ms, true);
-        // snappable, not next to the last block: placed anyway, no line
+
         hit.target = {{20, 0, 0}, 1};
         CHECK(!build.Next(hit, eye, {}, {}, false, 2300 * ms, 42, solid));
         const auto apart = build.Next(hit, eye, {}, {}, false, 2300 * ms + 1, 43, solid);
         CHECK(apart && apart->support == glm::ivec3(20, 0, 0) && apart->face == 1);
         if (apart) build.Built(*apart, {20, 1, 0}, false, false, 2300 * ms + 1, true);
-        // replaceable support, standing, not snappable: 200 ms, built into and clicked on top
+
         const auto grass = [](glm::ivec3 p) { return p == glm::ivec3(30, 0, 0); };
         hit.target = {{30, 0, 0}, 4};
         CHECK(!build.Next(hit, eye, {}, {}, false, 2500 * ms + 1, 44, grass));
         const auto over = build.Next(hit, eye, {}, {}, false, 2500 * ms + 2, 45, grass);
         CHECK(over && over->support == glm::ivec3(30, 0, 0) && over->face == 1);
         if (over) build.Built(*over, {30, 0, 0}, true, false, 2500 * ms + 2, true);
-        // sneaking: 300 ms, crosshair block with the movement face
+
         hit.target = {{40, 0, 0}, 1};
         CHECK(!build.Next(hit, eye, {0, 0, 0.2f}, {}, true, 2800 * ms + 2, 46, solid));
         const auto sneak = build.Next(hit, eye, {0, 0, 0.2f}, {}, true, 2800 * ms + 3, 47, solid);
         CHECK(sneak && sneak->support == glm::ivec3(40, 0, 0) && sneak->face == 3);
-        // ties go to z
+
         CHECK(heldbuild::FacingFromVec({0.2f, 0, 0.2f}) == 3);
         CHECK(heldbuild::FacingFromVec({-0.2f, 0.2f, 0}) == 2);
         CHECK(heldbuild::FacingFromVec({0, -0.3f, 0.2f}) == 0);
@@ -114,7 +114,7 @@ int main() {
     for (int face = 0; face < 6; ++face)
         CHECK(blockuse::PillarAxis(face) == (face < 2 ? 0 : face < 4 ? 2 : 1));
     {
-        // standing in a cell, or mid-jump inside a 1x1 hole: a block there would land in the body
+
         physics::State standing;
         standing.x = 0.5;
         standing.y = 0.0;
@@ -124,13 +124,13 @@ int main() {
         physics::State jumping = standing;
         jumping.y = 0.42;
         CHECK(heldbuild::OverlapsBody({0, 0, 0}, {kCube}, physics::BoundingBox(jumping, false)));
-        // high enough to clear the cell: pillaring under the feet stays allowed
+
         jumping.y = 1.0;
         CHECK(!heldbuild::OverlapsBody({0, 0, 0}, {kCube}, physics::BoundingBox(jumping, false)));
-        // the block under the feet and the cell beside the body are free
+
         CHECK(!heldbuild::OverlapsBody({0, -1, 0}, {kCube}, physics::BoundingBox(standing, false)));
         CHECK(!heldbuild::OverlapsBody({1, 0, 0}, {kCube}, physics::BoundingBox(standing, false)));
-        // a slab in the feet cell still hits the body
+
         CHECK(heldbuild::OverlapsBody({0, 0, 0}, {kSlab}, physics::BoundingBox(standing, false)));
     }
     std::printf("HeldBuild: %d checks, %d failures\n", checks, failures);

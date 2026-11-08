@@ -18,7 +18,7 @@ namespace perlin::destroy {
         bool onGround = true;
         bool inWater = false;
         bool creative = false;
-        // effect amplifier + 1, 0 when absent; haste is the larger of haste and conduit power
+
         int haste = 0, miningFatigue = 0;
         int efficiency = 0;
     };

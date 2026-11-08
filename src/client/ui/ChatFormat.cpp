@@ -166,7 +166,7 @@ namespace perlin::ui {
                                  const std::string& message, const std::vector<std::string>& parameters) {
         switch (type) {
         case 1:
-            // no author: servers that format the whole line themselves; the game shows it bare, no "<> "
+
             if (source.empty())
                 return message;
             return Translate("chat.type.text", {source, message});

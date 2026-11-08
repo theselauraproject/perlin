@@ -28,7 +28,7 @@ namespace perlin::attachable {
         struct FaceUv {
             bool present = false;
             glm::vec2 uv{0.0f}, size{0.0f};
-            int rotation = 0; // uv_rotation in quarter turns, clockwise
+            int rotation = 0;
         } faces[6];
     };
 
@@ -44,7 +44,7 @@ namespace perlin::attachable {
         std::vector<Cube> cubes;
         std::vector<TextureMesh> meshes;
         std::vector<Quad> voxels;
-        // poly_mesh polygons in model space; triangles repeat their last corner. UVs are in texels unless polyNormalized.
+
         std::vector<Quad> polys;
         bool polyNormalized = true;
         std::string binding;
@@ -60,7 +60,7 @@ namespace perlin::attachable {
         bool linked = false;
         float textureWidth = 64, textureHeight = 64;
         std::vector<Bone> bones;
-        // named points from the bones' "locators", model space pixels at rest (effects spawn there)
+
         std::map<std::string, glm::vec3> locators;
     };
 
@@ -86,10 +86,9 @@ namespace perlin::attachable {
     };
     using TextureLookup = std::function<const Texture*(const std::string& shortName)>;
     using BoneFilter = std::function<bool(const std::string&)>;
-    // model-space world matrices of a posed geometry's bones, by (lower case) name
+
     using BoneWorlds = std::unordered_map<std::string, glm::mat4>;
-    // attach: bones whose name is in it take that world matrix as is instead of their own parent chain, so worn
-    // geometry (armour) follows the wearer's posed parts exactly whatever hierarchy its own file uses
+
     void BuildMesh(const Geometry& geometry, const Pose& pose, const TextureLookup& textures, BuiltMesh& out,
                    const BoneFilter& visible = nullptr, const glm::mat4* rootParent = nullptr,
                    bool mirrorTextures = false, const BoneWorlds* attach = nullptr);

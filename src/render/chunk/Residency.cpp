@@ -41,7 +41,7 @@ namespace perlin::render {
     int ChunkResidency::ColumnLevel(ColumnPos c, ColumnPos cam) const {
         if (LevelForDistance(Cheb(c.x, c.z, cam.x, cam.z)) < 0)
             return -1;
-        // a coarse tile is only used when even its nearest column is far enough for that level
+
         for (int level = cfg.maxLevel; level >= 1; level--) {
             const UnitKey tile = UnitFor(c, level);
             const int w = tile.Width();
@@ -102,7 +102,7 @@ namespace perlin::render {
         Unit& u = it->second;
         u.inFlight = false;
         u.failures++;
-        // a build that keeps failing must not be re-requested every tick
+
         u.retryAt = lastNow + (250ull << std::min<uint32_t>(u.failures, 6));
     }
 
@@ -193,7 +193,7 @@ namespace perlin::render {
         }
 
         std::sort(candidates.begin(), candidates.end(), [](const Candidate& a, const Candidate& b) {
-            // holes first, then nearest; rebuilds of a mesh that is already visible can wait
+
             if (a.hadMesh != b.hadMesh)
                 return !a.hadMesh;
             if (a.distance != b.distance)
@@ -215,7 +215,6 @@ namespace perlin::render {
             plan.build.push_back({candidates[i].key, u.wantedVersion, u.wantedMask});
         }
 
-        // what nobody wants any more: keep it while it hides a hole, then for retainMs, then drop
         const float lookX = static_cast<float>(cam.x) + velX * cfg.lookaheadChunks;
         const float lookZ = static_cast<float>(cam.z) + velZ * cfg.lookaheadChunks;
         struct Retained {
@@ -258,7 +257,7 @@ namespace perlin::render {
                 const float cx = static_cast<float>(key.x) + static_cast<float>(key.Width()) * 0.5f;
                 const float cz = static_cast<float>(key.z) + static_cast<float>(key.Width()) * 0.5f;
                 const float dist = std::max(std::fabs(cx - lookX), std::fabs(cz - lookZ));
-                // older and farther from where the camera is heading goes first
+
                 const float age = static_cast<float>(now - u.unusedSince) /
                                   static_cast<float>(std::max<uint64_t>(1, cfg.retainMs));
                 retained.push_back({key, dist + age, u.bytes});
@@ -294,7 +293,7 @@ namespace perlin::render {
         for (const auto& [key, u] : units)
             if (u.hasMesh && (u.wanted || u.covering))
                 out.push_back({key});
-        // stable order keeps the frame's draw list reproducible
+
         std::sort(out.begin(), out.end(), [](const DrawItem& a, const DrawItem& b) {
             if (a.unit.level != b.unit.level)
                 return a.unit.level < b.unit.level;

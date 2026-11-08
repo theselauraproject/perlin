@@ -11,7 +11,7 @@ namespace {
     struct V3 {
         float x, y, z;
     };
-    // same corners as TitlePanorama.cpp
+
     constexpr V3 kFace[6][4] = {
         {{-1, 1, -1}, {1, 1, -1}, {1, -1, -1}, {-1, -1, -1}},
         {{1, 1, -1}, {1, 1, 1}, {1, -1, 1}, {1, -1, -1}},
@@ -28,7 +28,6 @@ namespace {
                 c[0].z + (c[1].z - c[0].z) * u + (c[3].z - c[0].z) * v};
     }
 
-    // sharp pattern of the direction: identical values where two faces meet
     uint8_t Field(const V3& d) {
         const float l = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
         const float s =
@@ -66,7 +65,6 @@ int main() {
     Check(BlurPanorama(in, kOut, 3, out), "blur ran");
     Check(out[0].width == kOut && out[5].height == kOut, "output size");
 
-    // across each face edge the two border texels must agree about as well as two texels inside a face
     float seam = 0.0f, inner = 0.0f;
     int seamN = 0, innerN = 0;
     for (int f = 0; f < 6; f++)
@@ -78,7 +76,7 @@ int main() {
                 const int x = side == 0 ? 0 : side == 1 ? kOut - 1 : k;
                 const int y = side == 2 ? 0 : side == 3 ? kOut - 1 : k;
                 const V3 d = Dir(f, eu, ev);
-                // the other face sharing this edge point
+
                 for (int g = 0; g < 6; g++) {
                     if (g == f)
                         continue;

@@ -183,9 +183,7 @@ namespace perlin::ui {
         const bool hasExt = base.size() > 4 && base[base.size() - 4] == '.';
         const char* exts[] = {".png", ".tga"};
         auto& pack = TexturePack::Instance();
-        // Bedrock content is authored on case-insensitive filesystems; a pack asking for
-        // "textures/ui/White" means vanilla's "white.png" on Linux. Retry with a lowercased
-        // basename when the exact path misses.
+
         std::string lowered;
         {
             const size_t slash = base.find_last_of("/\\");
@@ -270,7 +268,7 @@ namespace perlin::ui {
 
     TextureSidecar UiAssets::Sidecar(const std::string& rel) {
         std::lock_guard lock(mutex);
-        // sidecar from the pack winning the image: server packs, resource pack, vanilla
+
         const uint64_t generation = (static_cast<uint64_t>(ServerPacks::Instance().Generation()) << 32) ^
                                     TexturePack::Instance().Generation();
         if (generation != sidecarGeneration) {
@@ -294,7 +292,7 @@ namespace perlin::ui {
         if (!found && TexturePack::Instance().Active()) {
             const std::vector<std::string> layers = TexturePack::Instance().ReadTextLayers(base + ".json");
             if (!layers.empty()) {
-                text = layers.front(); // same winner as ExtractPackUi
+                text = layers.front();
                 found = true;
             }
         }
@@ -544,8 +542,7 @@ namespace perlin::ui {
                                t))
                     continue;
             }
-            // animated item textures (compass, clock, ingots) are frames stacked in one tall strip: showing the
-            // whole strip stretches it into a single huge sprite, so the icon is its first frame
+
             if (t.width > 0 && t.height > t.width && t.height % t.width == 0 &&
                 t.pixels.size() >= static_cast<size_t>(t.width) * t.width * 4) {
                 t.pixels.resize(static_cast<size_t>(t.width) * t.width * 4);
@@ -715,7 +712,7 @@ namespace perlin::ui {
         }
         auto it = items.find(key);
         if (it != items.end()) {
-            // a server block's icon made before its textures were built: make it again once they are
+
             if (it->second.generic && blocks && blocks->Ready() && unbuiltIcons.contains(key) &&
                 blocks->LookByName(key.substr(0, key.find_first_of(";@"))) != nullptr) {
                 unbuiltIcons.erase(key);
@@ -887,7 +884,7 @@ namespace perlin::ui {
     void UiAssets::ClearLevelCache() {
         ClearItemCache();
         std::lock_guard lock(mutex);
-        // featured server logos belong to the menu, whose rows survive level exits
+
         std::erase_if(heads, [](const auto& entry) { return !entry.first.starts_with("fs:"); });
         lang.clear();
         langLoaded = false;

@@ -46,7 +46,7 @@ namespace perlin::jshader {
                     }
                 }
                 spirv_cross::CompilerHLSL::Options h;
-                // spaces carry the descriptor set, which both d3d backends read back
+
                 h.shader_model = 51;
                 h.point_size_compat = true;
                 h.point_coord_compat = true;
@@ -60,8 +60,6 @@ namespace perlin::jshader {
             }
         }
 
-        // metal: resources keep their (set, binding) as the slot number the rhi reflects ([[texture(b)]],
-        // [[sampler(b)]], [[buffer(b)]]); the metal backend compacts samplers itself
         bool CrossMsl(const std::vector<uint32_t>& spirv, Stage stage, std::string& out, std::string& error) {
             try {
                 spirv_cross::CompilerMSL c(spirv);
@@ -80,8 +78,7 @@ namespace perlin::jshader {
                                                   : stage == Stage::Compute ? spv::ExecutionModelGLCompute
                                                                             : spv::ExecutionModelFragment;
                 const spirv_cross::ShaderResources res = c.get_shader_resources();
-                // set 1 textures keep their binding (0..95); set 2 storage images go to 96 + binding and set 3
-                // storage buffers to 10 + binding, which the `conduit:msl-sets` line tells the rhi reflection
+
                 const auto bind = [&](const spirv_cross::Resource& r, bool buffer) {
                     spirv_cross::MSLResourceBinding b;
                     b.stage = model;
@@ -172,7 +169,7 @@ namespace perlin::jshader {
         for (const StageResult* st : {&program.vertex, &program.fragment})
             for (const SamplerDecl& s : st->samplers) {
                 if (s.image) {
-                    // storage images bind through the image table (set 2)
+
                     if (std::find(result.images.begin(), result.images.end(), s.name) == result.images.end())
                         result.images.push_back(s.name);
                     continue;
@@ -223,7 +220,7 @@ namespace perlin::jshader {
                     std::string(fragment ? "fragment" : "vertex") + " shader conversion failed: " + err;
                 return result;
             }
-            // packs ask for every loop to be unrolled (optionNV unroll all); fxc fails on the big ones, so it decides itself
+
             int unrolled = 0;
             for (size_t at = hlsl.find("[unroll]"); at != std::string::npos; at = hlsl.find("[unroll]", at)) {
                 hlsl.replace(at, 8, "");
@@ -232,7 +229,7 @@ namespace perlin::jshader {
             if (unrolled && std::getenv("JSHADER_TRACE"))
                 std::fprintf(stderr, "[jshader] dropped %d unroll attributes from the %s shader\n", unrolled,
                              fragment ? "pixel" : "vertex");
-            // shadow maps have no mips, and a comparison sample with implicit derivatives inside a loop makes fxc unroll it
+
             for (size_t at = hlsl.find(".SampleCmp("); at != std::string::npos;
                  at = hlsl.find(".SampleCmp(", at))
                 hlsl.replace(at, 11, ".SampleCmpLevelZero(");
@@ -323,8 +320,6 @@ namespace perlin::jshader {
         return result;
     }
 
-    // D3D rejects a pipeline whose pixel shader reads a varying the vertex shader never writes (packs
-    // declare some under ifdefs); give the vertex shader the missing outputs, zero filled.
     void MatchStageInterface(std::string& vs, std::string& ps) {
         auto body = [](const std::string& src, const char* structName, size_t& b, size_t& e) {
             b = src.find(std::string("struct ") + structName);
@@ -369,11 +364,6 @@ namespace perlin::jshader {
                 std::fprintf(stderr, "[jshader] vertex shader padded with missing pixel inputs\n");
         }
 
-        // d3d links the stages by register, and fxc packs registers in declaration order: a pixel shader that
-        // reads only some of the vertex outputs (or reads them in another order) gets other registers, and
-        // CreateGraphicsPipelineState refuses the pair (E_INVALIDARG). opengl and vulkan link by name /
-        // location, so packs never care. the pixel input struct becomes the vertex output struct, member for
-        // member, keeping the pixel shader's names for what it reads
         if (!body(ps, "SPIRV_Cross_Input", pb, pe) || !body(vs, "SPIRV_Cross_Output", vb, ve))
             return;
         struct Member {
@@ -401,7 +391,7 @@ namespace perlin::jshader {
                     nameBegin--;
                 m.name = l.substr(nameBegin, nameEnd - nameBegin);
                 m.nameAt = nameBegin;
-                // arrays: `float4 x[2] : TEXCOORD3` keeps its brackets on the name
+
                 out.push_back(std::move(m));
             }
             return out;
@@ -438,7 +428,7 @@ namespace perlin::jshader {
                 rebuilt += renamed(o, "perlin_link_" + std::to_string(unused++)) + "\n";
             }
         }
-        // system values the rasterizer makes (front facing, sample index...) are not linked
+
         for (const Member& in : ins)
             if (!find(outs, in.semantic))
                 rebuilt += in.line + "\n";
@@ -459,7 +449,7 @@ namespace perlin::jshader {
                 error = "d3dcompiler_47.dll is not available";
                 return false;
             }
-            // compiling a big pack takes minutes: finished shaders are kept on disk keyed by their source
+
             std::filesystem::path cacheFile;
             try {
                 uint64_t h = 1469598103934665603ull;
@@ -510,7 +500,7 @@ namespace perlin::jshader {
                     err = messages ? std::string(static_cast<const char*>(messages->GetBufferPointer()),
                                                  messages->GetBufferSize())
                                    : "D3DCompile failed";
-                    // warnings (pow of a possibly negative value and the like) can fill the log before the actual errors do
+
                     std::string errors;
                     size_t at = 0;
                     while (at < err.size()) {
@@ -539,7 +529,7 @@ namespace perlin::jshader {
                     messages->Release();
                 return true;
             };
-            // loops stay loops: fxc otherwise tries to unroll the long ones with dynamic counts and gives up
+
             std::string looped;
             looped.reserve(hlsl.size() + 4096);
             for (size_t at = 0; at < hlsl.size();) {
@@ -557,15 +547,14 @@ namespace perlin::jshader {
                 at = end;
             }
             std::string first, second, third;
-            // loops kept as loops first: fxc unrolling complementary's big passes took minutes per shader (the
-            // pack sat at "2 left"), and a loop costs little at run time; full unrolling only when that fails
+
             if (run(looped, D3DCOMPILE_OPTIMIZATION_LEVEL3, first) ||
                 run(looped, D3DCOMPILE_OPTIMIZATION_LEVEL1, second) ||
                 run(hlsl, D3DCOMPILE_OPTIMIZATION_LEVEL3, third)) {
                 store();
                 return true;
             }
-            // the optimizer gives up on some very large shaders: try again without it
+
             std::string fourth;
             if (run(hlsl, D3DCOMPILE_SKIP_OPTIMIZATION, fourth)) {
                 store();

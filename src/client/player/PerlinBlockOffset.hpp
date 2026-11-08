@@ -43,7 +43,6 @@ namespace perlin::physics::bds {
                                   (extend(position[2]) * 116129781ULL) ^ extend(position[1]));
     }
 
-    // block offset generator 0x145c633b0: x multiplied in 64 bits (movsxd + imul), no y term
     inline PositionRandomState SeedBlockOffsetRandom(BlockPosition position) {
         const auto extend = [](int32_t value) { return static_cast<uint64_t>(static_cast<int64_t>(value)); };
         return SeedRandomFromHash((extend(position[0]) * 3129871ULL) ^ (extend(position[2]) * 116129781ULL));

@@ -95,7 +95,7 @@ namespace perlin::ui {
         bool probeLaunched = false;
         size_t rebuilds = 0;
         bool reloadRequested = false;
-        // server packs bring their own ui and font/glyph_XX.png pages: rebuild when they mount or unmount
+
         uint32_t serverPackGeneration = 0;
         double serverPacksChangedAt = -1.0;
         bool templatesStale = true, emitterDefault = false;

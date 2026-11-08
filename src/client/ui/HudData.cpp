@@ -37,8 +37,6 @@ namespace perlin::ui {
         v["$xbox"] = Json(false);
         v["$switch"] = Json(false);
 
-        // platform flags set before any screen is built: we pose as the windows (gdk) desktop client
-        // so vanilla screens take their desktop branches
         for (const char* on : {"$win10_edition",
                                "$microsoft_os",
                                "$ms_platform",
@@ -127,7 +125,7 @@ namespace perlin::ui {
                                  "$left_horizontal_safezone_size", "$right_horizontal_safezone_size"})
             v[zero] = Json(0.0);
         v["$version"] = Json(std::string("1.26.60"));
-        v["$store_button_text"] = Json(std::string("menu.store")); // label localizes to "Marketplace"
+        v["$store_button_text"] = Json(std::string("menu.store"));
         return v;
     }
 

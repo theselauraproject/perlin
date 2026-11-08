@@ -56,7 +56,6 @@ namespace perlin {
             return palette.HasState(id, key) || palette.HasState(id, std::string("minecraft:") + key);
         }
 
-        // cardinal_direction value index: south 0, west 1, north 2, east 3
         int DoorDirection(uint16_t id) {
             const std::string card = StateText(id, "cardinal_direction", "");
             if (card.empty())
@@ -64,9 +63,8 @@ namespace perlin {
             return card == "south" ? 0 : card == "west" ? 1 : card == "north" ? 2 : 3;
         }
 
-        // DoorBlock 0x149c5b200: 0.1825 thick (0x3E3AE148), not 3/16
         void AddDoor(physics::BlockShape& s, int dir, bool open, bool hinge) {
-            // 0 north side, 1 east side, 2 south side, 3 west side
+
             int side = 3;
             switch (dir) {
             case 0:
@@ -100,7 +98,6 @@ namespace perlin {
             }
         }
 
-        // PointedDripstoneBlock 0x148f97240 boxes by dripstone_thickness; tip follows "hanging"
         void AddDripstone(physics::BlockShape& s, uint16_t id) {
             const std::string thickness = StateText(id, "dripstone_thickness", "tip");
             if (thickness == "frustum")
@@ -117,10 +114,8 @@ namespace perlin {
                 Add(s, 0.3125, 0, 0.3125, 0.6875, 0.6875, 0.6875);
         }
 
-        // block_physics.bin is wrong for these: 6-decimal rounding (chests, trapdoors, lectern, turtle egg),
-        // offsets baked for the origin (bamboo, dripstone), or states newer than the dump
         bool AddComputedShape(const std::string& n, uint16_t id, physics::BlockShape& s) {
-            // TrapDoorBlock 0x1449bbef0: 0.1825 thick, not 3/16
+
             if (Ends(n, "_trapdoor") || n == "trapdoor") {
                 if (State(id, "open_bit", 0)) {
                     switch (State(id, "direction", 0) & 3) {
@@ -144,22 +139,22 @@ namespace perlin {
                 }
                 return true;
             }
-            // ChestBlock 0x14d190ef0: top is 0x3F733334, one ulp above 0.95f
+
             if (Ends(n, "chest")) {
                 Add(s, 0.025f, 0, 0.025f, 0.975f, 0.950000048f, 0.975f);
                 return true;
             }
-            // LecternBlock 0x143c88b95
+
             if (n == "lectern") {
                 Add(s, 0, 0, 0, 1, 0.9f, 1);
                 return true;
             }
-            // TurtleEggBlock 0x1449c3860: 0x3E4CCCCC and 0x3EE66667, not 0.2f / 0.45f
+
             if (n == "turtle_egg") {
                 Add(s, 0.199999988f, 0, 0.199999988f, 0.8f, 0.450000018f, 0.8f);
                 return true;
             }
-            // BambooBlock 0x143148970; random offset 0x1529d1160: x, z in [-0.25, 0.25], 16 steps
+
             if (n == "bamboo") {
                 const double side =
                     StateText(id, "bamboo_stalk_thickness", "thin") == "thick" ? 0.6875 : 0.625;
@@ -168,7 +163,7 @@ namespace perlin {
                     physics::bds::BlockRandomOffset{{{{-0.25f, 0.25f, 16}, {0, 0, 0}, {-0.25f, 0.25f, 16}}}};
                 return true;
             }
-            // dripstone registration 0x14cf3264f: x, z in [-0.125, 0.125], 16 steps; icicle has no offset
+
             if (n == "pointed_dripstone" || n == "sulfur_spike" || n == "icicle") {
                 AddDripstone(s, id);
                 if (n != "icicle")
@@ -176,7 +171,7 @@ namespace perlin {
                         {{{-0.125f, 0.125f, 16}, {0, 0, 0}, {-0.125f, 0.125f, 16}}}};
                 return true;
             }
-            // ChorusPlantBlock 0x14a302920: the 0.125 inset core reaches each face with a connection state
+
             if (n == "chorus_plant") {
                 const auto side = [&](const char* key) { return State(id, key, 0) != 0; };
                 Add(s, side("connection_west") ? 0 : 0.125, side("connection_down") ? 0 : 0.125,
@@ -184,7 +179,7 @@ namespace perlin {
                     side("connection_up") ? 1 : 0.875, side("connection_south") ? 1 : 0.875);
                 return true;
             }
-            // AmethystClusterBlock 0x149c4eed0 with the cluster size (height 7, inset 3 pixels, ctor 0x14d029886)
+
             if (n == "ice_crystal") {
                 constexpr double h = 7 / 16.0, i = 3 / 16.0;
                 const std::string face = StateText(id, "block_face", "up");
@@ -550,8 +545,7 @@ namespace perlin {
             for (const auto& [condition, set] : custom.permutations)
                 if (EvaluateBlockCondition(condition, id))
                     chosen = &set;
-        // a block from another namespace is not a vanilla block: its name ("hive:dirt_path_slab") says nothing about
-        // its shape, so the vanilla name rules must not turn it into a half slab or a fence
+
         const std::string ownName = id != 0 ? BlockPalette::Instance().Name(id) : std::string();
         const bool foreign = ownName.contains(':') && !ownName.starts_with("minecraft:");
         Info info;
@@ -559,7 +553,7 @@ namespace perlin {
         if (!chosen) {
             std::vector<Box> voxel;
             if (foreign && VoxelShapeRegistry::Instance().Find(ownName, voxel) && !voxel.empty()) {
-                // the shape the server baked from the block's own geometry
+
                 info.shape.isAir = false;
                 info.shape.boxes = std::move(voxel);
                 voxelShaped = true;
@@ -581,7 +575,7 @@ namespace perlin {
             for (const auto& b : selection->boxes)
                 info.selection.push_back({b[0], b[1], b[2], b[3], b[4], b[5]});
         } else if (voxelShaped) {
-            // the outline follows the same baked shape, so it sits on the geometry instead of a full cube
+
             info.selectionDefined = true;
             info.selection = info.shape.boxes;
         }
@@ -671,13 +665,13 @@ namespace perlin {
             s.scaffoldingStability = static_cast<int8_t>(State(id, "stability", 0));
             return info;
         }
-        // the vanilla registry (0x14ce9ad30) sets the climbable and sneak-hold properties (+0x134 |= 6) on these only
+
         if (n == "vine" || n == "twisting_vines" || n == "weeping_vines" || n == "cave_vines" ||
             n == "cave_vines_body_with_berries" || n == "cave_vines_head_with_berries") {
             s.climbable = true;
             return info;
         }
-        // LadderBlock 0x143c836d0: a 3/16 slab against the wall it faces from, none for facing 0/1
+
         if (n == "ladder") {
             s.climbable = true;
             switch (State(id, "facing_direction", 0)) {
@@ -698,7 +692,7 @@ namespace perlin {
             }
             return info;
         }
-        // collision needs the other half's states (QueryMain); this own-state box only serves ShapeOf
+
         if (Ends(n, "_door") && !Ends(n, "_trapdoor")) {
             info.kind = Kind::Door;
             AddDoor(s, DoorDirection(id), State(id, "open_bit", 0) != 0, State(id, "door_hinge_bit", 0) != 0);
@@ -713,7 +707,7 @@ namespace perlin {
                 it = reg.find(BlockPalette::Instance().CurrentHash(id));
             if (it != reg.end()) {
                 const PhysRecord& r = it->second;
-                // EndPortalFrameBlock 0x14a42b620 adds the eye box without the block position: no eye in the world
+
                 const size_t boxCount =
                     n == "end_portal_frame" ? std::min<size_t>(r.boxes.size(), 1) : r.boxes.size();
                 for (size_t b = 0; b < boxCount; b++)
@@ -722,10 +716,10 @@ namespace perlin {
                 s.friction = r.friction;
                 s.surface = r.surface;
                 s.climbable = (r.flags & 1) != 0;
-                // registry misses the vanilla ladder flag on some packs, restore it by name
+
                 if (n == "ladder")
                     s.climbable = true;
-                // keep vanilla slip even when the registry ships its own values
+
                 if (n == "ice" || n == "packed_ice" || n == "frosted_ice")
                     s.friction = 0.98f;
                 else if (n == "blue_ice")
@@ -748,7 +742,7 @@ namespace perlin {
             top ? Add(s, 0, 0.5, 0, 1, 1, 1) : Add(s, 0, 0, 0, 1, 0.5, 1);
             return info;
         }
-        // StairBlock 0x148f9e8c0: half slab 0x148f9dbb0, step 0x148f9dd80, inner-corner extra 0x148f9e370
+
         if (Ends(n, "_stairs")) {
             const int dir = State(id, "weirdo_direction", 0) & 3;
             const bool flip = State(id, "upside_down_bit", 0) != 0;
@@ -756,7 +750,7 @@ namespace perlin {
             const double base0 = flip ? 0.5 : 0.0, base1 = flip ? 1.0 : 0.5;
             const double step0 = flip ? 0.0 : 0.5, step1 = flip ? 0.5 : 1.0;
             Add(s, 0, base0, 0, 1, base1, 1);
-            // step x0, z0, x1, z1 per direction: straight, outer_left, outer_right
+
             static constexpr double step[4][3][4] = {{{0.5, 0, 1, 1}, {0.5, 0, 1, 0.5}, {0.5, 0.5, 1, 1}},
                                                      {{0, 0, 0.5, 1}, {0, 0.5, 0.5, 1}, {0, 0, 0.5, 0.5}},
                                                      {{0, 0.5, 1, 1}, {0.5, 0.5, 1, 1}, {0, 0.5, 0.5, 1}},
@@ -764,7 +758,7 @@ namespace perlin {
             const int shape = corner == "outer_left" ? 1 : corner == "outer_right" ? 2 : 0;
             const double* st = step[dir][shape];
             Add(s, st[0], step0, st[1], st[2], step1, st[3]);
-            // inner corners fill one more quarter: x0, z0, x1, z1 for inner_left, inner_right
+
             static constexpr double inner[4][2][4] = {{{0, 0, 0.5, 0.5}, {0, 0.5, 0.5, 1}},
                                                       {{0.5, 0.5, 1, 1}, {0.5, 0, 1, 0.5}},
                                                       {{0.5, 0, 1, 0.5}, {0, 0, 0.5, 0.5}},
@@ -778,7 +772,7 @@ namespace perlin {
         if (Ends(n, "_fence_gate") || n == "fence_gate") {
             if (State(id, "open_bit", 0))
                 return info;
-            // FenceGateBlock 0x14a4371b0: cardinal_direction south/north (0, 2) spans x
+
             const std::string card = StateText(id, "cardinal_direction", "");
             const bool alongX =
                 card.empty() ? (State(id, "direction", 0) & 1) == 0 : card == "south" || card == "north";
@@ -802,7 +796,7 @@ namespace perlin {
             Add(s, 0, 0, 0, 1, 0.0625, 1);
             return info;
         }
-        // TopSnowBlock 0x14b27c5d0 (current worlds): height * 0.125, a single layer has none, a full stack 0.875
+
         if (n == "snow_layer") {
             const int h = State(id, "height", 0);
             if (h > 0)
@@ -813,7 +807,7 @@ namespace perlin {
             Add(s, 0, 0, 0, 1, 0.9375, 1);
             return info;
         }
-        // no speed factor: the game slows soul sand through ground acceleration (friction x1.225) only
+
         if (n == "soul_sand") {
             Add(s, 0, 0, 0, 1, 0.875, 1);
             s.surface = 4;
@@ -842,7 +836,7 @@ namespace perlin {
             s.surface = 2;
             return info;
         }
-        // CakeBlock 0x1435bde20: each bite moves the west side in by 1/8
+
         if (n == "cake") {
             const double bitten = (2 * State(id, "bite_counter", 0) + 1) * 0.0625;
             Add(s, std::min(0.9375, bitten), 0, 0.0625, std::max(0.9375, bitten), 0.5, 0.9375);
@@ -864,7 +858,7 @@ namespace perlin {
             Add(s, 0, 0, 0, 1, 0.4375, 1);
             return info;
         }
-        // the legacy "stonecutter" is a full cube
+
         if (n == "stonecutter_block") {
             Add(s, 0, 0, 0, 1, 0.5625, 1);
             return info;
@@ -965,8 +959,7 @@ namespace perlin {
         s.randomOffset = info.shape.randomOffset;
 
         if (info.kind == Kind::Door) {
-            // DoorBlock 0x149c5b200 / 0x149c5af70: direction and open from the lower half, hinge from the upper;
-            // both halves must be this door, else direction 0, closed, hinge 0
+
             const BlockPalette& palette = BlockPalette::Instance();
             const bool upperHalf = State(id, "upper_block_bit", 0) != 0;
             bool otherLoaded = false;
@@ -996,7 +989,6 @@ namespace perlin {
             return false;
         };
 
-        // the game builds these from the block's own connection states; neighbours only for palettes without them
         bool north, south, west, east, post = true;
         if (info.kind == Kind::Wall && HasAnyState(id, "wall_connection_type_north")) {
             north = StateText(id, "wall_connection_type_north", "none") != "none";
@@ -1017,7 +1009,7 @@ namespace perlin {
         }
         switch (info.kind) {
         case Kind::Fence:
-            // FenceBlock 0x14a433650: north/south bar, then east/west bar, a lone post only without connections
+
             if (north || south)
                 Add(s, 0.375, 0, north ? 0 : 0.375, 0.625, 1.5, south ? 1 : 0.625);
             if (east || west)
@@ -1026,8 +1018,7 @@ namespace perlin {
                 Add(s, 0.375, 0, 0.375, 0.625, 1.5, 0.625);
             break;
         case Kind::Wall: {
-            // WallBlock 0x144a33db0 / 0x144a33530: one box over every connected side, 1.5 high; no post narrows a
-            // straight wall to 0.3125..0.6875
+
             double x0 = west ? 0 : 0.25, x1 = east ? 1 : 0.75, z0 = north ? 0 : 0.25, z1 = south ? 1 : 0.75;
             if (!post && north && south && !east && !west) {
                 x0 = 0.3125;
@@ -1040,7 +1031,7 @@ namespace perlin {
             break;
         }
         default:
-            // ThinFenceBlock 0x14b273e00: half arms from the centre, no post once connected
+
             if (!north && !south && !east && !west)
                 Add(s, 0.4375, 0, 0.4375, 0.5625, 1, 0.5625);
             if (east || west)

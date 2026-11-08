@@ -52,7 +52,7 @@ namespace perlin::physics::bds {
         const float multiplier = trigger.reducedSurface ? 0.6f : 1.0f;
         float height;
         if (input.alternate) {
-            // 0x14ad33160: effect and synced level each rounded on their own before the sum
+
             const float effect =
                 input.effectAmplifier
                     ? detail::SseMultiply(detail::SseAdd(static_cast<float>(*input.effectAmplifier), 1.0f),

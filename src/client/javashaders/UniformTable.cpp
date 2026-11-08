@@ -769,11 +769,9 @@ namespace perlin::jshader {
             o[0] = static_cast<float>(F(c).atlasSize[0]);
             o[1] = static_cast<float>(F(c).atlasSize[1]);
         });
-        // iris uniforms the engine has no live source for: constants that match what a pack sees in a plain overworld
-        // iris: the alpha test reference of the program drawing (0 where it has none)
+
         Add("alphaTestRef", 1, [=](C c, float* o) { o[0] = D(c).alphaTestRef; });
-        // iris reads these from the level's dimension type: overworld -64/384/384 with skylight, the nether
-        // 0/256/128 with a ceiling and 0.1 ambient light, the end 0/256/256; only the overworld has skylight
+
         Add("bedrockLevel", 1, [=](C c, float* o) {
             o[0] = F(c).dimensionNether || F(c).dimensionEnd ? 0.0f : -64.0f;
         });

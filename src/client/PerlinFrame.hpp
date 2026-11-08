@@ -1,5 +1,5 @@
 #pragma once
-// state of Perlin's frame loop, shared by its PerlinFrame*.cpp parts
+
 #include "client/PerlinInternal.hpp"
 
 namespace perlin {
@@ -7,13 +7,12 @@ namespace perlin {
         constexpr float kMaxFrameDelta = 0.1f;
         constexpr float kDefaultFrameDelta = 0.016f;
         constexpr float kNoonTick = 6000.0f;
-        // the sky darkens below the horizon: sea level in a normal world, the world floor in a flat one
+
         constexpr float kHorizonHeight = 63.0f;
         constexpr float kFlatHorizonHeight = -64.0f;
         constexpr auto kTitleInterval = std::chrono::milliseconds(500);
         constexpr auto kAnimationStep = std::chrono::milliseconds(200);
 
-        // PERLIN_PROFILE: time per frame stage, printed as averages, worst and 1% low every 240 frames
         class Profiler {
         public:
             enum Stage {
@@ -39,7 +38,7 @@ namespace perlin {
                 total[stage] += ms;
                 last[stage] += ms;
             }
-            // counted in the averages only, not in the per-frame worst
+
             void AddToAverage(Stage stage, double ms) { total[stage] += ms; }
 
             void FinishFrame(std::chrono::steady_clock::time_point frameStart) {
@@ -109,7 +108,6 @@ namespace perlin {
             std::chrono::steady_clock::time_point start;
         };
 
-        // entities the use button talks to instead of using the held item
         inline bool IsInteractable(std::string_view type) {
             if (type == "minecraft:cushion")
                 return true;
@@ -123,7 +121,6 @@ namespace perlin {
         }
     }
 
-    // everything one frame computes and later phases of the same frame read
     struct FrameContext {
         std::chrono::steady_clock::time_point frameStart;
         float dt = frame::kDefaultFrameDelta;
@@ -147,13 +144,12 @@ namespace perlin {
         std::optional<entity::Entity> fpSelf;
     };
 
-    // frame loop state that lives from the first frame to the last
     struct Perlin::FrameLoop {
         explicit FrameLoop(const Options& options) : zoom(options.zoom), appliedVsync(options.vsync) {}
 
         Zoom zoom;
         float scopeFov = 1.0f;
-        // replays have no local player tick: actors interpolate on their own 20 Hz clock
+
         double replayActorClock = 0.0;
         TimePoint previous = Clock::now();
         const TimePoint startedAt = previous;
@@ -167,7 +163,6 @@ namespace perlin {
         uint32_t lastHurtCount = 0, lastHurtSerial = 0;
         const BedrockSession* hurtSession = nullptr;
 
-        // PERLIN_PREVIEW: a generated world without a server, for screenshots and benchmarks
         const bool preview = PERLIN_ENV("PERLIN_PREVIEW") != nullptr;
         std::unique_ptr<Level> previewLevel;
         double previewTicks = frame::kNoonTick;

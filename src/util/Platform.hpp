@@ -4,7 +4,6 @@
 #include <TargetConditionals.h>
 #endif
 
-// PERLIN_IOS: iPhone / iPad (not Mac Catalyst). PERLIN_MOBILE: a touch-first, always-fullscreen device.
 #if defined(__APPLE__) && TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
 #define PERLIN_IOS 1
 #endif

@@ -79,7 +79,7 @@ void stageMain()
         vec3 glow = texture2D(s_bloom, uv).rgb * u_bloom.x;
         color = vec3_splat(1.0) - (vec3_splat(1.0) - color) * (vec3_splat(1.0) - clamp(glow, 0.0, 1.0));
     }
-    // 8-bit framebuffer banding on smooth sky gradients: dither last
+
     color += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * (1.5 / 255.0);
     gl_FragColor = vec4(color, 1.0);
 }

@@ -1,6 +1,3 @@
-# perlin server: dedicated executable, shared library (dll / so / dylib) and static core to embed in the client
-# standalone:  cmake -S server -B build-server && cmake --build build-server
-# in the tree: the root CMakeLists adds this directory when PERLIN_BUILD_SERVER is ON and links perlin_server_core into the client
 cmake_minimum_required(VERSION 3.28)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -25,11 +22,10 @@ option(PERLIN_SERVER_BUILD_EXE "build the perlin-server executable" ON)
 option(PERLIN_SERVER_BUILD_TESTS "build the server tests" ${PERLIN_SERVER_STANDALONE})
 
 get_filename_component(PERLIN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
-include("${PERLIN_ROOT}/mods/cmake/PerlinApi.cmake")
+include("${PERLIN_ROOT}/cmake/PerlinApiPackage.cmake")
 include(FetchContent)
 find_package(Threads REQUIRED)
 
-# protocol codecs: the client's generated packets, so the server speaks exactly what the client decodes
 if(NOT TARGET perlin_protocol)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     set(PROTO_OUT "${CMAKE_CURRENT_BINARY_DIR}/generated/protocol")
@@ -58,7 +54,6 @@ if(NOT TARGET miniz)
     FetchContent_MakeAvailable(miniz)
 endif()
 
-# the client builds these as plain static libraries; they go into a shared library here
 foreach(dep perlin_protocol miniz)
     if(TARGET ${dep})
         set_target_properties(${dep} PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -82,6 +77,7 @@ set(PS_SOURCES
     src/net/LoopbackListener.cpp
     src/net/RakNetListener.cpp
     src/plugin/PluginHost.cpp
+    "${PERLIN_ROOT}/src/util/ModSocket.cpp"
     src/session/Session.cpp
     src/world/Backends.cpp
     src/world/BlockCatalog.cpp
@@ -115,7 +111,6 @@ set(PS_SOURCES
     src/world/vanilla/JavaFeatureData.cpp
     src/gpu/VanillaGpuProgram.cpp)
 
-# wasm runtime: WasmEdge (wasm64 and wasm32) when the client build provides it, otherwise wasm3 (wasm32 only), both through mods/host
 option(PERLIN_SERVER_WASM3 "Run server plugins on wasm3 (32-bit modules only) even when WasmEdge is available" OFF)
 if(TARGET perlin_wasmedge AND NOT PERLIN_SERVER_WASM3)
     set(PS_WASM_SOURCES ${PERLIN_API_HOST_WASMEDGE_SOURCES} ${PERLIN_API_HOST_CORE_SOURCES})
@@ -168,7 +163,7 @@ if(PERLIN_SERVER_GPU)
         set(CONDUIT_STREAMLINE OFF CACHE BOOL "" FORCE)
         include("${PERLIN_ROOT}/cmake/PerlinConduit.cmake")
     endif()
-    # compute shader -> shader pack (spir-v for now) -> a byte array in the library
+
     set(PERLIN_SLANGC "" CACHE FILEPATH "slangc to compile the terrain shader with; fetched when empty")
     if(NOT PERLIN_SLANGC)
         set(_slang_version 2026.20)
@@ -208,13 +203,13 @@ else()
 endif()
 
 find_package(OpenSSL REQUIRED)
-# every server source is compiled once, into perlin_server_objects; the libraries below only differ in the wasm runtime
+
 add_library(perlin_server_objects OBJECT ${PS_SOURCES})
 set(PS_LIBS perlin_server_core)
 add_library(perlin_server_core STATIC $<TARGET_OBJECTS:perlin_server_objects> ${PS_WASM_SOURCES})
 target_link_libraries(perlin_server_core PRIVATE ${PS_WASM_LIB})
 if(PERLIN_SERVER_EMBED)
-    # singleplayer inside the client: the client already links a wasm runtime (WasmEdge or wasm3) behind the same api
+
     add_library(perlin_server_embed STATIC $<TARGET_OBJECTS:perlin_server_objects>)
     list(APPEND PS_LIBS perlin_server_embed)
 endif()
@@ -225,11 +220,10 @@ foreach(t perlin_server_objects ${PS_LIBS})
     target_compile_definitions(${t} PRIVATE PERLIN_SERVER_BUILD_SHARED "PERLIN_SERVER_RESOURCE_DIR=\"${PERLIN_ROOT}/resources\"")
     target_link_libraries(${t} PUBLIC perlin_protocol miniz OpenSSL::Crypto Threads::Threads)
     if(PERLIN_SERVER_NETHERNET)
-        # the client builds libdatachannel static (position independent) and shared; the static one keeps the library self contained
+
         if(TARGET datachannel-static)
             target_link_libraries(${t} PUBLIC datachannel-static OpenSSL::SSL)
-            # same httplib macros as the client: these objects are linked into it, and a header-only class
-            # built with different macros breaks every inline copy the linker keeps (one definition rule)
+
             target_compile_definitions(${t} PRIVATE PERLIN_SERVER_HAS_SSL CPPHTTPLIB_OPENSSL_SUPPORT)
             if(APPLE AND NOT IOS)
                 target_compile_definitions(${t} PRIVATE CPPHTTPLIB_USE_CERTS_FROM_MACOSX_KEYCHAIN)
@@ -254,7 +248,7 @@ foreach(t perlin_server_objects ${PS_LIBS})
         target_compile_options(${t} PRIVATE -Wall -Wextra -Wno-unused-parameter)
     endif()
 endforeach()
-# float results must match java's strict ieee arithmetic bit for bit: no fused multiply-add
+
 if(NOT MSVC)
     set_source_files_properties(src/world/vanilla/Noise.cpp src/world/vanilla/DensityFunction.cpp src/world/vanilla/VanillaTerrain.cpp src/world/vanilla/VanillaSurface.cpp src/world/vanilla/VanillaAquifer.cpp src/world/vanilla/VanillaMaterials.cpp src/world/vanilla/VanillaCarvers.cpp src/world/vanilla/VanillaDimension.cpp
     src/gpu/VanillaGpuProgram.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
@@ -265,7 +259,7 @@ if(PERLIN_SERVER_BUILD_SHARED)
     target_link_libraries(perlin_server PRIVATE perlin_server_core)
     target_compile_definitions(perlin_server PRIVATE PERLIN_SERVER_BUILD_SHARED)
     set_target_properties(perlin_server PROPERTIES CXX_VISIBILITY_PRESET hidden)
-    # the exported c api lives in the static core: keep every object of it in the library
+
     if(MSVC)
         target_link_options(perlin_server PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:perlin_server_core>")
     elseif(APPLE)
@@ -276,7 +270,6 @@ if(PERLIN_SERVER_BUILD_SHARED)
     add_dependencies(perlin_server perlin_server_core)
 endif()
 
-# release builds on Linux carry no symbol tables
 if(UNIX AND NOT APPLE)
     foreach(t perlin_server perlin-server)
         if(TARGET ${t})
@@ -293,16 +286,16 @@ endif()
 
 if(PERLIN_SERVER_BUILD_TESTS)
     enable_testing()
-    # the client's chunk decoder checks what the server encodes
+
     set(PS_CLIENT_CHUNK_CODEC "${PERLIN_ROOT}/src/world/level/chunk/ChunkCodec.cpp")
 
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
-        COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/examples/hello_server/build.sh" "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
-        DEPENDS examples/hello_server/hello_server.c ${PERLIN_ROOT}/mods/sdk/perlin.h ${PERLIN_ROOT}/mods/sdk/perlin_abi.h examples/hello_server/build.sh
+        COMMAND ${CMAKE_COMMAND} -E env "PERLIN_API_SDK=${PERLIN_API_SDK_DIR}"
+                sh "${CMAKE_CURRENT_SOURCE_DIR}/examples/hello_server/build.sh" "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
+        DEPENDS examples/hello_server/hello_server.c ${PERLIN_API_SDK_DIR}/perlin.h ${PERLIN_API_SDK_DIR}/perlin_abi.h examples/hello_server/build.sh
         COMMENT "Building the example plugin" VERBATIM)
     add_custom_target(server_example_plugin DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm")
 
-    # the java terrain port: checked number for number against the real engine's output (tools/javaref)
     add_executable(vanilla_noise_test tests/vanilla_noise_test.cpp)
     target_include_directories(vanilla_noise_test PRIVATE src)
     target_link_libraries(vanilla_noise_test PRIVATE perlin_server_core miniz OpenSSL::Crypto Threads::Threads)
@@ -351,7 +344,6 @@ if(PERLIN_SERVER_BUILD_TESTS)
     add_dependencies(server_session_test server_example_plugin)
     add_test(NAME server_session_test COMMAND server_session_test "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm")
 
-    # the client-side bridge, built from the same source the client compiles, against the linked-in server
     add_executable(server_embed_test tests/server_embed_test.cpp client_bridge/EmbeddedServer.cpp)
     target_include_directories(server_embed_test PRIVATE src client_bridge include "${PERLIN_ROOT}/src")
     target_compile_definitions(server_embed_test PRIVATE PERLIN_SERVER_STATIC)

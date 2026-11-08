@@ -18,7 +18,6 @@ namespace perlin::ui {
         return true;
     }
 
-    // 26.50 palette: blue and the material colours (h..v) were recoloured in that release
     static bool BuiltinFormatCodeColor(char code, uint32_t& rgb) {
         switch (std::tolower(static_cast<unsigned char>(code))) {
         case '0':
@@ -157,7 +156,7 @@ namespace perlin::ui {
     }
 
     namespace {
-        // bytes of the UTF-8 sequence starting at s[i] (1 for a stray continuation byte)
+
         size_t CodepointBytes(const std::string& s, size_t i) {
             const unsigned char b = static_cast<unsigned char>(s[i]);
             const size_t n = b < 0x80           ? 1
@@ -257,7 +256,7 @@ namespace perlin::ui {
                 i += 2 + CodepointBytes(text, i + 2);
                 continue;
             }
-            // a section sign as the last character: nothing to apply
+
             if (i + 1 < text.size() && static_cast<unsigned char>(text[i]) == 0xC2 &&
                 static_cast<unsigned char>(text[i + 1]) == 0xA7) {
                 i += 2;

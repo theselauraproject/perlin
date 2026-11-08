@@ -1,4 +1,3 @@
-// statistics and path of the benchmark mode
 #include "client/Benchmark.hpp"
 
 #include <cmath>
@@ -20,7 +19,7 @@ namespace {
 }
 
 int main() {
-    // 990 frames at 10 ms and 10 at 40 ms: 1% low is the 10 slowest = 25 fps
+
     std::vector<double> ms(990, 10.0);
     ms.insert(ms.end(), 10, 40.0);
     const Stats s = Compute(ms);
@@ -33,7 +32,6 @@ int main() {
     Check(s.hitches == 10, "hitches");
     Check(Compute({}).frames == 0, "empty");
 
-    // the run warms up, then records exactly the asked span
     Settings set;
     set.seconds = 2.0;
     set.warmupSeconds = 1.0;
@@ -51,7 +49,6 @@ int main() {
     Check(run.Current() == Phase::Done, "finishes");
     Check(run.FrameTimes().size() >= 198 && run.FrameTimes().size() <= 202, "records two seconds");
 
-    // the path starts at the spawn point, above it, and is continuous
     const Pose a = PathAt(0.0), b = PathAt(0.01);
     Check(Near(a.x, 0.0) && Near(a.z, 0.0) && a.y > 10.0, "path start");
     Check(std::fabs(a.x - b.x) < 0.2 && std::fabs(a.z - b.z) < 0.2, "path continuous");

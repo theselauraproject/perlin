@@ -140,8 +140,7 @@ namespace perlin::server {
     }
 
     namespace {
-        // blocks the game keeps for itself: old lit/unlit variants, world-edge markers, signs that only exist as placed blocks, education leftovers.
-        // none of them are in the creative menu of a normal bedrock world
+
         bool IsTechnicalBlock(const std::string& n) {
             static const char* const exact[] = {"glowingobsidian",
                                                 "netherreactor",
@@ -243,7 +242,7 @@ namespace perlin::server {
             const int32_t hash = static_cast<int32_t>(entry[0].Int());
             State s;
             s.name = name;
-            // keys arrive sorted in the file, the registry sorts again anyway
+
             for (const auto& [key, v] : entry[2].members) {
                 const std::string type = v[0].String();
                 if (type == "b")
@@ -253,7 +252,7 @@ namespace perlin::server {
                 else
                     s.list.emplace_back(key, StateValue(v[1].String()));
             }
-            // the first permutation listed is the default one
+
             defaultHash.emplace(name, hash);
             states.emplace(hash, std::move(s));
         }
@@ -263,8 +262,7 @@ namespace perlin::server {
         while (std::getline(map, line)) {
             if (line.empty() || line[0] == '#')
                 continue;
-            // block_destroy.tsv: name, hardness, tool, level; hardness -1 marks technical blocks that never become items
-            // (bedrock and barrier stay: creative players build with them)
+
             const size_t tab = line.find('\t');
             if (tab == std::string::npos)
                 continue;
@@ -279,7 +277,7 @@ namespace perlin::server {
             names.push_back(name);
         }
         if (names.empty()) {
-            // no list of item names: every block that has a single state
+
             for (const auto& [n, h] : defaultHash)
                 names.push_back(n.substr(10));
         }

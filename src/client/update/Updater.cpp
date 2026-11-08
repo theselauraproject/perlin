@@ -33,7 +33,7 @@
 #include <SDL3/SDL_system.h>
 #include <jni.h>
 #elif !defined(PERLIN_IOS)
-// desktop only: phones never start a second copy of the game
+
 #include <spawn.h>
 extern char** environ;
 #endif
@@ -52,8 +52,7 @@ extern char** environ;
 namespace fs = std::filesystem;
 
 #if defined(__EMSCRIPTEN__)
-// the site itself is the nightly: version.json beside index.html names the commit it was built from
-// clang-format off
+
 EM_JS(void, perlin_js_check_version, (), {
     fetch("version.json", {cache: "no-store"})
         .then(function (r) { return r.ok ? r.json() : null; })
@@ -74,7 +73,7 @@ EM_JS(void, perlin_js_reload_fresh, (), {
         .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
         .then(reload, reload);
 });
-// clang-format on
+
 #endif
 
 namespace perlin::update {
@@ -101,7 +100,7 @@ namespace perlin::update {
             std::mutex mutex;
             Status status;
             std::string latestSha;
-            fs::path payload; // the staged folder (desktop) or the apk (android)
+            fs::path payload;
             std::atomic<bool> restart{false};
             std::atomic<bool> started{false};
         };
@@ -126,8 +125,6 @@ namespace perlin::update {
             return "https://github.com/" + std::string(kRepo) + "/releases/tag/nightly";
         }
 
-        // a Linux AppImage replaces its own single file (APPIMAGE is set by its runtime); the unpacked tree it runs
-        // from is read-only
         std::string AppImagePath() {
 #if defined(__linux__) && !defined(__ANDROID__)
             if (const char* p = std::getenv("APPIMAGE"); p && *p)
@@ -143,13 +140,12 @@ namespace perlin::update {
             return a;
         }
 
-        // Flatpak (and distribution packages) update through their own package manager
         bool ManagedElsewhere() {
             return std::getenv("FLATPAK_ID") != nullptr || std::getenv("SNAP") != nullptr;
         }
 
 #if !defined(__EMSCRIPTEN__)
-        // the folder the package was unpacked into: beside the executable, or around the .app on macOS
+
         fs::path InstallRoot() {
             fs::path exe = paths::ExeDir();
 #if defined(__APPLE__)
@@ -165,7 +161,6 @@ namespace perlin::update {
                                           : fs::path(paths::DataDir()) / "update";
         }
 
-        // the nightly tag's commit, from the GitHub api
         std::string LatestCommit() {
             const http::Response r = http::Request(
                 "api.github.com", 443, true, "GET", "/repos/" + std::string(kRepo) + "/git/ref/tags/nightly",
@@ -183,7 +178,6 @@ namespace perlin::update {
                        : r.body.substr(open + 1, close - open - 1);
         }
 
-        // unzips keeping unix permissions and symbolic links (an .app is useless without its executable bit)
         bool Extract(const fs::path& zipPath, const fs::path& into) {
             mz_zip_archive zip{};
             FILE* file = nullptr;
@@ -220,7 +214,7 @@ namespace perlin::update {
 #endif
                 ok = mz_zip_reader_extract_to_file(&zip, i, out.string().c_str(), 0);
 #if !defined(_WIN32)
-                // an archive without unix modes: executables are the bundle's MacOS/ files and extensionless top-level files
+
                 const bool executable =
                     name.find("/Contents/MacOS/") != std::string::npos ||
                     (name.find('/') == std::string::npos && fs::path(name).extension().empty());
@@ -234,7 +228,6 @@ namespace perlin::update {
             return ok;
         }
 
-        // the staged copy of `sha`, if a previous run already downloaded and unpacked it
         fs::path StagedFor(const std::string& sha) {
             const fs::path dir = StageRoot() / sha;
             std::error_code ec;
@@ -352,16 +345,14 @@ namespace perlin::update {
             if (mark)
                 std::fclose(mark);
             State_().payload = dir / "files";
-            // also installed by itself when the game closes, without the restart
+
             Set(State::Ready, "Restart to update");
         }
 
-        // moves every top-level item of the staged package over the installed one; the replaced files are renamed
-        // aside (a running executable can be renamed, not overwritten) and deleted on the next start
         bool Install(const fs::path& staged) {
             std::error_code ec;
             if (const std::string image = AppImagePath(); !image.empty()) {
-                // the running AppImage is open, not locked: the new file simply takes its name
+
                 fs::rename(staged, image, ec);
                 fs::remove(image + ".new.sha", ec);
                 if (ec)
@@ -448,7 +439,7 @@ namespace perlin::update {
             pid_t pid = 0;
             posix_spawn(&pid, "/usr/bin/open", nullptr, nullptr, argv, environ);
 #else
-            // the running file was renamed aside: start the one that now has its old name
+
             std::error_code ec;
             std::string self = fs::read_symlink("/proc/self/exe", ec).filename().string();
             if (self.ends_with(kOldSuffix))
@@ -463,7 +454,7 @@ namespace perlin::update {
         }
 
 #if defined(__ANDROID__)
-        // PerlinActivity.installApk: a PackageInstaller session; Android shows its own confirmation
+
         bool InstallApk(const fs::path& apk) {
             auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
             auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
@@ -484,7 +475,7 @@ namespace perlin::update {
             return ok;
         }
 #endif
-#endif // !__EMSCRIPTEN__
+#endif
 
     }
 

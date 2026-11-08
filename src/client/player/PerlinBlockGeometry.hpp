@@ -19,7 +19,7 @@ namespace perlin::physics::bds {
                                   detail::Round(origin.z + local[2])};
         const CollisionVector high{detail::Round(origin.x + local[3]), detail::Round(origin.y + local[4]),
                                    detail::Round(origin.z + local[5])};
-        // collision component collector 0x149b69ce0 reorders each axis (cmpltps/maxps): inverted shapes still collide
+
         CollisionBox box;
         for (int axis = 0; axis < 3; ++axis) {
             box[axis] = low[axis] < high[axis] ? low[axis] : high[axis];

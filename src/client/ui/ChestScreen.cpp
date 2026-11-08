@@ -24,16 +24,12 @@ namespace perlin::ui {
         const char* const kScreens[] = {"small_chest_screen", "large_chest_screen", "ender_chest_screen",
                                         "barrel_screen", "shulker_box_screen"};
 
-        // a server picks its own chest layout with a four character marker in front of the title ("@@@4" for four
-        // rows): the marker steers which panel a pack builds and is never shown. empty when there is none
         std::string TitleMarker(const std::string& title) {
             if (title.size() >= 4 && title.compare(0, 3, "@@@") == 0 && title[3] >= '1' && title[3] <= '6')
                 return title.substr(0, 4);
             return {};
         }
 
-        // the marker tree is built with "@@@N#container_title" as the title; the pack's "- marker" normally strips it
-        // again, but where that assignment does not reach a label the marker would be drawn: cut it from every text
         void StripTitleMarker(Json& json) {
             if (json.IsString()) {
                 std::string& t = json.string;
@@ -270,13 +266,12 @@ div { display: block; position: absolute; }
                 if (auto tree = BuildTree(library, std::string("chest.") + screen, vars, report))
                     trees[screen] = std::move(tree);
             }
-            // markers are read from the title text while the tree is built, so each one gets its own tree; the
-            // title itself stays a binding with the marker prepended, which the pack's own "- marker" strips again
+
             bool marked = false;
             for (const std::string& root : roots) {
                 std::ifstream in(root + "/chest_screen.json", std::ios::binary);
                 std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-                // the apostrophes are often written as \u0027 in the json
+
                 if (text.contains("%.4s") && text.contains("@@@")) {
                     marked = true;
                     break;
@@ -315,8 +310,7 @@ div { display: block; position: absolute; }
         auto it = trees.end();
         if (const std::string marker = TitleMarker(view.title); !marker.empty())
             it = trees.find("small_chest_screen" + marker);
-        // a pack that builds its chest from a marker sized the panel for the row count: a title without one
-        // would land on the six row layout with the grid only partly filled (a gap above the inventory)
+
         if (it == trees.end() && view.chestRows >= 1 && view.chestRows <= 6 &&
             (screen == "small_chest_screen" || screen == "large_chest_screen"))
             it = trees.find("small_chest_screen@@@" + std::to_string(view.chestRows));

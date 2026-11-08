@@ -102,8 +102,7 @@ namespace perlin::jshader {
             {"RGBA32I", BufferFormat::RGBA32I},
             {"RG32F", BufferFormat::RG32F},
             {"RGB32F", BufferFormat::RGBA32F},
-            // the rest of iris's InternalTextureFormat list, held in the nearest format perlin can render to
-            // with every value intact: signed normalised as float, integers as 32-bit float (exact to 2^24)
+
             {"RGBA", BufferFormat::RGBA8},
             {"RGB", BufferFormat::RGB8},
             {"RG", BufferFormat::RG8},
@@ -178,7 +177,6 @@ namespace perlin::jshader {
         const Properties& p = pack.Props();
         const Directives& d = pack.GetDirectives();
 
-        // optifine's old names for colortex0-7 work for every buffer directive (iris PackRenderTargetDirectives)
         static const char* const kLegacy[] = {"gcolor", "gdepth", "gnormal", "composite",
                                               "gaux1",  "gaux2",  "gaux3",   "gaux4"};
         for (int i = 0; i < kMaxColorTex; i++) {
@@ -221,7 +219,7 @@ namespace perlin::jshader {
             const std::string n = "shadowcolor" + std::to_string(i);
             cfg.shadowColorFormat[i] = ParseBufferFormat(d.Text(n + "Format"), BufferFormat::RGBA8);
             cfg.shadowColorClear[i] = d.Bool(n + "Clear", true);
-            // iris SamplingSettings: shadow colour buffers clear to white unless the pack says otherwise
+
             if (const std::string cc = d.Text(n + "ClearColor"); !cc.empty()) {
                 std::string s = cc;
                 const size_t o = s.find('(');
@@ -244,7 +242,7 @@ namespace perlin::jshader {
             cfg.shadowFilterLinear[i] = !d.Bool(t + "Nearest", false);
             cfg.shadowMipmap[i] = d.Bool(t + "Mipmap", false);
         }
-        // iris PackShadowDirectives defaults: 1024 texels, a 160 block half plane, near -100.05 / far 156
+
         cfg.shadowMapResolution = static_cast<int>(d.Number("shadowMapResolution", 1024));
         cfg.noiseTextureResolution =
             std::clamp(static_cast<int>(d.Number("noiseTextureResolution", 256)), 1, 4096);
@@ -275,7 +273,7 @@ namespace perlin::jshader {
         cfg.shadowTranslucent = p.Bool("shadowTranslucent", true);
         cfg.shadowTerrain = p.Bool("shadowTerrain", true);
         cfg.shadowEntities = p.Bool("shadowEntities", true);
-        // iris ShadowRenderer: every entity when shadowEntities, else only the player when shadowPlayer
+
         cfg.shadowPlayer = p.Bool("shadowPlayer", false);
         cfg.shadowBlockEntities = p.Bool("shadowBlockEntities", true);
         cfg.clouds = str::Lower(p.Get("clouds", "default"));
@@ -357,7 +355,7 @@ namespace perlin::jshader {
                     img.height = img.dims >= 2 ? std::max(1, std::atoi(w[7].c_str())) : 1;
                     img.depth = img.dims == 3 ? std::max(1, std::atoi(w[8].c_str())) : 1;
                 }
-                // a later definition (another #if branch) replaces an earlier one of the same name
+
                 std::erase_if(cfg.images, [&](const CustomImage& o) { return o.name == img.name; });
                 if (cfg.images.size() < 16)
                     cfg.images.push_back(std::move(img));
@@ -384,7 +382,7 @@ namespace perlin::jshader {
                 const auto w = SplitWords(val);
                 if (idx >= 0 && idx < kMaxColorTex && w.size() >= 2) {
                     BufferSetup& b = cfg.color[static_cast<size_t>(idx)];
-                    // a fraction is a scale of the screen (iris), a whole number a size in pixels
+
                     const auto relative = [](const std::string& t) {
                         return t.find('.') != std::string::npos;
                     };

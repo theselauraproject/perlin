@@ -18,10 +18,10 @@ namespace perlin::physics {
     constexpr double kStandHeight = 1.8;
     constexpr double kSneakHeight = 1.49;
     constexpr double kCrawlHeight = 0.6;
-    // eye heights from the camera offset: VanillaOffsetSystem 0x142CED370
+
     constexpr double kCrawlEye = 0.4;
     constexpr double kStandEye = 1.62001f;
-    // the sneak drop is 0.35f; older base game versions use 0.125f (Player ctor 0x1402B5670)
+
     constexpr double kSneakEye = 1.62001f - 0.35f;
     constexpr double kSleepEye = 0.2;
     constexpr double kStepHeight = 0.5625;
@@ -60,7 +60,7 @@ namespace perlin::physics {
         bool isAir = true;
         int8_t bubbleColumn = 0;
         int8_t scaffoldingStability = -1;
-        // Inside a nether/end portal column: drives the Java-style portal overlay.
+
         bool portal = false;
         bool Empty() const { return boxes.empty(); }
     };
@@ -76,7 +76,7 @@ namespace perlin::physics {
         }
         virtual bds::TerrainHeightLimits CollisionHeightLimits() const { return {}; }
         virtual bool InsideRegionReady(const bds::CollisionBox& bounds) const;
-        // block shapes only: the move query adds entity boxes itself, whole and after the blocks
+
         virtual BlockShape CollisionQuery(int x, int y, int z) const { return Query(x, y, z); }
         virtual const std::vector<Box>* CollisionEntityBoxes() const { return nullptr; }
     };
@@ -97,10 +97,10 @@ namespace perlin::physics {
         bool soulSpeed = false;
         std::optional<float> waterDrag;
         std::optional<float> underwaterSpeed = 0.02f;
-        // lava_movement attribute; the player registers it at 0.02 (0x142C374F0)
+
         float lavaSpeed = 0.02f;
         bool dolphin = false;
-        // AirSpeedComponent of a non-player mob; unset keeps the player air speed system
+
         std::optional<float> airSpeed;
     };
 
@@ -111,7 +111,7 @@ namespace perlin::physics {
         bool sneak = false;
         bool sprint = false;
         bool flying = false;
-        // double tap this tick: flying is already the new state, the travel type still the old one
+
         bool flyToggled = false;
         bool flyUp = false;
         bool flyDown = false;
@@ -123,14 +123,14 @@ namespace perlin::physics {
         bool headInWater = false;
         float lookY = 0;
         bool gliding = false;
-        // GlideInputSystem: +0.1 vertical before the move systems
+
         bool glideLift = false;
         float pitch = 0;
         bool crawl = false;
         bool forceCrouch = false;
-        // riptide level of a trident released this tick, 0 when none
+
         int riptideLevel = 0;
-        // mob boxes a riptide spin can hit; filled only while spinning
+
         std::vector<Box> mobBoxes;
         bool overDescendableBlock = false;
         bool inAscendableBlock = false;
@@ -140,8 +140,7 @@ namespace perlin::physics {
         uint8_t actorMovementFlags = 0;
         bds::GravityFlags gravity;
         std::vector<bds::MovementEffect> movementEffects;
-        // MobTravel intent written by VehicleDesiredMoveDirectionSystem (x right-positive like strafe);
-        // replaces the player travel intent and its 0.98 attenuation
+
         std::optional<bds::Float3> mobIntent;
     };
 
@@ -151,7 +150,7 @@ namespace perlin::physics {
         float yaw = 0;
         bool onGround = false;
         bool horizontalCollision = false;
-        // HorizontalCollisionFlagComponent lanes: no-clip leaves them, and the velocity reset still reads them
+
         bool horizontalCollisionX = false;
         bool horizontalCollisionZ = false;
         bool verticalCollision = false;
@@ -164,14 +163,14 @@ namespace perlin::physics {
         bool crawling = false;
         bool swimming = false;
         bool gliding = false;
-        // riptide spin (DAMAGENEARBYMOBS) and its tick counter
+
         bool spinAttack = false;
         int spinTicks = 0;
         float collisionHeight = static_cast<float>(kStandHeight);
         float swimAmount = 0;
         int jumpDelay = 0;
         float stuckX = 0, stuckY = 0, stuckZ = 0;
-        // last move request: horizontal velocity and position before the move (VanillaClientGameplay +28/+36, +40/+48)
+
         float requestX = 0, requestZ = 0, requestFromX = 0, requestFromZ = 0;
         float fallDistance = 0;
         bds::MovementEffects movementEffects;
@@ -186,14 +185,13 @@ namespace perlin::physics {
         bool hasBox = false;
         bool hasTeleported = false;
 
-        // horizontal poses (gliding, riptide, swimming, crawling) take a square box: height = width
         bool HorizontalPose() const { return crawling || swimming || gliding || spinAttack; }
         double Height(bool sneaking) const {
             if (mobSize)
                 return (*mobSize)[1];
             return HorizontalPose() ? kCrawlHeight : sneaking ? kSneakHeight : kStandHeight;
         }
-        // non-player mob (ridden horse): its own collision box (width, height), no poses
+
         std::optional<std::array<float, 2>> mobSize;
     };
 
@@ -205,20 +203,19 @@ namespace perlin::physics {
         float forward = 0, strafe = 0;
     };
 
-    // sneakScale: last tick's SneakingComponent, 0.3 unless swift sneak
     MoveVector ProcessMoveInput(float forward, float strafe, bool sneaking, bool inWater,
                                 float itemUseModifier = 1.0f, float sneakScale = 0.3f);
-    // sneaking: the actor SNEAKING flag when SneakingSystem runs (last tick's)
+
     float SneakSpeed(int swiftSneakLevel, bool sneaking);
 
     struct AttributeModifierValue {
         float amount = 0;
         int32_t operation = 0, operand = 0;
     };
-    // AttributeInstance clamp 0x142bf2520: cap modifiers (operation 3) lower the max
+
     float ClampAttribute(float value, float min, float max,
                          const std::vector<AttributeModifierValue>& modifiers);
-    // AttributeInstance recalculation 0x142bf1680 for the movement attribute; base and limits: min, max, value / min, max
+
     float RecalculateAttribute(const std::array<float, 3>& base,
                                const std::vector<AttributeModifierValue>& modifiers, float current,
                                std::array<float, 2>& limits);
@@ -230,8 +227,7 @@ namespace perlin::physics {
         float vx = 0, vy = 0, vz = 0;
         bool onGround = false, horizontalCollision = false, verticalCollision = false;
     };
-    // non-player mover without auto-step: MoveCollision -> ActorMove -> FinalizeMove -> velocity resets;
-    // position is the box's bottom centre
+
     BoxMove MoveBox(const World& world, const Box& start, float dx, float dy, float dz, bool wasOnGround,
                     bds::RecoveryState& recovery);
 }

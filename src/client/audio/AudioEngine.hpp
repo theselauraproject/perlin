@@ -46,11 +46,26 @@ namespace perlin::audio {
         bool loop = false;
         std::string name;
         uint64_t id = 0;
-        // wall-clock start, for predict+echo dedup in Start()
+
         uint64_t startedMs = 0;
         double cursor = 0.0;
         float fade = 1.0f;
         bool stopping = false;
+    };
+
+    struct StreamParams {
+        int rate = 48000;
+        int channels = 1;
+        Category category = Category::Voice;
+        float volume = 1.0f;
+        bool positional = false;
+        glm::dvec3 position{0.0};
+        float range = 16.0f;
+    };
+
+    struct StreamStatus {
+        float bufferedMs = 0.0f;
+        uint32_t underruns = 0;
     };
 
     class AudioEngine {
@@ -73,14 +88,30 @@ namespace perlin::audio {
         size_t Active() const;
         bool Playing(const std::string& name) const;
 
+        uint32_t StreamOpen(const StreamParams& params);
+        bool StreamWrite(uint32_t id, const int16_t* samples, size_t count, StreamStatus& status);
+        bool StreamUpdate(uint32_t id, float volume, bool positional, const glm::dvec3& position, float range);
+        void StreamClose(uint32_t id);
+
         void Mix(float* interleavedStereo, int frames);
 
         static float Attenuation(float distance, float range);
 
     private:
         static void Callback(void* user, SDL_AudioStream* stream, int additional, int total);
+        struct Stream {
+            uint32_t id = 0;
+            StreamParams params;
+            std::vector<int16_t> buffer;
+            size_t head = 0;
+            double cursor = 0.0;
+            bool primed = false;
+            uint32_t underruns = 0;
+        };
         mutable std::mutex mutex;
         std::vector<Voice> voices;
+        std::vector<Stream> streams;
+        uint32_t nextStream = 1;
         Volumes volumes;
         glm::dvec3 listener{0.0};
         float listenerYaw = 0;

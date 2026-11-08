@@ -29,10 +29,7 @@ namespace perlin::ui {
         std::vector<uint8_t> rgba;
     };
 
-    // menu backdrop: each face resampled to size x size and box blurred 3 times (radius in output texels);
-    // blurred across face edges through the cube, no seams
     bool BlurPanorama(const PanoramaImage (&in)[6], int size, int radius, PanoramaImage (&out)[6]);
 
-    // box radius in face texels matching the game's screen-space menu blur (radius in framebuffer pixels)
     int PanoramaBlurRadius(int menuBlur, int faceSize, int fbHeight, float fovYDegrees = 85.0f);
 }

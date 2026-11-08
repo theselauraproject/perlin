@@ -4,7 +4,7 @@ import java.util.stream.*;
 
 public class Prep {
     static boolean isNeutral(String o) {
-        // the biome table dump needs a working Pair (helper/ has one); everything else in the data-fixer library stays a no-op
+
         if (o.equals("com/mojang/datafixers/util/Pair"))
             return false;
         return o.startsWith("com/mojang/serialization/") || o.startsWith("com/mojang/datafixers/") || o.startsWith("com/mojang/brigadier/") || o.startsWith("com/mojang/authlib/")
@@ -67,7 +67,7 @@ public class Prep {
                         MethodVisitor mv0 = super.visitMethod(acc, name, desc, sig, ex);
                         MethodVisitor mv = neutral(mv0);
                         if (cname.equals("net/minecraft/world/level/levelgen/NoiseRouterData") && name.equals("bootstrap")) {
-                            // ore veins need the block registry, which this harness does not have; terrain shape does not depend on them
+
                             return new MethodVisitor(Opcodes.ASM9, mv) {
                                 public void visitMethodInsn(int op, String o, String n, String d, boolean i) {
                                     if (n.equals("registerOreVeins")) { super.visitInsn(Opcodes.POP); return; }

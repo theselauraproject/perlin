@@ -14,13 +14,11 @@ namespace perlin::ui {
     };
     void ExportScreenTemplates();
 
-    // a screen's <data>/ui/<file>, checked for edits at most once per interval so it can be restyled live
     struct TemplateSlot {
         std::string text;
         uint64_t version = 0;
         std::chrono::steady_clock::time_point checkAt;
 
-        // true when the text changed; logLabel names the screen in the log, null for a quiet reload
         bool Refresh(const char* fileName, const std::string& defaultText, std::chrono::milliseconds every,
                      std::chrono::steady_clock::time_point now, const char* logLabel = nullptr);
     };

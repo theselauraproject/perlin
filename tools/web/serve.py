@@ -9,19 +9,13 @@ root = os.path.dirname(os.path.abspath(__file__))
 port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 os.chdir(root)
 
-
-# Microsoft sign-in, Xbox Live, Realms and Minecraft services answer browsers without CORS headers: the page sends
-# those requests to /__relay-https/<host>/<path> and this forwards them (the same thing tools/web/auth-relay does
-# for a site on a static host)
 RELAY_HOSTS = ("login.live.com", "account.xbox.com", ".xboxlive.com", ".minecraft.net", ".minecraft-services.net",
                ".playfabapi.com")
 HOP_HEADERS = {"host", "origin", "referer", "cookie", "connection", "keep-alive", "transfer-encoding", "te",
                "upgrade", "proxy-authorization", "accept-encoding", "content-length"}
 
-
 def relay_allowed(host):
     return any(host == h or (h.startswith(".") and (host.endswith(h) or host == h[1:])) for h in RELAY_HOSTS)
-
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map, ".wasm": "application/wasm", ".js": "text/javascript"}
@@ -119,7 +113,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def log_message(self, *args):
         pass
-
 
 socketserver.ThreadingTCPServer.allow_reuse_address = True
 with socketserver.ThreadingTCPServer(("127.0.0.1", port), Handler) as server:

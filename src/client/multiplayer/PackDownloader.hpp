@@ -57,7 +57,7 @@ namespace perlin {
             uint64_t size = 0;
             std::vector<uint8_t> hash;
             std::vector<uint8_t> data;
-            // chunks that arrived ahead of the one still missing; some servers do not answer requests in order
+
             std::map<uint32_t, std::vector<uint8_t>> early;
             std::chrono::steady_clock::time_point gapSince;
             std::string fileName;

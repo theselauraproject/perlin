@@ -147,10 +147,10 @@ namespace perlin::ui {
                     if (name.size() > 4 && name.compare(name.size() - 4, 4, ".png") == 0)
                         name.resize(name.size() - 4);
                     if (name.starts_with("ui_menu_btn") || name == "ui_menu_logo") {
-                        // drawn at an explicit size, so the pack's own resolution is kept
+
                         fromPack = PackSpriteNative(name + ".png", t);
                     } else {
-                        // other sheets are addressed in pixels of the built-in size
+
                         std::string baseBytes;
                         Texture base;
                         if (resources::Read(stem, baseBytes) &&
@@ -974,7 +974,7 @@ namespace perlin::ui {
                 pitch = e->GetAttribute<float>("pit", 1.0f);
                 return !name.empty();
             }
-            // json ui control without sound_name (container slots, sliders, edit boxes): the game stays silent
+
             if (e->IsClassSet("bt"))
                 return false;
             for (const char* cls : kNative)

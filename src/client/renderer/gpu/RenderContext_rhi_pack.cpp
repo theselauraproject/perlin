@@ -36,11 +36,11 @@ namespace perlin {
             return false;
         jpack->SetFluidTiles(static_cast<int>(frame.waterTile), static_cast<int>(frame.waterFlowTile),
                              static_cast<int>(frame.lavaTile), -1);
-        // the pack's vertex stream is built next to the normal one whenever a chunk mesh uploads
+
         jpackStamp++;
         meshes.SetExtension(
             gpu::kPackVertexBytes, [this](const Tessellator& tess, std::vector<uint8_t>& out) {
-                // usually converted already on the meshing thread
+
                 if (tess.packStamp == jpackStamp.load() &&
                     tess.packVertices.size() == tess.Vertices().size() * gpu::kPackVertexBytes) {
                     out = tess.packVertices;
@@ -58,7 +58,7 @@ namespace perlin {
                                               const std::map<std::string, std::string>& options,
                                               std::string& error) {
         ClearJavaShaderPack();
-        // the hand-made approximation of complementary is only a debugging aid now: every pack runs for real
+
         if (PERLIN_ENV("PERLIN_JAVA_BAKED"))
             return SetBakedJavaShaderPack(path, options, error);
         if (!initialized) {
@@ -112,7 +112,7 @@ namespace perlin {
         jpackGathered = false;
         jpackPath.clear();
         Tessellator::SetCaptureQuadInfo(false);
-        // drops every mesh: the caller re-meshes without the extra stream
+
         if (initialized && had)
             meshes.SetExtension(0, {});
     }
@@ -122,7 +122,7 @@ namespace perlin {
             return;
         jpackDimension = folder;
         if (jpack && !jpackPath.empty()) {
-            // the pack's programs depend on the dimension folder: load it again
+
             std::string error;
             const std::string path = jpackPath;
             const auto options = jpackOptions;
@@ -168,7 +168,7 @@ namespace perlin {
             }
             out.push_back(std::move(r));
         };
-        // screen layout from shaders.properties: "screen" lists options and [sub screens]
+
         std::set<std::string> visiting;
         std::function<void(const std::string&, const std::string&)> walk = [&](const std::string& key,
                                                                                const std::string& title) {

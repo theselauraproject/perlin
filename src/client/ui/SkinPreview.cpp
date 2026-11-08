@@ -188,7 +188,6 @@ namespace perlin::ui {
             toModel(az, e0, false);
         }
 
-        // head turns on its own about the neck (0, 24, 0): rays for head boxes moved into head space
         const bool headTurned = view.headYaw != 0.0f || view.headPitch != 0.0f;
         const float hcy = std::cos(-view.headYaw * 0.017453292f),
                     hsy = std::sin(-view.headYaw * 0.017453292f);
@@ -227,7 +226,7 @@ namespace perlin::ui {
                 maxY = std::max(maxY, vy);
             }
             if (b.head && headTurned) {
-                // turned head can reach past its resting box; widen its screen bounds
+
                 minX -= 3.0f;
                 maxX += 3.0f;
                 minY -= 3.0f;

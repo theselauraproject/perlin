@@ -80,7 +80,7 @@ namespace perlin {
                 return 2;
             if (EndsWith(n, "_boots"))
                 return 3;
-            // Server-defined armor names its slot in the item's minecraft:wearable component.
+
             CustomItemDef custom;
             if (ServerBlocks::Instance().Item(full, custom))
                 return custom.armorSlot;
@@ -699,7 +699,7 @@ namespace perlin {
             const bool addrEmpty = InvInfoLocked(addr).Empty(), hotbarEmpty = InvInfoLocked(hotbar).Empty();
             if (addrEmpty && hotbarEmpty)
                 return false;
-            // into an empty slot the game places the whole stack; servers can refuse a swap with an empty side
+
             if (hotbarEmpty)
                 m.Move(addr, hotbar, InvInfoLocked(addr).count);
             else if (addrEmpty)

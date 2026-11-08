@@ -14,7 +14,7 @@ namespace perlin {
     void ServerPacks::Clear() {
         std::lock_guard lock(mutex);
         if (dirs.size() != pinned.size()) {
-            dirs = pinned; // test folders (AddDirectory) stay mounted
+            dirs = pinned;
             generation++;
         }
     }

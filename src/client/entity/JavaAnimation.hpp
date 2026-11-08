@@ -51,7 +51,7 @@ namespace perlin::entity::java {
         }
         float Sample(float partial) const { return Turn(previous, current, partial); }
     };
-    // BodyRotation driven by render frames: each 20 Hz tick sees the position and head at its own time
+
     struct PlayerBodyClock {
         BodyRotation rotation;
         double remainder = 0, lastX = 0, lastZ = 0, tickX = 0, tickZ = 0;
@@ -66,7 +66,7 @@ namespace perlin::entity::java {
             init = true;
         }
         float Frame(double x, double z, float head, double dt, bool swinging, bool riding, float facing) {
-            // teleports and first sight: no turn toward a jump of several blocks
+
             if (!init || (x - lastX) * (x - lastX) + (z - lastZ) * (z - lastZ) > 64.0)
                 Reset(x, z, head);
             remainder += dt;
@@ -85,17 +85,16 @@ namespace perlin::entity::java {
                 tickZ = tz;
                 ++ticks;
             }
-            // long stall: drop the backlog instead of replaying it
+
             remainder = std::min(remainder, 0.05);
             lastX = x;
             lastZ = z;
             lastHead = head;
             const float body = rotation.Sample(static_cast<float>(remainder / 0.05));
             if (!riding)
-                // LivingEntityRenderer.solveBodyRot: the interpolated body, nothing more. The 50 degree limit is
-                // a tick rule; between ticks the head may lead the body further, as it does in Java
+
                 return body;
-            // riding: the head may turn 85 degrees from the mount's body, and past 50 the body leans a fifth along
+
             const float headDiff = std::clamp(Wrap(head - body), -85.0f, 85.0f);
             float riderBody = head - headDiff;
             if (std::abs(headDiff) > 50.0f)

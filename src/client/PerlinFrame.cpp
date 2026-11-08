@@ -157,7 +157,7 @@ namespace perlin {
             StartBenchmark(std::move(s));
         }
         UpdateBenchmark(f);
-        // last before the view is built: input, aim and movement above all used the player's own view
+
         UpdateCameraEffects();
         PrepareView(f);
         BuildFrameParams(f);
@@ -189,7 +189,7 @@ namespace perlin {
         if ((frames & 15) == 0)
             i18n::Lang::Get().Configure(ui::UiAssets::Instance().VanillaRoot(), paths::DataDir(),
                                         options.language);
-        // PERLIN_SHOT=<file.bmp>@<seconds>: capture our own framebuffer on any screen, then quit
+
         if (static const char* anyShot = PERLIN_ENV("PERLIN_SHOT"); anyShot) {
             static bool anyShotDone = false;
             static int anyShotFrames = 0;
@@ -227,7 +227,7 @@ namespace perlin {
     void Perlin::ImportDroppedFiles() {
         namespace fsys = std::filesystem;
         for (const std::string& dropped : platform->TakeDropped()) {
-            // macOS hands a clicked perlin:// link over as a drop
+
             if (dropped.starts_with("perlin://")) {
                 if (const std::string server = discord::ServerFromUrl(dropped); !server.empty())
                     JoinServer(server);
@@ -463,8 +463,7 @@ namespace perlin {
             camera.aspect = static_cast<float>(width) / static_cast<float>(height);
 
         PumpReplay(dt);
-        // retired sessions die here, before this frame takes `live`: Connect() can run mid-frame (a Discord
-        // join, a transfer, a button) while the rest of the frame still holds the old session
+
         if (connectsInFlight.load() == 0)
             std::erase_if(retiredSessions,
                           [](const std::unique_ptr<BedrockSession>& s) { return !s->Transferring(); });
@@ -501,8 +500,7 @@ namespace perlin {
             }
             clock = std::min(clock, static_cast<double>(physics::kTickSeconds));
         }
-        // after the ticks: render and aim blend prevPos->pos by the post-tick partial tick; the pre-tick snapshot
-        // is one tick behind on frames that ticked, pulling every actor back a tick each time (stutter, ghosting)
+
         live->Entities().Snapshot(frameEntities);
     }
 
@@ -535,7 +533,7 @@ namespace perlin {
         for (const entity::Entity& e : frameEntities) {
             if (e.runtimeId == live.GetRuntimeId() || (seated && e.uniqueId == rideUid))
                 continue;
-            // riptide hits only mobs (MobFlagComponent, 0x14B316910): actors with health stand in for it
+
             if (e.isPlayer || e.attributes.contains("minecraft:health")) {
                 float w = 0.6f, h = 1.8f;
                 entityRenderer.CollisionBoxOf(e.type, w, h);
@@ -547,7 +545,7 @@ namespace perlin {
                             z = static_cast<float>(e.pos.z);
                 mobs.push_back({x - w * 0.5f, y, z - w * 0.5f, x + w * 0.5f, y + h, z + w * 0.5f});
             }
-            // stackable actors are solid to movers (0x143A10780); falling blocks only once below the feet (0x143A10AC0)
+
             const bool fallingBlock = e.type == "minecraft:falling_block";
             if (!e.Has(entity::flag::Stackable) && !fallingBlock && e.type != "minecraft:cushion")
                 continue;
@@ -557,7 +555,7 @@ namespace perlin {
                 w = e.boxWidth;
                 h = e.boxHeight;
             }
-            // aabb rebuilt in float like the game: centre -/+ w*0.5, top = bottom + h
+
             const float x = static_cast<float>(e.pos.x), y = static_cast<float>(e.pos.y),
                         z = static_cast<float>(e.pos.z);
             const float top = y + h;
@@ -582,7 +580,7 @@ namespace perlin {
                             name == "minecraft:enchanted_golden_apple" || name == "minecraft:chorus_fruit" ||
                             name == "minecraft:suspicious_stew";
         const bool eating =
-            hudState.Survival() && HandRenderer::IsFood(name);  // the server decides whether it can be eaten (hunger is often pinned full)
+            hudState.Survival() && HandRenderer::IsFood(name);
         (void)always;
         blockedFoodUse = HandRenderer::IsFood(name) && !eating;
         bool aimInteracts = false;
@@ -616,18 +614,15 @@ namespace perlin {
                            useTicks, inputManager.Pressed(Action::Use));
     }
 
-    // every release of a held use, from both input paths: the server's releaseUsing launches the riptide on any
     void Perlin::ReleaseHeldItem(BedrockSession* live, const ui::HudItem& held, const float eye[3]) {
         usingItem = false;
         if (!live)
             return;
         live->SendReleaseItem(eye);
-        // riptide is enchantment 30
+
         if (held.name != "minecraft:trident")
             return;
-        // rain at the player, Weather 0x145E27B00: overworld, (cur - prev) + prev > 0.2f, the column
-        // clear from the probe up, biome precipitation and temperature > 0.15f (0x145D3B680).
-        // the probe is floor(position + box height); the network position is at eye level
+
         const auto rainingOnPlayer = [&] {
             if (live->DimensionId() != 0)
                 return false;
@@ -651,8 +646,7 @@ namespace perlin {
             if (!tints.Ready() ||
                 !tints.Climate(tints.NameForId(level.GetBiome(x, y, z)), temperature, downfall))
                 return false;
-            // TODO: block precipitation_interactions, biome rain flag and the temperature noise/altitude
-            // terms (0x145D3B680) are approximated by the renderer's blocker list and climate data
+
             return downfall > 0.0f && temperature > 0.15f;
         };
         const bool raining = rainingOnPlayer();
@@ -662,8 +656,7 @@ namespace perlin {
     }
 
     void Perlin::ApplyRendererSwitch() {
-        // swapping the graphics api under a running window is not reliable on every driver (the window can stop
-        // presenting), so a new renderer is saved and used from the next launch
+
         if (options.renderer == notifiedRenderer || optionsUi.drag >= 0)
             return;
         notifiedRenderer = options.renderer;
@@ -819,7 +812,7 @@ namespace perlin {
         auto& appliedVsync = loop->appliedVsync;
 #ifndef __EMSCRIPTEN__
         {
-            // fullscreen: the option is the intent; the window can also change on its own (os shortcut), so adopt that once settled
+
             static int appliedFullscreen = -1;
             static Clock::time_point fullscreenSettle{};
             if (inputManager.Pressed(Action::Fullscreen)) {

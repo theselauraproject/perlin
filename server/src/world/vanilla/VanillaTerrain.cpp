@@ -205,7 +205,7 @@ namespace perlin::server::vanilla {
 namespace perlin::server::vanilla {
     bool VanillaCpuBackend::FindSpawn(int& x, int& y, int& z) {
         DfCacheScope cache;
-        // the first block of solid ground at or above sea level in a column, found by a coarse walk down and a fine one at the hit; -1 when the column is under water
+
         const auto groundAt = [&](int wx, int wz) {
             for (int wy = kMinY + kHeight - 1; wy > kSeaLevel; wy -= 4) {
                 if (finalDensity->Eval(wx, wy, wz) > 0.0f) {
@@ -217,7 +217,7 @@ namespace perlin::server::vanilla {
             }
             return -1;
         };
-        // rings of columns 16 blocks apart around the origin, nearest first
+
         for (int r = 0; r <= 160; r++) {
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++) {
@@ -233,7 +233,7 @@ namespace perlin::server::vanilla {
                     }
                 }
         }
-        // all ocean for 2500 blocks: stand on the sea
+
         x = 0;
         z = 0;
         y = kSeaLevel + 1;
@@ -243,8 +243,7 @@ namespace perlin::server::vanilla {
 
 namespace perlin::server::vanilla {
     namespace {
-        // the heights a biome's climate is sampled at while searching: surface biomes near sea level, mountain biomes up high, cave biomes down low.
-        // a surface hit is then confirmed against the real column biome, so these only decide where to look
+
         std::vector<int> SearchHeights(const char* java) {
             const std::string name = java;
             if (name == "lush_caves" || name == "dripstone_caves" || name == "deep_dark" ||
@@ -266,7 +265,7 @@ namespace perlin::server::vanilla {
     int VanillaCpuBackend::ColumnBiome(int x, int z, int* groundY) const {
         DfCacheScope cache;
         int top = -1;
-        // coarse walk down, then a fine one at the hit
+
         for (int wy = kMinY + kHeight - 1; wy >= kMinY && top < 0; wy -= 4) {
             if (finalDensity->Eval(x, wy, z) > 0.0f) {
                 for (int fine = std::min(wy + 3, kMinY + kHeight - 1); fine >= wy; fine--)
@@ -302,7 +301,7 @@ namespace perlin::server::vanilla {
                 for (int dz = -r; dz <= r; dz++)
                     if (std::max(std::abs(dx), std::abs(dz)) == r)
                         points.emplace_back(fromX + dx * kStep, fromZ + dz * kStep);
-            // the ring is split across the workers; each keeps its best (nearest) hit
+
             struct Hit {
                 bool found = false;
                 int x = 0, y = 0, z = 0;
@@ -322,7 +321,7 @@ namespace perlin::server::vanilla {
                                 continue;
                             int hitY = y;
                             if (!cave) {
-                                // confirm with the biome the world really has in this column, and report the ground there
+
                                 int ground = y;
                                 if (ColumnBiome(px, pz, &ground) != biome)
                                     continue;

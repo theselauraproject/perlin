@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -29,6 +30,7 @@ namespace perlin::mods {
         uint64_t size = 0;
         double lastEventMs = 0;
         std::string arch;
+        uint32_t apiRevision = 0;
         bool hasSettings = false;
         uint32_t requested = 0;
         bool needsApproval = false;
@@ -75,6 +77,8 @@ namespace perlin::mods {
         uint32_t permissions = 0;
         std::string storageRoot;
         void* user = nullptr;
+
+        uint32_t apiRevision = 0;
     };
 
     using OpHandler = std::function<abi::Status(CallContext&, abi::Reader&, abi::Writer&)>;
@@ -96,6 +100,7 @@ namespace perlin::mods {
 
         void SetEnvironment(const std::string& gameVersion, const std::string& platform);
         void Register(abi::Op op, OpHandler handler);
+        void MarkDeclaredOnly(abi::Op op) { declaredOnly.insert(static_cast<uint32_t>(op)); }
         template <abi::Op O, class Fn> void Handle(Fn&& fn) {
             Register(O, abi::host::Typed<O, CallContext>(std::forward<Fn>(fn)));
         }
@@ -187,6 +192,7 @@ namespace perlin::mods {
         std::vector<std::unique_ptr<Plugin>> graveyard;
         std::vector<std::string> disabled;
         std::unordered_map<uint32_t, std::pair<OpHandler, uint32_t>> ops;
+        std::set<uint32_t> declaredOnly;
         std::string gameVersion, platform;
         bool reloadAll = false;
         std::vector<std::string> reloadNames;

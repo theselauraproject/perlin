@@ -7,10 +7,9 @@
 #include <vector>
 
 namespace perlin::ui {
-    // pack colours for section-sign codes ($<c>_color_format, $material_*_color in ui/_global_variables.json).
-    // header-only: the ui library sets them without linking the text renderer; read from render threads
+
     namespace format_colors {
-        // bit 24 marks a set entry, so the zero-initialised table means "no override"
+
         inline constexpr uint32_t kSet = 0x1000000u;
         inline std::array<std::atomic<uint32_t>, 128> table{};
 
@@ -19,7 +18,6 @@ namespace perlin::ui {
         }
     }
 
-    // replaces every pack override; an empty list restores the built-in palette
     inline void SetFormatColorOverrides(const std::vector<std::pair<char, uint32_t>>& colors) {
         for (auto& v : format_colors::table)
             v.store(0, std::memory_order_relaxed);

@@ -17,11 +17,10 @@ namespace perlin {
         uint64_t entity = 0;
         glm::dvec3 boxLo{0.0}, boxHi{0.0};
         std::vector<std::pair<glm::dvec3, glm::dvec3>> shape;
-        // block under the player picked when looking down past an edge (HitResult +0x84): held repeats skip it
+
         bool buildAssist = false;
     };
 
-    // world hit on the padded pick box, like HitResult::mPos: the game sends it as the entity click pos
     glm::vec3 EntityClickPoint(const glm::dvec3& eye, const glm::dvec3& direction, const glm::dvec3& feet,
                                double halfWidth, double height, const glm::dvec3& fallback);
 

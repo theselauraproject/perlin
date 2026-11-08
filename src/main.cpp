@@ -212,7 +212,7 @@ namespace {
             args.hidden = true;
         for (int i = 1; i < argc; i++) {
             const std::string arg = argv[i];
-            // a perlin:// link (the OS passes it as the only argument); discord-<id>:// launches just start Perlin
+
             if (arg.starts_with("perlin://")) {
                 args.server = perlin::discord::ServerFromUrl(arg);
                 continue;
@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
         std::printf("[perlin] %s is attached: single device, no pipeline cache, no failure records\n", tool);
     perlin::RegisterEmbeddedResources();
 #ifndef __EMSCRIPTEN__
-    // links: perlin:// everywhere, and the Discord "launch game" scheme without waiting for presence to start
+
     std::thread([] {
         const std::string exe = perlin::paths::ExePath();
         perlin::discord::RegisterUrlScheme("perlin", exe);

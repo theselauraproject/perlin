@@ -213,7 +213,7 @@ namespace perlin::server::vanilla {
     void VanillaClimate::Sample(int x, int y, int z, int32_t out[6]) const {
         for (size_t i = 0; i < 6; i++) {
             const float v = roots[i]->Eval(x, y, z);
-            // (long)(v * 10000.0F): float product, truncated toward zero, NaN as 0
+
             const float scaled = v * 10000.0f;
             out[i] = scaled != scaled ? 0 : static_cast<int32_t>(std::clamp(scaled, -2.0e9f, 2.0e9f));
         }
@@ -238,7 +238,7 @@ namespace perlin::server::vanilla {
     }
 
     BiomeSite SiteOf(int worldX, int worldZ, int top) {
-        // quart cells are 4 blocks; the biome of a column is read at its cell, at the height of the ground
+
         const int worldTop = kMinY + (top < 0 ? kSeaLevel - kMinY : top);
         return {(worldX >> 2) << 2, (worldTop >> 2) << 2, (worldZ >> 2) << 2};
     }
@@ -292,11 +292,11 @@ namespace perlin::server::vanilla {
         const int depth = top - idx;
         const int topWy = kMinY + top;
         uint16_t block = depth == 0 ? m.top : (depth <= kMidLayers ? m.mid : m.foundation);
-        // plain stone goes to deepslate below y 0
+
         if (depth > kMidLayers && block == stone && wy < 0)
             block = deepslate;
         if (depth <= kMidLayers && topWy < kSeaLevel) {
-            // under water: past the biome's sea floor depth the floor material replaces the skin; nearer the shore grass can't stay grass
+
             if (kSeaLevel - topWy > m.seaFloorDepth)
                 block = m.seaFloor;
             else if (block == grass)

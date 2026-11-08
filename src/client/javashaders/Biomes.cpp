@@ -143,13 +143,13 @@ namespace perlin::jshader {
         };
         if (const int id = find(key); id >= 0)
             return id;
-        // bedrock hill / mutated variants of a java biome (desert_hills, taiga_mutated, ...)
+
         for (const char* suffix : {"_hills", "_mutated", "_edge", "_plateau"})
             if (key.ends_with(suffix))
                 if (const int id = find(key.substr(0, key.size() - std::char_traits<char>::length(suffix)));
                     id >= 0)
                     return id;
-        return 1; // plains
+        return 1;
     }
 
     int BiomePrecipitationAt(int id, double y) {

@@ -216,7 +216,7 @@ namespace perlin::audio {
                 LoadBlocksText(text);
         };
         loadRoot(root);
-        // Directories are highest priority first, as for textures and JSON UI.
+
         for (auto it = packRoots.rbegin(); it != packRoots.rend(); ++it)
             loadRoot(*it);
         Log("audio", "{} sound definitions, {} block sound types, {} entities with sounds",

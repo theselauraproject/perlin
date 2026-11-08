@@ -29,10 +29,10 @@ namespace perlin {
     namespace {
         struct ProgramName {
             const char* builtin;
-            // shader pack variant; null when the pack does not replace it
+
             const char* pack;
             gpu::VertexLayout layout;
-            // converted java program used when a java pack is active
+
             const char* java = nullptr;
         };
 
@@ -219,7 +219,7 @@ namespace perlin {
             s.api = api;
             s.adapterIndex = adapter;
             s.validation = PERLIN_ENV("PERLIN_GPU_VALIDATION") != nullptr;
-            // renders into an owned image instead of a window (software rasteriser captures, offline previews)
+
             s.offscreen = PERLIN_ENV("PERLIN_OFFSCREEN") != nullptr;
             s.window = {native.window, native.display, native.wayland};
             s.width = static_cast<uint32_t>(std::max(1, width));
@@ -334,11 +334,10 @@ namespace perlin {
         rec = {};
     }
 
-    // programs for the active shader variant
     bool RenderContext_rhi::ResolvePrograms() {
         for (size_t i = 0; i < programIds.size(); i++) {
             const ProgramName& n = kPrograms[i];
-            // java pack replaces terrain with the converted program
+
             const char* name = javaActive && n.java ? n.java : (packActive && n.pack ? n.pack : n.builtin);
             programIds[i] = name ? gpu.Program(name) : -1;
             programLayouts[i] = n.layout;
@@ -393,8 +392,7 @@ namespace perlin {
                                     conduit::buffer_usage::index, name);
         };
         const std::vector<PositionVertex> topSkyV = BuildSkyDisc(16.0f);
-        // sky discs ride the terrain layout so converted java sky programs
-        // see valid inputs; vv sky only reads position
+
         const auto toTerrain = [](const std::vector<PositionVertex>& in) {
             std::vector<Vertex> out;
             out.reserve(in.size());
@@ -540,8 +538,6 @@ namespace perlin {
         return true;
     }
 
-    // -- recording --------------------------------------------------------------------------------------------------
-
     gpu::PipelineKey RenderContext_rhi::KeyFor(const ViewData& view, const DrawState& s) const {
         gpu::PipelineKey k;
         k.program = static_cast<uint16_t>(std::max(0, ProgramIndex(s.program)));
@@ -601,7 +597,6 @@ namespace perlin {
         if (!pipeline)
             return false;
 
-        // builtins that depend on the view and the model transform
         const glm::mat4 viewProj = vd.proj * vd.view;
         const glm::mat4 modelViewProj = modelIdentity ? viewProj : viewProj * model;
         if (builtinIds[0] < 0) {
@@ -770,9 +765,6 @@ namespace perlin {
         (void)chunk;
     }
 
-    // -- frame ------------------------------------------------------------------------------------------------------
-
-    // z' = w - z in clip space: a zero-to-one depth range becomes one-to-zero, so far geometry gets the dense float precision near 0
     glm::mat4 RenderContext_rhi::ReverseDepth(const glm::mat4& m) {
         glm::mat4 r = m;
         for (int col = 0; col < 4; col++)
@@ -912,13 +904,12 @@ namespace perlin {
         }
         jpackShadowQuality = paramsIn.shadowQuality;
         ApplyPresentMode(paramsIn.frameGen > 1 && CanGenerateFrames());
-        // the pack does its own post processing, scaling and shadows
+
         FrameParams packParams;
         const FrameParams* chosen = &paramsIn;
         if (PackRunning()) {
             packParams = paramsIn;
-            // iris renders packs at full resolution: only an upscaler the player turned on lowers it (the
-            // automatic 75% for modest gpus made packs visibly softer)
+
             jpackScale = paramsIn.upscaler != 0 ? paramsIn.renderScale : 1.0f;
             jpackUpscaler = paramsIn.upscaler;
             packParams.renderScale = 1.0f;
@@ -937,14 +928,13 @@ namespace perlin {
                 std::lock_guard lock(switchMutex);
                 request.swap(requestedSwitch);
             }
-            // developer testing: PERLIN_DEV_REBUILD_FRAMES=N rebuilds the device every N frames on the same api,
-            // which runs the whole renderer switch (save, tear down, bring up, restore) without a second api
+
             static const int rebuildEvery = [] {
                 const char* v = std::getenv("PERLIN_DEV_REBUILD_FRAMES");
                 return v ? std::max(0, std::atoi(v)) : 0;
             }();
             static int rebuildCountdown = rebuildEvery;
-            // PERLIN_DEV_REBUILD_ONCE: only the first rebuild
+
             static const bool rebuildOnce = std::getenv("PERLIN_DEV_REBUILD_ONCE") != nullptr;
             if (rebuildEvery > 0 && --rebuildCountdown <= 0) {
                 rebuildCountdown = rebuildOnce ? INT32_MAX : rebuildEvery;
@@ -1034,7 +1024,7 @@ namespace perlin {
 
         ConvertDepth(params.viewProjection, mvp);
         ConvertDepth(params.skyViewProjection, skyMvp);
-        // sky at infinity: jitter shimmers clouds against unjittered sky
+
         if (plan.temporal) {
             float* m = mvp;
             for (int col = 0; col < 4; col++) {
@@ -1081,7 +1071,7 @@ namespace perlin {
                 if (failures == 20 || failures == 600 || failures % 6000 == 0)
                     Log("render", "{} has had no image to draw to for {} frames (window {}x{})", rendererName,
                         failures, fw, fh);
-                // a surface that stays dead is replaced: new window surface, new swapchain
+
                 if (fw > 0 && fh > 0 && (failures == 45 || failures == 360 || failures == 3000)) {
                     platform->RenewRenderSurface();
                     const NativeWindowInfo native = platform->GetNativeWindowInfo();
@@ -1141,7 +1131,7 @@ namespace perlin {
                 po.height = post.packLowH;
                 po.scale = 1.0f;
             }
-            // the pack wrote the whole picture and the depth: the world stage draws on top instead of clearing
+
             const bool recorded = jpack->Record(*list, frame, po);
             if (recorded && plan.packUpscale && post.packLow) {
                 jpack->WriteEngineDepth(*list, full);
@@ -1223,8 +1213,6 @@ namespace perlin {
         lightmapValid = true;
         gpu.WriteTexture(lightmap.handle, 0, 0, 0, kLightmapSize, kLightmapSize, pixels);
     }
-
-    // -- capture ----------------------------------------------------------------------------------------------------
 
     void RenderContext_rhi::RequestScreenshot(const std::string& path) {
         if (!initialized)
@@ -1387,8 +1375,6 @@ namespace perlin {
         return true;
     }
 
-    // swaps the whole graphics api under a running game: everything that lives on the gpu is saved first, rebuilt on the new
-    // device, and the world, ui handles and textures the game holds keep working
     bool RenderContext_rhi::RequestRendererSwitch(const std::string& id) {
         if (!initialized || offscreen)
             return false;
@@ -1402,7 +1388,6 @@ namespace perlin {
         return !requestedSwitch.empty();
     }
 
-    // what the device policy would pick on this machine right now
     conduit::api RenderContext_rhi::AutoApi() {
 #if defined(_WIN32)
         constexpr bool kWindows = true, kApple = false;
@@ -1453,7 +1438,7 @@ namespace perlin {
         gpu.Dev().wait_idle();
         FinishReadbacks();
         ReleaseFrameMeshes();
-        // the pack holds device objects; it is built again on the new device (the meshes keep their extra stream)
+
         const bool hadPack = jpack != nullptr;
         {
             std::unique_lock jpackLock(jpackMutex);
@@ -1505,7 +1490,7 @@ namespace perlin {
         atlasTiles = 0;
 
         const auto bringUp = [&](const std::string& api) {
-            // the old swapchain is gone; a window that presented through one api can keep showing its last frame under the next
+
             if (!offscreen && platform) {
                 platform->RenewRenderSurface();
                 const NativeWindowInfo native = platform->GetNativeWindowInfo();
@@ -1522,7 +1507,7 @@ namespace perlin {
                 }
             }
             if (offscreen && width > 0 && height > 0) {
-                // the offscreen image keeps the size it had (the window path above reads the framebuffer)
+
                 settings.width = static_cast<uint32_t>(width);
                 settings.height = static_cast<uint32_t>(height);
             }
@@ -1553,7 +1538,7 @@ namespace perlin {
 
         adapterName = gpu.Caps().adapter.name;
         rendererName = conduit::api_name(gpu.Api());
-        // temporal filters must not reproject from the other device's frames, and the first frame must not stall on shader compiles
+
         cam = CameraHistory{};
         frameOpen = false;
         for (const gpu::PipelineKey& key : warmKeys)

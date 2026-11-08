@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace perlin::str {
-    // the C locale's isspace set; the game never switches locale
+
     constexpr bool IsSpace(char c) noexcept {
         return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
     }
@@ -58,7 +58,6 @@ namespace perlin::str {
         return false;
     }
 
-    // "minecraft:stone" -> "stone"; anything else unchanged
     constexpr std::string_view StripPrefix(std::string_view s, std::string_view prefix) noexcept {
         return s.starts_with(prefix) ? s.substr(prefix.size()) : s;
     }
@@ -127,14 +126,12 @@ namespace perlin::str {
         }
     }
 
-    // absl::StrCat: strings verbatim, numbers through std::to_string, bools as 1/0
     template <class... Args> std::string Cat(const Args&... args) {
         std::string out;
         (detail::Append(out, args), ...);
         return out;
     }
 
-    // a cache key from every input that changes a built document, '|' between parts
     template <class... Args> std::string Key(const Args&... args) {
         std::string out;
         auto add = [&out, first = true](const auto& v) mutable {
@@ -148,7 +145,7 @@ namespace perlin::str {
     }
 
     template <class T>
-        requires std::integral<T> // floating from_chars needs macOS 13.3
+        requires std::integral<T>
     bool Parse(std::string_view s, T& out) {
         s = TrimView(s);
         const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), out);

@@ -71,7 +71,6 @@ UI_IO = 'v_color0, v_texcoord0, v_fog, v_light, v_layerUv'
 UI_ARGS = 'vec4 v_color0, vec2 v_texcoord0, vec4 v_fog, vec4 v_light, vec4 v_layerUv'
 UI_UNIFORMS = '#include "rd_ui.slang"\n'
 
-
 def portable(text):
     """bgfx's HLSL targets require explicit scalar splats."""
     scalars = set(re.findall(r'\b(?:float|int|uint)\s+(\w+)', text))
@@ -81,7 +80,6 @@ def portable(text):
             return typ + '_splat(' + arg + ')'
         return match.group(0)
     return re.sub(r'\b(vec[234]|uvec[234])\(([^(),]+)\)', splat, text)
-
 
 def upstream(root, family, render_pass, args, name, samples=None, replacements=None):
     path = root / 'materials' / family / (render_pass + '.Fragment.glsl')
@@ -102,8 +100,6 @@ def upstream(root, family, render_pass, args, name, samples=None, replacements=N
         raise ValueError(f'Unadapted shader interface: {path}')
     return '// Upstream: ' + path.relative_to(root).as_posix() + '\n' + portable(text)
 
-
-# program -> (vertex, fragment, varying definition)
 PROGRAMS = {
     'terrain_solid': ('vs_terrain', 'fs_terrain_solid', 'varying_terrain'),
     'terrain_cutout': ('vs_terrain', 'fs_terrain_cutout', 'varying_terrain'),
@@ -125,7 +121,6 @@ PROGRAMS = {
     'cracks': ('vs_ui', 'fs_cracks', 'varying_ui'),
     'nametag': ('vs_ui', 'fs_nametag', 'varying_ui'),
 }
-
 
 def generate(root, out):
     out.mkdir(parents=True, exist_ok=True)
@@ -208,8 +203,7 @@ vec2 v_texcoord0 : TEXCOORD0;
 #define StarsColor u_modulator
 '''
     for base, family, render_pass, inputs, color, position, texcoord in [
-        # the sky disc is a handful of huge triangles: the position travels to the fragment stage so the fog blend is exact
-        # per pixel instead of piecewise linear (which draws faint spokes and rings across the sky)
+
         ('sky', 'Sky', 'Opaque', 'a_position', 'vec4(a_position, 0.0)', 'a_position', 'vec2_splat(0.0)'),
         ('star', 'Stars', 'Transparent', 'a_position', 'vec4_splat(1.0)', 'a_position', 'vec2_splat(0.0)'),
         ('celestial', 'SunMoon', 'Transparent', 'a_position, a_texcoord0', 'vec4_splat(1.0)', 'a_position', 'a_texcoord0'),
@@ -224,7 +218,7 @@ vec2 v_texcoord0 : TEXCOORD0;
         suffix = ''
         if base == 'sky':
             call = 'mix(u_modulator, u_fogColor, linearFog(length(v_color0.xyz), 0.0, u_fogSky.x) * u_fogColor.a), v_texcoord0'
-            # dark gradients quantise into visible contour lines in 8 bits: triangular dither of one step hides them
+
             suffix = ('vec2 ditherPos = gl_FragCoord.xy;\n'
                       'float ditherA = fract(52.9829189 * fract(dot(ditherPos, vec2(0.06711056, 0.00583715))));\n'
                       'float ditherB = fract(52.9829189 * fract(dot(ditherPos + vec2(17.0, 31.0), vec2(0.06711056, 0.00583715))));\n'
@@ -246,7 +240,6 @@ vec2 v_texcoord0 : TEXCOORD0;
             target.write_text(text, encoding='utf-8')
         programs[program] = {'file': target.name, 'upstream': manifest.get(fs + '.sc')}
     (out / 'manifest.json').write_text(json.dumps(programs, indent=2) + '\n', encoding='utf-8')
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

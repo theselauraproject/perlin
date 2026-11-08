@@ -15,7 +15,6 @@ namespace perlin::jshader {
             return v == "true" || v == "1" || v == "on";
         }
 
-        // every option name some screen lists, for "*" (the options no screen places)
         std::set<std::string> PlacedOptions(const ShaderPackInstance& pack) {
             std::set<std::string> placed;
             for (const auto& [key, value] : pack.RawProps().entries) {
@@ -42,7 +41,7 @@ namespace perlin::jshader {
         std::string out;
         out.reserve(text.size());
         for (size_t i = 0; i < text.size(); i++) {
-            // the section sign is c2 a7 in utf-8; packs saved as latin-1 have a lone a7
+
             if (static_cast<unsigned char>(text[i]) == 0xC2 && i + 1 < text.size() &&
                 static_cast<unsigned char>(text[i + 1]) == 0xA7) {
                 i += 2;
@@ -110,7 +109,7 @@ namespace perlin::jshader {
                 out.entries.push_back({ScreenEntry::Kind::Option, w});
             }
         }
-        // trailing blanks only pad the grid
+
         while (!out.entries.empty() && out.entries.back().kind == ScreenEntry::Kind::Empty)
             out.entries.pop_back();
         return out;
@@ -142,7 +141,7 @@ namespace perlin::jshader {
                         apply(w.substr(8), values, visiting);
                         continue;
                     }
-                    // program toggles (program.<name> / !program.<name>) are not options
+
                     if (w.compare(0, 8, "program.") == 0 || w.compare(0, 9, "!program.") == 0)
                         continue;
                     const size_t sep = w.find_first_of(":=");

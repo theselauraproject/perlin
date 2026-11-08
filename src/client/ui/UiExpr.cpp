@@ -59,7 +59,6 @@ namespace perlin::ui {
                 return true;
             }
 
-            // printf-style formatting of one value, like the game's "'%.3s' * #text" and "'%d' * #n"
             static std::string Format(const std::string& fmt, const Json& value) {
                 std::string out;
                 for (size_t i = 0; i < fmt.size(); i++) {
@@ -182,7 +181,7 @@ namespace perlin::ui {
                         lex.pos++;
                         Json right = Product();
                         if (left.IsString()) {
-                            // string minus removes every occurrence of the right side: "(#t - 'x') = #t" tests whether #t lacks 'x'
+
                             const std::string cut = right.IsString() ? right.string : right.Dump();
                             std::string out = left.string;
                             if (!cut.empty())
@@ -206,7 +205,7 @@ namespace perlin::ui {
                         lex.pos++;
                         Json right = Unary();
                         if (left.IsString() && left.string.contains('%'))
-                            left = Json(Format(left.string, right)); // '%.30s' * #title_text
+                            left = Json(Format(left.string, right));
                         else
                             left = Json(AsNumber(left) * AsNumber(right));
                     } else if (lex.pos < lex.s.size() && lex.s[lex.pos] == '/') {
@@ -327,8 +326,7 @@ namespace perlin::ui {
             return v.boolean;
         case Json::Type::Number:
             return v.number != 0.0;
-        // leftover "$name": undefined variable; the game fails to parse it and keeps the property's default
-        // (false for every boolean property)
+
         case Json::Type::String:
             return !v.string.empty() && v.string != "false" && v.string != "0" && v.string[0] != '$';
         case Json::Type::Array:
@@ -341,7 +339,7 @@ namespace perlin::ui {
     }
 
     bool EvalExpression(std::string_view text, const ExprEnv& env, Json& out) {
-        // the game reads past a ")" that closes nothing (packs ship such expressions): drop it
+
         std::string balanced;
         balanced.reserve(text.size());
         int depth = 0;

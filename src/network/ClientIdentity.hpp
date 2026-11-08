@@ -20,7 +20,7 @@ namespace perlin {
     class ClientIdentity {
     public:
         ClientIdentity();
-        // shares an existing key pair (a cached login is bound to it)
+
         explicit ClientIdentity(EC_KEY* shared);
         ~ClientIdentity();
 

@@ -300,7 +300,7 @@ namespace perlin::ui {
             serverPackGeneration = packs;
             serverPacksChangedAt = now;
         }
-        // packs mount one at a time: one rebuild once the last is in
+
         if (serverPacksChangedAt >= 0.0 && now - serverPacksChangedAt > 0.3 && !ServerPacks::Instance().Mounting()) {
             serverPacksChangedAt = -1.0;
             reloadRequested = true;

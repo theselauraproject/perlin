@@ -11,7 +11,7 @@ namespace perlin::physics::bds {
         uint64_t tick = 0;
         int32_t remaining = 0;
         int32_t type = -1;
-        // server event replayed in its frame (0x143A18B90): sets the entry outright, no shorter-duration check
+
         bool server = false;
     };
 

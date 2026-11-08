@@ -276,7 +276,7 @@ namespace perlin {
             const ui::ShaderScreenLayout l =
                 ui::ComputeShaderScreenLayout(static_cast<int>(rows.size()) + 1, guiW, guiH);
             packUi.shaderScroll = std::clamp(packUi.shaderScroll - wheel, 0.0f, l.maxScroll);
-            // a java pack getting ready shows its progress over this screen; Done waits for it
+
             std::string progressText;
             float progress = -1.0f;
             {
@@ -336,7 +336,7 @@ namespace perlin {
             hud.UpdateOverlay(fbW, fbH, options.guiScale);
             const auto apply = [&]() {
                 const std::string wanted = packUi.shaderPendingEnabled ? packUi.shaderPending : std::string();
-                // applying the pack already running changes nothing: no reload
+
                 if (wanted == options.shaderPack &&
                     (wanted.empty() || renderer->JavaShaderPackActive() || !javaPackPending.empty()))
                     return;
@@ -364,7 +364,7 @@ namespace perlin {
                     apply();
                 } else if (inside(l.doneX, l.row2Y, l.thirdW, 20.0f)) {
                     apply();
-                    // stay here with the progress bar until the pack is ready, then close
+
                     const bool loading = (!javaPackPending.empty() && live) ||
                                          (renderer && renderer->JavaShaderPackLoad().active);
                     if (loading) {

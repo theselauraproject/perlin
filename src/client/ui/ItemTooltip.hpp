@@ -15,7 +15,7 @@ namespace perlin::ui {
     };
 
     int ItemRarity(const HudItem& item);
-    // extra lines from mods, appended under every item tooltip
+
     void SetTooltipExtender(std::function<std::vector<std::string>(const HudItem&)> extender);
     std::vector<TooltipLine> BuildItemTooltip(const HudItem& item, bool advanced,
                                               const std::string& nameOverride = {});

@@ -180,6 +180,7 @@ namespace perlin::mods {
 
         std::unique_ptr<WasmInstance> instance;
         std::string arch;
+        uint32_t apiRevision = kLegacyApiRevision;
         GuestExports exports;
     };
 
@@ -268,11 +269,25 @@ namespace perlin::mods {
         mod.meta.needsApproval = mod.needsApproval;
     }
 
+    namespace {
+        struct PermissionName {
+            abi::Permission bit;
+            const char* name;
+        };
+        constexpr PermissionName kPermissionNames[] = {
+            {abi::Permission::Network, "network"},     {abi::Permission::Packets, "packets"},
+            {abi::Permission::Control, "control"},     {abi::Permission::Files, "files"},
+            {abi::Permission::Native, "native"},       {abi::Permission::Microphone, "microphone"},
+            {abi::Permission::Clipboard, "clipboard"}, {abi::Permission::Window, "window"},
+            {abi::Permission::Sockets, "sockets"},
+        };
+    }
+
     uint32_t ModManager::DangerousMask() {
-        return static_cast<uint32_t>(abi::Permission::Network) |
-               static_cast<uint32_t>(abi::Permission::Packets) |
-               static_cast<uint32_t>(abi::Permission::Control) |
-               static_cast<uint32_t>(abi::Permission::Files) | static_cast<uint32_t>(abi::Permission::Native);
+        uint32_t mask = 0;
+        for (const PermissionName& p : kPermissionNames)
+            mask |= static_cast<uint32_t>(p.bit);
+        return mask;
     }
 
     void ModManager::SetApproved(const std::vector<std::string>& entries) {
@@ -362,6 +377,7 @@ namespace perlin::mods {
             info.error = mod->error;
             info.lastEventMs = mod->lastEventMs.load();
             info.arch = mod->arch;
+            info.apiRevision = mod->apiRevision;
             info.hasSettings = mod->loaded && !mod->settings.empty();
             if (!mod->runtimeIcon.empty())
                 info.iconPath = mod->runtimeIcon;
@@ -532,7 +548,7 @@ namespace perlin::mods {
             return static_cast<int32_t>(abi::Status::UnknownOp);
         if ((mod.permissions & it->second.second) != it->second.second)
             return static_cast<int32_t>(abi::Status::Denied);
-        CallContext ctx{mod.name, mod.permissions, mod.storage, &mod};
+        CallContext ctx{mod.name, mod.permissions, mod.storage, &mod, mod.apiRevision};
         abi::Reader reader(in, inLen);
         abi::Writer writer;
         static const bool wireCheck = std::getenv("PERLIN_MOD_WIRE_CHECK") != nullptr;
@@ -642,7 +658,11 @@ namespace perlin::mods {
             std::lock_guard lock(mutex);
             mod.arch = mod.instance->Is64() ? "wasm64" : "wasm32";
         }
-        Log("mods", "{}: {} on {}", mod.name, mod.arch, WasmEngineName());
+        mod.apiRevision = ReadApiRevision(*mod.instance);
+        Log("mods", "{}: {} on {}, api revision {}", mod.name, mod.arch, WasmEngineName(), mod.apiRevision);
+        if (mod.apiRevision > abi::kApiRevision)
+            Log("mods", "{}: built for api revision {}, this game provides {}: newer operations answer UnknownOp", mod.name,
+                mod.apiRevision, abi::kApiRevision);
         if (mod.exports.initialize &&
             !mod.instance->Call("_initialize", {}, nullptr, error)) {
             mod.jobError = "_initialize: " + error;
@@ -871,29 +891,15 @@ namespace perlin::mods {
                 if (const ui::Json* list = json.Find("permissions"); list && list->IsArray())
                     for (const ui::Json& item : list->array) {
                         const std::string p = item.StringOr("");
-                        if (p == "network")
-                            permissions |= static_cast<uint32_t>(abi::Permission::Network);
-                        else if (p == "packets")
-                            permissions |= static_cast<uint32_t>(abi::Permission::Packets);
-                        else if (p == "control")
-                            permissions |= static_cast<uint32_t>(abi::Permission::Control);
-                        else if (p == "files")
-                            permissions |= static_cast<uint32_t>(abi::Permission::Files);
-                        else if (p == "native")
-                            permissions |= static_cast<uint32_t>(abi::Permission::Native);
+                        for (const PermissionName& known : kPermissionNames)
+                            if (p == known.name)
+                                permissions |= static_cast<uint32_t>(known.bit);
                     }
             }
         }
-        if (permissions & static_cast<uint32_t>(abi::Permission::Network))
-            meta.permissions.push_back("network");
-        if (permissions & static_cast<uint32_t>(abi::Permission::Packets))
-            meta.permissions.push_back("packets");
-        if (permissions & static_cast<uint32_t>(abi::Permission::Control))
-            meta.permissions.push_back("control");
-        if (permissions & static_cast<uint32_t>(abi::Permission::Files))
-            meta.permissions.push_back("files");
-        if (permissions & static_cast<uint32_t>(abi::Permission::Native))
-            meta.permissions.push_back("native");
+        for (const PermissionName& known : kPermissionNames)
+            if (permissions & static_cast<uint32_t>(known.bit))
+                meta.permissions.push_back(known.name);
         meta.permissions.push_back("storage");
         {
             std::vector<fs::path> candidates;
@@ -1488,14 +1494,13 @@ namespace perlin::mods {
                 e.arch = info.arch;
                 e.hooks = info.hooks;
                 e.priority = info.priority;
-                for (const std::string& p : info.permissions)
-                    e.permissions |= p == "network"   ? abi::Permission::Network
-                                     : p == "packets" ? abi::Permission::Packets
-                                     : p == "control" ? abi::Permission::Control
-                                     : p == "files"   ? abi::Permission::Files
-                                     : p == "native"  ? abi::Permission::Native
-                                     : p == "storage" ? abi::Permission::Storage
-                                                      : abi::Permission::None;
+                for (const std::string& p : info.permissions) {
+                    if (p == "storage")
+                        e.permissions |= abi::Permission::Storage;
+                    for (const PermissionName& known : kPermissionNames)
+                        if (p == known.name)
+                            e.permissions |= known.bit;
+                }
                 out.push_back(std::move(e));
             }
             w.write(out);
@@ -1556,6 +1561,22 @@ namespace perlin::mods {
 
         Register(abi::Op::Clock, [](CallContext&, abi::Reader&, abi::Writer& w) {
             w.put<int64_t>(UnixMs());
+            return abi::Status::Ok;
+        });
+
+        Register(abi::Op::ApiInfo, [](CallContext& ctx, abi::Reader&, abi::Writer& w) {
+            w.put<uint32_t>(abi::kApiVersion).put<uint32_t>(abi::kApiRevision).put<uint32_t>(abi::kApiOldestRevision);
+            w.put<uint32_t>(ctx.apiRevision);
+            return abi::Status::Ok;
+        });
+
+        Register(abi::Op::Capabilities, [this](CallContext&, abi::Reader&, abi::Writer& w) {
+            abi::CapabilityList list;
+            for (const auto& entry : ops)
+                if (!declaredOnly.contains(entry.first))
+                    list.ops.push_back(entry.first);
+            std::sort(list.ops.begin(), list.ops.end());
+            w.write(list);
             return abi::Status::Ok;
         });
 

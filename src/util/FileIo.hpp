@@ -16,7 +16,6 @@ namespace perlin::file {
         return true;
     }
 
-    // empty when the file is missing or unreadable
     inline std::string Read(const std::filesystem::path& path) {
         std::string out;
         Read(path, out);
@@ -31,7 +30,6 @@ namespace perlin::file {
         return true;
     }
 
-    // creates missing parent folders; replaces the file
     inline bool Write(const std::filesystem::path& path, std::string_view data) {
         std::error_code ec;
         if (path.has_parent_path())

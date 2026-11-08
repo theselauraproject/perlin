@@ -90,7 +90,7 @@ namespace perlin::physics::bds {
         const float lengthSquared = detail::Round(detail::Round(movement[1] * movement[1]) +
                                                   detail::Round(movement[0] * movement[0])) +
                                     detail::Round(movement[2] * movement[2]);
-        // MoveCollisionSystem 0x14360a290: divides by the length (divss/divps), no reciprocal
+
         if (lengthSquared > 256.0f) {
             const float length = std::sqrt(lengthSquared);
             for (auto& value : movement)

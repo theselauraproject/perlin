@@ -34,7 +34,6 @@ CORE_FILES = {
 SOUND_PREFIXES = ("resource_pack/sounds/",)
 SOUND_FILES = {"resource_pack/sounds.json"}
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True)
@@ -59,7 +58,6 @@ def main():
     with open(args.out, "w") as f:
         json.dump({"repository": args.repository, "ref": ref, "files": {"core": core, "sounds": sounds}}, f, separators=(",", ":"))
     print(f"{len(core)} core files, {len(sounds)} sound files at {ref}")
-
 
 if __name__ == "__main__":
     main()

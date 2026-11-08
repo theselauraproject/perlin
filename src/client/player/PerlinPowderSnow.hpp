@@ -12,13 +12,11 @@ namespace perlin::physics::bds {
         return canStand ? 1.0f : 0.0f;
     }
 
-    // FreezingSystem 0x145E14260: +1/140 (0x3BEA0EA1) up to 1, else -2/140 (0xBC6A0EA1) down to 0
     inline float FreezeStep(float strength, bool rising) {
         return rising ? std::fmin(strength + 0.0071428571827709675f, 1.0f)
                       : std::fmax(strength + -0.014285714365541935f, 0.0f);
     }
 
-    // cells floor(min + 0.001) .. floor(max - 0.001) of the actor box, inclusive
     template <class IsPowderSnow>
     bool TouchesPowderSnow(float x0, float y0, float z0, float x1, float y1, float z1,
                            IsPowderSnow isPowderSnow) {

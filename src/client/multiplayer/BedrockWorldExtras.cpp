@@ -400,7 +400,7 @@ namespace perlin {
             if (p.clear && *p.clear)
                 cameraEffects.Clear();
             if (p.fade && (p.fade->timeData || p.fade->colorRgb)) {
-                // defaults: 1 s in, 0.5 s held, 1 s out, black
+
                 float in = 1.0f, wait = 0.5f, out = 1.0f;
                 if (p.fade->timeData) {
                     in = p.fade->timeData->fadeInDuration;
@@ -1149,7 +1149,7 @@ namespace perlin {
         On<MotionPredictionHintsPacket>([this](const MotionPredictionHintsPacket& p) {
             if (runtimeId == 0 || p.entityRuntimeId != runtimeId)
                 return;
-            // the game's handler (ClientNetworkHandler 0x146BD64E0) only looks the actor up: no velocity change
+
             NoteKnockback(p.velocity.x, p.velocity.z);
         });
     }

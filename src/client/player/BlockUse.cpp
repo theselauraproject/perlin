@@ -41,14 +41,14 @@ namespace perlin::blockuse {
     bool IsUpsideDownStairPlacement(int face, float clickY, bool current) {
         if (face == 0)
             return true;
-        // top face or lower half keeps the item's own bit
+
         if (face == 1 || clickY <= 0.5f)
             return current;
         return true;
     }
 
     int StairDirection(float yaw) {
-        // (yaw * 4.0f 0x40800000) / 360.0f 0x43B40000 + 0.5f 0x3F000000, floored: truncate, minus one when above
+
         const float turns = yaw * 4.0f / 360.0f + 0.5f;
         const int truncated = static_cast<int>(turns);
         const int quarter = (truncated - (static_cast<float>(truncated) > turns ? 1 : 0)) & 3;
@@ -57,7 +57,7 @@ namespace perlin::blockuse {
     }
 
     int PillarAxis(int face) {
-        // table 0x14F41DAE0 for faces 2..5; down/up stay 0
+
         static constexpr int kAxis[4] = {2, 2, 1, 1};
         return face >= 2 && face <= 5 ? kAxis[face - 2] : 0;
     }
@@ -126,7 +126,7 @@ namespace perlin::blockuse {
     }
 
     int VanillaUseTicks(const std::string& itemName, bool food) {
-        // vanilla items carry no components on the wire: the game's own item classes
+
         static const std::unordered_map<std::string_view, int> kVanilla = {
             {"bow", 72000},      {"crossbow", 25},     {"trident", 72000},
             {"spyglass", 1200},  {"goat_horn", 140},   {"potion", 32},

@@ -189,7 +189,7 @@ namespace perlin {
     int BedrockSession::SoulSpeedEnchant() const {
         std::lock_guard lock(statusMutex);
         int level = 0;
-        // boots only: the game reads armor slot 3 for SoulSpeedEnchantFlagComponent (0x1437e2f60)
+
         for (const auto& [id, enchantLevel] : inventory.armor[3].enchants)
             if (id == 36)
                 level = std::max(level, enchantLevel);
@@ -199,7 +199,7 @@ namespace perlin {
     int BedrockSession::SwiftSneakEnchant() const {
         std::lock_guard lock(statusMutex);
         int level = 0;
-        // leggings only: armor slot 2, enchant 37 for SwiftSneakEnchantComponent (0x1437e2f60)
+
         for (const auto& [id, enchantLevel] : inventory.armor[2].enchants)
             if (id == 37)
                 level = std::max(level, enchantLevel);
@@ -216,7 +216,6 @@ namespace perlin {
             return values;
         }
 
-        // hasModifier 0x142bf14a0: uuid, name, operation and operand; the uuid is parsed, so case does not matter
         bool IsSprintModifier(const PlayerAttributesEntryModifiersEntry& m) {
             static constexpr std::string_view kSprintUuid = "d208fc00-42aa-4aad-9276-d5446530de43";
             if (m.id.size() != kSprintUuid.size() || m.name != "Sprinting speed boost" || m.operation != 2 ||
@@ -229,7 +228,6 @@ namespace perlin {
         }
     }
 
-    // client AttributeData apply 0x142bf4780: modifiers replaced, value set to the sent one, then base and limits
     void BedrockSession::ApplyMovementAttribute(const PlayerAttributesEntry& entry) {
         movementModifiers = entry.modifiers;
         const float baseMin = std::fmin(entry.defaultMax, entry.defaultMin);
@@ -241,12 +239,9 @@ namespace perlin {
                                                 ModifierValues(movementModifiers));
     }
 
-    // ActionSprintTriggerSystem 0x14b346c80 → 0x14b319130: the sprint modifier (0.3, multiply-total) is appended on
-    // start, removed on stop; each change recalculates from the base, otherwise the value stays as sent
     float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength) {
         std::lock_guard lock(attrMutex);
-        // FreezingSystem 0x145E14260: "Freeze effect" = strength * -0.05 (addition on the value), removed at
-        // |strength| <= 2^-23 and re-appended on every change
+
         std::optional<float> freeze;
         if (freezeStrength && std::fabs(*freezeStrength) > 0.00000011920929f)
             freeze = *freezeStrength * -0.05f;
@@ -255,7 +250,7 @@ namespace perlin {
             const float value = freeze ? *freeze + 0.1f : 0.1f;
             return sprinting ? factor * value : value;
         }
-        // the server's freeze modifier lags a tick behind its move: ours replaces it when they differ
+
         const auto withFreeze = [&](float value) {
             if (!freezeStrength)
                 return value;
@@ -683,8 +678,7 @@ namespace perlin {
                                 continue;
                             ItemStackInfo& info = InvInfoLocked(slot);
                             ItemV4& raw = InvRawLocked(slot);
-                            // newer requests own the predicted counts, but a slot still named by this request's
-                            // id must take the server's: the id stops being valid once this response is out
+
                             if (newerPending) {
                                 if (s.itemStackId && raw.hasStackId && raw.stackId == r.requestId)
                                     raw.stackId = s.itemStackId;
@@ -871,20 +865,19 @@ namespace perlin {
                 std::lock_guard<std::mutex> lk(worldExtraMutex);
                 windowData.erase(chestWindow);
             }
-            // plain chests on boats and minecarts arrive as their own window types
+
             const auto wt = p.windowType;
-            // our own inventory request can be answered in a numbered window too: still the player's inventory
+
             const auto askedNs = ownInventoryAskedAt.exchange(0);
             const bool ownInventory =
                 wt == WindowType::Inventory && askedNs != 0 &&
                 std::chrono::steady_clock::now() -
                         std::chrono::steady_clock::time_point(std::chrono::steady_clock::duration(askedNs)) <
                     std::chrono::seconds(3);
-            // an actor with a generic inventory (loot crates, custom chests) opens as "inventory" in a window of its own;
-            // window 0 is the player's own inventory
+
             const bool actorInventory =
                 wt == WindowType::Inventory && static_cast<int>(p.windowId) != 0 && !ownInventory;
-            // the open names its owning actor (-1 for a block): an npc shop arrives as a plain container this way
+
             const bool actorOwned =
                 actorInventory || (wt == WindowType::Container && p.runtimeEntityId != -1 && p.runtimeEntityId != 0);
             const bool plainContainer = wt == WindowType::Container || wt == WindowType::MinecartChest ||
@@ -896,7 +889,7 @@ namespace perlin {
                     static_cast<int>(wt));
             if (plainContainer) {
                 bool loaded = false;
-                // actor containers carry no block: whatever sits at their coordinates says nothing about them
+
                 const std::string name =
                     actorOwned
                         ? std::string()
@@ -912,7 +905,7 @@ namespace perlin {
                                                             : "container.chest";
                 inventory.chestFitRows = actorOwned;
                 if (actorOwned) {
-                    // the actor's own name heads the window, as in the game; the container open names its unique id
+
                     entity::Entity holder;
                     if ((entities.FindUnique(p.runtimeEntityId, holder) ||
                          entities.Find(static_cast<uint64_t>(p.runtimeEntityId), holder)) &&
@@ -1012,7 +1005,7 @@ namespace perlin {
         On<MovementEffectPacket>([this](const MovementEffectPacket& p) {
             if (runtimeId == 0 || p.runtimeId != runtimeId)
                 return;
-            // type and duration are zigzag varints (reader 0x14072F7D0, retyped in overrides.json): unsigned doubles them
+
             const auto type = static_cast<uint32_t>(p.effectType);
             if (type > 1)
                 return;
@@ -1121,9 +1114,7 @@ namespace perlin {
             std::lock_guard lock(statusMutex);
             const auto now = std::chrono::steady_clock::now();
             switch (p.type) {
-            // clear and reset take the title and subtitle off screen; the action bar is its own line and stays.
-            // reset also puts the durations back to the game's defaults: servers send it before a countdown that
-            // relies on them, after an earlier short "times" for something else
+
             case SetTitlePacketType::Clear:
             case SetTitlePacketType::Reset:
                 titleText.title.clear();

@@ -52,7 +52,6 @@ namespace perlin::jshader {
             }
         };
 
-        // bedrock-only names (and the few that mean something else in java) to java's
         const char* RenameBlock(std::string_view n) {
             static const std::pair<const char*, const char*> table[] = {
                 {"flowing_water", "water"},
@@ -173,7 +172,6 @@ namespace perlin::jshader {
             out.name = std::string(n);
         StateList& p = out.props;
 
-        // name-borne states
         if (StartsWith(n, "lit_"))
             Set(p, "lit", "true");
         else if (n == "furnace" || n == "blast_furnace" || n == "smoker" || n == "redstone_lamp" ||
@@ -208,7 +206,6 @@ namespace perlin::jshader {
         if (n == "piston" || n == "sticky_piston")
             Set(p, "extended", "false");
 
-        // double slabs: java has one slab block with type=double
         if (EndsWith(n, "_double_slab")) {
             std::string base(n.substr(0, n.size() - 12));
             if (base == "double_cut_copper")
@@ -232,11 +229,10 @@ namespace perlin::jshader {
         } else if (EndsWith(out.name, "_slab") && r.Has("minecraft:vertical_half")) {
             Set(p, "type", r.S("minecraft:vertical_half") == "top" ? "top" : "bottom");
         }
-        // standing signs: <wood>_standing_sign → <wood>_sign
+
         if (EndsWith(n, "_standing_sign") && n != "darkoak_standing_sign")
             out.name = std::string(n.substr(0, n.size() - 14)) + "_sign";
 
-        // wall torches are a separate java block
         if (r.Has("torch_facing_direction")) {
             const std::string f = r.S("torch_facing_direction");
             if (f != "top" && f != "unknown") {
@@ -252,10 +248,9 @@ namespace perlin::jshader {
             }
         }
 
-        // upper/lower halves: doors, tall plants, small dripleaf, pitcher plant
         if (r.Has("upper_block_bit"))
             Set(p, "half", r.B("upper_block_bit") ? "upper" : "lower");
-        // stairs and trapdoors flip with upside_down_bit
+
         if (r.Has("upside_down_bit"))
             Set(p, "half", r.B("upside_down_bit") ? "top" : "bottom");
         if (n == "seagrass") {
@@ -266,7 +261,7 @@ namespace perlin::jshader {
             }
         }
         if (n == "kelp")
-            out.name = "kelp_plant"; // bedrock does not tell the tip apart; nearly every kelp block is body
+            out.name = "kelp_plant";
 
         if (r.Has("lit"))
             Set(p, "lit", Bool(r.B("lit")));
@@ -342,14 +337,14 @@ namespace perlin::jshader {
             Set(p, "age", std::to_string(r.I("age")));
         if (r.Has("growth")) {
             const int g = std::clamp(r.I("growth"), 0, 7);
-            // java's beetroots and sweet berries count 0-3; bedrock always counts to 7
+
             const bool four = out.name == "beetroots" || out.name == "sweet_berry_bush" ||
                               out.name == "nether_wart" || out.name == "torchflower_crop";
             Set(p, "age", std::to_string(four ? g / 2 : g));
         }
         if (r.Has("propagule_stage"))
             Set(p, "age", std::to_string(r.I("propagule_stage")));
-        // cauldrons: java splits them by contents
+
         if (out.name == "cauldron") {
             const int fill = r.I("fill_level");
             const std::string liquid = r.S("cauldron_liquid", "water");
@@ -365,7 +360,6 @@ namespace perlin::jshader {
             }
         }
 
-        // what bedrock does not carry: java's defaults
         if (!out.Find("waterlogged"))
             Set(p, "waterlogged", "false");
         if (out.name == "grass_block" || out.name == "podzol" || out.name == "mycelium")
@@ -662,7 +656,7 @@ namespace perlin::jshader {
     }
 
     namespace {
-        // iris BlockEntry.parse: "name", "ns:name", "name:k=v...", "ns:name:k=v..."
+
         bool ParseEntry(std::string_view entry, std::string& name,
                         std::map<std::string, std::string>& preds) {
             std::vector<std::string_view> parts;
@@ -685,7 +679,7 @@ namespace perlin::jshader {
                 statesStart = 2;
             }
             if (ns != "minecraft")
-                return false; // modded blocks never exist here
+                return false;
             name = std::string(path);
             for (size_t i = statesStart; i < parts.size(); i++) {
                 const size_t e = parts[i].find('=');
@@ -732,7 +726,7 @@ namespace perlin::jshader {
         for (const auto& kv : predicates) {
             const std::string* actual = block.Find(kv.first);
             if (!actual)
-                continue; // iris: a property the block lacks is ignored
+                continue;
             if (*actual != kv.second)
                 return false;
         }
@@ -741,7 +735,7 @@ namespace perlin::jshader {
 
     int BlockIdMatcher::Match(const JavaBlock& block) const {
         if (auto it = byName.find(block.name); it != byName.end())
-            for (const Rule& r : it->second) // already in file order
+            for (const Rule& r : it->second)
                 if (Matches(r.predicates, block))
                     return r.id;
         for (const TagRule& t : tags)
@@ -767,7 +761,7 @@ namespace perlin::jshader {
                 if (StartsWith(n, "minecraft:"))
                     n.remove_prefix(10);
                 else if (n.contains(':'))
-                    continue; // another namespace
+                    continue;
                 out[std::string(n)] = line.first;
             }
         return out;

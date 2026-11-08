@@ -2,14 +2,12 @@ import json
 import os
 import sys
 
-
 def literal(text):
     out = []
     for i in range(0, len(text), 2000):
         piece = text[i:i + 2000].replace('\\', '\\\\').replace('"', '\\"')
         out.append('"' + piece + '"')
     return '\n        '.join(out)
-
 
 def main():
     if len(sys.argv) != 3:
@@ -47,7 +45,6 @@ def main():
         fh.write('\n'.join(lines))
     print('wrote', len(entries), 'tables to', target)
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

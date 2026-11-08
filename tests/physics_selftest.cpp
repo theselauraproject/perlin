@@ -110,7 +110,7 @@ int main() {
         CHECK(s.y > 0 && s.vy > 0 && s.vy < 0.42f);
     }
     {
-        // live server trace: the double tap tick adds the fly lift but keeps air travel (gravity, 0.98 drag)
+
         TestWorld air;
         air.fn = [](int, int, int) { return BlockShape{}; };
         State s;
@@ -126,7 +126,7 @@ int main() {
         hover.flying = hover.creativeFlight = true;
         Step(s, hover, attr, air);
         CHECK(s.y == -0x1.d45b44p+5f && s.vy == 0x1.14829p-5f);
-        // stopping keeps flying travel for the tick, without the vertical control
+
         Input stop;
         stop.flyToggled = stop.creativeFlight = true;
         Step(s, stop, attr, air);
@@ -334,7 +334,7 @@ int main() {
         CHECK(bds::PowderSnowSupportHeight(4, 4, false, std::numeric_limits<float>::quiet_NaN(), false) ==
               0.9f);
         {
-            // live trace: 42 ticks frozen, forward walk in snow lands at z 1.57497001 (server), 41 at 1.57528496
+
             float freeze = 0;
             for (int i = 0; i < 42; ++i)
                 freeze = bds::FreezeStep(freeze, true);
@@ -343,7 +343,7 @@ int main() {
             const float accel = speed * 0.98f;
             const float step = accel * 0.9f;
             CHECK(1.5f + step == 1.57497001f);
-            // 50 thaw ticks from fully frozen: sprint speed 0.111428626
+
             freeze = 1.0f;
             for (int i = 0; i < 50; ++i)
                 freeze = bds::FreezeStep(freeze, false);
@@ -879,7 +879,7 @@ int main() {
         input.noClip = false;
         flying.horizontalCollision = flying.verticalCollision = flying.collision = false;
         Step(flying, input, attr, wall);
-        // grounded zero lift becomes a denormal climb: the move is no longer flat, ground is left
+
         CHECK(!flying.onGround && flying.vy > 0);
     }
 
@@ -1004,7 +1004,7 @@ int main() {
         CHECK(state.vy == static_cast<double>(0.5f));
         CHECK(state.onGround && state.verticalCollision);
         CHECK(!state.restitution);
-        // below the 0.08000012 restitution threshold: lands like on any block
+
         state = {};
         state.vy = -0.01f;
         Step(state, input, attr, slime);
@@ -1325,7 +1325,7 @@ int main() {
         entry.lookY = 0;
         for (int tick = 1; tick <= 14; ++tick) {
             Step(enteringSwim, entry, attr, water);
-            // swim amount strictly between 0 and 1 (ticks 2..10): the jump zeroes vertical speed in water
+
             if (tick == 1) {
                 CHECK(Near(enteringSwim.y, 193.035, 0.0001));
                 CHECK(Near(enteringSwim.vy, 0.028, 0.0000001));
@@ -1360,7 +1360,7 @@ int main() {
         Input surfaceJump = entry;
         surfaceJump.headInWater = false;
         Step(headAboveWater, surfaceJump, attr, surface);
-        // swimmer with head above water: the jump zeroes vertical speed (MobJump 0x14AD34580)
+
         CHECK(headAboveWater.inWater && headAboveWater.vy == 0);
         CHECK(Near(headAboveWater.y, 0.65, 0.00001));
 

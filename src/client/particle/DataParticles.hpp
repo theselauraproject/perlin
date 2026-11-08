@@ -34,14 +34,14 @@ namespace perlin::particle {
     struct DataWorld {
         std::function<bool(int, int, int)> solid;
         std::function<glm::vec3(const glm::dvec3&)> light;
-        std::function<glm::ivec2(const glm::dvec3&)> lightLevels; // see particle::WorldAccess
+        std::function<glm::ivec2(const glm::dvec3&)> lightLevels;
     };
 
     class DataParticles {
     public:
         void Configure(const std::vector<std::string>& packDirs);
         bool Has(const std::string& identifier) const;
-        // preScript: an animation cue's pre_effect_script, run in the emitter's scope before its creation expressions
+
         bool Spawn(const std::string& identifier, const glm::dvec3& at, const std::string& molangVariables = {},
                    const std::string& preScript = {});
         void Update(float dt, const DataWorld& world);
@@ -50,7 +50,7 @@ namespace perlin::particle {
         void Clear();
 
     private:
-        // parsed pre_effect_scripts, by source text
+
         std::unordered_map<std::string, std::shared_ptr<molang::Expr>> preScripts;
         using ExprPtr = std::shared_ptr<molang::Expr>;
 

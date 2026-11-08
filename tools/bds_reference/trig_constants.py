@@ -8,7 +8,6 @@ from pathlib import Path
 
 from generate import INPUT_SHA256
 
-
 def generate(data):
     if data["input_sha256"] != INPUT_SHA256 or data["input_name"] != "Windows Server 1.26.10":
         raise ValueError("Wrong BDS reference")
@@ -38,7 +37,6 @@ def generate(data):
         lines.extend(("    }};", ""))
     lines.extend(("    // clang-format on", "}"))
     return '\n'.join(lines) + '\n'
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

@@ -20,7 +20,6 @@ from jsonc import load as load_jsonc
 
 features_dir, rules_dir, samples, biome_cpp, out = sys.argv[1:6]
 
-# biome identifiers in the server's biome order, from the generated table
 src = open(biome_cpp).read()
 start = src.index('kBiomes[] = {')
 biome_ids = re.findall(r'\{"[a-z_]+", "([a-z_]+)", "minecraft:', src[start:])

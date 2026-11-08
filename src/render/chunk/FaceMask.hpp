@@ -5,11 +5,10 @@
 #include <unordered_map>
 
 namespace perlin::render {
-    // bit k of vis[face][q * 16 + p] says the block at depth k along the face axis shows that face.
-    // (p, q) are the other two coordinates in axis order: X -> (y, z), Y -> (x, z), Z -> (x, y)
+
     struct FaceMask {
         std::array<std::array<uint16_t, 256>, FaceCount> vis{};
-        // faces left out because the neighbour section was not known yet
+
         uint8_t borderUnknown = 0;
         uint32_t faceCount = 0;
 
@@ -21,8 +20,6 @@ namespace perlin::render {
     FaceMask ComputeFaceMask(const SectionBlocks& section, const SectionNeighbours& neighbours,
                              const BlockTable& table);
 
-    // keeps one mask per section so a remesh after a light or tint change, or a rebuild at another lod, skips the
-    // visibility pass; entries are dropped when the section or a neighbour changes
     struct SectionKey {
         int x = 0, y = 0, z = 0;
         bool operator==(const SectionKey& o) const { return x == o.x && y == o.y && z == o.z; }
@@ -38,11 +35,11 @@ namespace perlin::render {
 
     class FaceMaskCache {
     public:
-        // returns the cached mask when `version` matches and every neighbour known now was known when it was built
+
         const FaceMask& Get(const SectionKey& key, uint64_t version, const SectionBlocks& section,
                             const SectionNeighbours& neighbours, const BlockTable& table);
         void Invalidate(const SectionKey& key) { entries.erase(key); }
-        // a block changed in this section: its own mask and the six touching ones are stale
+
         void InvalidateAround(const SectionKey& key);
         void Clear() { entries.clear(); }
         size_t Size() const { return entries.size(); }

@@ -7,7 +7,7 @@
 #include <cmath>
 
 namespace perlin::physics::bds {
-    // GlideMoveSystem 0x146d1a440: client sine table, divisions by the look length (no reciprocal)
+
     inline Float3 GlideVelocity(Float3 velocity, Rotation previous, Rotation current, bool slowFalling,
                                 bool boost, float& fallDistance) {
         const auto mul = [](float a, float b) { return detail::Round(a * b); };
@@ -19,7 +19,7 @@ namespace perlin::physics::bds {
             fallDistance = 1.0f;
         const float yaw = InterpolateAngle(previous.yaw, current.yaw, 1.0f);
         const float pitch = InterpolateAngle(previous.pitch, current.pitch, 1.0f);
-        // yaw goes through radians and -pi before the table scale: not the same index as yaw * -182.04443
+
         const float yawCoordinate =
             mul(add(mul(yaw, -0.017453292f), std::bit_cast<float>(0xc0490fdbu)), 10430.378f);
         const float pitchCoordinate = mul(mul(pitch, -0.017453292f), 10430.378f);

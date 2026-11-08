@@ -33,7 +33,7 @@ namespace perlin {
                      v.hostile, v.neutral, v.player, v.ambient, v.voice};
         audioEngine.SetVolumes(volumes);
         {
-            // a camera preset can keep the listener on the camera (default) or on the player
+
             const bool atCamera = live && live->Camera().PoseActive() && !live->Camera().AudioAtPlayer();
             const CameraPose p = atCamera ? live->Camera().Pose() : CameraPose{};
             if (atCamera)

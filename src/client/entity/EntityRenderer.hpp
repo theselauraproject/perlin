@@ -41,7 +41,7 @@ namespace perlin::entity {
         ~EntityRenderer();
         void Initialize(RenderContext& renderer);
         std::pair<float, float> HitBox(const Entity& e) const;
-        // particle effects the entities' animations and controllers started this frame, for the particle system
+
         struct ParticleRequest {
             std::string effect;
             glm::dvec3 at{0.0};
@@ -49,7 +49,7 @@ namespace perlin::entity {
         };
         std::vector<ParticleRequest> TakeParticleRequests() { return std::exchange(particleRequests, {}); }
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider = true) const;
-        // the seat of a vehicle standing at pos/yaw, for the previous tick's end of the interpolation
+
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider, glm::dvec3 pos, float yaw) const;
         bool CollisionBoxOf(const std::string& type, float& width, float& height) const {
             return assets.CollisionBox(type, width, height);
@@ -62,11 +62,11 @@ namespace perlin::entity {
         struct FrameIn {
             double time = 0;
             float dt = 0.016f;
-            // client tick progress (0..1) since the last actor interpolation step
+
             float partialTick = 1.0f;
             glm::dvec3 camera{0.0};
             std::function<glm::vec3(const glm::dvec3&)> light;
-            std::function<glm::ivec2(const glm::dvec3&)> lightLevels; // block, sky (0-15)
+            std::function<glm::ivec2(const glm::dvec3&)> lightLevels;
             bool firstPerson = true;
             float maxDistance = 96.0f;
             float cameraYaw = 0, cameraPitch = 0;
@@ -93,35 +93,46 @@ namespace perlin::entity {
                 float width = 1.0f;
             };
             const std::vector<ModLine>* modLines = nullptr;
-            // mod overrides per entity: hide, scale, tint, swap main texture, hide or replace name tag
+
             struct ModStyle {
                 bool hidden = false;
                 glm::vec3 scale{1.0f};
                 float tint[4] = {1, 1, 1, 1};
                 std::string texture;
-                int nameTag = 0; // 0 keep, 1 hide, 2 replace
+                int nameTag = 0;
                 std::string nameText;
             };
             std::function<const ModStyle*(const Entity&)> modStyle;
-            // mod world triangles; texture is a renderer texture id (0 for plain colour)
+
             struct ModMesh {
-                std::vector<UiVertex> vertices; // relative to `origin`, three per triangle
+                std::vector<UiVertex> vertices;
                 glm::dvec3 origin{0.0};
                 uint32_t texture = 0;
                 bool depthTest = true;
             };
             const std::vector<ModMesh>* modMeshes = nullptr;
+
+            struct AttachedMesh {
+                std::vector<UiVertex> vertices;
+                uint64_t entity = 0;
+                int anchor = 0;
+                uint32_t texture = 0;
+                bool depthTest = true;
+                bool hideInFirstPerson = true;
+            };
+            const std::vector<AttachedMesh>* attachedMeshes = nullptr;
+            uint32_t outlineColor = 0x66000000u;
             bool skins3d = false;
             const std::vector<particle::Quad>* particles = nullptr;
             const particle::DataParticles* dataParticles = nullptr;
-            // burning actors: flame planes that stack up the body and turn to the camera
+
             struct FireSprite {
                 glm::dvec3 pos{0.0};
                 float width = 0.6f, height = 1.8f;
                 bool soul = false;
             };
             const std::vector<FireSprite>* fire = nullptr;
-            // the camera is burning: flames fill the lower view
+
             bool screenFire = false;
             particle::DataWorld dataWorld;
             std::function<bool(int, std::vector<uint8_t>&)> tilePixels;
@@ -131,7 +142,7 @@ namespace perlin::entity {
             glm::dvec3 outlineLo{0.0}, outlineHi{0.0};
             std::vector<std::pair<glm::dvec3, glm::dvec3>> outlineShape;
             bool blobShadows = true;
-            // local player's attack anim, -1 when not drawn from the hand
+
             float ownAttackTime = -1.0f;
             bool selfShadow = false;
             int capePhysics = 1;
@@ -166,17 +177,17 @@ namespace perlin::entity {
             float tint[4] = {1, 1, 1, 1};
             bool ignoreLighting = false;
             float lightMultiplier = 1.0f;
-            // render controller overlays, already evaluated: overlay_color, is_hurt_color, on_fire_color (rgba)
+
             float overlay[4] = {0, 0, 0, 0};
             float hurtColor[4] = {1.0f, 0.0f, 0.0f, 0.3f};
             float fireColor[4] = {0, 0, 0, 0};
             bool hasOverlay = false, hasFireColor = false;
-            // uv_anim: uv * uvScale + uvOffset; the texture repeats so scrolling wraps
+
             float uvOffset[2] = {0, 0}, uvScale[2] = {1, 1};
             bool uvAnim = false;
             MaterialInfo material;
             uint32_t maskRgb = 0xFFFFFF;
-            // entity's own model; invisibility hides it, keeps armor and attached items
+
             bool body = true;
         };
         bool Build(const Entity& e, View& v, const FrameIn& in, std::vector<Layer>& layers, float& scale);
@@ -188,6 +199,7 @@ namespace perlin::entity {
         bool shadowOnlyPass = false;
         glm::vec3 modScale{1.0f};
         void DrawModMeshes(const FrameIn& in);
+        void DrawAttachedMeshes(const std::vector<Entity>& entities, const FrameIn& in);
         const glm::mat4* fpModel = nullptr;
         const glm::mat4* dollModel = nullptr;
         const int* dollClip = nullptr;
@@ -211,7 +223,7 @@ namespace perlin::entity {
         bool particleSheetTried = false;
         std::unordered_map<int, uint32_t> particleTiles;
         std::unordered_map<std::string, uint32_t> particleTextures;
-        // frames in a flipbook strip texture, by name (0: the texture is missing)
+
         std::unordered_map<std::string, int> flipbookFrames;
         uint32_t fontTexture = 0;
         uint32_t fontTextureVersion = 0;

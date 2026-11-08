@@ -33,11 +33,11 @@ int main() {
         }
         CHECK(swing.Progress(1.0f) == 5.0f / 6.0f);
         swing.Tick(6);
-        // ended: straight back to rest, no 5/6 -> 1 blend
+
         CHECK(!swing.swinging && swing.Progress(0.5f) == 0.0f);
     }
     {
-        // held repeat every 4 ticks: restarts from the second half of a 6 tick swing
+
         hand::Swing swing;
         swing.Start();
         for (int i = 0; i < 2; i++)
@@ -50,7 +50,7 @@ int main() {
         CHECK(swing.time == -1);
         swing.Tick(6);
         CHECK(swing.anim == 0.0f && swing.oAnim == 3.0f / 6.0f);
-        // the wrap from 3/6 back to 0 keeps moving forward
+
         CHECK(swing.Progress(0.5f) == 3.0f / 6.0f + 0.25f);
     }
     {
@@ -61,13 +61,13 @@ int main() {
     }
 
     {
-        // placing: the count drops, the hand stays up and shows the new count
+
         ui::HudItem shown = Stack("minecraft:stone", 64);
         int slot = 0;
         float height = 1.0f;
         hand::TickEquip(shown, slot, height, Stack("minecraft:stone", 63), 0, true);
         CHECK(height == 1.0f && shown.count == 63);
-        // last block placed: empty hand lowers then swaps
+
         hand::TickEquip(shown, slot, height, ui::HudItem{}, 0, false);
         CHECK(height == 0.6f && shown.count == 63);
         hand::TickEquip(shown, slot, height, ui::HudItem{}, 0, false);
@@ -75,7 +75,7 @@ int main() {
         CHECK(height == 0.0f && shown.Empty());
     }
     {
-        // next stack of the same block in another slot: dips like any switch
+
         ui::HudItem shown = Stack("minecraft:stone", 1);
         int slot = 0;
         float height = 1.0f;
@@ -89,7 +89,7 @@ int main() {
         CHECK(height == 0.4f);
     }
     {
-        // switching between two empty slots keeps the arm up
+
         ui::HudItem shown;
         int slot = 0;
         float height = 1.0f;

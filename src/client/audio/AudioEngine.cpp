@@ -134,8 +134,7 @@ namespace perlin::audio {
                                                          std::chrono::steady_clock::now().time_since_epoch())
                                                          .count());
         if (voice.positional && !voice.loop && !voice.name.empty()) {
-            // predict+echo dedup: server echo of place/break/hit ~1 frame later; same sound+spot in window = echo;
-            // legit repeats (steps 250ms+, bridging 166ms+ in other cells) fall outside
+
             for (const Voice& v : voices) {
                 if (v.stopping || v.name != voice.name || nowMs - v.startedMs > 90u)
                     continue;
@@ -269,10 +268,126 @@ namespace perlin::audio {
             std::remove_if(voices.begin(), voices.end(),
                            [](const Voice& v) { return v.fade <= 0.0f || (v.stopping && v.fade <= 0.0f); }),
             voices.end());
+        for (Stream& st : streams) {
+            const int ch = st.params.channels;
+            const size_t total = (st.buffer.size() - st.head) / static_cast<size_t>(ch);
+            const double step = static_cast<double>(st.params.rate) / static_cast<double>(rate);
+            if (!st.primed) {
+                if (total < static_cast<size_t>(st.params.rate / 25))
+                    continue;
+                st.primed = true;
+            }
+            float gain = st.params.volume;
+            if (st.params.category != Category::Master)
+                gain *= volumes.Get(st.params.category);
+            gain = std::clamp(gain * master, 0.0f, 1.0f);
+            float left = 1.0f, rightGain = 1.0f;
+            if (st.params.positional) {
+                const glm::dvec3 d = st.params.position - listener;
+                const double dist = glm::length(d);
+                gain *= Attenuation(static_cast<float>(dist), st.params.range);
+                double pan = 0.0;
+                if (dist > 1e-3) {
+                    pan = (d.x * right.x + d.z * right.y) / dist;
+                    pan *= std::min(1.0, dist / 1.5);
+                }
+                const double angle = (pan + 1.0) * 0.25 * 3.14159265358979323846;
+                left = std::min(static_cast<float>(std::cos(angle)) * 1.41421356f, 1.0f);
+                rightGain = std::min(static_cast<float>(std::sin(angle)) * 1.41421356f, 1.0f);
+            }
+            const int16_t* base = st.buffer.data() + st.head;
+            bool ran = false;
+            for (int i = 0; i < frames; i++) {
+                const size_t i0 = static_cast<size_t>(st.cursor);
+                if (i0 + 1 >= total) {
+                    ran = true;
+                    break;
+                }
+                const float t = static_cast<float>(st.cursor - static_cast<double>(i0));
+                float l, r;
+                if (ch == 1) {
+                    const float a = base[i0], b = base[i0 + 1];
+                    l = r = (a + (b - a) * t) * (1.0f / 32768.0f);
+                } else {
+                    const float al = base[i0 * 2], bl = base[(i0 + 1) * 2];
+                    const float ar = base[i0 * 2 + 1], br = base[(i0 + 1) * 2 + 1];
+                    l = (al + (bl - al) * t) * (1.0f / 32768.0f);
+                    r = (ar + (br - ar) * t) * (1.0f / 32768.0f);
+                    if (st.params.positional)
+                        l = r = (l + r) * 0.5f;
+                }
+                out[i * 2] += l * gain * left;
+                out[i * 2 + 1] += r * gain * rightGain;
+                st.cursor += step;
+            }
+            if (ran) {
+                st.underruns++;
+                st.primed = false;
+            }
+            const size_t used = std::min(static_cast<size_t>(st.cursor), total);
+            st.head += used * static_cast<size_t>(ch);
+            st.cursor -= static_cast<double>(used);
+            if (st.head > 0 && (st.head >= st.buffer.size() || st.head > (1u << 16))) {
+                st.buffer.erase(st.buffer.begin(), st.buffer.begin() + static_cast<long>(st.head));
+                st.head = 0;
+            }
+        }
         for (int i = 0; i < frames * 2; i++) {
             const float a = std::fabs(out[i]);
             if (a > 0.8f)
                 out[i] = std::copysign(0.8f + 0.2f * std::tanh((a - 0.8f) / 0.2f), out[i]);
         }
+    }
+    uint32_t AudioEngine::StreamOpen(const StreamParams& params) {
+        if (params.rate < 8000 || params.rate > 96000 || params.channels < 1 || params.channels > 2)
+            return 0;
+        std::lock_guard lock(mutex);
+        if (streams.size() >= 64)
+            return 0;
+        Stream st;
+        st.id = nextStream++;
+        st.params = params;
+        streams.push_back(std::move(st));
+        return streams.back().id;
+    }
+
+    bool AudioEngine::StreamWrite(uint32_t id, const int16_t* samples, size_t count, StreamStatus& status) {
+        std::lock_guard lock(mutex);
+        for (Stream& st : streams) {
+            if (st.id != id)
+                continue;
+            const size_t channels = static_cast<size_t>(st.params.channels);
+            count -= count % channels;
+            const size_t cap = static_cast<size_t>(st.params.rate) * 2 * channels;
+            st.buffer.insert(st.buffer.end(), samples, samples + count);
+            const size_t live = st.buffer.size() - st.head;
+            if (live > cap) {
+                st.head += live - cap;
+                st.head -= st.head % channels;
+            }
+            status.bufferedMs = static_cast<float>((st.buffer.size() - st.head) / channels) * 1000.0f /
+                                static_cast<float>(st.params.rate);
+            status.underruns = st.underruns;
+            return true;
+        }
+        return false;
+    }
+
+    bool AudioEngine::StreamUpdate(uint32_t id, float volume, bool positional, const glm::dvec3& position, float range) {
+        std::lock_guard lock(mutex);
+        for (Stream& st : streams)
+            if (st.id == id) {
+                st.params.volume = volume;
+                st.params.positional = positional;
+                st.params.position = position;
+                st.params.range = range;
+                return true;
+            }
+        return false;
+    }
+
+    void AudioEngine::StreamClose(uint32_t id) {
+        std::lock_guard lock(mutex);
+        std::erase_if(streams, [&](const Stream& st) { return st.id == id; });
     }
 }

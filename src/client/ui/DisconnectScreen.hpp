@@ -5,7 +5,7 @@ namespace perlin::ui {
     struct DisconnectScreenText {
         std::string title, reason, code, rejoin, quit;
         bool rejoinEnabled = true;
-        // optional third row under the buttons (a checkbox: "[x] Don't ask again")
+
         std::string extra;
         bool panorama = false;
     };

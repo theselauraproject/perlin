@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
 
-# iOS: configure with -DCMAKE_SYSTEM_NAME=iOS (see packaging/ios/README.md); PERLIN_IOS is usable before project().
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(PERLIN_IOS ON)
     set(PERLIN_IOS_DEPLOYMENT_TARGET "15.0" CACHE STRING "Oldest iOS / iPadOS version Perlin runs on")
@@ -11,7 +10,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(CMAKE_DISABLE_FIND_PACKAGE_fmt ON CACHE BOOL "" FORCE)
 elseif(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "" FORCE)
-    # Never pick up Homebrew's dynamic fmt: it would be linked as /opt/homebrew/.../libfmt.12.dylib and missing on other Macs.
+
     set(CMAKE_DISABLE_FIND_PACKAGE_fmt ON CACHE BOOL "" FORCE)
 endif()
 
@@ -25,7 +24,7 @@ if(CMAKE_HOST_WIN32 AND PERLIN_USE_CLANG_CL AND NOT CMAKE_GENERATOR MATCHES "Vis
         set(CMAKE_C_COMPILER "${PERLIN_CLANG_CL}" CACHE FILEPATH "C compiler" FORCE)
         set(CMAKE_CXX_COMPILER "${PERLIN_CLANG_CL}" CACHE FILEPATH "C++ compiler" FORCE)
         if(PERLIN_LLD_LINK)
-            set(CMAKE_LINKER "${PERLIN_LLD_LINK}" CACHE FILEPATH "Linker" FORCE) # needed for LTO
+            set(CMAKE_LINKER "${PERLIN_LLD_LINK}" CACHE FILEPATH "Linker" FORCE)
         endif()
         message(STATUS "Perlin: using clang-cl (${PERLIN_CLANG_CL})")
     else()
@@ -35,10 +34,10 @@ if(CMAKE_HOST_WIN32 AND PERLIN_USE_CLANG_CL AND NOT CMAKE_GENERATOR MATCHES "Vis
 endif()
 
 project(Perlin VERSION 1.0.0 LANGUAGES C CXX)
-include("${CMAKE_CURRENT_SOURCE_DIR}/mods/cmake/PerlinApi.cmake")
-# -pthread rather than an empty Threads::Threads where libc only stubs pthreads (freebsd)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PerlinApiPackage.cmake")
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-# target cpu / os: arm64 builds (Windows on ARM, Linux on ARM, Apple silicon) and FreeBSD change a few choices below
+
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64|AARCH64)$" OR CMAKE_OSX_ARCHITECTURES MATCHES "^arm64$"
    OR CMAKE_CXX_COMPILER_TARGET MATCHES "^(aarch64|arm64)")
     set(PERLIN_TARGET_ARM64 ON)
@@ -50,13 +49,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 else()
     set(PERLIN_FREEBSD OFF)
 endif()
-# wasm3 where WasmEdge does not go: the web, iOS (no executable memory for apps), FreeBSD and Windows on ARM
+
 if(EMSCRIPTEN OR PERLIN_IOS OR PERLIN_FREEBSD OR (WIN32 AND PERLIN_TARGET_ARM64))
     set(PERLIN_WASM3 ON)
 else()
     set(PERLIN_WASM3 OFF)
 endif()
-# version shown by the OS (app bundles); nightly CI passes 1.0.<run number> so sideload stores see each build as newer
+
 set(PERLIN_BUNDLE_VERSION "${PROJECT_VERSION}" CACHE STRING "CFBundleShortVersionString / CFBundleVersion")
 
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
@@ -114,8 +113,7 @@ if(WIN32 AND NOT OPENSSL_ROOT_DIR)
 endif()
 
 if(APPLE AND NOT PERLIN_IOS AND NOT OPENSSL_ROOT_DIR)
-    # Homebrew's OpenSSL is built for the runner's macOS (15), so linking it at target 12.0 warns and can crash on
-    # older systems. CI passes -DOPENSSL_ROOT_DIR to a copy built with -mmacosx-version-min=12.0; this is only a local fallback.
+
     message(WARNING "OPENSSL_ROOT_DIR not set: falling back to Homebrew OpenSSL (built for a newer macOS than ${CMAKE_OSX_DEPLOYMENT_TARGET})")
     foreach(candidate /opt/homebrew/opt/openssl@3 /usr/local/opt/openssl@3)
         if(EXISTS "${candidate}")
@@ -129,7 +127,6 @@ if(OPENSSL_ROOT_DIR)
     file(TO_CMAKE_PATH "${OPENSSL_ROOT_DIR}" OPENSSL_ROOT_DIR)
 endif()
 
-# Static by default; distros without libcrypto.a (e.g. Arch) pass -DOPENSSL_USE_STATIC_LIBS=OFF.
 if(NOT DEFINED OPENSSL_USE_STATIC_LIBS)
     set(OPENSSL_USE_STATIC_LIBS ON)
 endif()
@@ -160,7 +157,7 @@ list(TRANSFORM WASM3_CORE_SOURCES PREPEND "${wasm3_SOURCE_DIR}/source/")
 add_library(wasm3_core STATIC ${WASM3_CORE_SOURCES})
 target_include_directories(wasm3_core PUBLIC "${wasm3_SOURCE_DIR}/source")
 target_compile_definitions(wasm3_core PRIVATE d_m3HasTracer=0)
-# freebsd has no MAP_NORESERVE (it never reserves swap for anonymous maps): wasm3's posix host asks for it
+
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     target_compile_definitions(wasm3_core PRIVATE MAP_NORESERVE=0)
 endif()
@@ -173,9 +170,7 @@ set_target_properties(wasm3_core PROPERTIES POSITION_INDEPENDENT_CODE ON C_STAND
 set(PERLIN_WASM_ENGINE wasm3_core)
 else()
 CPMAddPackage(NAME wasmedge GITHUB_REPOSITORY WasmEdge/WasmEdge GIT_TAG 0.18.0 DOWNLOAD_ONLY YES)
-# libdatachannel temporarily enables this cache option later in configuration.
-# An interrupted configure must not turn WasmEdge's hidden internal targets into
-# shared libraries on the next run.
+
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(WASMEDGE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
 set(WASMEDGE_BUILD_STATIC_LIB OFF CACHE BOOL "" FORCE)
@@ -245,7 +240,7 @@ set(NO_TESTS ON CACHE BOOL "" FORCE)
 set(LIBSRTP_TEST_APPS OFF CACHE BOOL "" FORCE)
 set(ENABLE_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-# position independent: the static library is also linked into the singleplayer server library
+
 set(PERLIN_SAVED_PIC "${CMAKE_POSITION_INDEPENDENT_CODE}")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 CPMAddPackage(
@@ -292,7 +287,6 @@ CPMAddPackage(
 )
 endif()
 
-# Java (OptiFine / Iris) shader packs: GLSL -> SPIR-V (glslang) -> GLSL / HLSL (SPIRV-Cross).
 CPMAddPackage(NAME glslang GITHUB_REPOSITORY KhronosGroup/glslang GIT_TAG e2bb10631198bc9d73daf752d9170608d5e2c8bd GIT_SHALLOW NO DOWNLOAD_ONLY YES)
 CPMAddPackage(NAME SPIRV-Cross GITHUB_REPOSITORY KhronosGroup/SPIRV-Cross GIT_TAG 300681bbcb8365a8d1eacdacdbdd0249bbf1d6b1 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
 option(PERLIN_SPIRV_OPT "Optimize converted java pack shaders with SPIRV-Tools" ON)
@@ -306,7 +300,6 @@ endif()
 option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 include(cmake/PerlinJavaShaders.cmake)
 
-# graphics apis per platform: the first one the device supports is picked at run time, the others stay switchable in game
 function(perlin_default_api name value)
     if(NOT DEFINED ${name})
         set(${name} ${value} CACHE BOOL "Build this conduit backend")
@@ -414,8 +407,6 @@ else()
     set_source_files_properties(${PERLIN_PROTOCOL_SOURCES} PROPERTIES COMPILE_OPTIONS "-w;$<$<CONFIG:Debug>:-O1>")
 endif()
 
-# Numerical table read from the running Windows 1.26.52.3 server. Generate a
-# host-endian-independent initializer; executable bytes are never embedded.
 set(PERLIN_CURRENT_SINE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/data/perlin_sine_1_26_52.bin")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PERLIN_CURRENT_SINE}")
 file(READ "${PERLIN_CURRENT_SINE}" PERLIN_CURRENT_SINE_HEX HEX)
@@ -490,11 +481,11 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PERLIN_RESOURCE
 file(GLOB_RECURSE PERLIN_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/network/Nbt\\.cpp")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/rhi/")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/(bgfx|shader)/") # stale leftovers from the pre-RHI tree
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/(bgfx|shader)/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/gpu/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/util/GraphicsDebugger\\.cpp$")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/render/")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/javashaders/") # built into perlin_gpu
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/javashaders/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/mods/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/(src|tests)/")
 if(PERLIN_WASM3)
@@ -525,10 +516,10 @@ elseif(PERLIN_IOS)
         MACOSX_BUNDLE_GUI_IDENTIFIER "io.perlin.client"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PERLIN_BUNDLE_VERSION}"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PERLIN_BUNDLE_VERSION}")
-    # iOS bundles are flat: icons, the CA bundle and the asset manifest sit beside the executable
+
     file(GLOB PERLIN_IOS_ICONS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/ios/AppIcon*.png")
     set(PERLIN_IOS_BUNDLE_FILES ${PERLIN_IOS_ICONS})
-    # iOS has no trust store OpenSSL can read: ship Mozilla's roots as cacert.pem (the build Mac's copy by default)
+
     set(PERLIN_IOS_CA_BUNDLE "/etc/ssl/cert.pem" CACHE FILEPATH "PEM bundle of trusted root certificates shipped in the app")
     if(EXISTS "${PERLIN_IOS_CA_BUNDLE}")
         configure_file("${PERLIN_IOS_CA_BUNDLE}" "${CMAKE_CURRENT_BINARY_DIR}/ios/cacert.pem" COPYONLY)
@@ -536,7 +527,7 @@ elseif(PERLIN_IOS)
     else()
         message(WARNING "PERLIN_IOS_CA_BUNDLE not found: HTTPS (sign-in, downloads) will fail certificate checks")
     endif()
-    # optional bedrock-samples file list (tools/web/gen_manifest.py): one bulk download instead of a tree walk
+
     set(PERLIN_ASSET_MANIFEST "" CACHE FILEPATH "assets-manifest.json to ship in the app")
     if(PERLIN_ASSET_MANIFEST AND EXISTS "${PERLIN_ASSET_MANIFEST}")
         list(APPEND PERLIN_IOS_BUNDLE_FILES "${PERLIN_ASSET_MANIFEST}")
@@ -561,8 +552,6 @@ endif()
 
 target_compile_features(Perlin PRIVATE cxx_std_23)
 
-# auto update (src/client/update): CI bakes in the commit and repository of nightly builds; local builds leave them
-# empty and never update. Only Updater.cpp sees them, so a new commit recompiles one file.
 set(PERLIN_BUILD_COMMIT "" CACHE STRING "git commit this build is made from (nightly builds)")
 set(PERLIN_UPDATE_REPO "" CACHE STRING "owner/repo whose 'nightly' release the updater follows")
 if(ANDROID)
@@ -586,7 +575,7 @@ elseif(APPLE)
 elseif(PERLIN_FREEBSD)
     set(_perlin_asset "Perlin-freebsd-x64.zip")
 elseif(PERLIN_TARGET_ARM64)
-    # an AppImage replaces itself with Perlin-linux-arm64.AppImage instead (Updater.cpp)
+
     set(_perlin_asset "Perlin-linux-arm64.zip")
 else()
     set(_perlin_asset "Perlin-linux-x64.zip")
@@ -596,7 +585,6 @@ set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/update/Updater.cpp" 
     "PERLIN_BUILD_COMMIT=\"${PERLIN_BUILD_COMMIT}\"" "PERLIN_UPDATE_REPO=\"${PERLIN_UPDATE_REPO}\""
     "PERLIN_UPDATE_ASSET=\"${PERLIN_UPDATE_ASSET}\"")
 
-# Every packet decoded to JSON for the runtime packet log; one big switch, so compiled quietly.
 target_sources(Perlin PRIVATE ${PERLIN_PROTOCOL_JSON})
 if(MSVC)
     set_source_files_properties(${PERLIN_PROTOCOL_JSON} PROPERTIES COMPILE_OPTIONS "/w;/bigobj")
@@ -679,7 +667,7 @@ if(EMSCRIPTEN)
 elseif(WIN32)
     target_link_libraries(Perlin PRIVATE ws2_32 crypt32 dbghelp advapi32 user32 gdi32 bcrypt iphlpapi)
 elseif(PERLIN_IOS)
-    # the document picker is objective-c++; compiled as c++ with the dialect forced, like the metal backend
+
     set(PERLIN_IOS_OBJC "${CMAKE_CURRENT_SOURCE_DIR}/src/client/platform/ios/DocumentPicker.mm")
     target_sources(Perlin PRIVATE "${PERLIN_IOS_OBJC}")
     set_source_files_properties("${PERLIN_IOS_OBJC}" PROPERTIES LANGUAGE CXX COMPILE_OPTIONS "-x;objective-c++;-fobjc-arc")
@@ -708,9 +696,6 @@ if(PERLIN_DEBUG_OPT)
     endif()
 endif()
 
-# The BDS reference uses separate scalar SSE operations. Contracting multiply
-# and add changes physics branch decisions, including auto-step acceptance.
-# Keep these rules even when PERLIN_FAST_MATH relaxes rendering calculations.
 foreach(PERLIN_PHYSICS_SOURCE IN ITEMS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/PlayerPhysics.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/VehiclePhysics.cpp"
@@ -767,8 +752,6 @@ if(PERLIN_FAST_MATH)
     message(STATUS "Perlin: fast math is ON")
 endif()
 
-# The build intention rejects non-finite rays and velocities; keep those guards when the application enables
-# relaxed floating point.
 if(MSVC AND NOT PERLIN_CLANG_CL_BUILD)
     set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
 else()
@@ -797,11 +780,9 @@ if(UNIX AND NOT APPLE AND NOT ANDROID AND NOT EMSCRIPTEN)
     install(FILES packaging/linux/io.perlin.client.desktop DESTINATION share/applications)
     install(DIRECTORY packaging/linux/icons/ DESTINATION share/icons/hicolor)
 endif()
-# FFmpeg libraries compiled straight into Perlin: video export then needs no ffmpeg program at all.
-# Windows CI installs a static build with vcpkg (see .github/workflows/build.yml) and passes -DFFMPEG_ROOT=...;
-# Linux/macOS use pkg-config. If nothing is found Perlin still builds and falls back to its built-in AVI encoder.
+
 option(PERLIN_LIBAV "Link FFmpeg libraries into Perlin for built-in video encoding" ON)
-# Windows skips FFmpeg entirely by default (slow to build/download; video export uses the built-in AVI encoder).
+
 option(PERLIN_WINDOWS_FFMPEG "Link/bundle FFmpeg on Windows" OFF)
 if(WIN32 AND NOT PERLIN_WINDOWS_FFMPEG)
     set(PERLIN_LIBAV OFF)
@@ -812,16 +793,14 @@ if(PERLIN_LIBAV AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     set(FFMPEG_ROOT "" CACHE PATH "Prefix containing include/libavcodec and lib/ with static FFmpeg libraries")
     if(FFMPEG_ROOT AND EXISTS "${FFMPEG_ROOT}/include/libavcodec/avcodec.h")
         file(GLOB _av_libs "${FFMPEG_ROOT}/lib/*.lib" "${FFMPEG_ROOT}/lib/*.a")
-        # drop libraries that are not part of the codec stack (test helpers, pkgconfig dirs are not matched anyway)
+
         if(_av_libs)
             target_include_directories(Perlin PRIVATE "${FFMPEG_ROOT}/include")
             target_link_libraries(Perlin PRIVATE ${_av_libs})
             set(PERLIN_LIBAV_FOUND ON)
         endif()
     elseif(NOT WIN32 AND NOT APPLE)
-        # Not on macOS: pkg-config finds Homebrew's *dynamic* FFmpeg, which drags in libfmt/libx264/... dylibs that
-        # do not exist on other Macs ("libfmt.12.dylib not found") and are built for a newer macOS than 12.
-        # Pass -DFFMPEG_ROOT=<static prefix built with -mmacosx-version-min=12.0> to link FFmpeg on macOS.
+
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_check_modules(PERLIN_AV QUIET IMPORTED_TARGET libavformat libavcodec libswscale libavutil)
@@ -842,12 +821,9 @@ if(PERLIN_LIBAV AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     endif()
 endif()
 
-# Ship ffmpeg next to perlin.exe on Windows so video export works with nothing to install.
-# The LGPL build is used (no GPL obligations on redistribution); Perlin also has a built-in
-# AVI/MJPEG encoder as a last resort and can download the full GPL build from the export dialog.
 if(WIN32 AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_LIBAV_FOUND)
     option(PERLIN_BUNDLE_FFMPEG "Download an LGPL ffmpeg build and ship it next to perlin.exe" ON)
-    # The download is kept in a fixed per-user cache so it happens once, not on every fresh build directory.
+
     if(PERLIN_BUNDLE_FFMPEG)
         if(DEFINED ENV{LOCALAPPDATA})
             set(PERLIN_FFMPEG_DIR "$ENV{LOCALAPPDATA}/PerlinBuildCache/ffmpeg-bundle")
@@ -993,7 +969,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(benchmark_selftest PRIVATE src)
     add_test(NAME benchmark_selftest COMMAND benchmark_selftest)
 
-    # targets that start threads: freebsd links libpthread only when asked
     target_link_libraries(gpu_level_unload_selftest PRIVATE Threads::Threads)
     option(PERLIN_BUILD_PACK_BENCH "Build tools/java_pack_bench: times a java shader pack headless" OFF)
     if(PERLIN_BUILD_PACK_BENCH)
@@ -1006,7 +981,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         target_include_directories(java_pack_bench BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
         target_link_libraries(java_pack_bench PRIVATE perlin_gpu glaze::glaze miniz)
     endif()
-    # offline java shader pack checker: tools/jshader_check <pack> (not a ctest; packs are not in the tree)
+
     add_executable(jshader_check tools/jshader_check.cpp)
     target_include_directories(jshader_check PRIVATE src)
     target_link_libraries(jshader_check PRIVATE perlin_gpu)
@@ -1155,8 +1130,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/client/renderer/SkyGeometry.cpp)
     target_include_directories(input_selftest PRIVATE src "${glm_SOURCE_DIR}")
     add_test(NAME input_selftest COMMAND input_selftest)
-
-
 
     add_executable(physics_selftest
         tests/physics_selftest.cpp
@@ -1474,7 +1447,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(light_selftest PRIVATE cxx_std_23)
     add_test(NAME light_selftest COMMAND light_selftest)
 
-    # the same wasm engine as the app: wasm3 where wasmedge is not built (freebsd, web)
     if(PERLIN_WASM3)
         set(PERLIN_MOD_RUNTIME_SOURCE ${PERLIN_API_HOST_WASM3_SOURCES})
     else()
@@ -1487,61 +1459,38 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(mod_selftest PRIVATE cxx_std_23)
     set(PERLIN_TEST_PLUGINS "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/plugins")
     if(PERLIN_WASM3)
-        # wasm3 runs 32-bit modules only
+
         add_test(NAME mod_selftest COMMAND mod_selftest
             "${PERLIN_TEST_PLUGINS}/hello32.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm")
     else()
     add_test(NAME mod_selftest COMMAND mod_selftest
         "${PERLIN_TEST_PLUGINS}/hello64.wasm" "${PERLIN_TEST_PLUGINS}/hello32.wasm"
         "${PERLIN_TEST_PLUGINS}/loop_64.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm"
-        "${CMAKE_CURRENT_SOURCE_DIR}/mods/prebuilt/waila.wasm")
+        "${CMAKE_CURRENT_SOURCE_DIR}/plugins/prebuilt/waila.wasm")
     endif()
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_FOUND)
-        perlin_api_add_checks()
+        perlin_api_add_checks(CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/src/client" SERVER "${CMAKE_CURRENT_SOURCE_DIR}/server/src")
         if(NOT MSVC)
-            set(PERLIN_MODS_GEN "${CMAKE_CURRENT_BINARY_DIR}/mods_gen")
-            foreach(spec "waila:mods/waila/waila.json" "sdk:mods/tests/data/settings_test.json")
-                string(REPLACE ":" ";" spec_parts "${spec}")
-                list(GET spec_parts 0 gen_name)
-                list(GET spec_parts 1 gen_manifest)
-                add_custom_command(OUTPUT "${PERLIN_MODS_GEN}/${gen_name}/mod_settings.hpp"
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${PERLIN_MODS_GEN}/${gen_name}"
-                    COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/mods/tools/perlin_settings.py"
-                            "${CMAKE_CURRENT_SOURCE_DIR}/${gen_manifest}" "${PERLIN_MODS_GEN}/${gen_name}/mod_settings.hpp"
-                    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${gen_manifest}" "${CMAKE_CURRENT_SOURCE_DIR}/mods/tools/perlin_settings.py")
-            endforeach()
-            add_executable(waila_test mods/waila/tests/waila_test.cpp "${PERLIN_MODS_GEN}/waila/mod_settings.hpp")
-            target_include_directories(waila_test PRIVATE mods/sdk mods/waila "${PERLIN_MODS_GEN}/waila")
-            target_compile_definitions(waila_test PRIVATE MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/mods/waila/waila.json")
-            target_compile_features(waila_test PRIVATE cxx_std_23)
+            set(PERLIN_PLUGINS_GEN "${CMAKE_CURRENT_BINARY_DIR}/plugins_gen")
+            add_custom_command(OUTPUT "${PERLIN_PLUGINS_GEN}/waila/mod_settings.hpp"
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${PERLIN_PLUGINS_GEN}/waila"
+                COMMAND ${Python3_EXECUTABLE} "${PERLIN_API_DIR}/tools/perlin_settings.py"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/plugins/waila/waila.json" "${PERLIN_PLUGINS_GEN}/waila/mod_settings.hpp"
+                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/plugins/waila/waila.json" "${PERLIN_API_DIR}/tools/perlin_settings.py")
+            add_executable(waila_test plugins/waila/tests/waila_test.cpp "${PERLIN_PLUGINS_GEN}/waila/mod_settings.hpp")
+            target_include_directories(waila_test PRIVATE plugins/waila "${PERLIN_PLUGINS_GEN}/waila")
+            target_compile_definitions(waila_test PRIVATE MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/plugins/waila/waila.json")
+            target_link_libraries(waila_test PRIVATE perlin_api)
             add_test(NAME waila_test COMMAND waila_test)
-            add_executable(sdk_test mods/tests/sdk_test.cpp "${PERLIN_MODS_GEN}/sdk/mod_settings.hpp")
-            target_include_directories(sdk_test PRIVATE mods/sdk "${PERLIN_MODS_GEN}/sdk")
-            target_compile_features(sdk_test PRIVATE cxx_std_23)
-            add_test(NAME sdk_test COMMAND sdk_test)
-            add_executable(c_header_test mods/tests/c_header_test.c)
-            target_include_directories(c_header_test PRIVATE ${PERLIN_API_INCLUDE_DIRS})
-            set_target_properties(c_header_test PROPERTIES C_STANDARD 99)
-            add_test(NAME c_header_test COMMAND c_header_test)
-            foreach(wire_test abi_test meta_test plugin_test)
-                add_executable(${wire_test} mods/tests/${wire_test}.cpp)
-                target_include_directories(${wire_test} PRIVATE mods/sdk)
-                target_compile_features(${wire_test} PRIVATE cxx_std_23)
-                add_test(NAME ${wire_test} COMMAND ${wire_test})
-            endforeach()
             if(APPLE)
-                foreach(native_test waila_test sdk_test abi_test meta_test plugin_test)
-                    target_compile_definitions(${native_test} PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
-                endforeach()
+                target_compile_definitions(waila_test PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
             endif()
         endif()
     endif()
 endif()
 
-# The table is consumed by header-only physics kernels and their tests.
-# Keep this include path off external dependency targets.
 get_property(PERLIN_LOCAL_TARGETS DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 foreach(PERLIN_LOCAL_TARGET IN LISTS PERLIN_LOCAL_TARGETS)
     if(PERLIN_LOCAL_TARGET MATCHES "^(Perlin|trace_diff)$|selftest$")
@@ -1549,19 +1498,17 @@ foreach(PERLIN_LOCAL_TARGET IN LISTS PERLIN_LOCAL_TARGETS)
     endif()
 endforeach()
 
-# perlin server: the dedicated executable (desktop) and singleplayer, which is the same server linked into the client
-# on every platform (desktop, android, iOS and the web): no library to ship or load. See server/README.md
 option(PERLIN_BUILD_SERVER "Build the Perlin server: singleplayer in the client and the dedicated executable" ON)
 if(PERLIN_BUILD_SERVER)
     set(PERLIN_SERVER_EMBED ON CACHE BOOL "" FORCE)
-    # the client links the server statically; the loadable library is only for third-party hosts (standalone builds)
+
     set(PERLIN_SERVER_BUILD_SHARED OFF CACHE BOOL "" FORCE)
     if(EMSCRIPTEN OR ANDROID OR PERLIN_IOS)
         set(PERLIN_SERVER_BUILD_EXE OFF CACHE BOOL "" FORCE)
         set(PERLIN_SERVER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     endif()
     if(EMSCRIPTEN)
-        # no webrtc stack in the browser build: a local world needs only the in-process loopback connection
+
         set(PERLIN_SERVER_NETHERNET OFF CACHE BOOL "" FORCE)
     endif()
     add_subdirectory(server)
@@ -1571,7 +1518,7 @@ if(PERLIN_BUILD_SERVER)
         target_compile_definitions(Perlin PRIVATE PERLIN_SINGLEPLAYER=1 PERLIN_SERVER_STATIC)
         target_link_libraries(Perlin PRIVATE perlin_server_embed)
     endif()
-    # the dedicated server ships beside the client with the block tables it reads
+
     if(TARGET perlin-server)
         install(TARGETS perlin-server RUNTIME DESTINATION .)
         install(FILES resources/block_states.json resources/block_destroy.tsv resources/extra_items.txt DESTINATION resources)

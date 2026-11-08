@@ -1,4 +1,3 @@
-
 #include "protocol/Packets.hpp"
 #include "network/VarInt.hpp"
 #include "world/level/chunk/ChunkCodec.hpp"
@@ -51,26 +50,26 @@ int main() {
         ChunkCodec::CellIds expanded;
         CHECK(ChunkCodec::Expand(parsed[1].second.storages[0], expanded));
         CHECK(expanded == second);
-        // the payload decides, not the count: a column cut cleanly after the first sub-chunk holds one
+
         CHECK(ChunkCodec::ParseColumn(column.data(), firstSize, 2, -4, 24, parsed, consumed));
         CHECK(parsed.size() == 1 && parsed[0].first == -4 && consumed == firstSize);
-        // a cut inside a sub-chunk is still rejected, with nothing half-applied
+
         for (size_t cut = firstSize + 1; cut < column.size(); ++cut) {
             CHECK(!ChunkCodec::ParseColumn(column.data(), cut, 2, -4, 24, parsed, consumed));
             CHECK(parsed.empty() && consumed == 0);
         }
-        // proxies repeat heights: the first entry wins and the repeat is skipped
+
         std::vector<uint8_t> duplicate;
         ChunkCodec::WriteSubChunk(duplicate, -4, first);
         ChunkCodec::WriteSubChunk(duplicate, -4, second);
         CHECK(ChunkCodec::ParseColumn(duplicate.data(), duplicate.size(), 2, -4, 24, parsed, consumed));
         CHECK(parsed.size() == 1 && parsed[0].first == -4 && consumed == duplicate.size());
-        // a count above the dimension height or a raised floor no longer rejects a payload that fits the union
+
         CHECK(ChunkCodec::ParseColumn(column.data(), column.size(), 25, -4, 24, parsed, consumed));
         CHECK(parsed.size() == 2);
         CHECK(ChunkCodec::ParseColumn(column.data(), column.size(), 2, 0, 24, parsed, consumed));
         CHECK(parsed.size() == 2);
-        // 3d biomes follow the sub-chunks; their palette header (bpb << 1 | 1) is 0x01 or 0x09
+
         std::vector<uint8_t> biomes = {0x01, 0x00};
         biomes.insert(biomes.end(), 23, 0xff);
         biomes.push_back(0x00);
@@ -87,15 +86,15 @@ int main() {
         wideBiome.push_back(0x00);
         CHECK(ChunkCodec::ParseColumn(wideBiome.data(), wideBiome.size(), 2, -4, 24, parsed, consumed));
         CHECK(parsed.size() == 2 && consumed == column.size());
-        // an empty sub-chunk (no layers) still takes its slot
+
         std::vector<uint8_t> empty = {9, 0, 0xfc};
         empty.insert(empty.end(), column.begin() + static_cast<std::ptrdiff_t>(firstSize), column.end());
         CHECK(ChunkCodec::ParseColumn(empty.data(), empty.size(), 2, -4, 24, parsed, consumed));
         CHECK(parsed.size() == 2 && parsed[1].first == -3 && consumed == empty.size());
-        // a count below the payload: further sub-chunks continuing the heights are still read
+
         CHECK(ChunkCodec::ParseColumn(withBiomes.data(), withBiomes.size(), 1, -4, 24, parsed, consumed));
         CHECK(parsed.size() == 2 && consumed == column.size());
-        // a count with no payload at all is still an error
+
         CHECK(!ChunkCodec::ParseColumn(nullptr, 0, 2, -4, 24, parsed, consumed));
         CHECK(ChunkCodec::ParseColumn(nullptr, 0, 0, -4, 24, parsed, consumed));
         CHECK(parsed.empty() && consumed == 0);

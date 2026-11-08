@@ -27,7 +27,7 @@ namespace perlin {
             return static_cast<float>(std::clamp(accumulator / physics::kTickSeconds, 0.0, 1.0));
         }
         uint64_t TickCount() const { return tickCounter; }
-        // last tick's movement in blocks (the game's PostTickPositionDeltaComponent)
+
         glm::vec3 TickDisplacement() const {
             return {static_cast<float>(state.x - previous.x), static_cast<float>(state.y - previous.y),
                     static_cast<float>(state.z - previous.z)};
@@ -40,7 +40,7 @@ namespace perlin {
         void SetSwimming(bool value) { swimming = value; }
         bool InWater() const { return state.inWater; }
         bool Swimming() const { return swimming; }
-        // a server camera preset's control scheme: movement relative to the camera's yaw (scheme -1: off)
+
         void SetCameraControl(int scheme, float cameraYaw) {
             cameraScheme = scheme;
             cameraControlYaw = cameraYaw;
@@ -55,8 +55,7 @@ namespace perlin {
         bool Gliding() const { return gliding; }
         bool Crawling() const { return crawling; }
         void SetElytra(bool value) { hasElytra = value; }
-        // completeUsingItem 0x1402C5390 ends in stopUsingItem 0x1402C3F70 (ItemInUse removed): held use stays
-        // unslowed until a new press sends a new use
+
         void SetItemSlow(bool slow, uint32_t duration = 0, bool restart = false) {
             if (slow && (!itemSlow || restart))
                 itemSlowUntil = duration ? tickCounter + duration : 0;
@@ -71,14 +70,13 @@ namespace perlin {
             rideZ = z;
         }
         void BeginItemUse() { itemUseStart = tickCounter; }
-        // TridentItem::releaseUsing 0x1447283B0: 10 ticks of use, in water last tick (0x140BA14A0) or rain, not riding
+
         void ReleaseTrident(int riptideLevel, bool raining) {
             if (riptideLevel > 0 && tickCounter - itemUseStart >= 10 && (state.inWater || raining) &&
                 !rideLock)
                 pendingRiptide = riptideLevel;
         }
-        // FireworksItem::use 0x147BA7640, client side: a use while gliding predicts GLIDE_BOOST for 20 ticks;
-        // the server's MovementEffect gives the real duration later
+
         void UseFirework() {
             if (gliding)
                 predictGlideBoost = true;
@@ -112,7 +110,7 @@ namespace perlin {
         void ApplyMotionUpdate(BedrockSession& session, const BedrockSession::MotionUpdate& update);
         void ReplayFrom(BedrockSession& session, size_t first);
         void ApplyVehicleCorrections(BedrockSession& session);
-        // client-predicted boat this tick, seat of the local rider; false when not driving one
+
         bool TickVehicle(BedrockSession& session, float forward, float strafe, bool jump, float riderPitch,
                          const physics::World& world);
         void Tick(BedrockSession& session, const InputManager& input, const Camera& camera,
@@ -128,7 +126,7 @@ namespace perlin {
             physics::State after;
             std::optional<std::array<double, 3>> motion;
             std::optional<BedrockSession::ServerMotion> teleport;
-            // freeze strength this tick moves with, and whether the box after its move rose it
+
             float freeze = 0;
             bool freezeRising = false;
         };
@@ -148,7 +146,7 @@ namespace perlin {
         double accumulator = 0.0;
         WalkBob walkBob;
         uint64_t tickCounter = 0;
-        // where the server last placed us far from where we were: a drop right after is logged with the column below
+
         struct PlacementProbe {
             bool active = false;
             double x = 0, y = 0, z = 0;
@@ -188,7 +186,7 @@ namespace perlin {
         bool itemSlow = false;
         uint64_t itemSlowUntil = 0;
         double rideX = 0, rideY = 0, rideZ = 0;
-        // seat from RiderSeatPosition: the rider stands at the seat, eye at the standing height
+
         bool rideSeatKnown = false;
         struct BoatRecord {
             uint64_t tick = 0;
@@ -216,14 +214,14 @@ namespace perlin {
         int pendingRiptide = 0;
         bool predictGlideBoost = false;
         std::vector<physics::Box> mobBoxes;
-        // ticks left to double-tap jump for flight (VanillaClientGameplayComponent +8)
+
         int flyTapTicks = 0;
-        // ticks left to double-tap forward for sprint (VanillaClientGameplayComponent +0)
+
         int sprintTapTicks = 0;
-        // StorePreviousClientInputSystem: last tick's sneak input and forward >= 0.70710677 (VanillaClientGameplay +22/+23)
+
         bool prevSneakInput = false, prevForwardHigh = false;
         int fallFlyTicks = 0;
-        // FreezingComponent strength, predicted: the server's actor data arrives a tick after its move used it
+
         float freezeStrength = 0;
         void SyncFreeze(BedrockSession& session);
     };

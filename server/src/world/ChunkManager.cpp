@@ -31,7 +31,7 @@ namespace perlin::server {
         size_t threads = 1;
         if (backend->ThreadSafe()) {
             const unsigned hw = std::thread::hardware_concurrency();
-            // leave a core for the tick and network threads
+
             threads = std::clamp<size_t>(hw > 2 ? hw - 1 : 1, 1, 16);
             if (maxThreads > 0)
                 threads = std::min(threads, maxThreads);

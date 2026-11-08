@@ -1,11 +1,5 @@
 #include <chrono>
-// builds any json ui screen offline, prints what the engine made of it
-//
-//   screen_dump <reference> <W> <H> <ui root> [<ui root> ...]
-//
-// roots highest priority first, like the client (server packs, resource packs, vanilla)
-// env: SCREEN_TREE=1 prints visible controls, =2 hidden too; SCREEN_RML=1 prints emitted rml
-// SCREEN_VARS='{"#binding": value, ...}' feeds global bindings
+
 #include "client/ui/HudData.hpp"
 #include "client/ui/JsonUi.hpp"
 #include "client/ui/McFont.hpp"
@@ -66,8 +60,6 @@ namespace {
             Props(*f.second, name);
     }
 
-    // SCREEN_VARS: {"#name": value}; SCREEN_COLLECTIONS: {"form_buttons": [{"#form_button_text": "x"}]};
-    // SCREEN_FACTORY: {"buttons": [["button", "form_buttons", 0]], "server_form_factory": [["long_form"]]}.
     class Globals : public UiData {
     public:
         Json vars = Json::MakeObject(), collections = Json::MakeObject(), factories = Json::MakeObject();
@@ -123,7 +115,7 @@ namespace {
             c += CountNodes(*f.second);
         return c;
     }
-    // SCREEN_HEAVY=N: lists template subtrees with at least N nodes
+
     void Heavy(const Node& n, size_t min, int depth) {
         const size_t c = CountNodes(n);
         if (c < min)

@@ -40,7 +40,6 @@ namespace perlin::server {
         return dimension == kNether ? DimensionRange{0, 128} : dimension == kEnd ? DimensionRange{0, 256} : DimensionRange{kMinY, kHeight};
     }
 
-    // cell index inside a section, the order the wire uses: x outermost, y innermost
     constexpr int CellIndex(int x, int y, int z) {
         return (x << 8) | (z << 4) | (y & 15);
     }
@@ -55,7 +54,6 @@ namespace perlin::server {
         uint16_t Get(int x, int y, int z) const;
         void Set(int x, int y, int z, uint16_t block);
 
-        // bulk fill from a generator: `cells` is in wire order; collapses to uniform when every cell matches
         void SetSection(int section, const uint16_t* cells);
         void FillSection(int section, uint16_t block);
 

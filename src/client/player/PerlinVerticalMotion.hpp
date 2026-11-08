@@ -34,13 +34,11 @@ namespace perlin::physics::bds {
         return Gravity{-0.005f, false};
     }
 
-    // BounceGravityCorrectionComponent: MoveRequest +52 (requested y) and +64 (resolved y) of a bounce tick
     struct BounceGravityCorrection {
         float requested;
         float resolved;
     };
 
-    // RequestGravityCorrectionSystem 0x1484cd7b0: only while a bounce impulse is pending and the body moved in y
     inline std::optional<BounceGravityCorrection> RequestGravityCorrection(float restitutionY,
                                                                            float requested, float resolved) {
         const float epsilon = std::bit_cast<float>(0x34000000u);
@@ -55,8 +53,7 @@ namespace perlin::physics::bds {
             fallDistance = 0;
         const float epsilon = std::bit_cast<float>(0x34000000u);
         const float g = std::fabs(gravity.acceleration);
-        // ApplyGravityWithBounceCorrection 0x143368b50: gravity only for the part of the tick after the impact
-        // (|v|t + g t^2/2 = |resolved|); it removes ApplyGravityComponent, so the plain gravity is skipped
+
         if (bounce && std::fabs(bounce->resolved) > epsilon && g > epsilon) {
             const float v = bounce->requested;
             const float sign = 0.0f < v ? 1.0f : (v < 0.0f ? -1.0f : 0.0f);
@@ -73,7 +70,6 @@ namespace perlin::physics::bds {
         return detail::Round(velocity * 0.8f) + detail::Round(static_cast<float>(level) * 0.01f);
     }
 
-    // MobMovementDrag::Ground 0x14334fb00: the air drag modifier scales the lost fraction, then clamps it to [0, 1]
     inline float GroundVerticalDrag(float velocity, bool hasGravity,
                                     std::optional<float> airDrag = std::nullopt) {
         if (!hasGravity)

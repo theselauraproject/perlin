@@ -75,8 +75,7 @@ namespace perlin {
                 },
                 {camera.x, camera.y, camera.z}, glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch)), PickRange(creative, 1),
                 EntityPickRange(creative));
-            // looking down past an edge with nothing in reach (pick 0x144E090C0): clip 2 blocks straight down
-            // from the eye; that block becomes the target, on the face of the look's dominant horizontal axis
+
             const glm::dvec3 look(targeting::ViewVector(camera.yaw, camera.pitch));
             if (aimHit.kind == AimHit::Kind::None && look.y < -0.7) {
                 const std::vector<entity::Entity> noEntities;
@@ -97,8 +96,7 @@ namespace perlin {
     }
 
     namespace {
-        // what the game's GameMode::startDestroyBlock refuses before it sends anything: no mine ability,
-        // spectators, adventure without a can_destroy match, and blocks with negative hardness outside creative
+
         bool MayStartBreaking(BedrockSession& live, const ui::HudItem& held, bool creative,
                               const std::string& blockName) {
             if (live.Spectator() || !live.MayMine())
@@ -161,7 +159,7 @@ namespace perlin {
                                         live->Entities().Find(aimHit.entity, attacked) && !attacked.isPlayer;
                 if (aimHit.kind == AimHit::Kind::Entity && !mobBlocked &&
                     !DispatchModInteract(abi::InteractKind::Attack, 0, 0, 0, 0, aimHit.entity)) {
-                    // HitResult::mPos as is: GameMode::attack copies it into the click pos
+
                     const float click[3] = {static_cast<float>(aimHit.point.x), static_cast<float>(aimHit.point.y),
                                             static_cast<float>(aimHit.point.z)};
                     live->SendAttackEntity(aimHit.entity, eyeF, click);
@@ -208,7 +206,7 @@ namespace perlin {
                     if (creative)
                         creativeBreakReadyAt = detail::MsNow() + 250;
                 } else if (!MayStartBreaking(*live, held, creative, targetName)) {
-                    // no start-break, crack or prediction: the server would only put the block back
+
                 } else {
                     bkx = aimHit.bx;
                     bky = aimHit.by;
@@ -450,7 +448,7 @@ namespace perlin {
                 if (live->Entities().Find(useAim.entity, target) && frame::IsInteractable(target.type) &&
                     !(live->InputLocks() & 128u) &&
                     !DispatchModInteract(abi::InteractKind::InteractEntity, 0, 0, 0, 0, useAim.entity)) {
-                    // same HitResult::mPos the game passes to attack
+
                     const float click[3] = {static_cast<float>(useAim.point.x), static_cast<float>(useAim.point.y),
                                             static_cast<float>(useAim.point.z)};
                     SwingHand();

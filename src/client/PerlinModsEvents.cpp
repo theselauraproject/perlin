@@ -161,8 +161,7 @@ namespace perlin {
             abi::EventHttp ev;
             ev.id = id;
 #ifdef __EMSCRIPTEN__
-            // the browser's fetch: same https-only rule and size limits; the browser applies its own CORS and
-            // private-network checks in place of the address filter below
+
             do {
                 if (!url.starts_with("https://")) {
                     ev.error = "only https:// URLs are allowed";
@@ -424,7 +423,7 @@ namespace perlin {
 
     void Perlin::UpdateModLayer(ui::Hud& hud) {
         auto& mm = mods::ModManager::Instance();
-        // hud layers show in game; "screen:..." layers and ScreenButtonAdd buttons show over open screens
+
         const bool onScreen = CurrentScreen() != abi::Screen::None;
         const bool want = options.showHud && mm.HasPlugins() && !(replayCtl.Playing() && replayUi.hideHud);
         if (!want) {
@@ -722,6 +721,7 @@ namespace perlin {
         }
 
         PumpModHooks(live);
+        PumpModExtra(live);
 
         if (mm.WantsEvent(abi::Event::Frame)) {
             abi::EventFrame f;

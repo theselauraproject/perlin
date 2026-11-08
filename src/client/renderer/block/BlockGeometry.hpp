@@ -22,8 +22,7 @@ namespace perlin {
         void AddCustom(const std::string& name, const std::string& definitionJson,
                        const std::vector<std::string>& packRoots, const std::string& textureRoot,
                        const FetchFn& fetch);
-        // after every custom block has its textures: cells only take atlas room left over, a full atlas keeps the
-        // whole-sheet tile
+
         void CutCustomSheets(const std::string& root, const FetchFn& fetch);
         void Clear();
         bool Empty() const {
@@ -47,7 +46,7 @@ namespace perlin {
             struct Face {
                 bool has = false;
                 float uv[2] = {0, 0}, size[2] = {0, 0};
-                int rotation = 0; // uv_rotation in quarter turns, clockwise
+                int rotation = 0;
                 std::string mat;
             } faces[6];
             std::string mat;
@@ -56,7 +55,7 @@ namespace perlin {
             std::string name, parent;
             float pivot[3] = {0, 0, 0}, rot[3] = {0, 0, 0};
             std::vector<Cube> cubes;
-            // poly_mesh polygons; triangles repeat their last corner. UVs are in texels unless polyNormalized.
+
             struct Poly {
                 float pos[4][3] = {};
                 float uv[4][2] = {};
@@ -74,8 +73,7 @@ namespace perlin {
             bool hasMaterials = false;
             std::unordered_map<std::string, int> tiles;
             std::unordered_map<std::string, bool> dimming;
-            // texture each material was fetched from, and tiles cut from sheets larger than one face:
-            // "<material>|<cell x>,<cell y>" -> tile of that 16x16 uv cell
+
             std::unordered_map<std::string, std::string> paths;
             std::unordered_map<std::string, int> cells;
             bool hasTransform = false;

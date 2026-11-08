@@ -20,7 +20,7 @@ namespace perlin::gpu {
         }
 
         const VertexLayoutInfo kLayouts[static_cast<size_t>(VertexLayout::Count)] = {
-            // terrain: position, packed colour, uv, packed light, packed normal, entity, mid uv, tangent
+
             {48,
              {{{0, 0, format::rgb32_float, 0},
                {2, 0, format::rgba8_unorm, 12},
@@ -176,7 +176,6 @@ namespace perlin::gpu {
             return fail("could not create the bind layouts");
         BuildSamplers();
 
-        // defaults bound wherever a draw has no texture of its own
         {
             const uint32_t pixel[2] = {0xFFFFFFFFu, 0xFFFFFFFFu};
             texture_desc td;
@@ -382,7 +381,7 @@ namespace perlin::gpu {
                 gd.color_formats[0] = key.color;
                 gd.color_count = 1;
             }
-            // extra MRT attachments take no blending: they carry data, not color
+
             if (key.colorCount > 1 && key.color1 != format::unknown) {
                 gd.color_formats[1] = key.color1;
                 gd.color_count = 2;
@@ -395,7 +394,7 @@ namespace perlin::gpu {
                 gd.blend.targets[1] = bt;
             gd.depth_format = key.depth;
             gd.name = library.programs()[program].name.c_str();
-            // driver-side compiler crashes give no callback: name the program first
+
             if (std::getenv("PERLIN_JAVA_DBG") && !std::strncmp(gd.name, "java_", 5))
                 std::fprintf(stderr, "[gpu] pipeline %s colors=%u\n", gd.name, gd.color_count);
             handle = device->create_graphics_pipeline(gd);
@@ -501,7 +500,7 @@ namespace perlin::gpu {
             return false;
         }
         acquireFailures = 0;
-        // the chain may have settled on another size than asked for (clamping, a window that moved on): draw to what it really is
+
         if (swapchain->width() && swapchain->height()) {
             targetWidth = swapchain->width();
             targetHeight = swapchain->height();
@@ -624,7 +623,7 @@ namespace perlin::gpu {
     void Gpu::DestroyTexture(texture_handle texture) {
         if (!texture)
             return;
-        // pending writes to a dying texture are dropped
+
         imageWrites.erase(std::remove_if(imageWrites.begin(), imageWrites.end(),
                                          [&](const ImageWrite& w) { return w.texture == texture; }),
                           imageWrites.end());
@@ -720,7 +719,7 @@ namespace perlin::gpu {
         std::unordered_set<uint32_t> seenBuffers;
         seenBuffers.reserve(16);
         for (const BufferWrite& w : bufferWrites) {
-            // one barrier pair per buffer however many ranges it has (a world load writes thousands of ranges)
+
             if (!seenBuffers.insert(w.buffer.value).second)
                 continue;
             const auto known = bufferStates.find(w.buffer.value);
@@ -766,7 +765,7 @@ namespace perlin::gpu {
         bufferWrites.clear();
         imageWrites.clear();
         pendingBytes.clear();
-        // a world load or atlas upload can leave this holding hundreds of megabytes it will not need again
+
         if (pendingBytes.capacity() > (48ull << 20))
             std::vector<uint8_t>().swap(pendingBytes);
     }

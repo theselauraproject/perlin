@@ -34,8 +34,7 @@ namespace perlin::ui {
         bool HasVanillaSheets() const { return !sheets.empty(); }
         bool HasUnihex() const { return !hex.empty(); }
         bool AddTtf(const std::string& path);
-        // bedrock glyph page (font/glyph_XX.png from a resource pack): 16x16 grid of U+XX00..U+XXFF in its own colours;
-        // replaces any page already loaded for `page`
+
         void AddGlyphPage(uint32_t page, const std::vector<uint8_t>& rgba, int width, int height);
         void ClearGlyphPages();
         void UnloadLevelResources();
@@ -43,7 +42,7 @@ namespace perlin::ui {
 
         const Glyph& Get(uint32_t codepoint) const;
         float Width(const std::string& utf8, float scale = 1.0f) const;
-        // §k: a random printable ascii character of the same advance, picked anew on every call
+
         uint32_t Obfuscated(uint32_t codepoint) const;
         static constexpr int kLineHeight = 9;
         static constexpr int kCell = 8;

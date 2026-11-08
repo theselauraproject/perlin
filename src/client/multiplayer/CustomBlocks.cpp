@@ -47,8 +47,7 @@ namespace perlin {
             const ui::Json* n = v;
             if (v->IsObject())
                 n = v->Find(key);
-            // network nbt bytes arrive as bools that keep their value ("lightLevel": false is a 0 filter, not absent);
-            // a byte is a level already, only floats are 0..1 fractions
+
             if (!n || !(n->IsNumber() || n->IsBool()))
                 return -1;
             double d = n->IsBool() ? n->number : n->NumberOr(0);
@@ -135,7 +134,7 @@ namespace perlin {
                     if (where == kSlots[i])
                         def.armorSlot = i;
             }
-            // use_modifiers in seconds, the older item_properties use_duration in ticks; food without either eats in 32
+
             if (const ui::Json* mods = FindKey(nbt, "minecraft:use_modifiers"); mods && mods->IsObject())
                 if (const ui::Json* d = mods->Find("use_duration"); d && d->IsNumber())
                     def.useTicks = static_cast<int>(d->NumberOr(0) * 20.0);
@@ -338,7 +337,7 @@ namespace perlin {
             ServerBlocks::Instance().Add(std::move(def));
         }
         palette.InsertCustomRuns(std::move(runs));
-        // raw server custom block defs, for offline geometry/material checks
+
         if (customDump.size() > 3) {
             customDump.resize(customDump.size() - 2);
             std::error_code ec;

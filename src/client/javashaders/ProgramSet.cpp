@@ -357,7 +357,7 @@ namespace perlin::jshader {
             props = ParseProperties(text, macros);
             rawProps = ParseProperties(text, {}, false);
         }
-        // iris expands macros in values too (size.buffer.colortex1 = REFLECTION_RES REFLECTION_RES)
+
         const auto expand = [&](std::string value) {
             for (int pass = 0; pass < 4; pass++) {
                 std::string out;
@@ -370,7 +370,7 @@ namespace perlin::jshader {
                             j++;
                         const std::string word = value.substr(i, j - i);
                         const auto it = macros.find(word);
-                        // a word glued to a dot or slash is part of a name (colortex1.foo), not a macro use
+
                         const bool glued = (i > 0 && (value[i - 1] == '.' || value[i - 1] == '/')) ||
                                            (j < value.size() && (value[j] == '.' || value[j] == '/'));
                         if (it != macros.end() && !it->second.empty() && !glued) {
@@ -397,8 +397,7 @@ namespace perlin::jshader {
             value = expand(value);
             props.map[key] = value;
         }
-        // feature flags: shaders.properties saw every flag the renderer has; the shaders only see the optional
-        // ones the pack lists (iris ShaderPack)
+
         const auto upper = [](std::string s) {
             for (char& c : s)
                 c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
@@ -453,7 +452,7 @@ namespace perlin::jshader {
             if (!pack->Read(file, text))
                 return;
             const Properties p = ParseProperties(text, macros);
-            // java Properties: a repeated key keeps its first place and takes the last value
+
             std::map<std::string, size_t> at;
             std::vector<std::pair<std::string, std::string>> lines;
             for (const auto& e : p.entries) {
@@ -539,7 +538,7 @@ namespace perlin::jshader {
     }
 
     bool ShaderPackInstance::ProgramEnabledUncached(const std::string& name) const {
-        // iris: program.<dimension folder>/<name>.enabled, or program.<name>.enabled for every dimension
+
         auto it = dimension.empty() ? props.map.end()
                                     : props.map.find("program." + dimension + "/" + name + ".enabled");
         if (it == props.map.end())
@@ -667,7 +666,7 @@ namespace perlin::jshader {
         for (char letter = 'a'; letter <= 'z'; letter++) {
             const std::string file = FindFile(use + "_" + std::string(1, letter), ".csh");
             if (file.empty())
-                continue; // iris takes every letter that exists, gaps included
+                continue;
             program->compute.push_back(ExpandIncludes(ctx, file));
         }
         return program;
@@ -702,7 +701,7 @@ namespace perlin::jshader {
                 std::string line;
                 while (std::getline(in, line)) {
                     const std::string t = str::Trim(line);
-                    // optifine comment directives: /* SHADOWRES:2048 */, /* SHADOWHPL:160.0 */, /* SHADOWFOV:90 */
+
                     for (const auto& [tag, name] :
                          {std::pair{"SHADOWRES:", "shadowMapResolution"},
                           std::pair{"SHADOWHPL:", "shadowDistance"}, std::pair{"SHADOWFOV:", "shadowMapFov"}})

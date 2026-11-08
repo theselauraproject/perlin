@@ -24,7 +24,7 @@ namespace perlin::ui {
     };
 
     namespace {
-        // bedrock installs under `base`: <base>/<a>/<b>/.../resource_packs/vanilla/font/
+
         void Collect(const fs::path& base, int depth, std::vector<fs::path>& out) {
             std::error_code ec;
             if (depth < 0 || !fs::is_directory(base, ec))
@@ -49,12 +49,12 @@ namespace perlin::ui {
                 return out;
             const fs::path h(home);
             std::vector<fs::path> found;
-            // bedrock on linux: games/<channel>/<version>/data/...
+
             Collect(h / ".local/share/bedrock-on-linux/games", 4, found);
-            // mcpelauncher: versions/<version>/assets/...
+
             Collect(h / ".local/share/mcpelauncher/versions", 3, found);
             Collect(h / ".var/app/io.mrarm.mcpelauncher/data/mcpelauncher/versions", 3, found);
-            // newest first: dotted version paths sort later
+
             std::sort(found.begin(), found.end(),
                       [](const fs::path& a, const fs::path& b) { return a.string() > b.string(); });
             out.insert(out.end(), found.begin(), found.end());
@@ -162,7 +162,7 @@ namespace perlin::ui {
             const uint32_t cp = NextCodepoint(utf8, i);
             if (cp == 0)
                 break;
-            // format codes (section sign + char) take no space
+
             if (skip) {
                 skip = false;
                 continue;
@@ -172,7 +172,7 @@ namespace perlin::ui {
                 continue;
             }
             float adv = Advance(cp, scale);
-            // server icons have no heading-face advance: measure the bitmap fallback the draw uses
+
             if (adv == 0.0f && cp != ' ')
                 adv = static_cast<float>(McFont::Instance().Get(cp).advance) * scale * (kEm / 8.0f);
             width += adv;
@@ -200,7 +200,6 @@ namespace perlin::ui {
         page->version = ++pageVersion;
         const float scale = stbtt_ScaleForMappingEmToPixels(&impl->info, static_cast<float>(emPx));
 
-        // latin, latin-1, latin extended-a: what servers use in headings
         std::vector<uint32_t> codepoints;
         for (uint32_t cp = 32; cp < 0x180; cp++)
             if (stbtt_FindGlyphIndex(&impl->info, static_cast<int>(cp)) != 0)
@@ -241,7 +240,7 @@ namespace perlin::ui {
             const int cy = static_cast<int>(i / static_cast<size_t>(across)) * cellH + 1;
             for (int y = 0; y < r.h; y++)
                 for (int x = 0; x < r.w; x++) {
-                    // heading face stays smooth: keep truetype coverage as-is
+
                     const unsigned char a =
                         r.alpha[static_cast<size_t>(y) * static_cast<size_t>(r.w) + static_cast<size_t>(x)];
                     const uint8_t v = a;

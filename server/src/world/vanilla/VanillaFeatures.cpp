@@ -14,11 +14,10 @@ namespace perlin::server::vanilla {
     namespace {
         constexpr double kPi = 3.14159265358979323846;
 
-        // a rule in the order the passes run, then by name
         struct Stream {
             WorldRandom rng;
             Stream(uint64_t a, uint64_t b) : rng(MixStafford13(a), MixStafford13(b ^ kGolden64)) {}
-            // 0 <= v < n
+
             int Below(int n) { return n <= 1 ? 0 : static_cast<int>(rng.NextDouble() * n); }
             double Double() { return rng.NextDouble(); }
             float Float() { return rng.NextFloat(); }
@@ -30,11 +29,10 @@ namespace perlin::server::vanilla {
             const int span = d.hi - d.lo + (inclusive ? 1 : 0);
             if (d.kind == 0)
                 return d.lo + s.Below(span);
-            // triangle: the mean of two uniform draws
+
             return d.lo + (s.Below(span) + s.Below(span)) / 2;
         }
 
-        // a repeatable float in [0, 1) for one block of one blob, independent of how many blocks were looked at before
         float HashFloat(uint64_t key, int x, int y, int z) {
             const uint64_t h =
                 MixStafford13(key ^ (static_cast<uint64_t>(static_cast<uint32_t>(x)) * 0x9E3779B1ull) ^
@@ -86,7 +84,7 @@ namespace perlin::server::vanilla {
                              static_cast<uint64_t>(static_cast<uint32_t>(ox)) * 341873128712ull +
                                  static_cast<uint64_t>(static_cast<uint32_t>(oz)) * 132897987541ull +
                                  rule.key);
-                    // the chance of the rule running at all in that chunk
+
                     if (def.scatterDenominator > 1 && s.Below(def.scatterDenominator) >= def.scatterNumerator)
                         continue;
                     for (int it = 0; it < def.iterations; it++) {
@@ -99,7 +97,7 @@ namespace perlin::server::vanilla {
                             else if (*o == 'z')
                                 lz = Draw(s, def.z, false);
                         }
-                        // every draw of the blob is made before anything is tested, so the stream does not depend on the chunk being built
+
                         Blob b;
                         b.n = n;
                         const double angle = static_cast<double>(s.Float()) * kPi;
@@ -167,7 +165,7 @@ namespace perlin::server::vanilla {
                                         if (!hit)
                                             continue;
                                         if (feature.discard > 0.0f) {
-                                            // only the neighbours inside this chunk are looked at
+
                                             const int lx2 = wx - baseX, lz2 = wz - baseZ, ly2 = wy - kMinY;
                                             bool exposed = false;
                                             const auto air = [&](int ax, int ay, int az) {

@@ -10,24 +10,21 @@
 
 namespace perlin::server {
 
-    // an item the server hands out: one per placeable block, in the default state
     struct CatalogItem {
         std::string name;
         int16_t networkId = 0;
         int32_t blockHash = 0;
-        // false for tools, food and materials: they exist in inventories but cannot be placed
+
         bool block = true;
     };
 
-    // every block state the game knows (the client's own block_states.json), plus the item list built from it
     class BlockCatalog {
     public:
         static BlockCatalog& Instance();
 
-        // block_states.json: [[hash, name, {state: [type, value]}, bool], ...]; block_destroy.tsv picks which blocks become items
         bool Load(const std::string& blockStatesPath, const std::string& itemNamesPath, std::string& error,
                   const std::string& extraItemsPath = {});
-        // no data files: a short list of blocks that have no states, enough to build with
+
         void LoadBuiltin();
         bool Loaded() const { return !items.empty(); }
         bool FromFiles() const { return fromFiles; }
@@ -37,10 +34,8 @@ namespace perlin::server {
         const CatalogItem* ItemByBlockHash(int32_t hash) const;
         const CatalogItem* ItemByName(const std::string& name) const;
 
-        // registry id of the block with this network hash; 0 (air) when the hash is not a known block
         uint16_t RegistryId(int32_t hash) const;
-        // the default state of a block by name ("stone" or "minecraft:stone"); falls back to the bare name when the catalog does not know it.
-        // a block with required states (bedrock, logs, slabs) only exists to the client under one of its real states
+
         uint16_t DefaultBlock(const std::string& name) const;
         uint16_t Resolve(std::string_view state) const;
         std::string StateText(uint16_t id) const;
@@ -48,7 +43,6 @@ namespace perlin::server {
         bool Knows(const std::string& fullName) const { return defaultByName.contains(fullName); }
         size_t StateCount() const { return states.size(); }
 
-        // search order for the data files: explicit dir, then next to the executable, then the source tree
         static std::string FindFile(const std::string& dir, const std::string& name);
 
     private:

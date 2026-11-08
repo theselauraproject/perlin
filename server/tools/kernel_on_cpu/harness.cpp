@@ -1,6 +1,3 @@
-// runs terrain_vanilla.slang compiled to c++ (slangc -target cpp) over chunks and compares each phase with the cpu reference, bit for bit:
-//   densities (phase 1) against the density graph, columns (phase 2) against VanillaCpuBackend::BiomesOf / TopOf, blocks (phase 3) against VanillaSurface.
-// this checks the kernel's algorithm, the table packing and the four-phase scheme without a gpu; it cannot check a driver's float behaviour
 #include "kernel.inc"
 #include "gpu/VanillaGpuProgram.hpp"
 #include "world/BlockCatalog.hpp"
@@ -69,7 +66,7 @@ int main(int argc, char** argv) {
     run(static_cast<uint64_t>(count) * 1225);
     params = {count, 1, program->innerCount, program->outerCount, program->root, K, columnBase, 0};
     run(static_cast<uint64_t>(count) * blocks);
-    const std::vector<float> densities = density; // phase 3 overwrites the densities with block ids
+    const std::vector<float> densities = density;
     params = {count, 2, 0, 0, program->root, K, columnBase, 0};
     run(static_cast<uint64_t>(count) * 256);
     params = {count, 3, 0, 0, program->root, K, columnBase, 0};
@@ -82,7 +79,7 @@ int main(int argc, char** argv) {
     std::mt19937 rng(7);
     std::map<int, int> biomeSpread;
     for (uint32_t n = 0; n < count; n++) {
-        // phase 1: densities against the graph
+
         {
             DfCacheScope cache;
             const int samples = n == 0 ? static_cast<int>(blocks) : 4000;
@@ -107,7 +104,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        // phases 2 and 3 on the kernel's own densities, so a density difference cannot hide a stage difference
+
         std::array<uint8_t, 256> biomes;
         {
             DfCacheScope cache;

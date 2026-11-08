@@ -23,7 +23,7 @@ namespace perlin::server {
         for (size_t n = 0; n < positions.size() && n < out.size(); n++) {
             ChunkColumn& column = out[n];
             for (int sec = 0; sec < kSections; sec++) {
-                // a flat world has the same block in every column of a layer, so a section is uniform unless a layer boundary crosses it
+
                 const uint16_t first = profile[static_cast<size_t>(sec * 16)];
                 bool uniform = true;
                 for (int y = 1; y < 16 && uniform; y++)

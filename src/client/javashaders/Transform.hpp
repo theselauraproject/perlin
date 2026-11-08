@@ -66,16 +66,15 @@ namespace perlin::jshader {
         bool flipVertexY = false;
         bool flipFragCoordY = false;
         bool zeroToOneDepth = true;
-        // the rhi binds textures and samplers separately (set 1: texture 2n, sampler 2n+1): declare them that way and
-        // let the pack's sampler names stand for the combined pair
+
         bool splitSamplers = false;
-        // sample plain texture() / texture2D() calls at level 0 (full screen passes whose buffers have no mips)
+
         bool explicitLod = false;
-        // custom image name -> binding in set 2 (the renderer's image table)
+
         std::map<std::string, int> imageSlots;
-        // custom image name -> glsl format qualifier (r16ui ...), for images the pack declares without one
+
         std::map<std::string, std::string> imageFormats;
-        // the program's alpha test as a comparison against gl_FragData[0].a ("> 0.1"); empty for none
+
         std::string alphaTest;
     };
 
@@ -90,8 +89,6 @@ namespace perlin::jshader {
     ProgramResult TransformProgram(const ExpandedSource& vertexSource, const ExpandedSource& fragmentSource,
                                    const TransformOptions& options);
 
-    // a compute program (.csh): the same uniform block / samplers / images as the graphics stages, plus the
-    // dispatch size it asks for (iris: workGroups, else workGroupsRender against the render size, else 1:1)
     struct ComputeResult {
         StageResult stage;
         int uniformRegs = 0;

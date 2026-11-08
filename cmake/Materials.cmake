@@ -1,4 +1,3 @@
-# Keep upstream shaders in the dependency cache, not in Perlin's resources/.
 set(PERLIN_MCBE_SHADER_REVISION bf4c3467b384f74a13e045f759f0f21e837c5536)
 set(PERLIN_MCBE_SHADER_SOURCE_DIR "" CACHE PATH "Existing mcbe-shader-codebase release/obfuscated checkout")
 if(NOT PERLIN_MCBE_SHADER_SOURCE_DIR)
@@ -21,8 +20,6 @@ execute_process(
 set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/renderer/MaterialDb.cpp"
     APPEND PROPERTY INCLUDE_DIRECTORIES "${PERLIN_MATERIAL_INCLUDE_DIR}")
 
-# Adapt the upstream pixel programs to Perlin's mesh
-# and sampler interfaces. The generated programs replace the old game shaders.
 set(PERLIN_RD_SHADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/renderdragon")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_renderdragon_shaders.py")

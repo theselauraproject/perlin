@@ -10,7 +10,7 @@ namespace perlin::ui {
         int capeW = 0, capeH = 0;
         bool slim = false;
         float yaw = 0.0f, pitch = 0.0f;
-        // head rotation vs body, degrees (positive yaw same way as `yaw`)
+
         float headYaw = 0.0f, headPitch = 0.0f;
         bool showBody = true;
         bool jacket = true, leftSleeve = true, rightSleeve = true, leftPants = true, rightPants = true,

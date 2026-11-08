@@ -41,11 +41,10 @@ namespace perlin::http {
                     int timeoutSecs = 60);
 
 #if defined(__EMSCRIPTEN__)
-    // the browser only lets a page call Microsoft, Xbox and Minecraft services through a relay that adds CORS
-    // headers (tools/web/auth-relay): requests to those hosts go to <base>/<host>/<path>. Empty = no relay.
+
     void SetWebRelay(std::string base);
     bool WebRelayReady();
-    // true for the hosts the relay forwards to (sign-in, Xbox Live, Realms, Minecraft services)
+
     bool NeedsWebRelay(std::string_view host);
 #endif
 }

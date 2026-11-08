@@ -13,7 +13,7 @@ namespace perlin {
         uint32_t rgba;
         float u, v;
         uint32_t light;
-        // java pack feed, computed in AddQuad so call sites stay unchanged
+
         uint32_t normal;
         float entity;
         float midU, midV;
@@ -89,7 +89,6 @@ namespace perlin {
 
         const std::vector<Vertex>& Vertices() const { return vertices; }
 
-        // a java shader pack's vertex stream for this mesh, built on the meshing thread (stamp: which pack)
         std::vector<uint8_t> packVertices;
         uint64_t packStamp = 0;
         const std::vector<uint32_t>& Indices(RenderLayer value) const {

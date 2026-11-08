@@ -10,8 +10,6 @@
 #include <string_view>
 #include <type_traits>
 
-// no <format>: libc++ only formats floating point from macOS 13.3 on, and vformat_to instantiates the float
-// formatter for every call whatever the argument types; Log takes "{}" and "{N}" only, checked at compile time
 namespace perlin::log_detail {
     template <class>
     inline constexpr bool kUnsupported = false;
@@ -26,7 +24,7 @@ namespace perlin::log_detail {
             char buf[48];
             out.append(buf, std::to_chars(buf, buf + sizeof buf, v).ptr);
         } else if constexpr (std::is_floating_point_v<T>) {
-            // %g: what the old stream logging printed
+
             char buf[32];
             const int n = std::snprintf(buf, sizeof buf, "%g", static_cast<double>(v));
             out.append(buf, n > 0 ? static_cast<std::size_t>(n) : 0);
@@ -52,7 +50,6 @@ namespace perlin::log_detail {
         Append(out, *static_cast<const T*>(value));
     }
 
-    // not constexpr: reaching it during constant evaluation is the compile error for a bad format string
     void InvalidLogFormatString();
 
     consteval void CheckFormat(std::string_view fmt, std::size_t argCount) {
@@ -75,7 +72,7 @@ namespace perlin::log_detail {
             std::size_t j = i + 1;
             for (; j < fmt.size() && fmt[j] >= '0' && fmt[j] <= '9'; ++j)
                 index = index * 10 + static_cast<std::size_t>(fmt[j] - '0');
-            // format specs aren't supported: only "{}" and "{N}"
+
             if (j >= fmt.size() || fmt[j] != '}')
                 InvalidLogFormatString();
             if (j == i + 1) {
@@ -103,7 +100,6 @@ namespace perlin::log_detail {
         }
     };
 
-    // the format string was checked at compile time: no bounds or syntax checks here
     inline void Format(std::string& out, std::string_view fmt, const ArgRef* args) {
         std::size_t next = 0;
         for (std::size_t i = 0; i < fmt.size(); ++i) {
@@ -131,8 +127,7 @@ namespace perlin::log_detail {
 }
 
 namespace perlin {
-    // "[tag] message" on stdout; the line is formatted first and written in one call, so lines from worker
-    // threads never interleave
+
     template <class... Args>
     void Log(std::string_view tag, log_detail::FormatString<std::type_identity_t<Args>...> fmt, Args&&... args) {
         const std::array<log_detail::ArgRef, sizeof...(Args)> refs{

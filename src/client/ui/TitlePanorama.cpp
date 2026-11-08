@@ -130,7 +130,6 @@ namespace perlin::ui {
             }
         }
 
-        // the face a direction lands on, and where: same corners BuildPanorama draws with
         void SampleCube(const PanoramaImage (&in)[6], const FaceBasis (&basis)[6], const V3& dir,
                         float out[4]) {
             int best = 0;
@@ -148,7 +147,6 @@ namespace perlin::ui {
             SampleFace(in[best], Dot(rel, b.u) * 0.25f, Dot(rel, b.v) * 0.25f, out);
         }
 
-        // sliding-window box blur, edges clamped; buffer is side x side x 4
         void BoxPass(std::vector<float>& buf, std::vector<float>& tmp, int side, int r, bool vertical) {
             const float inv = 1.0f / static_cast<float>(2 * r + 1);
             const size_t step = vertical ? static_cast<size_t>(side) * 4 : 4;
@@ -179,7 +177,7 @@ namespace perlin::ui {
     int PanoramaBlurRadius(int menuBlur, int faceSize, int fbHeight, float fovYDegrees) {
         if (menuBlur <= 0 || faceSize <= 0 || fbHeight <= 0)
             return 0;
-        // the game: three box passes of radius menuBlur framebuffer pixels, variance r(r+1)
+
         const float sigmaPx = std::sqrt(static_cast<float>(menuBlur * (menuBlur + 1)));
         const float texelsPerPx = static_cast<float>(faceSize) *
                                   std::tan(fovYDegrees * 0.5f * 3.14159265358979f / 180.0f) /
@@ -200,7 +198,7 @@ namespace perlin::ui {
         FaceBasis basis[6];
         for (int g = 0; g < 6; g++)
             basis[g] = Basis(g);
-        // three passes reach 3r past the edge
+
         const int pad = radius * 3 + 2;
         const int side = size + pad * 2;
         std::vector<float> buf(static_cast<size_t>(side) * side * 4), tmp(buf.size());

@@ -28,7 +28,7 @@ namespace perlin::ui {
         d.Set("#dressing_room_button_visible", true);
         d.Set("#store_button_visible", true);
         d.Set("#can_change_skin", true);
-        // services we don't provide (store, realms stories, xbox invites, screenshots, achievements)
+
         for (const char* off : {"#store_button_secondary_visible",
                                 "#store_button_secondary_enabled",
                                 "#store_error_tooltip_visible",

@@ -64,18 +64,16 @@ namespace perlin::jshader {
         std::string type = "texture2D";
     };
 
-    // iris image.<name> = <sampler|none> <format> <internal format> <pixel type> <clear> <relative> <size...>
     struct CustomImage {
         std::string name, sampler;
-        std::string format, internalFormat, pixelType; // gl names, lower case (rgba, rgba16f, half_float)
-        int dims = 2;                                  // 1, 2 or 3
+        std::string format, internalFormat, pixelType;
+        int dims = 2;
         int width = 1, height = 1, depth = 1;
         bool clear = false;
         bool relative = false;
         float relativeWidth = 1.0f, relativeHeight = 1.0f;
     };
 
-    // iris bufferObject.<n> = <bytes> [<relative> <scaleX> <scaleY>]
     struct BufferObject {
         int index = 0;
         uint64_t size = 0;
@@ -119,7 +117,7 @@ namespace perlin::jshader {
              sun = true, moon = true, vignette = true;
         bool rainDepth = false, beaconBeamDepth = false, dynamicHandLight = true, frustumCulling = true,
              shadowTranslucent = true, shadowTerrain = true;
-        // iris shaders.properties: which entities go into the shadow pass
+
         bool shadowEntities = true, shadowPlayer = true, shadowBlockEntities = true;
         std::string clouds = "default";
         std::string cloudShadow;
@@ -139,7 +137,7 @@ namespace perlin::jshader {
     };
 
     PipelineConfig ParsePipelineConfig(ShaderPackInstance& pack);
-    // the glsl image format qualifier of an iris internal format name ("rgba16f", "r16ui"; "rgba" -> "rgba8")
+
     std::string ImageFormatQualifier(const std::string& internalFormat);
     int GlEnumFromName(const std::string& name);
 }

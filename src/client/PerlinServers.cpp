@@ -19,7 +19,6 @@ namespace perlin {
     namespace {
         std::filesystem::path FeaturedDir() { return std::filesystem::path(paths::DataDir()) / "featured"; }
 
-        // logos keyed by their url: a server that changes its logo gets a new url, so a cached file never goes stale
         std::filesystem::path FeaturedLogoPath(const std::string& url) {
             uint64_t h = 1469598103934665603ull;
             for (const unsigned char c : url)
@@ -81,7 +80,6 @@ namespace perlin {
             return "fs:" + f.host + ":" + std::to_string(f.port);
         }
 
-        // a logo already on disk is loaded without the network
         bool LoadFeaturedLogo(const featured::Server& f) {
             const std::string key = FeaturedIconKey(f);
             if (ui::UiAssets::Instance().HasHead(key))
@@ -203,7 +201,6 @@ namespace perlin {
         PrewarmSignIn();
     }
 
-    // the Xbox Live / PlayFab / Minecraft token round trips take seconds: do them while the player is in the menus
     void Perlin::PrewarmSignIn() {
         if (!onlineThisRun || PERLIN_ENV("PERLIN_PREVIEW"))
             return;
@@ -334,7 +331,7 @@ namespace perlin {
         if (!singleplayerServer->Running()) {
             const std::string dir = worldDir.empty() ? paths::DataDir() + "/singleplayer" : worldDir;
             paths::EnsureDir(dir);
-            // the server reads its block tables from files: write the copies the client carries
+
             for (const char* name : {"block_states.json", "block_destroy.tsv", "extra_items.txt"}) {
                 std::string bytes;
                 const std::string path = dir + "/" + name;
@@ -343,7 +340,7 @@ namespace perlin {
                                                      std::filesystem::file_size(path, ec) != bytes.size()))
                     std::ofstream(path, std::ios::binary) << bytes;
             }
-            // the browser has a fixed pool of worker threads shared with the client: the world generator gets two
+
 #ifdef __EMSCRIPTEN__
             const std::string threads = ",\"max_threads\":2";
 #else
@@ -669,7 +666,7 @@ namespace perlin {
             tabFeatured.clear();
             return;
         }
-        // the last list shows at once from disk; the network one replaces it when it arrives
+
         if (!featuredCacheLoaded.exchange(true)) {
             std::vector<featured::Server> cached;
             if (LoadFeatured(cached) && !cached.empty()) {
@@ -705,7 +702,7 @@ namespace perlin {
                 tabFeatured = FeaturedRows(list);
                 featuredPing = true;
             }
-            // logos after the list: one slow image no longer holds back every row
+
             std::vector<std::future<bool>> downloads;
             for (const featured::Server* f : missing)
                 downloads.push_back(std::async(std::launch::async, [f] { return DownloadFeaturedLogo(*f); }));

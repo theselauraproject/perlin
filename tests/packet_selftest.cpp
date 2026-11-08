@@ -119,7 +119,7 @@ int main() {
               q.position.z == -20);
     }
     {
-        // independent wire fixture: 64-bit runtime ids and mode-gated teleport fields have no presence byte
+
         const std::vector<uint8_t> wire{0xa8, 0xf8, 0xd8, 0xbd, 0xfe, 0xa8, 0xca, 0x6d, 0x00, 0xc0, 0x9c,
                                         0x44, 0x71, 0x3d, 0xdb, 0x42, 0x00, 0x00, 0x63, 0x44, 0x00, 0x00,
                                         0x00, 0x00, 0x00, 0x00, 0xb4, 0x42, 0x00, 0x00, 0xb4, 0x42, 0x02,
@@ -252,7 +252,7 @@ int main() {
         net::context::SetProtocol(0);
     }
     for (const int version : {0, 944, 975, 1001, 2168, 2193}) {
-        // move_entity rotation bytes: pitch, yaw, head yaw on every version; round trips can't catch a swap
+
         net::context::SetProtocol(version);
         const std::vector<uint8_t> wire{0x05, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0x40, 0x41};
         MoveEntityPacket move;

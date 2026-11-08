@@ -17,28 +17,26 @@ ATTRIBUTE_LOCATIONS = {
 }
 
 BUILTIN_UNIFORMS = {
-    'u_viewRect':       'vec4', 
-    'u_viewTexel':      'vec4', 
-    'u_modelViewProj':  'mat4', 
+    'u_viewRect':       'vec4',
+    'u_viewTexel':      'vec4',
+    'u_modelViewProj':  'mat4',
     'u_viewProj':       'mat4',
-    'u_view':           'mat4', 
+    'u_view':           'mat4',
     'u_proj':           'mat4',
 }
 
 SAMPLER_KINDS = {
-    'SAMPLER2D': 'SAMPLER2D', 
+    'SAMPLER2D': 'SAMPLER2D',
     'SAMPLER2DARRAY': 'SAMPLER2DARRAY'
 }
 
-
 SLOTS = None
-
 
 def slot_of(name):
     """texture slots are global by name, so every program binds a texture to the same place"""
     global SLOTS
     slots_path: str = 'src/shaders/slang/texture_slots.json'
-    
+
     if not SLOTS:
         SLOTS = json.loads((Path(__file__).resolve().parent.parent / slots_path).read_text())
 
@@ -46,7 +44,6 @@ def slot_of(name):
         raise KeyError(f"texture {name} has no entry in texture_slots.json")
 
     return SLOTS[name][0]
-
 
 def read_varying(text):
     """name -> (type, semantic), in definition order."""
@@ -57,7 +54,6 @@ def read_varying(text):
         if match:
             result[match.group(2)] = (match.group(1), match.group(3))
     return result
-
 
 def expand(text, dirs, seen, inline=True):
     """Inline quoted/angled includes once each; bgfx_shader.sh is replaced by the compat prelude.
@@ -87,7 +83,6 @@ def expand(text, dirs, seen, inline=True):
             raise FileNotFoundError(f'include not found: {name}')
     return '\n'.join(out)
 
-
 class Stage:
     def __init__(self, text, dirs, inline=True):
         self.inputs = []
@@ -102,14 +97,12 @@ class Stage:
             else:
                 body.append(line)
         self.text = expand('\n'.join(body), dirs, set(), inline)
-        # kept includes land at file scope: their helpers are shared by both stages, not namespaced
+
         self.includes = re.findall(r'^#include "[^"]+"$', self.text, re.M)
         self.text = re.sub(r'^#include "[^"]+"\n?', '', self.text, flags=re.M)
 
-
 UNIFORM = re.compile(r'^[ \t]*uniform\s+(\w+)\s+(\w+)\s*(?:\[\s*(\w+)\s*\])?\s*;[ \t]*$', re.M)
 SAMPLER = re.compile(r'^[ \t]*(SAMPLER2DARRAY|SAMPLER2D)\(\s*(\w+)\s*,\s*(\d+)\s*\)\s*;[ \t]*$', re.M)
-
 
 def hoist(stage, uniforms, samplers):
     def take_uniform(match):
@@ -128,7 +121,6 @@ def hoist(stage, uniforms, samplers):
     stage.text = UNIFORM.sub(take_uniform, stage.text)
     stage.text = SAMPLER.sub(take_sampler, stage.text)
 
-
 def add_builtins(stages, uniforms):
     joined = '\n'.join(s.text for s in stages)
     for name, typ in BUILTIN_UNIFORMS.items():
@@ -137,7 +129,6 @@ def add_builtins(stages, uniforms):
     models = [int(m) for m in re.findall(r'\bu_model\s*\[\s*(\d+)\s*\]', joined)]
     if models:
         uniforms['u_model'] = ('mat4', str(max(models) + 1))
-
 
 def resource_block(uniforms, samplers):
     out = ['UNIFORMS_BEGIN']
@@ -148,7 +139,6 @@ def resource_block(uniforms, samplers):
     for name, (kind, slot) in sorted(samplers.items(), key=lambda kv: kv[1][1]):
         out.append(f'{kind}({name}, {slot * 2}, {slot * 2 + 1});')
     return out
-
 
 def interface_struct(name, items, varying, attribute):
     varying_names = [n for n in varying if not n.startswith('a_')]
@@ -162,7 +152,6 @@ def interface_struct(name, items, varying, attribute):
         lines.append(f'    [[vk::location({location})]] {typ} {item} : TEXCOORD{location};')
     lines.append('};')
     return '\n'.join(lines)
-
 
 def convert(vs_text, fs_text, varying_text, dirs, header='', resources=None, inline=True, shared=None):
     varying = read_varying(varying_text)
@@ -181,7 +170,7 @@ def convert(vs_text, fs_text, varying_text, dirs, header='', resources=None, inl
     out = [header + '#include "compat.slang"', '']
     if resources:
         out.append(f'#include "{resources}"')
-        # the shared header owns the uniform block; a program may only add textures of its own
+
         for name in uniforms:
             if name not in (shared or ()):
                 raise ValueError(f'uniform {name} is not declared in {resources}')
@@ -258,7 +247,6 @@ def convert(vs_text, fs_text, varying_text, dirs, header='', resources=None, inl
     out.append('}')
     return re.sub(r'\n{3,}', '\n\n', '\n'.join(out)) + '\n'
 
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vs', type=Path, required=True)
@@ -271,7 +259,6 @@ def main():
     text = convert(args.vs.read_text(encoding='utf-8'), args.fs.read_text(encoding='utf-8'),
                    args.varying.read_text(encoding='utf-8'), dirs)
     args.output.write_text(text, encoding='utf-8')
-
 
 if __name__ == '__main__':
     sys.exit(main())

@@ -73,9 +73,8 @@ namespace perlin::discord {
     };
 
     bool RegisterLaunch(const std::string& applicationId, const std::string& executable);
-    // makes `scheme://` links open this executable (registry on Windows, a desktop entry + xdg-mime on Linux;
-    // macOS declares it in Info.plist)
+
     bool RegisterUrlScheme(const std::string& scheme, const std::string& executable);
-    // the server in a perlin://join/host[:port] (or perlin://host[:port]) link; empty for anything else
+
     std::string ServerFromUrl(const std::string& url);
 }

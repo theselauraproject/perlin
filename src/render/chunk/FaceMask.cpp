@@ -24,7 +24,7 @@ namespace perlin::render {
     }
 
     namespace {
-        // opaque/meshed bits for one column along the axis
+
         struct Column {
             uint16_t opaque = 0;
             uint16_t meshed = 0;
@@ -34,7 +34,7 @@ namespace perlin::render {
     FaceMask ComputeFaceMask(const SectionBlocks& section, const SectionNeighbours& nb,
                              const BlockTable& table) {
         FaceMask out;
-        // one pass over the cells fills the three axis views of the opaque and meshed sets
+
         std::array<std::array<Column, 256>, 3> cols{};
         if (!section.cells) {
             const uint8_t f = table.Flags(section.uniform);
@@ -74,7 +74,7 @@ namespace perlin::render {
             for (int q = 0; q < 16; q++)
                 for (int p = 0; p < 16; p++) {
                     const Column& c = cols[static_cast<size_t>(axis)][static_cast<size_t>(q * 16 + p)];
-                    // is the block just past the section edge opaque
+
                     bool edgeOpaque = true;
                     if (known) {
                         int x, y, z;
@@ -98,7 +98,7 @@ namespace perlin::render {
     const FaceMask& FaceMaskCache::Get(const SectionKey& key, uint64_t version, const SectionBlocks& section,
                                        const SectionNeighbours& neighbours, const BlockTable& table) {
         Entry& e = entries[key];
-        // a neighbour that arrived since the build can only reveal faces that were held back
+
         const bool fresh = e.version == version && e.version != 0 && (neighbours.known & ~e.known) == 0;
         if (fresh) {
             hits++;

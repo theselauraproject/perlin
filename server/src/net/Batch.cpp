@@ -4,7 +4,7 @@
 
 namespace perlin::server {
     namespace {
-        // a batch inflating past this is treated as hostile
+
         constexpr size_t kMaxInflated = 64u << 20;
 
         void PutVar(std::vector<uint8_t>& o, uint32_t v) {
@@ -28,7 +28,7 @@ namespace perlin::server {
     }
 
     void BatchCodec::AppendPacket(std::vector<uint8_t>& content, uint32_t id, std::span<const uint8_t> body) {
-        // header: packet id in the low 10 bits, sender and target sub client ids above it (both 0)
+
         std::vector<uint8_t> header;
         PutVar(header, id & 0x3FF);
         PutVar(content, static_cast<uint32_t>(header.size() + body.size()));
@@ -42,7 +42,7 @@ namespace perlin::server {
         std::vector<uint8_t> out;
         if (content.size() >= threshold) {
             size_t packed = 0;
-            // no TDEFL_WRITE_ZLIB_HEADER: the wire wants raw deflate
+
             void* buf = tdefl_compress_mem_to_heap(content.data(), content.size(), &packed, 128);
             if (buf) {
                 out.reserve(packed + 1);

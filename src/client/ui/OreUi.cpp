@@ -24,7 +24,7 @@ namespace perlin::ui::ore {
     }
 
     const std::string& Styles() {
-        // per kind: outline, lip, face, highlight (top-left), edge (bottom-right); rest/hover/pressed
+
         static const std::string css = R"CSS(
 .ob { display: block; position: absolute; z-index: 5; }
 .ob div { display: block; position: absolute; }

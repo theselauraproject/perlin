@@ -6,12 +6,12 @@ namespace perlin {
     namespace {
         std::string SkinDollKey(const std::string& skinPath, const std::string& capePath, bool showCape,
                                 float headYaw = 0.0f, float headPitch = 0.0f);
-        // sample data for PERLIN_SHOW_SCREEN: check screens without joining a world
+
         ui::ScreenData ForcedScreenData(const std::string& reference, const std::string& playerName) {
             if (reference == "server_form.third_party_server_screen") {
-                // long form shaped like a game selector: title flag + many buttons
+
                 ui::ScreenData d;
-                // PERLIN_TEST_FORM=<file>: replay a captured form (ui_generated/last_form.json) instead of the sample
+
                 if (const char* file = PERLIN_ENV("PERLIN_TEST_FORM")) {
                     std::ifstream in(file, std::ios::binary);
                     std::stringstream ss;
@@ -61,7 +61,7 @@ namespace perlin {
                 return d;
             }
             if (reference == "hud.hud_screen") {
-                // sidebar sample shaped like a lobby board, private-use glyphs included
+
                 ui::ScreenData d;
                 d.Set("#hud_visible", true);
                 d.Set("#scoreboard_sidebar_visible", true);
@@ -137,11 +137,10 @@ namespace perlin {
             std::filesystem::create_directories(paths::DataDir(), ec);
             std::ofstream(ServersPath(), std::ios::binary) << root.Dump(2);
         }
-        // renders the skin as bedrock's paper doll (3d, facing slightly left) into a ui texture once per skin/cape;
-        // returns its key for the json ui paper_doll_renderer
+
         std::string SkinDollKey(const std::string& skinPath, const std::string& capePath, bool showCape,
                                 float headYaw, float headPitch) {
-            // angles snap to 3 degree steps: a moving cursor reuses renders; only the latest kept
+
             const int qy = static_cast<int>(std::lround(headYaw / 3.0f)) * 3,
                       qp = static_cast<int>(std::lround(headPitch / 3.0f)) * 3;
             const std::string key =
@@ -289,7 +288,7 @@ namespace perlin {
                     renderer->UiDestroyTexture(id);
                 id = 0;
             }
-            // the old blurred faces stay up until the new pack's are ready: server packs land mid-join
+
             panorama.blurKey = -1;
             panorama.ready = false;
             panorama.retryAt = {};
@@ -316,8 +315,7 @@ namespace perlin {
         if (!panorama.ready && !(wantBlur && panorama.blurred[0]))
             return false;
         const uint32_t* faceTextures = panorama.textures;
-        // polled on every panorama frame: the title screen warms the blur up before a menu needs it.
-        // a blurred screen waits for it the first time rather than show the sharp faces
+
         if (options.menuBlur > 0 && PollBlurredPanorama(fbH, wantBlur) && wantBlur)
             faceTextures = panorama.blurred;
         else if (!panorama.ready)
@@ -363,7 +361,7 @@ namespace perlin {
                 const ui::PanoramaImage& img = faces[static_cast<size_t>(i)];
                 panorama.blurred[i] = renderer->UiCreateTexture(img.width, img.height, img.rgba.data(), true);
             }
-            // faces from before a pack change still beat sharp ones: shown, then redone
+
             panorama.blurKey = panorama.blurJobStamp == panorama.packStamp ? panorama.blurJobKey : -1;
             Log("ui", "blurred panorama ready: {}px faces, radius {}", faces[0].width, panorama.blurJobKey);
         };
@@ -371,12 +369,12 @@ namespace perlin {
         if (panorama.blurJob.valid() &&
             (needNow || panorama.blurJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready))
             take();
-        // keyed on the radius at full face size: a resize only re-blurs when the strength really changes
+
         const int radius = ui::PanoramaBlurRadius(options.menuBlur, 512, fbH);
         if (!panorama.blurJob.valid() && radius != panorama.blurKey && now >= panorama.blurRetryAt) {
             panorama.blurJobKey = radius;
             panorama.blurJobStamp = panorama.packStamp;
-            // ~100 ms at 512px: off the frame unless nothing blurred exists yet
+
             panorama.blurJob = std::async(std::launch::async, [radius] {
                 ui::PanoramaImage in[6];
                 int size = 512;
@@ -403,8 +401,7 @@ namespace perlin {
     }
 
     bool Perlin::WorldCovered() const {
-        // also true the frame before the loading screen opens (connect, dimension change): the hud would
-        // flash for a frame otherwise. a mod that hid the loading screen gets the game back
+
         return titleScreen.active || titleScreen.shown || loading.shown || disconnect.shown ||
                (session && !loading.done && !loading.modHidden);
     }
@@ -820,7 +817,6 @@ namespace perlin {
         if (connectsInFlight.load() == 0)
             UnloadServerPacks();
 
-        // sub-screens blur it, like the game's menus
         DrawTitlePanorama(fbW, fbH,
                           !(title.page == ui::TitlePage::Main || title.page == ui::TitlePage::Accounts ||
                             title.page == ui::TitlePage::AccountName ||
@@ -1022,7 +1018,7 @@ namespace perlin {
             std::to_string(title.selected) + "|" + std::to_string(title.scroll) + "|" +
             std::to_string(title.focus) + (title.nativePanorama ? "|np" : "|sp") + "|" + title.logoSrc;
         {
-            // the update line: progress while downloading, a button once there is something to do
+
             using update::State;
             const update::Status u = update::Current();
             title.updateAction = u.state == State::Ready || u.state == State::Available;
@@ -1072,7 +1068,7 @@ namespace perlin {
             if (title.Shown().empty())
                 signature += "|" + std::to_string(title.spinner & 3);
         }
-        // dev hook: PERLIN_SHOW_SCREEN=pause.pause_screen draws any json ui screen here, to check layouts
+
         const char* forcedScreen = PERLIN_ENV("PERLIN_SHOW_SCREEN");
         ui::ScreenData forcedData;
         if (forcedScreen) {
@@ -1359,10 +1355,7 @@ namespace perlin {
                 loading.startAt = now;
             const int chunks = session->ChunksReceived();
             const int freshChunks = chunks - loading.chunkBase;
-            // the world shows only once it can be drawn: block textures loaded, the player placed and the
-            // chunks around it meshed. hiding the screen earlier leaves an empty sky behind the touch controls
-            // server blocks build as the meshes meet them: the world shows once those are built and drawn again
-            // (a server with a huge set gets a limit, the rest fills in behind the world)
+
             if (levelRenderer)
                 levelRenderer->SetFastBuild(true);
             const bool assets =
@@ -1373,8 +1366,7 @@ namespace perlin {
                 levelRenderer ? levelRenderer->MeshedChunks() -
                                     std::min(levelRenderer->MeshedChunks(), levelRenderer->MeshesInFlight())
                               : 0;
-            // no mesh may still be in flight: one started before its custom blocks had textures would come out with
-            // them invisible. the gate must then hold steady for a moment, so a block seen late re-arms it
+
             const bool enough = freshChunks >= 9 && assets && placed && meshed >= 9 && levelRenderer &&
                                 levelRenderer->MeshesInFlight() == 0;
             if (enough) {
@@ -1385,8 +1377,7 @@ namespace perlin {
             } else {
                 loading.readyArmed = false;
             }
-            // a world with almost nothing around it (void, a tiny server lobby) never reaches 9 chunks: after a
-            // while, the screen goes once whatever arrived is drawable
+
             const auto waited = now - loading.startAt;
             const bool settled = assets && placed && freshChunks > 0 && levelRenderer &&
                                  levelRenderer->PendingMeshes() == 0 &&
@@ -1457,7 +1448,7 @@ namespace perlin {
         const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
                                       "|" + t.message + "|" + t.detail + "|" + t.cancel +
                                       (t.panorama ? "|p" : "|d");
-        // a mod hid the loading screen: connection carries on underneath, nothing drawn over it
+
         if (modHidden) {
             if (hud.Overlay().HasOverlay())
                 hud.Overlay().ClearOverlay();
@@ -1545,8 +1536,7 @@ namespace perlin {
             info = session->GetDisconnectInfo();
             lastError = session->LastError();
         }
-        // the server advertises an older version (the hive's ping says 1.26.14 while it lets newer clients in):
-        // offer to join announcing that version, or do it straight away when the player said not to ask again
+
         const bool olderServer = !preview && info.outdated == 2 && info.serverProtocol > 0 &&
                                  info.serverProtocol < kBedrockProtocol && !inSingleplayer;
         const bool overrideTried =

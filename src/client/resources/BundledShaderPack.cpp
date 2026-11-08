@@ -64,8 +64,6 @@ namespace perlin {
         return kBundledMeta;
     }
 
-    // the bundled pack's programs ship in the engine's own shader pack, so there are no per-backend binaries to hand out;
-    // one marker lets ShaderPack::Open see the pack as present
     bool BundledShaderBytes(const std::string&, const std::string& shader, const uint8_t*& data,
                             size_t& size) {
         static const uint8_t kMarker[16] = {0, 'S', 'H'};

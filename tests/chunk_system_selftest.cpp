@@ -1,4 +1,3 @@
-// face masks, greedy meshing and residency policy, all against brute-force references
 #include "render/chunk/GreedyMesher.hpp"
 #include "render/chunk/Residency.hpp"
 
@@ -23,7 +22,7 @@ static BlockTable MakeTable() {
     BlockTable t;
     t.Set(1, BlockTable::Opaque | BlockTable::Meshed, 10);
     t.Set(2, BlockTable::Opaque | BlockTable::Meshed, 20);
-    // glass: drawn, but does not hide what is behind it
+
     t.Set(3, BlockTable::Meshed, 30);
     return t;
 }
@@ -36,7 +35,6 @@ struct Section {
 
 static const int kDir[6][3] = {{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}};
 
-// visible faces counted the slow way: (x, y, z, face) set
 static std::set<std::array<int, 4>> NaiveFaces(const Section& s, const SectionNeighbours& nb,
                                                const BlockTable& t) {
     std::set<std::array<int, 4>> faces;
@@ -111,7 +109,7 @@ static void TestRandomAgainstNaive() {
     std::mt19937 rng(1234);
     for (int round = 0; round < 60; round++) {
         Section s;
-        // clustered ids so merging has something to do
+
         const int density = 10 + round % 4 * 25;
         for (int y = 0; y < 16; y++)
             for (int z = 0; z < 16; z++)
@@ -151,7 +149,7 @@ static void TestRandomAgainstNaive() {
             for (int j = 0; j < q.H(); j++)
                 for (int i = 0; i < q.W(); i++) {
                     int x = q.X(), y = q.Y(), z = q.Z();
-                    // the quad grows along the in-plane axes in (p, q) order
+
                     if (axis == 0) {
                         y += i;
                         z += j;
@@ -183,7 +181,7 @@ static void TestWinding() {
         const float dot = n[0] * static_cast<float>(kDir[face][0]) +
                           n[1] * static_cast<float>(kDir[face][1]) + n[2] * static_cast<float>(kDir[face][2]);
         CHECK(dot > 0);
-        // the quad sits on the correct plane
+
         const int axis = AxisOf(face);
         const float plane = static_cast<float>(axis == 0   ? q.X()
                                                : axis == 1 ? q.Y()
@@ -203,7 +201,7 @@ static void TestExtraKeySplits() {
         air.Set(f, {nullptr, 0});
     const FaceMask m = ComputeFaceMask(solid, air, t);
     std::vector<PackedQuad> q;
-    // light differs on the left and right half of every face
+
     GreedyMesh(
         solid, m, t,
         [](int x, int y, int z, int face) -> uint16_t {
@@ -231,7 +229,7 @@ static void TestMaskCache() {
     CHECK(cache.Misses() == 1 && cache.Hits() == 0);
     CHECK(cache.Get(key, 1, s.View(), nb, t).faceCount == faces0);
     CHECK(cache.Hits() == 1);
-    // a newly known neighbour reveals the held-back faces
+
     nb.Set(NegY, {nullptr, 0});
     CHECK(cache.Get(key, 1, s.View(), nb, t).faceCount == faces0 + 1);
     CHECK(cache.Misses() == 2);
@@ -240,8 +238,6 @@ static void TestMaskCache() {
     cache.InvalidateAround(key);
     CHECK(cache.Size() == 0);
 }
-
-// ---- residency
 
 static bool InRangeCoverage(const ChunkResidency& r, const std::set<std::pair<int, int>>& present,
                             std::map<std::pair<int, int>, int>& count) {
@@ -282,7 +278,6 @@ static void Populate(ChunkResidency& r, std::set<std::pair<int, int>>& present, 
         }
 }
 
-// completes every requested build immediately
 static void Settle(ChunkResidency& r, uint64_t& now, ColumnPos cam, float vx = 0, float vz = 0) {
     for (int i = 0; i < 20; i++) {
         Plan plan;
@@ -323,7 +318,7 @@ static void TestSteadyStateCoverage() {
     CHECK(InRangeCoverage(r, present, count));
     for (const auto& [col, n] : count)
         CHECK(n == 1);
-    // near columns are full meshes, far ones merged
+
     std::vector<ChunkResidency::DrawItem> draw;
     r.CollectDraw(draw);
     size_t level0 = 0, coarse = 0;
@@ -332,7 +327,7 @@ static void TestSteadyStateCoverage() {
     CHECK(level0 >= 49 && level0 <= 100);
     CHECK(coarse > 0);
     CHECK(draw.size() < present.size());
-    // nothing left to do once settled
+
     Plan plan;
     r.Tick(now, {0, 0}, 0, 0, plan);
     CHECK(plan.build.empty() && plan.evict.empty());
@@ -349,13 +344,13 @@ static void TestBuildOrderAndLimits() {
     Plan plan;
     r.Tick(0, {0, 0}, 0, 0, plan);
     CHECK(plan.build.size() == 5);
-    // nearest first: the camera column leads
+
     CHECK(plan.build[0].unit.x == 0 && plan.build[0].unit.z == 0);
     for (size_t i = 1; i < plan.build.size(); i++) {
         const auto d = [](const UnitKey& u) { return std::max(std::abs(u.x), std::abs(u.z)); };
         CHECK(d(plan.build[i - 1].unit) <= d(plan.build[i].unit));
     }
-    // requested builds are not asked for again while in flight
+
     Plan second;
     r.Tick(16, {0, 0}, 0, 0, second);
     CHECK(second.build.size() == 3);
@@ -377,13 +372,12 @@ static void TestRetention() {
     const UnitKey far{0, -3, 0};
     CHECK(r.HasMesh(far) && !r.IsRetained(far));
 
-    // camera walks east: the western columns fall out of range of the small world
     ColumnPos cam{0, 0};
     for (int i = 0; i < 12; i++) {
         cam.x++;
         Settle(r, now, cam);
     }
-    // out of range now (distance 15 > 12) but kept for a while
+
     CHECK(r.IsRetained(far));
     std::vector<ChunkResidency::DrawItem> draw;
     r.CollectDraw(draw);
@@ -391,7 +385,6 @@ static void TestRetention() {
         CHECK(!(d.unit == far));
     const uint64_t revivedBefore = r.Stats().retainedRevived;
 
-    // coming back before the timeout needs no build
     for (int i = 0; i < 12; i++) {
         cam.x--;
         Plan plan;
@@ -407,7 +400,6 @@ static void TestRetention() {
     CHECK(!r.IsRetained(far) && r.HasMesh(far));
     CHECK(r.Stats().retainedRevived > revivedBefore);
 
-    // gone for longer than retainMs: dropped
     for (int i = 0; i < 12; i++)
         cam.x += 2;
     Settle(r, now, cam);
@@ -432,14 +424,14 @@ static void TestRetentionBudget() {
     Populate(r, present, 3);
     uint64_t now = 0;
     Settle(r, now, {0, 0});
-    // the world teleports away; all 49 meshes become retained at 1000 bytes each
+
     ColumnPos cam{100, 0};
     Plan plan;
     r.Tick(now, cam, 0, 0, plan);
     CHECK(r.Stats().retainedBytes <= 3000);
     CHECK(r.Stats().retained == 3);
     CHECK(plan.evict.size() == 46);
-    // the survivors are the ones closest to the camera, which is the eastern edge
+
     int eastern = 0;
     for (int z = -3; z <= 3; z++)
         if (r.HasMesh({0, 3, z}))
@@ -458,7 +450,7 @@ static void TestLookaheadKeepsForwardMeshes() {
     Populate(r, present, 3);
     uint64_t now = 0;
     Settle(r, now, {0, 0});
-    // camera far east but moving west fast: the western meshes are the likely return trip
+
     Plan plan;
     r.Tick(now, {60, 0}, -2.0f, 0.0f, plan);
     CHECK(r.Stats().retained == 1);
@@ -480,7 +472,7 @@ static void TestDirtyAndStale() {
     r.Tick(now, {0, 0}, 0, 0, plan);
     CHECK(plan.build.size() == 1);
     CHECK(plan.build[0].unit.x == 1 && plan.build[0].unit.z == 1);
-    // the old mesh keeps drawing until the new one lands
+
     std::map<std::pair<int, int>, int> count;
     CHECK(InRangeCoverage(r, present, count));
     CHECK((count[std::make_pair(1, 1)] == 1));
@@ -498,7 +490,7 @@ static void TestNeighbourArrival() {
     Plan quiet;
     r.Tick(now + 16, {0, 0}, 0, 0, quiet);
     CHECK(quiet.build.empty());
-    // the east neighbour loads: the border faces held back must be rebuilt
+
     r.SetData({1, 0}, true);
     Plan again;
     r.Tick(now + 32, {0, 0}, 0, 0, again);
@@ -527,7 +519,6 @@ static void TestFailureBackoff() {
     CHECK(later.build.size() == 1);
 }
 
-// a camera flying through the world with slow builds never leaves a hole once the world is loaded
 static void TestNoHolesWhileMoving() {
     ChunkResidency r;
     ResidencyConfig c = SmallConfig();
@@ -545,7 +536,7 @@ static void TestNoHolesWhileMoving() {
     std::vector<BuildRequest> inflight;
     uint64_t now = 0;
     ColumnPos cam{-20, 0};
-    // preload around the start
+
     {
         uint64_t t = 0;
         for (int i = 0; i < 400; i++) {
@@ -567,12 +558,12 @@ static void TestNoHolesWhileMoving() {
             cam.x++;
         Plan plan;
         r.Tick(now, cam, 0.25f, 0, plan);
-        // builds land one tick after they were asked for
+
         for (const BuildRequest& b : inflight)
             r.OnBuilt(b.unit, b.version, b.neighbourMask, 500);
         inflight = plan.build;
         now += 16;
-        // a column that was on screen and is still in range must never drop out while its replacement builds
+
         std::set<std::pair<int, int>> mustCover;
         for (const auto& p : wasCovered)
             if (present.count(p) &&

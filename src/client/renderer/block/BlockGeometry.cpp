@@ -50,8 +50,7 @@ namespace perlin {
             constexpr float kRad = 3.14159265358979f / 180.0f;
             return Mul(Rz(r[2] * kRad), Mul(Ry(-r[1] * kRad), Rx(-r[0] * kRad)));
         }
-        // minecraft:transformation turns the placed block in world axes: no mirrored x/y like model rotations
-        // (the game's own example faces a north model west with [0, 90, 0])
+
         Mat3 TransformRotation(const float r[3]) {
             constexpr float kRad = 3.14159265358979f / 180.0f;
             return Mul(Rz(r[2] * kRad), Mul(Ry(r[1] * kRad), Rx(r[0] * kRad)));
@@ -193,7 +192,6 @@ namespace perlin {
         }
     }
 
-    // poly_mesh: indexed polygons ([position, normal, uv] per corner), or parallel arrays grouped by "tri_list" / "quad_list".
     void BlockGeometry::ReadPolyMesh(const json::View mesh, Bone& bone) {
         const json::View positions = mesh["positions"], uvs = mesh["uvs"], polys = mesh["polys"];
         if (!positions.isArray())
@@ -244,8 +242,7 @@ namespace perlin {
         for (const auto& entry : fs::recursive_directory_iterator(dir, ec)) {
             if (!entry.is_regular_file())
                 continue;
-            // the game reads every .json under models/, whatever the name ("slab_bottom.json" as well as "*.geo.json");
-            // files without geometry add nothing below
+
             if (entry.path().extension() != ".json")
                 continue;
             const auto doc = json::Document::Parse(file::Read(entry.path()), true);
@@ -267,7 +264,7 @@ namespace perlin {
                         Cube cube;
                         ReadVec(c["origin"], cube.origin, 3);
                         ReadVec(c["size"], cube.size, 3);
-                        // Without a pivot a cube turns around its own centre.
+
                         if (c["pivot"].isArray())
                             ReadVec(c["pivot"], cube.pivot, 3);
                         else
@@ -315,9 +312,7 @@ namespace perlin {
                         addGeometry(m.key, m.value, true);
             }
         }
-        // Blocks that reference the builtin full cube (e.g. pillars with per-face materials) have no
-        // geometry file anywhere; synthesize a unit cube whose faces use the standard material names
-        // so per-face tiles (or the "*" fallback in Bake) resolve.
+
         {
             Geometry full;
             full.tw = 16;
@@ -364,8 +359,7 @@ namespace perlin {
         const json::View mi = comps["minecraft:material_instances"];
         if (mi.isObject()) {
             hasMaterials = true;
-            // resource packs write instances directly ({"*": {...}, "up": {...}}); server block definitions (network nbt)
-            // nest them under "materials", with "mappings" naming the instance per face
+
             const json::View table = mi["materials"].isObject() ? mi["materials"] : mi;
             for (const auto m : table.members()) {
                 if (!m.value.isObject())
@@ -377,8 +371,7 @@ namespace perlin {
                 if (it != terrain.end() && (tile = fetch(it->second, packRoot)) != 0)
                     paths[key] = it->second;
                 if (!tile) {
-                    // Network material names are namespaced ("hive:small_pot"); the atlas stems
-                    // and terrain_texture.json paths are not, so retry with the bare name.
+
                     std::string bare = tex;
                     const size_t colon = bare.find(':');
                     if (colon != std::string::npos)
@@ -409,8 +402,7 @@ namespace perlin {
             ReadVec(tr["rotation"], rot, 3);
             ReadVec(tr["translation"], trans, 3);
             ReadVec(tr["scale"], scale, 3);
-            // Network-serialized blocks use single-letter keys (TX/TY/TZ/RX/RY/RZ/SX/SY/SZ);
-            // rotations are quarter-turns, so scale them to degrees like the array form.
+
             if (!tr["rotation"].isArray() && !tr["translation"].isArray() && !tr["scale"].isArray()) {
                 auto num = [&](const char* key) -> float {
                     const json::View v = tr[key];
@@ -505,7 +497,7 @@ namespace perlin {
     }
 
     namespace {
-        // a face's uv rectangle and the 16x16 uv cell holding it; false when it spans more than one
+
         bool FaceCell(float u0, float v0, float u1, float v1, int& cx, int& cy) {
             constexpr float kEps = 1e-3f;
             const float lu = std::min(u0, u1), hu = std::max(u0, u1), lv = std::min(v0, v1), hv = std::max(v0, v1);
@@ -519,8 +511,6 @@ namespace perlin {
         }
     }
 
-    // atlas tiles hold one 16x16 face: a model sheet larger than that (hive's 32x32 slab and plant textures) squeezed
-    // into one tile loses half its resolution, so each 16x16 cell a face reads from becomes its own tile
     void BlockGeometry::CutSheets(Block& block, const std::string& root, const FetchFn& fetch) const {
         std::vector<const Geometry*> used;
         const auto add = [&](const Components& c) {
@@ -615,7 +605,7 @@ namespace perlin {
                 }
                 const bool rotated = cube.rot[0] != 0 || cube.rot[1] != 0 || cube.rot[2] != 0;
                 const Mat3 cubeRot = rotated ? BedrockRotation(cube.rot) : Identity();
-                // Box UV lays the faces out with whole-pixel sizes.
+
                 const float w = std::floor(cube.size[0]), h = std::floor(cube.size[1]),
                             d = std::floor(cube.size[2]);
                 for (int f = 0; f < 6; f++) {
@@ -697,8 +687,7 @@ namespace perlin {
                     auto dit = c.dimming.find(mat);
                     q.shade = (dit == c.dimming.end() || dit->second) ? 1 : 0;
                     float cu[4] = {u0, u0, u1, u1}, cv[4] = {v0, v1, v1, v0};
-                    // uv_rotation turns the texture clockwise: going round the face (corners 0, 3, 2, 1 here), each corner
-                    // takes the UV of the one before it.
+
                     if (const int turns = cube.boxUv ? 0 : cube.faces[f].rotation) {
                         static constexpr int kRing[4] = {0, 3, 2, 1};
                         float ru[4], rv[4];
@@ -770,7 +759,7 @@ namespace perlin {
                             Apply(BedrockRotation(b->rot), b->pivot, p);
                     place(p);
                     std::copy_n(p, 3, q.pos[i]);
-                    // Mesh UVs count from the bottom of the texture.
+
                     const float u = bone.polyNormalized ? poly.uv[i][0] : poly.uv[i][0] / g.tw;
                     const float v = bone.polyNormalized ? poly.uv[i][1] : poly.uv[i][1] / g.th;
                     q.uv[i][0] = u * 16.0f;
@@ -896,7 +885,7 @@ namespace perlin {
                 if (comp.hasMaterials) {
                     for (const auto& [k, v] : comp.tiles) {
                         eff.tiles[k] = v;
-                        // a permutation's own texture replaces the base's cells for that material
+
                         std::erase_if(eff.cells, [&](const auto& cell) { return cell.first.starts_with(k + "|"); });
                     }
                     for (const auto& [k, v] : comp.cells)

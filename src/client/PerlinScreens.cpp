@@ -3,7 +3,7 @@
 
 namespace perlin {
     namespace {
-        // each distinct form kept under its title: every server menu can be replayed offline later
+
         std::string FormDumpName(const std::string& title) {
             std::string name;
             for (const char c : ui::StripFormatting(title))
@@ -18,7 +18,7 @@ namespace perlin {
     }
 
     void Perlin::RegisterScreens() {
-        // full screens first: the first one up takes the frame
+
         screens.Add({"title", [this](ScreenFrame& f) { return UpdateTitleScreen(f.hud, f.fbW, f.fbH); },
                      [this] { return titleScreen.shown; }});
         screens.Add({"disconnect",
@@ -43,7 +43,7 @@ namespace perlin {
                          return credits.shown;
                      },
                      [this] { return credits.shown; }});
-        // in-game screens: each decides for itself whether it opens
+
         const auto inGame = [](auto update) {
             return [update](ScreenFrame& f) {
                 update(f);
@@ -112,7 +112,7 @@ namespace perlin {
         if (!(hud.Ready() && hud.Overrides("hud")))
             for (const auto& b : live->BossBars())
                 data.bars.push_back({b.title, b.progress, b.color, b.overlay});
-        // vanilla stacks all bars, no 4-cap
+
         if (data.bars.size() > 8)
             data.bars.resize(8);
         const auto sb = live->Scoreboard();
@@ -138,7 +138,7 @@ namespace perlin {
 
     void Perlin::UpdateFormScreen(ui::Hud& hud, BedrockSession* live, int fbW, int fbH) {
         const auto now = Clock::now();
-        // PERLIN_PREVIEW_FORM=<form.json>: open a captured form without a server; answers go to the log
+
         const char* previewForm = live ? nullptr : PERLIN_ENV("PERLIN_PREVIEW_FORM");
         if (!live && !previewForm) {
             if (form.shown)
@@ -183,12 +183,12 @@ namespace perlin {
                     live->SendFormResponse(sf.id, nullptr, false);
                 return;
             }
-            // PERLIN_PREVIEW_FORM_CLICKS="t:3,d:6": clicks applied as if made, to check each control's states
+
             if (!live)
                 if (const char* clicks = PERLIN_ENV("PERLIN_PREVIEW_FORM_CLICKS")) {
                     std::stringstream list(clicks);
                     std::string ignored;
-                    // "-" clicks on nothing
+
                     for (std::string id; std::getline(list, id, ',');)
                         if (!ui::FormDismissDropdown(form.model, id == "-" ? std::string() : id))
                             ui::FormClick(form.model, id, ignored);
@@ -199,7 +199,7 @@ namespace perlin {
                 detail::DumpGenerated("forms/" + name + ".json", sf.json);
             form.ui.Warm(ServerPacks::Instance().Directories());
             form.ui.WaitReady(150);
-            // forms draw with the game's own json ui; the built-in layout only if those files fail
+
             form.engineFailed = false;
             form.engine = form.ui.Ready();
             form.shown = true;
@@ -222,7 +222,7 @@ namespace perlin {
         form.scroll = std::max(0.0f, form.scroll - inputManager.Scroll() * 20.0f);
         if (cancel)
             return respondAndClose(nullptr);
-        // server ui still loading: wait for its layout, don't flash ours first
+
         if (!form.engine && form.ui.Building() && now - form.openedAt < std::chrono::seconds(3))
             return;
 
@@ -232,8 +232,7 @@ namespace perlin {
             str::Key(form.model.id, form.model.focus, form.model.openDropdown,
                      ui::FormCustomResponse(form.model), ui::FormImageVersion(), str::Cat(gui.w, "x", gui.h),
                      static_cast<int>(form.scroll), form.engine ? "e" : "b");
-        // server pack menus slide in and cards fade; animations only advance on re-evaluation:
-        // rebuild at frame rate while the last build reported motion
+
         if (form.engine && form.ui.Animating() && now - form.lastAnim >= std::chrono::milliseconds(80)) {
             form.signature.clear();
             form.lastAnim = now;
@@ -251,7 +250,7 @@ namespace perlin {
                 rml = ui::BuildFormRml(form.model, gui.w, gui.h, form.scroll, contentH, viewH);
             form.contentH = contentH;
             form.viewH = viewH;
-            // kept to inspect a server menu's built layout offline
+
             detail::DumpGenerated("last_form.rml", rml);
             if (!hud.Overlay().SetOverlay(rml, error)) {
                 Log("form", "{}", error);
@@ -287,7 +286,7 @@ namespace perlin {
             std::string response;
             if (!hover.empty() && ui::FormClick(form.model, hover, response))
                 return respondAndClose(&response);
-            // a click on another control leaves the text box
+
             if (!hover.empty() && !hover.starts_with("i:"))
                 form.model.focus = -1;
         }
@@ -321,7 +320,7 @@ namespace perlin {
         hud.Overlay().MouseMove(gui.ToGui(input.MouseX()), gui.ToGui(input.MouseY()));
         hud.UpdateOverlay(fbW, fbH, options.guiScale);
         const bool down = input.IsMouseDown(0);
-        // drain typed keys every frame, escape or not
+
         const bool escaped = detail::EscapeTyped(inputManager.TakeTyped());
         bool leave = escaped || inputManager.Pressed(Action::Pause);
         if (!down && bed.leftDown && hud.Overlay().OverlayHover() == ui::kBedLeaveId)
@@ -332,7 +331,7 @@ namespace perlin {
     }
 
     void Perlin::UpdateCreditsScreen(ui::Hud& hud, BedrockSession* live, int fbW, int fbH) {
-        // PERLIN_PREVIEW_CREDITS: replay credits from the top when they finish
+
         const bool preview = !live && PERLIN_ENV("PERLIN_PREVIEW_CREDITS") != nullptr;
         if (!live && !preview) {
             credits.shown = false;
@@ -348,10 +347,10 @@ namespace perlin {
             return;
         const detail::GuiViewport gui = detail::OverlayViewport(hud, fbW, fbH);
         const auto now = Clock::now();
-        // about one gui pixel per tick, like the java end poem
+
         credits.scroll += detail::SecondsSince(credits.last, now) * 20.0;
         credits.last = now;
-        // document only changes when the text moves a whole pixel
+
         const std::string signature = str::Key(static_cast<int>(credits.scroll), str::Cat(gui.w, "x", gui.h));
         if (signature != credits.signature || !hud.Overlay().HasOverlay()) {
             credits.signature = signature;
@@ -383,7 +382,7 @@ namespace perlin {
             Clock::now() - death.openedAt > std::chrono::seconds(2))
             live->ClearDeath();
         const auto now = Clock::now();
-        // a respawn was asked for: hold the screen back while the server answers
+
         if (dead && death.respawnSent) {
             if (now - death.sentAt < std::chrono::seconds(3))
                 dead = false;

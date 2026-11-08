@@ -65,14 +65,14 @@ private:
     std::atomic<bool> surfaceChanged{false};
     void* lastNativeWindow = nullptr;
     bool surfaceLost = false;
-    bool backgrounded = false; // iOS: no gpu work allowed until the app is in front again
+    bool backgrounded = false;
     bool recaptureAfterText = false;
     bool touchMode = false;
-    // a mouse, keyboard or controller may take over from touch (desktop, Chromebooks, TVs, DeX); phones stay touch
+
     bool adaptiveInput = true;
-    // Android TV / Fire TV: lean-back, remote or controller, nothing to touch
+
     bool tvMode = false;
-    // menus with a controller or remote where the cursor cannot be warped: a pointer drawn by the game
+
     bool virtualPointer = false;
     bool pointerShown = false;
     float pointerX = 0.0f, pointerY = 0.0f;
@@ -83,7 +83,7 @@ private:
     SDL_Window* window = nullptr;
     void* metalView = nullptr;
     void* renderSurface =
-        nullptr; // windows: child window the swapchain lives on once a backend switch has happened
+        nullptr;
     void ResizeRenderSurface();
     NativeWindowInfo native;
     std::unique_ptr<perlin::Perlin> game;

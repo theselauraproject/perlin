@@ -24,8 +24,8 @@ namespace perlin {
 
         constexpr size_t kMaxMeshVertices = 60000;
         constexpr size_t kMaxEntityRules = 512;
+        constexpr size_t kMaxAttachedMeshes = 128;
 
-        // in abi::HudElement order
         constexpr const char* kHudRenderers[] = {
             "heart_renderer",       "armor_renderer",        "hunger_renderer", "bubbles_renderer",
             "hotbar_renderer",      "progress_bar_renderer", "debug_renderer",  "chat_renderer",
@@ -84,7 +84,6 @@ namespace perlin {
             return true;
         });
 
-        // tooltips rebuilt every frame while hovered: ask mods once per item, cache briefly
         ui::SetTooltipExtender([this](const ui::HudItem& item) {
             static std::string lastKey;
             static std::vector<std::string> lastLines;
@@ -201,6 +200,83 @@ namespace perlin {
                 return Status::BadArguments;
             std::lock_guard lock(modHooks.mutex);
             modHooks.meshes.erase(ctx.plugin + "/" + id);
+            return Status::Ok;
+        });
+
+        mm.Register(Op::ClientTime, [this](CallContext&, abi::Reader& r, abi::Writer&) {
+            abi::ClientTimeData d = r.read<abi::ClientTimeData>();
+            if (!r.Ok())
+                return Status::BadArguments;
+            d.timeOfDay = std::clamp(d.timeOfDay, 0, 23999);
+            std::lock_guard lock(modHooks.mutex);
+            modHooks.time = {d.enabled ? After(d.ticks) : Clock::time_point{}, d};
+            return Status::Ok;
+        });
+
+        mm.Register(Op::ClientWeather, [this](CallContext&, abi::Reader& r, abi::Writer&) {
+            abi::ClientWeatherData d = r.read<abi::ClientWeatherData>();
+            if (!r.Ok() || !std::isfinite(d.rain) || !std::isfinite(d.thunder))
+                return Status::BadArguments;
+            d.rain = std::clamp(d.rain, 0.0f, 1.0f);
+            d.thunder = std::clamp(d.thunder, 0.0f, 1.0f);
+            std::lock_guard lock(modHooks.mutex);
+            modHooks.weather = {d.enabled ? After(d.ticks) : Clock::time_point{}, d};
+            return Status::Ok;
+        });
+
+        mm.Register(Op::BlockOutline, [this](CallContext&, abi::Reader& r, abi::Writer&) {
+            const abi::BlockOutlineData d = r.read<abi::BlockOutlineData>();
+            if (!r.Ok())
+                return Status::BadArguments;
+            std::lock_guard lock(modHooks.mutex);
+            modHooks.outline = {After(d.ticks), d};
+            return Status::Ok;
+        });
+
+        mm.Register(Op::ViewModel, [this](CallContext&, abi::Reader& r, abi::Writer&) {
+            abi::ViewModelData d = r.read<abi::ViewModelData>();
+            if (!r.Ok())
+                return Status::BadArguments;
+            for (float* v : {&d.swingSpeed, &d.scale, &d.bobStrength, &d.armX, &d.armY, &d.armZ, &d.armRotX,
+                             &d.armRotY, &d.armRotZ, &d.armScale, &d.itemX, &d.itemY, &d.itemZ, &d.itemRotX,
+                             &d.itemRotY, &d.itemRotZ, &d.itemScale})
+                if (!std::isfinite(*v))
+                    return Status::BadArguments;
+            d.swingSpeed = std::clamp(d.swingSpeed, 0.1f, 10.0f);
+            d.scale = std::clamp(d.scale, 0.05f, 8.0f);
+            d.armScale = std::clamp(d.armScale, 0.05f, 8.0f);
+            d.itemScale = std::clamp(d.itemScale, 0.05f, 8.0f);
+            d.bobStrength = std::clamp(d.bobStrength, 0.0f, 10.0f);
+            for (float* v : {&d.armX, &d.armY, &d.armZ, &d.armRotX, &d.armRotY, &d.armRotZ, &d.itemX, &d.itemY,
+                             &d.itemZ, &d.itemRotX, &d.itemRotY, &d.itemRotZ})
+                *v = std::clamp(*v, -360.0f, 360.0f);
+            std::lock_guard lock(modHooks.mutex);
+            modHooks.viewModel = {After(d.ticks), d};
+            return Status::Ok;
+        });
+
+        mm.Register(Op::EntityMesh, [this](CallContext& ctx, abi::Reader& r, abi::Writer&) {
+            abi::EntityMeshData m = r.read<abi::EntityMeshData>();
+            if (!r.Ok() || m.id.empty() || m.id.size() > 64 || m.triangles.size() > kMaxMeshVertices ||
+                m.triangles.size() % 3)
+                return Status::BadArguments;
+            for (const abi::MeshVertex& v : m.triangles)
+                if (!std::isfinite(v.x) || !std::isfinite(v.y) || !std::isfinite(v.z))
+                    return Status::BadArguments;
+            const std::string key = ctx.plugin + "/" + m.id;
+            std::lock_guard lock(modHooks.mutex);
+            if (!modHooks.attachedMeshes.contains(key) && modHooks.attachedMeshes.size() >= kMaxAttachedMeshes)
+                return Status::Failed;
+            modHooks.attachedMeshes[key] = {After(m.ticks), std::move(m)};
+            return Status::Ok;
+        });
+
+        mm.Register(Op::EntityMeshClear, [this](CallContext& ctx, abi::Reader& r, abi::Writer&) {
+            const std::string id = r.str();
+            if (!r.Ok())
+                return Status::BadArguments;
+            std::lock_guard lock(modHooks.mutex);
+            modHooks.attachedMeshes.erase(ctx.plugin + "/" + id);
             return Status::Ok;
         });
 
@@ -344,7 +420,7 @@ namespace perlin {
                 e.ok = RakNet::Ping(q.host, q.port, ad, error, 2500);
                 e.latencyMs = std::chrono::duration<float, std::milli>(Clock::now() - start).count();
                 if (e.ok) {
-                    // MCPE;motd;protocol;version;players;max;...
+
                     std::vector<std::string> f;
                     size_t from = 0;
                     for (size_t at; (at = ad.find(';', from)) != std::string::npos; from = at + 1)
@@ -425,6 +501,7 @@ namespace perlin {
             modHooks.debug.erase(plugin);
             modHooks.entities.erase(plugin);
             std::erase_if(modHooks.meshes, [&](const auto& m) { return m.first.starts_with(plugin + "/"); });
+            std::erase_if(modHooks.attachedMeshes, [&](const auto& m) { return m.first.starts_with(plugin + "/"); });
             modHooks.frame.erase(plugin);
             std::erase_if(modHooks.buttons, [&](const ModHooks::Button& b) { return b.plugin == plugin; });
             if (modHooks.customOwner == plugin)
@@ -440,6 +517,7 @@ namespace perlin {
             packsChanged =
                 std::erase_if(modHooks.packs, [&](const auto& p) { return p.first == plugin; }) > 0;
         }
+        DropModExtra(plugin);
         if (hudChanged)
             ui::BumpHudFilter();
         if (packsChanged)
@@ -460,7 +538,7 @@ namespace perlin {
         if (Clock::now() >= until)
             return;
         if (!f.enabled) {
-            // "no fog": fog distances far past render distance
+
             fog.environmentalStart = fog.renderDistanceStart = 1e6f;
             fog.environmentalEnd = fog.renderDistanceEnd = 1e6f + 1.0f;
             return;
@@ -560,6 +638,7 @@ namespace perlin {
     void Perlin::PrepareModRender(entity::EntityRenderer::FrameIn& in) {
         const auto now = Clock::now();
         modFrameMeshes.clear();
+        modFrameAttached.clear();
         modFrameStyles.clear();
         modFrameTypeStyles.clear();
         std::lock_guard lock(modHooks.mutex);
@@ -613,6 +692,91 @@ namespace perlin {
         }
         if (!modFrameMeshes.empty())
             in.modMeshes = &modFrameMeshes;
+
+        std::erase_if(modHooks.attachedMeshes, [&](const auto& m) { return now >= m.second.until; });
+        for (const auto& [key, mesh] : modHooks.attachedMeshes) {
+            const abi::EntityMeshData& m = mesh.data;
+            if (m.triangles.empty())
+                continue;
+            entity::EntityRenderer::FrameIn::AttachedMesh out;
+            out.entity = m.entity;
+            out.anchor = static_cast<int>(m.anchor);
+            out.depthTest = m.depthTest;
+            out.hideInFirstPerson = m.hideInFirstPerson;
+            if (m.texture) {
+                const std::string plugin = key.substr(0, key.find('/'));
+                const auto tex = modGfxTextures.find(plugin + "/" + std::to_string(m.texture));
+                out.texture = tex != modGfxTextures.end() ? tex->second.gpu : 0;
+            }
+            out.vertices.reserve(m.triangles.size());
+            for (const abi::MeshVertex& v : m.triangles)
+                out.vertices.push_back({static_cast<float>(v.x), static_cast<float>(v.y), static_cast<float>(v.z),
+                                        ArgbToAbgr(v.color), v.u, v.v});
+            modFrameAttached.push_back(std::move(out));
+        }
+        if (!modFrameAttached.empty())
+            in.attachedMeshes = &modFrameAttached;
+    }
+
+    bool Perlin::ModClientTime(double& worldTicks) {
+        std::lock_guard lock(modHooks.mutex);
+        if (Clock::now() >= modHooks.time.first)
+            return false;
+
+        worldTicks = std::floor(worldTicks / 24000.0) * 24000.0 + modHooks.time.second.timeOfDay;
+        return true;
+    }
+
+    bool Perlin::ModClientWeather(float& rain, float& thunder) {
+        std::lock_guard lock(modHooks.mutex);
+        if (Clock::now() >= modHooks.weather.first)
+            return false;
+        const abi::ClientWeatherData& w = modHooks.weather.second;
+        rain = w.rain;
+        thunder = w.thunder * w.rain;
+        return true;
+    }
+
+    HandSettings Perlin::ModHand() {
+        HandSettings hand = options.hand;
+        std::lock_guard lock(modHooks.mutex);
+        if (Clock::now() >= modHooks.viewModel.first)
+            return hand;
+        const abi::ViewModelData& v = modHooks.viewModel.second;
+        using F = abi::ViewModelField;
+        if (v.fields.has(F::SwingSpeed))
+            hand.swingSpeed = v.swingSpeed;
+        if (v.fields.has(F::Scale))
+            hand.scale = v.scale;
+        if (v.fields.has(F::Bob))
+            hand.bobStrength = v.bobStrength;
+        if (v.fields.has(F::Visible))
+            hand.show = v.visible;
+        if (v.fields.has(F::Sway))
+            hand.sway = v.sway;
+        if (v.fields.has(F::Equip))
+            hand.equipAnimation = v.equip;
+        if (v.fields.has(F::LeftHanded))
+            hand.leftHanded = v.leftHanded;
+        if (v.fields.has(F::Arm)) {
+            hand.armX = v.armX, hand.armY = v.armY, hand.armZ = v.armZ;
+            hand.armRotX = v.armRotX, hand.armRotY = v.armRotY, hand.armRotZ = v.armRotZ;
+            hand.armScale = v.armScale;
+        }
+        if (v.fields.has(F::Item)) {
+            hand.itemX = v.itemX, hand.itemY = v.itemY, hand.itemZ = v.itemZ;
+            hand.itemRotX = v.itemRotX, hand.itemRotY = v.itemRotY, hand.itemRotZ = v.itemRotZ;
+            hand.itemScale = v.itemScale;
+        }
+        return hand;
+    }
+
+    std::optional<uint32_t> Perlin::ModOutline() {
+        std::lock_guard lock(modHooks.mutex);
+        if (Clock::now() >= modHooks.outline.first)
+            return std::nullopt;
+        const abi::BlockOutlineData& o = modHooks.outline.second;
+        return o.hidden ? 0u : ArgbToAbgr(o.color);
     }
 
     void Perlin::DrawModTint(int fbW, int fbH) {
@@ -717,7 +881,6 @@ namespace perlin {
             }
         }
 
-        // level load: on join and each dimension change; unload: on leave and before dimension change
         static bool wasIn = false;
         static int wasDim = -1;
         const bool in = live && live->GetState() == BedrockSession::State::InGame;

@@ -102,7 +102,7 @@ namespace perlin::ui {
                 cut = lastSpace;
             const std::string head = rest.substr(0, cut);
             out.push_back(carry + head);
-            // the state the cut line ends in starts the next one: a colour keeps bold on, as in the game
+
             FormatState state;
             const std::string line = carry + head;
             for (size_t i = 0; i < line.size();) {

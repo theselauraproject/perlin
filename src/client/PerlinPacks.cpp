@@ -33,14 +33,14 @@ namespace perlin {
     void Perlin::ApplyTexturePacks() {
         {
             std::string error;
-            // mod-shipped packs sit under the player's own, by absolute path
+
             std::vector<std::string> stack = options.texturePacks;
             {
                 std::lock_guard lock(modHooks.mutex);
                 for (const auto& pack : modHooks.packs)
                     stack.push_back(pack.second);
             }
-            // a background block load reads the stack being replaced
+
             if (levelRenderer)
                 levelRenderer->WaitAssetJob();
             TexturePack::Instance().OpenStack(paths::DataDir() + "/texturepacks", stack, error);
@@ -64,7 +64,7 @@ namespace perlin {
             return;
         }
         Log("packs", "unloading the server's resource packs");
-        // finish readers before freeing the definitions and textures they reference
+
         form.ui.Reset();
         inventory.chestUi.Reset();
         ui::JsonScreens::Instance().Reset();
@@ -154,7 +154,7 @@ namespace perlin {
         if (!javaPackPending.empty() && levelRenderer && levelRenderer->Blocks().Complete()) {
             std::string error;
             const std::string path = javaPackPending;
-            // "name|state=value|..." so the pack can match iris's block-state entries
+
             renderer->SetBlockNameLookup([](uint16_t id) {
                 const BlockPalette& palette = BlockPalette::Instance();
                 std::string out = palette.Name(id);
@@ -180,7 +180,7 @@ namespace perlin {
         }
         if (renderer->JavaShaderPackActive() && live) {
             int dim = std::clamp(live->DimensionId(), 0, 2);
-            // developer testing: run the pack's nether (1) or end (2) programs in any world
+
             if (const char* forced = std::getenv("PERLIN_DEV_PACK_DIMENSION"))
                 dim = std::clamp(std::atoi(forced), 0, 2);
             if (dim != javaPackDimension) {

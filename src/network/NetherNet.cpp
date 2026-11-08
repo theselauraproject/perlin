@@ -135,8 +135,7 @@ namespace perlin {
 
         impl = std::make_unique<Impl>();
         try {
-            // a direct join has no relays: STUN puts our public address in the offer, or a server outside our NAT
-            // can't reach us
+
             rtc::Configuration config;
             config.iceServers.emplace_back("stun.l.google.com", uint16_t(19302));
             config.iceServers.emplace_back("stun.cloudflare.com", uint16_t(3478));
@@ -310,7 +309,7 @@ namespace perlin {
             while (!impl->reliableOpen.load()) {
                 if (impl->failed.load())
                     break;
-                // ICE settles in a few seconds when it works: fall back to raknet sooner
+
                 if (std::chrono::steady_clock::now() - start > std::chrono::seconds(8))
                     break;
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));

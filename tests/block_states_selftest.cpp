@@ -1,4 +1,3 @@
-// iris block.properties matching against bedrock block states (BlockStates.cpp)
 #include "client/javashaders/BlockStates.hpp"
 
 #include <cstdio>
@@ -15,7 +14,7 @@ static void Check(bool ok, const char* what) {
 }
 
 int main() {
-    // names and states
+
     {
         const JavaBlock b = ToJavaBlock("minecraft:lit_furnace|minecraft:cardinal_direction=north");
         Check(b.name == "furnace", "lit_furnace -> furnace");
@@ -62,7 +61,6 @@ int main() {
         Check(b.name == "wall_torch", "wall torch");
     }
 
-    // iris matching: file order, first match wins, predicates on missing properties ignored, tags after blocks
     {
         BlockIdMatcher m;
         m.Build({{10, {"minecraft:lantern:hanging=false"}},

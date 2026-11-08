@@ -35,7 +35,7 @@ public:
     }
 
     virtual void SetCursorCaptured(bool captured) { (void)captured; }
-    // borderless fullscreen on the window's current display; no-op where the window is always fullscreen
+
     virtual void SetFullscreen(bool fullscreen) { (void)fullscreen; }
     virtual bool IsFullscreen() const { return false; }
 
@@ -73,8 +73,7 @@ public:
     virtual bool WindowMinimized() const { return false; }
     virtual void OpenUrl(const std::string& url) { (void)url; }
     virtual bool TakeSurfaceChanged() { return false; }
-    // a fresh native surface for the next graphics backend: windows and metal tie a window to the api that first presented to it,
-    // so after a backend switch the old surface can keep showing its last frame; call with the old swapchain already destroyed
+
     virtual void RenewRenderSurface() {}
     virtual bool PickFile(const std::string& kind) {
         (void)kind;
@@ -87,7 +86,7 @@ public:
         return false;
     }
     virtual void DrawTouchOverlay(perlin::RenderContext& renderer) { (void)renderer; }
-    // the pointer a gamepad or TV remote moves through menus where the system draws none (TV, phones, tablets)
+
     virtual void DrawPointerOverlay(perlin::RenderContext& renderer) { (void)renderer; }
 
     virtual std::unique_ptr<perlin::RenderContext> CreateRenderContext() = 0;

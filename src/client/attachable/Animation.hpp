@@ -45,8 +45,6 @@ namespace perlin::attachable {
         Channel rotation, position, scale;
     };
 
-    // a particle_effects entry: the effect's short name in the entity's own map, where on the model, and molang run
-    // into the emitter's scope first
     struct ParticleCue {
         std::string effect, locator, preScript;
     };
@@ -58,7 +56,7 @@ namespace perlin::attachable {
         std::shared_ptr<molang::Expr> animTimeUpdate;
         std::shared_ptr<molang::Expr> blendWeight;
         std::map<std::string, BoneAnimation> bones;
-        // particle_effects timeline: fired as the animation's clock passes each time
+
         std::vector<std::pair<float, ParticleCue>> particles;
     };
 
@@ -71,7 +69,7 @@ namespace perlin::attachable {
             std::vector<std::pair<std::string, std::shared_ptr<molang::Expr>>> animations;
             std::vector<std::pair<std::string, std::shared_ptr<molang::Expr>>> transitions;
             std::vector<std::shared_ptr<molang::Expr>> onEntry, onExit;
-            // particle_effects: started when the controller enters the state
+
             std::vector<ParticleCue> particles;
         };
         struct Controller {

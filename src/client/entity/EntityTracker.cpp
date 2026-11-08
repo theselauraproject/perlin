@@ -164,8 +164,6 @@ namespace perlin::entity {
             e.hasQueued = false;
         }
 
-        // Actor::lerpTo 0x142C74350: a running interpolation started with forceCompletion keeps going and the new
-        // target waits in QueuedMovementInterpolationComponent; anything else replaces the target
         void LerpTo(Entity& e, const Entity::Lerp& to) {
             if (!to.forceCompletion && e.lerp.forceCompletion && e.lerp.steps != 0) {
                 e.queued = to;
@@ -175,8 +173,6 @@ namespace perlin::entity {
             e.lerp = to;
         }
 
-        // move_entity / move_entity_delta handler 0x1422C88B0 -> 0x1422C8D20: steps = ticks when above 3, else 3;
-        // a teleport of 0.5 block or more is placed at once
         void Receive(Entity& e, const glm::dvec3& next, float pitch, float yaw, float headYaw,
                      EntityTracker::MoveKind kind, uint64_t ticks, bool forceCompletion) {
             e.haveNet = true;
@@ -189,7 +185,7 @@ namespace perlin::entity {
             const glm::dvec3 jump = next - e.pos;
             const bool farTeleport =
                 kind == EntityTracker::MoveKind::Teleport && glm::dot(jump, jump) >= 0.25;
-            // TODO: the game also places at once when the destination block is not loaded
+
             if (kind == EntityTracker::MoveKind::Place || farTeleport || !e.ticked)
                 PlaceNow(e, to);
             else
@@ -253,7 +249,7 @@ namespace perlin::entity {
             e.ticked = true;
             if (e.isSelf || (e.isItem && e.simulated) || pickups.contains(rid))
                 continue;
-            // MovementInterpolatorSystem::handleQueuedMovementInterpolation 0x143634AE0
+
             if (e.hasQueued) {
                 if (e.lerp.forceCompletion && e.lerp.steps != 0) {
                     e.queued.steps = std::max(e.queued.steps, 2) - 1;
@@ -263,7 +259,7 @@ namespace perlin::entity {
                     e.hasQueued = false;
                 }
             }
-            // MovementInterpolatorSystem::tickClient 0x143630D70: 1/steps of the way, the last step lands on it
+
             if (e.lerp.steps > 0) {
                 if (e.lerp.steps == 1) {
                     e.pos = e.lerp.pos;
@@ -305,8 +301,7 @@ namespace perlin::entity {
     PERLIN_ENTITY_SET(SetFlagsExtended(uint64_t rid, uint64_t flags), e.flagsExtended = flags)
     PERLIN_ENTITY_SET(SetCrawling(uint64_t rid, bool crawling), e.crawling = crawling)
     PERLIN_ENTITY_SET(SetScale(uint64_t rid, float scale), e.scale = scale)
-    // server hitbox: draw/collide with what it simulates
-    // one lane may come alone: the other keeps what was there
+
     PERLIN_ENTITY_SET(SetBoundingBox(uint64_t rid, float width, float height),
                       if (width >= 0.0f) e.boxWidth = width;
                       if (height >= 0.0f) e.boxHeight = height; e.boxSent = true)
@@ -466,7 +461,7 @@ namespace perlin::entity {
         const auto it = entities.find(rid);
         if (it == entities.end())
             return;
-        // kept for every actor (a projectile points along its spawn velocity); only items are simulated from it
+
         it->second.vel = velocity;
         if (it->second.isItem)
             it->second.simulated = true;
@@ -491,7 +486,7 @@ namespace perlin::entity {
             if (blocked(p.x, ny, p.z)) {
                 if (e.vel.y < 0.0) {
                     grounded = true;
-                    // come to rest on the surface itself (slabs, carpets and custom shapes are lower than a cell)
+
                     double lo = ny, hi = p.y;
                     if (!blocked(p.x, hi, p.z)) {
                         for (int i = 0; i < 10; i++) {

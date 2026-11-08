@@ -14,7 +14,7 @@ int main() {
     fs::create_directories(dir / "pack");
     std::ofstream(dir / "base/hud_screen.json")
         << R"({"namespace":"hud","hud_screen":{"type":"panel","size":[100,100],"controls":[{"sidebar":{"type":"label","text":"original"}}]}})";
-    // A pack hides the built-in sidebar and supplies its own HUD background.
+
     std::ofstream(dir / "pack/hud_screen.json")
         << R"({"root_panel/sidebar":{"ignored":true},"hud_screen":{"marker":"pack-loaded"}})";
     std::ofstream(dir / "pack/late.json")

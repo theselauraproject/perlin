@@ -31,7 +31,6 @@ namespace perlin::ui {
             return true;
         }
 
-        // wrap to java poem width (274 gui px)
         void AppendWrapped(std::vector<Line>& lines, const std::string& text, const std::string& cls) {
             constexpr size_t kColumns = 46;
             std::string line;
@@ -47,7 +46,6 @@ namespace perlin::ui {
                 lines.push_back({line, cls});
         }
 
-        // end.txt, postcredits.txt: blank-line paragraphs, §3/§2 mark the two speakers
         bool AppendStory(std::vector<Line>& lines, const char* name, const std::string& player) {
             std::string text;
             if (!ReadText(name, text))
@@ -76,7 +74,6 @@ namespace perlin::ui {
             return true;
         }
 
-        // java edition credits, extracted from the client jar with other assets
         bool AppendJavaCredits(std::vector<Line>& lines) {
             std::string text;
             if (!ReadText("credits.json", text))
@@ -114,9 +111,8 @@ namespace perlin::ui {
             return true;
         }
 
-        // java order: end poem, credits, post-credits
         const std::vector<Line>& Lines(const std::string& player = "") {
-            // jar extracted in background on first launch: retry until texts appear
+
             static std::vector<Line> lines;
             static std::string builtFor;
             static bool java = false;
@@ -165,7 +161,7 @@ body { position: absolute; left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;
     }
 
     std::string BuildCreditsScreenRml(int guiW, int guiH, int scroll, const std::string& player) {
-        // thousands of lines: emit only visible ones
+
         const int top = guiH - scroll;
         int y = 0, skipped = 0;
         std::string lines;

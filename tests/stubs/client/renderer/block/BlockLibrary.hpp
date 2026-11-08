@@ -1,5 +1,5 @@
 #pragma once
-// atlas constants only; the real header pulls in the whole block database
+
 namespace perlin {
     class BlockLibrary {
     public:

@@ -1,7 +1,3 @@
-// Offline check of an OptiFine / Iris shader pack: every program of every dimension goes through the same path the
-// game uses (include expansion, option macros, Transform, glslang to SPIR-V) and on to each backend's language
-// (SPIR-V for Vulkan, HLSL for Direct3D, MSL for Metal). Compute programs are compiled too.
-//   jshader_check <pack folder or zip> [-d world0,world-1,world1] [-b spirv,hlsl,msl] [-o NAME=VALUE]... [-v] [-p prog]
 #include "client/javashaders/BlockStates.hpp"
 #include "client/javashaders/GlslangBridge.hpp"
 #include "client/javashaders/PackSource.hpp"
@@ -39,7 +35,6 @@ namespace {
         return out;
     }
 
-    // glslang's HLSL front end stands in for fxc / dxc: it catches what SPIRV-Cross emits that HLSL rejects
     bool ValidateHlsl(const std::string& text, bool fragment, std::string& log) {
         const EShLanguage lang = fragment ? EShLangFragment : EShLangVertex;
         glslang::TShader shader(lang);
@@ -66,7 +61,6 @@ namespace {
         return log.substr(a, b == std::string::npos ? std::string::npos : b - a).substr(0, 300);
     }
 
-    // metal links stages by [[user(locnN)]]: every fragment input needs a vertex output of the same type
     std::map<std::string, std::string> MslVaryings(const std::string& src, const char* structName) {
         std::map<std::string, std::string> out;
         const size_t a = src.find(std::string("struct ") + structName);
@@ -89,7 +83,6 @@ namespace {
         return out;
     }
 
-    // semantic -> type of the members of an spirv-cross hlsl entry struct
     std::map<std::string, std::string> HlslStruct(const std::string& src, const std::string& name) {
         std::map<std::string, std::string> out;
         const size_t at = src.find("struct " + name);
@@ -117,8 +110,6 @@ namespace {
         return out;
     }
 
-    // what d3d12 checks when it links a pipeline: every vertex input is in the input layout, every pixel input is
-    // written by the vertex shader with the same type
     bool HlslInterfaceMatches(const std::string& vs, const std::string& fs, const std::set<std::string>& layout,
                               std::string& why) {
         for (const auto& [sem, type] : HlslStruct(vs, "SPIRV_Cross_Input"))
@@ -178,7 +169,7 @@ int main(int argc, char** argv) {
     bool verbose = false;
     std::string only, profileArg;
     int randomConfigs = 0;
-    std::string uniformBiome; // -u <biome>: print the pack's custom uniforms there and stop
+    std::string uniformBiome;
     for (int i = 2; i < argc; i++) {
         const std::string a = argv[i];
         if (a == "-P" && i + 1 < argc)
@@ -207,7 +198,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "cannot open pack %s\n", argv[1]);
         return 2;
     }
-    // the features a vulkan / d3d12 / metal device offers
+
     EngineEnvironment env;
     env.features = BaseFeatureFlags();
     for (const char* f : {"CUSTOM_IMAGES", "COMPUTE_SHADERS", "SSBO"})
@@ -245,7 +236,7 @@ int main(int argc, char** argv) {
         }
         return 0;
     }
-    // -P NAME applies a profile of the pack, -P all checks every profile in turn
+
     std::vector<std::pair<std::string, OptionValues>> configs;
     if (profileArg.empty()) {
         configs.emplace_back("", overrides);
@@ -264,7 +255,7 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
-    // -r N: N configurations with every option at a random value of its list (seeded, reproducible)
+
     if (randomConfigs > 0) {
         const ShaderPackInstance probe(pack, overrides, EngineMacros(260300, false, env));
         uint64_t seed = 0x9E3779B97F4A7C15ull;
@@ -277,8 +268,7 @@ int main(int argc, char** argv) {
         configs.clear();
         for (int r = 0; r < randomConfigs; r++) {
             OptionValues v;
-            // only options a screen shows: the rest (section guards like sildur's #define final) are not
-            // meant to change, and iris would let a player reach them through a screen only
+
             std::set<std::string> shown;
             std::function<void(const std::string&)> walk = [&](const std::string& screen) {
                 for (const ScreenEntry& e : BuildScreen(probe, screen).entries) {
@@ -308,7 +298,7 @@ int main(int argc, char** argv) {
         for (const std::string& dim : dims) {
             ShaderPackInstance instance(pack, configValues, EngineMacros(260300, false, env));
             instance.SetDimension(dim);
-            // JSHADER_BLOCKS="minecraft:grass_block;minecraft:lantern|hanging=1": the ids block.properties gives
+
             if (const char* blocks = std::getenv("JSHADER_BLOCKS")) {
                 BlockIdMatcher matcher;
                 matcher.Build(instance.BlockIdLines());
@@ -363,12 +353,12 @@ int main(int argc, char** argv) {
                     name.compare(0, 3, "dh_") == 0)
                     continue;
                 if (name.compare(0, 10, "shadowcomp") == 0 && !pipeline.shadowEnabled)
-                    continue; // iris runs shadowcomp only with a shadow pass
+                    continue;
                 const auto src = instance.Program(name);
                 if (!src || !src->found)
                     continue;
                 const std::string tag = (configName.empty() ? "" : configName + ":") + dim + "/" + name;
-                // compute: through the same transform and backends the game uses
+
                 for (size_t c = 0; c < src->compute.size(); c++) {
                     TransformOptions copts = baseOpts;
                     const ComputeResult cr = TransformCompute(src->compute[c], copts);
@@ -412,7 +402,7 @@ int main(int argc, char** argv) {
                     TransformOptions opts = baseOpts;
                     opts.flipVertexY = !toBack;
                     opts.flipFragCoordY = toBack;
-                    // as the renderer: full-screen passes get only a position and a uv
+
                     {
                         bool pass = false;
                         for (const char* pre : {"composite", "deferred", "prepare", "final", "begin", "shadowcomp",
@@ -424,7 +414,7 @@ int main(int argc, char** argv) {
                     }
                     opts.explicitLod =
                         name.compare(0, 8, "gbuffers") != 0 && name.compare(0, 6, "shadow") != 0;
-                    // geometry passes get an alpha test as the renderer gives them (iris AlphaTests)
+
                     if (!opts.explicitLod)
                         opts.alphaTest = "> 0.1";
                     const ProgramResult result = TransformProgram(src->vertex, src->fragment, opts);
@@ -464,7 +454,7 @@ int main(int argc, char** argv) {
                             }
                         }
                         if (kind == RhiShaderKind::Hlsl) {
-                            // the renderer's vertex streams: a full-screen quad, or the scene vertex
+
                             const bool fullscreen = opts.availableAttribs ==
                                                     ((1u << perlin::jshader::kAttribPosition) |
                                                      (1u << perlin::jshader::kAttribTexCoord0));
@@ -479,8 +469,7 @@ int main(int argc, char** argv) {
                                 reasons["hlsl-interface"]++;
                                 std::printf("FAIL  %-40s hlsl interface: %s\n", tag.c_str(), why.c_str());
                             }
-                            // direct3d 11: 16 sampler registers a stage once samplers that share a state are merged
-                            // (keyed by the texture's family here; the renderer keys by the exact sampler state)
+
                             const auto family = [](const std::string& t, bool) -> std::string {
                                 for (const char* f : {"colortex", "gaux", "depthtex", "shadowtex", "shadowcolor"})
                                     if (t.rfind(f, 0) == 0)

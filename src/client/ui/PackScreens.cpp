@@ -356,7 +356,7 @@ div, mcimg { display: block; position: absolute; }
         d += Btn("shapply", l.applyX, l.row2Y, l.thirdW, apply, false);
         d += Btn("shdone", l.doneX, l.row2Y, l.thirdW, done, false);
         if (!progressText.empty() || progress >= 0.0f) {
-            // the pack loading: a panel over the list with what it is doing and a bar
+
             const float pw = std::min(static_cast<float>(guiW) - 20.0f, 300.0f);
             const float px = (static_cast<float>(guiW) - pw) / 2.0f;
             const float py = l.listTop + (l.listBottom - l.listTop) / 2.0f - 22.0f;

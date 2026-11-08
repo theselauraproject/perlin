@@ -37,7 +37,6 @@ namespace perlin::attachable {
             return false;
         }
 
-        // one cue object, or an array of them
         void ParseCues(const Json& v, std::vector<ParticleCue>& out) {
             const auto one = [&](const Json& o) {
                 if (!o.IsObject())
@@ -285,7 +284,7 @@ namespace perlin::attachable {
         const auto current = controller.states.find(state);
         if (current == controller.states.end())
             return false;
-        // bedrock processes at most one transition per controller per frame
+
         for (const auto& [target, condition] : current->second.transitions) {
             if (!condition || !condition->Eval(scope).Truthy())
                 continue;

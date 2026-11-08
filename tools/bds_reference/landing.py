@@ -18,7 +18,6 @@ from generate import HEAP, INPUT_SHA256, RETURN, Machine, bits
 COMPONENTS = (0x0EC93C91, 0x33475976, 0x76E7A1DF, 0xC140391A, 0x3A5A9567, 0x870ED430)
 HANDLERS = (0x143F3BF60, 0x143F0ECA0, 0x144282EC0)
 
-
 def generate(data):
     if data['input_sha256'] != INPUT_SHA256 or data['input_name'] != 'Windows Server 1.26.10':
         raise ValueError('Wrong BDS reference')
@@ -113,7 +112,6 @@ def generate(data):
                   int(machine.get(pools[0x76E7A1DF] + 0x300, 1)[0] == 0))
         lines.append('V ' + ' '.join(f'{v:08x}' for v in output))
     return '\n'.join(lines) + '\n'
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

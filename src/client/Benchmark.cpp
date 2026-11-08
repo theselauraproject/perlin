@@ -17,7 +17,6 @@ namespace perlin::bench {
             return sorted[lo] * (1.0 - f) + sorted[hi] * f;
         }
 
-        // the "x% low" of benchmarking tools: average fps over the slowest x% of frames (at least one frame)
         double LowFps(const std::vector<double>& sortedMs, double fraction) {
             if (sortedMs.empty())
                 return 0.0;
@@ -78,7 +77,7 @@ namespace perlin::bench {
     }
 
     Pose PathAt(double t) {
-        // a 96 block wide loop at 8 blocks a second, rising and falling 12 blocks, looking ahead and slightly down
+
         constexpr double kPi = 3.14159265358979323846;
         constexpr double radius = 96.0, speed = 8.0;
         const double angle = t * speed / radius;
@@ -86,7 +85,7 @@ namespace perlin::bench {
         p.x = radius * std::sin(angle);
         p.z = radius - radius * std::cos(angle);
         p.y = 24.0 + 12.0 * std::sin(t * 0.21);
-        // heading along the circle: d/dt (sin, 1 - cos) = (cos, sin), swaying left and right; looking down a little
+
         const double dx = std::cos(angle), dz = std::sin(angle);
         p.yaw = static_cast<float>(std::atan2(dz, dx) * 180.0 / kPi + 25.0 * std::sin(t * 0.37));
         p.pitch = static_cast<float>(-12.0 - 10.0 * std::sin(t * 0.29));

@@ -16,7 +16,6 @@ namespace perlin::javapack {
 
     using SheetLoader = std::function<bool(const std::string& path, Texture& out)>;
 
-    // sprite sheets the ui builds from several java sprites at once (tab strips, progress arrows, the title logo)
     bool Compose(const std::string& bedrockPath, const SheetLoader& load, Texture& out);
 
     bool Crop(const Texture& sheet, const Source& source, Texture& out);

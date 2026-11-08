@@ -7,25 +7,20 @@
 #include <unordered_map>
 #include <vector>
 
-// bedrock's "MinecraftTen" heading font (font_type: "MinecraftTen" in json ui); mojang's, not shipped:
-// read at runtime from the player's bedrock install; without it labels fall back to the bitmap font
 namespace perlin::ui {
     class TenFont {
     public:
-        // json ui uses a ten-pixel em; baseline metrics come from the installed font
+
         static constexpr float kEm = 10.0f;
 
         static TenFont& Instance();
 
-        // looks for minecraft-ten.ttf in known bedrock install locations (PERLIN_TEN_FONT overrides); safe to repeat;
-        // only the first successful load counts
         bool Load();
-        // cheap repeated Load(): one atomic read once attempted
+
         void EnsureLoaded();
         bool Available() const { return ready; }
         const std::string& Path() const { return path; }
 
-        // metrics in gui pixels for a label at `scale` (font_scale_factor and font_size applied)
         float Em(float scale) const { return kEm * scale; }
         float Ascent(float scale) const;
         float Descent(float scale) const;
@@ -36,9 +31,9 @@ namespace perlin::ui {
 
         struct Glyph {
             float u0 = 0, v0 = 0, u1 = 0, v1 = 0;
-            int x = 0, y = 0, w = 0, h = 0; // device pixels, y relative to the baseline
+            int x = 0, y = 0, w = 0, h = 0;
         };
-        // glyph atlas rasterised for an em of `emPx` device pixels; render thread only
+
         struct Page {
             int emPx = 0;
             int width = 0, height = 0;
@@ -62,6 +57,5 @@ namespace perlin::ui {
         uint32_t pageVersion = 0;
     };
 
-    // label's font_type asks for MinecraftTen
     bool IsTenFontType(const std::string& fontType);
 }

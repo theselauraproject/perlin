@@ -34,9 +34,8 @@ namespace perlin {
                     out[c * 4 + row] = static_cast<float>(m[c][row]);
         }
 
-        // y origin: every backend here renders with the top-left origin, so the shaders flip the uv
         constexpr float kOrigin = 0.0f;
-        // pushes the projection by a sub-pixel amount in clip space
+
         void ApplyJitter(float m[16], float ox, float oy) {
             for (int c = 0; c < 4; c++) {
                 m[c * 4 + 0] += ox * m[c * 4 + 3];
@@ -44,8 +43,6 @@ namespace perlin {
             }
         }
     }
-
-    // -- targets ----------------------------------------------------------------------------------------------------
 
     namespace {
         conduit::texture_handle MakeTarget(gpu::Gpu& gpu, uint32_t w, uint32_t h, conduit::format format,
@@ -132,8 +129,7 @@ namespace perlin {
             }
             post.javaChainClear = false;
         }
-        // each program renders into temps, then copies land in the colortex
-        // buffers: passes both read and write the same buffers
+
         const auto pushCopy = [&](conduit::texture_handle src, conduit::texture_handle dst) {
             Stage c;
             c.kind = Stage::Kind::Copy;
@@ -143,7 +139,7 @@ namespace perlin {
             c.copyH = h;
             stages.push_back(c);
         };
-        // deferred: t0->C0, t1->C5, t2->C4
+
         {
             Target t;
             t.color = post.javaTempA;
@@ -242,7 +238,7 @@ namespace perlin {
         const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         if (post.worldColor && post.worldW == w && post.worldH == h && (!history || post.hist[0]))
             return true;
-        // a size change drops everything built for the old size
+
         gpu.Dev().wait_idle();
         DestroyPostTargets();
         post.worldColor = MakeTarget(gpu, w, h, kPostColor, kColorRt, "world color");
@@ -353,8 +349,6 @@ namespace perlin {
         return true;
     }
 
-    // -- planning ---------------------------------------------------------------------------------------------------
-
     void RenderContext_rhi::PlanPost(const FrameParams& params) {
         const conduit::format kPostColor = javaActive ? conduit::format::rgba16_float : conduit::format::rgba8_unorm;
         plan = PostPlan{};
@@ -380,10 +374,10 @@ namespace perlin {
         plan.active = !post.failed &&
                       (plan.blur || plan.sceneCopy || plan.bloom || plan.scaled || plan.temporal) &&
                       ProgramIndex(Program::Post) >= 0;
-        // java MRT needs the offscreen chain even with every effect off
+
         if (javaActive && !post.failed && ProgramIndex(Program::Post) >= 0)
             plan.active = true;
-        // the converted chain replaces post effects and scaling wholesale
+
         if (JavaChainReady()) {
             plan.scaled = plan.temporal = plan.bloom = plan.blur = false;
             plan.sceneCopy = true;
@@ -450,7 +444,7 @@ namespace perlin {
             plan.jitter[1] = 2.0f * jy / static_cast<float>(plan.h);
             plan.jitterUv[0] = jx / static_cast<float>(plan.w);
             plan.jitterUv[1] = ySign * jy / static_cast<float>(plan.h);
-            // the world views draw with the jittered projection; everything else stays crisp
+
             glm::mat4& proj = views[static_cast<size_t>(View::World)].proj;
             float m[16];
             std::memcpy(m, glm::value_ptr(proj), sizeof(m));
@@ -465,7 +459,7 @@ namespace perlin {
             vd.h = static_cast<uint32_t>(plan.h);
             vd.colorFormat = kPostColor;
             vd.depthFormat = kPostDepth;
-            // second MRT attachment carries the java colortex1 buffer
+
             vd.colorCount = javaActive && post.javaAux ? 2 : 1;
             vd.colorFormat1 = kPostColor;
         }
@@ -545,7 +539,7 @@ namespace perlin {
         }
 
         if (plan.bloom) {
-            // down to the smallest level, then back up additively
+
             static const struct {
                 View view;
                 int target;
@@ -616,7 +610,7 @@ namespace perlin {
             }
         }
         if (!upscaled && plan.scaled) {
-            // no filter available: the scaled image is stretched by the final pass
+
         }
 
         Stage out;
@@ -713,8 +707,6 @@ namespace perlin {
             pass(View::Up0, post.packLow, mode, post.packLowW, post.packLowH, gpu.TargetFormat());
         }
     }
-
-    // -- recording --------------------------------------------------------------------------------------------------
 
     void RenderContext_rhi::FullscreenPass(View view, Program program, conduit::format colorFormat, uint32_t w,
                                            uint32_t h, bool additive) {
@@ -874,7 +866,7 @@ namespace perlin {
             });
         if (filtered)
             shown = RecordUpscale(shown, worldW, worldH);
-        // blur: horizontal pass above, vertical here; without it this is a plain composite with the bloom
+
         fullscreen(View::BlurOut, shown, shown, 0.0f, 1.0f, W, H, gpu.TargetFormat());
         if (plan.blur) {
             post.read = write;
@@ -1066,8 +1058,6 @@ namespace perlin {
         views[static_cast<size_t>(View::Top)].draws.clear();
         return shown;
     }
-
-    // -- execution --------------------------------------------------------------------------------------------------
 
     void RenderContext_rhi::ReadyForSampling(conduit::command_list& list, conduit::texture_handle except0,
                                              conduit::texture_handle except1) {

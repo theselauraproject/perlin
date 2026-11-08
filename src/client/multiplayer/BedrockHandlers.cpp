@@ -194,7 +194,7 @@ namespace perlin {
             const auto clamp = [](std::optional<int> v) { return v ? std::optional<int>(std::max(*v, 0)) : v; };
             if (variant || mark || color)
                 tracker.SetVariant(rid, clamp(variant), clamp(mark), clamp(color));
-            // a 0 box is sent on purpose (decorations: nothing to hit, no shadow); only an absent one is unknown
+
             if (boxWidth >= 0.0f || boxHeight >= 0.0f)
                 tracker.SetBoundingBox(rid, boxWidth, boxHeight);
         }
@@ -1518,7 +1518,7 @@ namespace perlin {
             if (p.eventId == EntityEventPacketEventId::DeathAnimation &&
                 !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
                 entities.Die(p.runtimeEntityId);
-            // some servers send other players' swings as an actor event, never as animate
+
             if (p.eventId == EntityEventPacketEventId::ArmSwing &&
                 !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
                 entities.Swing(p.runtimeEntityId);

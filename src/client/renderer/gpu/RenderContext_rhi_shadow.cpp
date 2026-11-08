@@ -68,7 +68,7 @@ namespace perlin {
             return;
         gpu.Dev().wait_idle();
         DestroyShadows();
-        // the destroy marks the config stale; this call is the one that handles it
+
         shadowConfigDirty = false;
         if ((!packActive && !javaActive) || quality <= 0 || PERLIN_ENV("PERLIN_NO_SHADOWS"))
             return;
@@ -176,7 +176,7 @@ namespace perlin {
         glm::vec3 L(-std::sin(sunA), std::cos(sunA), 0.0f);
         if (L.y < 0.0f)
             L = -L;
-        // sun below the horizon: the moon uses the same direction mirrored; too flat a light gives useless maps
+
         if (L.y < 0.03f)
             return;
         const int64_t lightKey[2] = {static_cast<int64_t>(std::llround(L.x * 300.0f)),
@@ -206,7 +206,7 @@ namespace perlin {
             col(3, 2) = 0.5f - cz / (2.0f * D);
             col(3, 3) = 1.0f;
             std::memcpy(sample, S, sizeof(S));
-            // clip space: y points up while uv.y grows downward, z already in [0,1]
+
             for (int c = 0; c < 4; c++) {
                 const float u = S[c * 4 + 0], v = S[c * 4 + 1], d = S[c * 4 + 2], w = S[c * 4 + 3];
                 raster[c * 4 + 0] = 2.0f * u - (c == 3 ? 1.0f : 0.0f);
@@ -291,7 +291,7 @@ namespace perlin {
                 shadow.buildList.push_back({f.key, f.pass});
             shadow.buildCursor = 0;
             shadow.buildSlice = 0;
-            // the first map is built in one go; later ones spread over frames and fade in
+
             shadow.buildSlices = shadow.front < 0 ? 1 : 4;
         }
 
@@ -326,7 +326,7 @@ namespace perlin {
                 state.cull = conduit::cull_mode::none;
                 state.mask = conduit::color_mask::all;
                 if (glass) {
-                    // tint multiplies, alpha keeps the nearest glass depth
+
                     state.blend = true;
                     state.srcColor = conduit::blend_factor::dst_color;
                     state.dstColor = conduit::blend_factor::zero;

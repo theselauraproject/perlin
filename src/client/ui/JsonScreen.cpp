@@ -32,8 +32,6 @@ namespace perlin::ui {
             return v.Dump();
         }
 
-        // our patches over vanilla, in ui_defaults (below every pack, above vanilla); "modifications" merge into
-        // vanilla controls instead of replacing; a pack redefining the same control wins
         const char* kScreenDefaults = R"JSON({
   "namespace": "pause",
   "perlin_unused": { "type": "panel" }
@@ -91,7 +89,7 @@ namespace perlin::ui {
     }
 
     std::string ScreenData::Signature() const {
-        // ordered: digest independent of hash map iteration order
+
         std::string out;
         std::map<std::string, const Json*> g;
         for (const auto& [k, v] : globals)
@@ -164,7 +162,7 @@ namespace perlin::ui {
         emitter.Register("paper_doll_renderer", [this](const LNode& n, RmlWriter& w) {
             if (paperDoll.empty())
                 return;
-            // game frames the doll with room around it: ~3/4 of the control's height, on its bottom edge, centred
+
             const float aspect = 240.0f / 400.0f;
             float h = n.h * 0.78f, wd = h * aspect;
             if (wd > n.w) {
@@ -211,7 +209,7 @@ namespace perlin::ui {
             wanted += d + "|";
         wanted += data + "|" + UiAssets::Instance().VanillaRoot() + "|" +
                   std::to_string(TexturePack::Instance().Generation());
-        // hot reload: rescan when a json ui file in the stack is edited, added or removed (checked every 2 s)
+
         if (state.load() == 2 && wanted == key) {
             static auto lastProbe = std::chrono::steady_clock::now();
             const auto now = std::chrono::steady_clock::now();
@@ -233,7 +231,6 @@ namespace perlin::ui {
         key = wanted;
         state = 1;
 
-        // highest priority first, same stack the hud reads
         std::vector<std::string> roots;
         for (size_t i = serverPackDirs.size(); i-- > 0;)
             roots.push_back(serverPackDirs[i] + "/ui");
@@ -296,7 +293,7 @@ namespace perlin::ui {
         if (failed.contains(key))
             return nullptr;
         if (trees.size() > 64)
-            trees.clear(); // titles change per container; keep the cache bounded
+            trees.clear();
         BuildReport report;
         auto built = BuildTree(library, reference, vars, report);
         if (!built) {
@@ -318,7 +315,7 @@ namespace perlin::ui {
     bool JsonScreens::Overridden(const std::string& ns) const {
         if (state.load() != 2)
             return false;
-        // last three roots are data/ui, data/ui_defaults, vanilla: anything before is a pack
+
         const size_t count = library.RootCount();
         return count > 3 && library.DefinedBefore(ns, count - 3);
     }
@@ -347,7 +344,7 @@ namespace perlin::ui {
         if (std::getenv("PERLIN_TEST_TREE"))
             std::printf("[build] t=%.2f animating=%d rootAlpha=%.2f kids=%zu\n", anim.now,
                         anim.animating ? 1 : 0, root->alpha, root->kids.size());
-        // dev hook: PERLIN_TEST_TREE=<file> writes the laid-out control tree (same shape as screen_dump's)
+
         if (const char* treeDump = std::getenv("PERLIN_TEST_TREE")) {
             std::string text;
             DumpTreeText(*root, 0, text);

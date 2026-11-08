@@ -1,5 +1,5 @@
 #pragma once
-// the random number generators the Java worldgen uses, ported from the 26.3 jar: xoroshiro128++ and the positional factory that seeds every noise
+
 #include <array>
 #include <bit>
 #include <cstdint>
@@ -22,14 +22,12 @@ namespace perlin::server::vanilla {
     inline constexpr uint64_t kGolden64 = 0x9E3779B97F4A7C15ull;
     inline constexpr uint64_t kSilver64 = 0x6A09E667F3BCC909ull;
 
-    // seed to 128 bits: xor/add the two constants, then mix each half
     inline Seed128 UpgradeSeedTo128(int64_t seed) {
         const uint64_t l = static_cast<uint64_t>(seed) ^ kSilver64;
         const uint64_t m = l + kGolden64;
         return {MixStafford13(l), MixStafford13(m)};
     }
 
-    // md5 of a string as two big-endian 64 bit halves (the way the game turns a name into a seed)
     Seed128 SeedFromHashOf(std::string_view text);
 
     inline int32_t JavaStringHash(std::string_view text) {

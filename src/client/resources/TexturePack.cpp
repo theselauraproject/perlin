@@ -23,7 +23,7 @@ namespace perlin {
         struct Layer {
             bool zipMode = false;
             bool java = false;
-            // bedrock packs often carry the java gui sheets (gui/container, gui/icons): those map the same way
+
             bool legacyGui = false;
             std::string folder;
             mz_zip_archive zip{};
@@ -343,7 +343,7 @@ namespace perlin {
 
     bool TexturePack::Load(const std::string& rel, Texture& out) const {
         std::lock_guard lock(impl->mutex);
-        // packs may ship default skins in legacy 2:1 layout; everything downstream expects square
+
         const auto finish = [&]() {
             if (rel.contains("entity/steve") || rel.contains("entity/alex") || rel.contains("entity/player/"))
                 UpgradeLegacySkinTexture(out);

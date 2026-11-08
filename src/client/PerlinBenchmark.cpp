@@ -10,8 +10,6 @@
 #include <filesystem>
 #include <fstream>
 
-// benchmark mode: joins a fresh fixed-seed singleplayer world in spectator mode, flies a scripted loop and records
-// every frame's wall time (Benchmark.hpp has the path, the statistics and the report)
 namespace perlin {
     void Perlin::StartBenchmark(bench::Settings settings) {
 #ifdef PERLIN_SINGLEPLAYER
@@ -19,7 +17,7 @@ namespace perlin {
             return;
         Log("benchmark", "starting: {} s recorded after {} s of warmup, seed {}", settings.seconds,
             settings.warmupSeconds, settings.seed);
-        // a world of its own, made new each run so the generated terrain is the same every time
+
         if (session && hud)
             LeaveToServerList(*hud);
         if (singleplayerServer)
@@ -48,10 +46,9 @@ namespace perlin {
         if (run.Current() == bench::Phase::Done)
             return;
         if (!benchmarkJoinIssued) {
-            // spectator: no gravity, no collisions, nothing in the hand
+
             benchmarkJoinIssued = true;
-            // PERLIN_BENCHMARK_WORLD=<gamemode>: only open the benchmark world (developer testing with
-            // --control-port), no camera path and no report
+
             if (const char* mode = PERLIN_ENV("PERLIN_BENCHMARK_WORLD")) {
                 JoinSingleplayer(paths::DataDir() + "/benchmark-world", run.Config().seed, std::atoi(mode));
                 benchmarkWorldOnly = true;
@@ -61,7 +58,7 @@ namespace perlin {
             return;
         }
         if (benchmarkWorldOnly) {
-            // developer world: once in, run PERLIN_BENCHMARK_CMDS ("/time set noon;/tp @s 0 80 0") and hand over
+
             if (f.live && f.live->Initialized() && sessionReady && session) {
                 if (const char* cmds = PERLIN_ENV("PERLIN_BENCHMARK_CMDS")) {
                     std::string list = cmds;
@@ -91,7 +88,7 @@ namespace perlin {
             return;
         }
         if (!f.live) {
-            // the world went away under the run
+
             Log("benchmark", "stopped: the world closed");
             SetStatusHint("Benchmark stopped: the world closed.");
             benchmark.reset();

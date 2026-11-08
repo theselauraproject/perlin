@@ -8,12 +8,6 @@
 #include <string>
 #include <vector>
 
-// builds every screen a ui stack defines, reports what the engine couldn't parse: check server packs without joining
-//
-//   ui_conformance <label>:<ui root> [<label>:<ui root> ...]
-//
-// roots layered like the client: pack roots first, then data ui folder and vanilla files
-// env: VANILLA_UI=<vanilla resource_pack/ui> (default: bedrock samples install), DATA_UI=<data dir>/ui
 #include "client/ui/HudData.hpp"
 #include "client/ui/JsonUi.hpp"
 #include "client/ui/McFont.hpp"
@@ -31,7 +25,6 @@ namespace {
         return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     }
 
-    // screens a stack defines: namespace + control names ending in "_screen"
     std::vector<std::string> ScreensIn(const std::string& root) {
         std::vector<std::string> out;
         std::error_code ec;
@@ -51,7 +44,7 @@ namespace {
             for (const auto& [key, value] : document.object) {
                 if (!value.IsObject())
                     continue;
-                // A template suffix is inheritance, not part of the control's name.
+
                 const std::string name = key.substr(0, key.find('@'));
                 if (!name.contains('/') && name.ends_with("_screen"))
                     out.push_back(ns->string + "." + name);
@@ -83,7 +76,7 @@ namespace {
         if (n.type == "label" && !n.text.empty()) {
             if (n.text == "null")
                 s.nullText++;
-            // undecoded text: raw "$var", "#binding" or control reference left in a label
+
             if (n.text[0] == '$' || n.text[0] == '#' || (n.text.starts_with('@') && n.text.contains('.')))
                 s.rawText++;
         }
@@ -122,7 +115,6 @@ int main(int argc, char** argv) {
     services.lineHeight = [](float s, bool ten) {
         return ten ? TenFont::Instance().LineHeight(s) : static_cast<float>(McFont::kLineHeight) * s;
     };
-    // checks layout, bindings and emitted text, not textures or translations
 
     int totalFailed = 0;
     for (const auto& [label, root] : stacks) {

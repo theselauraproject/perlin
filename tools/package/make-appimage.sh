@@ -1,7 +1,5 @@
 #!/bin/sh
-# Wraps an installed Linux package (cmake --install ... --prefix dist) into a single-file AppImage.
-#   tools/package/make-appimage.sh <dist dir> <output .AppImage> <x86_64|aarch64>
-# Needs appimagetool on PATH (CI downloads it); runs it extracted, so no FUSE is needed to build.
+
 set -eu
 dist=$1
 out=$2
@@ -11,7 +9,7 @@ work=$(mktemp -d)
 app="$work/Perlin.AppDir"
 
 mkdir -p "$app/usr/lib/perlin" "$app/usr/share/applications" "$app/usr/share/icons/hicolor/256x256/apps"
-# the game finds resources/ and its other files beside the executable
+
 cp -a "$dist/." "$app/usr/lib/perlin/"
 rm -rf "$app/usr/lib/perlin/share"
 cp -a "$root/packaging/linux/icons/." "$app/usr/share/icons/hicolor/"

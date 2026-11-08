@@ -100,12 +100,11 @@ def describe(leaf):
             "chain": chain,
             "display": disp
         }
-    
+
     ref = leaf["model"]
 
-    # data is unused?
     disp, chain, data = resolve_model(ref)
-    
+
     root = chain[0] if chain else ""
 
     exclude = [
@@ -119,7 +118,7 @@ def describe(leaf):
 
     if root == "builtin/entity":
         kind = "special:entity"
-    
+
     return {
         "kind": kind,
         "model": ref.split(":", 1)[-1],
@@ -131,16 +130,16 @@ out = {}
 for n in sorted(names):
     if not n.startswith("assets/minecraft/items/") or not n.endswith(".json"):
         continue
-    
+
     item = n.rsplit("/", 1)[-1][:-5]
     tree = load(n).get("model")
     entry = {}
-    
+
     for ctx in ("hand", "ground"):
         d = describe(pick(tree, ctx))
         if d:
             entry[ctx] = d
-    
+
     if entry:
         out[item] = entry
 
@@ -148,7 +147,7 @@ def compact(d):
     keep = {}
     for ctx, t in d["display"].items():
         keep[ctx] = {k: t[k] for k in ("rotation", "translation", "scale") if k in t}
-        
+
     return {
         "kind": d["kind"],
         "model": d["model"],
@@ -157,12 +156,12 @@ def compact(d):
     }
 
 KEEP = (
-    "firstperson_righthand", 
-    "firstperson_lefthand", 
-    "thirdperson_righthand", 
-    "thirdperson_lefthand", 
-    "ground", 
-    "head", 
+    "firstperson_righthand",
+    "firstperson_lefthand",
+    "thirdperson_righthand",
+    "thirdperson_lefthand",
+    "ground",
+    "head",
     "fixed",
 )
 
@@ -171,11 +170,11 @@ styles, style_index = [], {}
 def style_of(d):
     disp = {c: t for c, t in d["display"].items() if c in KEEP}
     key = json.dumps(disp, sort_keys=True)
-    
+
     if key not in style_index:
         style_index[key] = len(styles)
         styles.append(disp)
-    
+
     return style_index[key]
 
 items = {}

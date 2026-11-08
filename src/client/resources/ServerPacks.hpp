@@ -12,15 +12,15 @@ namespace perlin {
         void Clear();
         bool Mount(const std::string& zipPath, const std::string& id, const std::string& contentKey);
         std::vector<std::string> Directories() const;
-        // server-sent packs; excludes pinned test folders (Clear keeps them)
+
         bool HasServerPacks() const {
             std::lock_guard lock(mutex);
             return dirs.size() > pinned.size();
         }
-        // dev/test: extracted pack folder as if server-sent
+
         void AddDirectory(const std::string& directory);
         uint32_t Generation() const { return generation; }
-        // a set of packs is mounting: each Mount bumps the generation, consumers reload once it ends
+
         bool Mounting() const { return batches.load() > 0; }
         class Batch {
         public:

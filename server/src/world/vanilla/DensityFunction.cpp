@@ -95,7 +95,6 @@ namespace perlin::server::vanilla {
             return v < lo ? lo : std::min(v, hi);
         }
 
-        // java's Math.min/max on floats: NaN wins, -0.0 < 0.0
         float JMin(float a, float b) {
             if (a != a)
                 return a;
@@ -162,7 +161,7 @@ namespace perlin::server::vanilla {
     float SplineNode::Eval(int x, int y, int z) const {
         const float c = coordinate->Eval(x, y, z);
         const int n = static_cast<int>(locations.size());
-        // first location above the coordinate, minus one
+
         int lo = 0, hi = n;
         while (lo < hi) {
             const int mid = (lo + hi) / 2;
@@ -262,7 +261,7 @@ namespace perlin::server::vanilla {
         case O::Clamp:
             return Clamp(in[0]->Eval(x, y, z), lo, hi);
         case O::Noise: {
-            // shifts (when present) are evaluated at the block and added after scaling
+
             double nx = static_cast<double>(x) * xzScale, ny = static_cast<double>(y) * yScale,
                    nz = static_cast<double>(z) * xzScale;
             if (!in.empty()) {
@@ -314,7 +313,7 @@ namespace perlin::server::vanilla {
         case O::Pass:
             return in[0]->Eval(x, y, z);
         case O::Interpolated: {
-            // between cell corners the value is blended from the inner function sampled at the eight corners
+
             const auto mod = [](int a, int b) {
                 const int r = a % b;
                 return r < 0 ? r + b : r;
@@ -644,7 +643,7 @@ namespace perlin::server::vanilla {
             node->cellY = static_cast<int>(v["cell_height"].Int(8));
         } else if (type == "old_blended_noise") {
             node->op = O::OldBlendedNoise;
-            // the generator seeds it from the world's positional random by the name "minecraft:terrain"
+
             node->blended = std::make_shared<BlendedNoise>(
                 v["xz_scale"].Number(1.0), v["y_scale"].Number(1.0), v["xz_factor"].Number(80.0),
                 v["y_factor"].Number(160.0), v["smear_scale_multiplier"].Number(8.0),

@@ -23,11 +23,11 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-MAGIC = 0x48535250  # 'PRSH'
+MAGIC = 0x48535250
 VERSION = 1
 
 STAGES = {'vertex': (0, 'vsMain'), 'fragment': (1, 'fsMain'), 'compute': (2, 'csMain')}
-# target id, slangc target, extra arguments, file extension
+
 TARGETS = {
     'spirv': (0, 'spirv', []),
     'dxil': (1, 'dxil', ['-profile', 'sm_6_0']),
@@ -35,7 +35,6 @@ TARGETS = {
     'msl': (3, 'metal', []),
     'wgsl': (4, 'wgsl', []),
 }
-
 
 def includes_of(path, dirs, seen):
     text = path.read_text(encoding='utf-8')
@@ -49,14 +48,12 @@ def includes_of(path, dirs, seen):
                 break
     return seen
 
-
 def fingerprint(path, dirs, extra):
     h = hashlib.sha256(extra.encode())
     h.update(path.read_bytes())
     for inc in sorted(includes_of(path, dirs, set())):
         h.update(inc.read_bytes())
     return h.hexdigest()
-
 
 class Packer:
     def __init__(self, slangc, dirs, cache, env):
@@ -84,7 +81,7 @@ class Packer:
             if result.returncode != 0 or not out.exists():
                 raise RuntimeError(f'{program.name} {stage} {target}:\n{result.stdout}{result.stderr}')
             data = out.read_bytes()
-        # msl carries no workgroup size, and metal wants it at dispatch: leave it in a comment the backend reads
+
         if stage == 'compute' and slang_target == 'metal':
             size = self.reflect(program, stage)['entryPoints'][0]['threadGroupSize']
             data = f'// perlin:threads {size[0]} {size[1]} {size[2]}\n'.encode() + data
@@ -108,7 +105,6 @@ class Packer:
                 raise RuntimeError(f'reflection {program.name}:\n{result.stdout}{result.stderr}')
             return json.loads(refl.read_text())
 
-
 def uniform_layout(reflection):
     """(total bytes, [(name, offset, bytes, elements)]) of the `Uniforms` constant buffer, or (0, [])"""
     for param in reflection.get('parameters', []):
@@ -124,11 +120,9 @@ def uniform_layout(reflection):
         return total, members
     return 0, []
 
-
 def pack_str(text):
     raw = text.encode('utf-8')
     return struct.pack('<H', len(raw)) + raw
-
 
 def build(slangc, dirs, programs, targets, cache, out, env, slots):
     packer = Packer(slangc, dirs, cache, env)
@@ -173,7 +167,6 @@ def build(slangc, dirs, programs, targets, cache, out, env, slots):
     header = struct.pack('<IIII', MAGIC, VERSION, len(index), len(plan))
     out.write_bytes(header + bytes(index) + bytes(data))
 
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--slangc', required=True)
@@ -196,7 +189,6 @@ def main():
     targets = args.targets.split(',')
     build(args.slangc, args.dirs, programs, targets, args.cache, args.output, env, json.loads(args.slots.read_text()))
     print(f'packed {len(programs)} programs x {len(targets)} targets -> {args.output} ({args.output.stat().st_size} bytes)')
-
 
 if __name__ == '__main__':
     sys.exit(main())

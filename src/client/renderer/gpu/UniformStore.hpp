@@ -10,13 +10,13 @@
 #include <vector>
 
 namespace perlin::gpu {
-    // named shader values written by the renderer and copied into each program's uniform block by reflected offset
+
     class UniformStore {
     public:
         static constexpr int kMaxFloats = 32;
 
         int Id(std::string_view name) {
-            // heterogeneous lookup: no temporary string per call (this runs several times for every draw)
+
             const auto it = ids.find(name);
             if (it != ids.end())
                 return it->second;
@@ -34,7 +34,7 @@ namespace perlin::gpu {
             std::memcpy(slot.data(), v, sizeof(float) * static_cast<size_t>(count));
             version++;
         }
-        // bit-correct int feed for cbuffer int/bool members (reflection copies raw bytes)
+
         void SetI(int id, const int32_t* v, int count) {
             auto& slot = values[static_cast<size_t>(id)];
             if (std::memcmp(slot.data(), v, sizeof(int32_t) * static_cast<size_t>(count)) == 0)
@@ -50,7 +50,6 @@ namespace perlin::gpu {
             Set(Id(name), v, 4);
         }
 
-        // matrices arrive column-major (glm) and are stored transposed because the pack is built row-major
         void Mat4(int id, const float* columnMajor) {
             float t[16];
             for (int r = 0; r < 4; r++)
@@ -80,7 +79,7 @@ namespace perlin::gpu {
             if (b.bytes == 0 && b.entries.empty() && program.uniform_bytes) {
                 b.bytes = program.uniform_bytes;
                 for (const conduit::uniform_member& m : program.uniforms) {
-                    // arrays of vec4 / mat4 are all packed in the 32 float value slot
+
                     const uint32_t bytes = std::min<uint32_t>(m.bytes, kMaxFloats * 4);
                     b.entries.push_back({Id(m.name), m.offset, bytes});
                 }

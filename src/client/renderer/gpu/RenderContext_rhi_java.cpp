@@ -23,7 +23,6 @@ namespace perlin {
             return glm::mat4(m);
         }
 
-        // combined world->shadowUV split so the pack applies its own projection
         void SplitShadow(const float* s, float* mv, float* proj) {
             float r[3][3];
             for (int row = 0; row < 3; row++) {
@@ -54,7 +53,7 @@ namespace perlin {
                     proj[c * 4 + row] = acc;
                 }
         }
-    } // namespace
+    }
 
     bool RenderContext_rhi::SetBakedJavaShaderPack(const std::string& path,
                                                    const std::map<std::string, std::string>&,
@@ -63,8 +62,7 @@ namespace perlin {
             error = "not a java shader pack: " + path;
             return false;
         }
-        // milestone: the baked converted programs stand in for the zip until
-        // load-time conversion lands; the zip only selects the mode for now
+
         gpu.Dev().wait_idle();
         DestroyPostTargets();
         javaMaterialRules.clear();
@@ -237,8 +235,7 @@ namespace perlin {
 
     void RenderContext_rhi::JavaChainBinds() {
         BindJavaExtras();
-        // colortex inputs for composite passes; the pass about to run reads
-        // the previous contents while its outputs land in temps
+
         BindTexture("s_colortex0", post.worldColor, gpu::SamplerKind::LinearClamp);
         BindTexture("s_colortex1", post.javaC1, gpu::SamplerKind::LinearClamp);
         BindTexture("s_colortex2", post.javaC2, gpu::SamplerKind::LinearClamp);
@@ -373,8 +370,6 @@ namespace perlin {
         uni.SetI("u_jworldTime", static_cast<int32_t>(worldTick));
         uni.SetI("u_jworldDay", static_cast<int32_t>(worldDay));
 
-        // engine sun angle is eased radians around noon; map to the 0..1 day
-        // fraction Iris hands the pack (dawn .25, dusk .75)
         const float sunFrac = std::fmod(params.sky.sunAngle / kTau + 0.25f, 1.0f);
         uni.Set("u_jsunAngle", &sunFrac, 1);
         uni.Set("u_jshadowAngle", &sunFrac, 1);
@@ -420,4 +415,4 @@ namespace perlin {
         uni.Set("u_jFogStart", &params.environmentalFogStart, 1);
         uni.Set("u_jFogScale", &fogScale, 1);
     }
-} // namespace perlin
+}

@@ -99,7 +99,7 @@ namespace perlin::ui {
         int spinner = 0;
         std::string version;
         std::string copyright;
-        // auto update: a line above the version; a button when there is something to do (restart, install, reload)
+
         std::string updateText;
         bool updateAction = false;
         bool nativePanorama = false;
@@ -117,7 +117,7 @@ namespace perlin::ui {
         std::string accountLabel;
         std::string accountUser;
         std::string accountHead;
-        // oreui look for the main page, player's 3d skin in the character card
+
         bool oreUi = false;
         std::string dollSrc;
         std::string playerName;
@@ -130,7 +130,7 @@ namespace perlin::ui {
     inline constexpr const char* kTitleMulti = "title_multi";
     inline constexpr const char* kTitleUpdate = "title_update";
     inline constexpr const char* kTitleSingle = "title_single";
-    // shown on hover over the singleplayer buttons
+
     inline constexpr const char* kSingleplayerTip =
         "Singleplayer is in very early development and is not playable yet.";
     inline constexpr const char* kTitleQuit = "title_quit";

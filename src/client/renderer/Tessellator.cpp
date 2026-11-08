@@ -48,7 +48,7 @@ namespace perlin {
         const float centerV = (uv[0][1] + uv[1][1] + uv[2][1] + uv[3][1]) * 0.25f * kTiles;
         const float column = std::floor(centerU), row = std::floor(centerV);
         const uint32_t tile = static_cast<uint32_t>(row * kTiles + column) << 16;
-        // either triangle diagonal preserves the quad winding
+
         float e0[3] = {v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2]};
         float e1[3] = {v[2][0] - v[0][0], v[2][1] - v[0][1], v[2][2] - v[0][2]};
         float nx = e0[1] * e1[2] - e0[2] * e1[1];
@@ -64,11 +64,11 @@ namespace perlin {
             ny = 1.0f;
             nz = 0.0f;
         }
-        // clockwise front faces need the opposite of the right-handed edge cross
+
         nx = -nx;
         ny = -ny;
         nz = -nz;
-        // tangent from uv gradients; axis-aligned faces land exactly on an axis
+
         float d0u = uv[1][0] - uv[0][0], d0v = uv[1][1] - uv[0][1];
         float d1u = uv[2][0] - uv[0][0], d1v = uv[2][1] - uv[0][1];
         float det = d0u * d1v - d1u * d0v;
@@ -115,10 +115,10 @@ namespace perlin {
         if (along < 0.0f)
             axis++;
         const float tangent = static_cast<float>(axis * 2 + (hand < 0.0f ? 0 : 1));
-        // unused normal alpha carries baked shade; tangent fraction carries ao without growing the vertex
+
         const uint32_t packedNormal = PackColor(nx * 0.5f + 0.5f, ny * 0.5f + 0.5f, nz * 0.5f + 0.5f, shade);
         const float entity = static_cast<float>(curBlock);
-        // array textures use tile-local uvs for both corners and midpoints
+
         const float midU = (centerU - column - kInset) / kSpan, midV = (centerV - row - kInset) / kSpan;
         for (int i = 0; i < 4; i++) {
             const float u = (uv[i][0] * kTiles - column - kInset) / kSpan;

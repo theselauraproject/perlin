@@ -1,8 +1,5 @@
-// Converted from Java shaderpack program gbuffers_water (world0).
-// v1 converter output: uniform feed + renderer wiring still needed, see report.
 #include "compat.slang"
 
-// Iris uniforms: engine must feed these each frame/draw.
 #define PERLIN_JAVA_UNIFORMS \
     float u_jFogScale; \
     float u_jFogStart; \
@@ -94,32 +91,9 @@
 #include "vv_resources.slang"
 #undef PERLIN_JAVA_UNIFORMS
 
-// java sampler colortex0 -> RHI slot s_colortex0 (see vv_resources.slang)
-// java sampler colortex1 -> RHI slot s_colortex1 (see vv_resources.slang)
-// java sampler colortex12 -> RHI slot s_colortex12 (see vv_resources.slang)
-// java sampler colortex13 -> RHI slot s_colortex13 (see vv_resources.slang)
-// java sampler colortex2 -> RHI slot s_colortex2 (see vv_resources.slang)
-// java sampler colortex3 -> RHI slot s_colortex3 (see vv_resources.slang)
-// java sampler colortex4 -> RHI slot s_colortex4 (see vv_resources.slang)
-// java sampler colortex5 -> RHI slot s_colortex5 (see vv_resources.slang)
-// java sampler colortex6 -> RHI slot s_colortex6 (see vv_resources.slang)
-// java sampler colortex7 -> RHI slot s_colortex7 (see vv_resources.slang)
-// java sampler colortex8 -> RHI slot s_colortex8 (see vv_resources.slang)
-// java sampler depthtex0 -> RHI slot s_sceneDepth (declared here)
 SAMPLER2D(s_sceneDepth, 10, 11);
-// java sampler depthtex1 -> RHI slot s_depth (declared here)
+
 SAMPLER2D(s_depth, 34, 35);
-// java sampler gaux2 -> RHI slot s_gaux2 (see vv_resources.slang)
-// java sampler gaux4 -> RHI slot s_gaux4 (see vv_resources.slang)
-// java sampler lightmap -> RHI slot s_lightmap (see vv_resources.slang)
-// java sampler noisetex -> RHI slot s_noise (see vv_resources.slang)
-// java sampler normals -> RHI slot s_normals (see vv_resources.slang)
-// java sampler shadowcolor0 -> RHI slot s_shadowTint (see vv_resources.slang)
-// java sampler shadowcolor1 -> RHI slot s_shadowTintB (see vv_resources.slang)
-// java sampler shadowtex0 -> RHI slot s_shadow (see vv_resources.slang)
-// java sampler shadowtex1 -> RHI slot s_shadowB (see vv_resources.slang)
-// java sampler specular -> RHI slot s_specular (see vv_resources.slang)
-// java sampler tex -> RHI slot s_atlas (see vv_resources.slang)
 
 struct VsIn
 {
@@ -277,184 +251,11 @@ static float4x4 u_jTextureMatrix1;
 #define GetSunVector() normalize((gbufferModelView * vec4(vec3(-sin(overworldAngle), cos(overworldAngle) * SUN_ROTATION_DATA) * 2000.0, 1.0)).xyz)
 #define SUN_ROTATION_DATA vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994))
 
+static const float shadowDistance = 192.0;
 
-// @included "/program/gbuffers_water.glsl"
-/////////////////////////////////////
-// Complementary Shaders by EminGT //
-/////////////////////////////////////
-
-//Common//
-// @included "/lib/common.glsl"
-/*---------------------------------------------------------------------
-         ___ __  __ ____   ___  ____ _____  _    _   _ _____
-        |_ _|  \/  |  _ \ / _ \|  _ \_   _|/ \  | \ | |_   _|
-         | || |\/| | |_) | | | | |_) || | / _ \ |  \| | | |
-         | || |  | |  __/| |_| |  _ < | |/ ___ \| |\  | | |
-        |___|_|  |_|_|    \___/|_| \_\|_/_/   \_\_| \_| |_|
-         .
-  -> -> -> EDITING THIS FILE HAS A HIGH CHANCE TO BREAK THE SHADER PACK
-  -> -> -> DO NOT CHANGE ANYTHING UNLESS YOU KNOW WHAT YOU ARE DOING
-  -> -> -> DO NOT EXPECT SUPPORT AFTER MODIFYING SHADER FILES
----------------------------------------------------------------------*/
-
-//User Settings//
-
-
-static const float shadowDistance = 192.0; //[64.0 80.0 96.0 112.0 128.0 160.0 192.0 224.0 256.0 320.0 384.0 512.0 768.0 1024.0]
-
-
-
-
-
-    //#define CLOUD_SHADOWS
-
-
-    //#define DOUBLE_REIM_CLOUDS
-
-
-
-    //#define LIGHTSHAFT_SMOKE
-
-
-
-    //#define WB_FOV_SCALED
-    //#define WB_CHROMATIC
-    //#define WB_ANAMORPHIC
-
-
-
-    //#define EMISSIVE_REDSTONE_BLOCK
-    //#define EMISSIVE_LAPIS_BLOCK
-    //#define GLOWING_ARMOR_TRIM
-
-    //#define IPBR_COMPAT_MODE_DEFINE
-
-    //#define POM_ALLOW_CUTOUT
-
-
-    //#define WAVING_LILY_PAD
-
-
-
-    //#define SELECT_OUTLINE_AUTO_HIDE
-
-    //#define WORLD_OUTLINE
-    //#define WORLD_OUTLINE_SCALED
-    //#define DARK_OUTLINE
-
-    //#define REDUCE_CLOSE_PARTICLES
-    //#define LESS_LAVA_FOG
-    //#define SNOWY_WORLD
-    //#define COLOR_CODED_PROGRAMS
-    //#define GLOWING_COLORED_PARTICLES
-
-    //#define MOON_PHASE_INF_LIGHT
-    //#define MOON_PHASE_INF_ATMOSPHERE
-
-    //#define PIXELATED_SHADOWS
-    //#define PIXELATED_BLOCKLIGHT
-    //#define PIXELATED_AO
-
-    //#define COLORGRADING
-
-    //#define LIGHT_COLOR_MULTS
-    //#define ATM_COLOR_MULTS
-
-
-
-
-//Internal Settings//
-
-
-
-
-    //#define SAFER_GENERATED_NORMALS
-
-
-//Extensions//
-
-//Information//
-
-//RP Mode, Visual Style and Performance Setting Handling//
-        //#define GENERATED_NORMALS
-        //#define COATED_TEXTURES
-        //#define GREEN_SCREEN_LIME
-
-        //#define WATER_CAUSTIC_STYLE_DEFAULT 1
-    // Thanks to SpacEagle17 and isuewo for the sun angle handling
 static const float sunPathRotation = 0.0;
 
 static const int shadowMapResolution = 2048;
-
-
-
-
-
-//Define Handling//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Activate Settings//
-
-//Very Common Stuff//
-// @included "/lib/uniforms.glsl"
-/*----------------------------------------------------------------------------------------------
-        _____                                                                    _____
-        ( ___ )                                                                  ( ___ )
-        |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   |
-        |   | ██╗   ██╗███╗   ██╗██╗███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗ |   |
-        |   | ██║   ██║████╗  ██║██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝ |   |
-        |   | ██║   ██║██╔██╗ ██║██║█████╗  ██║   ██║██████╔╝██╔████╔██║███████╗ |   |
-        |   | ██║   ██║██║╚██╗██║██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║╚════██║ |   |
-        |   | ╚██████╔╝██║ ╚████║██║██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████║ |   |
-        |   |  ╚═════╝ ╚═╝  ╚═══╝╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ |   |
-        |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___|
-        (_____)                              (thanks to isuewo and SpacEagle17)  (_____)
-
----------------------------------------------------------------------------------------------*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*-----------------------------------------------------------------------------
-  ___ _   _ ___ _____ ___  __  __   _   _ _  _ ___ ___ ___  ___ __  __ ___
- / __| | | / __|_   _/ _ \|  \/  | | | | | \| |_ _| __/ _ \| _ \  \/  / __|
-| (__| |_| \__ \ | || (_) | |\/| | | |_| | .` || || _| (_) |   / |\/| \__ 
- \___|\___/|___/ |_| \___/|_|  |_|  \___/|_|\_|___|_| \___/|_|_\_|  |_|___/
-
------------------------------------------------------------------------------*/
-
 
 static float tAmin;
 static float tAlin;
@@ -463,9 +264,6 @@ static float tAfrc;
 static float tAfrs;
 static float tAmix;
 static float timeAngle;
-
-// @included "/lib/util/commonFunctions.glsl"
-// Do these via macro as Apple otherwise complains
 
 static float overworldAngleRaw;
 static float overworldAngle;
@@ -498,7 +296,7 @@ float GetHorizonFactor(float XdotU) {
         return horizon * horizon * (3.0 - 2.0 * horizon);
 }
 
-bool CheckForColor(vec3 albedo, vec3 check) { // Thanks to Builderb0y - edited a bit later
+bool CheckForColor(vec3 albedo, vec3 check) {
     vec3 dif = albedo - check * 0.003921568;
     return dot(dif, dif) < 0.00001;
 }
@@ -531,7 +329,6 @@ float GetSkyLightFactor(vec2 lmCoordM, vec3 shadowMult) {
                   skyLightFactor *= skyLightFactor;
 
                 skyLightFactor = max(skyLightFactor, dot(shadowMult, shadowMult) * 0.333333);
-
 
     return skyLightFactor;
 }
@@ -609,8 +406,8 @@ vec4 pow3(vec4 x) {
     return pow2(x) * x;
 }
 
-float pow1_5(float x) { // Faster pow(x, 1.5) approximation (that isn't accurate at all) if x is between 0 and 1
-    return x - x * pow2(1.0 - x); // Thanks to SixthSurge
+float pow1_5(float x) {
+    return x - x * pow2(1.0 - x);
 }
 vec2 pow1_5(vec2 x) {
     return x - x * pow2(1.0 - x);
@@ -622,8 +419,8 @@ vec4 pow1_5(vec4 x) {
     return x - x * pow2(1.0 - x);
 }
 
-float sqrt1(float x) { // Faster sqrt() approximation (that isn't accurate at all) if x is between 0 and 1
-    return x * (2.0 - x); // Thanks to Builderb0y
+float sqrt1(float x) {
+    return x * (2.0 - x);
 }
 vec2 sqrt1(vec2 x) {
     return x * (2.0 - x);
@@ -767,7 +564,7 @@ static float invNoonFactor2;
 
 static float vsBrightness;
 
-static float nightVisionWithAddedSupport; // Add support for fullbright mods
+static float nightVisionWithAddedSupport;
 
 static int modifiedWorldDay;
 static float syncedTime;
@@ -781,7 +578,6 @@ static ivec3 cameraPositionBestInt;
 static vec3 cameraPositionBestFract;
 static vec3 previousCameraPositionBestFract;
 
-// @included "/lib/colors/blocklightColors.glsl"
 void AddSpecialLightDetail(inout vec3 light, vec3 albedo, float emission) {
 	vec3 lightM = max(light, vec3(0.0));
 	lightM /= (0.2 + 0.8 * GetLuminance(lightM));
@@ -803,57 +599,51 @@ static float candleColorMult;
 static float candleExtraLight;
 
 vec4 GetSpecialBlocklightColor(int mat) {
-	/* Please note that these colors do not determine the intensity of the
-	final light. Instead; higher values of color change how long the color
-	will travel, and also how dominant it will be next to other colors.*/
-	/* Additional feature: An alpha value bigger than 0 will make that
-	block cast extra light regardless of the vanilla s_lightmap. Use this
-	with caution though because our floodfill isn't as accurate as vanilla.*/
 
 	if (mat < 50) {
 		if (mat < 26) {
 			if (mat < 14) {
 				if (mat < 8) {
 					if (mat < 5) {
-						if (mat == 2) return vec4(fireSpecialLightColor, 0.0); // Torch
-							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0); // End Rod - This is the base for all lights. Total value 12
-						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0); // Beacon
+						if (mat == 2) return vec4(fireSpecialLightColor, 0.0);
+							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0);
+						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0);
 					} else {
-						if (mat == 5) return vec4(fireSpecialLightColor, 0.0); // Fire
-						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0); // Sea Pickle:Waterlogged
-						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0); // Ochre Froglight
+						if (mat == 5) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0);
+						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0);
 					}
 				} else {
 					if (mat < 11) {
-						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0); // Verdant Froglight
-						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0); // Pearlescent Froglight
-						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Glowstone
+						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0);
+						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0);
+						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 11) return vec4(fireSpecialLightColor, 0.0); // Jack o'Lantern
-						if (mat == 12) return vec4(fireSpecialLightColor, 0.0); // Lantern
-						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8); // Lava
+						if (mat == 11) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 12) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8);
 					}
 				}
 			} else {
 				if (mat < 20) {
 					if (mat < 17) {
-						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0); // Lava Cauldron
-						if (mat == 15) return vec4(fireSpecialLightColor, 0.0); // Campfire:Lit
-						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Redstone Lamp:Lit
+						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0);
+						if (mat == 15) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Respawn Anchor:Lit
-						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0); // Sea Lantern
-						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0); // Shroomlight
+						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0);
+						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0);
 					}
 				} else {
 					if (mat < 23) {
-						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0); // Cave Vines:With Glow Berries
-						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0); // Furnace:Lit
-						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0); // Smoker:Lit
+						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0);
+						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0);
 					} else {
-						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0); // Blast Furnace:Lit
-						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight); // Standard Candles:Lit
-						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4); // Nether Portal
+						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight);
+						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4);
 					}
 				}
 			}
@@ -861,45 +651,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 38) {
 				if (mat < 32) {
 					if (mat < 29) {
-						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0); // Crying Obsidian
-						if (mat == 27) return soulFireSpecialColor; // Soul Fire
-						if (mat == 28) return soulFireSpecialColor; // Soul Torch
+						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0);
+						if (mat == 27) return soulFireSpecialColor;
+						if (mat == 28) return soulFireSpecialColor;
 					} else {
-						if (mat == 29) return soulFireSpecialColor; // Soul Lantern
-						if (mat == 30) return soulFireSpecialColor; // Soul Campfire:Lit
-						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1); // Redstone Ores:Lit
+						if (mat == 29) return soulFireSpecialColor;
+						if (mat == 30) return soulFireSpecialColor;
+						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1);
 					}
 				} else {
 					if (mat < 35) {
-						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00; // Redstone Ores:Unlit
-						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05); // Enchanting Table
-							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05); // Glow Lichen with IntegratedPBR
+						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00;
+						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05);
+							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05);
 					} else {
-						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0); // Redstone Torch
-						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05); // Amethyst Cluster, Amethyst Buds, Calibrated Sculk Sensor
-						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1); // Magma Block
+						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0);
+						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05);
+						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1);
 					}
 				}
 			} else {
 				if (mat < 44) {
 					if (mat < 41) {
-						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1); // Dragon Egg
-						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1); // Chorus Flower
-						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1); // Brewing Stand
+						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1);
+						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1);
+						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1);
 					} else {
-						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15); // Redstone Block
-						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15); // Lapis Block
-						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00; // Iron Ores
+						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15);
+						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15);
+						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00;
 					}
 				} else {
 					if (mat < 47) {
-						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00; // Gold Ores
-						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00; // Copper Ores
-						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00; // Lapis Ores
+						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00;
+						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00;
+						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00;
 					} else {
-						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00; // Emerald Ores
-						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00; // Diamond Ores
-						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00; // Nether Quartz Ore
+						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00;
+						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00;
+						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00;
 					}
 				}
 			}
@@ -909,45 +699,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 62) {
 				if (mat < 56) {
 					if (mat < 53) {
-						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00; // Nether Gold Ore
-						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05); // Gilded Blackstone
-						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15); // Ancient Debris
+						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00;
+						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05);
+						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15);
 					} else {
-						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05); // Spawner
-						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1); // Trial Spawner:NotOminous:Active, Vault:NotOminous:Active
-						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Copper Bulb:BrighterOnes:Lit
+						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05);
+						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1);
+						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					}
 				} else {
 					if (mat < 59) {
-						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Copper Bulb:DimmerOnes:Lit
-						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005); // Sculk++
-						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15); // End Portal Frame:Active
+						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005);
+						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15);
 					} else {
-						if (mat == 59) return vec4(0.0); // Bedrock
-						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125); // Command Block
-						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Warped Fungus, Crimson Fungus
+						if (mat == 59) return vec4(0.0);
+						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125);
+						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
 					}
 				}
 			} else {
 				if (mat < 68) {
 					if (mat < 65) {
-						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05); // Crimson Stem, Crimson Hyphae
-						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05); // Warped Stem, Warped Hyphae
-						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1); // Structure Block, Jigsaw Block, Test Block, Test Instance Block
+						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05);
+						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05);
+						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1);
 					} else {
-						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Weeping Vines Plant
-						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002); // Redstone Wire:Lit, Comparator:Unlit:Subtract
-						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125); // Repeater:Lit, Comparator:Lit
+						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
+						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002);
+						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125);
 					}
 				} else {
 					if (mat < 71) {
-						if (mat == 68) return vec4(vec3(0.75), 0.0); // Vault:Inactive
-						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1); // Trial Spawner:Ominous:Active, Vault:Ominous:Active
-						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight); // Red Candles:Lit
+						if (mat == 68) return vec4(vec3(0.75), 0.0);
+						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1);
+						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight); // Orange Candles:Lit
-						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight); // Yellow Candles:Lit
-						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight); // Lime Candles:Lit
+						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight);
 					}
 				}
 			}
@@ -955,22 +745,22 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 86) {
 				if (mat < 80) {
 					if (mat < 77) {
-						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight); // Green Candles:Lit
-						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight); // Cyan Candles:Lit
-						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight); // Light Blue Candles:Lit
+						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight);
+						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight); // Blue Candles:Lit
-						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight); // Purple Candles:Lit
-						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight); // Magenta Candles:Lit
+						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight);
 					}
 				} else {
 					if (mat < 83) {
-						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight); // Pink Candles:Lit
-						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125); // Open Eyeblossom
-						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05); // Creaking Heart: Active
+						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125);
+						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05);
 					} else {
-						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05); // Firefly Bush
-						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0); // Copper Torch, Copper Lantern
+						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05);
+						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0);
 						if (mat == 85) return vec4(0.0);
 					}
 				}
@@ -1004,50 +794,50 @@ vec4 GetSpecialBlocklightColor(int mat) {
 }
 
 static const vec3 specialTintColor[20] = {
-	// 200: White
+
 	vec3(1.0),
-	// 201: Orange
+
 	vec3(1.0, 0.3, 0.1),
-	// 202: Magenta
+
 	vec3(1.0, 0.1, 1.0),
-	// 203: Light Blue
+
 	vec3(0.5, 0.65, 1.0),
-	// 204: Yellow
+
 	vec3(1.0, 1.0, 0.1),
-	// 205: Lime
+
 	vec3(0.1, 1.0, 0.1),
-	// 206: Pink
+
 	vec3(1.0, 0.4, 1.0),
-	// 207: Gray
+
 	vec3(1.0),
-	// 208: Light Gray
+
 	vec3(1.0),
-	// 209: Cyan
+
 	vec3(0.3, 0.8, 1.0),
-	// 210: Purple
+
 	vec3(0.7, 0.3, 1.0),
-	// 211: Blue
+
 	vec3(0.1, 0.15, 1.0),
-	// 212: Brown
+
 	vec3(1.0, 0.75, 0.5),
-	// 213: Green
+
 	vec3(0.3, 1.0, 0.3),
-	// 214: Red
+
 	vec3(1.0, 0.1, 0.1),
-	// 215: Black
+
 	vec3(1.0),
-	// 216: Ice
+
 	vec3(0.5, 0.65, 1.0),
-	// 217: Glass
+
 	vec3(1.0),
-	// 218: Glass Pane
+
 	vec3(1.0),
-	// 219++
+
 	vec3(0.0)
 };;
 
 static const vec3 caveFogColorRaw = vec3(0.13, 0.13, 0.15);
-static vec3 caveFogColorRaw2; // Default
+static vec3 caveFogColorRaw2;
 static vec3 caveFogColor;
 
 static vec3 underwaterColorM1;
@@ -1063,67 +853,16 @@ static const vec3 endSkyColor = vec3(0.095, 0.07, 0.15) * 1.65;
 static const float rainTexOpacity = 0.25;
 static const float snowTexOpacity = 0.5;
 
-
-static float cloudHeightM; // iris returns "nan" if there are no clouds
+static float cloudHeightM;
 static float cloudHeightOffset;
-static int cloudAlt1i; // Old setting files can send float values
+static int cloudAlt1i;
 static int cloudAlt2i;
 
-static const float OSIEBCA = 1.0 / 255.0; // One Step In Eight Bit Color Attachment
-    /* materialMask steps
-    0 to 240 - PBR Dependant:
-        IntegratedPBR:
-            0 to 99: deferredMaterials
-                OSIEBCA * 0.0 = *Unused as 0.0 is the default value*
-                OSIEBCA * 1.0 = Intense Fresnel
-                OSIEBCA * 2.0 = Copper Fresnel
-                OSIEBCA * 3.0 = Gold Fresnel
-                OSIEBCA * 4.0 =
-                OSIEBCA * 5.0 = Redstone Fresnel
-            100 to 199: Exact copy of deferredMaterials but toned down reflection handling for entities
-                materialMask += OSIEBCA * 100.0; // Entity Reflection Handling
-            200 to 240: Random checks
-                OSIEBCA * 240.0 = Green Screen Lime Blocks
-        seuspbr:
-            0 to 240: Increasing metalness
-        labPBR:
-            0 to 229: Increasing f0
-            230 to 240: Consistent metalness with still increasing f0
-    241 to 255 - PBR Independant:
-        OSIEBCA * 241.0 = Water
+static const float OSIEBCA = 1.0 / 255.0;
 
-        OSIEBCA * 251.0 = No SSAO, Reduce Reflection
-        OSIEBCA * 252.0 = Versatile Selection Outline
-        OSIEBCA * 253.0 = Reduced Edge 1 (Leaves)
-        OSIEBCA * 254.0 = No SSAO, No 1, Reduce Reflection
-        OSIEBCA * 255.0 = *Unused as 1.0 is the clear color*
-    */
-
-// 62 75 74 20 74 68 4F 73 65 20 77 68 6F 20 68 6F 70 65 20 69 6E 20 74 68 65 20 6C 69 6D 69 4E 61 6C 0A 77 69 6C 6C 20 72 65 6E 65 77 20 74 68 65 69 72 20 73 54 72 65 6E 67 74 48 2E 0A 74 68 65 79 20 77 69 6C 6C 20 73 6F 41 72 20 6F 6E 20 65 6C 79 54 72 61 73 20 6C 69 6B 65 20 70 68 61 6E 74 6F 6D 73 3B 0A 74 68 65 79 20 77 69 6C 6C 20 72 75 6E 20 61 6E 44 20 6E 6F 74 20 67 72 6F 77 20 77 65 41 72 79 2C 0A 74 68 65 59 20 77 69 6C 6C 20 77 61 6C 6B 20 61 6E 64 20 6E 6F 74 20 62 65 20 66 61 69 6E 74 2E
-
-//////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-
-//////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-
-
-
-
-
-
-
-
-
-//Attributes//
-
-//Common Variables//
 static vec3 binormal;
 static vec3 tangent;
 
-//Common Functions//
-
-//Includes//
-// @included "/lib/antialiasing/jitter.glsl"
-// Jitter offset from Chocapic13
 static vec2 jitterOffsets[8];
 
 vec2 TAAJitter(vec2 coord, float w) {
@@ -1131,8 +870,6 @@ vec2 TAAJitter(vec2 coord, float w) {
             offset *= 0.125;
         return coord + offset;
 }
-
-// @included "/lib/materials/materialMethods/wavingBlocks.glsl"
 
 vec3 GetRawWave(in vec3 pos, float wind) {
     float magnitude = sin(wind * 0.0027 + pos.x + pos.y) * 0.04 + 0.04;
@@ -1150,8 +887,6 @@ vec3 GetRawWave(in vec3 pos, float wind) {
 vec3 GetWave(in vec3 pos, float waveSpeed) {
     float wind = frameTimeCounter * waveSpeed * 1.00;
     vec3 wave = GetRawWave(pos, wind);
-
-
 
     float wavingIntensity = 1.00 * mix(1.0, 100 * 0.01, rainFactor);
 
@@ -1177,7 +912,7 @@ void DoWave_Leaves(inout vec3 playerPos, vec3 worldPos, float waveMult) {
     vec3 wave = GetWave(worldPos, 170.0);
     wave *= vec3(4.0, 3.0, 8.0);
 
-    wave *= 1.0 - inSnowy; // Leaves with snow on top look wrong
+    wave *= 1.0 - inSnowy;
 
         wave *= clamp(lmCoord.y - 0.87, 0.0, 0.1);
 
@@ -1194,7 +929,6 @@ void DoWave_Water(inout vec3 playerPos, vec3 worldPos) {
         wave *= clamp(lmCoord.y - 0.87, 0.0, 0.1);
 
     wave = wave * 0.125 - 0.05;
-
 
     playerPos.y += wave;
 
@@ -1216,15 +950,12 @@ void DoWave_Lava(inout vec3 playerPos, vec3 worldPos) {
 void DoWave(inout vec3 playerPos, int mat) {
     vec3 worldPos = playerPos.xyz + cameraPosition.xyz;
 
-
-
-            if (mat == 32000) { // Water
+            if (mat == 32000) {
                 if (fract(worldPos.y + 0.005) > 0.06)
                 DoWave_Water(playerPos.xyz, worldPos);
             }
 }
 
-//Program//
 void stageMain() {
     tAmin = fract(sunAngle - 0.033333333);
     tAlin = tAmin < 0.433333333 ? tAmin * 1.15384615385 : tAmin * 0.882352941176 + 0.117647058824;
@@ -1317,7 +1048,6 @@ void stageMain() {
     signMidCoordPos = sign(texMinMidCoord);
     absMidCoordPos  = abs(texMinMidCoord);
 
-
     vec4 position = mul(gbufferModelViewInverse, u_jModelViewMatrix) * vec4(a_position, 1.0);
     playerPos = position.xyz;
 
@@ -1326,8 +1056,6 @@ void stageMain() {
     gl_Position = mul(u_jProjectionMatrix, gbufferModelView) * position;
 
         gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
-
-
 
 }
 }
@@ -1436,184 +1164,11 @@ static float4x4 u_jTextureMatrix1;
 #define diagonal3(m) vec3((m)[0].x, (m)[1].y, m[2].z)
 #define projMAD(m, v) (diagonal3(m) * (v) + transpose(m)[3].xyz)
 
+static const float shadowDistance = 192.0;
 
-// @included "/program/gbuffers_water.glsl"
-/////////////////////////////////////
-// Complementary Shaders by EminGT //
-/////////////////////////////////////
-
-//Common//
-// @included "/lib/common.glsl"
-/*---------------------------------------------------------------------
-         ___ __  __ ____   ___  ____ _____  _    _   _ _____
-        |_ _|  \/  |  _ \ / _ \|  _ \_   _|/ \  | \ | |_   _|
-         | || |\/| | |_) | | | | |_) || | / _ \ |  \| | | |
-         | || |  | |  __/| |_| |  _ < | |/ ___ \| |\  | | |
-        |___|_|  |_|_|    \___/|_| \_\|_/_/   \_\_| \_| |_|
-         .
-  -> -> -> EDITING THIS FILE HAS A HIGH CHANCE TO BREAK THE SHADER PACK
-  -> -> -> DO NOT CHANGE ANYTHING UNLESS YOU KNOW WHAT YOU ARE DOING
-  -> -> -> DO NOT EXPECT SUPPORT AFTER MODIFYING SHADER FILES
----------------------------------------------------------------------*/
-
-//User Settings//
-
-
-static const float shadowDistance = 192.0; //[64.0 80.0 96.0 112.0 128.0 160.0 192.0 224.0 256.0 320.0 384.0 512.0 768.0 1024.0]
-
-
-
-
-
-    //#define CLOUD_SHADOWS
-
-
-    //#define DOUBLE_REIM_CLOUDS
-
-
-
-    //#define LIGHTSHAFT_SMOKE
-
-
-
-    //#define WB_FOV_SCALED
-    //#define WB_CHROMATIC
-    //#define WB_ANAMORPHIC
-
-
-
-    //#define EMISSIVE_REDSTONE_BLOCK
-    //#define EMISSIVE_LAPIS_BLOCK
-    //#define GLOWING_ARMOR_TRIM
-
-    //#define IPBR_COMPAT_MODE_DEFINE
-
-    //#define POM_ALLOW_CUTOUT
-
-
-    //#define WAVING_LILY_PAD
-
-
-
-    //#define SELECT_OUTLINE_AUTO_HIDE
-
-    //#define WORLD_OUTLINE
-    //#define WORLD_OUTLINE_SCALED
-    //#define DARK_OUTLINE
-
-    //#define REDUCE_CLOSE_PARTICLES
-    //#define LESS_LAVA_FOG
-    //#define SNOWY_WORLD
-    //#define COLOR_CODED_PROGRAMS
-    //#define GLOWING_COLORED_PARTICLES
-
-    //#define MOON_PHASE_INF_LIGHT
-    //#define MOON_PHASE_INF_ATMOSPHERE
-
-    //#define PIXELATED_SHADOWS
-    //#define PIXELATED_BLOCKLIGHT
-    //#define PIXELATED_AO
-
-    //#define COLORGRADING
-
-    //#define LIGHT_COLOR_MULTS
-    //#define ATM_COLOR_MULTS
-
-
-
-
-//Internal Settings//
-
-
-
-
-    //#define SAFER_GENERATED_NORMALS
-
-
-//Extensions//
-
-//Information//
-
-//RP Mode, Visual Style and Performance Setting Handling//
-        //#define GENERATED_NORMALS
-        //#define COATED_TEXTURES
-        //#define GREEN_SCREEN_LIME
-
-        //#define WATER_CAUSTIC_STYLE_DEFAULT 1
-    // Thanks to SpacEagle17 and isuewo for the sun angle handling
 static const float sunPathRotation = 0.0;
 
 static const int shadowMapResolution = 2048;
-
-
-
-
-
-//Define Handling//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Activate Settings//
-
-//Very Common Stuff//
-// @included "/lib/uniforms.glsl"
-/*----------------------------------------------------------------------------------------------
-        _____                                                                    _____
-        ( ___ )                                                                  ( ___ )
-        |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   |
-        |   | ██╗   ██╗███╗   ██╗██╗███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗ |   |
-        |   | ██║   ██║████╗  ██║██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝ |   |
-        |   | ██║   ██║██╔██╗ ██║██║█████╗  ██║   ██║██████╔╝██╔████╔██║███████╗ |   |
-        |   | ██║   ██║██║╚██╗██║██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║╚════██║ |   |
-        |   | ╚██████╔╝██║ ╚████║██║██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████║ |   |
-        |   |  ╚═════╝ ╚═╝  ╚═══╝╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ |   |
-        |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___|
-        (_____)                              (thanks to isuewo and SpacEagle17)  (_____)
-
----------------------------------------------------------------------------------------------*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*-----------------------------------------------------------------------------
-  ___ _   _ ___ _____ ___  __  __   _   _ _  _ ___ ___ ___  ___ __  __ ___
- / __| | | / __|_   _/ _ \|  \/  | | | | | \| |_ _| __/ _ \| _ \  \/  / __|
-| (__| |_| \__ \ | || (_) | |\/| | | |_| | .` || || _| (_) |   / |\/| \__ 
- \___|\___/|___/ |_| \___/|_|  |_|  \___/|_|\_|___|_| \___/|_|_\_|  |_|___/
-
------------------------------------------------------------------------------*/
-
 
 static float tAmin;
 static float tAlin;
@@ -1623,12 +1178,8 @@ static float tAfrs;
 static float tAmix;
 static float timeAngle;
 
-// @included "/lib/util/commonFunctions.glsl"
-// Do these via macro as Apple otherwise complains
-
 static float overworldAngleRaw;
 static float overworldAngle;
-
 
 float GetLuminance(vec3 color) {
     return dot(color, vec3(0.299, 0.587, 0.114));
@@ -1653,7 +1204,7 @@ float GetHorizonFactor(float XdotU) {
         return horizon * horizon * (3.0 - 2.0 * horizon);
 }
 
-bool CheckForColor(vec3 albedo, vec3 check) { // Thanks to Builderb0y - edited a bit later
+bool CheckForColor(vec3 albedo, vec3 check) {
     vec3 dif = albedo - check * 0.003921568;
     return dot(dif, dif) < 0.00001;
 }
@@ -1686,7 +1237,6 @@ float GetSkyLightFactor(vec2 lmCoordM, vec3 shadowMult) {
                   skyLightFactor *= skyLightFactor;
 
                 skyLightFactor = max(skyLightFactor, dot(shadowMult, shadowMult) * 0.333333);
-
 
     return skyLightFactor;
 }
@@ -1764,8 +1314,8 @@ vec4 pow3(vec4 x) {
     return pow2(x) * x;
 }
 
-float pow1_5(float x) { // Faster pow(x, 1.5) approximation (that isn't accurate at all) if x is between 0 and 1
-    return x - x * pow2(1.0 - x); // Thanks to SixthSurge
+float pow1_5(float x) {
+    return x - x * pow2(1.0 - x);
 }
 vec2 pow1_5(vec2 x) {
     return x - x * pow2(1.0 - x);
@@ -1777,8 +1327,8 @@ vec4 pow1_5(vec4 x) {
     return x - x * pow2(1.0 - x);
 }
 
-float sqrt1(float x) { // Faster sqrt() approximation (that isn't accurate at all) if x is between 0 and 1
-    return x * (2.0 - x); // Thanks to Builderb0y
+float sqrt1(float x) {
+    return x * (2.0 - x);
 }
 vec2 sqrt1(vec2 x) {
     return x * (2.0 - x);
@@ -1922,7 +1472,7 @@ static float invNoonFactor2;
 
 static float vsBrightness;
 
-static float nightVisionWithAddedSupport; // Add support for fullbright mods
+static float nightVisionWithAddedSupport;
 
 static int modifiedWorldDay;
 static float syncedTime;
@@ -1936,7 +1486,6 @@ static ivec3 cameraPositionBestInt;
 static vec3 cameraPositionBestFract;
 static vec3 previousCameraPositionBestFract;
 
-// @included "/lib/colors/blocklightColors.glsl"
 void AddSpecialLightDetail(inout vec3 light, vec3 albedo, float emission) {
 	vec3 lightM = max(light, vec3(0.0));
 	lightM /= (0.2 + 0.8 * GetLuminance(lightM));
@@ -1958,57 +1507,51 @@ static float candleColorMult;
 static float candleExtraLight;
 
 vec4 GetSpecialBlocklightColor(int mat) {
-	/* Please note that these colors do not determine the intensity of the
-	final light. Instead; higher values of color change how long the color
-	will travel, and also how dominant it will be next to other colors.*/
-	/* Additional feature: An alpha value bigger than 0 will make that
-	block cast extra light regardless of the vanilla s_lightmap. Use this
-	with caution though because our floodfill isn't as accurate as vanilla.*/
 
 	if (mat < 50) {
 		if (mat < 26) {
 			if (mat < 14) {
 				if (mat < 8) {
 					if (mat < 5) {
-						if (mat == 2) return vec4(fireSpecialLightColor, 0.0); // Torch
-							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0); // End Rod - This is the base for all lights. Total value 12
-						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0); // Beacon
+						if (mat == 2) return vec4(fireSpecialLightColor, 0.0);
+							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0);
+						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0);
 					} else {
-						if (mat == 5) return vec4(fireSpecialLightColor, 0.0); // Fire
-						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0); // Sea Pickle:Waterlogged
-						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0); // Ochre Froglight
+						if (mat == 5) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0);
+						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0);
 					}
 				} else {
 					if (mat < 11) {
-						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0); // Verdant Froglight
-						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0); // Pearlescent Froglight
-						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Glowstone
+						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0);
+						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0);
+						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 11) return vec4(fireSpecialLightColor, 0.0); // Jack o'Lantern
-						if (mat == 12) return vec4(fireSpecialLightColor, 0.0); // Lantern
-						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8); // Lava
+						if (mat == 11) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 12) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8);
 					}
 				}
 			} else {
 				if (mat < 20) {
 					if (mat < 17) {
-						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0); // Lava Cauldron
-						if (mat == 15) return vec4(fireSpecialLightColor, 0.0); // Campfire:Lit
-						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Redstone Lamp:Lit
+						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0);
+						if (mat == 15) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Respawn Anchor:Lit
-						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0); // Sea Lantern
-						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0); // Shroomlight
+						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0);
+						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0);
 					}
 				} else {
 					if (mat < 23) {
-						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0); // Cave Vines:With Glow Berries
-						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0); // Furnace:Lit
-						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0); // Smoker:Lit
+						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0);
+						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0);
 					} else {
-						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0); // Blast Furnace:Lit
-						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight); // Standard Candles:Lit
-						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4); // Nether Portal
+						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight);
+						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4);
 					}
 				}
 			}
@@ -2016,45 +1559,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 38) {
 				if (mat < 32) {
 					if (mat < 29) {
-						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0); // Crying Obsidian
-						if (mat == 27) return soulFireSpecialColor; // Soul Fire
-						if (mat == 28) return soulFireSpecialColor; // Soul Torch
+						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0);
+						if (mat == 27) return soulFireSpecialColor;
+						if (mat == 28) return soulFireSpecialColor;
 					} else {
-						if (mat == 29) return soulFireSpecialColor; // Soul Lantern
-						if (mat == 30) return soulFireSpecialColor; // Soul Campfire:Lit
-						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1); // Redstone Ores:Lit
+						if (mat == 29) return soulFireSpecialColor;
+						if (mat == 30) return soulFireSpecialColor;
+						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1);
 					}
 				} else {
 					if (mat < 35) {
-						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00; // Redstone Ores:Unlit
-						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05); // Enchanting Table
-							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05); // Glow Lichen with IntegratedPBR
+						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00;
+						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05);
+							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05);
 					} else {
-						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0); // Redstone Torch
-						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05); // Amethyst Cluster, Amethyst Buds, Calibrated Sculk Sensor
-						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1); // Magma Block
+						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0);
+						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05);
+						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1);
 					}
 				}
 			} else {
 				if (mat < 44) {
 					if (mat < 41) {
-						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1); // Dragon Egg
-						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1); // Chorus Flower
-						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1); // Brewing Stand
+						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1);
+						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1);
+						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1);
 					} else {
-						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15); // Redstone Block
-						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15); // Lapis Block
-						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00; // Iron Ores
+						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15);
+						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15);
+						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00;
 					}
 				} else {
 					if (mat < 47) {
-						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00; // Gold Ores
-						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00; // Copper Ores
-						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00; // Lapis Ores
+						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00;
+						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00;
+						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00;
 					} else {
-						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00; // Emerald Ores
-						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00; // Diamond Ores
-						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00; // Nether Quartz Ore
+						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00;
+						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00;
+						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00;
 					}
 				}
 			}
@@ -2064,45 +1607,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 62) {
 				if (mat < 56) {
 					if (mat < 53) {
-						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00; // Nether Gold Ore
-						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05); // Gilded Blackstone
-						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15); // Ancient Debris
+						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00;
+						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05);
+						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15);
 					} else {
-						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05); // Spawner
-						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1); // Trial Spawner:NotOminous:Active, Vault:NotOminous:Active
-						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Copper Bulb:BrighterOnes:Lit
+						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05);
+						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1);
+						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					}
 				} else {
 					if (mat < 59) {
-						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Copper Bulb:DimmerOnes:Lit
-						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005); // Sculk++
-						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15); // End Portal Frame:Active
+						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005);
+						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15);
 					} else {
-						if (mat == 59) return vec4(0.0); // Bedrock
-						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125); // Command Block
-						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Warped Fungus, Crimson Fungus
+						if (mat == 59) return vec4(0.0);
+						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125);
+						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
 					}
 				}
 			} else {
 				if (mat < 68) {
 					if (mat < 65) {
-						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05); // Crimson Stem, Crimson Hyphae
-						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05); // Warped Stem, Warped Hyphae
-						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1); // Structure Block, Jigsaw Block, Test Block, Test Instance Block
+						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05);
+						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05);
+						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1);
 					} else {
-						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Weeping Vines Plant
-						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002); // Redstone Wire:Lit, Comparator:Unlit:Subtract
-						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125); // Repeater:Lit, Comparator:Lit
+						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
+						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002);
+						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125);
 					}
 				} else {
 					if (mat < 71) {
-						if (mat == 68) return vec4(vec3(0.75), 0.0); // Vault:Inactive
-						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1); // Trial Spawner:Ominous:Active, Vault:Ominous:Active
-						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight); // Red Candles:Lit
+						if (mat == 68) return vec4(vec3(0.75), 0.0);
+						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1);
+						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight); // Orange Candles:Lit
-						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight); // Yellow Candles:Lit
-						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight); // Lime Candles:Lit
+						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight);
 					}
 				}
 			}
@@ -2110,22 +1653,22 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 86) {
 				if (mat < 80) {
 					if (mat < 77) {
-						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight); // Green Candles:Lit
-						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight); // Cyan Candles:Lit
-						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight); // Light Blue Candles:Lit
+						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight);
+						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight); // Blue Candles:Lit
-						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight); // Purple Candles:Lit
-						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight); // Magenta Candles:Lit
+						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight);
 					}
 				} else {
 					if (mat < 83) {
-						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight); // Pink Candles:Lit
-						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125); // Open Eyeblossom
-						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05); // Creaking Heart: Active
+						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125);
+						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05);
 					} else {
-						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05); // Firefly Bush
-						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0); // Copper Torch, Copper Lantern
+						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05);
+						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0);
 						if (mat == 85) return vec4(0.0);
 					}
 				}
@@ -2159,50 +1702,50 @@ vec4 GetSpecialBlocklightColor(int mat) {
 }
 
 static const vec3 specialTintColor[20] = {
-	// 200: White
+
 	vec3(1.0),
-	// 201: Orange
+
 	vec3(1.0, 0.3, 0.1),
-	// 202: Magenta
+
 	vec3(1.0, 0.1, 1.0),
-	// 203: Light Blue
+
 	vec3(0.5, 0.65, 1.0),
-	// 204: Yellow
+
 	vec3(1.0, 1.0, 0.1),
-	// 205: Lime
+
 	vec3(0.1, 1.0, 0.1),
-	// 206: Pink
+
 	vec3(1.0, 0.4, 1.0),
-	// 207: Gray
+
 	vec3(1.0),
-	// 208: Light Gray
+
 	vec3(1.0),
-	// 209: Cyan
+
 	vec3(0.3, 0.8, 1.0),
-	// 210: Purple
+
 	vec3(0.7, 0.3, 1.0),
-	// 211: Blue
+
 	vec3(0.1, 0.15, 1.0),
-	// 212: Brown
+
 	vec3(1.0, 0.75, 0.5),
-	// 213: Green
+
 	vec3(0.3, 1.0, 0.3),
-	// 214: Red
+
 	vec3(1.0, 0.1, 0.1),
-	// 215: Black
+
 	vec3(1.0),
-	// 216: Ice
+
 	vec3(0.5, 0.65, 1.0),
-	// 217: Glass
+
 	vec3(1.0),
-	// 218: Glass Pane
+
 	vec3(1.0),
-	// 219++
+
 	vec3(0.0)
 };;
 
 static const vec3 caveFogColorRaw = vec3(0.13, 0.13, 0.15);
-static vec3 caveFogColorRaw2; // Default
+static vec3 caveFogColorRaw2;
 static vec3 caveFogColor;
 
 static vec3 underwaterColorM1;
@@ -2220,56 +1763,13 @@ static const float snowTexOpacity = 0.5;
 
 static ivec2 texelCoord;
 
-static float cloudHeightM; // iris returns "nan" if there are no clouds
+static float cloudHeightM;
 static float cloudHeightOffset;
-static int cloudAlt1i; // Old setting files can send float values
+static int cloudAlt1i;
 static int cloudAlt2i;
 
-static const float OSIEBCA = 1.0 / 255.0; // One Step In Eight Bit Color Attachment
-    /* materialMask steps
-    0 to 240 - PBR Dependant:
-        IntegratedPBR:
-            0 to 99: deferredMaterials
-                OSIEBCA * 0.0 = *Unused as 0.0 is the default value*
-                OSIEBCA * 1.0 = Intense Fresnel
-                OSIEBCA * 2.0 = Copper Fresnel
-                OSIEBCA * 3.0 = Gold Fresnel
-                OSIEBCA * 4.0 =
-                OSIEBCA * 5.0 = Redstone Fresnel
-            100 to 199: Exact copy of deferredMaterials but toned down reflection handling for entities
-                materialMask += OSIEBCA * 100.0; // Entity Reflection Handling
-            200 to 240: Random checks
-                OSIEBCA * 240.0 = Green Screen Lime Blocks
-        seuspbr:
-            0 to 240: Increasing metalness
-        labPBR:
-            0 to 229: Increasing f0
-            230 to 240: Consistent metalness with still increasing f0
-    241 to 255 - PBR Independant:
-        OSIEBCA * 241.0 = Water
+static const float OSIEBCA = 1.0 / 255.0;
 
-        OSIEBCA * 251.0 = No SSAO, Reduce Reflection
-        OSIEBCA * 252.0 = Versatile Selection Outline
-        OSIEBCA * 253.0 = Reduced Edge 1 (Leaves)
-        OSIEBCA * 254.0 = No SSAO, No 1, Reduce Reflection
-        OSIEBCA * 255.0 = *Unused as 1.0 is the clear color*
-    */
-
-// 62 75 74 20 74 68 4F 73 65 20 77 68 6F 20 68 6F 70 65 20 69 6E 20 74 68 65 20 6C 69 6D 69 4E 61 6C 0A 77 69 6C 6C 20 72 65 6E 65 77 20 74 68 65 69 72 20 73 54 72 65 6E 67 74 48 2E 0A 74 68 65 79 20 77 69 6C 6C 20 73 6F 41 72 20 6F 6E 20 65 6C 79 54 72 61 73 20 6C 69 6B 65 20 70 68 61 6E 74 6F 6D 73 3B 0A 74 68 65 79 20 77 69 6C 6C 20 72 75 6E 20 61 6E 44 20 6E 6F 74 20 67 72 6F 77 20 77 65 41 72 79 2C 0A 74 68 65 59 20 77 69 6C 6C 20 77 61 6C 6B 20 61 6E 64 20 6E 6F 74 20 62 65 20 66 61 69 6E 74 2E
-
-//////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-
-
-
-
-
-
-
-
-
-//Pipeline Constants//
-
-//Common Variables//
 static vec3 upVec;
 static vec3 eastVec;
 static vec3 northVec;
@@ -2288,16 +1788,10 @@ static float shadowTime;
 
 static vec3 lightVec;
 
-
-//Common Functions//
 float GetLinearDepth(float depth) {
     return (2.0 * near) / (far + near - depth * (far - near));
 }
 
-//Includes//
-// @included "/lib/util/dither.glsl"
-
-    // Thanks to Jessie for dithering
     float Bayer2  (vec2 c) { c = 0.5 * floor(c); return fract(1.5 * fract(c.y) + c.x); }
     float Bayer4  (vec2 c) { return 0.25 * Bayer2  (0.5 * c) + Bayer2(c); }
     float Bayer8  (vec2 c) { return 0.25 * Bayer4  (0.5 * c) + Bayer2(c); }
@@ -2306,7 +1800,6 @@ float GetLinearDepth(float depth) {
     float Bayer64 (vec2 c) { return 0.25 * Bayer32 (0.5 * c) + Bayer2(c); }
     float Bayer128(vec2 c) { return 0.25 * Bayer64 (0.5 * c) + Bayer2(c); }
     float Bayer256(vec2 c) { return 0.25 * Bayer128(0.5 * c) + Bayer2(c); }
-// @included "/lib/util/spaceConversion.glsl"
 
 vec3 ScreenToView(vec3 pos) {
     vec4 iProjDiag = vec4(transpose(gbufferProjectionInverse)[0].x,
@@ -2316,7 +1809,6 @@ vec3 ScreenToView(vec3 pos) {
     vec4 viewPos = iProjDiag * p3.xyzz + transpose(gbufferProjectionInverse)[3];
     return viewPos.xyz / viewPos.w;
 }
-
 
 vec3 ViewToPlayer(vec3 pos) {
     return mat3(gbufferModelViewInverse) * pos + transpose(gbufferModelViewInverse)[3].xyz;
@@ -2334,17 +1826,14 @@ vec3 ShadowClipToShadowView(vec3 pos) {
 vec3 ShadowViewToPlayer(vec3 pos) {
     return mat3(shadowModelViewInverse) * pos;
 }
-// @included "/lib/lighting/mainLighting.glsl"
-//Lighting Includes//
-// @included "/lib/colors/lightAndAmbientColors.glsl"
 
-static vec3 noonClearLightColor; //ground and cloud color
+static vec3 noonClearLightColor;
 static vec3 noonClearAmbientColor;
 
-static vec3 sunsetClearLightColor; //ground and cloud color
+static vec3 sunsetClearLightColor;
 static vec3 sunsetClearAmbientColor;
 
-static vec3 nightClearLightColor; //ground color
+static vec3 nightClearLightColor;
 static vec3 nightClearAmbientColor;
 
 static vec3 drlcSnowM;
@@ -2356,7 +1845,7 @@ static vec3 dayRainAmbientColor;
 static vec3 nightRainLightColor;
 static vec3 nightRainAmbientColor;
 
-static float noonFactorDM; //ground and cloud factor
+static float noonFactorDM;
 static vec3 dayLightColor;
 static vec3 dayAmbientColor;
 
@@ -2371,8 +1860,6 @@ static vec3 rainAmbientColor;
 static vec3 lightColor;
 static vec3 ambientColor;
 
-// @included "/lib/lighting/ggx.glsl"
-// GGX area light approximation from Horizon Zero Dawn
 float GetNoHSquared(float radiusTan, float NoL, float NoV, float VoL) {
     float radiusCos = 1.0 / sqrt(1.0 + radiusTan * radiusTan);
 
@@ -2428,7 +1915,7 @@ float GGX(vec3 normalM, vec3 viewPos, vec3 lightVec, float NdotLmax0, float smoo
 
     return s_specular;
 }
-// @included "/lib/lighting/minimumLighting.glsl"
+
 vec3 GetMinimumLighting(float lightmapYM) {
         vec3 minLighting = vec3(0.005625 + vsBrightness * 0.043);
         minLighting *= vec3(0.45, 0.475, 0.6);
@@ -2439,13 +1926,11 @@ vec3 GetMinimumLighting(float lightmapYM) {
     return max(minLighting, vec3(0.0));
 }
 
-// @included "/lib/lighting/shadowSampling.glsl"
 vec3 GetShadowPos(vec3 playerPos) {
     vec3 shadowPos = PlayerToShadow(playerPos);
     float distb = sqrt(shadowPos.x * shadowPos.x + shadowPos.y * shadowPos.y);
     float distortFactor = distb * shadowMapBias + (1.0 - shadowMapBias);
-    
-    
+
     return shadowPos * 0.5 + 0.5;
 }
 
@@ -2528,16 +2013,14 @@ static vec2 shadowOffsets[4];
         float lightmapY2 = pow2(lightmapY);
         float lightmapY4 = pow2(lightmapY2);
 
-        float colorMult = 2.5 + 5.5 * pow1_5(lightmapY) + 2.0 * lightmapY2; // 423HDSS: Shadow color strength is stored 10 times lower to allow for water shadows going above 1.0
+        float colorMult = 2.5 + 5.5 * pow1_5(lightmapY) + 2.0 * lightmapY2;
         float colorPow = mix(1.5 + 0.5 * float(isEyeInWater == 0), 0.5, lightmapY4);
-
 
             vec3 shadow = SampleTAAFilteredShadow(shadowPos, offset, shadowSamples, leaves, colorMult, colorPow);
 
         return shadow;
     }
 
-// @included "/lib/lighting/heldLighting.glsl"
 vec3 GetHeldLighting(vec3 playerPos, vec3 color, float emission) {
     float heldLight = heldBlockLightValue; float heldLight2 = heldBlockLightValue2;
 
@@ -2546,7 +2029,7 @@ vec3 GetHeldLighting(vec3 playerPos, vec3 color, float emission) {
 
         vec3 heldLightCol = blocklightCol; vec3 heldLightCol2 = blocklightCol;
 
-        if (heldItemId == 45032) heldLight = 15; if (heldItemId2 == 45032) heldLight2 = 15; // Lava Bucket
+        if (heldItemId == 45032) heldLight = 15; if (heldItemId2 == 45032) heldLight2 = 15;
 
     vec3 playerPosLightM = playerPos + relativeEyePosition;
          playerPosLightM.y += 0.7;
@@ -2558,13 +2041,8 @@ vec3 GetHeldLighting(vec3 playerPos, vec3 color, float emission) {
     vec3 heldLighting = pow2(heldLight * DoLuminanceCorrection(heldLightCol))
                         + pow2(heldLight2 * DoLuminanceCorrection(heldLightCol2));
 
-
     return heldLighting;
 }
-
-
-
-// @included "/lib/colors/moonPhaseInfluence.glsl"
 
 static float moonPhaseFactor;
 
@@ -2575,11 +2053,8 @@ static float secondHalf;
 static float moonPhaseFactor2;
 static float moonPhaseInfluence;
 
-
-
 static vec3 highlightColor;
 
-//Lighting//
 void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 viewPos, float lViewPos, vec3 geoNormal, vec3 normalM, float dither,
                 vec3 worldGeoNormal, vec2 s_lightmap, bool noSmoothLighting, bool noDirectionalShading, bool noVanillaAO,
                 bool centerShadowBias, int subsurfaceMode, float smoothnessG, float highlightMult, float emission) {
@@ -2598,23 +2073,17 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
     vec3 ambientColorM = ambientColor;
     vec3 nViewPos = normalize(viewPos);
 
-
         float skyLightShadowMult = pow2(pow2(lightmapY2));
 
-
-    // Shadows
-            //NdotL = mix(NdotL, 1.0, 1.0 - color.a);
         float NdotLmax0 = max0(NdotL);
         float NdotLM = NdotLmax0 * 0.9999;
 
                 NdotLM = max0(NdotL + 0.4) * 0.714;
 
-
-
         if (shadowMult.r > 0.00001) {
                 if (NdotLM > 0.0001) {
                     vec3 shadowMultBeforeLighting = shadowMult;
-                    float shadowLength = shadowDistance * 0.9166667 - lViewPos; //consistent08JJ622
+                    float shadowLength = shadowDistance * 0.9166667 - lViewPos;
 
                     if (shadowLength > 0.000001) {
                             float offset = 0.00098;
@@ -2622,15 +2091,11 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
                         vec3 playerPosM = playerPos;
                         vec3 centerPlayerPos = floor(playerPos + cameraPosition + worldGeoNormal * 0.01) - cameraPosition + 0.5;
 
-
-                        // Fix light leaking in caves //
                             playerPosM = mix(playerPosM, centerPlayerPos, 0.2 * (1.0 - lightmapYM));
 
-                        // Shadow bias without peter-panning //
                             {
                                 float distanceBias = pow(dot(playerPos, playerPos), 0.75);
-                                vec3 bias = worldGeoNormal * (0.12 + 0.0008 * distanceBias) * (2.0 - 0.95 * NdotLmax0); // 0.95 fixes pink petals noon shadows
-
+                                vec3 bias = worldGeoNormal * (0.12 + 0.0008 * distanceBias) * (2.0 - 0.95 * NdotLmax0);
 
                                 playerPosM += bias;
                             }
@@ -2649,19 +2114,16 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
                     if (shadowLength < shadowSmooth) {
                         float shadowMixer = max0(shadowLength / shadowSmooth);
 
-
                         shadowMult = mix(vec3(skyLightShadowMult * shadowMultBeforeLighting), shadowMult, shadowMixer);
                     }
                 }
 
-
             shadowMult *= max(NdotLM * shadowTime, 0.0);
         }
-            else { // Low Quality Water
+            else {
                 shadowMult = vec3(pow2(lightmapY2) * max(NdotLM * shadowTime, 0.0));
             }
 
-    // Blocklight
     float lightmapXM;
     if (!noSmoothLighting) {
         float lightmapXMSteep = pow2(pow2(s_lightmap.x * s_lightmap.x))  * (2.8 - 0.6 * vsBrightness + 1.00);
@@ -2673,26 +2135,19 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
     }
 
     float daylightFactor = lightmapYM * invRainFactor * sunVisibility;
-    emission *= 1.0 - 0.25 * daylightFactor; // Less emission under direct skylight
-
-
+    emission *= 1.0 - 0.25 * daylightFactor;
 
     vec3 blockLighting = lightmapXM * blocklightCol;
-
 
             vec3 playerPosForHeldLighting = playerPos;
 
         vec3 heldLighting = GetHeldLighting(playerPosForHeldLighting, color.rgb, emission);
 
-
     vec3 minLighting = GetMinimumLighting(lightmapYM);
     vec3 shadowLightMult = shadowMult;
     float shadowMultFloat = min1(GetLuminance(shadowMult));
 
-    // Lighting Tweaks
         ambientMult = mix(lightmapYM, pow2(lightmapYM) * lightmapYM, rainFactor);
-
-
 
         if (isEyeInWater != 1) {
             float lxFactor = (sunVisibility2 * 0.4 + (0.6 - 0.6 * invNoonFactor2)) * (6.0 - 5.0 * rainFactor);
@@ -2700,15 +2155,12 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
             lxFactor = max0(lxFactor - emission * 1000000.0);
             blockLighting *= pow(lightmapXM / 60.0 + 0.001, 0.09 * lxFactor);
 
-            // Less light in the distance / more light closer to the camera during rain or night to simulate thicker fog
             float rainLF = 0.1 * rainFactor;
             float lightFogTweaks = 1.0 + max0(96.0 - lViewPos) * (0.002 * (1.0 - sunVisibility2) + 0.0104 * rainLF) - rainLF;
             ambientMult *= lightFogTweaks;
             lightColorM *= lightFogTweaks;
         }
 
-
-    // Directional Shading
     float directionShade = 1.0;
         if (!noDirectionalShading) {
             float absNdotE2 = pow2(absNdotE);
@@ -2720,15 +2172,11 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
 
                 lightColorM *= 1.0 + absNdotE2 * 0.75;
 
-
-                // Fake bounced light
                 ambientColorM = mix(ambientColorM, lightColorM, (0.05 + 0.03 * subsurfaceMode) * absNdotN * lightmapY2);
 
-                // Get a bit more natural looking lighting during noon
                 lightColorM *= 1.0 + max0(1.0 - subsurfaceMode) * pow(noonFactor, 20.0) * (pow2(absNdotN) * 0.8 - absNdotE2 * 0.2);
         }
 
-    // Scene Lighting Stuff
     vec3 sceneLighting = lightColorM * shadowLightMult + ambientColorM * ambientMult;
     float dotSceneLighting = dot(sceneLighting, sceneLighting);
 
@@ -2736,11 +2184,8 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
 
     blockLighting *= 1.00;
 
-
-    // Vanilla Ambient Occlusion
     float vanillaAO = 1.0;
         vanillaAO = glColor.a;
-
 
         if (subsurfaceMode != 0) vanillaAO = mix(min1(vanillaAO * 1.15), 1.0, shadowMultFloat);
         else if (!noVanillaAO) {
@@ -2748,28 +2193,18 @@ void DoLighting(inout vec4 color, inout vec3 shadowMult, vec3 playerPos, vec3 vi
 
         }
 
-    // Light Highlight
     vec3 lightHighlight = vec3(0.0);
 
-    // Mix Colors
     vec3 finalDiffuse = pow2(directionShade * vanillaAO) * (blockLighting + pow2(sceneLighting) + minLighting) + pow2(emission);
-    finalDiffuse = sqrt(max(finalDiffuse, vec3(0.0))); // sqrt() for a bit more realistic light mix, max() to prevent NaNs
+    finalDiffuse = sqrt(max(finalDiffuse, vec3(0.0)));
 
-    // Apply Lighting
     color.rgb *= finalDiffuse;
     color.rgb += lightHighlight;
     color.rgb *= pow2(1.0 - darknessLightFactor);
 }
-// @included "/lib/atmospherics/fog/mainFog.glsl"
-
-// @included "/lib/atmospherics/sky.glsl"
-
-// @included "/lib/colors/lightAndAmbientColors.glsl"
-
-// @included "/lib/colors/skyColors.glsl"
 
 static vec3 skyColorSqrt;
-        // Doing these things because vanilla skyColor gets to 0 during a thunderstorm
+
 static float invRainStrength2;
 static vec3 skyColorM;
 static vec3 skyColorM2;
@@ -2801,16 +2236,13 @@ static vec3 nightUpSkyColor;
 static vec3 nightMiddleSkyColor;
 static vec3 nightDownSkyColor;
 
-
-// @included "/lib/atmospherics/fog/caveFactor.glsl"
-
     float GetCaveFactor() {
         float caveFactor = clamp(1.0 - cameraPosition.y / oceanAltitude, 0.0, 1.0 - eyeBrightnessM);
         return caveFactor;
     }
 
     vec3 GetSky(float VdotU, float VdotS, float dither, bool doGlare, bool doGround) {
-        // Prepare variables
+
         float nightFactorSqrt2 = sqrt2(nightFactor);
         float nightFactorM = sqrt2(nightFactorSqrt2) * 0.4;
         float VdotSM1 = pow2(max(VdotS, 0.0));
@@ -2821,41 +2253,32 @@ static vec3 nightDownSkyColor;
         float VdotUmax0 = max(VdotU, 0.0);
         float VdotUmax0M = 1.0 - pow2(VdotUmax0);
 
-        // Prepare colors
         vec3 upColor = mix(nightUpSkyColor * (1.5 - 0.5 * nightFactorSqrt2 + nightFactorM * VdotSM3 * 1.5), dayUpSkyColor, sunFactor);
         vec3 middleColor = mix(nightMiddleSkyColor * (3.0 - 2.0 * nightFactorSqrt2), dayMiddleSkyColor * (1.0 + VdotSM2 * 0.3), sunFactor);
         vec3 downColor = mix(nightDownSkyColor, dayDownSkyColor, (sunFactor + sunVisibility) * 0.5);
 
-        // Mix the colors
-            // Set sky gradient
             float VdotUM1 = pow2(1.0 - VdotUmax0);
                   VdotUM1 = pow(VdotUM1, (1.0 - VdotSM2 * 0.4) * (1.15 - 0.15 * rainFactor2));
                   VdotUM1 = mix(VdotUM1, 1.0, rainFactor2 * 0.15);
             vec3 finalSky = mix(upColor, middleColor, VdotUM1);
 
-            // Add sunset color
             float VdotUM2 = pow2(1.0 - abs(VdotU));
                   VdotUM2 = VdotUM2 * VdotUM2 * (3.0 - 2.0 * VdotUM2);
                   VdotUM2 *= (0.7 - nightFactorM + VdotSM1 * (0.3 + nightFactorM)) * invNoonFactor * sunFactor;
             finalSky = mix(finalSky, sunsetDownSkyColorP * (1.0 + VdotSM1 * 0.3), VdotUM2 * invRainFactor);
 
-            // Add sky ground with fake light scattering
             float VdotUM3 = min(max0(-VdotU + 0.08) / 0.35, 1.0);
                   VdotUM3 = smoothstep1(VdotUM3);
             vec3 scatteredGroundMixer = vec3(VdotUM3 * VdotUM3, sqrt1(VdotUM3), sqrt3(VdotUM3));
                  scatteredGroundMixer = mix(vec3(VdotUM3), scatteredGroundMixer, 0.75 - 0.5 * rainFactor);
             finalSky = mix(finalSky, downColor, scatteredGroundMixer);
-        //
 
-        // Sky Ground
         if (doGround)
             finalSky *= smoothstep1(pow2(1.0 + min(VdotU, 0.0)));
 
-        // Apply Underwater Fog
         if (isEyeInWater == 1)
             finalSky = mix(finalSky * 3.0, waterFogColor, VdotUmax0M);
 
-        // Sun/Moon Glare
         if (doGlare) {
             if (0.0 < VdotSML) {
                 float glareScatter = 3.0 * (2.0 - clamp01(VdotS * 1000.0));
@@ -2877,52 +2300,40 @@ static vec3 nightDownSkyColor;
             }
         }
 
-            // Apply Cave Fog
             finalSky = mix(finalSky, caveFogColor, GetCaveFactor() * VdotUmax0M);
 
-        // Dither to fix banding
         finalSky = max(finalSky + (dither - 0.5) / 128.0, vec3(0.0));
 
         return finalSky;
     }
 
     vec3 GetLowQualitySky(float VdotU, float VdotS, float dither, bool doGlare, bool doGround) {
-        // Prepare variables
+
         float VdotUmax0 = max(VdotU, 0.0);
         float VdotUmax0M = 1.0 - pow2(VdotUmax0);
 
-        // Prepare colors
         vec3 upColor = mix(nightUpSkyColor, dayUpSkyColor, sunFactor);
         vec3 middleColor = mix(nightMiddleSkyColor, dayMiddleSkyColor, sunFactor);
 
-        // Mix the colors
-            // Set sky gradient
             float VdotUM1 = pow2(1.0 - VdotUmax0);
                   VdotUM1 = mix(VdotUM1, 1.0, rainFactor2 * 0.2);
             vec3 finalSky = mix(upColor, middleColor, VdotUM1);
 
-            // Add sunset color
             float VdotUM2 = pow2(1.0 - abs(VdotU));
                   VdotUM2 *= invNoonFactor * sunFactor * (0.8 + 0.2 * VdotS);
             finalSky = mix(finalSky, sunsetDownSkyColorP * (shadowTime * 0.6 + 0.2), VdotUM2 * invRainFactor);
-        //
 
-        // Sky Ground
         finalSky *= pow2(pow2(1.0 + min(VdotU, 0.0)));
 
-        // Apply Underwater Fog
         if (isEyeInWater == 1)
             finalSky = mix(finalSky, waterFogColor, VdotUmax0M);
 
-        // Sun/Moon Glare
         finalSky *= 1.0 + mix(nightFactor, 0.5 + 0.7 * noonFactor, VdotS * 0.5 + 0.5) * pow2(pow2(pow2(VdotS)));
 
-            // Apply Cave Fog
             finalSky = mix(finalSky, caveFogColor, GetCaveFactor() * VdotUmax0M);
 
         return finalSky;
     }
-
 
     void DoBorderFog(inout vec4 color, inout float skyFade, float lPos, float VdotU, float VdotS, float dither) {
             float fog = lPos / renderDistance;
@@ -2930,12 +2341,10 @@ static vec3 nightDownSkyColor;
                 fog = pow2(pow2(fog));
             fog = 1.0 - exp(-3.0 * fog);
 
-
         if (fog > 0.01 + 0.0025 * dither) {
             fog = clamp(fog, 0.0, 1.0);
 
                 vec3 fogColorM = GetSky(VdotU, VdotS, dither, true, false);
-
 
             color = mix(color, vec4(fogColorM, 0.0), fog);
 
@@ -2943,22 +2352,12 @@ static vec3 nightDownSkyColor;
         }
     }
 
-// @included "/lib/atmospherics/fog/caveFactor.glsl"
-
-
     void DoCaveFog(inout vec4 color, float lViewPos) {
         float fog = GetCaveFactor() * (0.9 - 0.9 * exp(- lViewPos * 0.015));
 
         color = mix(color, vec4(caveFogColor, 0.0), fog);
     }
 
-// @included "/lib/colors/lightAndAmbientColors.glsl"
-
-// @included "/lib/colors/skyColors.glsl"
-
-
-    // SRATA: Atm. fog starts reducing above this altitude
-    // CRFTM: Atm. fog continues reducing for this meters
 static float atmFogCRFTM;
 
         vec3 GetAtmFogColor(float altitudeFactorRaw, float VdotS) {
@@ -2980,12 +2379,10 @@ static float atmFogCRFTM;
     void DoAtmosphericFog(inout vec4 color, vec3 playerPos, float lViewPos, float VdotS, float dither) {
             float renDisFactor = min1(192.0 / renderDistance);
 
-
             float fog = 1.0 - exp(-pow(lViewPos * (0.001 - 0.0007 * rainFactor), 2.0 - rainFactor2) * lViewPos * renDisFactor);
 
         float altitudeFactorRaw = GetAtmFogAltitudeFactor(playerPos.y + cameraPosition.y);
         float altitudeFactor = altitudeFactorRaw * 0.9 + 0.1;
-
 
         fog *= 0.95 - 0.1 - 0.15 * invRainFactor;
 
@@ -3015,12 +2412,9 @@ static float atmFogCRFTM;
 
                 vec3 fogColorM = GetAtmFogColor(altitudeFactorRaw, VdotS);
 
-
             color = mix(color, vec4(fogColorM, 0.0), fog);
         }
     }
-
-// @included "/lib/atmospherics/fog/waterFog.glsl"
 
     float GetWaterFog(float lViewPos) {
 
@@ -3039,7 +2433,6 @@ void DoWaterFog(inout vec4 color, float lViewPos) {
 void DoLavaFog(inout vec4 color, float lViewPos) {
         float fog = (lViewPos * 3.0 - u_jFogStart) * u_jFogScale;
 
-
         fog = 1.0 - exp(-fog);
 
         fog = clamp(fog, 0.0, 1.0);
@@ -3049,7 +2442,6 @@ void DoLavaFog(inout vec4 color, float lViewPos) {
 
 void DoPowderSnowFog(inout vec4 color, float lViewPos) {
     float fog = lViewPos;
-
 
     fog *= fog;
     fog = 1.0 - exp(-fog);
@@ -3077,7 +2469,7 @@ void DoDarknessFog(inout vec4 color, float lViewPos) {
 void DoFog(inout vec4 color, inout float skyFade, float lViewPos, vec3 playerPos, float VdotU, float VdotS, float dither, bool isReflection, float lBlockPos) {
         DoCaveFog(color, lViewPos);
         float lViewPosAtm = lViewPos;
-        // Reduce fog if the reflecting block is already behind fog, and fogging the reflection would result in too much fog
+
         if (isReflection) lViewPosAtm *= max0(1.0 - lBlockPos / lViewPos);
         DoAtmosphericFog(color, playerPos, lViewPosAtm, VdotS, dither);
         DoBorderFog(color, skyFade, max(length(playerPos.xz), abs(playerPos.y)), VdotU, VdotS, dither);
@@ -3089,7 +2481,7 @@ void DoFog(inout vec4 color, inout float skyFade, float lViewPos, vec3 playerPos
     if (blindness > 0.00001) DoBlindnessFog(color, lViewPos);
     if (darknessFactor > 0.00001) DoDarknessFog(color, lViewPos);
 }
-// @included "/lib/materials/materialMethods/translucentTweaks.glsl"
+
 void DoTranslucentTweaks(inout vec4 color, inout float fresnelM, inout float reflectMult, float lViewPos) {
         float tweakDistance = 192.0;
 
@@ -3099,22 +2491,13 @@ void DoTranslucentTweaks(inout vec4 color, inout float fresnelM, inout float ref
         fresnelM = mix(fresnelM, 1.0, factor * 0.25);
         reflectMult = mix(reflectMult, reflectMult / color.a, factor);
 
-    // Reduce glass reflectivity when the camera is really close
     float factor2 = smoothstep(1.8, 0.3, lViewPos);
     reflectMult = mix(reflectMult, 0.0, factor2);
 
-    // Slightly reduce glass opacity when the camera is close
     float factor3 = smoothstep(4.0, 0.5, lViewPos);
     color.a = mix(color.a, pow2(color.a), factor3 * 0.5);
 }
 
-// @included "/lib/atmospherics/sky.glsl"
-
-
-
-// @included "/lib/materials/materialMethods/reflections.glsl"
-// @included "/lib/misc/reprojection.glsl"
-// Previous frame reprojection from Chocapic13
 vec2 Reprojection(vec3 pos, vec3 cameraOffset) {
     pos = pos * 2.0 - 1.0;
 
@@ -3145,11 +2528,6 @@ vec2 SHalfReprojection(vec3 playerPos, vec3 cameraOffset) {
     return previousPosition.xy / previousPosition.w * 0.5 + 0.5;
 }
 
-// @included "/lib/atmospherics/sky.glsl"
-
-
-
-
 float GetApproxDistance(float depth) {
     return near * far / (far - depth * far);
 }
@@ -3160,41 +2538,29 @@ vec3 nvec3(vec4 pos) {
 
 static float refDist;
 
-// @included "/lib/materials/materialMethods/reflectionBackground.glsl"
-
-
 void AddBackgroundReflection(inout vec4 reflection, vec3 color, vec3 playerPos, vec3 normalM, vec3 normalMR, vec3 nViewPos, vec3 nViewPosR,
                              vec3 shadowMult, float RVdotU, float RVdotS, float z0, float dither, float skyLightFactor, float smoothness, float highlightMult) {
             vec3 skyReflection = GetSky(RVdotU, RVdotS, dither, isEyeInWater == 0, true);
 
-
             float specularHighlight = GGX(normalM, nViewPos, lightVec, max(dot(normalM, lightVec), 0.0), smoothness);
             skyReflection += specularHighlight * highlightColor * shadowMult * highlightMult * invRainFactor;
 
-
                 skyReflection = mix(color * 0.5, skyReflection, skyLightFactor);
-
 
     reflection.rgb = mix(skyReflection, reflection.rgb, reflection.a);
 }
 
 vec4 GetReflection(inout vec3 normalM, vec3 viewPos, vec3 nViewPos, vec3 playerPos, float lViewPos, float z0, Texture2D depthtex, float dither, float skyLightFactor, float fresnel, float smoothness, vec3 geoNormal, vec3 color, vec3 shadowMult, float highlightMult, SamplerState depthtex_s) {
-    // ============================== Step 1: Prepare ============================== //
+
         vec2 rEdge = vec2(0.6, 0.55);
     vec3 normalMR = normalM;
-
 
     vec3 nViewPosR = normalize(reflect(nViewPos, normalMR));
     float RVdotU = dot(nViewPosR, upVec);
     float RVdotS = dot(nViewPosR, sunVec);
 
-    // ============================== End of Step 1 ============================== //
-
-    // ============================== Step 2: Calculate Terrain Reflection and Alpha ============================== //
-
     vec4 reflection = vec4(0.0);
-        // Method 1: Ray Marched Reflection //
-            // Ray Marching
+
             vec3 start = viewPos + normalMR * (lViewPos * 0.025 * (1.0 - fresnel) + 0.05);
                 vec3 vector = nViewPosR;
             vector *= 0.5;
@@ -3218,7 +2584,6 @@ vec4 GetReflection(inout vec3 normalM, vec3 viewPos, vec3 nViewPos, vec3 playerP
                 sampleDepth = texture2D(depthtex, refPos.xy).r;
                 rfragpos = nvec3(gbufferProjectionInverse * vec4(vec3(refPos.xy, sampleDepth) * 2.0 - 1.0, 1.0));
 
-
                 dist = length(start - rfragpos);
 
                 err = length(viewPosRT - rfragpos);
@@ -3237,14 +2602,9 @@ vec4 GetReflection(inout vec3 normalM, vec3 viewPos, vec3 nViewPos, vec3 playerP
             refPos.z = sampleDepth;
 
                 vec3 viewRefPos = ScreenToView(refPos);
-                // #ifdef VOXY
-                //     vec3 viewRefPosVx = ScreenToViewVoxy(refPos);
-                //     if (length(viewRefPos) < length(viewRefPosVx)) viewRefPos = viewRefPosVx;
-                // #endif
+
                 bool possibleReflection = dot(normalize(viewRefPos - start), geoNormal) > 0.0;
 
-
-            // Finalizing Terrain Reflection and Alpha
             if (
                 refPos.z < 1.0
                  &&  possibleReflection
@@ -3267,7 +2627,6 @@ vec4 GetReflection(inout vec3 normalM, vec3 viewPos, vec3 nViewPos, vec3 playerP
                         float reflectionPrevAlpha = reflection.a;
                         DoFog(reflection, skyFade, lViewPosRT, ViewToPlayer(rfragpos.xyz), RVdotU, RVdotS, dither, true, lViewPos);
                         reflection.a = reflectionPrevAlpha;
-                        //reflection.a *= 1.0 - skyFade;
 
                     edgeFactor.x = pow2(edgeFactor.x);
                     edgeFactor = 1.0 - edgeFactor;
@@ -3280,24 +2639,15 @@ vec4 GetReflection(inout vec3 normalM, vec3 viewPos, vec3 nViewPos, vec3 playerP
                 reflection.a *= clamp(posDif + 3.0, 0.0, 1.0);
             }
 
-        // Method 2: Mirorred Image Reflection //
-    // ============================== End of Step 2 ============================== //
-
-    // ============================== Step 3: Add Sky or WSR Reflection ============================== //
         if (reflection.a < 1.0)
     {
         AddBackgroundReflection(reflection, color, playerPos, normalM, normalMR, nViewPos, nViewPosR,
                                 shadowMult, RVdotU, RVdotS, z0, dither, skyLightFactor, smoothness, highlightMult);
     }
-    // ============================== End of Step 3 ============================== //
-
-    // Tweak for wsr water ref s_normals to look correct
 
     return reflection;
 }
 
-// @included "/lib/antialiasing/jitter.glsl"
-// Jitter offset from Chocapic13
 static vec2 jitterOffsets[8];
 
 vec2 TAAJitter(vec2 coord, float w) {
@@ -3306,16 +2656,6 @@ vec2 TAAJitter(vec2 coord, float w) {
         return coord + offset;
 }
 
-
-
-
-
-
-
-
-
-
-//Program//
 void stageMain() {
     tAmin = fract(sunAngle - 0.033333333);
     tAlin = tAmin < 0.433333333 ? tAmin * 1.15384615385 : tAmin * 0.882352941176 + 0.117647058824;
@@ -3475,7 +2815,6 @@ void stageMain() {
     float dither = Bayer64(gl_FragCoord.xy);
         dither = fract(dither + goldenRatio * mod(float(frameCounter), 3600.0));
 
-
         float cloudLinearDepth = texelFetch(s_gaux2, texelCoord, 0).a;
 
         if (pow2(cloudLinearDepth + OSIEBCA * dither) * renderDistance < min(lViewPos, renderDistance)) discard;
@@ -3487,37 +2826,33 @@ void stageMain() {
     float VdotS = dot(nViewPos, sunVec);
     float VdotN = dot(nViewPos, normal);
 
-    // Materials
     vec4 translucentMult = vec4(1.0);
     bool noSmoothLighting = false, noDirectionalShading = false, translucentMultCalculated = false, noGeneratedNormals = false;
     int subsurfaceMode = 0;
     vec2 lmCoordM = lmCoord;
     float smoothnessG = 0.0, highlightMult = 1.0, reflectMult = 0.0, emission = 0.0;
-    vec3 normalM = VdotN > 0.0 ? -normal : normal; // Inverted Iris Water Normal Workaround
+    vec3 normalM = VdotN > 0.0 ? -normal : normal;
     vec3 geoNormal = normalM;
     vec3 worldGeoNormal = normalize(ViewToPlayer(geoNormal * 10000.0));
     vec3 shadowMult = vec3(1.0);
     float fresnel = clamp(1.0 + dot(normalM, nViewPos), 0.0, 1.0);
     float fresnelM = pow3(fresnel);
 
-// @included "/lib/materials/materialHandling/translucentMaterials.glsl"
-
-// @included "/lib/materials/materialHandling/translucentIPBR.glsl"
 if (mat < 32008) {
     if (mat < 30016) {
         if (mat < 30008) {
-            if (mat == 30000) { //
+            if (mat == 30000) {
 
-            } else if (mat == 30004) { //
+            } else if (mat == 30004) {
 
             }
         } else {
-            if (mat == 30008) { // Tinted Glass
+            if (mat == 30008) {
                 color.a = pow(color.a, 1.0 - fresnelM);
                 reflectMult = 1.0;
 
                     DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
-            } else /*if (mat == 30012)*/ { // Slime Block
+            } else   {
                 translucentMultCalculated = true;
                 reflectMult = 0.7;
                 translucentMult.rgb = pow2(color.rgb) * 0.2;
@@ -3529,15 +2864,15 @@ if (mat < 32008) {
     } else {
         if (mat < 32000) {
             if (mat < 31000) {
-                if (mat == 30016) { // Honey Block
+                if (mat == 30016) {
                     translucentMultCalculated = true;
                     reflectMult = 1.0;
                     translucentMult.rgb = pow2(color.rgb) * 0.2;
 
                     smoothnessG = color.r * 0.7;
                     highlightMult = 2.5;
-                } else /*if (mat == 30020)*/ { // Nether Portal
-// @included "/lib/materials/specificMaterials/translucents/netherPortal.glsl"
+                } else   {
+
 lmCoordM = vec2(0.0);
 
     color = vec4(0.0);
@@ -3581,16 +2916,16 @@ emission = clamp(emission * 120.0, 0.03, 1.2) * 8.0;
     }
 
                 }
-            } else { // (31XXX)
-                if (mat % 2 == 0) { // Stained Glass
-// @included "/lib/materials/specificMaterials/translucents/stainedGlass.glsl"
+            } else {
+                if (mat % 2 == 0) {
+
 smoothnessG = 0.5;
 highlightMult = 1.5;
 reflectMult = 1.0;
 
 DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
-                } else /*if (mat % 2 == 1)*/ { // Stained Glass Pane
-// @included "/lib/materials/specificMaterials/translucents/stainedGlass.glsl"
+                } else   {
+
 smoothnessG = 0.5;
 highlightMult = 1.5;
 reflectMult = 1.0;
@@ -3600,21 +2935,16 @@ DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
                 }
             }
         } else {
-            if (mat < 32004) { // Water
-// @included "/lib/materials/specificMaterials/translucents/water.glsl"
-// ============================== Step 1: Color Prep ============================== //
+            if (mat < 32004) {
+
         color.rgb = mix(color.rgb, vec3(GetLuminance(color.rgb)), 0.88);
         color.rgb = pow2(color.rgb) * vec3(2.3, 3.5, 3.1) * 0.9;
 
-// ============================== End of Step 1 ============================== //
-
-
-    lmCoordM.y = min(lmCoord.y * 1.07, 1.0); // Iris/Sodium skylight inconsistency workaround
+    lmCoordM.y = min(lmCoord.y * 1.07, 1.0);
 
     float fresnel2 = pow2(fresnel);
     float fresnel4 = pow2(fresnel2);
 
-    // ============================== Step 2: Water Normals ============================== //
     reflectMult = 1.0;
 
     float rawWind = frameTimeCounter * 1.10 * 0.018;
@@ -3625,40 +2955,28 @@ DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
         waterPos = floor(waterPos * blockRes) / blockRes;
     waterPos = 0.032 * (waterPos + worldPos.y * 2.0);
 
-
-    // ============================== End of Step 2 ============================== //
-
-    // ============================== Step 3: Water Material Features ============================== //
         if (isEyeInWater != 1) {
-            // Noise Coloring //
+
             float noise = texture2DLod(s_noise, (waterPos + wind) * 0.25, 0.0).g;
                   noise = noise - 0.5;
                   noise *= 0.25;
             color.rgb = pow(color.rgb, vec3(1.0 + noise));
 
-            // Water Alpha //
                 float depthT = texelFetch(s_depth, texelCoord, 0).r;
             vec3 screenPosT = vec3(screenPos.xy, depthT);
                 vec3 viewPosT = ScreenToView(vec3(TAAJitter(screenPosT.xy, -0.5), screenPosT.z));
             float lViewPosT = length(viewPosT);
 
-
             float lViewPosDifM = lViewPos - lViewPosT;
 
                 color.a = sqrt1(color.a);
 
-
-
             float waterFog = max0(1.0 - exp(lViewPosDifM * 0.075));
             color.a *= 0.25 + 0.75 * waterFog;
 
-                // For better water visibility in caves and some extra color pop outdoors
                 color.rgb *= 2.5 - sqrt2(waterFog) - 0.5 * lmCoordM.y;
 
-            ////
-
-            // Water Foam //
-                if (mat == 32000) // Checks for actual water and not cauldron water
+                if (mat == 32000)
                 if (NdotU > 0.99) {
                     vec3 matrixM = vec3(
                         transpose(gbufferModelViewInverse)[0].y,
@@ -3675,34 +2993,29 @@ DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
 
                     vec4 foamColor = vec4(0.9, 0.95, 1.05, 1.0);
 
-
                     color = mix(color, foamColor, foam);
                     reflectMult = 1.0 - foam;
                 }
-            ////
-        } else { // Underwater
+
+        } else {
             noDirectionalShading = true;
 
             reflectMult = 0.5;
 
-
                     translucentMult.rgb *= 1.0 - fresnel4;
 
         }
-    // ============================== End of Step 3 ============================== //
 
-    // ============================== Step 4: Final Tweaks ============================== //
     reflectMult *= 0.5 + 0.5 * NdotUmax0;
 
     color.a = mix(color.a, 1.0, fresnel4);
-
 
         smoothnessG = 0.5;
 
             highlightMult = min(pow2(pow2(dot(colorP.rgb, colorP.rgb) * 0.4)), 0.5);
         highlightMult *= (16.0 - 15.0 * fresnel2) * (sunVisibility > 0.5 ? 0.85 : 0.425);
-    // ============================== End of Step 4 ============================== //
-            } else /*if (mat == 32004)*/ { // Ice
+
+            } else   {
                 smoothnessG = pow2(color.g) * color.g;
                 highlightMult = pow2(min1(pow2(color.g) * 1.5)) * 3.5;
 
@@ -3713,8 +3026,8 @@ DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
 } else {
     if (mat < 32024) {
         if (mat < 32016) {
-            if (mat == 32008) { // Glass
-// @included "/lib/materials/specificMaterials/translucents/glass.glsl"
+            if (mat == 32008) {
+
     float minAlpha = min(color.a, perlinAtlasLod(float3(texCoord, jLayer), 0).a);
 
 if (minAlpha > 0.001) {
@@ -3731,9 +3044,6 @@ else {
         highlightMult = 2.5;
         reflectMult = 1.0;
         color.rgb = vec3(0.75, 0.8, 0.85);
-
-        //translucentMultCalculated = true;
-        //translucentMult.a = 0.0;
 
         color.a = max(color.a, 0.25);
 
@@ -3744,9 +3054,9 @@ else {
 
             if (dither > eyeBrightnessM2 * 1.1 - 0.05) discard;
 }
-            } else /*if (mat == 32012)*/ { // Glass Pane
-                if (color.a < 0.001  &&  abs(NdotU) > 0.95) discard; // Fixing artifacts on CTM/Opti connected glass panes
-// @included "/lib/materials/specificMaterials/translucents/glass.glsl"
+            } else   {
+                if (color.a < 0.001  &&  abs(NdotU) > 0.95) discard;
+
     float minAlpha = min(color.a, perlinAtlasLod(float3(texCoord, jLayer), 0).a);
 
 if (minAlpha > 0.001) {
@@ -3763,9 +3073,6 @@ else {
         highlightMult = 2.5;
         reflectMult = 1.0;
         color.rgb = vec3(0.75, 0.8, 0.85);
-
-        //translucentMultCalculated = true;
-        //translucentMult.a = 0.0;
 
         color.a = max(color.a, 0.25);
 
@@ -3779,7 +3086,7 @@ else {
                 noSmoothLighting = true;
             }
         } else {
-            if (mat == 32016) { // Beacon
+            if (mat == 32016) {
                 lmCoordM.x = 0.88;
 
                 translucentMultCalculated = true;
@@ -3787,7 +3094,7 @@ else {
 
                 if (color.b > 0.5) {
                     if (color.g - color.b < 0.01  &&  color.g < 0.99) {
-// @included "/lib/materials/specificMaterials/translucents/glass.glsl"
+
     float minAlpha = min(color.a, perlinAtlasLod(float3(texCoord, jLayer), 0).a);
 
 if (minAlpha > 0.001) {
@@ -3805,9 +3112,6 @@ else {
         reflectMult = 1.0;
         color.rgb = vec3(0.75, 0.8, 0.85);
 
-        //translucentMultCalculated = true;
-        //translucentMult.a = 0.0;
-
         color.a = max(color.a, 0.25);
 
         DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
@@ -3817,7 +3121,7 @@ else {
 
             if (dither > eyeBrightnessM2 * 1.1 - 0.05) discard;
 }
-                    } else { // Beacon:Center
+                    } else {
                         lmCoordM = vec2(0.0);
                         noDirectionalShading = true;
 
@@ -3830,7 +3134,7 @@ else {
                         else                    color.rgb = baseColor;
                         emission = 3.5;
                     }
-                } else { // Beacon:Obsidian
+                } else {
                     float factor = color.r * 1.5;
 
                     smoothnessG = factor;
@@ -3838,54 +3142,45 @@ else {
                     smoothnessG = min1(smoothnessG);
                 }
 
-            } else /*if (mat == 32020)*/ { //
+            } else   {
 
             }
         }
     } else {
         if (mat < 32032) {
-            if (mat == 32024) { //
+            if (mat == 32024) {
 
-            } else /*if (mat == 32028)*/ { //
+            } else   {
 
             }
         } else {
-            if (mat == 32032) { //
+            if (mat == 32032) {
 
-            } else /*if (mat == 32036)*/ { //
+            } else   {
 
             }
         }
     }
 }
 
-
-
-
-    // Blending
     if (!translucentMultCalculated)
         translucentMult = vec4(mix(vec3(0.666), color.rgb * (1.0 - pow2(pow2(color.a))), color.a), 1.0);
 
     translucentMult.rgb = mix(translucentMult.rgb, vec3(1.0), min1(pow2(pow2(lViewPos / far))));
 
-    // Lighting
     DoLighting(color, shadowMult, playerPos, viewPos, lViewPos, geoNormal, normalM, dither,
                worldGeoNormal, lmCoordM, noSmoothLighting, noDirectionalShading, false,
                false, subsurfaceMode, smoothnessG, highlightMult, emission);
 
-    // Reflections
     float skyLightFactor = GetSkyLightFactor(lmCoordM, shadowMult);
             highlightColor *= pow2(moonPhaseInfluence);
 
         fresnelM = (fresnelM * 0.85 + 0.15) * reflectMult;
 
-        vec4 reflection = GetReflection(normalM,  viewPos.xyz,  nViewPos,  playerPos,  lViewPos,  -1.0, 
-                                        s_depth,  dither,  skyLightFactor,  fresnel, 
+        vec4 reflection = GetReflection(normalM,  viewPos.xyz,  nViewPos,  playerPos,  lViewPos,  -1.0,
+                                        s_depth,  dither,  skyLightFactor,  fresnel,
                                         smoothnessG,  geoNormal,  color.rgb,  shadowMult,  highlightMult, s_depth_s);
         color.rgb = mix(color.rgb, reflection.rgb, fresnelM);
-
-    ////
-
 
     float skyFade = 0.0;
     float prevAlpha = color.a;
@@ -3894,18 +3189,12 @@ else {
     float fogAlpha = color.a;
     color.a = prevAlpha * (1.0 - skyFade);
 
-
-
-    /* DRAWBUFFERS:03 */
     gl_FragData0 = color;
     gl_FragData1 = vec4(1.0 - translucentMult.rgb, translucentMult.a);
 
-    // supposed to be " #if defined WATER_REFRACTION || (2 > 0 && -1 > 0) " but Optifine bad
 }
 }
 
-// the pack spells matrix math M * v; slang only defines mul():
-// cover the pack's combinations so bodies stay untouched.
 float2 operator*(float2x2 m, float2 v) { return mul(m, v); }
 float2 operator*(float2 v, float2x2 m) { return mul(v, m); }
 float3 operator*(float3x3 m, float3 v) { return mul(m, v); }
@@ -3916,8 +3205,6 @@ float2x2 operator*(float2x2 a, float2x2 b) { return mul(a, b); }
 float3x3 operator*(float3x3 a, float3x3 b) { return mul(a, b); }
 float4x4 operator*(float4x4 a, float4x4 b) { return mul(a, b); }
 
-// manual depth compare keeps the pack's own PCF taps; works with the
-// existing non-comparison depth samplers until an RHI compare sampler exists.
 float4 javaShadow2D(Texture2D t, SamplerState s, float3 uvw)
 { if (u_shadowInfo.w <= 0.0 || any(uvw.xyz < 0.0) || any(uvw.xyz > 1.0)) return float4(1.0); return float4(step(uvw.z, t.Sample(s, uvw.xy).r)); }
 float4 javaShadow2D(Texture2D t, SamplerState s, float4 uvw)
@@ -3928,7 +3215,6 @@ float javaTextureProj(Texture2D t, SamplerState s, float4 uvw)
 { float w = max(uvw.w, 1e-6); return t.Sample(s, uvw.xy / w).r; }
 int2 javaTextureSize(Texture2D t, int lod) { uint w = 0, h = 0, n = 0; t.GetDimensions(uint(lod), w, h, n); return int2(w, h); }
 
-// engine light bytes are 0..15 levels; the pack wants 0..1
 float4 javaLightCoord(float4 t) { return float4((t.xy * 255.0 + 8.0) / 256.0, t.zw); }
 
 VsOut vsMain(VsIn input)

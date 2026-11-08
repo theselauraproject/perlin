@@ -70,7 +70,7 @@ namespace perlin::server {
                 return &e;
             if (!name.empty() && !e.name.empty() && str::Lower(e.name) == lowered)
                 return &e;
-            // an entry that is only an xuid (a name field holding digits works too)
+
             if (!xuid.empty() && e.name == xuid)
                 return &e;
         }

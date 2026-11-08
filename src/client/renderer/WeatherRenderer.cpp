@@ -79,7 +79,7 @@ namespace perlin {
         if (found != blocking.end())
             return found->second;
         const std::string name = BlockPalette::Instance().Name(id);
-        // token match: substring "air" would also hit stairs, "rail" would hit grail-like names
+
         auto hasToken = [&](const char* word) {
             const size_t len = std::strlen(word);
             for (size_t p = name.find(word); p != std::string::npos; p = name.find(word, p + 1)) {
@@ -252,7 +252,7 @@ namespace perlin {
                         speed;
                     vOffset = std::fmod(raw, 32.0f);
                 } else {
-                    // hash-seeded drift, stable per column instead of per-frame noise
+
                     const uint32_t h = Hash(x, z);
                     uOffset = static_cast<float>((h >> 5) & 255u) / 256.0f + time * 0.002f;
                     const float drift = static_cast<float>((h & 255u)) / 255.0f * 0.05f;

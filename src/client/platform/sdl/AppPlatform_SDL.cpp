@@ -123,7 +123,7 @@ namespace {
 
 #if defined(SDL_PLATFORM_LINUX) && !defined(SDL_PLATFORM_ANDROID)
     void RegisterDesktopEntry() {
-        // a Flatpak exports its own entry; an AppImage's should start the .AppImage, not its temporary mount
+
         if (std::getenv("FLATPAK_ID"))
             return;
         std::error_code ec;
@@ -171,11 +171,11 @@ namespace {
 }
 
 #ifdef __EMSCRIPTEN__
-// clang-format off
+
 EM_JS(int, perlin_js_confirm, (const char* title, const char* message), {
     return confirm(UTF8ToString(title) + "\n\n" + UTF8ToString(message)) ? 1 : 0;
 });
-// clang-format on
+
 #endif
 
 std::unique_ptr<perlin::RenderContext> AppPlatform_SDL::CreateRenderContext() {
@@ -200,7 +200,7 @@ namespace {
         HWND parent = GetParent(hwnd);
         switch (message) {
         case WM_NCHITTEST:
-            // clicks, moves and the cursor all belong to the game window underneath
+
             return HTTRANSPARENT;
         case WM_ERASEBKGND:
             return 1;
@@ -215,7 +215,7 @@ namespace {
                 return SendMessageW(parent, message, reinterpret_cast<WPARAM>(parent), lParam);
             break;
         default:
-            // should a driver or an odd window order route input here anyway, hand it straight to the game window
+
             if (parent && ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
                            (message >= WM_KEYFIRST && message <= WM_KEYLAST) || message == WM_MOUSEHWHEEL))
                 return SendMessageW(parent, message, wParam, lParam);
@@ -258,7 +258,7 @@ void AppPlatform_SDL::RenewRenderSurface() {
     SetWindowPos(child, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     renderSurface = child;
     native.window = child;
-    // creating a window must not move keyboard focus off the game window
+
     if (GetFocus() != parent && GetForegroundWindow() == parent)
         SetFocus(parent);
     perlin::Log("sdl", "new render surface for the next backend");
@@ -458,7 +458,7 @@ double AppPlatform_SDL::DisplayRefreshHz() {
 }
 
 #ifdef __EMSCRIPTEN__
-// clang-format off
+
 EM_JS(void, perlin_js_offer_download, (const char* name, const void* data, size_t size), {
     var bytes = HEAPU8.slice(data, data + size);
     var link = document.createElement("a");
@@ -468,9 +468,9 @@ EM_JS(void, perlin_js_offer_download, (const char* name, const void* data, size_
     link.click();
     setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 10000);
 });
-// clang-format on
+
 namespace {
-    // "open the folder" in a browser: the file, or the whole folder as a zip, is handed to the browser as a download
+
     void OfferDownload(const std::string& name, const void* data, size_t size) {
         perlin_js_offer_download(name.c_str(), data, size);
     }
@@ -531,7 +531,7 @@ void AppPlatform_SDL::OpenUrl(const std::string& url) {
 }
 
 namespace {
-    // a picked file is copied into <data>/imports/ and handed to the game as if it had been dropped on the window
+
     std::string ImportName(const std::string& kind, const unsigned char* b, size_t size, std::string ext) {
         if (ext.empty()) {
             ext = ".png";
@@ -557,8 +557,7 @@ namespace {
 }
 
 #ifdef __EMSCRIPTEN__
-// the browser's file chooser: the chosen file is written straight into the virtual file system, then reported back
-// clang-format off
+
 EM_JS(void, perlin_js_pick_file, (const char* accept, const char* dir, const char* prefix), {
     const input = document.createElement("input");
     input.type = "file";
@@ -578,7 +577,6 @@ EM_JS(void, perlin_js_pick_file, (const char* accept, const char* dir, const cha
     };
     input.click();
 });
-// clang-format on
 
 extern "C" EMSCRIPTEN_KEEPALIVE void perlin_web_file_picked(const char* path) {
     if (gWebPicker && path)
@@ -648,7 +646,7 @@ bool AppPlatform_SDL::PickFile(const std::string& kind) {
         new Request{this, kind, image}, false);
     return true;
 #else
-    // desktop: the caller opens the folder in the file manager instead, where files can simply be dropped
+
     (void)image;
     return false;
 #endif
@@ -729,7 +727,7 @@ void AppPlatform_SDL::DrawPointerOverlay(perlin::RenderContext& renderer) {
     if (!pointerShown || !game || !game->GetInput().TextMode())
         return;
     if (!pointerTexture) {
-        // a 12x19 arrow, white with a dark outline, in the style of the classic system pointer
+
         static const char* const kArrow[19] = {"X...........", "XX..........", "XWX.........", "XWWX........",
                                                "XWWWX.......", "XWWWWX......", "XWWWWWX.....", "XWWWWWWX....",
                                                "XWWWWWWWX...", "XWWWWWWWWX..", "XWWWWWWWWWX.", "XWWWWWWXXXXX",
@@ -798,12 +796,11 @@ bool AppPlatform_SDL::Initialize() {
     virtualPointer = true;
 #endif
 #ifdef __EMSCRIPTEN__
-    // a page cannot move the system pointer either
+
     virtualPointer = true;
 #endif
 #ifdef SDL_PLATFORM_ANDROID
-    // Android TV and Fire TV are driven from the couch; Chromebooks and Samsung DeX have a mouse and keyboard.
-    // Those start without touch controls and switch to them only when the screen is touched
+
     tvMode = SDL_IsTV();
     if (tvMode || SDL_IsChromebook() || SDL_IsDeXMode()) {
         adaptiveInput = true;
@@ -816,7 +813,7 @@ bool AppPlatform_SDL::Initialize() {
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "Perlin");
     int startW = 1280, startH = 720;
-    if (const char* size = PERLIN_ENV("PERLIN_WINDOW_SIZE")) // developer testing: "WxH"
+    if (const char* size = PERLIN_ENV("PERLIN_WINDOW_SIZE"))
         if (std::sscanf(size, "%dx%d", &startW, &startH) != 2 || startW < 64 || startH < 64)
             startW = 1280, startH = 720;
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, startW);
@@ -878,7 +875,7 @@ bool AppPlatform_SDL::Initialize() {
 #elif defined(SDL_PLATFORM_WIN32)
     native.window = SDL_GetPointerProperty(wp, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
 #elif defined(SDL_PLATFORM_APPLE)
-    // metal and webgpu both draw into this layer (an NSView on macOS, a UIView on iOS)
+
     metalView = SDL_Metal_CreateView(window);
     native.window = metalView ? SDL_Metal_GetLayer(static_cast<SDL_MetalView>(metalView)) : nullptr;
 #elif defined(SDL_PLATFORM_ANDROID)
@@ -1092,7 +1089,7 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         break;
     }
     case SDL_EVENT_KEY_DOWN:
-        // a TV remote in menus: the D-pad moves the pointer and the centre button clicks
+
         if (input && tvMode && input->TextMode() && !textActive &&
             (e.key.scancode == SDL_SCANCODE_UP || e.key.scancode == SDL_SCANCODE_DOWN ||
              e.key.scancode == SDL_SCANCODE_LEFT || e.key.scancode == SDL_SCANCODE_RIGHT ||
@@ -1275,7 +1272,7 @@ void AppPlatform_SDL::PumpGamepad() {
         const float sx = shape(lx), sy = shape(ly);
         if (sx != 0.0f || sy != 0.0f) {
             if (virtualPointer || tvMode) {
-                // no system pointer to warp: the game's own, in framebuffer pixels
+
                 const float speed = 700.0f * dt * 1.4f;
                 MovePointer(sx * std::fabs(sx) * speed, sy * std::fabs(sy) * speed);
             } else {
@@ -1322,15 +1319,14 @@ void AppPlatform_SDL::PumpFrame() {
     while (SDL_PollEvent(&e))
         HandleEvent(e);
 #ifdef PERLIN_IOS
-    // iOS kills apps that submit gpu work from the background: sleep on the event queue until it is in front again
+
     while (backgrounded && isRunning && SDL_WaitEvent(&e))
         HandleEvent(e);
 #endif
     PumpGamepad();
 
 #if !defined(PERLIN_MOBILE) && !defined(__EMSCRIPTEN__)
-    // a fullscreen switch can settle after its last size event (from a maximized window, on a
-    // second monitor): the swap chain then keeps the old height and the bottom of the hud is cut off
+
     if (window) {
         int w = 0, h = 0;
         if (SDL_GetWindowSizeInPixels(window, &w, &h) && w > 0 && h > 0 &&
@@ -1392,7 +1388,7 @@ void AppPlatform_SDL::PumpFrame() {
                 recaptureAfterText = false;
             }
         }
-        // after the grab is released above: warping while captured does nothing
+
         if (in.TakeCursorCenter() && !cursorCaptured && !touchMode && !args.hidden) {
             int w = 0, h = 0;
             SDL_GetWindowSize(window, &w, &h);

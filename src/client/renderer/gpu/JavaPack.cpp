@@ -9,7 +9,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-// private copy of the decoder: the app and the headless test each link a different set of the engine
+
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -28,8 +28,7 @@
 
 namespace perlin::gpu {
     namespace {
-        // converted programs are kept on disk: glslang, the cross compiler and fxc take seconds per program for a big pack,
-        // and nothing about them changes between runs
+
         constexpr uint32_t kCacheMagic = 0x4a504b34u;
         constexpr int kCacheVersion = 6;
 
@@ -221,7 +220,6 @@ namespace perlin::gpu {
     namespace {
         constexpr double kPi = 3.14159265358979323846;
 
-        // vertex stream of the pack, 72 bytes: position, abgr, uv, light uv, normal (half4), mc_Entity, mid uv, midBlock (half4), tangent (half4)
         enum PackOffset : uint32_t {
             kPos = 0,
             kColor = 12,
@@ -262,14 +260,12 @@ namespace perlin::gpu {
             std::memcpy(out, &m[0][0], sizeof(float) * 16);
         }
 
-        // the engine's clip z is 0..1; the pack's matrices are opengl, -1..1
         void ToGlDepth(const float* in, float* out) {
             std::memcpy(out, in, sizeof(float) * 16);
             for (int c = 0; c < 4; c++)
                 out[c * 4 + 2] = 2.0f * in[c * 4 + 2] - in[c * 4 + 3];
         }
 
-        // bedrock names for blocks the java packs list under their old ids
         const char* Alias(const std::string& n) {
             static const std::pair<const char*, const char*> table[] = {
                 {"flowing_water", "water"},
@@ -303,7 +299,6 @@ namespace perlin::gpu {
             return nullptr;
         }
 
-        // alpha weighted so transparent texels do not darken the edges of cut-out tiles
         void BoxDown(const uint8_t* src, int sw, int sh, int sstride, uint8_t* dst, int dstride) {
             const int dw = std::max(1, sw / 2), dh = std::max(1, sh / 2);
             for (int y = 0; y < dh; y++)
@@ -332,7 +327,6 @@ namespace perlin::gpu {
                 }
         }
 
-        // iris internal format names of custom images; integer formats sample nearest
         conduit::format ImageFormat(const std::string& internal, bool& integer) {
             static const std::map<std::string, std::pair<conduit::format, bool>> formats = {
                 {"rgba8", {conduit::format::rgba8_unorm, false}},
@@ -389,7 +383,7 @@ namespace perlin::gpu {
                 return conduit::format::rg16_float;
             case B::R32F:
                 return conduit::format::r32_float;
-            // no three-channel render targets, no signed or integer ones: the nearest wider format keeps the values
+
             case B::RGB8:
                 return conduit::format::rgba8_unorm;
             case B::RGB16F:
@@ -489,7 +483,7 @@ namespace perlin::gpu {
 
         const char* kFullscreenVertex = "#version 120\nvarying vec2 texcoord;\nvoid main() { gl_Position = "
                                         "ftransform(); texcoord = gl_MultiTexCoord0.xy; }\n";
-        // the engine's depth is reversed (1 near, 0 far): the pack's conventional depth goes back as 1 - d
+
         const char* kReverseDepthFragment =
             "#version 120\nuniform sampler2D depthtex0;\nvarying vec2 texcoord;\nvoid main() { gl_FragDepth "
             "= 1.0 - texture2D(depthtex0, texcoord).r; }\n";
@@ -498,7 +492,6 @@ namespace perlin::gpu {
             "#version 120\nuniform sampler2D colortex0;\nvarying vec2 texcoord;\n/* DRAWBUFFERS:0 */\nvoid "
             "main() { gl_FragData[0] = texture2D(colortex0, texcoord); }\n";
 
-        // iris texture stages: which texture.<stage>.* lines a program sees
         std::string TextureStageOf(const std::string& program) {
             const auto starts = [&](const char* p) { return program.compare(0, std::strlen(p), p) == 0; };
             if (starts("shadowcomp"))
@@ -518,7 +511,6 @@ namespace perlin::gpu {
             return "composite";
         }
 
-        // the legacy buffer names stand for colortex0..7
         std::string CanonicalSamplerName(const std::string& n) {
             static const std::pair<const char*, const char*> table[] = {
                 {"gcolor", "colortex0"},    {"gdepth", "colortex1"}, {"gnormal", "colortex2"},
@@ -545,8 +537,6 @@ namespace perlin::gpu {
             float x, y, z, u, v;
         };
     }
-
-    // -- thread pool for shader conversion -----------------------------------------------------------------------------
 
     void JavaPack::Pool::Start(int n) {
         for (int i = 0; i < std::max(1, n); i++)
@@ -600,8 +590,6 @@ namespace perlin::gpu {
         }
         return h;
     }
-
-    // -- setup ---------------------------------------------------------------------------------------------------------
 
     JavaPack::JavaPack(Gpu& g, ChunkMeshStore& store) : gpu(g), meshes(store) {
         trace = std::getenv("JSHADER_TRACE") != nullptr;
@@ -753,7 +741,7 @@ namespace perlin::gpu {
         bl.entries = entries;
         bl.name = "java pack textures";
         textureLayout = dev.create_bind_layout(bl);
-        // set 2: the pack's custom images for load / store, set 3: its shader storage buffers
+
         std::vector<conduit::bind_layout_entry> imageEntries, bufferEntries;
         for (uint32_t i = 0; i < kImageSlots; i++)
             imageEntries.push_back({i, conduit::binding_type::storage_texture_rw, conduit::shader_stage::all, 1,
@@ -829,8 +817,7 @@ namespace perlin::gpu {
             stbi_image_free(data);
             return t;
         };
-        // iris CustomTextureData: a png's sampling comes from its .mcmeta (texture.blur / texture.clamp), nearest
-        // and repeating without one
+
         const auto samplerFor = [&](const std::string& file) {
             std::string clean = file;
             while (!clean.empty() && clean[0] == '/')
@@ -852,8 +839,7 @@ namespace perlin::gpu {
             return blur ? (clamp ? SLinearClamp : SLinearRepeat) : (clamp ? SPointClamp : SPointRepeat);
         };
         {
-            // iris NativeImageBackedNoiseTexture: random rgb noise, noiseTextureResolution square, linear and
-            // repeating, when the pack names no texture.noise
+
             const int res = config.noiseTextureResolution;
             std::vector<uint8_t> px(static_cast<size_t>(res) * res * 4);
             uint64_t state = 0x9E3779B97F4A7C15ull;
@@ -915,7 +901,7 @@ namespace perlin::gpu {
             if (!src || !src->found)
                 continue;
             for (const jshader::ExpandedSource* s : {&src->vertex, &src->fragment}) {
-                // identifiers only: a regex over a pack's megabytes of expanded source took seconds
+
                 const std::string& t = s->text;
                 const size_t n = t.size();
                 for (size_t i = 0; i < n;) {
@@ -981,8 +967,7 @@ namespace perlin::gpu {
             for (const jshader::ExpandedSource& c : src->compute)
                 readsDepth(c.text);
         }
-        // a disabled shadow program (complementary at shadow quality -1) means no shadow pass, as in iris; the
-        // shadow textures still exist when the pack samples them, so its fallback paths read something valid
+
         config.shadowEnabled = instance->ProgramExists("shadow") && instance->ProgramEnabled("shadow");
         if (config.shadowEnabled)
             shadowUsed = true;
@@ -1069,7 +1054,7 @@ namespace perlin::gpu {
             }
         zeroBytes = 0;
         for (Image& img : images)
-            img.tex = {}; // owned: destroyed above
+            img.tex = {};
         dummyStorage = {};
         for (Buffer& b : bufs)
             b.tex[0] = b.tex[1] = {};
@@ -1085,8 +1070,7 @@ namespace perlin::gpu {
     }
 
     std::vector<std::string> JavaPack::ExtraFeatures() const {
-        // storage images and buffers in every stage: vulkan, d3d12 and metal. d3d11 binds pixel shader uavs
-        // against the render targets, which the rhi does not do, so packs take their fallback paths there
+
         const conduit::api api = gpu.Api();
         if (api == conduit::api::vulkan || api == conduit::api::d3d12 || api == conduit::api::metal)
             return {"CUSTOM_IMAGES", "COMPUTE_SHADERS", "SSBO"};
@@ -1162,7 +1146,7 @@ namespace perlin::gpu {
             shadowResPatch = cfg.shadowResolutionLimit;
         }
         lap("parsed config");
-        // the image table: slot i of set 2 is config.images[i]; the textures come with the render targets
+
         images.clear();
         imageSlotOf.clear();
         imageSamplerOf.clear();
@@ -1242,7 +1226,7 @@ namespace perlin::gpu {
             const jshader::JavaBlock jb = jshader::ToJavaBlock(blockName(palette));
             result = blockMatcher.Match(jb);
             if (result < 0) {
-                // packs written for older versions list the pre-flattening names
+
                 if (const char* alias = Alias(jb.name)) {
                     jshader::JavaBlock old = jb;
                     old.name = alias;
@@ -1255,8 +1239,7 @@ namespace perlin::gpu {
     }
 
     bool JavaPack::IsFluidBlock(uint16_t palette) {
-        // per palette entry, filled on first use (chunk meshing runs on several threads: a racing duplicate
-        // fill writes the same value)
+
         if (fluidMap.size() < 65536)
             return false;
         uint8_t& slot = fluidMap[palette];
@@ -1279,7 +1262,7 @@ namespace perlin::gpu {
             return cached->second;
         const std::string java = jshader::JavaEntityName(bedrockType);
         auto it = entityIdMap.find(java);
-        // iris leaves unlisted entities at 0
+
         const int id = it != entityIdMap.end() ? it->second : 0;
         entityIdCache.emplace(bedrockType, id);
         return id;
@@ -1328,7 +1311,7 @@ namespace perlin::gpu {
         }
         const int W = gridCols * tilePx, H = gridRows * tilePx;
         atlasWidth = W;
-        // mips stop at the tile size so neighbouring tiles never bleed together
+
         int tileLevels = 0;
         while ((tilePx >> (tileLevels + 1)) >= 2 && tileLevels < 4)
             tileLevels++;
@@ -1402,7 +1385,6 @@ namespace perlin::gpu {
         }
     }
 
-    // vertex stream for the pack: normals, tangents and the block id come from the quad, which the main stream does not carry
     void JavaPack::Convert(const Tessellator& tess, std::vector<uint8_t>& out) {
         const std::vector<Vertex>& verts = tess.Vertices();
         const std::vector<QuadInfo>& quads = tess.Quads();
@@ -1440,7 +1422,7 @@ namespace perlin::gpu {
                 blockOrigin = glm::floor(centre - n * 0.01f);
             }
             const glm::vec3 blockCentre = blockOrigin + glm::vec3(0.5f);
-            // the quad winding does not say which way it faces: the side of the block centre does
+
             const float side = glm::dot(n, centre - blockCentre);
             if (std::fabs(side) < 0.15f)
                 n = glm::vec3(0, 1, 0);
@@ -1455,8 +1437,7 @@ namespace perlin::gpu {
                 tangent = glm::vec3(1, 0, 0);
             tangent = glm::normalize(tangent);
             int packId = block ? PackBlockId(block) : -1;
-            // fluids: iris passes the fluid's own block id (water in a waterlogged block too) and marks it in
-            // mc_Entity.y; nothing else has y set
+
             bool fluid = false;
             {
                 const int tile0 = static_cast<int>(v[0].light >> 16);
@@ -1469,7 +1450,7 @@ namespace perlin::gpu {
                     fluid = IsFluidBlock(block);
                 }
             }
-            // iris BLOCK_EMISSION_ATTRIBUTE: the block's light level rides in at_midBlock.w
+
             const float emission =
                 block && blockEmission ? static_cast<float>(std::clamp(blockEmission(block), 0, 15)) : 0.0f;
             float au[4], av[4];
@@ -1500,8 +1481,7 @@ namespace perlin::gpu {
             for (int i = 0; i < 4; i++) {
                 uint8_t* o = out.data() + (q + static_cast<size_t>(i)) * kPackVertexBytes;
                 const float pos[3] = {v[i].x, v[i].y, v[i].z};
-                // vanilla ambient occlusion rides in the tangent's fraction; java gives it to packs in the vertex
-                // colour: in the alpha with separateAo, multiplied into the colour otherwise
+
                 const float ao = std::clamp((v[i].tangent - std::floor(v[i].tangent)) * 16.0f, 0.0f, 1.0f);
                 uint32_t abgr = v[i].rgba;
                 const uint32_t aoQ = static_cast<uint32_t>(ao * 255.0f + 0.5f);
@@ -1534,8 +1514,6 @@ namespace perlin::gpu {
         }
     }
 
-    // -- programs ------------------------------------------------------------------------------------------------------
-
     bool JavaPack::IsFullscreenPass(const std::string& progName) {
         static constexpr const char* kPassPrefixes[] = {"composite", "deferred",   "prepare", "final",
                                                         "begin",     "shadowcomp", "setup"};
@@ -1566,7 +1544,7 @@ namespace perlin::gpu {
             return true;
         };
         int idx = 0;
-        // iris: texture.<stage>.<name> replaces the sampler (buffer names included) in that stage's programs
+
         if (const std::string key = resolvingStage + ":" + CanonicalSamplerName(n);
             customTextures.contains(key)) {
             b.kind = Kind::Custom;
@@ -1601,7 +1579,7 @@ namespace perlin::gpu {
             b.kind = Kind::ShadowDepth;
             b.index = 1;
         } else if (n == "shadow") {
-            // iris IrisSamplers: `shadow` is shadowtex1 in programs that also read watershadow
+
             b.kind = Kind::ShadowDepth;
             b.index = resolvingWaterShadow ? 1 : 0;
         } else if (n == "shadowcolor0" || n == "shadowcolor") {
@@ -1627,8 +1605,7 @@ namespace perlin::gpu {
             b.index = img->second;
         } else
             b.kind = Kind::Dummy;
-        // iris IrisSamplers: colortex0 is the default sampler (texture unit 0) of fullscreen passes, so the
-        // gbuffer names (texture, tex, gtexture) and any sampler iris does not bind read colortex0 there
+
         if (resolvingFullscreen && (b.kind == Kind::Atlas || b.kind == Kind::Dummy)) {
             b.kind = Kind::Color;
             b.index = 0;
@@ -1712,10 +1689,9 @@ namespace perlin::gpu {
         sd.format = format;
         sd.name = progName.c_str();
         if (format == conduit::shader_format::msl)
-            sd.entry = "main0"; // spirv-cross renames main, which msl reserves
+            sd.entry = "main0";
         std::vector<uint8_t> vsCode = rp.vertex, fsCode = rp.fragment;
-        // developer testing: JSHADER_VIA_HLSL=11 (or 12) runs the hlsl the direct3d 11 (12) backend would get on
-        // vulkan, through glslang
+
         static const char* viaHlsl = std::getenv("JSHADER_VIA_HLSL");
         const bool d3d11Samplers = gpu.Api() == conduit::api::d3d11 || (viaHlsl && std::string(viaHlsl) == "11");
         if (format == conduit::shader_format::hlsl && d3d11Samplers) {
@@ -1746,7 +1722,7 @@ namespace perlin::gpu {
     }
 
     std::string JavaPack::AlphaFor(const std::string& progName, float defaultRef) const {
-        // called for every draw: remember each answer (the pack's settings only change with a reload)
+
         char keyBuf[16];
         std::snprintf(keyBuf, sizeof(keyBuf), "|%g", static_cast<double>(defaultRef));
         std::string cacheKey = progName + keyBuf;
@@ -1758,7 +1734,7 @@ namespace perlin::gpu {
     }
 
     std::string JavaPack::ComputeAlpha(const std::string& progName, float defaultRef) const {
-        // iris: the shaders.properties override for the program file that loaded, else the render type's test
+
         const jshader::ProgramConfig* pc = nullptr;
         if (instance) {
             if (auto src = instance->Program(progName); src && src->found && !src->sourceName.empty())
@@ -1772,7 +1748,7 @@ namespace perlin::gpu {
             char ref[32];
             std::snprintf(ref, sizeof(ref), "%.9g", static_cast<double>(pc->alpha.ref));
             switch (pc->alpha.func) {
-            case 0x200: // NEVER
+            case 0x200:
                 return "< -1.0e30";
             case 0x201:
                 return std::string("< ") + ref;
@@ -1784,7 +1760,7 @@ namespace perlin::gpu {
                 return std::string("!= ") + ref;
             case 0x206:
                 return std::string(">= ") + ref;
-            case 0x207: // ALWAYS
+            case 0x207:
                 return {};
             default:
                 return std::string("> ") + ref;
@@ -1830,8 +1806,7 @@ namespace perlin::gpu {
             jshader::TransformOptions opts;
             opts.macros = instance->EngineMacros();
             opts.preprocess = jshader::PreprocessGlsl;
-            // full-screen passes draw a quad with only a position and a uv (iris POSITION_TEX): everything
-            // else reads iris's defaults (white colour, full light) instead of an unbound vertex input
+
             opts.availableAttribs = IsFullscreenPass(progName) ? jshader::AttribBit(jshader::kAttribPosition) |
                                                                      jshader::AttribBit(jshader::kAttribTexCoord0)
                                                                : AttribMask();
@@ -1841,7 +1816,7 @@ namespace perlin::gpu {
             opts.explicitLod = progName.compare(0, 8, "gbuffers") != 0 &&
                                progName.compare(0, 6, "shadow") != 0 && progName.compare(0, 4, "hand") != 0 &&
                                progName.compare(0, 6, "entity") != 0;
-            // offscreen targets are stored upside down against the screen so the pack's opengl uv convention holds
+
             opts.flipVertexY = !toBackbuffer;
             opts.flipFragCoordY = toBackbuffer;
             for (const auto& [imgName, slot] : imageSlotOf) {
@@ -1856,12 +1831,11 @@ namespace perlin::gpu {
                                                                          : jshader::RhiShaderKind::Hlsl;
             const jshader::RhiShaderKind kindUsed = std::getenv("JSHADER_FORCE_HLSL") || std::getenv("JSHADER_VIA_HLSL")
                                                         ? jshader::RhiShaderKind::Hlsl
-                                                        : kind; // conversion check without a d3d device
+                                                        : kind;
             const jshader::DxbcCompiler dxbc = jshader::SystemDxbcCompiler();
             const std::filesystem::path cacheFile =
                 CacheFile(vertex, fragment, opts, static_cast<int>(kindUsed), progName);
-            // developer testing (JSHADER_VIA_HLSL): the sampler key of every name a program can declare, for the
-            // direct3d 11 sampler merge done on the worker
+
             std::map<std::string, std::string> viaKeys;
             static const char* viaHlslEnv = std::getenv("JSHADER_VIA_HLSL");
             const bool via = viaHlslEnv && gpu.Api() == conduit::api::vulkan;
@@ -1940,7 +1914,7 @@ namespace perlin::gpu {
                     c->program.kind = jshader::RhiShaderKind::SpirV;
                 }
                 if (const char* dumpName = std::getenv("JSHADER_DUMP_HLSL")) {
-                    // writes the converted hlsl of every program next to the given prefix
+
                     const std::string base = dumpName;
                     std::ofstream(base + std::to_string(std::hash<std::string>()(fragment.text)) + ".ps.hlsl")
                         << c->program.fragmentSource;
@@ -1983,7 +1957,7 @@ namespace perlin::gpu {
                 std::fprintf(stderr, "---- %s vertex\n%s\n---- fragment\n%s\n", progName.c_str(),
                              c->transform.vertex.glsl.c_str(), c->transform.fragment.glsl.c_str());
         Program* p = Finish(key, progName, *c, source);
-        // alphaTestRef: the reference of the comparison the program was built with
+
         if (const size_t sp = alpha.find(' '); sp != std::string::npos)
             p->alphaRef = static_cast<float>(std::atof(alpha.c_str() + sp + 1));
         if (!p->valid) {
@@ -1994,9 +1968,7 @@ namespace perlin::gpu {
     }
 
     int JavaPack::WarmUp() {
-        // every program the pack draws with, with the alpha test each draw asks for, so nothing (the hand, the
-        // player, particles) pops in after the pack starts. reading a program's source happens here on the render
-        // thread; converting and compiling runs on the pool. a small time budget keeps the menus responsive.
+
         struct Want {
             const char* name;
             float alpha;
@@ -2039,7 +2011,7 @@ namespace perlin::gpu {
                     (std::string(base) != "shadowcomp" || config.shadowEnabled))
                     passNames.push_back(n);
         for (const std::string& n : passNames)
-            wants.push_back({n.c_str(), -2.0f, false}); // full screen passes run without an alpha test
+            wants.push_back({n.c_str(), -2.0f, false});
         wants.push_back({"final", -2.0f, true});
 
         const auto started = std::chrono::steady_clock::now();
@@ -2047,7 +2019,7 @@ namespace perlin::gpu {
         std::string current;
         for (const Want& w : wants) {
             if (!instance->ProgramExists(w.name) && std::strcmp(w.name, "final") != 0) {
-                // a missing program falls back (gbuffers_hand -> textured_lit ...); count it only if one loads
+
                 const auto src = instance->Program(w.name);
                 if (!src || !src->found)
                     continue;
@@ -2098,7 +2070,7 @@ namespace perlin::gpu {
     }
 
     conduit::pipeline_handle JavaPack::PipelineFor(Program& p, const PipeState& st) {
-        // a flat key: this runs for every draw
+
         PipeKey k{};
         k.program = &p;
         uint8_t* b = k.bytes.data();
@@ -2146,7 +2118,7 @@ namespace perlin::gpu {
             gd.attributes[1] = {static_cast<uint32_t>(kAttribTexCoord0), 0, conduit::format::rg32_float, 12};
             gd.attribute_count = 2;
         }
-        // offscreen targets are drawn upside down (flipVertexY), which turns the winding around
+
         gd.raster.cull = st.cull ? conduit::cull_mode::back : conduit::cull_mode::none;
         gd.raster.front_face = conduit::front_face::counter_clockwise;
         gd.depth_stencil.depth_test = st.depthTest;
@@ -2162,7 +2134,7 @@ namespace perlin::gpu {
             bt.dst_alpha = st.dstA;
             bt.write_mask = st.mask;
         }
-        // iris PER_BUFFER_BLENDING: blend.<program>.<buffer> overrides the draw buffer writing that colortex
+
         if (p.source) {
             const std::string& n = p.source->sourceName.empty() ? p.source->name : p.source->sourceName;
             if (const jshader::ProgramConfig* pc = config.Find(n); pc && !pc->blendPerBuffer.empty())
@@ -2187,8 +2159,6 @@ namespace perlin::gpu {
         pipelines.emplace(k, h);
         return h;
     }
-
-    // -- per draw state ------------------------------------------------------------------------------------------------
 
     void JavaPack::FillUniforms(Program& p, const jshader::PackDrawState& draw, bool perDrawOnly) {
         jshader::UniformTable::Context ctx;
@@ -2266,7 +2236,6 @@ namespace perlin::gpu {
         return g;
     }
 
-    // the sampler state a texture is read with (the same for every draw, apart from the end sky's repeating atlas)
     int JavaPack::ChooseSampler(const SamplerBind& s) const {
         switch (s.kind) {
         case Kind::Color:
@@ -2290,16 +2259,13 @@ namespace perlin::gpu {
             return it != customSamplers.end() ? it->second : SLinearClamp;
         }
         case Kind::Image:
-            // iris samples custom images with linear filtering, integer ones nearest
+
             return images[static_cast<size_t>(s.index)].integer ? SPointClamp : SLinearClamp;
         default:
             return SLinearClamp;
         }
     }
 
-    // direct3d 11 has 16 sampler registers a stage, and packs read more textures than that, each with its own
-    // sampler: textures read with the same sampler state share one sampler variable there (the atlas stays apart,
-    // its state changes for the end sky)
     std::string JavaPack::MergeHlslSamplers(const std::string& src, const std::vector<SamplerBind>& binds) const {
         return jshader::MergeHlslSamplers(src, [&](const std::string& texture, bool) -> std::string {
             for (const SamplerBind& b : binds)
@@ -2374,8 +2340,7 @@ namespace perlin::gpu {
                 break;
             }
             if (t && isAttached(t)) {
-                // iris samples a buffer the pass also draws into (gbuffers_water reading colortex4 for its
-                // reflections sees the lit scene): a copy taken just before the pass reads the same
+
                 if (trace)
                     std::fprintf(stderr, "[jshader] %s samples %s while drawing to it\n",
                                  p.source ? p.source->name.c_str() : "?", s.name.c_str());
@@ -2388,7 +2353,7 @@ namespace perlin::gpu {
             set.texture[static_cast<size_t>(s.slot)] = t;
             set.sampler[static_cast<size_t>(s.slot)] = static_cast<uint8_t>(smp);
         }
-        // images the program stores to stay writable for the whole pass (sampling them too reads that state)
+
         const auto stored = [&](conduit::texture_handle t) {
             for (int slot : p.imageSlots)
                 if (images[static_cast<size_t>(slot)].tex == t)
@@ -2402,8 +2367,6 @@ namespace perlin::gpu {
             gpu.Transition(list, images[static_cast<size_t>(slot)].tex, conduit::state::shader_write);
         return GroupFor(set);
     }
-
-    // -- custom images, storage buffers and compute ----------------------------------------------------------------------
 
     bool JavaPack::CreateStorage() {
         conduit::device& dev = gpu.Dev();
@@ -2441,7 +2404,7 @@ namespace perlin::gpu {
                 ~uint64_t(255);
             zero = std::max(zero, pitch * img.h * img.d);
         }
-        // a 1x1 storage texture fills the image slots a program does not use
+
         conduit::texture_desc dd;
         dd.format = conduit::format::rgba8_unorm;
         dd.usage = conduit::texture_usage::storage | conduit::texture_usage::sampled;
@@ -2490,7 +2453,6 @@ namespace perlin::gpu {
         return static_cast<bool>(bufferGroup);
     }
 
-    // fresh storage is zeroed (iris clears images and buffers when it creates them); clear=true images every frame
     void JavaPack::ClearImages(conduit::command_list& list, bool all) {
         if (!zeroBuffer)
             return;
@@ -2557,7 +2519,6 @@ namespace perlin::gpu {
             list.set_bind_group(3, bufferGroup);
     }
 
-    // writes of one pass become visible to the next (images stay writable, storage buffers always are)
     void JavaPack::StorageBarrier(conduit::command_list& list, const Program& p) {
         for (int slot : p.imageSlots)
             list.uav_barrier(images[static_cast<size_t>(slot)].tex);
@@ -2678,7 +2639,7 @@ namespace perlin::gpu {
             const std::string key = "cs:" + progName + ":" + std::to_string(i);
             Program* p = GetCompute(progName, i);
             if (!p) {
-                // still compiling (a failed one is final and skipped)
+
                 if (pending.contains(key))
                     allReady = false;
                 continue;
@@ -2718,17 +2679,13 @@ namespace perlin::gpu {
         return allReady;
     }
 
-    // -- frame state ---------------------------------------------------------------------------------------------------
-
     void JavaPack::BuildFrame(const FrameParams& params, const Output& out) {
         jshader::FrameState& s = frameState;
         s = jshader::FrameState();
         const glm::mat4 view = ToMat(params.view);
         glm::mat4 rotation = view;
         rotation[3] = glm::vec4(0, 0, 0, 1);
-        // iris: gbufferModelView is the real camera-relative modelview, view bobbing included. dropping the bob's
-        // translation (as a pure rotation did) made world positions rebuilt from depth wobble with every step,
-        // and shadows looked up with them jumped while walking
+
         {
             const glm::dmat4 v(view);
             const glm::dmat4 relative =
@@ -2756,7 +2713,6 @@ namespace perlin::gpu {
         }
         havePrev = true;
 
-        // java's nether and end have a fixed time of day (18000 and 6000): the celestial angle is 0.5 and 0
         const bool nether = instance && instance->Dimension() == "world-1",
                    end = instance && instance->Dimension() == "world1";
         const double a = nether ? kPi : (end ? 0.0 : static_cast<double>(params.sky.sunAngle));
@@ -2767,7 +2723,7 @@ namespace perlin::gpu {
         s.worldTime = static_cast<int>(frac * 24000.0) % 24000;
         s.worldDay = 0;
         s.moonPhase = static_cast<int>(std::floor(params.sky.moonPhase)) & 7;
-        // iris CelestialUniforms: modelView * rotY(-90) * rotZ(sunPathRotation) * rotX(skyAngle) * (0, 100, 0)
+
         const float tiltRad = glm::radians(config.sunPathRotation);
         const glm::vec3 sunDir(-std::sin(static_cast<float>(a)),
                                std::cos(static_cast<float>(a)) * std::cos(tiltRad),
@@ -2788,9 +2744,7 @@ namespace perlin::gpu {
             s.skyColor[i] = params.sky.skyColor[i];
             s.fogColor[i] = params.fogColor[i];
         }
-        // iris FogUniforms: fogStart / fogEnd are vanilla's environmental fog, not the render distance fog.
-        // 26.3 FogRenderer: air 0..1024 (rain pulls both in), water -8..96 scaled by the player's water vision,
-        // lava 0.25..1. fogDensity is iris's legacy water density (exp2) and 0 elsewhere (linear)
+
         {
             const float frameDt = std::clamp(params.timeSeconds - fogClock, 0.0f, 0.25f);
             fogClock = params.timeSeconds;
@@ -2798,7 +2752,7 @@ namespace perlin::gpu {
                 waterVisionTicks = std::min(600.0f, waterVisionTicks + frameDt * 20.0f);
             else
                 waterVisionTicks = 0.0f;
-            // LocalPlayer.getWaterVision
+
             const float t = waterVisionTicks;
             const float f = std::clamp(t / 100.0f, 0.0f, 1.0f);
             const float g = t < 100.0f ? 0.0f : std::clamp((t - 100.0f) / 500.0f, 0.0f, 1.0f);
@@ -2808,14 +2762,14 @@ namespace perlin::gpu {
                 s.fogStart = -8.0f;
                 s.fogEnd = 96.0f * std::max(0.25f, waterVision);
                 s.fogDensity = 0.05f - waterVision * waterVision * 0.03f;
-                s.fogMode = 0x0801; // GL_EXP2
+                s.fogMode = 0x0801;
             } else if (params.cameraMedium == 2) {
                 s.fogStart = 0.25f;
                 s.fogEnd = 1.0f;
                 s.fogDensity = 0.0f;
-                s.fogMode = 0x2601; // GL_LINEAR
+                s.fogMode = 0x2601;
             } else if (nether) {
-                // FogRenderer: a dimension with thick fog (the nether) pulls the fog to 5%..50% of the view
+
                 const float view = static_cast<float>(std::clamp(params.renderDistance, 2, 64) * 16);
                 s.fogStart = view * 0.05f;
                 s.fogEnd = std::min(view, 192.0f) * 0.5f;
@@ -2827,16 +2781,16 @@ namespace perlin::gpu {
                 s.fogDensity = 0.0f;
                 s.fogMode = 0x2601;
             }
-            s.fogShape = 1; // iris keeps 1 (cylindrical) as its stable value
+            s.fogShape = 1;
         }
         s.rainStrength = std::clamp(1.0f - params.sky.rainBrightness, 0.0f, 1.0f);
         s.thunderStrength = std::clamp(params.thunder, 0.0f, 1.0f);
-        // the level clock when the session has one (moon phases, day counters)
+
         if (params.worldTick >= 0) {
             s.worldTime = params.worldTick % 24000;
             s.worldDay = std::max(0, params.worldDay);
         }
-        // iris SmoothedFloat / SmoothedVec2f: exponential approach with the pack's half-lives (seconds)
+
         const float dtSmooth = std::clamp(params.timeSeconds - smoothAt, 0.0f, 1.0f);
         smoothAt = params.timeSeconds;
         const auto approach = [&](float& v, float target, float halflife, bool first) {
@@ -2848,14 +2802,14 @@ namespace perlin::gpu {
         };
         const bool firstSmooth = !smoothStarted;
         smoothStarted = true;
-        // wetness follows rain with its own fade in and out
+
         approach(wetnessSmooth, s.rainStrength,
-                 // iris counts these half-lives in tenths of a second
+
                  s.rainStrength > wetnessSmooth ? config.wetnessHalflife * 0.1f
                                                 : config.drynessHalflife * 0.1f,
                  firstSmooth);
         s.wetness = wetnessSmooth;
-        // light at the eye as the game has it: 0-240 per channel (block, sky), smoothed with eyeBrightnessHalflife
+
         s.eyeBrightness[0] = std::clamp(params.eyeBlockLight, 0, 15) * 16;
         s.eyeBrightness[1] = noSkyLight ? 0 : std::clamp(params.eyeSkyLight, 0, 15) * 16;
         for (int i = 0; i < 2; i++) {
@@ -2863,7 +2817,7 @@ namespace perlin::gpu {
                      config.eyeBrightnessHalflife * 0.1f, firstSmooth);
             s.eyeBrightnessSmooth[i] = static_cast<int>(std::lround(eyeSmooth[i]));
         }
-        // the biome at the eye, numbered as iris numbers java's biomes
+
         {
             const int id = jshader::JavaBiomeId(params.biome);
             const auto& biome = jshader::JavaBiomes()[static_cast<size_t>(id)];
@@ -2881,8 +2835,7 @@ namespace perlin::gpu {
         const float c = s.projection[10], d = s.projection[14];
         if (std::fabs(c - 1.0f) > 1e-6f && std::fabs(c + 1.0f) > 1e-6f)
             s.nearPlane = d / (c - 1.0f);
-        // iris: `far` is the render distance in blocks (packs place their border fog with it), not the
-        // projection's far plane
+
         s.farPlane = static_cast<float>(std::clamp(params.renderDistance, 2, 64) * 16);
         s.isEyeInWater = params.cameraMedium == 1 ? 1 : (params.cameraMedium == 2 ? 2 : 0);
         s.eyeAltitude = params.cameraPosition[1];
@@ -2899,10 +2852,6 @@ namespace perlin::gpu {
         s.viewHeight = static_cast<int>(height);
         s.dimensionId = instance->Dimension() == "world-1" ? -1 : (instance->Dimension() == "world1" ? 1 : 0);
 
-        // the shadow camera, as iris ShadowMatrices builds it: rotX(90) * rotZ(-skyAngle * 360) *
-        // rotX(sunPathRotation), shifted by the camera's offset inside a shadowIntervalSize grid cell; it takes
-        // camera-relative positions. the projection is a symmetric ortho box of +-shadowDistance between the pack's
-        // near and far planes (gl depth range, like gbufferProjection)
         const glm::dvec3 camera(params.cameraPosition[0], params.cameraPosition[1], params.cameraPosition[2]);
         {
             const float shadowAngle = s.shadowAngle;
@@ -2924,7 +2873,7 @@ namespace perlin::gpu {
             const float hpl = std::max(1.0f, config.shadowDistance);
             FromMat(glm::orthoRH_NO(-hpl, hpl, -hpl, hpl, config.shadowNearPlane, config.shadowFarPlane),
                     shadowProjection);
-            // the shadow pass draws world positions: move them to the camera first
+
             FromMat(mv * glm::translate(glm::mat4(1.0f), -glm::vec3(camera)), shadowDrawView);
             shadowReuse = shadowPartial = false;
             if (config.shadowEnabled && shadowSkipState == 1 && shadowKept && shadowDepth) {
@@ -2990,12 +2939,12 @@ namespace perlin::gpu {
             meshes.CollectRuns(layer, ordered, layerRuns[static_cast<size_t>(l)]);
         }
         const float reach = std::max(8.0f, config.shadowDistance) * 1.5f + 24.0f;
-        // last frame's shadow camera (it moves in shadowIntervalSize steps), widened a little for the step
+
         bool haveShadowCull = false;
         glm::mat4 shadowCull(1.0f);
         if (shadowDrawView[15] != 0.0f && shadowProjection[15] != 0.0f) {
             glm::mat4 proj = ToMat(shadowProjection);
-            proj[0] *= 0.9f; // ±11% margin in x and y
+            proj[0] *= 0.9f;
             proj[1] *= 0.9f;
             shadowCull = proj * ToMat(shadowDrawView);
             haveShadowCull = true;
@@ -3030,8 +2979,7 @@ namespace perlin::gpu {
                              static_cast<float>(g.size) * 0.5f - camZ;
             if (dx * dx + dz * dz > reach * reach)
                 continue;
-            // iris culls shadow terrain to the shadow camera's box: a column whose corners all fall outside it on
-            // one side of x or y is never drawn into the shadow map
+
             if (haveShadowCull) {
                 const float x0 = static_cast<float>(g.cx) * static_cast<float>(g.size),
                             z0 = static_cast<float>(g.cz) * static_cast<float>(g.size);
@@ -3067,7 +3015,7 @@ namespace perlin::gpu {
                     shadowRuns[slot].push_back(
                         {static_cast<uint32_t>(g.page), g.iOff[slot], g.layerCount[slot]});
         }
-        // columns stored back to back in a page draw as one: far fewer draw calls in the shadow pass
+
         for (auto& runs : shadowRuns) {
             std::sort(runs.begin(), runs.end(), [](const ChunkMeshStore::Run& a, const ChunkMeshStore::Run& b) {
                 return a.page != b.page ? a.page < b.page : a.first < b.first;
@@ -3083,8 +3031,6 @@ namespace perlin::gpu {
             runs.resize(out);
         }
     }
-
-    // -- passes --------------------------------------------------------------------------------------------------------
 
     conduit::texture_handle JavaPack::FeedbackCopy(conduit::command_list& list, conduit::texture_handle src) {
         const conduit::texture_desc* sd = gpu.Dev().get_desc(src);
@@ -3110,7 +3056,7 @@ namespace perlin::gpu {
             if (!f.tex)
                 return {};
         }
-        // once per pass: the attachment does not change between the draws recorded before it begins
+
         if (f.serial != passSerial) {
             gpu.Transition(list, src, conduit::state::copy_src);
             gpu.Transition(list, f.tex, conduit::state::copy_dst);
@@ -3159,10 +3105,7 @@ namespace perlin::gpu {
     }
 
     void JavaPack::ClearBuffers(conduit::command_list& list, const FrameParams& params) {
-        // iris ClearPassCreator: a buffer that clears has both its textures (main and alt) cleared at the start of the
-        // frame, colortex0 to the fog colour, colortex1 to white, the rest to transparent black, unless the pack
-        // names a colour. a pass that writes part of a buffer (scaled passes, bloom tiles) then sees the clear
-        // colour around what it wrote, not last frame's picture
+
         constexpr float kKeep = -1e30f;
         struct Target {
             conduit::texture_handle tex;
@@ -3187,14 +3130,14 @@ namespace perlin::gpu {
                 const conduit::texture_handle t = b.tex[k];
                 if (!t)
                     continue;
-                // a texture never written yet is cleared whatever the pack says, so it holds no garbage
+
                 const bool clear = cfg.clear || gpu.StateOf(t) == conduit::state::undefined;
                 if (!clear && k != b.cur)
                     continue;
                 targets.push_back({t, clear ? c : std::array<float, 4>{kKeep, 0, 0, 0}, b.w, b.h});
             }
         }
-        // one pass per size, up to eight targets each; the first also clears the scene depth
+
         bool depthCleared = false;
         while (!targets.empty()) {
             const uint32_t w = targets.front().w, h = targets.front().h;
@@ -3335,7 +3278,7 @@ namespace perlin::gpu {
         }
         list.end_rendering();
         if (p->imageMask || !config.bufferObjects.empty())
-            StorageBarrier(list, *p); // shadow voxelization writes images from the vertex shader
+            StorageBarrier(list, *p);
         return true;
     }
 
@@ -3450,9 +3393,7 @@ namespace perlin::gpu {
     void JavaPack::DrawShadows(conduit::command_list& list) {
         if (!config.shadowEnabled || !shadowDepth)
             return;
-        // iris ShadowRenderer: clear (depth to 1, colour buffers to their clear colour unless shadowcolorNClear is
-        // off), solid and cutout terrain, entities, block entities, copy shadowtex0 to shadowtex1, translucent
-        // terrain
+
         const bool partial = shadowPartial && shadowCacheValid && shadowCacheDepth;
         if (partial) {
             GpuMark(list, "shadow cached");
@@ -3507,15 +3448,13 @@ namespace perlin::gpu {
                        true, 17, -1.0f);
     }
 
-    // -- engine draws through the pack -----------------------------------------------------------------------------
-
     void JavaPack::BuildVertices(const UiVertex* v, size_t vertexCount, const uint32_t* idx,
                                  size_t indexCount, const float model[16], int blockLight, int skyLight,
                                  std::vector<uint8_t>& out, const int8_t* vertexLight,
                                  const float* faceToward, bool noSkyLight) {
         const glm::mat4 m = glm::make_mat4(model);
         const glm::mat3 nm = glm::mat3(m);
-        // the mesh's middle: box models are near enough convex that a face normal pointing away from it is outward
+
         glm::vec3 centre(0.0f);
         for (size_t i = 0; i < vertexCount; i++)
             centre += glm::vec3(m * glm::vec4(v[i].x, v[i].y, v[i].z, 1.0f));
@@ -3669,7 +3608,7 @@ namespace perlin::gpu {
                     programName = "gbuffers_entities_glowing";
                     break;
                 }
-            // iris WorldRenderingPhase ordinals (MC_RENDER_STAGE_*)
+
             int stage = 11;
             switch (kind) {
             case K::Hand:
@@ -3703,7 +3642,7 @@ namespace perlin::gpu {
                 stage = 11;
                 break;
             }
-            // the targets come from the program's source, the same for every alpha variant
+
             Program* base = nullptr;
             for (const ExternalDraw* d : draws) {
                 base = GetProgram(programName, false, nullptr, nullptr, conduit::format::unknown,
@@ -3800,7 +3739,7 @@ namespace perlin::gpu {
                 st.srcA = conduit::blend_factor::one;
                 st.dstA = conduit::blend_factor::inv_src_alpha;
                 if (!shadowPass && kind == K::Eyes) {
-                    // iris ProgramId.SpiderEyes: src alpha, one / zero, one
+
                     st.blend = true;
                     st.src = conduit::blend_factor::src_alpha;
                     st.dst = conduit::blend_factor::one;
@@ -3813,7 +3752,7 @@ namespace perlin::gpu {
                     st.dst = conduit::blend_factor::one;
                 }
                 if (!shadowPass && d->glintBlend) {
-                    // vanilla GLINT transparency and depth: src colour, one / zero, one; depth equal, no write
+
                     st.src = conduit::blend_factor::src_color;
                     st.dst = conduit::blend_factor::one;
                     st.srcA = conduit::blend_factor::zero;
@@ -3857,7 +3796,7 @@ namespace perlin::gpu {
                         for (int rr = 0; rr < 3; rr++)
                             r.state.normalMatrix[c * 3 + rr] = shadowDrawView[c * 4 + rr];
                 } else if (hand) {
-                    // the hand's vertices are already in view space; iris squeezes its depth by MC_HAND_DEPTH
+
                     const float identity[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
                     std::memcpy(r.state.modelView, identity, sizeof(identity));
                     std::memcpy(r.state.projection, handProjection, sizeof(handProjection));
@@ -3900,7 +3839,7 @@ namespace perlin::gpu {
     }
 
     const jshader::ProgramConfig* JavaPack::BlendConfigFor(const std::string& progName) const {
-        // iris ProgramDirectives: blend.<program> of the program file that loaded
+
         if (instance)
             if (auto src = instance->Program(progName); src && src->found && !src->sourceName.empty())
                 if (const jshader::ProgramConfig* pc = config.Find(src->sourceName))
@@ -3908,8 +3847,6 @@ namespace perlin::gpu {
         return config.Find(progName);
     }
 
-    // iris (sodium) terrain passes: gbuffers_terrain_solid with no alpha test, gbuffers_terrain_cutout at 0.5,
-    // gbuffers_water above zero
     void JavaPack::DrawTerrain(conduit::command_list& list) {
         DrawLayers(list, "gbuffers_terrain_solid", {RenderLayer::Solid}, false, false, 8, -1.0f);
         DrawLayers(list, "gbuffers_terrain_cutout", {RenderLayer::Cutout, RenderLayer::CutoutCull}, false,
@@ -3938,7 +3875,7 @@ namespace perlin::gpu {
                 bytes.insert(bytes.end(), px, px + kPackVertexBytes);
                 count++;
             }
-            // quad around a centre in the plane spanned by right and up
+
             void Quad(const glm::vec3& c, const glm::vec3& r, const glm::vec3& u, const uint8_t rgba[4],
                       float u0, float v0, float u1, float v1) {
                 const glm::vec3 p0 = c - r - u, p1 = c + r - u, p2 = c + r + u, p3 = c - r + u;
@@ -4042,13 +3979,12 @@ namespace perlin::gpu {
                                0,
                                0,
                                1};
-        // java's DimensionSpecialEffects: the nether draws no sky at all, the end draws its textured box
+
         const bool nether = instance->Dimension() == "world-1", end = instance->Dimension() == "world1";
         if (nether)
             return;
         if (end) {
-            // LevelRenderer.renderEndSky: six faces of end_sky.png repeated 16 times, colour (40, 40, 40),
-            // drawn with gbuffers_skytextured in iris's CUSTOM_SKY phase
+
             SkyBuilder sb;
             const uint8_t grey[4] = {40, 40, 40, 255};
             const glm::mat4 faces[6] = {
@@ -4086,7 +4022,7 @@ namespace perlin::gpu {
         FromMat(ToMat(rot) * spin, spun);
 
         if (!skyStatic) {
-            // stars first, then the sun quad (the moon changes with the phase, so it goes through the ring)
+
             SkyBuilder sb;
             const uint8_t white[4] = {255, 255, 255, 255};
             uint32_t seed = 10842u;
@@ -4112,7 +4048,6 @@ namespace perlin::gpu {
         if (!skyStatic)
             return;
 
-        // dome around the camera, tinted with the sky colour
         {
             SkyBuilder sb;
             const uint8_t sc[4] = {
@@ -4144,15 +4079,14 @@ namespace perlin::gpu {
                                {}, false);
             }
         }
-        // sunrise / sunset fan (iris SUNSET phase): DimensionSpecialEffects.getSunriseColor, a fan of 16 segments
-        // facing the sun on the horizon, centre colour with the fan's alpha fading to 0 at the rim
+
         if (frame.sky.sunrise[3] > 0.0f) {
             SkyBuilder sb;
             const auto c8 = [](float v) { return static_cast<uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f); };
             const uint8_t centre[4] = {c8(frame.sky.sunrise[0]), c8(frame.sky.sunrise[1]), c8(frame.sky.sunrise[2]),
                                        c8(frame.sky.sunrise[3])};
             const uint8_t rim[4] = {centre[0], centre[1], centre[2], 0};
-            // rotX(90) * rotZ(sun below/above: 180 or 0) * rotZ(90), as LevelRenderer.renderSky
+
             const float sinSun = std::sin(static_cast<float>(a));
             const glm::mat4 fan = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1, 0, 0)) *
                                   glm::rotate(glm::mat4(1.0f), glm::radians(sinSun < 0.0f ? 180.0f : 0.0f),
@@ -4178,13 +4112,13 @@ namespace perlin::gpu {
                                false);
             }
         }
-        // the sun and moon fade out in rain: shader colour (1, 1, 1, 1 - rain)
+
         const float rainAlpha = std::clamp(frame.sky.rainBrightness, 0.0f, 1.0f);
         const float celestial[4] = {1.0f, 1.0f, 1.0f, rainAlpha};
-        // sun
+
         DrawSkyObjects(list, "gbuffers_skytextured", 4, skyStatic, starVertexCount, 6, {}, 0, spun, skySunTex,
                        true, celestial);
-        // moon: opposite the sun, one phase cell of the 4x2 sheet
+
         {
             SkyBuilder sb;
             const uint8_t white[4] = {255, 255, 255, 255};
@@ -4195,20 +4129,19 @@ namespace perlin::gpu {
             const gpu::RingSlice slice = gpu.Ring(sb.bytes.size(), 16);
             if (slice.data) {
                 std::memcpy(slice.data, sb.bytes.data(), sb.bytes.size());
-                // vanilla (and iris) draw the moon like the sun, additively: its black surround adds nothing
+
                 DrawSkyObjects(list, "gbuffers_skytextured", 5, {}, 0, sb.count, slice.buffer, slice.offset,
                                spun, skyMoonTex, true, celestial);
             }
         }
-        // stars rotate with the sun; vanilla skips them when dark is 0 and colours them with the star brightness
-        // (times the rain fade) in all four channels
+
         const float stars = std::clamp(frame.sky.starBrightness * rainAlpha, 0.0f, 1.0f);
         if (stars > 0.0f) {
             const float starColor[4] = {stars, stars, stars, stars};
             DrawSkyObjects(list, "gbuffers_skybasic", 6, skyStatic, 0, starVertexCount, {}, 0, spun, {}, false,
                            starColor);
         }
-        // the dark void disc below the horizon when the camera is under the horizon height (VOID phase)
+
         if (frame.sky.darkDisc) {
             SkyBuilder sb;
             const uint8_t black[4] = {0, 0, 0, 255};
@@ -4281,7 +4214,7 @@ namespace perlin::gpu {
         const conduit::pipeline_handle pipe = PipelineFor(*p, st);
         if (!textures || !pipe)
             return false;
-        // only the buffers a pass writes keep their old contents under a blend; the rest are fully overwritten
+
         std::vector<std::array<float, 4>> clears;
         if (toBackbuffer)
             clears.push_back({0, 0, 0, 1});
@@ -4324,11 +4257,11 @@ namespace perlin::gpu {
         for (const std::string& n : instance->PassChain(base)) {
             if (!instance->ProgramEnabled(n))
                 continue;
-            // iris runs a pass's compute shaders (name.csh, name_a.csh ...) before its fragment program
+
             RunCompute(list, n, shadowChain ? res : width, shadowChain ? res : height);
             const std::shared_ptr<jshader::ProgramSource> src = instance->Program(n);
             if (!src || src->fragment.text.empty())
-                continue; // compute only
+                continue;
             Output unused;
             RunPass(list, n, false, unused);
         }
@@ -4394,7 +4327,7 @@ namespace perlin::gpu {
                         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
             }
         } cpuTime{*this, cpuStart};
-        // the pack renders at the engine's render scale and its final pass scales up to the screen
+
         const float scale = std::max(0.4f, std::min(1.0f, out.scale));
         const uint32_t iw = std::max(1u, static_cast<uint32_t>(static_cast<float>(out.width) * scale));
         const uint32_t ih = std::max(1u, static_cast<uint32_t>(static_cast<float>(out.height) * scale));
@@ -4416,13 +4349,13 @@ namespace perlin::gpu {
             shadowSkipState = plain ? 1 : 0;
         }
         {
-            // iris HandRenderer: the hand projection with its depth squeezed by MC_HAND_DEPTH (0.125)
+
             ToGlDepth(params.handProjection, handProjection);
             for (int c = 0; c < 4; c++)
                 handProjection[c * 4 + 2] *= 0.125f;
         }
         frameStamp++;
-        // JSHADER_STATS: render passes and feedback copies per frame, every 60 frames
+
         if (static const bool stats = std::getenv("JSHADER_STATS") != nullptr; stats && frameStamp % 60 == 0)
             std::fprintf(stderr, "[jshader] frame %llu: %u passes, %u feedback copies\n",
                          static_cast<unsigned long long>(frameStamp), statPasses, statCopies);
@@ -4434,7 +4367,7 @@ namespace perlin::gpu {
 
         ClearImages(list, false);
         ClearBuffers(list, params);
-        // setup runs once, when all of its compute shaders are ready
+
         if (!setupDone) {
             bool ready = true;
             for (const std::string& n : instance->PassChain("setup"))
@@ -4471,8 +4404,7 @@ namespace perlin::gpu {
         DrawTerrain(list);
         GpuMark(list, "entities+hand");
         using K = ExternalDraw::Kind;
-        // iris order: opaque entities, block breaking and particles with the terrain; depthtex2 is the depth before
-        // the hand; the solid hand; depthtex1 is the depth before translucents
+
         DrawExternal(list,
                      {K::Entity, K::Eyes, K::Glowing, K::Lightning, K::Glint, K::Block, K::Cracks, K::Line,
                       K::Particle},
@@ -4489,8 +4421,7 @@ namespace perlin::gpu {
             GpuMark(list, "deferred");
             RunChain(list, "deferred");
             GpuMark(list, "translucent");
-            // translucent terrain lands on the lit opaque picture, as in Iris, then translucent entities,
-            // particles, weather and the translucent hand
+
             DrawTranslucent(list);
             DrawExternal(
                 list,
@@ -4544,8 +4475,6 @@ namespace perlin::gpu {
         return true;
     }
 
-    // JSHADER_GPU_TIMES: gpu milliseconds of each part of the pack's frame (composite passes by name), averaged
-    // and logged every 120 frames
     void JavaPack::GpuTimesBegin(conduit::command_list& list) {
         static const bool on = std::getenv("JSHADER_GPU_TIMES") != nullptr;
         timing.on = on && gpu.Caps().features.timestamp_queries;
@@ -4573,7 +4502,7 @@ namespace perlin::gpu {
             }
         }
         timing.slot = gpu.FrameSlot() % slots;
-        // this slot's previous frame has retired: add its times up
+
         std::vector<std::string>& names = timing.names[timing.slot];
         if (names.size() >= 2) {
             if (const uint8_t* data = gpu.Dev().map(timing.readback[timing.slot])) {

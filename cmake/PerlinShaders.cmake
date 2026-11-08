@@ -1,12 +1,9 @@
-# Slang shaders: every program is compiled for the graphics apis enabled for this platform and packed into one file that the engine embeds.
 set(PERLIN_SLANG_VERSION "2026.20" CACHE STRING "Slang release used to compile the shaders")
 set(PERLIN_DXC_RELEASE "v1.8.2502" CACHE STRING "DirectX Shader Compiler release (DXIL output)")
 set(PERLIN_DXC_STAMP "2025_02_20" CACHE STRING "Date stamp in the DXC release file names")
 set(PERLIN_SLANGC "" CACHE FILEPATH "slangc to compile shaders with; fetched for the build machine when empty")
 set(PERLIN_DXC_LIBS "" CACHE PATH "directory with dxcompiler and dxil for DXIL output; fetched when empty")
 
-# a pack compiled on another machine for the same backends (FreeBSD: slang ships no FreeBSD compiler, so CI builds
-# the pack on Linux, whose backends are the same, and hands it over)
 set(PERLIN_SHADER_PACK_PREBUILT "" CACHE FILEPATH "perlin_shaders.pack built elsewhere for the same graphics backends")
 if(PERLIN_SHADER_PACK_PREBUILT)
     set(PERLIN_SHADER_PACK "${CMAKE_CURRENT_BINARY_DIR}/shaders/perlin_shaders.pack")
@@ -43,7 +40,6 @@ if(NOT PERLIN_SLANGC)
     endif()
 endif()
 
-# only what the enabled backends read: spirv (vulkan), dxil (d3d12), hlsl (d3d11), msl (metal), wgsl (webgpu)
 set(PERLIN_SHADER_TARGETS)
 if(CONDUIT_VULKAN)
     list(APPEND PERLIN_SHADER_TARGETS spirv)

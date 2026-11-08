@@ -146,8 +146,6 @@ namespace perlin {
         ReplayFrom(session, first);
     }
 
-    // MovementEffectPacket 0x146BD3FB0: an event on frame T + 1 (0x142CD9D60), replayed from there; the replay sets
-    // the entry outright (0x143A18B90), durations below -1 read as 0. a stamp past our frames lands on the next tick
     void LocalPlayer::ApplyMovementEffectUpdates(BedrockSession& session) {
         size_t first = history.size();
         for (const auto& effect : session.TakeMovementEffects()) {
@@ -171,10 +169,6 @@ namespace perlin {
         ReplayFrom(session, first);
     }
 
-    // actor data and attributes are stamped with the ReplayStateComponent tick (+24) of the last input the server
-    // took (0x140BA9110, 0x14403EA50): the value after that tick's freeze step, the one frame X + 1 moves with.
-    // Vanilla files it on frame X + 1 (0x142CD98E0) and a later packet with the same stamp overwrites it there; a
-    // stamp the server skipped (two inputs in one server tick) leaves the frame on the previous value
     void LocalPlayer::SyncFreeze(BedrockSession& session) {
         for (const auto& update : session.TakeFreezeUpdates()) {
             if (PERLIN_ENV("PERLIN_CORRECTION_LOG"))
@@ -315,7 +309,7 @@ namespace perlin {
                 const double ez = r.after.vz - motion.velocity[2];
                 const double posErr = dx * dx + dy * dy + dz * dz;
                 const double velErr = ex * ex + ey * ey + ez * ez;
-                // correction event check 0x1410E8FF0: float squared distances, rewind only past 1e-5 (0x3727C5AC)
+
                 const auto sq = [](double server, double ours) {
                     const float d = static_cast<float>(server) - static_cast<float>(ours);
                     return d * d;
@@ -325,7 +319,7 @@ namespace perlin {
                 const float velErrF =
                     (sq(motion.velocity[1], r.after.vy) + sq(motion.velocity[0], r.after.vx)) +
                     sq(motion.velocity[2], r.after.vz);
-                // strict-threshold servers correct below our replay cutoff: log every correction for parity work
+
                 if (PERLIN_ENV("PERLIN_CORRECTION_LOG")) {
                     std::ostringstream line;
                     line << std::setprecision(std::numeric_limits<float>::max_digits10)
@@ -437,8 +431,7 @@ namespace perlin {
             if (motion.correction)
                 state.onGround = motion.onGround;
         }
-        // unstamped motion: posDelta written straight to the live state (actor vfunc 0x140BB5800), frames kept and not
-        // recorded, so a later rewind replays without it
+
         if (motion.hasVelocity) {
             state.vx = motion.velocity[0];
             state.vy = motion.velocity[1];
@@ -482,25 +475,25 @@ namespace perlin {
         float forwardKeys = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
         float strafeKeys = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
         if (cameraScheme >= 0 && cameraScheme <= 2 && !asleep && !rideLock) {
-            // preset control schemes (camera yaw and the player's yaw use the same convention here)
+
             const float cy = glm::radians(cameraControlYaw);
             if (cameraScheme == 1 || cameraScheme == 2) {
                 const float wx = forwardKeys * std::cos(cy) - strafeKeys * std::sin(cy);
                 const float wz = forwardKeys * std::sin(cy) + strafeKeys * std::cos(cy);
                 const float len = std::sqrt(wx * wx + wz * wz);
                 if (cameraScheme == 1) {
-                    // camera relative: the player turns to face where it goes and walks forward
+
                     if (len > 0.001f) {
                         camera.yaw = glm::degrees(std::atan2(wz, wx)), forcedYaw = camera.yaw;
                         forwardKeys = 1.0f;
                         strafeKeys = 0.0f;
                     }
                 } else {
-                    // camera relative strafe: the player faces the camera's way, keys are the camera's axes
+
                     camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
                 }
             } else {
-                // locked player relative strafe: the player is locked to the camera's facing
+
                 camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
             }
         }
@@ -515,34 +508,32 @@ namespace perlin {
         const bool sprintKey = sprintToggle ? sprintLatch : sprintHeldKey;
 
         const bool wasSprinting = sprinting;
-        // ClientInputUpdateSystem 0x140493140: the SNEAKING and SWIMMING flags are still last tick's here, so a
-        // released sneak scales one more tick and the swim pose cancels it
+
         const bool sneakScaled = (sneakKey || sneaking) && !flying && !swimming;
         const physics::MoveVector move = physics::ProcessMoveInput(forward, strafe, sneakScaled, currentWater,
                                                                    itemSlow ? 0.35f : 1.0f, sneakSpeed);
-        // SneakingSystem runs after the input stage: its value is next tick's multiplier
+
         sneakSpeed = physics::SneakSpeed(session.SwiftSneakEnchant(), sneaking);
 
-        // SetRequestSprintTriggerSystem 0x14b3405d0: food <= 6 blocks sprinting unless the player may fly
         const BedrockSession::Vitals vitals = session.GetVitals();
         tooHungryToSprint = vitals.known && vitals.hunger <= 6.0f && !session.MayFly();
         bool blind = false;
         for (const auto& effect : session.GetEffects())
             if (effect.id == 15)
                 blind = true;
-        // item-use slowdown 0x14ce4c200 clears the double-tap window, SprintTimerSystem 0x14b33f6f0 counts it down
+
         if (itemSlow)
             sprintTapTicks = 0;
         if (sprintTapTicks > 0)
             --sprintTapTicks;
-        // IntentSprintTriggerSystem 0x14b341890, on the scaled move vector
+
         constexpr float kSprintAxis = 0.70710677f;
         bool sprintIntent = sprinting, sprintStarted = false, moveStop = false;
         if (!itemSlow && move.forward >= kSprintAxis && !tooHungryToSprint && !sprinting && !blind) {
             if (sprintKey) {
                 sprintStarted = true;
             } else if ((currentWater || state.onGround || flying) && !prevSneakInput && !prevForwardHigh) {
-                // double-tap forward: the second fresh press within 6 ticks
+
                 if (sprintTapTicks > 0)
                     sprintStarted = true;
                 else
@@ -552,12 +543,12 @@ namespace perlin {
         }
         if (sprintIntent) {
             moveStop = true;
-            // separate statements: no fused multiply-add, the game squares then adds
+
             const float forwardSq = move.forward * move.forward;
             const float strafeSq = move.strafe * move.strafe;
             const float length = std::sqrt(forwardSq + strafeSq);
             if (move.forward > 0.0f && length >= kSprintAxis && std::fabs(move.strafe) <= kSprintAxis) {
-                // last move made no progress (< 0.00005) along its main requested horizontal axis
+
                 const float requestX = std::fabs(state.requestX), requestZ = std::fabs(state.requestZ);
                 const bool stuckZ = requestZ > requestX &&
                                     std::fabs(static_cast<float>(state.z) - state.requestFromZ) < 0.00005f;
@@ -572,19 +563,16 @@ namespace perlin {
                 stop = true;
             else
                 stop = moveStop || tooHungryToSprint;
-            // the action applies start then stop: both in one tick leaves it off
+
             if (stop)
                 sprinting = false;
             else if (sprintStarted)
                 sprinting = true;
         }
 
-        // countdown 0x14b33f0a0 then FlyTriggerIntentSystem 0x145e0ddb0: tick-sampled jump edges, the second
-        // within 6 ticks of the first toggles flight
         if (flyTapTicks > 0)
             --flyTapTicks;
-        // the toggle flips PlayerInputRequest flying now, but FlyTriggerActionSystem 0x145e0fb40 only queues the
-        // ability: MovementAbilities (TravelTypeSensingSystem 0x147cce890) keeps the old travel for this tick
+
         const bool flyingTravel = flying;
         if (session.MayFly() && !session.NoClip() && !session.Spectator() && !rideLock && jump && !jumpHeld) {
             if (flyTapTicks > 0) {
@@ -606,7 +594,7 @@ namespace perlin {
             const auto cell = world.Query(x, y, z);
             if (cell.fluid != 1)
                 return false;
-            // liquid height 0x143534D00: (y + 1) - (d/9 - 1/9) from this cell's depth alone, water above doesn't fill it
+
             const int depth = cell.fluidDepth < 8 ? cell.fluidDepth + 1 : 1;
             const float drop = static_cast<float>(depth) / 9.0f + std::bit_cast<float>(0xbde38e39u);
             const float height = static_cast<float>(y + 1) - drop;
@@ -618,13 +606,12 @@ namespace perlin {
                                                                                : physics::kStandEye));
         bool forcedSneak = false;
         bool wantCrawl = false;
-        // a riptide spin counts as standing room: no forced pose
+
         if (!flying && !rideLock && !gliding && !swimming && !state.spinAttack) {
             if (!physics::PoseFits(state, world, physics::kStandHeight)) {
                 if (physics::PoseFits(state, world, physics::kSneakHeight))
                     forcedSneak = true;
-                // SneakTriggerIntent 0x14B313690: a 0.6 gap starts crawling; in water last tick it starts swimming
-                // instead (0x200000) and stops a crawl; no gap at all keeps the current pose
+
                 else if (physics::PoseFits(state, world, physics::kCrawlHeight)) {
                     wantCrawl = !state.inWater;
                     swimming = state.inWater;
@@ -644,7 +631,7 @@ namespace perlin {
         const bool simulate = column && !asleep && !dimensionChanging;
 
         const auto swimBox = physics::BoundingBox(state, wasSneaking);
-        // SwimTrigger 0x147CAE950: centre as (max - min) * 0.5f + min in float
+
         const auto boxCentre = [](double lo, double hi) {
             const float half = (static_cast<float>(hi) - static_cast<float>(lo)) * 0.5f;
             return static_cast<int>(std::floor(half + static_cast<float>(lo)));
@@ -659,8 +646,7 @@ namespace perlin {
         const float lookY = physics::bds::CurrentSineEntry(physics::bds::SineIndex(lookCoordinate));
         const bool canStartSwimUp =
             lookY < 0.15f || !aboveSwimBox.isAir || aboveSwimBox.fluid != 0 || !aboveSwimBox.Empty();
-        // SwimTriggerSystem 0x147cae950 on the sprint intent (input request +8/+10), the scaled move and the
-        // hunger/riding gates; the input request's +32 branch is taken as clear (writer not identified)
+
         if (!swimming) {
             if (!flying && headInWaterBeforePose && canStartSwimUp && sprintIntent && !moveStop)
                 swimming = true;
@@ -671,8 +657,7 @@ namespace perlin {
             if (length < kSprintAxis || tooHungryToSprint || rideLock || !currentWater)
                 swimming = false;
         }
-        // SneakTriggerIntent 0x14B313690 under a low ceiling: a sneak gap with no move input stops the swim into a
-        // sneak (0x400000 + start sneak, no crawl); a crawl gap out of water (last tick) turns it into a crawl
+
         if (swimming && !physics::PoseFits(state, world, physics::kStandHeight)) {
             const float moveSq = forwardKeys * forwardKeys + strafeKeys * strafeKeys;
             const bool sneakGap = physics::PoseFits(state, world, physics::kSneakHeight);
@@ -689,12 +674,10 @@ namespace perlin {
                     crawling = true;
             }
         }
-        // StartGlidingIntentSystem 0x14b34d5e0: no lava, levitation or pose test; lava only picks the lava
-        // travel system (TravelTypeSensingSystem 0x147cce890) while the glide state stays
+
         if (!gliding && hasElytra && jump && !jumpHeld && !state.onGround && !flying && !rideLock)
             gliding = true;
-        // StopGlidingIntentSystem 0x14b3533b0, same tick as the start: water, climbing, or a fresh jump press
-        // after 10 glide ticks (instabuild keeps gliding and lifts instead)
+
         if (gliding) {
             const auto glideFlags = session.OwnActorFlags();
             const auto glideFeet = world.Query(static_cast<int>(std::floor(state.x)),
@@ -732,8 +715,7 @@ namespace perlin {
                 }
             }
         }
-        // GlideInputSystem 0x146d09030 (FallFlyTicksComponent), after the stop check above; the lift reads
-        // the count before it advances and needs jump held, not a fresh press
+
         const bool glideLift = gliding && jump && session.Instabuild() && fallFlyTicks >= 11;
         fallFlyTicks = gliding ? fallFlyTicks + 1 : 0;
         physics::Input in;
@@ -792,9 +774,6 @@ namespace perlin {
         in.overDescendableBlock = scaffold.descendable;
         in.gravity.descendThroughBlock = in.sneak && in.overDescendableBlock;
 
-        // FreezingSystem 0x145E14260 runs after the server's move (0x146FF8110, after the movement group): this tick
-        // moves with the strength the last step left, the step reads the box after this move; any leather armor
-        // piece (0x140BC68B0) or spectator mode only thaws
         bool leatherArmor = false;
         const auto inventory = session.GetInventory();
         for (const auto& piece : inventory.armor) {
@@ -827,7 +806,6 @@ namespace perlin {
                 attributes.weaving = true;
         }
 
-        // the prediction keeps the shorter-duration check (0x14355F1D0), the server's entry after it does not
         if (predictGlideBoost && simulate)
             in.movementEffects.push_back(
                 {nextTick, 20, static_cast<int32_t>(physics::bds::MovementEffectType::GlideBoost)});
@@ -847,7 +825,7 @@ namespace perlin {
         rec.simulated = simulate;
         rec.freeze = freezeStrength;
         rec.teleport = tickTeleport;
-        // a stamp past the newest frame still lands on the live state at once (0x142CD98E0): next tick, whatever the stamp
+
         for (const auto& pending : futureMotion) {
             rec.motion = pending.velocity;
             if (PERLIN_ENV("PERLIN_BLOCK_DEBUG"))
@@ -861,7 +839,6 @@ namespace perlin {
             state.vx = state.vy = state.vz = 0;
         }
 
-        // the vehicle moves in the movement tick; the rider is placed on it after (passenger positioning)
         const bool drivingVehicle = TickVehicle(session, forward, strafe, jump, in.pitch, world);
         if (rideLock) {
             state.x = rideX;
@@ -926,7 +903,7 @@ namespace perlin {
         if (!jump && jumpHeld)
             f.push_back(Flag::JumpReleasedRaw);
         jumpHeld = jump;
-        // StorePreviousClientInputSystem 0x147cb9d90: what the next double tap compares against
+
         prevSneakInput = sneakKey;
         prevForwardHigh = move.forward >= kSprintAxis;
 
@@ -1009,7 +986,7 @@ namespace perlin {
 
         session.SetPose(packet.position[0], packet.position[1], packet.position[2], packet.yaw, packet.pitch);
         if (drivingVehicle && boatActive) {
-            // SendPlayerInputPacketSystem 0x146dab080: position and posDelta of the vehicle, not the rider
+
             packet.eyeHeight = 0.0f;
             packet.position[0] = boat.x;
             packet.position[1] = boat.y;
@@ -1048,7 +1025,7 @@ namespace perlin {
     }
 
     namespace {
-        // HorseFlagComponent actors (SetIsClientPredictedHorseSystem 0x14b31b900 query)
+
         bool HorseFamily(const std::string& type) {
             return type == "minecraft:horse" || type == "minecraft:donkey" || type == "minecraft:mule" ||
                    type == "minecraft:skeleton_horse" || type == "minecraft:zombie_horse";
@@ -1069,9 +1046,9 @@ namespace perlin {
         entity::Entity vehicle;
         const bool riding = rideLock && uid != 0 && session.Entities().FindUnique(uid, vehicle);
         const bool driver = riding && session.RidingAsDriver();
-        // SetIsClientPredictedBoatSystem 0x14b31ac80: every boat whose controlling seat holds the local player
+
         const bool drivingBoat = driver && vehicle.type.find("boat") != std::string::npos;
-        // SetIsClientPredictedHorseSystem 0x14b31b900: horse family, only TAMED (flag 28) and SADDLED (flag 8)
+
         const bool drivingHorse = driver && HorseFamily(vehicle.type) &&
                                   (vehicle.flags & proto::FlagsMetadataFlags1::Tamed) != 0 &&
                                   (vehicle.flags & proto::FlagsMetadataFlags1::Saddled) != 0;
@@ -1122,7 +1099,7 @@ namespace perlin {
         if (drivingHorse) {
             if (!horseActive || horseUid != uid) {
                 horse = {};
-                // collision box: the server's BOUNDINGBOX metadata, else horse.json's 1.4 x 1.6
+
                 const float width =
                     vehicle.boxWidth > 0.0f && vehicle.boxHeight > 0.0f ? vehicle.boxWidth : 1.4f;
                 const float height =
@@ -1169,8 +1146,7 @@ namespace perlin {
         if (!riding)
             return false;
         if (const auto seat = session.OwnSeatOffset()) {
-            // VehicleClientPositionPassengerSystem::setPosition 0x142cee0d0: seat turned by the vehicle yaw,
-            // added to the vehicle position; the result is the rider's eye-level position
+
             const float angle = vehicle.yaw * -0.017453292f;
             const float cosine = std::cos(angle), sine = std::sin(angle);
             const float sx = (*seat)[0], sy = (*seat)[1], sz = (*seat)[2];
@@ -1188,9 +1164,7 @@ namespace perlin {
             const float d = a - b;
             return d * d;
         };
-        // correction event check 0x1410E8FF0: rewind on a ground change, position, delta or rotation past
-        // 1e-5 (0x3727C5AC) squared, or an angular velocity off by more than 1e-4 (0x38D1B717); without a
-        // recorded state for that tick nothing is compared and the prediction stays
+
         const auto mismatch = [&](float x, float y, float z, float vx, float vy, float vz, float pitch,
                                   float yaw, bool onGround, std::optional<float> angularVelocity) {
             const float posErr = sq(c.pos[2], z) + (sq(c.pos[1], y) + sq(c.pos[0], x));
@@ -1201,7 +1175,7 @@ namespace perlin {
             return c.onGround != onGround || posErr > 1.0e-5f || velErr > 1.0e-5f || rotErr > 1.0e-5f || spin;
         };
         while (session.TakeVehicleCorrection(c)) {
-            // the player's replay state is lent to the vehicle (LendReplayStateSystem 0x14ad2afc0): rewind it
+
             if (boatActive) {
                 while (!boatHistory.empty() && boatHistory.front().tick != 0 &&
                        boatHistory.front().tick < c.tick)
@@ -1241,7 +1215,7 @@ namespace perlin {
                     continue;
                 auto& ours = horseHistory.front().after;
                 auto& h = ours.state;
-                // a horse has no angular velocity component: that lane is skipped
+
                 if (!mismatch(static_cast<float>(h.x), static_cast<float>(h.y), static_cast<float>(h.z),
                               static_cast<float>(h.vx), static_cast<float>(h.vy), static_cast<float>(h.vz),
                               ours.pitch, ours.yaw, h.onGround, std::nullopt))
@@ -1373,7 +1347,7 @@ namespace perlin {
         if (flyPending &&
             (session.IsFlying() == flying || now - flyPendingAt > std::chrono::milliseconds(750)))
             flyPending = false;
-        // an abilities update overwrites flying even when it repeats the last value: our double tap may differ
+
         const bool abilitiesSent = session.AbilitiesSeq() != abilitiesSeq;
         abilitiesSeq = session.AbilitiesSeq();
         if (!flyPending && (abilitiesSent || session.IsFlying() != serverFlying)) {
@@ -1389,7 +1363,7 @@ namespace perlin {
             accumulator = 0.0;
             previous = state;
         } else {
-            // Timer::advanceTime 0x145A3B180 (20 tps, 0x41A00000): at most 0.1 s of real time per frame, the rest dropped
+
             accumulator += std::min(dt, 0.1f);
         }
         int ticks = 0;
@@ -1404,10 +1378,9 @@ namespace perlin {
             Tick(session, input, camera, world);
             if (forcedYaw)
                 camera.yaw = *forcedYaw;
-            // VanillaOffsetSystem::ClientSide 0x142CED480: the drop below eye level moves halfway each tick
+
             const float standEye = static_cast<float>(physics::kStandEye);
-            // no riding case in 0x142CED480: a rider placed from RiderSeatPosition keeps the standing eye;
-            // 1.2 only for the renderer seat fallback
+
             const float targetEye = rideLock ? (rideSeatKnown ? standEye : 1.2f)
                                     : (crawling || gliding || swimming || state.spinAttack)
                                         ? static_cast<float>(physics::kCrawlEye)
@@ -1423,7 +1396,7 @@ namespace perlin {
                 placement.active = false;
             } else if (state.y < placement.y - 2.5) {
                 placement.active = false;
-                // enough to tell a missing floor from a floor we walked off: what the level holds under the spot
+
                 const Level& level = session.NetLevel();
                 const int bx = static_cast<int>(std::floor(placement.x));
                 const int bz = static_cast<int>(std::floor(placement.z));

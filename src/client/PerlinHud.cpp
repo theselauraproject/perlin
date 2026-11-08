@@ -188,7 +188,8 @@ namespace perlin {
     }
 
     void Perlin::FillHudState(ui::HudState& s, BedrockSession* live, bool preview) {
-        // a screen over the world (server form, container, inventory) hides the hud, like #hud_visible in the game
+        ApplyModSlotOverlays(s);
+
         s.visible = options.showHud && (live || preview) && !(replayCtl.Playing() && replayUi.hideHud) &&
                     !form.shown && !inventory.shown && !WorldCovered();
         s.tick = preview ? static_cast<uint64_t>(
@@ -252,7 +253,7 @@ namespace perlin {
             }
             s.burning = PERLIN_ENV("PERLIN_PREVIEW_FIRE") != nullptr;
             s.fireFrame = static_cast<int>(s.tick % 32);
-            // PERLIN_PREVIEW_SCREENANIM=totem or an effect id (28 bad omen, 29 hero of the village): loops every 2.5 s
+
             if (const char* anim = PERLIN_ENV("PERLIN_PREVIEW_SCREENANIM")) {
                 const double t = std::fmod(std::chrono::duration<double>(
                                                std::chrono::steady_clock::now().time_since_epoch())
@@ -374,7 +375,7 @@ namespace perlin {
         if (auto next = live->TakeScreenAnimation(); next.effect >= 0)
             screenAnimation = next;
         if (screenAnimation.effect >= 0) {
-            // vanilla plays the item activation for 40 ticks
+
             const float t =
                 std::chrono::duration<float>(std::chrono::steady_clock::now() - screenAnimation.started)
                     .count() /
@@ -724,7 +725,7 @@ namespace perlin {
             } else {
                 const uint64_t flags =
                     variant.contains("baby") ? static_cast<uint64_t>(entity::flag::Baby) : 0;
-                // "namespace/name" previews a server pack's entity; anything else is a vanilla one.
+
                 std::string id = "minecraft:" + type;
                 if (const size_t slash = type.find('/'); slash != std::string::npos)
                     id = type.substr(0, slash) + ":" + type.substr(slash + 1);

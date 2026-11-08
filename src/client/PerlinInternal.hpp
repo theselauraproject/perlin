@@ -1,5 +1,5 @@
 #pragma once
-// shared by the Perlin*.cpp translation units only
+
 #include "client/CameraEffects.hpp"
 #include "client/MemoryTrim.hpp"
 #include "client/Perlin.hpp"
@@ -97,7 +97,6 @@
 #include <emscripten.h>
 #endif
 
-// windows.h, when a header above pulled it in, renames these to their A/W variants; mod abi names collide
 #ifdef _WIN32
 #undef CopyFile
 #undef MoveFile
@@ -120,7 +119,6 @@ namespace perlin::detail {
         return std::chrono::duration<double>(now - since).count();
     }
 
-    // "host", "host:port", "[v6]" or "[v6]:port"; the port defaults to 19132
     inline bool ParseServer(const std::string& raw, std::string& host, uint16_t& port) {
         const std::string_view text = str::TrimView(raw);
         host = text;
@@ -138,7 +136,7 @@ namespace perlin::detail {
             portText = text.substr(close + 2);
         } else {
             const size_t colon = text.rfind(':');
-            // more than one colon: a bare ipv6 address
+
             if (colon == std::string_view::npos || text.find(':') != colon)
                 return !host.empty();
             host = text.substr(0, colon);
@@ -160,7 +158,6 @@ namespace perlin::detail {
         return weapon == "minecraft:crossbow" && item == "minecraft:firework_rocket";
     }
 
-    // bows and crossbows only draw with ammo in survival; anything else always counts as armed
     inline bool HasAmmo(const ui::HudState& st, BedrockSession* live, const std::string& weapon) {
         if ((weapon != "minecraft:bow" && weapon != "minecraft:crossbow") || !st.Survival())
             return true;
@@ -193,7 +190,6 @@ namespace perlin::detail {
         return item;
     }
 
-    // the open shader pack's settings and presets, read again when the pack changes
     class ShaderPackCache {
     public:
         const std::vector<ShaderSetting>& Settings(const std::string& key) {
@@ -227,7 +223,6 @@ namespace perlin::detail {
         return cache;
     }
 
-    // an overlay screen's size in gui pixels: the framebuffer over the overlay's integer scale, rounded down so nothing hangs off the bottom or right edge
     struct GuiViewport {
         int scale = 1;
         int w = 0, h = 0;
@@ -242,7 +237,6 @@ namespace perlin::detail {
         return v;
     }
 
-    // the pointer in framebuffer pixels; PERLIN_PREVIEW_MOUSE="x,y" pins it for screenshot tests
     inline glm::vec2 PointerOrPreview(const Input& input) {
         glm::vec2 p(input.MouseX(), input.MouseY());
         if (const char* m = PERLIN_ENV("PERLIN_PREVIEW_MOUSE"))
@@ -258,13 +252,11 @@ namespace perlin::detail {
         return std::ranges::any_of(typed, IsEscape);
     }
 
-    // a translation, or the fallback while the key is missing from every loaded language
     inline std::string TrOr(const char* key, const char* fallback) {
         std::string v = i18n::Tr(key);
         return v == key ? std::string(fallback) : v;
     }
 
-    // a debug copy of a generated document under <data>/ui_generated
     inline void DumpGenerated(const std::string& relative, std::string_view text) {
         file::Write(paths::DataDir() + "/ui_generated/" + relative, text);
     }

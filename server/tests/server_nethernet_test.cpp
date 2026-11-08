@@ -1,5 +1,3 @@
-// the real transport: a webrtc client does what the Perlin client's direct join does (info probe, sdp offer over http,
-// two data channels) against a live Server, then logs in
 #include "test_util.hpp"
 #include "test_auth.hpp"
 
@@ -62,7 +60,6 @@ namespace {
         bool gotChunk = false;
     };
 
-    // one webrtc client against a running server: probe, offer (optionally with an identity assertion), login, and if let in, a chunk
     Outcome JoinOver(uint16_t port, const std::string& identity, const std::string& clientToken,
                      const testauth::Key* assertWith, bool fullHandshake) {
         Outcome out;
@@ -109,7 +106,7 @@ namespace {
         if (assertWith) {
             offer = testauth::AssertOffer(offer, *assertWith);
         } else {
-            // a bogus assertion line: the server must tolerate and ignore it when it is not asked to check
+
             const size_t m = offer.find("m=");
             offer.insert(offer.rfind('\n', m) + 1, "a=identity:e30=\r\n");
         }
@@ -134,7 +131,7 @@ namespace {
                 reliable->send(rtc::binary(reinterpret_cast<const std::byte*>(p.data()),
                                            reinterpret_cast<const std::byte*>(p.data()) + p.size()));
         };
-        // packets already unpacked from batches, so two packets in one batch are both found
+
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> packets;
         const auto waitFor = [&](uint32_t id, std::vector<uint8_t>* bodyOut = nullptr, int tries = 100) {
             for (int i = 0; i < tries; i++) {
@@ -176,7 +173,7 @@ namespace {
         login.tokens.client = clientToken;
         send(Wire(codec, login));
         std::vector<uint8_t> body;
-        // either the login goes through or the server says why not
+
         for (int i = 0; i < 100 && !out.loginSuccess && !out.disconnected; i++) {
             if (waitFor(proto::PlayStatusPacket::kId, &body, 1)) {
                 proto::PlayStatusPacket st;
@@ -234,13 +231,12 @@ int main() {
     }
     std::thread ticker([&] { open.Run(); });
 
-    // an open server: an offline login gets all the way to a chunk
     {
         testauth::Account guest("Webrtc", "");
         const Outcome o =
             JoinOver(kPort, guest.Identity(guest.Chain(false), 2), guest.ClientToken(), nullptr, true);
         CHECK(o.connected && o.loginSuccess && o.gotChunk);
-        // a forged login is turned away even on an open server
+
         const Outcome forged =
             JoinOver(kPort, guest.Identity({"a.b.c"}, 2), guest.ClientToken(), nullptr, false);
         CHECK(forged.connected && !forged.loginSuccess);
@@ -249,7 +245,6 @@ int main() {
     ticker.join();
     open.Stop();
 
-    // xbox_auth: only a chain rooted in a trusted key whose owner also signed this connection's offer gets in
     testauth::Account xbox("XboxPlayer", "2535412345678");
     ServerConfig strict = config;
     strict.port = kPort + 1;
@@ -265,7 +260,7 @@ int main() {
         const Outcome offline = JoinOver(strict.port, xbox.Identity(xbox.Chain(false), 2), xbox.ClientToken(),
                                          &xbox.player, false);
         CHECK(!offline.loginSuccess && offline.disconnected && offline.disconnectReason == 46);
-        // a replayed login: right chain, but the offer is not signed by the account's key
+
         testauth::Key replayer;
         const Outcome replay =
             JoinOver(strict.port, xbox.Identity(xbox.Chain()), xbox.ClientToken(), &replayer, false);

@@ -1007,7 +1007,7 @@ namespace perlin {
                             app = LookupApp(library, id);
                         const ModelEntry* modelEntry = textured ? ModelFor(library, id) : nullptr;
                         if (app && !modelEntry && (app->top | app->side | app->bottom) == 0) {
-                            // a server block whose textures are not built yet: ask for them, this chunk meshes again after
+
                             if (askedFor.insert(id).second) {
                                 const std::string& wantName = BlockPalette::Instance().Name(id);
                                 if (!wantName.empty() && !wantName.starts_with("minecraft:"))

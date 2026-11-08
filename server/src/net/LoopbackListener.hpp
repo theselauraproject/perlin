@@ -6,8 +6,6 @@
 
 namespace perlin::server {
 
-    // in-process transport for embedded singleplayer: the client side pushes and pulls whole messages,
-    // no sockets, no webrtc; the server sees the same Connection it would get from nethernet
     class LoopbackListener final : public Listener {
     public:
         class Endpoint;
@@ -16,10 +14,8 @@ namespace perlin::server {
         bool Start(EventQueue& queue, std::string& error) override;
         void Stop() override;
 
-        // client side handle; null when the listener is not running
         std::shared_ptr<Endpoint> Connect();
 
-        // state both sides hold, so neither can outlive the other's pointer
         struct Shared {
             std::mutex mutex;
             std::deque<std::vector<uint8_t>> inbox;
@@ -29,9 +25,9 @@ namespace perlin::server {
         class Endpoint {
         public:
             ~Endpoint() { Close(); }
-            // client -> server
+
             bool Send(const uint8_t* data, size_t size);
-            // server -> client, false when nothing is waiting
+
             bool Receive(std::vector<uint8_t>& out);
             void Close();
             bool Alive() const { return shared->alive.load(); }

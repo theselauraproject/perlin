@@ -54,7 +54,7 @@ namespace perlin {
         bool Ready() const { return ready; }
         void SetFancy(bool value) { fancy = value; }
         bool Complete() const { return complete; }
-        // budgetMs > 0: stop after that long and leave the rest queued
+
         bool ApplyCustom(const std::string& vanillaRpRoot, double budgetMs = 0);
 
         enum TechnicalBits { kBarrier = 1, kLightBlock = 2, kStructureVoid = 4 };
@@ -133,7 +133,7 @@ namespace perlin {
         std::atomic<int> betterGrass{0};
         std::unordered_map<int, std::vector<int>> glassTiles;
         inline static int tilePxValue = 16;
-        inline static int maxTilesValue = 2048; // replaced by what the renderer can hold once it is known
+        inline static int maxTilesValue = 2048;
         std::atomic<bool> atlasFullLogged{false};
         std::unordered_map<uint64_t, int> tileByHash;
         std::unordered_map<std::string, std::array<float, 3>> baseTints;

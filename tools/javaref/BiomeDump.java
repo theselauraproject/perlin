@@ -2,7 +2,6 @@ import java.lang.reflect.*;
 import java.util.*;
 import java.util.function.Consumer;
 
-// prints every (climate parameter point, biome) pair of the overworld preset, as the game's own builder produces them
 public class BiomeDump {
     public static void main(String[] args) throws Exception {
         Class<?> b = Class.forName("net.minecraft.world.level.biome.OverworldBiomeBuilder");

@@ -94,8 +94,6 @@ float sunShadow(vec3 world, vec3 n, float ndl, out vec3 tint)
     return lit;
 }
 
-// the colormaps give Java-style olive greens; squared into linear light the red/blue gap widens and grass goes yellow and muddy.
-// saturated biome tints are eased toward a clean green, grey and white tints (stone, planks, most blocks) pass through untouched
 vec3 vvVibrantTint(vec3 tint)
 {
     float hi = max(tint.r, max(tint.g, tint.b));

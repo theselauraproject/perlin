@@ -311,7 +311,6 @@ namespace perlin {
             return cache;
         }
 
-        // decoding on every core up front: the build loop would otherwise decode one file at a time
         void PrefetchServerTextures(const std::vector<std::string>& dirs) {
             namespace fs = std::filesystem;
             std::vector<std::string> paths;
@@ -357,7 +356,7 @@ namespace perlin {
         if (it != tileByPng.end())
             return it->second;
         if (nextTile >= MaxTiles()) {
-            // one line per library: a full atlas is the only reason a texture would show as missing
+
             if (!atlasFullLogged.exchange(true))
                 Log("blocks", "atlas full at {} tiles: further textures fall back to tile 0", MaxTiles());
             return 0;
@@ -367,7 +366,7 @@ namespace perlin {
         int w = 0, h = 0;
         Texture tex;
         std::vector<std::string> tries;
-        // "path#x0,y0,x1,y1": one cell of a model sheet, corners as fractions of the texture
+
         std::string stem = pngRelPath;
         float crop[4] = {0, 0, 1, 1};
         bool cropped = false;
@@ -611,7 +610,7 @@ namespace perlin {
     BlockLibrary::TileAlpha BlockLibrary::AlphaOf(int tile) const {
         if (tile <= 0)
             return {};
-        // mesh threads read while a late build adds tiles
+
         std::shared_lock alphaLock(alphaMutex);
         auto it = alphaByTile.find(tile);
         return it == alphaByTile.end() ? TileAlpha{} : it->second;
@@ -841,7 +840,7 @@ namespace perlin {
                     bare = bare.substr(10);
                 auto al = aliases.find(bare);
                 std::string vkey = (al == aliases.end()) ? bare : al->second;
-                // aliases run both ways: older servers and older samples still use the name before a rename
+
                 if (!vBlocks.contains(vkey) && vBlocks.contains(bare))
                     vkey = bare;
                 if (!vBlocks.contains(vkey))
@@ -1271,12 +1270,12 @@ namespace perlin {
 
     bool BlockLibrary::ApplyCustom(const std::string& vanillaRpRoot, double budgetMs) {
         if (!ServerBlocks::Instance().Pending()) {
-            // decoded server textures are only worth their memory while definitions are still being built
+
             ServerPrefetchCache().clear();
             return false;
         }
         std::vector<CustomBlockDef> defs = ServerBlocks::Instance().Take();
-        // the per-pack lookups cost a scan of every server texture folder: once per set of packs, not per slice
+
         const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
         std::string ctxKey = vanillaRpRoot;
         for (const std::string& dir : serverDirs)
@@ -1412,8 +1411,7 @@ namespace perlin {
             fetchingGeometry = false;
             return tile;
         };
-        // slab sheets first: if the atlas runs short, a slab is the block whose faces fill whole cells
-        // and a squeezed sheet shows on all of them
+
         const auto isSlabSheet = [](const CustomBlockDef& d) {
             const std::string shortName = AfterColon(d.name);
             return d.json.contains(".slab.") || (shortName.size() > 5 && shortName.ends_with("_slab"));
@@ -1422,7 +1420,7 @@ namespace perlin {
         const size_t slabCount =
             static_cast<size_t>(std::stable_partition(defs.begin(), defs.end(), isSlabSheet) - defs.begin());
         for (size_t defIndex = 0; defIndex < defs.size(); defIndex++) {
-            // a live library builds a slice per frame: what is left waits for the next call
+
             if (budgetMs > 0 && defIndex > 0 &&
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count() >
                     budgetMs) {
@@ -1532,7 +1530,7 @@ namespace perlin {
         }
         for (const CustomBlockDef& def : defs)
             ServerBlocks::Instance().MarkBuilt(def.name);
-        // last: model sheets get full-resolution cells from whatever atlas room every block's own textures left
+
         if (any)
             geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
         Log("blocks", "custom blocks built: {} definitions, {} atlas tiles in total, {} ms", defs.size(),

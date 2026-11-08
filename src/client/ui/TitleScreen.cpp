@@ -66,7 +66,6 @@ mcimg { display: block; position: absolute; }
 )";
         const ScreenTemplateDefault kTitleDefault("title_screen.rml", kStyle);
 
-        // a hover note above a button: wrapped by hand since layout here is absolute; lives inside the button so hovering it shows it
         std::string Tip(int buttonW, const std::string& text) {
             std::vector<std::string> lines;
             std::string line;
@@ -259,16 +258,12 @@ mcimg { display: block; position: absolute; }
                    "px;background-color:" + color + ";z-index:" + N(z) + ";\"></div>\n";
         }
 
-        // blurred panorama drawn natively under the page; dirt only while it isn't loaded
-        // menu_background.png: flat black at alpha 64
         std::string Backdrop(const TitleModel& m, int w, int h) {
             if (!m.nativePanorama)
                 return Dirt(w, h, "0.25 0.25 0.25");
             return Fill(0, 0, w, h, "#00000040", 0);
         }
 
-        // menu_list_background.png (black, alpha 112) between header/footer_separator.png:
-        // 2px each, a 20% white line on the outside and a 75% black one against the list
         std::string ListBand(const TitleModel& m, int w, int top, int bottom) {
             std::string d;
             if (!m.nativePanorama) {
@@ -550,7 +545,6 @@ mcimg { display: block; position: absolute; }
             return d;
         }
 
-        // oreui main menu: logo over actions (Play first), character card beside, utility bar at bottom
         std::string OreMain(const TitleModel& m, int w, int h) {
             using namespace ore;
             std::string d;
@@ -566,7 +560,7 @@ mcimg { display: block; position: absolute; }
                          "px;top:0px;width:" + N(face) + "px;height:" + N(face) + "px;\"></mcimg>\n";
                 d += "</div></div>\n";
             }
-            // dark wash: panorama reads as background, as in game menus
+
             d += "<div style=\"left:0px;top:0px;width:" + N(w) + "px;height:" + N(h) +
                  "px;background-color:#00000040;z-index:1;\"></div>\n";
 
@@ -599,7 +593,6 @@ mcimg { display: block; position: absolute; }
             y += rowH + rowGap;
             const int columnBottom = y - rowGap;
 
-            // character card: action column height
             const int cardX = bx + colW + gap, cardH = columnBottom - by;
             d += Card(cardX, by, cardW, cardH);
             const int nameY = by + 6;

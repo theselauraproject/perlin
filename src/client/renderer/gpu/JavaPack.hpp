@@ -30,13 +30,11 @@
 #include <vector>
 
 namespace perlin::gpu {
-    // bytes per vertex of the pack stream; layout in JavaPack.cpp
+
     constexpr uint32_t kPackVertexBytes = 72;
-    // iris allows 16 custom images; storage buffer indices go up to 12
+
     constexpr uint32_t kImageSlots = 16, kSsboSlots = 16;
 
-    // runs an optifine / iris shader pack on the rhi: gbuffers into the pack's own targets, the begin / shadowcomp / prepare /
-    // deferred / composite chains and final, then the pack's depth goes back to the engine for what draws after it
     class JavaPack {
     public:
         const std::shared_ptr<jshader::ShaderPackInstance>& Instance() const { return instance; }
@@ -52,13 +50,12 @@ namespace perlin::gpu {
             bool shadowCache = true;
         };
 
-        // what the engine hands over each frame
         struct Output {
             conduit::texture_handle color;
             conduit::format colorFormat = conduit::format::bgra8_unorm;
             conduit::texture_handle depth;
             uint32_t width = 0, height = 0;
-            float scale = 1.0f; // internal resolution against width / height
+            float scale = 1.0f;
             conduit::texture_handle lightmap;
             conduit::texture_handle sun, moon, endSky;
         };
@@ -78,80 +75,70 @@ namespace perlin::gpu {
         void UpdateTile(int tile, const uint8_t* rgba);
         bool HasAtlas() const { return static_cast<bool>(atlas); }
 
-        // starts shader compilation on worker threads; programs left to compile
         int WarmUp();
-        // false when the terrain program failed for good
+
         bool TerrainUsable();
 
-        // after the mesh store picked what is visible: remembers the index ranges the frame will draw
         void GatherGeometry(float camX, float camZ);
         void SetViewFrustum(const Frustum& f) {
             viewFrustum = f;
             haveViewFrustum = true;
         }
 
-        // one frame. false when it could not be drawn (the caller then draws the normal way)
         bool Record(conduit::command_list& list, const FrameParams& params, const Output& out);
 
-        // the pack's vertex stream for one chunk mesh (kPackVertexBytes per vertex)
         void Convert(const Tessellator& tess, std::vector<uint8_t>& out);
         void ClearGeometry();
 
         static constexpr uint32_t AttribMask();
 
-        // what iris draws through the pack besides terrain and sky: mobs, players, the hand, particles, weather,
-        // block breaking. the engine hands its meshes over instead of drawing them on top of the pack's picture
         struct ExternalDraw {
             enum class Kind : uint8_t {
-                Entity,              // gbuffers_entities
-                EntityTranslucent,   // gbuffers_entities_translucent
-                Eyes,                // gbuffers_spidereyes (emissive layers)
-                Hand,                // gbuffers_hand
-                HandTranslucent,     // gbuffers_hand_water
-                Particle,            // gbuffers_particles
-                ParticleTranslucent, // gbuffers_particles_translucent
-                Weather,             // gbuffers_weather
-                Cracks,              // gbuffers_damagedblock
-                Block,               // gbuffers_block (block entities)
-                BlockTranslucent,    // gbuffers_block_translucent (sign text, translucent block entities)
-                Glint,               // gbuffers_armor_glint
-                HandGlint,           // gbuffers_armor_glint, in the hand pass
-                Clouds,              // gbuffers_clouds
-                Lightning,           // gbuffers_lightning
-                Line,                // gbuffers_line (block outline, hit boxes)
-                Glowing              // gbuffers_entities_glowing
+                Entity,
+                EntityTranslucent,
+                Eyes,
+                Hand,
+                HandTranslucent,
+                Particle,
+                ParticleTranslucent,
+                Weather,
+                Cracks,
+                Block,
+                BlockTranslucent,
+                Glint,
+                HandGlint,
+                Clouds,
+                Lightning,
+                Line,
+                Glowing
             };
             Kind kind = Kind::Entity;
-            std::vector<uint8_t> vertices; // pack vertex stream, a plain triangle list
+            std::vector<uint8_t> vertices;
             uint32_t count = 0;
             conduit::texture_handle texture;
             bool depthTest = true, depthWrite = true;
             bool blend = false, additive = false;
             float entityColor[4] = {0, 0, 0, 0};
             bool castsShadow = false;
-            bool shadowOnly = false; // the first person body: only its shadow
+            bool shadowOnly = false;
             bool player = false;
-            // entity.properties / block.properties / item.properties ids
+
             int entityId = 0, blockEntityId = 0, itemId = 0;
-            // the render type's alpha test (iris AlphaTests), < 0 for none
+
             float alphaRef = -1.0f;
-            // iris_TextureMat[0] (glint scrolling)
+
             float textureMatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-            bool glintBlend = false; // vanilla glint: src colour, one / zero, one; depth equal
+            bool glintBlend = false;
             mutable RingSlice ring;
             mutable int ringStamp = -1;
         };
-        // a triangle list in the pack's vertex layout from an engine mesh: positions through `model`, normals and
-        // tangents from each triangle, light from the given levels (0-15) or per vertex (two levels each, -1 for
-        // the given ones); normals point away from the mesh's middle, or toward `faceToward` (a world point) when
-        // given
+
         static void BuildVertices(const UiVertex* vertices, size_t vertexCount, const uint32_t* indices,
                                   size_t indexCount, const float model[16], int blockLight, int skyLight,
                                   std::vector<uint8_t>& out, const int8_t* vertexLight = nullptr,
                                   const float* faceToward = nullptr, bool noSkyLight = false);
         void QueueDraw(ExternalDraw draw) { queued.push_back(std::move(draw)); }
-        // atlas tiles of still / flowing water and lava: fluid quads (waterlogged blocks included) carry the
-        // fluid's block id and mc_Entity.y = 1, as iris's fluid renderer gives them
+
         void SetFluidTiles(int water, int waterFlow, int lava, int lavaFlow) {
             fluidTiles[0] = water;
             fluidTiles[1] = waterFlow;
@@ -160,14 +147,14 @@ namespace perlin::gpu {
         }
         void DropQueued() { queued.clear(); }
         void WriteEngineDepth(conduit::command_list& list, const Output& out) { DepthToEngine(list, out); }
-        // the pack has a shadow pass (iris draws entities into it)
+
         struct WarmProgress {
             int done = 0, total = 0;
-            std::string current; // a program still compiling
+            std::string current;
         };
         WarmProgress Progress() const;
         bool ShadowsEnabled() const { return config.shadowEnabled && shadowDepth; }
-        // shaders.properties clouds: "off", "fast", "fancy" or "default"
+
         const std::string& CloudSetting() const { return config.clouds; }
 
     private:
@@ -190,7 +177,7 @@ namespace perlin::gpu {
             Specular,
             Overlay,
             Custom,
-            Image // the sampler of a custom image (image.<name> = <sampler> ...)
+            Image
         };
         struct SamplerBind {
             int slot = 0;
@@ -198,9 +185,9 @@ namespace perlin::gpu {
             int index = 0;
             bool shadow = false;
             std::string name;
-            std::string customKey; // Kind::Custom: "<stage>:<sampler>"
+            std::string customKey;
         };
-        // an iris custom image: storage texture in set 2 at its slot, sampled through its sampler name
+
         struct Image {
             jshader::CustomImage info;
             conduit::texture_handle tex;
@@ -231,10 +218,10 @@ namespace perlin::gpu {
             bool valid = false;
             float alphaRef = 0.0f;
             bool debugCopy = false;
-            // custom images the program loads / stores (slots in set 2)
+
             std::vector<int> imageSlots;
             uint32_t imageMask = 0;
-            // compute programs (.csh)
+
             bool compute = false;
             conduit::shader_handle cs;
             conduit::pipeline_handle computePipeline;
@@ -255,7 +242,7 @@ namespace perlin::gpu {
             uint32_t colorCount = 0;
             conduit::format depth = conduit::format::unknown;
             bool depthTest = false, depthWrite = false;
-            bool cull = false; // back faces of terrain, as vanilla culls them
+            bool cull = false;
             conduit::compare_op depthOp = conduit::compare_op::less_equal;
             bool blend = false;
             conduit::blend_factor src = conduit::blend_factor::one, dst = conduit::blend_factor::zero,
@@ -290,9 +277,8 @@ namespace perlin::gpu {
             bool quit = false;
         };
 
-        // iris feature flags beyond the base set this device runs (custom images, compute, ssbo)
         std::vector<std::string> ExtraFeatures() const;
-        // setup
+
         void ScanUsage();
         void CreateStatic();
         bool CreateLayouts();
@@ -304,26 +290,25 @@ namespace perlin::gpu {
         conduit::sampler_handle SamplerFor(int id);
         void BuildBlockMap();
         int PackBlockId(uint16_t palette);
-        // entity.properties / item.properties / block.properties ids (0 when the pack does not list it)
+
         int PackEntityId(const std::string& bedrockType);
         int PackItemId(const std::string& bedrockItem);
         int PackBlockIdByName(const std::string& bedrockName);
 
     public:
-        // ids for engine draws (0 when the pack does not list them)
+
         int EntityIdFor(const std::string& bedrockType) { return PackEntityId(bedrockType); }
         int ItemIdFor(const std::string& bedrockItem) { return PackItemId(bedrockItem); }
         int BlockIdFor(const std::string& bedrockName) { return PackBlockIdByName(bedrockName); }
 
     private:
-        // programs
+
         std::string KeyFor(const std::string& name, bool toBackbuffer) const;
         Program* GetProgram(const std::string& name, bool toBackbuffer,
                             const jshader::ExpandedSource* vs = nullptr,
                             const jshader::ExpandedSource* fs = nullptr,
                             conduit::format backFormat = conduit::format::unknown, const std::string& alpha = {});
-        // the alpha test a program runs with: the pack's alphaTest.<program> or iris's for the render type
-        // (defaultRef < 0: none)
+
         std::string AlphaFor(const std::string& progName, float defaultRef) const;
         std::string ComputeAlpha(const std::string& progName, float defaultRef) const;
         mutable std::unordered_map<std::string, std::string> alphaCache;
@@ -343,7 +328,7 @@ namespace perlin::gpu {
         conduit::bind_group_handle Textures(conduit::command_list& list, Program& p,
                                       const std::vector<conduit::texture_handle>& attached);
         conduit::bind_group_handle GroupFor(const PackSet& set);
-        // custom images and storage buffers (sets 2 and 3)
+
         bool CreateStorage();
         void ClearImages(conduit::command_list& list, bool all);
         conduit::bind_group_handle ImageGroup(uint32_t mask);
@@ -351,14 +336,13 @@ namespace perlin::gpu {
         void StorageBarrier(conduit::command_list& list, const Program& p);
         Program* GetCompute(const std::string& name, size_t index);
         Program* FinishCompute(const std::string& key, const std::string& name, const Converted& c);
-        // the compute shaders of a pass, before its fragment program; false while one still compiles
+
         bool RunCompute(conduit::command_list& list, const std::string& name, uint32_t renderW, uint32_t renderH);
         void FillProgramResources(Program& p, const std::string& name,
                                   const std::vector<jshader::RhiSampler>& samplerList,
                                   const std::vector<std::string>& imageNames,
                                   const std::vector<jshader::UniformDecl>& uniforms, int regs);
 
-        // frame
         void BuildFrame(const FrameParams& params, const Output& out);
         jshader::PackDrawState TerrainDraw() const;
         void BeginPass(conduit::command_list& list, const std::vector<conduit::texture_handle>& colors,
@@ -418,7 +402,7 @@ namespace perlin::gpu {
         std::function<int(uint16_t)> blockEmission;
         jshader::BlockIdMatcher blockMatcher;
         std::unordered_map<std::string, int> entityIdMap, itemIdMap, entityIdCache, itemIdCache;
-        int fluidIds[2] = {-1, -1}; // water, lava
+        int fluidIds[2] = {-1, -1};
         std::vector<int16_t> paletteMap;
 
         Pool pool;
@@ -453,7 +437,7 @@ namespace perlin::gpu {
         std::unordered_map<uint32_t, conduit::bind_group_handle> imageGroups;
         bool setupDone = false;
         std::vector<ExternalDraw> queued;
-        // read by the mesh threads that convert chunks
+
         std::array<std::atomic<int>, 4> fluidTiles{-1, -1, -1, -1};
         void DrawExternal(conduit::command_list& list, std::initializer_list<ExternalDraw::Kind> kinds,
                           bool shadowPass);
@@ -463,9 +447,9 @@ namespace perlin::gpu {
         conduit::buffer_handle skyStatic;
         uint32_t starVertexCount = 0;
         conduit::texture_handle textureOverride, skySunTex, skyMoonTex, skyEndTex;
-        // java gives only the overworld skylight: elsewhere every lightmap coordinate has sky 0
+
         bool noSkyLight = false;
-        bool overrideRepeat = false; // the end sky's texture repeats
+        bool overrideRepeat = false;
         bool resolvingFullscreen = false;
         uint32_t statPasses = 0, statCopies = 0;
         static constexpr uint32_t kTimerMarks = 96;
@@ -490,11 +474,11 @@ namespace perlin::gpu {
         conduit::texture_handle depth[3];
         conduit::texture_handle shadowDepth;
         conduit::texture_handle
-            shadowDepthNoTranslucents; // shadowtex1: the shadow depth before translucent terrain
+            shadowDepthNoTranslucents;
         bool shadowCleared = false;
         bool resolvingWaterShadow = false;
         float fogClock = 0.0f, waterVisionTicks = 0.0f;
-        // copies of attachments a pass also samples (see FeedbackCopy)
+
         struct Feedback {
             conduit::texture_handle tex;
             uint64_t serial = 0;
@@ -508,9 +492,9 @@ namespace perlin::gpu {
         bool shadowColorUsed[2] = {false, false};
         bool shadowUsed = false;
         conduit::texture_handle white, flatNormal, blackTex, noise;
-        std::map<std::string, conduit::texture_handle> customTextures; // "<stage>:<sampler>"
+        std::map<std::string, conduit::texture_handle> customTextures;
         std::map<std::string, int> customSamplers;
-        int noiseSampler = 2; // linear repeat
+        int noiseSampler = 2;
         std::string resolvingStage;
         std::vector<conduit::texture_handle> owned;
         uint32_t width = 0, height = 0;
@@ -519,16 +503,14 @@ namespace perlin::gpu {
         conduit::texture_handle atlas;
         int atlasTilePx = 16, atlasTiles = 0, gridCols = 1, gridRows = 1, atlasWidth = 0, atlasLevels = 1;
 
-        // camera history for the previous-frame uniforms
         float prevModelView[16] = {}, prevProjection[16] = {};
         double prevCamera[3] = {0, 0, 0};
         bool havePrev = false;
         float lastTime = 0.0f;
-        // smoothed uniforms (eyeBrightnessSmooth, wetness)
+
         float smoothAt = 0.0f, wetnessSmooth = 0.0f, eyeSmooth[2] = {240.0f, 240.0f};
         bool smoothStarted = false;
 
-        // shadow camera of the current frame
         float shadowView[16] = {}, shadowProjection[16] = {}, shadowDrawView[16] = {};
         float handProjection[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
         FrameParams frame{};

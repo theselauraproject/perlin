@@ -1,4 +1,3 @@
-# the engine's gpu layer on top of the rhi; usable on its own for the offscreen render tests
 cmake_minimum_required(VERSION 3.28)
 if(NOT TARGET perlin_gpu)
     if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -20,14 +19,13 @@ if(NOT TARGET perlin_gpu)
         set(SPIRV-Cross_SOURCE_DIR "${PERLIN_SPIRV_CROSS_DIR}")
         set(stb_SOURCE_DIR "${PERLIN_STB_DIR}")
         include("${CMAKE_CURRENT_SOURCE_DIR}/../../../../cmake/PerlinJavaShaders.cmake")
-        # the app build gets miniz from its package manager
+
         file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/miniz_gen/miniz_export.h" "#pragma once\n#define MINIZ_EXPORT\n")
         add_library(miniz STATIC "${PERLIN_MINIZ_DIR}/miniz.c" "${PERLIN_MINIZ_DIR}/miniz_tdef.c" "${PERLIN_MINIZ_DIR}/miniz_tinfl.c"
                     "${PERLIN_MINIZ_DIR}/miniz_zip.c")
         target_include_directories(miniz PUBLIC "${PERLIN_MINIZ_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/miniz_gen")
     endif()
 
-    # the java shader pack frontend (glsl transform, pack files, uniforms) lives with the renderer that runs it
     file(GLOB PERLIN_JSHADER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../../javashaders/*.cpp")
     add_library(perlin_gpu STATIC
         ${PERLIN_JSHADER_SOURCES}
@@ -44,11 +42,11 @@ if(NOT TARGET perlin_gpu)
         RenderContext_rhi_world.cpp
         ../../../util/GraphicsDebugger.cpp)
     target_include_directories(perlin_gpu PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-    # the shader compile pool and cloud meshing use std::thread / std::async (freebsd needs libpthread spelled out)
+
     find_package(Threads REQUIRED)
     target_link_libraries(perlin_gpu PUBLIC conduit::conduit perlin_glslang perlin_spirv_cross miniz Threads::Threads ${CMAKE_DL_LIBS})
     if(CMAKE_SYSTEM_NAME MATCHES "BSD")
-        # some cmake versions resolve Threads::Threads to nothing there; the libc++ thread code still needs libthr
+
         target_compile_options(perlin_gpu PUBLIC -pthread)
         target_link_options(perlin_gpu INTERFACE -pthread)
     endif()
@@ -90,7 +88,7 @@ if(PERLIN_GPU_STANDALONE)
     target_include_directories(gpu_context_test PRIVATE "${stb_SOURCE_DIR}")
     target_link_libraries(gpu_context_test PRIVATE glaze::glaze miniz)
     target_link_libraries(gpu_context_test PRIVATE perlin_gpu)
-    # a pack built by conduit's tools/pack_shaders.py with the targets of the backends enabled here
+
     set(PERLIN_TEST_PACK "" CACHE FILEPATH "shader pack for gpu_context_test")
     if(PERLIN_TEST_PACK)
         foreach(api VULKAN WEBGPU D3D12 D3D11 METAL)

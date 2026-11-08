@@ -1,7 +1,3 @@
-# Flatpak build of Perlin (not on Flathub yet: Flathub builds offline, and this build fetches its pinned
-# dependencies with CPM at configure time, hence --share=network for the build below).
-#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.perlin.client.yml
-# CI builds it in the flatpak job and publishes Perlin.flatpak with the nightly.
 app-id: io.perlin.client
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
@@ -13,9 +9,9 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --socket=pulseaudio
-  # gpu, game controllers
+
   - --device=all
-  # skins, packs and worlds can be imported from Downloads
+
   - --filesystem=xdg-download:ro
 cleanup:
   - /include
@@ -35,10 +31,10 @@ modules:
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DPERLIN_BUILD_TESTS=OFF
-      # the runtime has OpenSSL as a shared library only
+
       - -DOPENSSL_USE_STATIC_LIBS=OFF
     post-install:
-      # cmake --install puts the game at the prefix root, with its resources beside it
+
       - install -d /app/bin
       - ln -sf /app/Perlin /app/bin/perlin
       - install -Dm644 /run/build/perlin/packaging/flatpak/io.perlin.client.metainfo.xml /app/share/metainfo/io.perlin.client.metainfo.xml

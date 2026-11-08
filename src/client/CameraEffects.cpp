@@ -164,7 +164,7 @@ namespace perlin {
     void CameraEffects::Fade(float in, float wait, float out, glm::vec3 rgb) {
         std::lock_guard lock(mutex);
         const double now = Now();
-        // each part is capped at 10 s and a fade lasts at least half a second: a short one holds longer
+
         in = std::clamp(in, 0.0f, 10.0f);
         wait = std::clamp(wait, 0.0f, 10.0f);
         out = std::clamp(out, 0.0f, 10.0f);
@@ -174,8 +174,7 @@ namespace perlin {
             rgb /= 255.0f;
         const float current = FadeAt(now);
         if (fadeActive && now < fadeEnd) {
-            // merge: opacity continues from where it is, the faster fade-in wins, the fade-out starts once both
-            // are ready and ends when both would end; the running fade keeps its colour
+
             const double remainingIn = std::max(0.0, fadeFull - now);
             const double newFull = now + std::min(remainingIn > 0.0 ? remainingIn : 0.0, static_cast<double>(in));
             const double newOutAt = std::max(fadeOutAt, now + in + wait);
@@ -244,7 +243,7 @@ namespace perlin {
         float speed = 0.0f, radius = 50.0f;
         bool snap = false, cont = false;
         glm::vec2 hl{0.0f, 360.0f}, vl{0.0f, 180.0f};
-        // walk the preset chain: the nearest definition of each value wins, then the instruction's own
+
         bool haveOrbit = false, haveScheme = false, haveAudio = false;
         bool havePos = false, haveRot = false, haveOff = false, haveEnt = false, haveSpeed = false,
              haveSnap = false, haveCont = false, haveH = false, haveV = false, haveRadius = false;
@@ -284,7 +283,7 @@ namespace perlin {
                     r.audioListener = *cur->audioListener, haveAudio = true;
                 if (!haveOrbit && cur->radius && *cur->radius > 0.0f)
                     r.orbitRadius = *cur->radius, haveOrbit = true;
-                // a preset that only gives a starting rotation begins there
+
                 if (!haveRot && !cur->rotation && cur->startingRotation && cur->applyStartingRotation &&
                     !set.rotation)
                     r.rotation = cur->startingRotation, haveRot = true;
@@ -306,7 +305,7 @@ namespace perlin {
             if (!haveRot)
                 r.rotation.reset();
         }
-        // a free camera facing a point: the instruction's rotation is dropped
+
         if (r.facing)
             r.rotation.reset();
         const bool wasShown = setActive || splineActive || targetActive;
@@ -320,13 +319,13 @@ namespace perlin {
         vLimit = vl;
         setActive = true;
         splineActive = false;
-        // eases start from the camera as it is now; one cut short starts from where it had got to
+
         easePending = true;
         poseValid = wasShown && poseValid;
         poseStart = Now();
         poseDuration = set.hasEase && set.easeDuration > 0.0f ? set.easeDuration : 0.0f;
         poseType = set.easeType;
-        // an eased move to the built-in perspectives is not allowed: they snap
+
         if (k != Kind::Free)
             poseDuration = 0.0f;
         (void)name;
@@ -476,7 +475,6 @@ namespace perlin {
         if (fadeActive && now >= fadeEnd)
             fadeActive = false;
 
-        // the camera the player would have: attached to an entity it is that entity's eyes
         CameraPose base = baseIn;
         TrackedEntity attached;
         const bool isAttached = attachedUid != 0 && lookup && lookup(attachedUid, attached);
@@ -552,7 +550,7 @@ namespace perlin {
                 goal.yaw = r.rotation->y + 90.0f;
             }
             if (r.orbitRadius > 0.0f && !r.position) {
-                // follow_orbit: the camera sits behind the player on a sphere, turning with the player's view
+
                 const float yr0 = glm::radians(goal.yaw), pr0 = glm::radians(goal.pitch);
                 const glm::vec3 dir(std::cos(yr0) * std::cos(pr0), std::sin(pr0), std::sin(yr0) * std::cos(pr0));
                 goal.position -= dir * r.orbitRadius;
@@ -578,7 +576,7 @@ namespace perlin {
             }
             poseValid = have = true;
         } else if (setActive) {
-            // first/third person presets: the player's own view decides the pose, only the perspective changes
+
             poseValid = false;
         } else if (isAttached) {
             poseNow = base;
@@ -587,16 +585,15 @@ namespace perlin {
             poseValid = false;
         }
 
-        // focus target: a free camera that stays where it is and turns to follow an entity
         if (targetActive) {
             TrackedEntity victim;
             if (!lookup || !lookup(targetUid, victim)) {
-                // not in view (unloaded or far): tracking ends once it is clearly gone, until then it holds
+
                 if (!continueTargeting && targetUid != 0 && lookup)
                     targetActive = false;
             } else {
                 if (!have) {
-                    // no preset running: freeze the player's view where it is, like a security camera
+
                     if (targetFresh || !poseValid) {
                         frozenPos = base.position;
                         poseNow = base;

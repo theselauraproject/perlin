@@ -22,12 +22,10 @@ namespace perlin::ui {
     uint32_t LocatorColorFor(const std::array<uint8_t, 16>& id);
     void RegisterHudRenderers(RmlEmitter& emitter, const HudState& state, const UiServices& services);
 
-    // lets mods hide or move a vanilla hud element by renderer name ("heart_renderer", "cursor_renderer"...);
-    // false hides it; dx/dy move it in gui pixels
     using HudElementFilter = std::function<bool(std::string_view renderer, float& dx, float& dy)>;
     void SetHudElementFilter(HudElementFilter filter);
     bool FilterHudElement(std::string_view renderer, float& dx, float& dy);
-    // bumped when the filter's answers change: hud rebuilt
+
     uint64_t HudFilterVersion();
     void BumpHudFilter();
 }

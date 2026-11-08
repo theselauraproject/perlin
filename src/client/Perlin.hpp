@@ -6,6 +6,7 @@
 #include "client/FrameGenPacer.hpp"
 #include "client/Options.hpp"
 #include "client/ScreenManager.hpp"
+#include "client/audio/Capture.hpp"
 #include "client/audio/SoundSystem.hpp"
 #include "client/audio/Subtitles.hpp"
 #include "client/entity/EntityRenderer.hpp"
@@ -42,6 +43,7 @@
 #include "client/ui/UiTemplate.hpp"
 #include "network/FriendWorld.hpp"
 #include "network/LanDiscovery.hpp"
+#include "util/ModSocket.hpp"
 #include "util/ThreadPool.hpp"
 #ifdef PERLIN_SINGLEPLAYER
 #include "EmbeddedServer.hpp"
@@ -304,9 +306,19 @@ namespace perlin {
         bool ModHudHidden(abi::HudElement element, float& dx, float& dy);
         void ApplyModDebugLines(std::vector<std::string>& left, std::vector<std::string>& right);
         void ApplyModFog(FogState& fog);
+
+        bool ModClientTime(double& worldTicks);
+        bool ModClientWeather(float& rain, float& thunder);
+        HandSettings ModHand();
+
+        std::optional<uint32_t> ModOutline();
         void DrawModTint(int fbW, int fbH);
         int ModFrameLimit(int fps) const;
         void PumpModHooks(BedrockSession* live);
+        void SetupModExtra();
+        void PumpModExtra(BedrockSession* live);
+        void DropModExtra(const std::string& plugin);
+        void ApplyModSlotOverlays(ui::HudState& state);
         void ApplyModSkins(std::vector<entity::Entity>& entities);
         void PrepareModRender(entity::EntityRenderer::FrameIn& in);
         bool DispatchModInteract(abi::InteractKind kind, int x, int y, int z, int face, uint64_t entity);
@@ -422,7 +434,7 @@ namespace perlin {
         heldbuild::HeldBuild heldBuild;
         RecentBreak lastLocalBreak;
         bool usingItem = false;
-        // a server camera (/camera set, a spline, a focus target, attach) is placing the view away from the player
+
         bool cameraDetached = false;
         bool cameraModeForced = false, cameraOverridden = false;
         float cameraPlayerView[5] = {0, 0, 0, 0, 0};
@@ -718,6 +730,15 @@ namespace perlin {
             std::map<std::string, abi::DebugLinesData> debug;
             std::pair<TimePoint, abi::FogOverride> fog;
             std::pair<TimePoint, abi::ScreenTintData> tint;
+            std::pair<TimePoint, abi::ClientTimeData> time;
+            std::pair<TimePoint, abi::ClientWeatherData> weather;
+            std::pair<TimePoint, abi::BlockOutlineData> outline;
+            std::pair<TimePoint, abi::ViewModelData> viewModel;
+            struct AttachedMesh {
+                TimePoint until;
+                abi::EntityMeshData data;
+            };
+            std::map<std::string, AttachedMesh> attachedMeshes;
             struct EntityRule {
                 TimePoint until;
                 abi::EntityOverride rule;
@@ -747,7 +768,29 @@ namespace perlin {
             std::vector<abi::ParticleRequest> particles;
             bool windowFocused = true, windowMinimized = false;
         } modHooks;
+        struct ModExtra {
+            struct Overlay {
+                TimePoint until;
+                bool forever = true;
+                abi::SlotOverlayData data;
+            };
+            std::mutex mutex;
+            std::map<std::string, std::unique_ptr<util::SocketSet>> sockets;
+            std::map<std::string, Overlay> overlays;
+            std::map<std::string, std::set<uint32_t>> streams;
+            audio::Capture capture;
+            std::string micOwner;
+            uint32_t micRate = 16000, micFrame = 320;
+            std::vector<int16_t> micPending;
+            std::string pendingJoin;
+            std::atomic<float> pingMs{-1.0f};
+            std::atomic<bool> pinging{false};
+            TimePoint nextPing, rateAt, sweepAt;
+            uint64_t rateIn = 0, rateOut = 0, rateBytesIn = 0, rateBytesOut = 0;
+            float perSecond[4] = {0, 0, 0, 0};
+        } modExtra;
         std::vector<entity::EntityRenderer::FrameIn::ModMesh> modFrameMeshes;
+        std::vector<entity::EntityRenderer::FrameIn::AttachedMesh> modFrameAttached;
         struct ScreenButtonView {
             abi::ScreenButtonDef def;
             bool hover = false;

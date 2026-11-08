@@ -95,6 +95,7 @@ namespace perlin {
             if (timeline.TimeOfDayAt(replayCtl.TimeMs(), forcedTicks))
                 worldTicks = forcedTicks;
         }
+        ModClientTime(worldTicks);
         if (preview && !previewLevel) {
             static auto lastNote = frameStart;
             if (frameStart - lastNote > std::chrono::seconds(3)) {
@@ -433,7 +434,7 @@ namespace perlin {
                     handIn.eating = handIn.survival && handIn.useHeld && HandRenderer::IsFood(mn);
                     (void)always;
                 }
-                handRenderer.Tick(handIn, options.hand);
+                handRenderer.Tick(handIn, ModHand());
                 {
                     const int et = handRenderer.EatTicks();
                     if (et >= 7 && et % 4 == 3) {
@@ -474,6 +475,7 @@ namespace perlin {
         hudPartial = partial;
         rain = glm::mix(previousRainLevel, rainLevel, partial);
         thunder = glm::mix(previousThunderLevel, thunderLevel, partial) * rain;
+        ModClientWeather(rain, thunder);
 
         EnvironmentInput envIn;
         envIn.ticks = worldTicks;
@@ -485,14 +487,14 @@ namespace perlin {
         env = SampleEnvironment(envIn);
 
         glm::mat4 bobMatrix(1.0f);
-        if (live && options.hand.viewBobbing && camera.mode == PerspectiveMode::FirstPerson)
-            bobMatrix = BobViewMatrix(player.Bob(), player.PartialTick(), options.hand.bobStrength);
+        if (live && ModHand().viewBobbing && camera.mode == PerspectiveMode::FirstPerson)
+            bobMatrix = BobViewMatrix(player.Bob(), player.PartialTick(), ModHand().bobStrength);
         const glm::mat4 hurtMatrix =
             sessionReady ? damage.ViewMatrix(partial, options.damageTilt) : glm::mat4(1.0f);
-        camera.viewEffect = hurtMatrix * (options.hand.bobCamera ? bobMatrix : glm::mat4(1.0f));
+        camera.viewEffect = hurtMatrix * (ModHand().bobCamera ? bobMatrix : glm::mat4(1.0f));
         if (sessionReady && session)
             camera.viewEffect = session->Camera().ShakeMatrix() * camera.viewEffect;
-        handViewEffect = hurtMatrix * (options.hand.bobHand ? bobMatrix : glm::mat4(1.0f));
+        handViewEffect = hurtMatrix * (ModHand().bobHand ? bobMatrix : glm::mat4(1.0f));
         {
             camera.farPlane = std::max(static_cast<float>(options.renderDistance * 16) * 1.6f,
                                        static_cast<float>(GraphicsSettings::From(options).cloudRange * 16));
@@ -853,8 +855,7 @@ namespace perlin {
         lightmap.ambientColor = env.ambientColor;
         lightmap.blockLightTint = env.blockLightTint;
         lightmap.nightVisionColor = env.nightVisionColor;
-        // light texture tick 0x1453E5F40: night vision or conduit power, the longer one wins (-1 = infinite);
-        // flickers sin((ticks - 1) * pi / 5) over its last 200 ticks
+
         if (sessionReady && session) {
             bool active = false;
             int ticks = 0;
@@ -945,7 +946,7 @@ namespace perlin {
         const double t = std::chrono::duration<double>(frameStart - startedAt).count();
         if (swingAt && !swung && t > std::atof(swingAt)) {
             swung = true;
-            handRenderer.Attack(options.hand, true);
+            handRenderer.Attack(ModHand(), true);
             live->SendSwingArm("attack");
         }
         if (shot) {
@@ -1181,6 +1182,10 @@ namespace perlin {
         if (aimHit.kind == AimHit::Kind::Block &&
             (options.showHud || (preview && PERLIN_ENV("PERLIN_PREVIEW_AIM")))) {
             ein.outline = true;
+            if (const auto color = ModOutline()) {
+                ein.outlineColor = *color;
+                ein.outline = (*color >> 24) != 0;
+            }
             ein.outlineLo = aimHit.boxLo;
             ein.outlineHi = aimHit.boxHi;
             ein.outlineShape = aimHit.shape;
@@ -1440,7 +1445,7 @@ namespace perlin {
                 }
             }
         }
-        // effects started by entity animations and controllers (pack particle_effects)
+
         for (const auto& request : entityRenderer.TakeParticleRequests())
             if (!dataParticles.Spawn(request.effect, request.at, {}, request.preScript))
                 particles.SpawnNamed(request.effect, request.at);
@@ -1480,7 +1485,7 @@ namespace perlin {
                 continue;
             if ((burner.flags & entity::flag::FireImmune) || burner.dying || burner.isItem)
                 continue;
-            // the camera's own flames are the overlay: planes around the head would sit in the view
+
             if (burner.isSelf && ein.firstPerson)
                 continue;
             entity::EntityRenderer::FrameIn::FireSprite sprite;
@@ -1605,14 +1610,14 @@ namespace perlin {
             }
             {
                 frame::ProfileScope p(frame::Profiler::Hand);
-                handRenderer.Render(handFrame, options.hand);
+                handRenderer.Render(handFrame, ModHand());
             }
             {
                 int sw = 0, sh = 0;
                 renderer->FramebufferSize(sw, sh);
                 handRenderer.RenderScope(sw, sh, partial);
             }
-            if (options.hand.bedrockRig && PERLIN_ENV("PERLIN_BEDROCK_RIG") &&
+            if (ModHand().bedrockRig && PERLIN_ENV("PERLIN_BEDROCK_RIG") &&
                 (fpSelf || previewEntitiesSpawned || true)) {
                 if (!fpSelf) {
                     fpSelf.emplace();
@@ -1626,8 +1631,8 @@ namespace perlin {
                 }
                 const HandRenderer::RigState rs = handRenderer.Rig(partial);
                 fpSelf->mainHand = rs.main;
-                fpSelf->offHand = options.hand.showOffhand ? rs.off : std::string();
-                if (options.hand.leftHanded)
+                fpSelf->offHand = ModHand().showOffhand ? rs.off : std::string();
+                if (ModHand().leftHanded)
                     std::swap(fpSelf->mainHand, fpSelf->offHand);
                 entity::EntityRenderer::FrameIn fin;
                 fin.time = std::chrono::duration<double>(frameStart - startedAt).count();
@@ -1641,7 +1646,7 @@ namespace perlin {
                 fps.attackTime = rs.attackTime;
                 fps.armHeight = rs.armHeight;
                 fps.offArmHeight = rs.offArmHeight;
-                fps.bob = options.hand.viewBobbing && options.hand.bobHand;
+                fps.bob = ModHand().viewBobbing && ModHand().bobHand;
                 fps.using_ = rs.using_;
                 fps.blocking = rs.blocking;
                 fps.usedTicks = rs.usedTicks;

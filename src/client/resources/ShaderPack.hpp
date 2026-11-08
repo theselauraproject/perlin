@@ -27,7 +27,7 @@ namespace perlin {
         bool Open(const std::string& packsDir, const std::string& name, std::string& error);
         void Close();
         bool Active() const;
-        // the pack compiled into the engine (its programs live in the engine's own shader pack)
+
         bool Bundled() const;
         bool HasBackend(const std::string& backend) const;
         bool Read(const std::string& backend, const std::string& shader, std::vector<char>& out) const;
