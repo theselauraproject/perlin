@@ -244,6 +244,58 @@ namespace perlin {
     }
 
     bool BedrockSession::SendDropRequest(int slot, int count, int attempt) {
+        if (legacyInventory) {
+            // Servers without server-authoritative inventory (The Hive, ...) ignore item stack
+            // requests, so the item just came back. They expect the old transaction: the slot
+            // shrinks and the dropped stack appears as a world interaction.
+            InventoryTransactionPacket tx;
+            tx.transaction.transactionType = TransactionTransactionType::Normal;
+            {
+                std::lock_guard lock(statusMutex);
+                if (slot < 0 || slot > 35)
+                    return false;
+                const ItemV4 was = inventoryRaw[slot];
+                if (was.networkId == 0 || was.count == 0)
+                    return false;
+                const int n = count <= 0 ? was.count : std::min<int>(count, was.count);
+                const auto bare = [](ItemV4 it) {
+                    if (it.hasStackId && it.stackId.value_or(0) <= 0) {
+                        it.hasStackId = false;
+                        it.stackId.reset();
+                    }
+                    return it;
+                };
+                ItemV4 left = was, dropped = was;
+                left.count = static_cast<decltype(left.count)>(was.count - n);
+                dropped.count = static_cast<decltype(dropped.count)>(n);
+                if (left.count == 0)
+                    left = ItemV4{};
+                TransactionActionsEntry c;
+                c.sourceType = TransactionActionsEntrySourceType::Container;
+                c.windowId = static_cast<int8_t>(0);
+                c.slot = static_cast<uint32_t>(slot);
+                c.oldItem = bare(was);
+                c.newItem = bare(left);
+                tx.transaction.actions.push_back(std::move(c));
+                TransactionActionsEntry w;
+                w.sourceType = TransactionActionsEntrySourceType::WorldInteraction;
+                w.flags = 0u;
+                w.slot = 0;
+                w.oldItem = ItemV4{};
+                w.newItem = bare(dropped);
+                tx.transaction.actions.push_back(std::move(w));
+                ItemStackInfo& shown = slot < 9 ? inventory.hotbar[slot] : inventory.main[slot - 9];
+                if (left.count == 0 || left.networkId == 0) {
+                    shown = ItemStackInfo{};
+                    inventoryRaw[slot] = ItemV4{};
+                } else {
+                    shown.count = left.count;
+                    inventoryRaw[slot] = left;
+                }
+            }
+            Log("inventory", "legacy drop slot {} count {}", slot, count);
+            return Send(tx);
+        }
         ItemStackRequestPacket p;
         ItemStackRequest r;
         ItemStackRequestActionsEntry a;

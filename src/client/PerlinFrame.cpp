@@ -618,6 +618,7 @@ namespace perlin {
             const uint64_t now = player.TickCount();
             const bool held_ = use && usingItem && consumable;
             if (held_ && !useWasHeld) {
+                Log("item", "started using {}", name);
                 useStartTick = now;
                 useConsumed = false;
             }
@@ -631,7 +632,12 @@ namespace perlin {
                 if (now >= useStartTick + static_cast<uint64_t>(need) + 1) {
                     const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
                                           static_cast<float>(camera.z)};
+                    // Servers differ: PocketMine finishes on a second use-item while the item is in
+                    // use, others on the ItemRelease "consume". Both are harmless to the other kind.
+                    live.SendUseItemInAir(eye, false);
                     live.SendReleaseItem(eye, true);
+                    Log("item", "finished using {} after {} ticks: sent use + consume", name,
+                        now - useStartTick);
                     useConsumed = true;
                     usingItem = false;
                 }

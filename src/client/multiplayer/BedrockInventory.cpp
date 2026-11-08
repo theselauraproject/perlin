@@ -937,6 +937,11 @@ namespace perlin {
             a.count = static_cast<uint8_t>(whole ? std::min(C.count, 255) : 1);
             Address(a.source, kInvCursor, raw);
             r.actions.push_back(a);
+            if (legacyInventory) {
+                ItemV4 dropped = raw;
+                dropped.count = static_cast<decltype(dropped.count)>(a.count);
+                legacyDrops.push_back(std::move(dropped));
+            }
             C.count -= a.count;
             raw.count = static_cast<uint16_t>(raw.count - a.count);
             if (C.count <= 0) {
@@ -1032,8 +1037,10 @@ namespace perlin {
                 return before.horse[a - kInvHorse0];
             return before.extra[a - 36];
         };
+        // Compare the whole stack, NBT included: an enchanted and a plain sword share id, count and
+        // damage, so swapping them used to send nothing for those slots and the server undid it.
         const auto same = [](const ItemV4& x, const ItemV4& y) {
-            return x.networkId == y.networkId && x.count == y.count && x.metadata == y.metadata;
+            return x.count == y.count && SameStack(x, y);
         };
         for (int a = 0; a < kInvTotal; a++) {
             if (a == kInvOutput)
@@ -1057,6 +1064,20 @@ namespace perlin {
             e.newItem = now;
             pkt.transaction.actions.push_back(std::move(e));
         }
+        for (ItemV4& dropped : legacyDrops) {
+            if (dropped.hasStackId && dropped.stackId.value_or(0) <= 0) {
+                dropped.hasStackId = false;
+                dropped.stackId.reset();
+            }
+            TransactionActionsEntry w;
+            w.sourceType = TransactionActionsEntrySourceType::WorldInteraction;
+            w.flags = 0u;
+            w.slot = 0;
+            w.oldItem = ItemV4{};
+            w.newItem = std::move(dropped);
+            pkt.transaction.actions.push_back(std::move(w));
+        }
+        legacyDrops.clear();
         if (pkt.transaction.actions.empty())
             return false;
         return Send(pkt);

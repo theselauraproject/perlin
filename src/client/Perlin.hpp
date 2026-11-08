@@ -567,6 +567,7 @@ namespace perlin {
             int drag = -1, page = 0, sub = 0;
             int bindCapture = -1, controlsTab = 0, bindDevice = 0;
             bool bindWasCapturing = false;
+            bool bindLeftArmed = false;
             TimePoint bindStartedAt;
             bool touchEditing = false, touchEditHidden = false;
             float kbScroll = 0.0f, scroll = 0.0f;

@@ -201,12 +201,18 @@ namespace perlin {
                     SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::KeyboardKey(t.key));
                 captured = true;
             }
-            for (int b = 1; b <= Mouse::Forward && !captured && optionsUi.bindDevice == 0; b++)
+            // Left click can be bound too: the click that opened the prompt must be released first.
+            if (!input.IsMouseDown(Mouse::Left))
+                optionsUi.bindLeftArmed = true;
+            for (int b = 0; b <= Mouse::Forward && !captured && optionsUi.bindDevice == 0; b++) {
+                if (b == Mouse::Left && !optionsUi.bindLeftArmed)
+                    continue;
                 if (input.IsMouseDown(b) &&
                     Clock::now() - optionsUi.bindStartedAt > std::chrono::milliseconds(120)) {
                     SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::MouseButton(b));
                     captured = true;
                 }
+            }
             if (captured) {
                 optionsUi.bindCapture = -1;
                 optionsUi.bindWasCapturing = true;
@@ -1576,6 +1582,7 @@ namespace perlin {
                                   if (click) {
                                       optionsUi.bindCapture = static_cast<int>(a);
                                       optionsUi.bindStartedAt = Clock::now();
+                                      optionsUi.bindLeftArmed = false;
                                       optionsUi.signature.clear();
                                   }
                               }});
