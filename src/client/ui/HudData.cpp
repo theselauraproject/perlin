@@ -145,6 +145,16 @@ namespace perlin::ui {
         if (name == "#hud_visible_centered_touch" || name == "#hud_visible_not_centered" ||
             name == "#hotbar_visible_not_centered" || name == "#hotbar_visible_not_centered_resizable")
             return set(B(false));
+        // 1.26.60 ui gates chat_panel's #visible on these editor bindings; unknown left the chat hidden
+        if (name == "#editor_chat_visible")
+            return set(B(true));
+        if (name == "#editor_chat_layout_active")
+            return set(B(false));
+        if (name == "#editor_chat_offset") {
+            Json zero = Json::MakeArray();
+            zero.array = {Json(0), Json(0)};
+            return set(std::move(zero));
+        }
         if (name == "#hud_alpha")
             return set(N(1.0));
         if (name == "#hud_propagate_alpha")
