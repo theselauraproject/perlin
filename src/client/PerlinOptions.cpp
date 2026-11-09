@@ -2,6 +2,8 @@
 #include "client/javashaders/ShaderScreens.hpp"
 #include "client/update/Updater.hpp"
 #include "util/Log.hpp"
+#include <algorithm>
+#include <cmath>
 
 namespace perlin {
     namespace {

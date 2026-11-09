@@ -2,6 +2,8 @@
 #include "client/renderer/CustomSky.hpp"
 #include "client/resources/AssetJobs.hpp"
 #include "util/Log.hpp"
+#include <cstdio>
+#include <unordered_set>
 
 namespace perlin {
     namespace {

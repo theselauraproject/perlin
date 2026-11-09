@@ -17,7 +17,7 @@ concurrency:
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
   # bump to drop every dependency cache at once
-  DEPS_CACHE_VERSION: v3
+  DEPS_CACHE_VERSION: v4
 
   PERLIN_UPDATE_FLAGS: ${{ github.ref == 'refs/heads/main' && format('-DPERLIN_BUILD_COMMIT={0} -DPERLIN_UPDATE_REPO={1} -DPERLIN_BUNDLE_VERSION=1.0.{2}', github.sha, github.repository, github.run_number) || '' }}
   EMSDK_VERSION: 4.0.10
@@ -179,41 +179,33 @@ jobs:
           key: ${{ matrix.name }}
           max-size: 500M
 
-      # configure downloads whatever the caches miss: retried, a github hiccup shouldn't fail the run
+      # configure downloads whatever the caches miss: retried, a github hiccup shouldn't fail the run, and
+      # retry_configure.py removes half-downloaded packages so a retry can't build with a missing tool
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          for ($i = 1; $i -le 3; $i++) {
-            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON `
-              -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
-              -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
-              -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static" `
-              -DPERLIN_WINDOWS_FFMPEG=${{ env.WINDOWS_FFMPEG }} `
-              -DFFMPEG_ROOT="$env:GITHUB_WORKSPACE/ffmpeg-install/x64-windows-static" `
-              ${{ env.PERLIN_UPDATE_FLAGS }}
-            if ($LASTEXITCODE -eq 0) { exit 0 }
-            Write-Host "::warning::configure attempt $i failed, retrying"
-            Start-Sleep -Seconds (60 * $i)
-          }
-          exit 1
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON `
+            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static" `
+            -DPERLIN_WINDOWS_FFMPEG=${{ env.WINDOWS_FFMPEG }} `
+            -DFFMPEG_ROOT="$env:GITHUB_WORKSPACE/ffmpeg-install/x64-windows-static" `
+            ${{ env.PERLIN_UPDATE_FLAGS }}
+          exit $LASTEXITCODE
 
       - name: Configure (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          for i in 1 2 3; do
-            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
-              -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-              -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
-              ${{ env.PERLIN_UPDATE_FLAGS }} \
-              ${{ runner.os == 'macOS' && format('-DOPENSSL_ROOT_DIR={0}/ossl-mac -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON', github.workspace) || '' }} && exit 0
-            echo "::warning::configure attempt $i failed, retrying"
-            sleep $((60 * i))
-          done
-          exit 1
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            ${{ env.PERLIN_UPDATE_FLAGS }} \
+            ${{ runner.os == 'macOS' && format('-DOPENSSL_ROOT_DIR={0}/ossl-mac -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON', github.workspace) || '' }}
 
-      # every download is done once configure passes: save now, even if the build or tests fail later
+      # every download is done (and checked by retry_configure.py) once configure passes: save now, even if
+      # the build or tests fail later
       - name: Save dependency cache
         if: steps.cpm-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -318,20 +310,30 @@ jobs:
         if: matrix.appimage
         uses: actions/cache@v4
         with:
-          path: .tools/appimagetool
+          path: |
+            .tools/appimagetool
+            .tools/runtime
           # "continuous" has no version: bump the suffix to pick up a newer build
-          key: appimagetool-${{ matrix.appimage }}-v1
+          key: appimagetool-${{ matrix.appimage }}-v2
 
       - name: AppImage
         if: matrix.appimage
         run: |
           if [ ! -x .tools/appimagetool ]; then
             mkdir -p .tools
-            curl -fsSL --retry 5 --retry-all-errors --retry-delay 20 -o .tools/appimagetool \
+            curl -fsSL --retry 5 --retry-all-errors --retry-delay 20 -o .tools/appimagetool.part \
               "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage }}.AppImage"
+            mv .tools/appimagetool.part .tools/appimagetool
             chmod +x .tools/appimagetool
           fi
+          # appimagetool would fetch this from github on every run otherwise
+          if [ ! -s .tools/runtime ]; then
+            curl -fsSL --retry 5 --retry-all-errors --retry-delay 20 -o .tools/runtime.part \
+              "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${{ matrix.appimage }}"
+            mv .tools/runtime.part .tools/runtime
+          fi
           sudo cp .tools/appimagetool /usr/local/bin/appimagetool
+          export APPIMAGE_RUNTIME_FILE="$PWD/.tools/runtime"
           sh tools/package/make-appimage.sh dist "pkg/Perlin-${{ matrix.name }}.AppImage" ${{ matrix.appimage }}
           "pkg/Perlin-${{ matrix.name }}.AppImage" --appimage-extract >/dev/null
           test -x squashfs-root/usr/lib/perlin/Perlin && test -s squashfs-root/io.perlin.client.desktop
@@ -376,11 +378,7 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" .apt-cache
       - name: Build shaders only
         run: |
-          for i in 1 2 3; do
-            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && break
-            [ "$i" = 3 ] && exit 1
-            echo "::warning::configure attempt $i failed, retrying"; sleep $((60 * i))
-          done
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target perlin_shader_pack --parallel
       - name: Upload shader pack
         uses: actions/upload-artifact@v7
@@ -425,20 +423,15 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          for ($i = 1; $i -le 3; $i++) {
-            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
-              -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 `
-              -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
-              -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc `
-              -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
-              -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static" `
-              -DPERLIN_WINDOWS_FFMPEG=OFF `
-              ${{ env.PERLIN_UPDATE_FLAGS }}
-            if ($LASTEXITCODE -eq 0) { exit 0 }
-            Write-Host "::warning::configure attempt $i failed, retrying"
-            Start-Sleep -Seconds (60 * $i)
-          }
-          exit 1
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 `
+            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
+            -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static" `
+            -DPERLIN_WINDOWS_FFMPEG=OFF `
+            ${{ env.PERLIN_UPDATE_FLAGS }}
+          exit $LASTEXITCODE
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Package
@@ -496,12 +489,8 @@ jobs:
               pulseaudio alsa-lib libinotify dbus zip
           run: |
             set -e
-            for i in 1 2 3; do
-              cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
-                -DPERLIN_SHADER_PACK_PREBUILT="$PWD/prebuilt/perlin_shaders.pack" $PERLIN_UPDATE_FLAGS && break
-              [ "$i" = 3 ] && exit 1
-              sleep $((60 * i))
-            done
+            python3 tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+              -DPERLIN_SHADER_PACK_PREBUILT="$PWD/prebuilt/perlin_shaders.pack" $PERLIN_UPDATE_FLAGS
             cmake --build build --parallel
             ctest --test-dir build --output-on-failure || echo "::warning::some tests failed on FreeBSD"
             cmake --install build --prefix dist
@@ -575,17 +564,13 @@ jobs:
           make install_dev
       - name: Configure
         run: |
-          for i in 1 2 3; do
-            emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-              -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-wasm" \
-              -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-wasm/include" \
-              -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-wasm/lib/libcrypto.a" \
-              -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-wasm/lib/libssl.a" \
-              ${{ env.PERLIN_UPDATE_FLAGS }} && exit 0
-            echo "::warning::configure attempt $i failed, retrying"; sleep $((60 * i))
-          done
-          exit 1
+          python3 tools/ci/retry_configure.py -- emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-wasm" \
+            -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-wasm/include" \
+            -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-wasm/lib/libcrypto.a" \
+            -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-wasm/lib/libssl.a" \
+            ${{ env.PERLIN_UPDATE_FLAGS }}
       - name: Build
         run: cmake --build build-web
       - name: Check build output
@@ -736,8 +721,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          for i in 1 2 3; do
-          ./gradlew --no-daemon assembleRelease \
+          python ../tools/ci/retry_configure.py -- ./gradlew --no-daemon assembleRelease \
             -PsdlDir="$GITHUB_WORKSPACE/android/sdl" \
             -PopensslBase="$GITHUB_WORKSPACE/ossl-android" \
             -Pccache=true \
@@ -747,10 +731,7 @@ jobs:
             --build-cache \
             -PappVersionCode="$GITHUB_RUN_NUMBER" \
             -PappVersionName="1.0.$GITHUB_RUN_NUMBER" \
-            ${{ github.ref == 'refs/heads/main' && format('-PbuildCommit={0} -PupdateRepo={1}', github.sha, github.repository) || '' }} && exit 0
-          echo "::warning::gradle attempt $i failed, retrying"; sleep $((60 * i))
-          done
-          exit 1
+            ${{ github.ref == 'refs/heads/main' && format('-PbuildCommit={0} -PupdateRepo={1}', github.sha, github.repository) || '' }}
       - name: Check APK contents
         run: |
           apk=$(ls android/app/build/outputs/apk/release/*.apk | head -n1)
@@ -821,8 +802,7 @@ jobs:
           python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out assets-manifest.json
       - name: Configure
         run: |
-          for i in 1 2 3; do
-            cmake -B build-ios -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          python tools/ci/retry_configure.py -- cmake -B build-ios -G Ninja -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 \
               -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
               -DPERLIN_IOS_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
@@ -833,10 +813,7 @@ jobs:
               -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libcrypto.a" \
               -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libssl.a" \
               -DPERLIN_ASSET_MANIFEST="$GITHUB_WORKSPACE/assets-manifest.json" \
-              ${{ env.PERLIN_UPDATE_FLAGS }} && exit 0
-            echo "::warning::configure attempt $i failed, retrying"; sleep $((60 * i))
-          done
-          exit 1
+              ${{ env.PERLIN_UPDATE_FLAGS }}
       - name: Build
         run: cmake --build build-ios --target Perlin --parallel
       - name: Check app bundle

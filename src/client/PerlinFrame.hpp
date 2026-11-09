@@ -1,6 +1,7 @@
 #pragma once
 
 #include "client/PerlinInternal.hpp"
+#include <string_view>
 
 namespace perlin {
     namespace frame {

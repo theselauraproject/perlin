@@ -1,5 +1,6 @@
 #include "client/PerlinFrame.hpp"
 #include "util/Log.hpp"
+#include <algorithm>
 
 namespace perlin {
     Perlin::Perlin(LaunchArgs args) : args(std::move(args)) {}
