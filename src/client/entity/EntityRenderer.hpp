@@ -85,6 +85,7 @@ namespace perlin::entity {
             bool ownNametag = false;
             bool nametagBackground = true;
             bool nametagShadow = false;
+            bool perlinBadges = true;
             bool nametags = true;
             bool nametagDepth = false;
             SkinParts ownParts;
@@ -215,6 +216,8 @@ namespace perlin::entity {
             std::string text;
             glm::dvec3 at;
             bool sneaking = false;
+            // badge before the row holding this name; empty: no badge
+            std::string badgeName;
         };
         std::vector<Tag> tags;
         void DrawNametags(const FrameIn& in);
@@ -229,6 +232,8 @@ namespace perlin::entity {
 
         std::unordered_map<std::string, int> flipbookFrames;
         uint32_t fontTexture = 0;
+        uint32_t badgeTexture = 0;
+        bool badgeTried = false;
         uint32_t fontTextureVersion = 0;
 
         RenderContext* renderer = nullptr;

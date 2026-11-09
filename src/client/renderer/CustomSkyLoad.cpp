@@ -3,10 +3,51 @@
 #include "client/resources/TexturePack.hpp"
 #include "util/Log.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <utility>
 
 namespace perlin::sky {
+    namespace {
+        // 3x2 sheets past this side are box-filtered down: a 9600px sheet is ~245 MB on the gpu and over the
+        // texture limit of some drivers
+        constexpr int kMaxSkySide = 5120;
+
+        void Shrink(Texture& t, const std::string& name) {
+            int factor = 1;
+            while (std::max(t.width, t.height) / factor > kMaxSkySide)
+                factor++;
+            // prefer a factor that keeps the 3x2 cells whole: a cell edge mid-texel bleeds with point sampling
+            for (int f = factor; f < factor * 2; f++)
+                if ((t.width / 3) % f == 0 && (t.height / 2) % f == 0) {
+                    factor = f;
+                    break;
+                }
+            if (factor == 1 || t.pixels.size() < static_cast<size_t>(t.width) * t.height * 4)
+                return;
+            const int w = t.width / factor, h = t.height / factor;
+            std::vector<unsigned char> out(static_cast<size_t>(w) * h * 4);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++) {
+                    uint32_t sum[4] = {};
+                    for (int dy = 0; dy < factor; dy++) {
+                        const unsigned char* row =
+                            t.pixels.data() + (static_cast<size_t>(y * factor + dy) * t.width + x * factor) * 4;
+                        for (int dx = 0; dx < factor * 4; dx++)
+                            sum[dx & 3] += row[dx];
+                    }
+                    const uint32_t n = static_cast<uint32_t>(factor * factor);
+                    for (int c = 0; c < 4; c++)
+                        out[(static_cast<size_t>(y) * w + x) * 4 + c] = static_cast<unsigned char>(sum[c] / n);
+                }
+            Log("sky", "{}: {}x{} scaled to {}x{}", name, t.width, t.height, w, h);
+            t.width = w;
+            t.height = h;
+            t.pixels = std::move(out);
+        }
+    }
+
     Set Load(const std::vector<std::string>& serverPackDirs) {
         Set set;
         TexturePack& pack = TexturePack::Instance();
@@ -41,13 +82,14 @@ namespace perlin::sky {
                         if (!out.empty())
                             break;
                         const std::string dir = root + std::to_string(world);
-                        // sky0 is optional; the list ends at the first missing file after it
+                        // CustomSky.readSkyLayers: gaps allowed, the list ends after more than 10 missing numbers
+                        int missing = 0;
                         for (int i = 0; i < 1000; i++) {
                             std::string text;
                             if (!pack.LayerReadText(layer, dir + "/sky" + std::to_string(i) + ".properties", text)) {
-                                if (i == 0)
-                                    continue;
-                                break;
+                                if (++missing > 10)
+                                    break;
+                                continue;
                             }
                             Layer l;
                             std::string error;
@@ -60,6 +102,7 @@ namespace perlin::sky {
                                 Log("sky", "texture not found: {}", l.source);
                                 continue;
                             }
+                            Shrink(t, l.source);
                             l.texture = addTexture(std::move(t));
                             out.push_back(std::move(l));
                         }

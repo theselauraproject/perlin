@@ -84,6 +84,7 @@ namespace perlin {
         std::string resourcePackDir;
         std::string bedrockSamplesDir;
         bool fancyGraphics = true;
+        bool clouds = true;
         int cloudRange = 128;
         bool rgss = false;
         float motionBlur = 0.0f;
@@ -92,6 +93,7 @@ namespace perlin {
         bool thirdPersonNametag = false;
         bool nametagBackground = true;
         bool nametagShadow = false;
+        bool perlinBadges = true;
         // OptiFine skies (optifine/sky, mcpatcher/sky) and Bedrock overworld cubemaps from texture packs
         bool customSkies = true;
         bool fovEffects = true;
@@ -164,6 +166,7 @@ namespace perlin {
 
         static GraphicsSettings From(const Options& options) {
             GraphicsSettings g;
+            g.clouds = options.clouds;
             g.cloudRange = options.cloudRange;
             g.rgss = options.rgss && options.upscaler == "off";
             if (!options.fancyGraphics) {

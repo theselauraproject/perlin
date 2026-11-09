@@ -1181,6 +1181,7 @@ namespace perlin {
         ein.ownNametag = options.thirdPersonNametag;
         ein.nametagBackground = options.nametagBackground;
         ein.nametagShadow = options.nametagShadow;
+        ein.perlinBadges = options.perlinBadges;
         ein.nametagDepth = fgActive > 1;
         ein.ownParts = options.skinParts;
         ein.skins3d = options.skins3d;

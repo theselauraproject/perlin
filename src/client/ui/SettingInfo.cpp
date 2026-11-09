@@ -61,6 +61,7 @@ namespace perlin::ui {
             {"Enable LODs", "", "",
              "Distant terrain as simplified tiles, so the render distance can go far past the loaded chunks.",
              3},
+            {"Clouds", "options.renderClouds", "", "Shows or hides the clouds in the sky.", 2},
             {"Cloud Range", "", "", "How far away clouds are drawn. Larger ranges draw more clouds.", 2},
             {"Better Grass", "", "",
              "Grass block sides blend with the grass next to them so there are no visible edges between "
@@ -78,6 +79,8 @@ namespace perlin::ui {
              "Held and dropped light sources illuminate the world around them. Fancy updates more often.", 2},
             {"Third Person Crosshair", "perlin.options.thirdCrosshair", "",
              "Show the crosshair in third-person views.", 0},
+            {"Perlin User Badges", "perlin.options.perlinBadges", "",
+             "Shows the Perlin logo next to the names of players who also use Perlin, yourself included.", 0},
             {"Third Person Nametag", "perlin.options.thirdNametag", "",
              "Show your own nametag in third-person views.", 0},
             {"Zoom Level", "", "", "How strongly the zoom key magnifies the view.", 0},

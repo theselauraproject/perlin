@@ -70,9 +70,13 @@ namespace perlin {
 
     namespace {
 
+        // sky-only Java packs ship assets/minecraft/optifine (or mcpatcher) with no textures folder
         bool HasTextures(const fs::path& dir) {
             std::error_code ec;
-            return fs::is_directory(dir / "textures", ec);
+            if (fs::is_directory(dir / "textures", ec))
+                return true;
+            return dir.parent_path().filename() == "assets" &&
+                   (fs::is_directory(dir / "optifine", ec) || fs::is_directory(dir / "mcpatcher", ec));
         }
 
         std::string FindFolderRoot(const fs::path& dir) {
@@ -152,11 +156,15 @@ namespace perlin {
                 entries.emplace_back(str::Lower(path), i);
             }
             for (const auto& [lower, idx] : entries) {
-                const size_t java = lower.find("assets/minecraft/textures/");
-                if (java != std::string::npos && (java == 0 || lower[java - 1] == '/') &&
-                    (!prefixFound || java + 17 < prefix.size())) {
-                    prefix = lower.substr(0, java) + "assets/minecraft/";
-                    prefixFound = true;
+                // sky-only Java packs have optifine/ or mcpatcher/ and no textures/
+                for (const char* sub : {"assets/minecraft/textures/", "assets/minecraft/optifine/",
+                                        "assets/minecraft/mcpatcher/"}) {
+                    const size_t java = lower.find(sub);
+                    if (java != std::string::npos && (java == 0 || lower[java - 1] == '/') &&
+                        (!prefixFound || java + 17 < prefix.size())) {
+                        prefix = lower.substr(0, java) + "assets/minecraft/";
+                        prefixFound = true;
+                    }
                 }
             }
             if (!prefixFound)

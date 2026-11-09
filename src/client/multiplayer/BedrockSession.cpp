@@ -1,3 +1,4 @@
+#include "client/PerlinBrand.hpp"
 #include "util/Paths.hpp"
 #include "util/Env.hpp"
 #include "client/multiplayer/BedrockSession.hpp"
@@ -392,8 +393,7 @@ namespace perlin {
             skin.DeviceId = device.id;
             skin.GameVersion = gameVersion;
             skin.SelfSignedId = DeriveSelfSignedId(clientRandomId, device.id);
-            skin.SkinId = std::string("c18e65aa-7b21-4637-9b63-8ad63622ef01.") +
-                          (loadedSkin.slimArms ? "CustomSlim" : "Custom");
+            skin.SkinId = brand::MarkSkinId(std::string("default_") + (loadedSkin.slimArms ? "CustomSlim" : "Custom"));
             skin.SkinColor = "#b37b62";
             skin.ServerAddress = serverAddress;
             skin.Nonce = nonce;
@@ -402,7 +402,7 @@ namespace perlin {
             if (loadedSkin.hasSkin()) {
                 skin.SkinImageWidth = loadedSkin.skinWidth;
                 skin.SkinImageHeight = loadedSkin.skinHeight;
-                skin.SkinId = loadedSkin.skinId;
+                skin.SkinId = brand::MarkSkinId(loadedSkin.skinId);
             }
             const char* geometry =
                 loadedSkin.slimArms ? "geometry.humanoid.customSlim" : "geometry.humanoid.custom";
@@ -1653,8 +1653,9 @@ namespace perlin {
                 hex += c;
         for (size_t i = 0; i < 16 && i * 2 + 1 < hex.size(); i++)
             p.uuid.bytes[i] = static_cast<uint8_t>(std::stoi(hex.substr(i * 2, 2), nullptr, 16));
-        p.skin.skinId = skin.skinId;
-        p.skin.fullSkinId = skin.skinId;
+        const std::string skinId = brand::MarkSkinId(skin.skinId);
+        p.skin.skinId = skinId;
+        p.skin.fullSkinId = skinId;
         if (skin.hasSkin()) {
             p.skin.skinData.width = skin.skinWidth;
             p.skin.skinData.height = skin.skinHeight;
@@ -1679,8 +1680,8 @@ namespace perlin {
         p.skin.primaryUser = true;
         p.skin.trusted = "true";
         p.oldSkinName = lastSentSkinName;
-        lastSentSkinName = skin.skinId;
-        p.skinName = skin.skinId;
+        lastSentSkinName = skinId;
+        p.skinName = skinId;
         return Send(p);
     }
 

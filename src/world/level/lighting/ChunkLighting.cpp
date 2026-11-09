@@ -196,7 +196,9 @@ namespace perlin {
                         hi = std::max(hi, chi);
                     }
                 }
-            if (hi < lo) {
+            // band wholly above the build limit (camera or entity high in the sky): open sky, and the grid
+            // below would get a negative row count
+            if (hi < lo || yLo >= Chunk::MIN_Y + Chunk::HEIGHT) {
                 out.yBase = yLo;
                 out.rows = yHi - yLo + 1;
                 out.packed.assign(static_cast<size_t>(out.rows) * kPadded * kPadded, Result::kSkyOnly);
@@ -205,6 +207,13 @@ namespace perlin {
             grid.yBase = std::max(std::max(Chunk::MIN_Y, std::min(lo, yLo) - 1), yLo - 16);
             const int top = std::min(Chunk::MIN_Y + Chunk::HEIGHT - 1, std::max(hi, yHi) + 1);
             grid.rows = top - grid.yBase + 1;
+            if (grid.rows <= 0) {
+                out.yBase = yLo;
+                out.rows = yHi - yLo + 1;
+                out.packed.assign(static_cast<size_t>(out.rows) * kPadded * kPadded,
+                                  yLo >= Chunk::MIN_Y ? Result::kSkyOnly : uint8_t{0});
+                return true;
+            }
             grid.ids.assign(kLayer * static_cast<size_t>(grid.rows), 0);
             for (int row = 0; row < grid.rows; row++) {
                 const int y = grid.yBase + row;

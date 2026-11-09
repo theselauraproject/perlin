@@ -98,6 +98,8 @@ namespace perlin {
             bool nametagBackground = true;
             bool nametagShadow = false;
             bool customSkies = true;
+            bool clouds = true;
+            bool perlinBadges = true;
         };
     }
 
@@ -376,6 +378,8 @@ namespace perlin {
         o.nametagBackground = stored.nametagBackground;
         o.nametagShadow = stored.nametagShadow;
         o.customSkies = stored.customSkies;
+        o.clouds = stored.clouds;
+        o.perlinBadges = stored.perlinBadges;
         return o;
     }
 
@@ -467,6 +471,8 @@ namespace perlin {
         stored.nametagBackground = nametagBackground;
         stored.nametagShadow = nametagShadow;
         stored.customSkies = customSkies;
+        stored.clouds = clouds;
+        stored.perlinBadges = perlinBadges;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))

@@ -631,6 +631,7 @@ namespace perlin {
                   {"connected", "Connected"},
                   {"connectedClear", "Connected Clear"},
                   {"clear", "Clear"}});
+        m.Toggle(detail::TrOr("options.renderClouds", "Clouds"), options.clouds);
         m.Slider("Cloud Range",
                  std::to_string(options.cloudRange) + " " + detail::TrOr("options.chunks", "chunks"),
                  static_cast<float>(options.cloudRange - 2) / 126.0f, [this](float f) {
@@ -691,6 +692,7 @@ namespace perlin {
                  options.thirdPersonNametag);
         m.Toggle(detail::TrOr("perlin.options.nametagBackground", "Nametag Background"), options.nametagBackground);
         m.Toggle(detail::TrOr("perlin.options.nametagShadow", "Nametag Text Shadow"), options.nametagShadow);
+        m.Toggle(detail::TrOr("perlin.options.perlinBadges", "Perlin User Badges"), options.perlinBadges);
         {
             OptRow h{"Zoom", "", -1.0f, [](float, bool) {}};
             h.header = true;

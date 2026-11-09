@@ -28,6 +28,10 @@
 #include <cstring>
 #include <iostream>
 #include "util/Log.hpp"
+#include "client/PerlinBrand.hpp"
+#include "client/resources/TextureLoader.hpp"
+#include "util/Resources.hpp"
+#include "util/Strings.hpp"
 
 namespace perlin::entity {
     namespace {
@@ -2168,6 +2172,16 @@ namespace perlin::entity {
         }
         if (!fontTexture)
             return;
+        if (!badgeTried) {
+            badgeTried = true;
+            std::string png;
+            Texture t;
+            if (resources::Read("perlin_badge.png", png) &&
+                LoadTextureMemory(reinterpret_cast<const unsigned char*>(png.data()), png.size(), t) && t.width > 0)
+                badgeTexture = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), true);
+            else
+                Log("nametag", "perlin_badge.png missing from the embedded resources");
+        }
         const float yawR = in.cameraYaw * kDeg, pitchR = in.cameraPitch * kDeg;
         const glm::vec3 forward(-std::sin(yawR) * std::cos(pitchR), -std::sin(pitchR),
                                 std::cos(yawR) * std::cos(pitchR));
@@ -2184,8 +2198,34 @@ namespace perlin::entity {
                     break;
                 start = nl + 1;
             }
-            static thread_local std::vector<UiVertex> bgV, textV, shadowV;
-            static thread_local std::vector<uint32_t> bgI, textI, shadowI;
+            static thread_local std::vector<UiVertex> bgV, textV, shadowV, badgeV;
+            static thread_local std::vector<uint32_t> bgI, textI, shadowI, badgeI;
+            badgeV.clear();
+            badgeI.clear();
+            // the row carrying the player's name: servers stack scores and ranks above and below it
+            int badgeRow = -1;
+            if (!tag.badgeName.empty() && badgeTexture) {
+                const std::string want = str::Lower(tag.badgeName);
+                for (size_t r = 0; r < rows.size() && badgeRow < 0; r++) {
+                    std::string plain;
+                    for (size_t i = 0; i < rows[r].size(); i++) {
+                        // drop colour codes: § as utf-8 or a bare 0xA7, then its code character
+                        if (rows[r][i] == '\xC2' && i + 1 < rows[r].size() && rows[r][i + 1] == '\xA7') {
+                            i += 2;
+                            continue;
+                        }
+                        if (rows[r][i] == '\xA7') {
+                            i++;
+                            continue;
+                        }
+                        plain += rows[r][i];
+                    }
+                    if (str::Lower(plain).find(want) != std::string::npos)
+                        badgeRow = static_cast<int>(r);
+                }
+                if (badgeRow < 0)
+                    badgeRow = static_cast<int>(rows.size()) - 1;
+            }
             bgV.clear();
             textV.clear();
             shadowV.clear();
@@ -2213,14 +2253,21 @@ namespace perlin::entity {
                 const std::string& text = rows[row];
                 const float rowY = (static_cast<float>(row) - static_cast<float>(rows.size() - 1)) * 10.0f;
 
-                const float width = font.Width(style.Codes() + text);
+                const bool badge = static_cast<int>(row) == badgeRow;
+                // 9x9 logo and a 2px gap ahead of the text, the whole row stays centred
+                constexpr float kBadge = 9.0f, kBadgeGap = 2.0f;
+                const float textWidth = font.Width(style.Codes() + text);
+                const float width = textWidth + (badge ? kBadge + kBadgeGap : 0.0f);
                 const float left = -width * 0.5f;
+                if (badge)
+                    quad(badgeV, badgeI, left, rowY - 1.0f, left + kBadge, rowY + 8.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                         0xFFFFFFFFu);
 
                 const bool joinsNext = row + 1 < rows.size() && !rows[row + 1].empty();
                 if (!text.empty() && in.nametagBackground)
                     quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + (joinsNext ? 9.0f : 8.0f),
                          0, 0, 0, 0, PackColor(glm::vec3(0.0f), 0.25f));
-                float pen = left;
+                float pen = left + (badge ? kBadge + kBadgeGap : 0.0f);
                 for (size_t i = 0; i < text.size();) {
                     uint32_t cp = 0;
                     if (!ui::McFont::Next(text, i, cp))
@@ -2290,9 +2337,11 @@ namespace perlin::entity {
             submit(bgV, bgI, 0, true, 1.0f);
             submit(shadowV, shadowI, fontTexture, true, tag.sneaking ? 1.0f : 32.0f / 255.0f);
             submit(textV, textI, fontTexture, true, tag.sneaking ? 1.0f : 32.0f / 255.0f);
+            submit(badgeV, badgeI, badgeTexture, true, tag.sneaking ? 1.0f : 32.0f / 255.0f);
             if (!tag.sneaking) {
                 submit(shadowV, shadowI, fontTexture, false, 1.0f);
                 submit(textV, textI, fontTexture, false, 1.0f);
+                submit(badgeV, badgeI, badgeTexture, false, 1.0f);
             }
             if (in.nametagDepth && !bgV.empty()) {
                 const uint32_t mesh =
@@ -2506,6 +2555,10 @@ namespace perlin::entity {
                         glm::dvec3(0.0, static_cast<double>(hb.second) + 0.5,
                                    0.0);
                     t.sneaking = e.Has(flag::Sneaking);
+                    // we run Perlin ourselves: no need to wait for our own skin to come back from the server
+                    if (in.perlinBadges && e.isPlayer &&
+                        (e.isSelf || (e.skin && brand::IsPerlinSkinId(e.skin->skinId))))
+                        t.badgeName = e.name.empty() ? std::string(" ") : e.name;
                     tags.push_back(std::move(t));
                 }
             }
