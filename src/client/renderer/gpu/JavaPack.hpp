@@ -72,6 +72,8 @@ namespace perlin::gpu {
 
         void SetDimension(const std::string& folder);
         void SetAtlas(const uint8_t* rgba, int tilePx, int tiles);
+        // writes tiles [first, tiles) into the spare grid cells; false when they don't fit (caller rebuilds)
+        bool AppendTiles(const uint8_t* rgba, int tilePx, int first, int tiles);
         void UpdateTile(int tile, const uint8_t* rgba);
         bool HasAtlas() const { return static_cast<bool>(atlas); }
 
@@ -505,6 +507,7 @@ namespace perlin::gpu {
 
         conduit::texture_handle atlas;
         int atlasTilePx = 16, atlasTiles = 0, gridCols = 1, gridRows = 1, atlasWidth = 0, atlasLevels = 1;
+        int atlasCapacity = 0;
 
         float prevModelView[16] = {}, prevProjection[16] = {};
         double prevCamera[3] = {0, 0, 0};

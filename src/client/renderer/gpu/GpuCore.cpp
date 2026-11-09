@@ -316,6 +316,8 @@ namespace perlin::gpu {
             make(filter::linear, address_mode::repeat, false);
         samplers[static_cast<size_t>(SamplerKind::LinearMipRepeat)] =
             make(filter::linear, address_mode::repeat, true);
+        samplers[static_cast<size_t>(SamplerKind::LinearMipClamp)] =
+            make(filter::linear, address_mode::clamp, true);
         {
             sampler_desc sd;
             sd.min = sd.mag = filter::nearest;
@@ -481,7 +483,26 @@ namespace perlin::gpu {
     void Gpu::BeginFrame() {
         device->begin_frame();
         const uint32_t slot = FrameSlot();
-        for (RingChunk& r : rings[slot])
+        auto& chunks = rings[slot];
+        auto& groups = ringGroups[slot];
+        // a big one-off upload (an hd atlas, a pack reload) grows the ring by tens of MB of mapped memory;
+        // chunks unused for ~240 cycles of this slot go back, except a normal-sized first one. begin_frame has
+        // waited for this slot, so nothing in flight still reads them; Ring() makes a new chunk on demand
+        constexpr uint32_t kIdleCycles = 240;
+        for (size_t i = chunks.size(); i-- > 0;) {
+            RingChunk& r = chunks[i];
+            const bool oversized = r.size > 2 * kRingChunk;
+            r.idle = r.used && !(i == 0 && oversized) ? 0 : r.idle + 1;
+            if (r.idle < kIdleCycles || (i == 0 && !oversized))
+                continue;
+            device->destroy(r.buffer);
+            if (i < groups.size()) {
+                device->destroy(groups[i]);
+                groups.erase(groups.begin() + static_cast<std::ptrdiff_t>(i));
+            }
+            chunks.erase(chunks.begin() + static_cast<std::ptrdiff_t>(i));
+        }
+        for (RingChunk& r : chunks)
             r.used = 0;
         ringCursor[slot] = 0;
     }
@@ -614,7 +635,8 @@ namespace perlin::gpu {
     }
 
     texture_handle Gpu::CreateSampled(texture_desc desc) {
-        desc.usage = desc.usage | texture_usage::sampled | texture_usage::copy_dst;
+        // copy_src: ReadTextures pulls ui textures back on a renderer switch instead of keeping cpu copies
+        desc.usage = desc.usage | texture_usage::sampled | texture_usage::copy_dst | texture_usage::copy_src;
         const texture_handle h = device->create_texture(desc);
         if (h)
             textureStates[h.value] = state::undefined;
@@ -773,6 +795,66 @@ namespace perlin::gpu {
 }
 
 namespace perlin::gpu {
+    std::vector<std::vector<uint8_t>> Gpu::ReadTextures(std::span<const texture_handle> textures) {
+        std::vector<std::vector<uint8_t>> out(textures.size());
+        const uint64_t pitchAlign = std::max<uint64_t>(1, Caps().limits.copy_row_pitch_alignment);
+        const uint64_t offsetAlign = std::max<uint64_t>(16, Caps().limits.copy_offset_alignment);
+        std::vector<uint64_t> at(textures.size(), 0);
+        std::vector<uint32_t> pitch(textures.size(), 0);
+        uint64_t total = 0;
+        for (size_t i = 0; i < textures.size(); i++) {
+            const texture_desc* td = textures[i] ? device->get_desc(textures[i]) : nullptr;
+            if (!td || td->format != format::rgba8_unorm || !td->width || !td->height)
+                continue;
+            pitch[i] = static_cast<uint32_t>(AlignUp(static_cast<uint64_t>(td->width) * 4, pitchAlign));
+            total = AlignUp(total, offsetAlign);
+            at[i] = total;
+            total += static_cast<uint64_t>(pitch[i]) * td->height;
+        }
+        if (!total)
+            return out;
+        buffer_desc bd;
+        bd.size = total;
+        bd.usage = buffer_usage::copy_dst;
+        bd.memory = memory_class::readback;
+        bd.name = "texture snapshot";
+        const buffer_handle readback = device->create_buffer(bd);
+        if (!readback)
+            return out;
+        command_list* list = device->acquire_command_list(queue_type::graphics);
+        Flush(*list);
+        for (size_t i = 0; i < textures.size(); i++) {
+            if (!pitch[i])
+                continue;
+            const texture_desc* td = device->get_desc(textures[i]);
+            const state resting = StateOf(textures[i]);
+            Transition(*list, textures[i], state::copy_src);
+            buffer_texture_copy c;
+            c.buffer_offset = at[i];
+            c.buffer_row_pitch = pitch[i];
+            c.width = td->width;
+            c.height = td->height;
+            list->copy_texture_to_buffer(readback, textures[i], std::span<const buffer_texture_copy>(&c, 1));
+            Transition(*list, textures[i], resting == state::undefined ? state::shader_read : resting);
+        }
+        FlushRings();
+        device->submit(queue_type::graphics, list);
+        device->wait_idle();
+        device->invalidate(readback, 0, total);
+        if (const uint8_t* mapped = device->map(readback))
+            for (size_t i = 0; i < textures.size(); i++) {
+                if (!pitch[i])
+                    continue;
+                const texture_desc* td = device->get_desc(textures[i]);
+                const size_t row = static_cast<size_t>(td->width) * 4;
+                out[i].resize(row * td->height);
+                for (uint32_t y = 0; y < td->height; y++)
+                    std::memcpy(out[i].data() + row * y, mapped + at[i] + static_cast<uint64_t>(pitch[i]) * y, row);
+            }
+        device->destroy(readback);
+        return out;
+    }
+
     std::vector<std::vector<uint8_t>> Gpu::ReadBuffers(std::span<const BufferSource> sources) {
         std::vector<std::vector<uint8_t>> out(sources.size());
         uint64_t total = 0;

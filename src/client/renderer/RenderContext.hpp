@@ -209,6 +209,8 @@ namespace perlin {
         virtual bool RequestRendererSwitch(const std::string&) { return false; }
         virtual bool RendererSwitchPending() const { return false; }
         virtual std::string ActiveRendererId() const { return {}; }
+        // process gpu memory: device-local and system (shared) segments, false when the backend cannot tell
+        virtual bool GpuMemoryUsage(uint64_t& dedicated, uint64_t& shared) { (void)dedicated; (void)shared; return false; }
         virtual std::string RendererName() const { return {}; }
         virtual std::string GpuVendor() const { return {}; }
         virtual std::string GpuDescription() const { return {}; }
@@ -238,6 +240,11 @@ namespace perlin {
         virtual int MaxAtlasLayers(int) const { return kAtlasPageLayers; }
         virtual void UpdateAtlasRegion(int tile, const uint8_t* rgba) = 0;
 
+        // linear, mipmapped: levels[0] is width x height, each next level half the size; for images shown
+        // small and far, like nametag icons
+        virtual uint32_t UiCreateTextureMipped(int width, int height, const std::vector<const uint8_t*>& levels) {
+            return levels.empty() ? 0 : UiCreateTexture(width, height, levels[0], true);
+        }
         virtual uint32_t UiCreateTexture(int width, int height, const uint8_t* rgba, bool linear,
                                          bool repeat = false) = 0;
         virtual void UiDestroyTexture(uint32_t texture) = 0;

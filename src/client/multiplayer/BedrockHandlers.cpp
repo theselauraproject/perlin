@@ -501,6 +501,8 @@ namespace perlin {
         });
 
         OnPartial<StartGamePacket>([this](const StartGamePacket& p) {
+            // proxies move players between worlds with a fresh StartGame: forms from the old one go
+            DropFormsForWorldChange();
             BlockPalette::Instance().UseProtocol(serverProtocol);
             {
                 std::lock_guard lock(worldNameMutex);

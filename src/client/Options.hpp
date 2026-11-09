@@ -94,6 +94,8 @@ namespace perlin {
         bool nametagBackground = true;
         bool nametagShadow = false;
         bool perlinBadges = true;
+        // frame cap while another window has focus; 0 keeps the normal cap
+        int backgroundFps = 30;
         // OptiFine skies (optifine/sky, mcpatcher/sky) and Bedrock overworld cubemaps from texture packs
         bool customSkies = true;
         bool fovEffects = true;

@@ -1,3 +1,4 @@
+#include "client/ui/PerlinBadge.hpp"
 #include <atomic>
 #include "client/resources/AssetJobs.hpp"
 #include "client/resources/TexturePack.hpp"
@@ -126,6 +127,27 @@ namespace perlin::ui {
         }
 
         Rml::TextureHandle LoadTexture(Rml::Vector2i& dimensions, const Rml::String& source) override {
+            // the Perlin logo: shown at 8 gui px, so it needs trilinear filtering; nearest at the exact size
+            // turns its thin lines into noise
+            if (source == "mchead:perlin:badge") {
+                std::vector<Texture> chain;
+                for (int size = 256; size >= 1; size /= 2) {
+                    chain.push_back(PerlinBadge(size));
+                    if (chain.back().width != size) {
+                        chain.pop_back();
+                        break;
+                    }
+                }
+                if (chain.empty())
+                    return 0;
+                std::vector<const uint8_t*> levels;
+                for (Texture& level : chain) {
+                    Premultiply(level);
+                    levels.push_back(level.pixels.data());
+                }
+                dimensions = {256, 256};
+                return static_cast<Rml::TextureHandle>(gRenderer->UiCreateTextureMipped(256, 256, levels));
+            }
             Texture t;
             if (source == "mc:white") {
                 t.width = t.height = 1;

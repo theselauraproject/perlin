@@ -100,6 +100,27 @@ namespace perlin {
         }
     }
 
+    uint32_t RenderContext_rhi::UiCreateTextureMipped(int w, int h, const std::vector<const uint8_t*>& levels) {
+        if (!initialized || w <= 0 || h <= 0 || levels.empty() || !levels[0])
+            return 0;
+        TexRec rec;
+        if (!MakeTexture(rec, static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1,
+                         static_cast<uint32_t>(levels.size()), conduit::format::rgba8_unorm,
+                         gpu::SamplerKind::LinearMipClamp, "ui texture (mipped)"))
+            return 0;
+        for (size_t l = 0; l < levels.size(); l++)
+            if (levels[l])
+                gpu.WriteTexture(rec.handle, 0, 0, 0, static_cast<uint32_t>(std::max(1, w >> l)),
+                                 static_cast<uint32_t>(std::max(1, h >> l)), levels[l], 0, static_cast<uint32_t>(l));
+        for (size_t i = 0; i < uiTextures.size(); i++)
+            if (!uiTextures[i].used) {
+                uiTextures[i] = rec;
+                return static_cast<uint32_t>(i + 1);
+            }
+        uiTextures.push_back(rec);
+        return static_cast<uint32_t>(uiTextures.size());
+    }
+
     uint32_t RenderContext_rhi::UiCreateTexture(int w, int h, const uint8_t* rgba, bool linear, bool repeat) {
         if (!initialized || w <= 0 || h <= 0 || !rgba)
             return 0;
@@ -111,7 +132,6 @@ namespace perlin {
                          conduit::format::rgba8_unorm, sampler, "ui texture"))
             return 0;
         gpu.WriteTexture(rec.handle, 0, 0, 0, static_cast<uint32_t>(w), static_cast<uint32_t>(h), rgba);
-        rec.backup.assign(rgba, rgba + static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
         for (size_t i = 0; i < uiTextures.size(); i++)
             if (!uiTextures[i].used) {
                 uiTextures[i] = rec;
@@ -132,10 +152,6 @@ namespace perlin {
         const size_t pitch = rowBytes > 0 ? static_cast<size_t>(rowBytes) : static_cast<size_t>(w) * 4;
         gpu.WriteTexture(rec.handle, 0, static_cast<uint32_t>(x), static_cast<uint32_t>(y), static_cast<uint32_t>(w),
                          static_cast<uint32_t>(h), rgba, static_cast<uint32_t>(pitch));
-        if (rec.backup.size() == static_cast<size_t>(rec.w) * rec.h * 4)
-            for (int row = 0; row < h; row++)
-                std::memcpy(rec.backup.data() + (static_cast<size_t>(y + row) * rec.w + static_cast<size_t>(x)) * 4,
-                            rgba + static_cast<size_t>(row) * pitch, static_cast<size_t>(w) * 4);
         return true;
     }
 

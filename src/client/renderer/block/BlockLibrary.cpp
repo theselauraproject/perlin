@@ -347,7 +347,7 @@ namespace perlin {
         }
 
         struct PrefetchGuard {
-            ~PrefetchGuard() { PrefetchCache().clear(); }
+            ~PrefetchGuard() { std::unordered_map<std::string, Texture>().swap(PrefetchCache()); }
         };
     }
 
@@ -690,6 +690,14 @@ namespace perlin {
         const json::View vBlocks = blocksDocument->root();
         const json::View vTerrain = terrainDocument->root();
         const json::View texData = vTerrain.contains("texture_data") ? vTerrain["texture_data"] : vTerrain;
+        // atlas tiles the game animates: terrain_texture points some (fire_0, fire_1, soul fire) at a dark
+        // *_placeholder image and the game swaps in this strip at runtime
+        std::unordered_map<std::string, std::string> flipbooks;
+        if (const std::string text = file::Read(vanillaRpRoot + "/textures/flipbook_textures.json"); !text.empty())
+            if (const auto doc = json::Document::Parse(text, true))
+                for (const json::View e : doc->root().items())
+                    if (e.isObject() && e["atlas_tile"].isString() && e["flipbook_texture"].isString())
+                        flipbooks[e["atlas_tile"].str()] = e["flipbook_texture"].str();
 
         if (!BlockPalette::Instance().NamesLoaded()) {
             std::string defs = vanillaRpRoot + "/../metadata/vanilladata_modules/mojang-blocks.json";
@@ -759,6 +767,13 @@ namespace perlin {
                 if (all && t)
                     all->push_back(t);
                 return t;
+            }
+            if (const auto fb = flipbooks.find(texName); fb != flipbooks.end()) {
+                if (const int t = FetchTile(fb->second, vanillaRpRoot)) {
+                    if (all)
+                        all->push_back(t);
+                    return t;
+                }
             }
             if (!texData.contains(texName)) {
                 int t = FetchTile(texName, vanillaRpRoot);
@@ -1530,6 +1545,10 @@ namespace perlin {
         }
         for (const CustomBlockDef& def : defs)
             ServerBlocks::Instance().MarkBuilt(def.name);
+        // every decoded server-pack texture sits in the prefetch cache: drop it once the queue is drained,
+        // late definitions load their few files directly
+        if (!ServerBlocks::Instance().Pending())
+            std::unordered_map<std::string, Texture>().swap(ServerPrefetchCache());
 
         if (any)
             geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);

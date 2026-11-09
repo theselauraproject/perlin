@@ -13,7 +13,10 @@ namespace perlin {
     void TrimMemory(bool aggressive) {
 #if defined(_WIN32)
         _heapmin();
-        (void)aggressive;
+        // minimized: hand the working set back to the os so other instances can use the ram; pages fault
+        // back in on restore
+        if (aggressive)
+            SetProcessWorkingSetSize(GetCurrentProcess(), static_cast<SIZE_T>(-1), static_cast<SIZE_T>(-1));
 #elif defined(__GLIBC__)
         (void)aggressive;
         malloc_trim(0);

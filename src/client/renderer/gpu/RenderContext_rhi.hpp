@@ -114,6 +114,7 @@ namespace perlin {
 
         bool Initialize(AppPlatform& platform, const Options& options) override;
         void Shutdown() override;
+        bool GpuMemoryUsage(uint64_t& dedicated, uint64_t& shared) override;
         std::string RendererName() const override { return rendererName; }
         std::string GpuVendor() const override;
         std::string GpuDescription() const override;
@@ -187,6 +188,7 @@ namespace perlin {
         int MaxAtlasLayers(int tilePx) const override;
         void UpdateAtlasRegion(int tile, const uint8_t* rgba) override;
 
+        uint32_t UiCreateTextureMipped(int width, int height, const std::vector<const uint8_t*>& levels) override;
         uint32_t UiCreateTexture(int w, int h, const uint8_t* rgba, bool linear,
                                  bool repeat = false) override;
         void UiDestroyTexture(uint32_t texture) override;
@@ -516,6 +518,7 @@ namespace perlin {
         TexRec& AtlasPage(int page) { return page == 0 ? atlas : atlasMore[static_cast<size_t>(page - 1)]; }
         int AtlasLayersFor(int tiles, int tilePx) const;
         bool MakeAtlasPage(int page, int tiles, int tilePx);
+        bool GrowAtlasPage(int page, int tiles);
         void FreeAtlas();
         void BindAtlas();
 
@@ -624,6 +627,10 @@ namespace perlin {
         conduit::buffer_handle topSky, bottomSky, skyBox, skyBoxIdx, screenTri, starVerts, starIdx, sunriseVerts,
             sunriseIdx, sunVerts, moonVerts, quadIdx, fanIdx, customSkyBox, customSkyCube, endSkyBox;
         std::vector<TexRec> customSkyTex;
+        // per texture: 24 vertices of the OptiFine box (3x2 cells), then 24 of the Bedrock cube faces, each
+        // with uvs pulled inside the texture so filtering never reaches a neighbour cell or the border
+        std::vector<conduit::buffer_handle> customSkyVb;
+        void FreeCustomSkyVb();
         uint32_t starIndexCount = 0, skyFanIndexCount = 0, sunriseIndexCount = 0;
 
         CloudTexture cloudTexture;

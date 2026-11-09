@@ -60,6 +60,7 @@ namespace perlin::gpu {
         LinearRepeat,
         LinearMipRepeat,
         PointMipClamp,
+        LinearMipClamp,
         Count
     };
 
@@ -224,6 +225,8 @@ namespace perlin::gpu {
         };
 
         std::vector<std::vector<uint8_t>> ReadBuffers(std::span<const BufferSource> sources);
+        // mip 0, layer 0 of rgba8 textures, rows packed; empty for other formats; stalls the gpu
+        std::vector<std::vector<uint8_t>> ReadTextures(std::span<const conduit::texture_handle> textures);
 
     private:
         struct RingChunk {
@@ -231,6 +234,8 @@ namespace perlin::gpu {
             uint8_t* data = nullptr;
             uint64_t size = 0;
             uint64_t used = 0;
+            // frame cycles of this slot without use; extra chunks are released after a while
+            uint32_t idle = 0;
         };
         struct BufferWrite {
             conduit::buffer_handle buffer;

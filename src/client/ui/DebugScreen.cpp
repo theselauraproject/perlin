@@ -122,6 +122,10 @@ namespace perlin::ui {
                 T("perlin.debug.allocated", {N(static_cast<long long>(d.memPeak * 100 / d.memTotal)),
                                              N(static_cast<long long>(Mb(d.memPeak)))}));
         }
+        if (d.vramKnown)
+            right.push_back(T("perlin.debug.vram", {N(static_cast<long long>(Mb(d.vramDedicated + d.vramShared))),
+                                                    N(static_cast<long long>(Mb(d.vramDedicated))),
+                                                    N(static_cast<long long>(Mb(d.vramShared)))}));
         right.push_back("");
         right.push_back(T("perlin.debug.cpu", {N(d.cpuThreads), d.cpuName.empty() ? unknown : d.cpuName}));
         right.push_back("");

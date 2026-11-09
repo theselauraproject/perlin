@@ -284,6 +284,10 @@ namespace perlin::server {
         for (auto& [id, session] : sessions)
             session->Tick(tick);
         ReapClosed();
+        if (--unloadCountdown <= 0) {
+            unloadCountdown = 100;
+            UnloadFarChunks();
+        }
         if (advance) {
             tickMillis.push_back(
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - began).count());
@@ -622,6 +626,25 @@ namespace perlin::server {
         if (!w.Peek({x >> 4, z >> 4}))
             return BlockRegistry::kAir;
         return w.GetBlock(x, y, z);
+    }
+
+    void Server::UnloadFarChunks() {
+        // 4 chunks of slack past each view radius: walking back and forth over a border doesn't regenerate
+        constexpr int kMargin = 4;
+        for (int dim = kOverworld; dim < kDimensionCount; dim++) {
+            ChunkManager* world = dim == kOverworld ? chunks.get() : otherWorlds[static_cast<size_t>(dim)].get();
+            if (!world || world->Loaded() == 0)
+                continue;
+            std::vector<ChunkManager::Viewer> viewers;
+            for (auto& [id, s] : sessions)
+                if (s->DimensionId() == dim)
+                    viewers.push_back({{static_cast<int>(std::floor(s->X())) >> 4, static_cast<int>(std::floor(s->Z())) >> 4},
+                                       std::max(s->ChunkRadius(), 8)});
+            // nobody here (yet): keep the spawn area for the next join
+            if (viewers.empty())
+                continue;
+            world->UnloadFar(viewers, kMargin);
+        }
     }
 
     std::vector<Session*> Server::InGamePlayers() {

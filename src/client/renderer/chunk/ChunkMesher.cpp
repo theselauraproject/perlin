@@ -1373,8 +1373,16 @@ namespace perlin {
                                                 if (negate)
                                                     d[a] = -d[a];
                                             }
-                                            const uint16_t nn = cache.Get(x + d[0], y + d[1], z + d[2]);
-                                            return nn != id;
+                                            // connected only when the neighbour is the same glass (id or look,
+                                            // the rule the face cull uses) and its own face here is visible:
+                                            // covered by more of the same glass, OptiFine draws the border
+                                            const int* fn = kDV[q.dir];
+                                            const auto same = [&](uint16_t nn) {
+                                                return nn != 0 && (nn == id || library->Look(nn).side == baseTile);
+                                            };
+                                            if (!same(cache.Get(x + d[0], y + d[1], z + d[2])))
+                                                return true;
+                                            return same(cache.Get(x + d[0] + fn[0], y + d[1] + fn[1], z + d[2] + fn[2]));
                                         };
                                         if (edgeL && exposed(q.pos[ia], q.pos[ib], true))
                                             mask |= 1;
@@ -1979,7 +1987,8 @@ namespace perlin {
                             if (neighborId != 0 && cache.Occ(x + nx, y + ny, z + nz))
                                 return;
                             if (neighborId != 0 && (translucent || (library && library->IsGlassBase(tile))) &&
-                                neighborId == id)
+                                (neighborId == id || (library && library->GlassMode() && library->IsGlassBase(tile) &&
+                                                      library->Look(neighborId).side == tile)))
                                 return;
                             if (isWater) {
                                 const uint16_t other = EffLiquid(cache, library, x + nx, y + ny, z + nz);
@@ -2002,15 +2011,24 @@ namespace perlin {
                                     du[0] = 1;
                                     dv[2] = ny > 0 ? 1 : -1;
                                 }
-                                const auto sameGlass = [&](uint16_t nn) { return nn == id; };
+                                // same rule as the cull above and the model path: same id or same glass look,
+                                // and the neighbour's face on this side not covered by more of that glass
+                                const int baseTile = tile;
+                                const auto same = [&](uint16_t nn) {
+                                    return nn != 0 && (nn == id || library->Look(nn).side == baseTile);
+                                };
+                                const auto sameGlass = [&](int sx, int sy, int sz) {
+                                    return same(cache.Get(x + sx, y + sy, z + sz)) &&
+                                           !same(cache.Get(x + sx + nx, y + sy + ny, z + sz + nz));
+                                };
                                 int mask = 0;
-                                if (!sameGlass(cache.Get(x - du[0], y - du[1], z - du[2])))
+                                if (!sameGlass(-du[0], -du[1], -du[2]))
                                     mask |= 1;
-                                if (!sameGlass(cache.Get(x + du[0], y + du[1], z + du[2])))
+                                if (!sameGlass(du[0], du[1], du[2]))
                                     mask |= 2;
-                                if (!sameGlass(cache.Get(x - dv[0], y - dv[1], z - dv[2])))
+                                if (!sameGlass(-dv[0], -dv[1], -dv[2]))
                                     mask |= 4;
-                                if (!sameGlass(cache.Get(x + dv[0], y + dv[1], z + dv[2])))
+                                if (!sameGlass(dv[0], dv[1], dv[2]))
                                     mask |= 8;
                                 glassMask = mask;
                                 tile = library->GlassTile(tile, glassMode, mask);

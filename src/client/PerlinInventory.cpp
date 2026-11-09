@@ -23,6 +23,14 @@ namespace perlin {
         const bool workbenchOpened = live && live->TakeWorkbenchOpened();
         const bool horseOpened = live && live->TakeHorseOpened();
         const bool chestOpened = live && live->TakeChestOpened();
+        // build the chest screen ahead of time: no-op while packs are unchanged, so opening never waits on it
+        if (live) {
+            static TimePoint lastWarm{};
+            if (now - lastWarm > std::chrono::seconds(1)) {
+                lastWarm = now;
+                inventory.chestUi.Warm(ServerPacks::Instance().Directories());
+            }
+        }
         if (!inventory.shown && (workbenchOpened || horseOpened || chestOpened) && !death.shown) {
             if (chestOpened) {
                 inventory.chestUi.Warm(ServerPacks::Instance().Directories());

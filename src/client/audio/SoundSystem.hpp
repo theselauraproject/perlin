@@ -1,4 +1,5 @@
 #pragma once
+#include <deque>
 #include "client/audio/AudioEngine.hpp"
 
 #include <functional>
@@ -81,6 +82,8 @@ namespace perlin::audio {
         std::unordered_map<std::string, EventSound> named;
         std::unordered_map<std::string, std::string> blockSoundType;
         std::unordered_map<std::string, PcmPtr> cache;
+        // load order for eviction, oldest first
+        std::deque<std::string> cacheOrder;
         size_t cacheBytes = 0;
         std::map<std::string, bool> warned;
         std::mt19937 rng{std::random_device{}()};

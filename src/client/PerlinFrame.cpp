@@ -591,7 +591,7 @@ namespace perlin {
                 !loaded || (blockuse::IsInteractive(BlockPalette::Instance().Name(id)) && !player.Sneaking());
         } else if (aimHit.kind == AimHit::Kind::Entity) {
             entity::Entity target;
-            aimInteracts = !live.Entities().Find(aimHit.entity, target) || frame::IsInteractable(target.type);
+            aimInteracts = !live.Entities().Find(aimHit.entity, target) || frame::TakesItemUse(target.type);
         }
         if (use && eating && !aimInteracts && inputManager.Pressed(Action::Use) &&
             !DispatchModInteract(abi::InteractKind::UseItem, 0, 0, 0, 0, 0)) {
@@ -875,18 +875,35 @@ namespace perlin {
             renderer->SetVsync(appliedVsync);
         }
         {
-            static bool background = false;
-            static int backgroundCheck = 0;
-            if (exportJob.active) {
-                background = false;
-            } else if (++backgroundCheck >= 30) {
-                backgroundCheck = 0;
-                background = ProcessInBackground();
+            // asks the os directly (no event pump needed), cheap enough for every frame and inside the sleep
+            const auto away = [&] {
+#if defined(_WIN32)
+                return ProcessInBackground();
+#else
+                return !platform->WindowFocused();
+#endif
+            };
+            const bool background = !exportJob.active && away();
+            // minimized: nothing is presented, keep the game ticking at the lowest rate
+            const bool minimized = !exportJob.active && platform->WindowMinimized();
+            static auto minimizedSince = Clock::time_point{};
+            static bool trimmed = false;
+            if (!minimized) {
+                minimizedSince = {};
+                trimmed = false;
+            } else if (minimizedSince == Clock::time_point{}) {
+                minimizedSince = frameStart;
+            } else if (!trimmed && frameStart - minimizedSince > std::chrono::seconds(5)) {
+                trimmed = true;
+                std::thread([] { TrimMemory(true); }).detach();
             }
-            if (background) {
-                const auto target = frameStart + std::chrono::microseconds(1000000 / 60);
-                if (Clock::now() < target)
-                    std::this_thread::sleep_until(target);
+            const int cap = minimized ? 5 : background ? options.backgroundFps : 0;
+            if (cap > 0) {
+                // short slices: the moment the window is focused again the wait ends and the next frame runs
+                // at the normal rate, instead of finishing a 200 ms minimized-rate sleep
+                const auto target = frameStart + std::chrono::microseconds(1000000 / cap);
+                while (Clock::now() < target && away())
+                    std::this_thread::sleep_until(std::min(target, Clock::now() + std::chrono::milliseconds(5)));
             }
         }
         const int fpsCap = ModFrameLimit(options.maxFps);

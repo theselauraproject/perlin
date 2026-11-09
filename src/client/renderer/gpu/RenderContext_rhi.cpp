@@ -309,6 +309,17 @@ namespace perlin {
         return programIds[static_cast<size_t>(program)];
     }
 
+    bool RenderContext_rhi::GpuMemoryUsage(uint64_t& dedicated, uint64_t& shared) {
+        if (!initialized)
+            return false;
+        const conduit::memory_budget b = gpu.Dev().query_memory_budget();
+        if (!b.valid)
+            return false;
+        dedicated = b.device_usage;
+        shared = b.host_usage;
+        return true;
+    }
+
     bool RenderContext_rhi::MakeTexture(TexRec& rec, uint32_t w, uint32_t h, uint32_t layers, uint32_t mips,
                                         conduit::format format, gpu::SamplerKind sampler, const char* name) {
         FreeTexture(rec);
@@ -487,6 +498,7 @@ namespace perlin {
              {&lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
               &javaNormalDef, &javaSpecDef, &javaBlack, &javaCloudWater, &javaMaterials})
             FreeTexture(*t);
+        FreeCustomSkyVb();
         for (TexRec& t : customSkyTex)
             FreeTexture(t);
         customSkyTex.clear();
@@ -1499,6 +1511,15 @@ namespace perlin {
         std::vector<std::vector<uint8_t>> uiBlobs = gpu.ReadBuffers(uiSources);
 
         std::vector<TexRec> uiSaved = uiTextures;
+        {
+            // ui textures keep no cpu copy while running: read them back once, here
+            std::vector<conduit::texture_handle> handles;
+            for (const TexRec& t : uiTextures)
+                handles.push_back(t.used ? t.handle : conduit::texture_handle{});
+            std::vector<std::vector<uint8_t>> pixels = gpu.ReadTextures(handles);
+            for (size_t i = 0; i < uiSaved.size() && i < pixels.size(); i++)
+                uiSaved[i].backup = std::move(pixels[i]);
+        }
         for (TexRec& t : uiSaved)
             t.handle = {};
         std::vector<uint8_t> flagsSaved = tileFlagData;
@@ -1602,10 +1623,8 @@ namespace perlin {
             const TexRec& s = uiSaved[i];
             if (!s.used || s.backup.empty())
                 continue;
-            if (MakeTexture(uiTextures[i], s.w, s.h, 1, 1, s.format, s.sampler, "ui texture")) {
+            if (MakeTexture(uiTextures[i], s.w, s.h, 1, 1, s.format, s.sampler, "ui texture"))
                 gpu.WriteTexture(uiTextures[i].handle, 0, 0, 0, s.w, s.h, s.backup.data());
-                uiTextures[i].backup = s.backup;
-            }
         }
         if (!atlasSaved.empty())
             UploadAtlas(atlasSaved.data(), tilePxSaved, atlasTilesSaved);

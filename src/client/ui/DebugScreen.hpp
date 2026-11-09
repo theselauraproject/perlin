@@ -31,6 +31,8 @@ namespace perlin::ui {
 
         std::string compiler;
         uint64_t memUsed = 0, memPeak = 0, memTotal = 0;
+        bool vramKnown = false;
+        uint64_t vramDedicated = 0, vramShared = 0;
         int cpuThreads = 0;
         std::string cpuName;
         int displayW = 0, displayH = 0;

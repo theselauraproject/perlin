@@ -100,6 +100,7 @@ namespace perlin {
             bool customSkies = true;
             bool clouds = true;
             bool perlinBadges = true;
+            int backgroundFps = 30;
         };
     }
 
@@ -380,6 +381,7 @@ namespace perlin {
         o.customSkies = stored.customSkies;
         o.clouds = stored.clouds;
         o.perlinBadges = stored.perlinBadges;
+        o.backgroundFps = std::clamp(stored.backgroundFps, 0, 240);
         return o;
     }
 
@@ -473,6 +475,7 @@ namespace perlin {
         stored.customSkies = customSkies;
         stored.clouds = clouds;
         stored.perlinBadges = perlinBadges;
+        stored.backgroundFps = backgroundFps;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))

@@ -181,6 +181,16 @@ namespace perlin {
     }
 
     void LevelRenderer::ReloadAssetsIfNeeded() {
+        // mesh jobs hold their own reference; everyone else is re-pointed in onLibrarySwap
+        if (retiredBlocks && std::chrono::steady_clock::now() - retiredAt > std::chrono::seconds(10)) {
+            std::shared_ptr<BlockLibrary> oldBlocks;
+            std::shared_ptr<BiomeTints> oldTints;
+            {
+                std::lock_guard lock(libraryMutex);
+                oldBlocks = std::move(retiredBlocks);
+                oldTints = std::move(retiredTints);
+            }
+        }
         if (const uint32_t packs = ServerPacks::Instance().Generation(); !serverPackGenerationKnown) {
             serverPackGeneration = packs;
             serverPackGenerationKnown = true;
@@ -242,6 +252,7 @@ namespace perlin {
                 std::lock_guard lock(libraryMutex);
                 retiredBlocks = std::exchange(blocks, std::move(stagedBlocks));
                 retiredTints = std::exchange(biomeTints, std::move(stagedTints));
+                retiredAt = std::chrono::steady_clock::now();
             }
             BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
             builtForPacks = stagedPacks;

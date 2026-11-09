@@ -1234,7 +1234,16 @@ namespace perlin {
         state = State::Connecting;
     }
 
+    void BedrockSession::DropFormsForWorldChange() {
+        {
+            std::lock_guard<std::mutex> lk(serverUiMutex);
+            pendingForms.clear();
+        }
+        formClosed = true;
+    }
+
     void BedrockSession::ResetWorldForDimension() {
+        DropFormsForWorldChange();
         {
             std::lock_guard<std::mutex> lk(chunkMutex);
             chunkIn.clear();

@@ -142,6 +142,20 @@ namespace perlin {
         d.memUsed = sysinfo::ProcessMemory();
         d.memPeak = sysinfo::ProcessPeakMemory();
         d.memTotal = sysinfo::TotalMemory();
+        {
+            // the dxgi query walks the driver's residency lists: twice a second is plenty for F3
+            static auto lastQuery = std::chrono::steady_clock::time_point{};
+            static bool known = false;
+            static uint64_t dedicated = 0, shared = 0;
+            const auto now = std::chrono::steady_clock::now();
+            if (renderer && now - lastQuery > std::chrono::milliseconds(500)) {
+                lastQuery = now;
+                known = renderer->GpuMemoryUsage(dedicated, shared);
+            }
+            d.vramKnown = known;
+            d.vramDedicated = dedicated;
+            d.vramShared = shared;
+        }
         d.cpuThreads = sysinfo::CpuThreads();
         static const std::string cpu = sysinfo::CpuName();
         d.cpuName = cpu;
@@ -463,18 +477,12 @@ namespace perlin {
         s.tabOpen = inputManager.IsDown(Action::PlayerList) && !inputManager.Blocked();
         s.tabEntries.clear();
         if (s.tabOpen) {
-            // prefiltered to the exact pixel size: ui images sample nearest, and the logo needs a box filter
+            // the ui backend loads this key as a mipmapped texture (RmlBackend::LoadTexture)
             std::string badgeKey;
-            if (options.perlinBadges) {
-                const int px = 8 * std::max(1, hud ? hud->Scale() : 1);
-                badgeKey = "perlin:badge:" + std::to_string(px);
-                if (!ui::UiAssets::Instance().HasHead(badgeKey)) {
-                    Texture badge = ui::PerlinBadge(px);
-                    if (badge.width > 0)
-                        ui::UiAssets::Instance().SetHead(badgeKey, std::move(badge));
-                    else
-                        badgeKey.clear();
-                }
+            if (options.perlinBadges && ui::PerlinBadgeSource().width > 0) {
+                badgeKey = "perlin:badge";
+                if (!ui::UiAssets::Instance().HasHead(badgeKey))
+                    ui::UiAssets::Instance().SetHead(badgeKey, ui::PerlinBadgeSource());
             }
             auto players = live->PlayerList();
             std::stable_sort(players.begin(), players.end(),

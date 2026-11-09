@@ -65,6 +65,7 @@ namespace perlin::server {
         double X() const { return posX; }
         double Y() const { return posY; }
         double Z() const { return posZ; }
+        int ChunkRadius() const { return radius; }
         const Connection& Conn() const { return *connection; }
         const proto2225::Skin& GetSkin() const;
         const std::array<uint8_t, 16>& UuidBytes() const { return uuid; }

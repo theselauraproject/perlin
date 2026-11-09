@@ -154,6 +154,8 @@ namespace perlin {
 
         std::shared_ptr<BlockLibrary> retiredBlocks;
         std::shared_ptr<BiomeTints> retiredTints;
+        // the previous library's atlas and models: kept briefly for readers that took it before the swap
+        std::chrono::steady_clock::time_point retiredAt{};
         std::function<void(const BlockLibrary*)> onLibrarySwap;
         std::shared_ptr<BiomeTints> stagedTints;
 

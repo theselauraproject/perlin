@@ -1389,15 +1389,21 @@ namespace perlin::gpu {
         atlasTilePx = tilePx;
         atlasTiles = tiles;
         const int maxTex = static_cast<int>(gpu.Caps().limits.max_texture2d);
-        gridCols = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(tiles)))));
+        // spare cells: server packs stream custom block textures in batches, each one would otherwise stall
+        // the gpu and rebuild the whole atlas
+        const int capacity = tiles + std::max(256, tiles / 4);
+        gridCols = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(capacity)))));
         gridCols = std::min(gridCols, std::max(1, maxTex / tilePx));
-        gridRows = (tiles + gridCols - 1) / gridCols;
+        gridRows = (capacity + gridCols - 1) / gridCols;
         if (gridRows * tilePx > maxTex) {
-            std::fprintf(stderr, "[javapack] atlas of %d tiles (%dpx) does not fit a %d texture\n", tiles,
-                         tilePx, maxTex);
             gridRows = std::max(1, maxTex / tilePx);
-            atlasTiles = gridRows * gridCols;
+            if (gridRows * gridCols < tiles) {
+                std::fprintf(stderr, "[javapack] atlas of %d tiles (%dpx) does not fit a %d texture\n", tiles,
+                             tilePx, maxTex);
+                atlasTiles = gridRows * gridCols;
+            }
         }
+        atlasCapacity = gridRows * gridCols;
         const int W = gridCols * tilePx, H = gridRows * tilePx;
         atlasWidth = W;
 
@@ -1453,6 +1459,17 @@ namespace perlin::gpu {
             gpu.WriteTexture(atlas, 0, 0, 0, static_cast<uint32_t>(sizes[l].first),
                              static_cast<uint32_t>(sizes[l].second), levels[l].data(), 0,
                              static_cast<uint32_t>(l));
+    }
+
+    bool JavaPack::AppendTiles(const uint8_t* rgba, int tilePx, int first, int tiles) {
+        if (!atlas || !rgba || tilePx != atlasTilePx || first != atlasTiles || tiles > atlasCapacity ||
+            tiles <= first)
+            return false;
+        const size_t tileBytes = static_cast<size_t>(tilePx) * tilePx * 4;
+        atlasTiles = tiles;
+        for (int t = first; t < tiles; t++)
+            UpdateTile(t, rgba + tileBytes * static_cast<size_t>(t));
+        return true;
     }
 
     void JavaPack::UpdateTile(int tile, const uint8_t* rgba) {

@@ -61,6 +61,10 @@ namespace perlin::ui {
             {"Enable LODs", "", "",
              "Distant terrain as simplified tiles, so the render distance can go far past the loaded chunks.",
              3},
+            {"Background FPS", "", "",
+             "Frame cap while another window is focused. Lower values free the CPU and GPU for other "
+             "windows, such as several Perlin instances side by side. Minimized windows always drop to 5 fps.",
+             0},
             {"Clouds", "options.renderClouds", "", "Shows or hides the clouds in the sky.", 2},
             {"Cloud Range", "", "", "How far away clouds are drawn. Larger ranges draw more clouds.", 2},
             {"Better Grass", "", "",

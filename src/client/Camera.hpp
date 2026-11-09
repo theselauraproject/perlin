@@ -56,7 +56,8 @@ namespace perlin {
             const glm::vec3 dir = ViewDirection();
             const glm::mat4 view = glm::mat4(glm::mat3(viewEffect)) *
                                    glm::mat4(glm::mat3(glm::lookAt(glm::vec3(0.0f), dir, Up())));
-            return glm::perspective(glm::radians(fov), aspect, nearPlane, farPlane) * view;
+            // own far plane: the sky box corners sit ~173 out, a short render and cloud range would clip them
+            return glm::perspective(glm::radians(fov), aspect, nearPlane, std::max(farPlane, 512.0f)) * view;
         }
 
         void Matrices(glm::mat4& view, glm::mat4& proj) const {

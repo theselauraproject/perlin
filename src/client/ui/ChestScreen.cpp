@@ -241,11 +241,12 @@ div { display: block; position: absolute; }
         state = 1;
         dumped.clear();
         std::vector<std::string> roots;
-        for (size_t i = packDirs.size(); i-- > 0;)
-            roots.push_back(packDirs[i] + "/ui");
         const std::string data = paths::DataDir();
+        // first root wins: the player's own texture pack, picked on purpose, ahead of the server's packs
         if (const std::string packUi = ExtractPackUi(data, "pack_ui_chest"); !packUi.empty())
             roots.push_back(packUi + "/ui");
+        for (size_t i = packDirs.size(); i-- > 0;)
+            roots.push_back(packDirs[i] + "/ui");
         roots.push_back(data + "/ui");
         roots.push_back(data + "/ui_defaults");
         roots.push_back(UiAssets::Instance().VanillaRoot() + "/ui");

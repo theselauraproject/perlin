@@ -1219,6 +1219,8 @@ namespace perlin {
         std::chrono::steady_clock::time_point dimAckSince;
         std::optional<uint32_t> dimLoadingId;
         void ResetWorldForDimension();
+        // a form belongs to the world it was opened in: drop queued ones and close the open one
+        void DropFormsForWorldChange();
         void FinishDimensionChange();
         std::atomic<float> rainTarget{0.0f};
         std::atomic<float> thunderTarget{0.0f};

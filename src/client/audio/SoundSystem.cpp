@@ -203,6 +203,7 @@ namespace perlin::audio {
         named.clear();
         blockSoundType.clear();
         cache.clear();
+        cacheOrder.clear();
         cacheBytes = 0;
         if (root.empty())
             return;
@@ -290,7 +291,6 @@ namespace perlin::audio {
                 std::string error;
                 if (DecodeSound(bytes, ext, *pcm, &error)) {
                     result = pcm;
-                    cacheBytes += pcm->samples.size() * sizeof(int16_t);
                 } else if (!warned[file]) {
                     warned[file] = true;
                     Log("audio", "cannot decode {}{}: {}", file, ext, error);
@@ -304,11 +304,22 @@ namespace perlin::audio {
             warned[file] = true;
             Log("audio", "sound file {} not found", file);
         }
-        if (cacheBytes > 192u * 1024u * 1024u) {
-            cache.clear();
-            cacheBytes = 0;
-        }
+        // music and records decode to tens of MB and play once: the playing voice keeps its own reference
+        constexpr size_t kMaxCachedSound = 2u * 1024u * 1024u, kCacheBudget = 24u * 1024u * 1024u;
+        const size_t bytes = result ? result->samples.size() * sizeof(int16_t) : 0;
+        if (bytes > kMaxCachedSound)
+            return result;
         cache[file] = result;
+        cacheOrder.push_back(file);
+        cacheBytes += bytes;
+        while (cacheBytes > kCacheBudget && !cacheOrder.empty()) {
+            const auto old = cache.find(cacheOrder.front());
+            cacheOrder.pop_front();
+            if (old == cache.end() || old->first == file)
+                continue;
+            cacheBytes -= old->second ? std::min(cacheBytes, old->second->samples.size() * sizeof(int16_t)) : 0;
+            cache.erase(old);
+        }
         return result;
     }
 

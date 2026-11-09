@@ -122,6 +122,11 @@ namespace perlin {
         constexpr conduit::color_mask kRgbA = conduit::color_mask::all;
     }
 
+    namespace {
+        std::vector<std::vector<std::vector<uint8_t>>> BuildMipsParallel(const uint8_t* rgba, int tilePx, int first,
+                                                                         int count);
+    }
+
     int RenderContext_rhi::MaxAtlasLayers(int tilePx) const {
         const int limit =
             initialized ? std::max<int>(
@@ -136,12 +141,37 @@ namespace perlin {
     }
 
     int RenderContext_rhi::AtlasLayersFor(int tiles, int tilePx) const {
-        const double perLayer =
-            static_cast<double>(std::max(1, tilePx)) * std::max(1, tilePx) * 4.0 * 4.0 / 3.0;
+        (void)tilePx;
+        // used layers plus a quarter (at least 256) spare for server pack tiles; a full 2048-layer page of
+        // 64px tiles is ~45 MB of vram, mostly empty, and on shared-memory gpus that costs bandwidth
+        const int want = tiles + std::max(256, tiles / 4);
+        return std::min(atlasPageCap, (want + 255) / 256 * 256);
+    }
 
-        if (perLayer * atlasPageCap <= 96.0e6)
-            return atlasPageCap;
-        return std::min(atlasPageCap, (tiles + 255) / 256 * 256 + 256);
+    bool RenderContext_rhi::GrowAtlasPage(int page, int tiles) {
+        const int first = page * atlasPageCap;
+        const int have = std::clamp(atlasTiles - first, 0, atlasPageCap);
+        TexRec grown;
+        const int layers = AtlasLayersFor(tiles, tileSize);
+        const std::string name = "block atlas " + std::to_string(page);
+        if (!MakeTexture(grown, static_cast<uint32_t>(tileSize), static_cast<uint32_t>(tileSize),
+                         static_cast<uint32_t>(layers), static_cast<uint32_t>(MipCount(tileSize)),
+                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipClamp, name.c_str()))
+            return false;
+        // only this page goes back up: the other pages and their mips stay where they are
+        if (have > 0 && atlasSource.size() >= static_cast<size_t>(first + have) * tileSize * tileSize * 4) {
+            const auto built = BuildMipsParallel(atlasSource.data(), tileSize, first, have);
+            for (int i = 0; i < have; i++)
+                for (size_t l = 0; l < built[static_cast<size_t>(i)].size(); l++) {
+                    const uint32_t w = static_cast<uint32_t>(std::max(1, tileSize >> static_cast<int>(l)));
+                    gpu.WriteTexture(grown.handle, static_cast<uint32_t>(i), 0, 0, w, w,
+                                     built[static_cast<size_t>(i)][l].data(), 0, static_cast<uint32_t>(l));
+                }
+        }
+        FreeTexture(AtlasPage(page));
+        AtlasPage(page) = grown;
+        Log("render", "atlas page {} grown to {} layers", page, layers);
+        return true;
     }
 
     bool RenderContext_rhi::MakeAtlasPage(int page, int tiles, int tilePx) {
@@ -242,7 +272,8 @@ namespace perlin {
         const int firstPage = first / atlasPageCap, lastPage = (tiles - 1) / atlasPageCap;
         for (int page = firstPage; page <= lastPage; page++) {
             const TexRec& rec = AtlasPage(page);
-            if (rec.used && static_cast<int>(rec.layers) < std::min(tiles - page * atlasPageCap, atlasPageCap))
+            const int need = std::min(tiles - page * atlasPageCap, atlasPageCap);
+            if (rec.used && static_cast<int>(rec.layers) < need && !GrowAtlasPage(page, need))
                 return false;
         }
         for (int page = firstPage; page <= lastPage; page++)
@@ -263,7 +294,7 @@ namespace perlin {
         atlasSource.insert(atlasSource.end(), rgba + tileBytes * static_cast<size_t>(first),
                            rgba + tileBytes * static_cast<size_t>(tiles));
         atlasTiles = tiles;
-        if (jpack)
+        if (jpack && !jpack->AppendTiles(atlasSource.data(), tilePx, first, tiles))
             jpack->SetAtlas(atlasSource.data(), tilePx, tiles);
         return true;
     }
@@ -338,22 +369,94 @@ namespace perlin {
             gpu.WriteTexture(endSkyTex.handle, 0, 0, 0, endSkyTex.w, endSkyTex.h, endSky.pixels.data());
     }
 
+    void RenderContext_rhi::FreeCustomSkyVb() {
+        for (conduit::buffer_handle& b : customSkyVb)
+            if (b) {
+                gpu.ForgetBuffer(b);
+                gpu.Dev().destroy(b);
+            }
+        customSkyVb.clear();
+    }
+
+    namespace {
+        // 2x2 box, odd edges clamped
+        Texture HalfSize(const Texture& in) {
+            Texture out;
+            out.width = std::max(1, in.width / 2);
+            out.height = std::max(1, in.height / 2);
+            out.pixels.resize(static_cast<size_t>(out.width) * out.height * 4);
+            for (int y = 0; y < out.height; y++)
+                for (int x = 0; x < out.width; x++)
+                    for (int c = 0; c < 4; c++) {
+                        int sum = 0;
+                        for (int dy = 0; dy < 2; dy++)
+                            for (int dx = 0; dx < 2; dx++) {
+                                const int sx = std::min(in.width - 1, x * 2 + dx), sy = std::min(in.height - 1, y * 2 + dy);
+                                sum += in.pixels[(static_cast<size_t>(sy) * in.width + sx) * 4 + c];
+                            }
+                        out.pixels[(static_cast<size_t>(y) * out.width + x) * 4 + c] = static_cast<uint8_t>((sum + 2) / 4);
+                    }
+            return out;
+        }
+
+        std::vector<TextureVertex> InsetSkyVertices(int w, int h) {
+            // box cells: 2 texels in, enough for the mip levels the box is drawn at; mips stop before a cell
+            // boundary falls inside a 2x2 block, so cells never mix
+            const float cu = 2.0f / static_cast<float>(w), cv = 2.0f / static_cast<float>(h);
+            std::vector<TextureVertex> box = BuildCustomSkyBox();
+            for (size_t i = 0; i < box.size(); i++) {
+                const int side = static_cast<int>(i / 4);
+                const float u0 = static_cast<float>(side % 3) / 3.0f, v0 = static_cast<float>(side / 3) / 2.0f;
+                const float u1 = u0 + 1.0f / 3.0f, v1 = v0 + 0.5f;
+                box[i].u = box[i].u <= u0 + 1e-6f ? u0 + cu : u1 - cu;
+                box[i].v = box[i].v <= v0 + 1e-6f ? v0 + cv : v1 - cv;
+            }
+            // cube faces are separate clamped textures: half a texel keeps bilinear inside the image
+            const float fu = 0.5f / static_cast<float>(w), fv = 0.5f / static_cast<float>(h);
+            for (TextureVertex v : BuildCustomSkyCube()) {
+                v.u = v.u < 0.5f ? fu : 1.0f - fu;
+                v.v = v.v < 0.5f ? fv : 1.0f - fv;
+                box.push_back(v);
+            }
+            return box;
+        }
+    }
+
     void RenderContext_rhi::UploadCustomSkyTextures(const std::vector<Texture>& textures) {
         if (!initialized)
             return;
         for (TexRec& t : customSkyTex)
             FreeTexture(t);
+        FreeCustomSkyVb();
         customSkyTex.clear();
         customSkyTex.resize(textures.size());
+        customSkyVb.resize(textures.size());
         for (size_t i = 0; i < textures.size(); i++) {
             const Texture& t = textures[i];
-            if (t.width <= 0 || t.height <= 0 || t.pixels.empty())
+            if (t.width <= 0 || t.height <= 0 || t.pixels.size() < static_cast<size_t>(t.width) * t.height * 4)
                 continue;
-            // nearest, as OptiFine binds them: a 3x2 sheet must not bleed between its cells
-            if (MakeTexture(customSkyTex[i], static_cast<uint32_t>(t.width), static_cast<uint32_t>(t.height), 1, 1,
-                            conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp, "custom sky"))
-                gpu.WriteTexture(customSkyTex[i].handle, 0, 0, 0, customSkyTex[i].w, customSkyTex[i].h,
-                                 t.pixels.data());
+            // linear with mips: the inset uvs keep cells apart, so the OptiFine nearest look isn't needed to
+            // avoid bleeding; a 3x2 sheet only mips while its cell edges stay on even texels
+            std::vector<Texture> chain;
+            chain.push_back(t);
+            while (chain.back().width > 1 || chain.back().height > 1) {
+                const Texture& last = chain.back();
+                const bool sheetSafe = (last.width / 3) % 2 == 0 && (last.height / 2) % 2 == 0;
+                if (!sheetSafe || chain.size() >= 12)
+                    break;
+                chain.push_back(HalfSize(last));
+            }
+            if (!MakeTexture(customSkyTex[i], static_cast<uint32_t>(t.width), static_cast<uint32_t>(t.height), 1,
+                             static_cast<uint32_t>(chain.size()), conduit::format::rgba8_unorm,
+                             gpu::SamplerKind::LinearMipClamp, "custom sky"))
+                continue;
+            for (size_t l = 0; l < chain.size(); l++)
+                gpu.WriteTexture(customSkyTex[i].handle, 0, 0, 0, static_cast<uint32_t>(chain[l].width),
+                                 static_cast<uint32_t>(chain[l].height), chain[l].pixels.data(), 0,
+                                 static_cast<uint32_t>(l));
+            const std::vector<TextureVertex> verts = InsetSkyVertices(t.width, t.height);
+            customSkyVb[i] = gpu.CreateStatic(verts.data(), verts.size() * sizeof(TextureVertex),
+                                              conduit::buffer_usage::vertex, "custom sky vertices");
         }
     }
 
@@ -422,8 +525,11 @@ namespace perlin {
                     const size_t slot = static_cast<size_t>(layer.texture + face);
                     if (slot >= customSkyTex.size() || !customSkyTex[slot].used)
                         continue;
-                    BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearClamp);
-                    Submit(View::World, s, {customSkyCube, static_cast<uint64_t>(face) * 4 * sizeof(TextureVertex)},
+                    BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearMipClamp);
+                    const bool inset = slot < customSkyVb.size() && customSkyVb[slot];
+                    Submit(View::World, s,
+                           {inset ? customSkyVb[slot] : customSkyCube,
+                            static_cast<uint64_t>((inset ? 24 : 0) + face * 4) * sizeof(TextureVertex)},
                            &quad, conduit::index_type::u16, 0, 6);
                 }
                 continue;
@@ -433,9 +539,11 @@ namespace perlin {
                 continue;
             const glm::mat4 pose = celestial * rotation;
             SetMatrix(glm::value_ptr(pose));
-            BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::PointClamp);
+            BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearMipClamp);
+            const conduit::buffer_handle box =
+                slot < customSkyVb.size() && customSkyVb[slot] ? customSkyVb[slot] : customSkyBox;
             for (int side = 0; side < 6; side++)
-                Submit(View::World, s, {customSkyBox, static_cast<uint64_t>(side) * 4 * sizeof(TextureVertex)}, &quad,
+                Submit(View::World, s, {box, static_cast<uint64_t>(side) * 4 * sizeof(TextureVertex)}, &quad,
                        conduit::index_type::u16, 0, 6);
         }
     }
@@ -852,7 +960,8 @@ namespace perlin {
             const Source indices{starIdx, 0};
             Submit(View::World, s, {starVerts, 0}, &indices, conduit::index_type::u16, 0, starIndexCount);
         }
-        if (sky.darkDisc) {
+        // the below-horizon void disc would paint over a pack's lower sky faces
+        if (sky.darkDisc && sky.customCount == 0) {
             matrix(glm::translate(view, glm::vec3(0.0f, 12.0f, 0.0f)));
             uni.Vec4("u_modulator", 0.0f, 0.0f, 0.0f, 1.0f);
             const Source indices{fanIdx, 0};

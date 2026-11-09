@@ -1256,7 +1256,12 @@ namespace perlin::ui {
                     const float line = LineHeight(scale, ten);
                     int lines = 1;
                     float width = 0;
-                    LayoutText(plain, scale, ten, wrap, lines, width);
+                    // trailing spaces (servers pad scoreboard names to keep rows unique) add width the
+                    // text layout collapses: a box sized to the label would show an empty strip on the right
+                    std::string measured = plain;
+                    while (!measured.empty() && (measured.back() == ' ' || measured.back() == '\t'))
+                        measured.pop_back();
+                    LayoutText(measured, scale, ten, wrap, lines, width);
                     iw = std::ceil(width);
                     ih = static_cast<float>(lines) * line +
                          (lines - 1) * static_cast<float>(n.Num("line_padding", 0));

@@ -78,6 +78,7 @@ namespace perlin::server {
         void HandleChat(Session& from, const std::string& message);
         void RunPlayerCommand(Session& from, const std::string& line);
         std::vector<Session*> InGamePlayers();
+        void UnloadFarChunks();
         void BroadcastArmor(const Session& wearer);
         Session* FindSession(uint64_t id);
         Session* FindByName(const std::string& name);
@@ -252,6 +253,7 @@ namespace perlin::server {
 
         ServerConfig config;
         std::unique_ptr<ChunkManager> chunks;
+        int unloadCountdown = 100;
         std::array<std::unique_ptr<ChunkManager>, kDimensionCount> otherWorlds;
         std::unique_ptr<PluginHost> plugins;
         std::unique_ptr<LoopbackListener> loopback;

@@ -385,7 +385,24 @@ namespace perlin {
             hudState.sidebarVisible = sb.visible && !pause.shown && hud && hud->Overrides("scoreboard");
             hudState.sidebarTitle = sb.title;
             for (const auto& r : sb.rows)
+            {
+                // once per distinct row: non-printing or non-ascii bytes spelled out, for sizing problems in
+                // pack scoreboards
+                static std::unordered_set<std::string> logged;
+                if (logged.size() < 512 && logged.insert(r.name).second) {
+                    std::string shown;
+                    for (unsigned char c : r.name)
+                        if (c >= 0x20 && c < 0x7F)
+                            shown += static_cast<char>(c);
+                        else {
+                            char hex[8];
+                            std::snprintf(hex, sizeof(hex), "\\x%02X", c);
+                            shown += hex;
+                        }
+                    Log("scoreboard", "sidebar row \"{}\" score {}", shown, r.score);
+                }
                 hudState.sidebar.push_back({r.name, r.score});
+            }
         }
         ApplyModHud(hudState);
     }

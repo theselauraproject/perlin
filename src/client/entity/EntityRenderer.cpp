@@ -2174,10 +2174,21 @@ namespace perlin::entity {
             return;
         if (!badgeTried) {
             badgeTried = true;
-            const Texture t = ui::PerlinBadge(256);
-            if (t.width > 0)
-                badgeTexture = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), true);
-            else
+            // full mip chain: far nametags sample a properly shrunk logo instead of shimmering
+            std::vector<Texture> chain;
+            for (int size = 256; size >= 1; size /= 2) {
+                chain.push_back(ui::PerlinBadge(size));
+                if (chain.back().width != size) {
+                    chain.pop_back();
+                    break;
+                }
+            }
+            std::vector<const uint8_t*> levels;
+            for (const Texture& t : chain)
+                levels.push_back(t.pixels.data());
+            if (!chain.empty())
+                badgeTexture = renderer->UiCreateTextureMipped(256, 256, levels);
+            if (!badgeTexture)
                 Log("nametag", "perlin_badge.png missing from the embedded resources");
         }
         const float yawR = in.cameraYaw * kDeg, pitchR = in.cameraPitch * kDeg;

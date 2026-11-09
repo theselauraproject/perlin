@@ -547,6 +547,14 @@ namespace perlin {
                      const int steps = static_cast<int>(std::lround(std::clamp(f, 0.0f, 1.0f) * 25.0f));
                      options.maxFps = steps >= 25 ? 0 : 10 + steps * 10;
                  });
+        m.Slider("Background FPS",
+                 options.backgroundFps == 0 ? std::string("Same as focused")
+                                            : std::to_string(options.backgroundFps) + " fps",
+                 options.backgroundFps == 0 ? 1.0f : static_cast<float>(options.backgroundFps - 5) / 115.0f,
+                 [this](float f) {
+                     const int steps = static_cast<int>(std::lround(std::clamp(f, 0.0f, 1.0f) * 23.0f));
+                     options.backgroundFps = steps >= 23 ? 0 : 5 + steps * 5;
+                 });
         m.rows.push_back({std::string("GUI Scale"),
                           options.guiScale == 0 ? detail::TrOr("options.guiScale.auto", "Auto")
                                                 : std::to_string(options.guiScale),
