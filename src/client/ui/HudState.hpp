@@ -137,6 +137,8 @@ namespace perlin::ui {
         struct TabEntry {
             std::string name;
             std::string headKey;
+            // mchead key of the Perlin logo for Perlin users, empty otherwise
+            std::string badgeKey;
         };
         bool tabOpen = false;
         std::vector<TabEntry> tabEntries;

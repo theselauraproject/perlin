@@ -406,8 +406,10 @@ namespace perlin::ui {
                 rows = (count + columns - 1) / columns;
             }
             float widest = 0.0f;
-            for (int i = 0; i < count; i++)
-                widest = std::max(widest, font.Width(s.tabEntries[static_cast<size_t>(i)].name));
+            for (int i = 0; i < count; i++) {
+                const HudState::TabEntry& e = s.tabEntries[static_cast<size_t>(i)];
+                widest = std::max(widest, font.Width(e.name) + (e.badgeKey.empty() ? 0.0f : 9.0f));
+            }
             const float maxColumn = (s.guiW - 50.0f) / static_cast<float>(columns);
             const float cell = std::min(9.0f + widest + 4.0f, maxColumn);
             const float total = cell * static_cast<float>(columns) + static_cast<float>(columns - 1) * 1.0f;
@@ -423,10 +425,16 @@ namespace perlin::ui {
                 const HudState::TabEntry& e = s.tabEntries[static_cast<size_t>(i)];
                 ImageStyle st;
                 w.Image(x, y, 8, 8, z + 2, "mchead:" + e.headKey, st);
+                // Perlin logo between the head and the name
+                float textX = x + 9.0f;
+                if (!e.badgeKey.empty()) {
+                    w.Image(textX, y, 8, 8, z + 2, "mchead:" + e.badgeKey, st);
+                    textX += 9.0f;
+                }
                 TextStyle ts;
                 ts.shadow = true;
                 ts.r = ts.g = ts.b = 1.0f;
-                w.Text(x + 9.0f, y, cell - 9.0f - 1.0f, 9, z + 2, {e.name}, ts);
+                w.Text(textX, y, cell - (textX - x) - 1.0f, 9, z + 2, {e.name}, ts);
             }
         }
 

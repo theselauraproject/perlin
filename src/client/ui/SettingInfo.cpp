@@ -80,7 +80,7 @@ namespace perlin::ui {
             {"Third Person Crosshair", "perlin.options.thirdCrosshair", "",
              "Show the crosshair in third-person views.", 0},
             {"Perlin User Badges", "perlin.options.perlinBadges", "",
-             "Shows the Perlin logo next to the names of players who also use Perlin, yourself included.", 0},
+             "Shows the Perlin logo next to the names of players who also use Perlin, yourself included, in nametags and the tab list.", 0},
             {"Third Person Nametag", "perlin.options.thirdNametag", "",
              "Show your own nametag in third-person views.", 0},
             {"Zoom Level", "", "", "How strongly the zoom key magnifies the view.", 0},

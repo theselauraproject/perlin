@@ -417,6 +417,7 @@ namespace perlin::ui {
             for (const auto& t : s.tabEntries) {
                 mixs(t.name);
                 mixs(t.headKey);
+                mixs(t.badgeKey);
             }
         mix(s.sidebarVisible);
         if (s.sidebarVisible) {

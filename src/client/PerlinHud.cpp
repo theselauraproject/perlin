@@ -1,3 +1,5 @@
+#include "client/PerlinBrand.hpp"
+#include "client/ui/PerlinBadge.hpp"
 #include "client/PerlinInternal.hpp"
 
 namespace perlin {
@@ -461,6 +463,19 @@ namespace perlin {
         s.tabOpen = inputManager.IsDown(Action::PlayerList) && !inputManager.Blocked();
         s.tabEntries.clear();
         if (s.tabOpen) {
+            // prefiltered to the exact pixel size: ui images sample nearest, and the logo needs a box filter
+            std::string badgeKey;
+            if (options.perlinBadges) {
+                const int px = 8 * std::max(1, hud ? hud->Scale() : 1);
+                badgeKey = "perlin:badge:" + std::to_string(px);
+                if (!ui::UiAssets::Instance().HasHead(badgeKey)) {
+                    Texture badge = ui::PerlinBadge(px);
+                    if (badge.width > 0)
+                        ui::UiAssets::Instance().SetHead(badgeKey, std::move(badge));
+                    else
+                        badgeKey.clear();
+                }
+            }
             auto players = live->PlayerList();
             std::stable_sort(players.begin(), players.end(),
                              [](const BedrockSession::TabPlayer& a, const BedrockSession::TabPlayer& b) {
@@ -511,7 +526,9 @@ namespace perlin {
                     }
                     ui::UiAssets::Instance().SetHead(key, std::move(t));
                 }
-                s.tabEntries.push_back({p.name, key});
+                const bool perlinUser =
+                    (p.skin && brand::IsPerlinSkinId(p.skin->skinId)) || p.name == live->PlayerName();
+                s.tabEntries.push_back({p.name, key, perlinUser ? badgeKey : std::string()});
             }
         }
 

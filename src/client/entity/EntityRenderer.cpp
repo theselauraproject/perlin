@@ -30,7 +30,7 @@
 #include "util/Log.hpp"
 #include "client/PerlinBrand.hpp"
 #include "client/resources/TextureLoader.hpp"
-#include "util/Resources.hpp"
+#include "client/ui/PerlinBadge.hpp"
 #include "util/Strings.hpp"
 
 namespace perlin::entity {
@@ -2174,10 +2174,8 @@ namespace perlin::entity {
             return;
         if (!badgeTried) {
             badgeTried = true;
-            std::string png;
-            Texture t;
-            if (resources::Read("perlin_badge.png", png) &&
-                LoadTextureMemory(reinterpret_cast<const unsigned char*>(png.data()), png.size(), t) && t.width > 0)
+            const Texture t = ui::PerlinBadge(256);
+            if (t.width > 0)
                 badgeTexture = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), true);
             else
                 Log("nametag", "perlin_badge.png missing from the embedded resources");
@@ -2254,13 +2252,13 @@ namespace perlin::entity {
                 const float rowY = (static_cast<float>(row) - static_cast<float>(rows.size() - 1)) * 10.0f;
 
                 const bool badge = static_cast<int>(row) == badgeRow;
-                // 9x9 logo and a 2px gap ahead of the text, the whole row stays centred
-                constexpr float kBadge = 9.0f, kBadgeGap = 2.0f;
+                // 8x8 logo centred in the row's background (-1..8), a glyph's spacing before the text
+                constexpr float kBadge = 8.0f, kBadgeGap = 1.5f;
                 const float textWidth = font.Width(style.Codes() + text);
                 const float width = textWidth + (badge ? kBadge + kBadgeGap : 0.0f);
                 const float left = -width * 0.5f;
                 if (badge)
-                    quad(badgeV, badgeI, left, rowY - 1.0f, left + kBadge, rowY + 8.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                    quad(badgeV, badgeI, left, rowY - 0.5f, left + kBadge, rowY + 7.5f, 0.0f, 0.0f, 1.0f, 1.0f,
                          0xFFFFFFFFu);
 
                 const bool joinsNext = row + 1 < rows.size() && !rows[row + 1].empty();
