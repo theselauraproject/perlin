@@ -795,6 +795,10 @@ namespace perlin {
         params.sky.darkDisc =
             eye.y < (session && session->FlatWorld() ? frame::kFlatHorizonHeight : frame::kHorizonHeight);
         params.sky.customCount = 0;
+        debug.customSky = !options.customSkies ? "off in options"
+                          : !levelRenderer || levelRenderer->CustomSky().Empty() ? "none loaded"
+                          : !params.sky.enabled && dimension != Dimension::End ? "loaded, vanilla sky disabled here"
+                                                                                : "loaded";
         params.sky.endSky = dimension == Dimension::End;
         params.sky.sunTexture = params.sky.moonTexture = -1;
         if (options.customSkies && levelRenderer && (params.sky.enabled || params.sky.endSky) &&
@@ -821,6 +825,9 @@ namespace perlin {
                 out.brightness = d.brightness;
                 std::copy_n(glm::value_ptr(d.rotation), 16, out.rotation);
             }
+            debug.customSky = custom.origin + ": " + std::to_string(custom.layers.size()) + " overworld, " +
+                              std::to_string(custom.endLayers.size()) + " end layer(s), " +
+                              std::to_string(params.sky.customCount) + " drawn now";
             if (!end) {
                 params.sky.sunTexture = custom.sun.texture;
                 params.sky.sunBlend = static_cast<uint8_t>(custom.sun.blend);

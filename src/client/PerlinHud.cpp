@@ -137,6 +137,7 @@ namespace perlin {
         d.yaw = camera.yaw - 90.0f;
         d.pitch = -camera.pitch;
         d.skyLight = debug.sky;
+        d.customSky = debug.customSky;
         d.blockLight = debug.block;
         d.compiler = sysinfo::Compiler();
         d.memUsed = sysinfo::ProcessMemory();

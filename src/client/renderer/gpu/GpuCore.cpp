@@ -1,6 +1,7 @@
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "util/GraphicsDebugger.hpp"
 
+#include "util/Log.hpp"
 #include <algorithm>
 #include <unordered_set>
 #include <cstdio>
@@ -684,13 +685,19 @@ namespace perlin::gpu {
         const uint32_t packed = width * FormatBytes(td->format);
         const uint32_t srcPitch = rowBytes ? rowBytes : packed;
         const uint32_t pitch = static_cast<uint32_t>(AlignUp(packed, Caps().limits.copy_row_pitch_alignment));
-        const uint64_t at =
-            AlignUp(pendingBytes.size(), std::max<uint64_t>(16, Caps().limits.copy_offset_alignment));
-        pendingBytes.resize(at + static_cast<uint64_t>(pitch) * height);
-        for (uint32_t row = 0; row < height; row++)
-            std::memcpy(pendingBytes.data() + at + static_cast<uint64_t>(row) * pitch,
-                        static_cast<const uint8_t*>(data) + static_cast<uint64_t>(row) * srcPitch, packed);
-        imageWrites.push_back({texture, mip, layer, x, y, width, height, at, pitch});
+        // strips of at most 16 MB: Flush stages in bounded slices, a 9600px sky sheet would need one of 60+ MB
+        const uint32_t stripRows = std::max<uint32_t>(1, static_cast<uint32_t>((16ull << 20) / std::max<uint32_t>(1, pitch)));
+        for (uint32_t first = 0; first < height; first += stripRows) {
+            const uint32_t rows = std::min(stripRows, height - first);
+            const uint64_t at =
+                AlignUp(pendingBytes.size(), std::max<uint64_t>(16, Caps().limits.copy_offset_alignment));
+            pendingBytes.resize(at + static_cast<uint64_t>(pitch) * rows);
+            for (uint32_t row = 0; row < rows; row++)
+                std::memcpy(pendingBytes.data() + at + static_cast<uint64_t>(row) * pitch,
+                            static_cast<const uint8_t*>(data) + static_cast<uint64_t>(first + row) * srcPitch,
+                            packed);
+            imageWrites.push_back({texture, mip, layer, x, y + first, width, rows, at, pitch});
+        }
     }
 
     state Gpu::StateOf(texture_handle texture) const {
@@ -719,15 +726,70 @@ namespace perlin::gpu {
             pendingBytes.clear();
             return;
         }
-        const RingSlice staging =
-            Ring(pendingBytes.size(), std::max<uint64_t>(256, Caps().limits.copy_offset_alignment));
-        if (!staging.data) {
-            bufferWrites.clear();
-            imageWrites.clear();
-            pendingBytes.clear();
-            return;
+        // staged in slices of at most 32 MB: one slice for a whole frame of uploads (an hd sky sheet with its
+        // mips plus the block atlas runs past 100 MB) can fail to allocate on integrated gpus, and then every
+        // write of the frame was lost without a trace. batch starts stay on the copy alignment
+        const uint64_t align = std::max<uint64_t>(256, Caps().limits.copy_offset_alignment);
+        constexpr uint64_t kBatchBytes = 32ull << 20;
+        struct Batch {
+            uint64_t begin, end;
+            RingSlice slice;
+        };
+        std::vector<Batch> batches;
+        {
+            std::vector<std::pair<uint64_t, uint64_t>> ranges;
+            ranges.reserve(bufferWrites.size() + imageWrites.size());
+            for (const BufferWrite& w : bufferWrites)
+                ranges.emplace_back(w.source, w.source + w.bytes);
+            for (const ImageWrite& w : imageWrites)
+                ranges.emplace_back(w.source, w.source + static_cast<uint64_t>(w.rowBytes) * w.height);
+            std::sort(ranges.begin(), ranges.end());
+            for (const auto& [from, to] : ranges) {
+                if (batches.empty() || to - batches.back().begin > kBatchBytes) {
+                    batches.push_back({from / align * align, to, {}});
+                    continue;
+                }
+                batches.back().end = std::max(batches.back().end, to);
+            }
         }
-        std::memcpy(staging.data, pendingBytes.data(), pendingBytes.size());
+        bool lost = false;
+        for (Batch& b : batches) {
+            b.slice = Ring(b.end - b.begin, align);
+            if (!b.slice.data) {
+                lost = true;
+                Log("gpu", "upload staging of {} MB could not be allocated: those writes are dropped",
+                    (b.end - b.begin) >> 20);
+                continue;
+            }
+            std::memcpy(b.slice.data, pendingBytes.data() + b.begin, b.end - b.begin);
+        }
+        const auto stagingFor = [&](uint64_t source, conduit::buffer_handle& buffer, uint64_t& offset) {
+            for (const Batch& b : batches)
+                if (source >= b.begin && source < b.end) {
+                    if (!b.slice.data)
+                        return false;
+                    buffer = b.slice.buffer;
+                    offset = b.slice.offset + (source - b.begin);
+                    return true;
+                }
+            return false;
+        };
+        if (lost) {
+            bufferWrites.erase(std::remove_if(bufferWrites.begin(), bufferWrites.end(),
+                                              [&](const BufferWrite& w) {
+                                                  conduit::buffer_handle b;
+                                                  uint64_t o = 0;
+                                                  return !stagingFor(w.source, b, o);
+                                              }),
+                               bufferWrites.end());
+            imageWrites.erase(std::remove_if(imageWrites.begin(), imageWrites.end(),
+                                             [&](const ImageWrite& w) {
+                                                 conduit::buffer_handle b;
+                                                 uint64_t o = 0;
+                                                 return !stagingFor(w.source, b, o);
+                                             }),
+                              imageWrites.end());
+        }
 
         std::vector<buffer_barrier> toCopy, toUse;
         std::vector<texture_barrier> texToCopy, texToUse;
@@ -768,11 +830,19 @@ namespace perlin::gpu {
             texToUse.push_back(b);
         }
         list.barrier(texToCopy, toCopy);
-        for (const BufferWrite& w : bufferWrites)
-            list.copy_buffer(w.buffer, w.offset, staging.buffer, staging.offset + w.source, w.bytes);
+        for (const BufferWrite& w : bufferWrites) {
+            conduit::buffer_handle from;
+            uint64_t at = 0;
+            if (stagingFor(w.source, from, at))
+                list.copy_buffer(w.buffer, w.offset, from, at, w.bytes);
+        }
         for (const ImageWrite& w : imageWrites) {
+            conduit::buffer_handle from;
+            uint64_t at = 0;
+            if (!stagingFor(w.source, from, at))
+                continue;
             buffer_texture_copy c;
-            c.buffer_offset = staging.offset + w.source;
+            c.buffer_offset = at;
             c.buffer_row_pitch = w.rowBytes;
             c.mip = w.mip;
             c.layer = w.layer;
@@ -780,7 +850,7 @@ namespace perlin::gpu {
             c.y = w.y;
             c.width = w.width;
             c.height = w.height;
-            list.copy_buffer_to_texture(w.texture, staging.buffer, std::span<const buffer_texture_copy>(&c, 1));
+            list.copy_buffer_to_texture(w.texture, from, std::span<const buffer_texture_copy>(&c, 1));
         }
         list.barrier(texToUse, toUse);
         for (const texture_handle& t : touched)

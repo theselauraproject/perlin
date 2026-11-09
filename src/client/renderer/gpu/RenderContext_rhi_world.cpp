@@ -448,8 +448,11 @@ namespace perlin {
             }
             if (!MakeTexture(customSkyTex[i], static_cast<uint32_t>(t.width), static_cast<uint32_t>(t.height), 1,
                              static_cast<uint32_t>(chain.size()), conduit::format::rgba8_unorm,
-                             gpu::SamplerKind::LinearMipClamp, "custom sky"))
+                             gpu::SamplerKind::LinearMipClamp, "custom sky")) {
+                Log("sky", "texture {}: {}x{} with {} mip(s) could not be created", i, t.width, t.height, chain.size());
                 continue;
+            }
+            Log("sky", "texture {}: {}x{}, {} mip(s) uploaded", i, t.width, t.height, chain.size());
             for (size_t l = 0; l < chain.size(); l++)
                 gpu.WriteTexture(customSkyTex[i].handle, 0, 0, 0, static_cast<uint32_t>(chain[l].width),
                                  static_cast<uint32_t>(chain[l].height), chain[l].pixels.data(), 0,

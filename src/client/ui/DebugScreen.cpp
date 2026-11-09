@@ -135,6 +135,8 @@ namespace perlin::ui {
             right.push_back(d.gpuLine1);
         if (!d.gpuLine2.empty())
             right.push_back(d.gpuLine2);
+        if (!d.customSky.empty())
+            right.push_back("Custom sky: " + d.customSky);
         if (d.block.valid)
             Target(d.block, "perlin.debug.target_block", right);
         if (d.fluid.valid)

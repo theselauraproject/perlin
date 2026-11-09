@@ -459,6 +459,8 @@ namespace perlin {
             int heightSurface = 0;
             TimePoint heightAt;
             int sky = 15, block = 0;
+            // custom sky state for F3: where it came from, how many layers, how many drew this frame
+            std::string customSky;
         } debug;
 
         struct HudAnim {

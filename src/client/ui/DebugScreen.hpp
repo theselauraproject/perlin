@@ -37,6 +37,7 @@ namespace perlin::ui {
         std::string cpuName;
         int displayW = 0, displayH = 0;
         std::string displayVendor, gpuLine1, gpuLine2;
+        std::string customSky;
 
         struct Target {
             bool valid = false;
