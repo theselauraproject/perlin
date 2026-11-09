@@ -18,7 +18,9 @@ namespace perlin {
     struct WalkBob {
         float walkDist = 0, walkDistO = 0;
         float bob = 0, oBob = 0;
-        void Tick(double moved, bool onGround, bool swimming);
+        // 1.7 cameraPitch: view tips with vertical speed in the air
+        float pitch = 0, oPitch = 0;
+        void Tick(double moved, bool onGround, bool swimming, double movedY = 0.0);
     };
 
     glm::mat4 BobViewMatrix(const WalkBob& bob, float partial, float strength);
@@ -41,6 +43,8 @@ namespace perlin {
             int swingTicks = 6;
         };
         static bool IsFood(const std::string& name);
+        // drawn the modern Java way: food and drinks, and post-1.7 items with their own poses; the rest use 1.7
+        static bool ModernItem(const std::string& name);
         int EatTicks() const { return eatTicks; }
         bool Scoping() const { return scoping; }
         void RenderScope(int width, int height, float partial);
@@ -123,6 +127,9 @@ namespace perlin {
         void RenderArm(const FrameIn& in, const HandSettings& s, bool rightArm, float swing, float equip);
         void RenderItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item, bool rightArm,
                         float swing, float equip);
+        void RenderClassicItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item, bool rightArm,
+                               float swing, float equip);
+        glm::mat4 ClassicItemSpace(const Model& model) const;
         bool RenderAttachable(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                               bool rightArm, const glm::mat4& hand);
         uint32_t AttachableTexture(const std::string& path);

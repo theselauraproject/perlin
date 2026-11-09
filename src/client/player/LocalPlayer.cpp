@@ -858,7 +858,7 @@ namespace perlin {
                                [&](int x, int y, int z) { return world.Query(x, y, z).powderSnow; });
         freezeStrength = physics::bds::FreezeStep(freezeStrength, rec.freezeRising);
         walkBob.Tick(std::hypot(state.x - before.x, state.z - before.z), state.onGround && !flying,
-                     state.inWater && sprinting);
+                     state.inWater && sprinting, state.y - before.y);
         ++tickCounter;
 
         int slownessAmplifier = -1;

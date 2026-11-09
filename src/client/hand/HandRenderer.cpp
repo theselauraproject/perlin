@@ -98,6 +98,42 @@ namespace perlin {
             return 4.0f;
         }
 
+        // PERLIN_MODERN_ANIMATIONS: modern Java transforms for every item instead of 1.7
+        bool ClassicAnimations() {
+            static const bool modern = PERLIN_ENV("PERLIN_MODERN_ANIMATIONS") != nullptr;
+            return !modern;
+        }
+
+        std::string ShortName(const std::string& name) {
+            return name.starts_with("minecraft:") ? name.substr(10) : name;
+        }
+
+        // Item.isFull3D, plus the newer handheld items
+        bool HeldUpright(const std::string& fullName) {
+            const std::string n = ShortName(fullName);
+            const auto ends = [&](const char* suffix) {
+                const size_t l = std::char_traits<char>::length(suffix);
+                return n.size() >= l && n.compare(n.size() - l, l, suffix) == 0;
+            };
+            return ends("_sword") || ends("_pickaxe") || ends("_axe") || ends("_shovel") || ends("_hoe") ||
+                   n == "stick" || n == "blaze_rod" || n == "bone" || n == "mace" || n == "breeze_rod" ||
+                   ends("_on_a_stick") || n == "fishing_rod" || n == "debug_stick";
+        }
+
+        // Item.shouldRotateAroundWhenRendering
+        bool RotatesAround(const std::string& fullName) {
+            const std::string n = ShortName(fullName);
+            return n == "fishing_rod" || n == "carrot_on_a_stick" || n == "warped_fungus_on_a_stick";
+        }
+
+        // ItemBow.getItemIconForUseDuration (1.7.10)
+        int ClassicBowFrame(float usedTicks) {
+            const int ticks = static_cast<int>(usedTicks);
+            return ticks >= 18 ? 2 : ticks > 13 ? 1 : 0;
+        }
+
+        const glm::mat4 kMirrorX = glm::scale(glm::mat4(1.0f), glm::vec3(-1.0f, 1.0f, 1.0f));
+
         bool SameItem(const ui::HudItem& a, const ui::HudItem& b) {
             if (a.Empty() || b.Empty())
                 return a.Empty() && b.Empty();
@@ -110,12 +146,17 @@ namespace perlin {
         }
     }
 
-    void WalkBob::Tick(double moved, bool onGround, bool swimming) {
+    void WalkBob::Tick(double moved, bool onGround, bool swimming, double movedY) {
         walkDistO = walkDist;
         oBob = bob;
+        oPitch = pitch;
         walkDist += static_cast<float>(moved) * 0.6f;
         const float speed = onGround && !swimming ? std::min(0.1f, static_cast<float>(moved) * 0.546f) : 0.0f;
         bob += (speed - bob) * 0.4f;
+        // EntityPlayer.onLivingUpdate (1.7.10); clamped to terminal velocity so a teleport does not tip the view
+        const float tilt =
+            onGround ? 0.0f : std::atan(static_cast<float>(-std::clamp(movedY, -3.92, 3.92)) * 0.2f) * 15.0f;
+        pitch += (tilt - pitch) * 0.8f;
     }
 
     glm::mat4 BobViewMatrix(const WalkBob& b, float partial, float strength) {
@@ -126,6 +167,8 @@ namespace perlin {
         glm::mat4 m = T(s * f2 * 0.5f, -std::fabs(c * f2), 0.0f);
         m = m * Rz(s * f2 * 3.0f);
         m = m * Rx(std::fabs(std::cos(f1 * kPi - 0.2f) * f2) * 5.0f);
+        if (ClassicAnimations())
+            m = m * Rx(Lerp(partial, b.oPitch, b.pitch) * strength);
         return m;
     }
 
@@ -255,6 +298,12 @@ namespace perlin {
             if (n == f)
                 return true;
         return false;
+    }
+
+    bool HandRenderer::ModernItem(const std::string& full) {
+        const std::string n = ShortName(full);
+        return n == "shield" || n == "trident" || n == "crossbow" || n == "spyglass" || n == "goat_horn" ||
+               n == "brush" || IsFood(full);
     }
 
     void HandRenderer::Tick(const TickIn& in, const HandSettings& s) {
@@ -925,14 +974,39 @@ namespace perlin {
         currentItem = item.name;
         if (!renderer || item.Empty())
             return;
+        const bool classic = ClassicAnimations() && !ModernItem(item.name);
         ui::HudItem renderedItem = item;
         if (item.name == "minecraft:bow" && bowUseTicks >= 0.0f) {
-            const int frame = bowUseTicks >= 18.0f ? 2 : bowUseTicks >= 13.0f ? 1 : 0;
+            const int frame = classic ? ClassicBowFrame(bowUseTicks)
+                                      : (bowUseTicks >= 18.0f ? 2 : bowUseTicks >= 13.0f ? 1 : 0);
             renderedItem.name = "minecraft:bow_pulling_" + std::to_string(frame);
         }
         const Model& model = ItemModel(renderedItem);
         if (!model.valid)
             return;
+        if (classic) {
+            // RenderPlayer.renderEquippedItems (1.7.10) in postRender space; no left hand in 1.7: mirror the right
+            glm::mat4 c = T(-0.0625f, 0.4375f, 0.0625f);
+            if (model.block) {
+                c = c * T(0.0f, 0.1875f, -0.3125f) * Rx(20.0f) * Ry(45.0f) *
+                    glm::scale(glm::mat4(1.0f), glm::vec3(-0.375f, -0.375f, 0.375f));
+            } else if (item.name == "minecraft:bow") {
+                c = c * T(0.0f, 0.125f, 0.3125f) * Ry(-20.0f) *
+                    glm::scale(glm::mat4(1.0f), glm::vec3(0.625f, -0.625f, 0.625f)) * Rx(-100.0f) * Ry(45.0f);
+            } else if (HeldUpright(item.name)) {
+                if (RotatesAround(item.name))
+                    c = c * Rz(180.0f) * T(0.0f, -0.125f, 0.0f);
+                c = c * T(0.0f, 0.1875f, 0.0f) * glm::scale(glm::mat4(1.0f), glm::vec3(0.625f, -0.625f, 0.625f)) *
+                    Rx(-100.0f) * Ry(45.0f);
+            } else {
+                c = c * T(0.25f, 0.1875f, -0.1875f) * S(0.375f) * Rz(60.0f) * Rx(-90.0f) * Rz(20.0f);
+            }
+            const glm::mat4 m = arm * (left ? kMirrorX : glm::mat4(1.0f)) * c * ClassicItemSpace(model);
+            worldPass = true;
+            DrawModel(model.quads, model.texture, m, light, 0.1f, item.enchanted);
+            worldPass = false;
+            return;
+        }
         const float side = left ? -1.0f : 1.0f;
         std::string n = item.name.starts_with("minecraft:") ? item.name.substr(10) : item.name;
         const auto ends = [&](const char* suffix) {
@@ -1075,6 +1149,56 @@ namespace perlin {
         sleeve3dValid = true;
     }
 
+    glm::mat4 HandRenderer::ClassicItemSpace(const Model& model) const {
+        // RenderBlocks.renderBlockAsItem, render type 0
+        if (model.block)
+            return Ry(90.0f) * T(-0.5f, -0.5f, -0.5f);
+        // renderItem then renderItemIn2D: 1.7's plate spans z -1/16..0 with u mirrored, a half turn of ours
+        return T(0.0f, -0.3f, 0.0f) * S(1.5f) * Ry(50.0f) * Rz(335.0f) * T(-0.9375f, -0.0625f, 0.0f) *
+               T(1.0f, 0.0f, 0.5f - 1.0f / 32.0f) * Ry(180.0f);
+    }
+
+    void HandRenderer::RenderClassicItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
+                                         bool rightArm, float swing, float equip) {
+        // ItemRenderer.renderItemInFirstPerson (1.7.10); no left hand in 1.7: it draws the right's mirror image
+        currentItem = item.name;
+        const float side = rightArm ? 1.0f : -1.0f;
+        glm::mat4 m = in.viewEffect;
+        m = m * Custom(s.itemX, s.itemY, s.itemZ, s.itemRotX, s.itemRotY, s.itemRotZ, s.itemScale, side);
+        if (!rightArm)
+            m = m * kMirrorX;
+        const bool isMain = &item == &mainShown;
+        const bool drawing = isMain && useHeld && item.name == "minecraft:bow";
+        const float sq = std::sqrt(swing);
+        if (!drawing)
+            m = m * T(-std::sin(sq * kPi) * 0.4f, std::sin(sq * kPi * 2.0f) * 0.2f, -std::sin(swing * kPi) * 0.2f);
+        m = m * T(0.7f * 0.8f, -0.65f * 0.8f - equip * 0.6f, -0.9f * 0.8f);
+        m = m * Ry(45.0f);
+        m = m * Ry(-std::sin(swing * swing * kPi) * 20.0f) * Rz(-std::sin(sq * kPi) * 20.0f) *
+            Rx(-std::sin(sq * kPi) * 80.0f);
+        m = m * S(0.4f);
+        ui::HudItem shown = item;
+        if (drawing) {
+            const float used = static_cast<float>(usedTicks) - 1.0f + in.partial;
+            m = m * Rz(-18.0f) * Ry(-12.0f) * Rx(-8.0f) * T(-0.9f, 0.2f, 0.0f);
+            float pull = used / 20.0f;
+            pull = std::min((pull * pull + pull * 2.0f) / 3.0f, 1.0f);
+            if (pull > 0.1f)
+                m = m * T(0.0f, std::sin((used - 0.1f) * 1.3f) * 0.01f * (pull - 0.1f), 0.0f);
+            m = m * T(0.0f, 0.0f, pull * 0.1f) * Rz(-335.0f) * Ry(-50.0f) * T(0.0f, 0.5f, 0.0f) *
+                glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 1.0f + pull * 0.2f)) * T(0.0f, -0.5f, 0.0f) *
+                Ry(50.0f) * Rz(335.0f);
+            shown.name = "minecraft:bow_pulling_" + std::to_string(ClassicBowFrame(static_cast<float>(usedTicks) - 1.0f));
+        }
+        if (RotatesAround(item.name))
+            m = m * Ry(180.0f);
+        const Model& model = ItemModel(shown.name == item.name ? item : shown);
+        if (!model.valid)
+            return;
+        m = m * S(s.scale) * ClassicItemSpace(model);
+        DrawModel(model.quads, model.texture, m, in.light, 0.1f, item.enchanted);
+    }
+
     void HandRenderer::RenderItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                                   bool rightArm, float swing, float equip) {
         currentItem = item.name;
@@ -1115,7 +1239,8 @@ namespace perlin {
         }
         const float sq = std::sqrt(swing);
         if (!useAnim) {
-            if (eatTicks > 0) {
+            if (eatTicks > 0 && isMain && IsFood(item.name)) {
+                // applyEatTransform then applyItemArmTransform: no attack transform while eating
                 const float remaining = 32.0f - (static_cast<float>(eatTicks) + in.partial) + 1.0f;
                 const float f0 = remaining / 32.0f;
                 if (f0 < 0.8f)
@@ -1123,17 +1248,18 @@ namespace perlin {
                 const float f3 = 1.0f - std::pow(f0, 27.0f);
                 m = m * T(side * f3 * 0.6f, f3 * -0.5f, 0.0f) * Ry(side * f3 * 90.0f) * Rx(f3 * 10.0f) *
                     Rz(side * f3 * 30.0f);
+                m = m * T(side * 0.56f, -0.52f + equip * -0.6f, -0.72f);
             } else {
                 m = m * T(side * (-0.4f * std::sin(sq * kPi)), 0.2f * std::sin(sq * kPi * 2.0f),
                           -0.2f * std::sin(swing * kPi));
+                m = m * T(side * 0.56f, -0.52f + equip * -0.6f, -0.72f);
+                const float f = std::sin(swing * swing * kPi);
+                m = m * Ry(side * (45.0f + f * -20.0f));
+                const float f1 = std::sin(sq * kPi);
+                m = m * Rz(side * f1 * -20.0f);
+                m = m * Rx(f1 * -80.0f);
+                m = m * Ry(side * -45.0f);
             }
-            m = m * T(side * 0.56f, -0.52f + equip * -0.6f, -0.72f);
-            const float f = std::sin(swing * swing * kPi);
-            m = m * Ry(side * (45.0f + f * -20.0f));
-            const float f1 = std::sin(sq * kPi);
-            m = m * Rz(side * f1 * -20.0f);
-            m = m * Rx(f1 * -80.0f);
-            m = m * Ry(side * -45.0f);
         }
         if (item.name == "minecraft:shield") {
             RenderShield(in, s, item, rightArm, m);
@@ -1438,13 +1564,19 @@ namespace perlin {
         const float offEquip = 1.0f - Lerp(in.partial, oOffHandHeight, offHandHeight);
         const bool mainRight = !s.leftHanded;
         const bool rig = s.bedrockRig && PERLIN_ENV("PERLIN_BEDROCK_RIG");
+        const auto item = [&](const ui::HudItem& held, bool right, float progress, float equip) {
+            if (ClassicAnimations() && !ModernItem(held.name))
+                RenderClassicItem(local, s, held, right, progress, equip);
+            else
+                RenderItem(local, s, held, right, progress, equip);
+        };
         if (mainShown.Empty()) {
             if (!rig)
                 RenderArm(local, s, mainRight, swing, mainEquip);
         } else if (!(rig && RigItem(mainShown.name))) {
-            RenderItem(local, s, mainShown, mainRight, swing, mainEquip);
+            item(mainShown, mainRight, swing, mainEquip);
         }
         if (s.showOffhand && !offShown.Empty() && !(rig && RigItem(offShown.name)))
-            RenderItem(local, s, offShown, !mainRight, 0.0f, offEquip);
+            item(offShown, !mainRight, 0.0f, offEquip);
     }
 }

@@ -32,6 +32,22 @@ namespace perlin::entity::java {
             current += difference - std::clamp(difference, -50.0f, 50.0f);
             previous = current - Wrap(current - previous);
         }
+        // EntityLivingBase.onUpdate + func_110146_f (1.7.10): no backwards flip, 75 degree clamp, 20% nudge past
+        // 50; walking backwards settles 60 degrees off the head
+        void ClassicPlayerTick(double dx, double dz, float facing, bool swinging) {
+            previous = current;
+            float target = current;
+            if (dx * dx + dz * dz > 0.0025000002)
+                target = static_cast<float>(std::atan2(dz, dx) * 180.0 / 3.1415927 - 90.0);
+            if (swinging)
+                target = facing;
+            current += Wrap(target - current) * 0.3f;
+            const float difference = std::clamp(Wrap(facing - current), -75.0f, 75.0f);
+            current = facing - difference;
+            if (difference * difference > 2500.0f)
+                current += difference * 0.2f;
+            previous = current - Wrap(current - previous);
+        }
         void MobTick(double dx, double dz, float facing, float head, float limit = 75.0f) {
             previous = current;
             if (dx * dx + dz * dz > 2.500000277905201e-7) {
@@ -57,6 +73,7 @@ namespace perlin::entity::java {
         double remainder = 0, lastX = 0, lastZ = 0, tickX = 0, tickZ = 0;
         float lastHead = 0;
         bool init = false;
+        bool classic = false;
         void Reset(double x, double z, float head) {
             rotation.Reset(head);
             remainder = 0;
@@ -78,7 +95,10 @@ namespace perlin::entity::java {
                 if (riding) {
                     rotation.previous = rotation.current;
                     rotation.current = Turn(rotation.current, facing, 0.3f);
-                } else
+                } else if (classic)
+                    rotation.ClassicPlayerTick(tx - tickX, tz - tickZ, Turn(lastHead, head, static_cast<float>(f)),
+                                               swinging);
+                else
                     rotation.PlayerTick(tx - tickX, tz - tickZ, Turn(lastHead, head, static_cast<float>(f)),
                                         swinging);
                 tickX = tx;
@@ -164,6 +184,8 @@ namespace perlin::entity::java {
         ArmPose right = ArmPose::Empty, left = ArmPose::Empty;
     };
     PlayerPose AnimatePlayer(const PlayerState& state);
+    // ModelBiped.setRotationAngles (1.7.10); items newer than 1.7 keep their modern arm poses. no swim or glide
+    PlayerPose AnimatePlayerClassic(const PlayerState& state);
     struct RootState {
         float bodyYaw = 0, pitch = 0, age = 0, deathTicks = 0, swim = 0, glideTicks = 0, flightYaw = 0,
               height = 1.8f;

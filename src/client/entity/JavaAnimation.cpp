@@ -186,6 +186,96 @@ namespace perlin::entity::java {
         return p;
     }
 
+    PlayerPose AnimatePlayerClassic(const PlayerState& s) {
+        PlayerPose p;
+        p.head.rotation = {glm::radians(s.pitch), glm::radians(s.headYaw), 0};
+        const float phase = s.walk * 0.6662f;
+        // no leg y/z in 1.7; legs rest 0.1 forward
+        p.rightArm.rotation = {Cos(phase + pi) * 2 * s.speed * 0.5f, 0, 0};
+        p.leftArm.rotation = {Cos(phase) * 2 * s.speed * 0.5f, 0, 0};
+        p.rightLeg.rotation = {Cos(phase) * 1.4f * s.speed, 0, 0};
+        p.leftLeg.rotation = {Cos(phase + pi) * 1.4f * s.speed, 0, 0};
+        p.rightLeg.offset.z = p.leftLeg.offset.z = 0.1f;
+        if (s.riding) {
+            p.rightArm.rotation.x += -pi / 5;
+            p.leftArm.rotation.x += -pi / 5;
+            p.rightLeg.rotation.x = p.leftLeg.rotation.x = -pi * 2 / 5;
+            p.rightLeg.rotation.y = pi / 10;
+            p.leftLeg.rotation.y = -pi / 10;
+        }
+        // heldItemRight = 1; the bow is applied last, as 1.7 does
+        const auto isModern = [](ArmPose a) {
+            return a != ArmPose::Empty && a != ArmPose::Item && a != ArmPose::Bow;
+        };
+        for (const bool right : {false, true}) {
+            const ArmPose mode = right ? s.right : s.left;
+            Part& a = right ? p.rightArm : p.leftArm;
+            if (mode == ArmPose::Item)
+                a.rotation.x = a.rotation.x * 0.5f - pi / 10;
+            a.rotation.y = 0;
+        }
+        const bool modernRight = isModern(s.right), modernLeft = isModern(s.left);
+        if (modernRight || modernLeft) {
+            const bool rightFirst = s.usingItem ? !s.useLeft : !s.mainLeft;
+            const ArmPose first = rightFirst ? s.right : s.left, second = rightFirst ? s.left : s.right;
+            if (isModern(first))
+                Arm(p, s, rightFirst, first);
+            if (isModern(second) && !AffectsOtherArm(first))
+                Arm(p, s, !rightFirst, second);
+        }
+        const float attack = std::clamp(s.attack, 0.0f, 1.0f);
+        {
+            const float side = s.attackLeft ? -1.0f : 1.0f;
+            const float twist = Sin(std::sqrt(attack) * pi * 2) * 0.2f * side;
+            p.body.rotation.y = twist;
+            p.rightArm.offset.x = 5 - Cos(twist) * 5;
+            p.rightArm.offset.z = Sin(twist) * 5;
+            p.leftArm.offset.x = -(5 - Cos(twist) * 5);
+            p.leftArm.offset.z = -Sin(twist) * 5;
+            p.rightArm.rotation.y += twist;
+            p.leftArm.rotation.y += twist;
+            p.leftArm.rotation.x += twist;
+            if (attack > 0) {
+                float eased = 1 - attack;
+                eased *= eased;
+                eased *= eased;
+                eased = 1 - eased;
+                const float lift = Sin(eased * pi);
+                const float aim = Sin(attack * pi) * -(p.head.rotation.x - 0.7f) * 0.75f;
+                Part& arm = s.attackLeft ? p.leftArm : p.rightArm;
+                arm.rotation.x -= lift * 1.2f + aim;
+                arm.rotation.y += twist * 2;
+                arm.rotation.z = Sin(attack * pi) * -0.4f;
+            }
+        }
+        // 1.7 sneak: legs up 3 and forward 4, head down 1, body pivot unmoved
+        if (s.crouching) {
+            p.body.rotation.x = 0.5f;
+            p.rightArm.rotation.x += 0.4f;
+            p.leftArm.rotation.x += 0.4f;
+            p.rightLeg.offset.z = p.leftLeg.offset.z = 4;
+            p.rightLeg.offset.y = p.leftLeg.offset.y = 3;
+            p.head.offset.y = -1;
+        }
+        const auto bob = [&](Part& part, float sign) {
+            part.rotation.z += sign * (Cos(s.age * 0.09f) * 0.05f + 0.05f);
+            part.rotation.x += sign * Sin(s.age * 0.067f) * 0.05f;
+        };
+        if (s.right != ArmPose::Spyglass)
+            bob(p.rightArm, 1);
+        if (s.left != ArmPose::Spyglass)
+            bob(p.leftArm, -1);
+        // aimedBow overwrites both arms after the sneak and swing, then bobs them again
+        if (s.right == ArmPose::Bow || s.left == ArmPose::Bow) {
+            const bool left = s.usingItem ? s.useLeft : s.right != ArmPose::Bow;
+            p.rightArm.rotation = {-pi / 2 + p.head.rotation.x, -0.1f + p.head.rotation.y - (left ? 0.4f : 0.0f), 0};
+            p.leftArm.rotation = {-pi / 2 + p.head.rotation.x, 0.1f + p.head.rotation.y + (left ? 0.0f : 0.4f), 0};
+            bob(p.rightArm, 1);
+            bob(p.leftArm, -1);
+        }
+        return p;
+    }
+
     float FlightYaw(float yaw, float pitch, const glm::vec3& velocity) {
         const float yawRad = glm::radians(yaw), pitchRad = glm::radians(pitch);
         const glm::vec2 look(-Sin(yawRad) * Cos(pitchRad), Cos(yawRad) * Cos(pitchRad));

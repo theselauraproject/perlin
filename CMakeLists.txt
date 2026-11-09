@@ -1045,7 +1045,8 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(entity_animation_selftest PRIVATE cxx_std_23)
     add_test(NAME entity_animation_selftest COMMAND entity_animation_selftest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/java_animation_reference.txt"
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/java_animation_root_reference.txt")
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/java_animation_root_reference.txt"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/java17_animation_reference.txt")
     add_executable(attachable_selftest tests/attachable_selftest.cpp
         src/client/attachable/Molang.cpp src/client/attachable/Animation.cpp src/client/attachable/Geometry.cpp
         src/client/ui/Json.cpp)

@@ -123,6 +123,14 @@ namespace perlin::entity {
     using molang::Value;
 
     namespace {
+        // PERLIN_MODERN_ANIMATIONS: Bedrock-driven poses and the modern Java body turn instead of 1.7
+        bool ClassicAnimations() {
+            static const bool modern = PERLIN_ENV("PERLIN_MODERN_ANIMATIONS") != nullptr;
+            return !modern;
+        }
+    }
+
+    namespace {
         constexpr float kDeg = 3.14159265358979323846f / 180.0f;
 
         float WrapDegrees(float a) {
@@ -446,6 +454,7 @@ namespace perlin::entity {
     }
 
     void EntityRenderer::TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw) {
+        v.body.classic = ClassicAnimations();
         v.yaw =
             v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
         v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / std::max(dt, 0.001f);
@@ -954,15 +963,71 @@ namespace perlin::entity {
             for (const auto& [bn, xf] : pose)
                 Log("pose", "{} {} rot {},{},{} pos {},{},{}", e.type, bn, xf.rotation.x, xf.rotation.y,
                     xf.rotation.z, xf.position.x, xf.position.y, xf.position.z);
-        if (e.isPlayer && e.Has(flag::Riding) && v.swimAmount < 0.01f && v.lieAmount < 0.01f) {
+        // 1.7 ModelBiped pose for players; Bedrock's animations kept for states 1.7 has no pose for
+        bool classicPosed = false;
+        if (e.isPlayer && !v.fp && ClassicAnimations() && bindGeometry && v.swimAmount < 0.01f &&
+            v.lieAmount < 0.01f && !e.Has(flag::Gliding) && !e.Has(flag::SpinAttack) && !e.sleeping &&
+            !e.dying) {
+            java::PlayerState ps;
+            ps.headYaw = WrapDegrees(v.headYaw - v.yaw);
+            ps.pitch = v.pitch;
+            ps.walk = v.limbSwing;
+            ps.speed = std::min(v.limbAmount, 1.0f);
+            ps.age = static_cast<float>((v.now - v.born) * 20.0);
+            ps.attack = v.attackTime;
+            ps.crouching = e.Has(flag::Sneaking) && !e.Has(flag::Riding);
+            ps.riding = e.Has(flag::Riding);
+            ps.usingItem = host.using_;
+            ps.useTicks = host.usedTicks;
+            const auto armPose = [&](const std::string& item, bool offhand) {
+                using java::ArmPose;
+                if (item.empty())
+                    return ArmPose::Empty;
+                const bool shield = item == "minecraft:shield";
+                if (shield && (host.blocking || e.Has(flag::Sneaking)))
+                    return ArmPose::Block;
+                if (offhand || !host.using_)
+                    return ArmPose::Item;
+                if (item == "minecraft:bow")
+                    return ArmPose::Bow;
+                if (item == "minecraft:crossbow")
+                    return ArmPose::CrossbowCharge;
+                if (item == "minecraft:trident")
+                    return ArmPose::Trident;
+                if (item == "minecraft:spyglass")
+                    return ArmPose::Spyglass;
+                if (item == "minecraft:goat_horn")
+                    return ArmPose::Horn;
+                if (item == "minecraft:brush")
+                    return ArmPose::Brush;
+                return ArmPose::Item;
+            };
+            ps.right = armPose(e.mainHand, false);
+            ps.left = armPose(e.offHand, true);
+            if (e.AimingBow())
+                ps.right = java::ArmPose::Bow;
+            const java::PlayerPose jp = java::AnimatePlayerClassic(ps);
+            // root keeps the Bedrock riding seat offset: put back after the limbs are refitted without it
+            const attachable::BoneXform root = pose.count("root") ? pose["root"] : attachable::BoneXform{};
+            attachable::Pose posed = pose;
+            if (java::ApplyPlayerPose(jp, bindGeometry, posed)) {
+                pose = std::move(posed);
+                pose["root"] = root;
+                // RenderPlayer: a sneaking player drawn 0.125 lower
+                if (ps.crouching)
+                    pose["root"].position.y -= 2.0f;
+                classicPosed = true;
+            }
+        }
+        if (!classicPosed && e.isPlayer && e.Has(flag::Riding) && v.swimAmount < 0.01f && v.lieAmount < 0.01f) {
 
             pose["rightleg"].rotation = {-81.0f, 18.0f, 0.0f};
             pose["leftleg"].rotation = {-81.0f, -18.0f, 0.0f};
             pose["rightarm"].rotation.x += -36.0f;
             pose["leftarm"].rotation.x += -36.0f;
         }
-        if (e.isPlayer && !v.fp && e.Has(flag::Sneaking) && v.swimAmount < 0.01f && v.lieAmount < 0.01f &&
-            !e.Has(flag::Riding))
+        if (!classicPosed && e.isPlayer && !v.fp && e.Has(flag::Sneaking) && v.swimAmount < 0.01f &&
+            v.lieAmount < 0.01f && !e.Has(flag::Riding))
             ApplyJavaCrouch(pose, bindGeometry);
         if (e.isPlayer && e.isSelf) {
             const SkinParts& parts = in.ownParts;
@@ -1110,6 +1175,21 @@ namespace perlin::entity {
                 if (attachable::BoneWorld(*geometry, pose, "leftarm", w, pv)) {
                     v.armL = w * glm::translate(glm::mat4(1.0f), pv) * toJava;
                     v.hasArmL = true;
+                }
+                // 1.8 ModelPlayer.postRenderArm: slim arms hold items a pixel further in; the pivot moves in the
+                // body's space, before the arm's rotation
+                if (e.isPlayer && e.skin && e.skin->slim && ClassicAnimations()) {
+                    glm::mat4 parentWorld;
+                    glm::vec3 parentPivot;
+                    if (attachable::BoneWorld(*geometry, pose, "body", parentWorld, parentPivot)) {
+                        const glm::mat4 toParent = glm::inverse(parentWorld);
+                        if (v.hasArmR)
+                            v.armR = parentWorld * glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
+                                     toParent * v.armR;
+                        if (v.hasArmL)
+                            v.armL = parentWorld * glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) *
+                                     toParent * v.armL;
+                    }
                 }
                 v.hasItemR = attachable::BoneWorld(*geometry, pose, "rightitem", v.itemR, pv);
                 if (v.hasItemR)

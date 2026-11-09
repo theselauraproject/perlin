@@ -132,6 +132,50 @@ void CheckJavaRootReference(const char* file) {
     CHECK(mismatches == 0);
     std::cout << "Java JAR roots: " << cases << "/120 matrices, maximum error " << largestError << "\n";
 }
+void CheckJava17Reference(const char* file) {
+    std::ifstream input(file);
+    CHECK(input.good());
+    std::string line;
+    int cases = 0, mismatches = 0;
+    float largestError = 0;
+    while (std::getline(input, line)) {
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream row(line);
+        PlayerState s;
+        int id, crouch, riding, held;
+        row >> id >> s.headYaw >> s.pitch >> s.walk >> s.speed >> s.age >> s.attack >> crouch >> riding >> held;
+        s.crouching = crouch != 0;
+        s.riding = riding != 0;
+        s.right = held == 0 ? ArmPose::Empty : held == 1 ? ArmPose::Item : ArmPose::Bow;
+        s.usingItem = held == 2;
+        const auto p = AnimatePlayerClassic(s);
+        const std::array<const Part*, 6> parts = {&p.head,    &p.body,     &p.rightArm,
+                                                  &p.leftArm, &p.rightLeg, &p.leftLeg};
+        bool match = true;
+        for (int bone = 0; bone < 6; ++bone)
+            for (int axis = 0; axis < 6; ++axis) {
+                float expected = 0;
+                row >> expected;
+                CHECK(!row.fail());
+                const float actual = axis < 3 ? parts[bone]->rotation[axis] : parts[bone]->offset[axis - 3];
+                const float error = std::abs(actual - expected);
+                largestError = std::max(largestError, error);
+                if (error > .0001f) {
+                    if (mismatches < 12)
+                        std::cerr << "Java 1.7 reference " << id << " bone " << bone << " axis " << axis << ": "
+                                  << actual << " expected " << expected << "\n";
+                    ++mismatches;
+                    match = false;
+                }
+            }
+        if (match)
+            ++cases;
+    }
+    CHECK(cases == 400);
+    CHECK(mismatches == 0);
+    std::cout << "Java 1.7.10 JAR reference: " << cases << "/400 poses, maximum error " << largestError << "\n";
+}
 static glm::mat4 JavaRotation(glm::vec3 r) {
     return glm::rotate(glm::mat4(1), -r.z, glm::vec3(0, 0, 1)) *
            glm::rotate(glm::mat4(1), r.y, glm::vec3(0, 1, 0)) *
@@ -157,6 +201,8 @@ int main(int argc, char** argv) {
         CheckJavaReference(argv[1]);
     if (argc > 2)
         CheckJavaRootReference(argv[2]);
+    if (argc > 3)
+        CheckJava17Reference(argv[3]);
     CHECK(Near(Turn(179, -179, 0.5f), 180));
     BodyRotation b;
     b.Reset(0);
@@ -183,6 +229,17 @@ int main(int argc, char** argv) {
     b.Reset(0);
     b.MobTick(.1, 0, 90, 100);
     CHECK(Near(b.current, 90));
+    {
+        // 1.7 backwards walk: clamped to 75 from the head then nudged back 20%, settling at a 60 degree twist
+        BodyRotation classic;
+        classic.Reset(0);
+        for (int i = 0; i < 60; ++i)
+            classic.ClassicPlayerTick(0, -0.2, 0, false);
+        CHECK(Near(std::abs(Wrap(classic.current)), 60.0f, .01f));
+        classic.Reset(0);
+        classic.ClassicPlayerTick(0, 0, 100, false);
+        CHECK(Near(classic.current, 25 + 75 * 0.2f));
+    }
     WalkAnimation w;
     w.Tick(.1f, false);
     CHECK(Near(w.speed, .16f));

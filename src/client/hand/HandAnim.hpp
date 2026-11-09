@@ -38,9 +38,8 @@ namespace perlin::hand {
             anim = swinging ? static_cast<float>(time) / static_cast<float>(duration) : 0.0f;
         }
 
+        // EntityLivingBase.getSwingProgress: ungated, so the last tick still runs on to 1 instead of snapping
         float Progress(float partial) const {
-            if (!swinging)
-                return 0.0f;
             float d = anim - oAnim;
             if (d < 0.0f)
                 d += 1.0f;
