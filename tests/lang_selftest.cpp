@@ -46,7 +46,8 @@ int main(int argc, char** argv) {
         CHECK(shipped.size() > 50);
         lang.LoadFromText(ss.str());
         CHECK(lang.Tr("perlin.debug.block", {"1", "2", "3"}) == "Block: 1 2 3");
-        CHECK(lang.Tr("perlin.debug.memory", {"50", "10", "20"}) == "Mem: 50% 10/20MB");
+        CHECK(lang.Tr("perlin.debug.memory", {"50", "10", "20"}) == "RAM: 50% 10/20MB");
+        CHECK(lang.Tr("perlin.debug.vram", {"300", "200", "100"}) == "VRAM: 300MB (200MB dedicated, 100MB shared)");
         CHECK(lang.Tr("perlin.title.fps", {"60"}) == "60 FPS");
         for (const auto& [k, v] : shipped)
             if (v.empty()) {

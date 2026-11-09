@@ -640,14 +640,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # cache: gradle keeps ~/.gradle/caches and ~/.gradle/wrapper, so the wrapper's gradle download comes from cache
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      # caches the wrapper's gradle distribution (downloaded from github releases) and the gradle caches
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle*
+            android/gradle/wrapper/gradle-wrapper.properties
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: android
