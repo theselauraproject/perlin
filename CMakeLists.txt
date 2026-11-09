@@ -337,6 +337,13 @@ else()
     perlin_default_api(CONDUIT_WEBGPU OFF)
 endif()
 
+# OpenGL ES / WebGL 2 is the last-resort renderer: phones without Vulkan 1.1 and Firefox. It is never chosen over another API.
+if(APPLE)
+    perlin_default_api(CONDUIT_GLES OFF)
+else()
+    perlin_default_api(CONDUIT_GLES ON)
+endif()
+
 include(cmake/PerlinConduit.cmake)
 include(cmake/PerlinShaders.cmake)
 
@@ -665,7 +672,7 @@ if(EMSCRIPTEN)
     add_custom_command(TARGET Perlin POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${PERLIN_WEB_DIR}/static" "$<TARGET_FILE_DIR:Perlin>")
 elseif(WIN32)
-    target_link_libraries(Perlin PRIVATE ws2_32 crypt32 dbghelp advapi32 user32 gdi32 bcrypt iphlpapi)
+    target_link_libraries(Perlin PRIVATE ws2_32 crypt32 dbghelp advapi32 user32 gdi32 bcrypt iphlpapi winhttp)
 elseif(PERLIN_IOS)
 
     set(PERLIN_IOS_OBJC "${CMAKE_CURRENT_SOURCE_DIR}/src/client/platform/ios/DocumentPicker.mm")
@@ -1401,7 +1408,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_definitions(auth_selftest PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT OPENSSL_SUPPRESS_DEPRECATED)
     target_link_libraries(auth_selftest PRIVATE glaze::glaze miniz OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
     if(WIN32)
-        target_link_libraries(auth_selftest PRIVATE ws2_32 crypt32)
+        target_link_libraries(auth_selftest PRIVATE ws2_32 crypt32 winhttp)
     elseif(APPLE)
         target_link_libraries(auth_selftest PRIVATE "-framework Security" "-framework CoreFoundation")
         target_compile_definitions(auth_selftest PRIVATE CPPHTTPLIB_USE_CERTS_FROM_MACOSX_KEYCHAIN)

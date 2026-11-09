@@ -135,6 +135,8 @@ namespace perlin {
         uint64_t GetRuntimeId() const { return runtimeId; }
         bool SendPlayerAuthInput();
         bool SendPlayerAuthInputBlockAction(uint32_t action, int bx, int by, int bz, int face);
+        // closes the block actions of one mining tick: they leave together in the next PlayerAuthInput
+        void EndBlockActionTick() { blockActionGroup++; }
         void EndItemUseOn();
         bool TakeBlockNamesLearned() { return blockNamesLearned.exchange(false); }
         bool ServerAuthoritativeBlockBreaking() const { return serverAuthBreaking.load(); }
@@ -178,6 +180,7 @@ namespace perlin {
         struct BlockActionData {
             uint32_t action = 0;
             int x = 0, y = 0, z = 0, face = 0;
+            uint32_t group = 0;
         };
         struct MoveInput {
             std::vector<uint32_t> flags;
@@ -493,6 +496,9 @@ namespace perlin {
             playerName = name;
             runtimeId = localRuntimeId;
             serverProtocol = protocol;
+            // the decoders follow this, not serverProtocol: a recording from an older server otherwise
+            // fails every packet whose layout changed since (level_chunk: no terrain at all)
+            net::context::SetProtocol(protocol);
             state = State::InGame;
             netLevel.EnableUndo(static_cast<size_t>(768) << 20);
         }
@@ -1139,6 +1145,7 @@ namespace perlin {
         std::mutex supportMutex;
         std::chrono::steady_clock::time_point lastSwingAt;
         std::deque<BlockActionData> pendingBlockActions;
+        uint32_t blockActionGroup = 0;
         std::deque<ServerMotion> serverMotions;
         void QueueServerMotion(ServerMotion motion);
         mutable std::mutex attrMutex;

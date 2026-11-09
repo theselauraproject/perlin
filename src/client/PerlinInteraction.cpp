@@ -199,6 +199,7 @@ namespace perlin {
                 if (fireName == "minecraft:fire" || fireName == "minecraft:soul_fire") {
                     live->SendPlayerAuthInputBlockAction(0, aimHit.bx, aimHit.by, aimHit.bz, aimHit.face);
                     live->SendPlayerAuthInputBlockAction(1, aimHit.bx, aimHit.by, aimHit.bz, aimHit.face);
+                    live->EndBlockActionTick();
                     live->NetLevel().SetBlock(fx, fy, fz, 0);
                     sounds.PlayBlockEvent(fireName, "break", glm::dvec3(fx + 0.5, fy + 0.5, fz + 0.5));
                     VibrateBlockBroken();
@@ -311,6 +312,7 @@ namespace perlin {
                                   std::clamp(static_cast<int>(breakProgress * 10.0f), 0, 9),
                                   std::clamp(breakProgress, 0.0f, 1.0f)};
                 }
+                live->EndBlockActionTick();
             }
             if (swingClock > 0.3) {
                 swingClock = 0;

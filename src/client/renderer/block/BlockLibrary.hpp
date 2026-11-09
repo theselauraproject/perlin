@@ -41,7 +41,10 @@ namespace perlin {
 
     class BlockLibrary {
     public:
+        // tile size of the library being drawn; a staged library keeps its own until it is swapped in
         static int TilePx() { return tilePxValue; }
+        static void SetLiveTilePx(int px) { tilePxValue = px; }
+        int OwnTilePx() const { return tilePx; }
         static constexpr int kAtlasTiles = 128;
         static int MaxTiles() { return maxTilesValue; }
         static void SetMaxTiles(int tiles) {
@@ -133,6 +136,7 @@ namespace perlin {
         std::atomic<int> betterGrass{0};
         std::unordered_map<int, std::vector<int>> glassTiles;
         inline static int tilePxValue = 16;
+        int tilePx = 16;
         inline static int maxTilesValue = 2048;
         std::atomic<bool> atlasFullLogged{false};
         std::unordered_map<uint64_t, int> tileByHash;
