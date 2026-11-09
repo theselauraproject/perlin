@@ -95,6 +95,9 @@ namespace perlin {
             bool discordPresence = true;
             bool discordShowServer = true;
             bool discordJoin = true;
+            bool nametagBackground = true;
+            bool nametagShadow = false;
+            bool customSkies = true;
         };
     }
 
@@ -370,6 +373,9 @@ namespace perlin {
         o.discordPresence = stored.discordPresence;
         o.discordShowServer = stored.discordShowServer;
         o.discordJoin = stored.discordJoin;
+        o.nametagBackground = stored.nametagBackground;
+        o.nametagShadow = stored.nametagShadow;
+        o.customSkies = stored.customSkies;
         return o;
     }
 
@@ -458,6 +464,9 @@ namespace perlin {
         stored.discordPresence = discordPresence;
         stored.discordShowServer = discordShowServer;
         stored.discordJoin = discordJoin;
+        stored.nametagBackground = nametagBackground;
+        stored.nametagShadow = nametagShadow;
+        stored.customSkies = customSkies;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))

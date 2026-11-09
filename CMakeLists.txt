@@ -1030,6 +1030,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(hand_anim_selftest PRIVATE src)
     target_compile_features(hand_anim_selftest PRIVATE cxx_std_23)
     add_test(NAME hand_anim_selftest COMMAND hand_anim_selftest)
+    add_executable(custom_sky_selftest tests/custom_sky_selftest.cpp src/client/renderer/CustomSky.cpp
+        src/client/renderer/SkyGeometry.cpp)
+    target_include_directories(custom_sky_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(custom_sky_selftest PRIVATE cxx_std_23)
+    add_test(NAME custom_sky_selftest COMMAND custom_sky_selftest)
     add_executable(heldbuild_selftest
         tests/heldbuild_selftest.cpp
         src/client/player/HeldBuild.cpp

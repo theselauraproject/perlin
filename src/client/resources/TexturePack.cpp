@@ -358,6 +358,49 @@ namespace perlin {
         return false;
     }
 
+    size_t TexturePack::LayerCount() const {
+        std::lock_guard lock(impl->mutex);
+        return impl->layers.size();
+    }
+
+    bool TexturePack::LayerJava(size_t layer) const {
+        std::lock_guard lock(impl->mutex);
+        return layer < impl->layers.size() && impl->layers[layer]->java;
+    }
+
+    bool TexturePack::LayerReadText(size_t layer, const std::string& rel, std::string& out) const {
+        std::lock_guard lock(impl->mutex);
+        if (layer >= impl->layers.size())
+            return false;
+        const auto& l = impl->layers[layer];
+        if (l->zipMode) {
+            if (!l->zipOpen)
+                return false;
+            const auto found = l->index.find(str::Lower(rel));
+            if (found == l->index.end())
+                return false;
+            size_t size = 0;
+            void* data = mz_zip_reader_extract_to_heap(&l->zip, found->second, &size, 0);
+            if (!data)
+                return false;
+            out.assign(static_cast<const char*>(data), size);
+            mz_free(data);
+            return true;
+        }
+        if (l->folder.empty())
+            return false;
+        std::ifstream in(fs::path(l->folder) / rel, std::ios::binary);
+        if (!in)
+            return false;
+        out.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        return true;
+    }
+
+    bool TexturePack::LayerLoad(size_t layer, const std::string& rel, Texture& out) const {
+        std::lock_guard lock(impl->mutex);
+        return layer < impl->layers.size() && LoadDirect(impl->layers[layer].get(), rel, out);
+    }
+
     std::vector<std::string> TexturePack::ReadTextLayers(const std::string& rel) const {
         std::lock_guard lock(impl->mutex);
         std::vector<std::string> out;

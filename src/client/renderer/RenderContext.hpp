@@ -29,6 +29,22 @@ namespace perlin {
         float sunrise[4] = {};
         int moonPhase = 0;
         bool darkDisc = false;
+        // texture-pack sky layers, drawn between the sunrise glow and the sun (CustomSky.renderSky)
+        struct CustomLayer {
+            int texture = 0;
+            bool cubemap = false;
+            uint8_t blend = 1;
+            float brightness = 1.0f;
+            float rotation[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+        };
+        // the End's sky box (RenderGlobal.renderSkyEnd); custom layers draw over it
+        bool endSky = false;
+        // MCPatcher sun / moon replacements, as indices into the uploaded custom sky textures
+        int sunTexture = -1, moonTexture = -1;
+        uint8_t sunBlend = 1, moonBlend = 1;
+        static constexpr int kMaxCustomLayers = 16;
+        CustomLayer custom[kMaxCustomLayers];
+        int customCount = 0;
     };
 
     struct CloudDraw {
@@ -213,6 +229,7 @@ namespace perlin {
         virtual void DrawHudCursor(float x, float y, float w, float h) = 0;
         virtual void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) = 0;
         virtual void UploadEndSkyTexture(const Texture&) {}
+        virtual void UploadCustomSkyTextures(const std::vector<Texture>&) {}
 
         virtual void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) = 0;
 

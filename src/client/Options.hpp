@@ -90,6 +90,10 @@ namespace perlin {
         bool thirdPersonCrosshair = false;
         std::string glass = "normal";
         bool thirdPersonNametag = false;
+        bool nametagBackground = true;
+        bool nametagShadow = false;
+        // OptiFine skies (optifine/sky, mcpatcher/sky) and Bedrock overworld cubemaps from texture packs
+        bool customSkies = true;
         bool fovEffects = true;
         int damageTilt = 100;
         bool damageTint = true;

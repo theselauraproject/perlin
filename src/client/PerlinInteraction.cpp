@@ -74,7 +74,8 @@ namespace perlin {
                     return glm::vec2(hb.first, hb.second);
                 },
                 {camera.x, camera.y, camera.z}, glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch)), PickRange(creative, 1),
-                EntityPickRange(creative));
+                EntityPickRange(creative),
+                FluidAimFor(hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)].name));
 
             const glm::dvec3 look(targeting::ViewVector(camera.yaw, camera.pitch));
             if (aimHit.kind == AimHit::Kind::None && look.y < -0.7) {

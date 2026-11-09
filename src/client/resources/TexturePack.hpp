@@ -23,6 +23,12 @@ namespace perlin {
         std::vector<std::string> ListFiles(const std::string& dirRel, const std::string& suffix) const;
         std::string Description() const;
 
+        // one pack of the stack (0 is the highest priority), for content that must come from a single pack
+        size_t LayerCount() const;
+        bool LayerJava(size_t layer) const;
+        bool LayerReadText(size_t layer, const std::string& rel, std::string& out) const;
+        bool LayerLoad(size_t layer, const std::string& rel, Texture& out) const;
+
     public:
         struct Impl;
 

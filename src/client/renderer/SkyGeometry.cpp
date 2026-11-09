@@ -1,6 +1,9 @@
 #include "client/renderer/SkyGeometry.hpp"
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <glm/glm.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -132,6 +135,65 @@ namespace perlin {
             out.push_back(static_cast<uint16_t>(i));
             out.push_back(static_cast<uint16_t>(i + 1));
         }
+        return out;
+    }
+
+    std::vector<TextureVertex> BuildCustomSkyBox() {
+        const auto rx = [](float deg) { return glm::rotate(glm::mat4(1.0f), glm::radians(deg), glm::vec3(1, 0, 0)); };
+        const auto rz = [](float deg) { return glm::rotate(glm::mat4(1.0f), glm::radians(deg), glm::vec3(0, 0, 1)); };
+        // the GL calls of CustomSkyLayer.render: side 4, push 1 pop, push 0 pop, then 5, 2, 3 by 90 degree turns
+        const glm::mat4 base = rx(90.0f) * rz(-90.0f);
+        glm::mat4 sides[6];
+        sides[4] = base;
+        sides[1] = base * rx(90.0f);
+        sides[0] = base * rx(-90.0f);
+        sides[5] = base * rz(90.0f);
+        sides[2] = sides[5] * rz(90.0f);
+        sides[3] = sides[2] * rz(90.0f);
+        std::vector<TextureVertex> out;
+        for (int side = 0; side < 6; side++) {
+            const float tx = static_cast<float>(side % 3) / 3.0f, ty = static_cast<float>(side / 3) / 2.0f;
+            const glm::vec3 corners[4] = {{-100, -100, -100}, {-100, -100, 100}, {100, -100, 100}, {100, -100, -100}};
+            const glm::vec2 uvs[4] = {{tx, ty}, {tx, ty + 0.5f}, {tx + 1.0f / 3.0f, ty + 0.5f}, {tx + 1.0f / 3.0f, ty}};
+            for (int i = 0; i < 4; i++) {
+                const glm::vec3 p = glm::vec3(sides[side] * glm::vec4(corners[i], 1.0f));
+                out.push_back({p.x, p.y, p.z, uvs[i].x, uvs[i].y});
+            }
+        }
+        return out;
+    }
+
+    std::vector<TextureVertex> BuildCustomSkyCube() {
+        struct Face {
+            glm::vec3 centre, right, up;
+        };
+        // the four sides turn right in order; the top's lower edge and the bottom's upper edge meet the front
+        static const Face kFaces[6] = {{{0, 0, -1}, {1, 0, 0}, {0, 1, 0}},  {{1, 0, 0}, {0, 0, 1}, {0, 1, 0}},
+                                       {{0, 0, 1}, {-1, 0, 0}, {0, 1, 0}},  {{-1, 0, 0}, {0, 0, -1}, {0, 1, 0}},
+                                       {{0, 1, 0}, {1, 0, 0}, {0, 0, 1}},   {{0, -1, 0}, {1, 0, 0}, {0, 0, -1}}};
+        std::vector<TextureVertex> out;
+        for (const Face& f : kFaces) {
+            const glm::vec3 c = f.centre * 100.0f, r = f.right * 100.0f, u = f.up * 100.0f;
+            const glm::vec3 p[4] = {c - r + u, c + r + u, c + r - u, c - r - u};
+            const glm::vec2 uv[4] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+            for (int i = 0; i < 4; i++)
+                out.push_back({p[i].x, p[i].y, p[i].z, uv[i].x, uv[i].y});
+        }
+        return out;
+    }
+
+    std::vector<TextureVertex> BuildEndSkyBox() {
+        const auto rot = [](float deg, glm::vec3 axis) { return glm::rotate(glm::mat4(1.0f), glm::radians(deg), axis); };
+        const glm::mat4 faces[6] = {glm::mat4(1.0f),          rot(90.0f, {1, 0, 0}), rot(-90.0f, {1, 0, 0}),
+                                    rot(180.0f, {1, 0, 0}),   rot(90.0f, {0, 0, 1}), rot(-90.0f, {0, 0, 1})};
+        const glm::vec3 corners[4] = {{-100, -100, -100}, {-100, -100, 100}, {100, -100, 100}, {100, -100, -100}};
+        const glm::vec2 uvs[4] = {{0, 0}, {0, 16}, {16, 16}, {16, 0}};
+        std::vector<TextureVertex> out;
+        for (const glm::mat4& face : faces)
+            for (int i = 0; i < 4; i++) {
+                const glm::vec3 p = glm::vec3(face * glm::vec4(corners[i], 1.0f));
+                out.push_back({p.x, p.y, p.z, uvs[i].x, uvs[i].y});
+            }
         return out;
     }
 

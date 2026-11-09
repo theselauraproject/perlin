@@ -129,6 +129,11 @@ namespace perlin {
         }
 
         context.UploadSkyTextures(sun, moon, clouds);
+        customSky = sky::Load(ServerPacks::Instance().Directories());
+        context.UploadCustomSkyTextures(customSky.textures);
+        // the GPU has its copies
+        for (Texture& t : customSky.textures)
+            t = Texture{};
         Texture endSky;
         if (load("end_sky.png", endSky))
             context.UploadEndSkyTexture(endSky);

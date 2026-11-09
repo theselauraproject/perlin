@@ -1,5 +1,7 @@
 #include "client/renderer/gpu/RenderContext_rhi.hpp"
 
+#include "client/renderer/CustomSky.hpp"
+
 #include "client/renderer/MaterialDb.hpp"
 #include "util/Env.hpp"
 
@@ -336,6 +338,134 @@ namespace perlin {
             gpu.WriteTexture(endSkyTex.handle, 0, 0, 0, endSkyTex.w, endSkyTex.h, endSky.pixels.data());
     }
 
+    void RenderContext_rhi::UploadCustomSkyTextures(const std::vector<Texture>& textures) {
+        if (!initialized)
+            return;
+        for (TexRec& t : customSkyTex)
+            FreeTexture(t);
+        customSkyTex.clear();
+        customSkyTex.resize(textures.size());
+        for (size_t i = 0; i < textures.size(); i++) {
+            const Texture& t = textures[i];
+            if (t.width <= 0 || t.height <= 0 || t.pixels.empty())
+                continue;
+            // nearest, as OptiFine binds them: a 3x2 sheet must not bleed between its cells
+            if (MakeTexture(customSkyTex[i], static_cast<uint32_t>(t.width), static_cast<uint32_t>(t.height), 1, 1,
+                            conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp, "custom sky"))
+                gpu.WriteTexture(customSkyTex[i].handle, 0, 0, 0, customSkyTex[i].w, customSkyTex[i].h,
+                                 t.pixels.data());
+        }
+    }
+
+    // Blender.setupBlend: the factors and the colour each method multiplies the texture by
+    void RenderContext_rhi::ApplySkyBlend(DrawState& s, uint8_t blend, float b, float mod[4]) {
+            using F = conduit::blend_factor;
+            s.blend = true;
+            s.mask = conduit::color_mask::rgb;
+            s.srcAlpha = F::zero;
+            s.dstAlpha = F::one;
+            mod[0] = mod[1] = mod[2] = 1.0f;
+            mod[3] = b;
+            switch (static_cast<sky::Blend>(blend)) {
+            case sky::Blend::Alpha:
+                s.srcColor = F::src_alpha, s.dstColor = F::inv_src_alpha;
+                break;
+            case sky::Blend::Add:
+                s.srcColor = F::src_alpha, s.dstColor = F::one;
+                break;
+            case sky::Blend::Subtract:
+                s.srcColor = F::inv_dst_color, s.dstColor = F::zero;
+                mod[0] = mod[1] = mod[2] = b, mod[3] = 1.0f;
+                break;
+            case sky::Blend::Multiply:
+                s.srcColor = F::dst_color, s.dstColor = F::inv_src_alpha;
+                mod[0] = mod[1] = mod[2] = b;
+                break;
+            case sky::Blend::Dodge:
+                s.srcColor = F::one, s.dstColor = F::one;
+                mod[0] = mod[1] = mod[2] = b, mod[3] = 1.0f;
+                break;
+            case sky::Blend::Burn:
+                s.srcColor = F::zero, s.dstColor = F::inv_src_color;
+                mod[0] = mod[1] = mod[2] = b, mod[3] = 1.0f;
+                break;
+            case sky::Blend::Screen:
+                s.srcColor = F::one, s.dstColor = F::inv_src_color;
+                mod[0] = mod[1] = mod[2] = b, mod[3] = 1.0f;
+                break;
+            case sky::Blend::Overlay:
+                s.srcColor = F::dst_color, s.dstColor = F::src_color;
+                mod[0] = mod[1] = mod[2] = b, mod[3] = 1.0f;
+                break;
+            case sky::Blend::Replace:
+                s.blend = false;
+                break;
+            }
+    }
+
+    void RenderContext_rhi::DrawCustomSky(const glm::mat4& view, const glm::mat4& celestial) {
+        const SkyFrame& sky = frame.sky;
+        const Source quad{quadIdx, 0};
+        for (int i = 0; i < std::min(sky.customCount, SkyFrame::kMaxCustomLayers); i++) {
+            const SkyFrame::CustomLayer& layer = sky.custom[i];
+            const float b = layer.brightness;
+            DrawState s = Base(Program::Celestial, false, false, conduit::compare_op::less_equal);
+            s.layout = gpu::VertexLayout::Texture;
+            float mod[4];
+            ApplySkyBlend(s, layer.blend, b, mod);
+            uni.Vec4("u_modulator", mod[0], mod[1], mod[2], mod[3]);
+            glm::mat4 rotation;
+            std::memcpy(&rotation[0][0], layer.rotation, sizeof(layer.rotation));
+            if (layer.cubemap) {
+                SetMatrix(glm::value_ptr(view));
+                for (int face = 0; face < 6; face++) {
+                    const size_t slot = static_cast<size_t>(layer.texture + face);
+                    if (slot >= customSkyTex.size() || !customSkyTex[slot].used)
+                        continue;
+                    BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearClamp);
+                    Submit(View::World, s, {customSkyCube, static_cast<uint64_t>(face) * 4 * sizeof(TextureVertex)},
+                           &quad, conduit::index_type::u16, 0, 6);
+                }
+                continue;
+            }
+            const size_t slot = static_cast<size_t>(layer.texture);
+            if (slot >= customSkyTex.size() || !customSkyTex[slot].used)
+                continue;
+            const glm::mat4 pose = celestial * rotation;
+            SetMatrix(glm::value_ptr(pose));
+            BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::PointClamp);
+            for (int side = 0; side < 6; side++)
+                Submit(View::World, s, {customSkyBox, static_cast<uint64_t>(side) * 4 * sizeof(TextureVertex)}, &quad,
+                       conduit::index_type::u16, 0, 6);
+        }
+    }
+
+    void RenderContext_rhi::DrawEndSky(const glm::mat4& view) {
+        if (endSkyTex.used) {
+            SetMatrix(glm::value_ptr(view));
+            // renderSkyEnd: vertex colour 40/255, alpha blended, no depth
+            uni.Vec4("u_modulator", 40.0f / 255.0f, 40.0f / 255.0f, 40.0f / 255.0f, 1.0f);
+            BindTexture("s_sky", endSkyTex.handle, gpu::SamplerKind::PointRepeat);
+            DrawState s = Base(Program::Celestial, false, false, conduit::compare_op::less_equal);
+            s.layout = gpu::VertexLayout::Texture;
+            s.mask = kRgbA;
+            s.blend = true;
+            s.srcColor = conduit::blend_factor::src_alpha;
+            s.dstColor = conduit::blend_factor::inv_src_alpha;
+            s.srcAlpha = conduit::blend_factor::one;
+            s.dstAlpha = conduit::blend_factor::zero;
+            const Source quad{quadIdx, 0};
+            for (int face = 0; face < 6; face++)
+                Submit(View::World, s, {endSkyBox, static_cast<uint64_t>(face) * 4 * sizeof(TextureVertex)}, &quad,
+                       conduit::index_type::u16, 0, 6);
+        }
+        if (frame.sky.customCount > 0) {
+            constexpr float kHalfPi = 1.57079632679489661923f;
+            DrawCustomSky(view, glm::rotate(view, -kHalfPi, glm::vec3(0.0f, 1.0f, 0.0f)));
+        }
+        SetMatrix(mvp);
+    }
+
     void RenderContext_rhi::UploadTileFlags(const std::vector<uint8_t>& flags) {
         if (!initialized)
             return;
@@ -621,8 +751,11 @@ namespace perlin {
 
     void RenderContext_rhi::DrawSky() {
         const SkyFrame& sky = frame.sky;
-        if (!sky.enabled)
+        if (!sky.enabled) {
+            if (sky.endSky && !javaActive)
+                DrawEndSky(FromArray(frame.skyViewProjection));
             return;
+        }
         const glm::mat4 view = FromArray(frame.skyViewProjection);
         constexpr float kHalfPi = 1.57079632679489661923f;
         const auto matrix = [&](const glm::mat4& m) { SetMatrix(glm::value_ptr(m)); };
@@ -669,26 +802,43 @@ namespace perlin {
         }
 
         const glm::mat4 celestial = glm::rotate(view, -kHalfPi, glm::vec3(0.0f, 1.0f, 0.0f));
+        if (sky.customCount > 0)
+            DrawCustomSky(view, celestial);
         const auto body = [&](float angle, float scale) {
             glm::mat4 pose = glm::rotate(celestial, angle, glm::vec3(1.0f, 0.0f, 0.0f));
             pose = glm::translate(pose, glm::vec3(0.0f, 100.0f, 0.0f));
             return glm::scale(pose, glm::vec3(scale, 1.0f, scale));
         };
         const Source quad{quadIdx, 0};
-        if (!javaActive && sunTex.used) {
+        // MCPatcher's setupCelestialObject: a pack's sun or moon texture with its own blend, at the rain-dimmed
+        // brightness the vanilla one uses
+        const auto replaced = [&](int index, uint8_t blend, DrawState& s) {
+            if (index < 0 || static_cast<size_t>(index) >= customSkyTex.size() || !customSkyTex[index].used)
+                return false;
+            float mod[4];
+            ApplySkyBlend(s, blend, sky.rainBrightness, mod);
+            uni.Vec4("u_modulator", mod[0], mod[1], mod[2], mod[3]);
+            BindTexture("s_sky", customSkyTex[index].handle, gpu::SamplerKind::PointClamp);
+            return true;
+        };
+        if (!javaActive && (sunTex.used || sky.sunTexture >= 0)) {
             matrix(body(sky.sunAngle, 30.0f));
-            uni.Vec4("u_modulator", 1.0f, 1.0f, 1.0f, sky.rainBrightness);
-            BindTexture("s_sky", sunTex.handle, gpu::SamplerKind::PointClamp);
             DrawState s = drawState(Program::Celestial, gpu::VertexLayout::Texture);
-            ApplyMaterial(s, "sun_moon");
+            if (!replaced(sky.sunTexture, sky.sunBlend, s)) {
+                uni.Vec4("u_modulator", 1.0f, 1.0f, 1.0f, sky.rainBrightness);
+                BindTexture("s_sky", sunTex.handle, gpu::SamplerKind::PointClamp);
+                ApplyMaterial(s, "sun_moon");
+            }
             Submit(View::World, s, {sunVerts, 0}, &quad, conduit::index_type::u16, 0, 6);
         }
-        if (!javaActive && moonTex.used) {
+        if (!javaActive && (moonTex.used || sky.moonTexture >= 0)) {
             matrix(body(sky.moonAngle, 20.0f));
-            uni.Vec4("u_modulator", 1.0f, 1.0f, 1.0f, sky.rainBrightness);
-            BindTexture("s_sky", moonTex.handle, gpu::SamplerKind::PointClamp);
             DrawState s = drawState(Program::Celestial, gpu::VertexLayout::Texture);
-            ApplyMaterial(s, "sun_moon");
+            if (!replaced(sky.moonTexture, sky.moonBlend, s)) {
+                uni.Vec4("u_modulator", 1.0f, 1.0f, 1.0f, sky.rainBrightness);
+                BindTexture("s_sky", moonTex.handle, gpu::SamplerKind::PointClamp);
+                ApplyMaterial(s, "sun_moon");
+            }
             Submit(View::World, s,
                    {moonVerts, static_cast<uint64_t>(sky.moonPhase) * 4 * sizeof(TextureVertex)}, &quad,
                    conduit::index_type::u16, 0, 6);

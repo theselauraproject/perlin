@@ -21,10 +21,21 @@ namespace perlin {
         return glm::vec3(glm::clamp(point, lo, hi));
     }
 
+    FluidAim FluidAimFor(const std::string& held) {
+        const std::string n = held.starts_with("minecraft:") ? held.substr(10) : held;
+        if (n == "bucket")
+            return FluidAim::Sources;
+        // ItemGlassBottle, ItemLilyPad, ItemBoat raytrace with liquids
+        if (n == "glass_bottle" || n == "waterlily" || n == "lily_pad" || n == "frog_spawn" ||
+            n.ends_with("_boat") || n.ends_with("_raft") || n == "boat")
+            return FluidAim::Water;
+        return FluidAim::None;
+    }
+
     AimHit Raycast(const Level& level, const BlockLibrary* blocks,
                    const std::vector<entity::Entity>& entities,
                    const std::function<glm::vec2(const entity::Entity&)>& bounds, const glm::dvec3& eye,
-                   const glm::dvec3& dirIn, double reach, double entityReach) {
+                   const glm::dvec3& dirIn, double reach, double entityReach, FluidAim fluids) {
         AimHit best;
         best.distance = reach;
         const double len = glm::length(dirIn);
@@ -51,7 +62,17 @@ namespace perlin {
         double traveled = 0;
         for (int i = 0; i < 64 && traveled <= reach; i++) {
             std::vector<physics::Box>& boxes = selectionScratch;
-            const bool targetable = world.Selection(cell.x, cell.y, cell.z, boxes);
+            bool targetable = world.Selection(cell.x, cell.y, cell.z, boxes);
+            if (fluids != FluidAim::None) {
+                const physics::BlockShape shape = world.Query(cell.x, cell.y, cell.z);
+                const bool hit = shape.fluid != 0 && (fluids == FluidAim::Water
+                                                          ? shape.fluid == 1
+                                                          : shape.fluidDepth == 0);
+                if (hit) {
+                    boxes.push_back({0, 0, 0, 1, 1, 1});
+                    targetable = true;
+                }
+            }
             if (targetable) {
                 double bestT = std::numeric_limits<double>::infinity();
                 int bestFace = 1;

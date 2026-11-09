@@ -2,6 +2,7 @@
 #include "client/Options.hpp"
 #include "client/renderer/Frustum.hpp"
 #include "client/renderer/RenderContext.hpp"
+#include "client/renderer/CustomSky.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/chunk/LodStore.hpp"
 #include "client/renderer/block/BiomeTints.hpp"
@@ -35,6 +36,7 @@ namespace perlin {
         }
         void ReloadResources();
         void RemeshAll() { InvalidateMeshes(); }
+        sky::Set& CustomSky() { return customSky; }
 
         void SetFastBuild(bool fast) { fastBuild = fast; }
         bool ServerBlocksSettled();
@@ -195,6 +197,7 @@ namespace perlin {
         bool lightingConfigured = false;
         bool atlasUploaded = false;
         bool skyTexturesLoaded = false;
+        sky::Set customSky;
         bool texturePackResolved = false;
 
         uint32_t serverPackGeneration = 0;

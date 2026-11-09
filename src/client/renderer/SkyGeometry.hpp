@@ -48,6 +48,12 @@ namespace perlin {
     std::vector<PositionVertex> BuildStars();
     std::vector<TextureVertex> BuildSunQuad();
     std::vector<TextureVertex> BuildMoonQuads();
+    // CustomSkyLayer.renderSide for sides 0-5 of the 3x2 sheet, in the frame after the sky's -90 degree turn
+    std::vector<TextureVertex> BuildCustomSkyBox();
+    // a Bedrock cubemap in world space: front (north), right, back, left, up, down; each face its own image
+    std::vector<TextureVertex> BuildCustomSkyCube();
+    // RenderGlobal.renderSkyEnd: six faces at 100 with end_sky.png tiled 16 times
+    std::vector<TextureVertex> BuildEndSkyBox();
     std::vector<uint16_t> FanIndices(int vertexCount);
     std::vector<uint16_t> QuadIndices(int quadCount);
 

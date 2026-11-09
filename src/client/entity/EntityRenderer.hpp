@@ -83,6 +83,8 @@ namespace perlin::entity {
             bool chunkBorders = false;
             bool hitboxes = false;
             bool ownNametag = false;
+            bool nametagBackground = true;
+            bool nametagShadow = false;
             bool nametags = true;
             bool nametagDepth = false;
             SkinParts ownParts;
@@ -128,6 +130,7 @@ namespace perlin::entity {
 
             struct FireSprite {
                 glm::dvec3 pos{0.0};
+                uint64_t runtimeId = 0;
                 float width = 0.6f, height = 1.8f;
                 bool soul = false;
             };

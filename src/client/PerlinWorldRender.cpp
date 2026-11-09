@@ -1,4 +1,5 @@
 #include "client/PerlinFrame.hpp"
+#include "client/renderer/CustomSky.hpp"
 #include "client/resources/AssetJobs.hpp"
 #include "util/Log.hpp"
 
@@ -244,7 +245,8 @@ namespace perlin {
     }
 
     void Perlin::UpdateThirdPersonDistance(BedrockSession* live, float dt) {
-        constexpr float desired = 5.0f;
+        // EntityRenderer.orientCamera: four blocks back in every Java version
+        constexpr float desired = 4.0f;
         if (camera.mode == PerspectiveMode::FirstPerson) {
             camera.thirdPersonDistance = -1.0f;
             camera.avoidanceVelocity = 0.0f;
@@ -773,6 +775,40 @@ namespace perlin {
         params.sky.moonPhase = env.moonPhase;
         params.sky.darkDisc =
             eye.y < (session && session->FlatWorld() ? frame::kFlatHorizonHeight : frame::kHorizonHeight);
+        params.sky.customCount = 0;
+        params.sky.endSky = dimension == Dimension::End;
+        params.sky.sunTexture = params.sky.moonTexture = -1;
+        if (options.customSkies && levelRenderer && (params.sky.enabled || params.sky.endSky) &&
+            !levelRenderer->CustomSky().Empty()) {
+            sky::Set& custom = levelRenderer->CustomSky();
+            const bool end = !params.sky.enabled;
+            sky::Inputs skyIn;
+            skyIn.worldTime = static_cast<int64_t>(worldTicks);
+            constexpr float kTwoPi = 6.28318530717958647692f;
+            // WorldProviderEnd.calculateCelestialAngle is 0, and the End has no weather
+            skyIn.celestialAngle = end ? 0.0f : env.sunAngle / kTwoPi - std::floor(env.sunAngle / kTwoPi);
+            skyIn.rain = end ? 0.0f : rain;
+            skyIn.thunder = end ? 0.0f : f.thunder;
+            skyIn.biome = f.eyeBiome;
+            skyIn.eyeY = camera.y;
+            skyIn.dt = dt;
+            for (const sky::Draw& d : sky::Evaluate(end ? custom.endLayers : custom.layers, skyIn)) {
+                if (params.sky.customCount >= SkyFrame::kMaxCustomLayers)
+                    break;
+                SkyFrame::CustomLayer& out = params.sky.custom[params.sky.customCount++];
+                out.texture = d.texture;
+                out.cubemap = d.cubemap;
+                out.blend = static_cast<uint8_t>(d.blend);
+                out.brightness = d.brightness;
+                std::copy_n(glm::value_ptr(d.rotation), 16, out.rotation);
+            }
+            if (!end) {
+                params.sky.sunTexture = custom.sun.texture;
+                params.sky.sunBlend = static_cast<uint8_t>(custom.sun.blend);
+                params.sky.moonTexture = custom.moon.texture;
+                params.sky.moonBlend = static_cast<uint8_t>(custom.moon.blend);
+            }
+        }
 
         const glm::vec4 cloudColor = glm::round(glm::clamp(env.cloudColor, 0.0f, 1.0f) * 255.0f) / 255.0f;
         params.cloud.enabled = graphics.clouds && cloudColor.w > 0.0f;
@@ -784,6 +820,8 @@ namespace perlin {
         if (!f.live && !loop->preview) {
             static constexpr float kIdle[4] = {0.075f, 0.078f, 0.086f, 1.0f};
             params.sky.enabled = false;
+            params.sky.endSky = false;
+            params.sky.customCount = 0;
             params.cloud.enabled = false;
             std::copy_n(kIdle, 3, params.sky.skyColor);
             std::copy_n(kIdle, 4, params.fogColor);
@@ -1141,6 +1179,8 @@ namespace perlin {
             ein.selfShadow = packShadows;
         }
         ein.ownNametag = options.thirdPersonNametag;
+        ein.nametagBackground = options.nametagBackground;
+        ein.nametagShadow = options.nametagShadow;
         ein.nametagDepth = fgActive > 1;
         ein.ownParts = options.skinParts;
         ein.skins3d = options.skins3d;
@@ -1483,13 +1523,15 @@ namespace perlin {
             const bool selfBurning = burner.isSelf && hudState.burning;
             if (!selfBurning && !(burner.flags & entity::flag::Onfire))
                 continue;
-            if ((burner.flags & entity::flag::FireImmune) || burner.dying || burner.isItem)
+            // Entity.isBurning: only fire immunity hides the flames; dying mobs and items still burn
+            if (burner.flags & entity::flag::FireImmune)
                 continue;
 
             if (burner.isSelf && ein.firstPerson)
                 continue;
             entity::EntityRenderer::FrameIn::FireSprite sprite;
             sprite.pos = burner.pos;
+            sprite.runtimeId = burner.runtimeId;
             sprite.width = (burner.boxWidth > 0.0f ? burner.boxWidth : 0.6f * burner.scale);
             sprite.height = (burner.boxHeight > 0.0f ? burner.boxHeight : 1.8f * burner.scale);
             bool loaded = false;

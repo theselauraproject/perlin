@@ -450,6 +450,9 @@ namespace perlin {
         sunVerts = upload(BuildSunQuad(), "sun");
         moonVerts = upload(BuildMoonQuads(), "moon");
         quadIdx = uploadIndices(QuadIndices(1), "quad");
+        customSkyBox = upload(BuildCustomSkyBox(), "custom sky box");
+        customSkyCube = upload(BuildCustomSkyCube(), "custom sky cube");
+        endSkyBox = upload(BuildEndSkyBox(), "end sky box");
 
         if (!MakeTexture(lightmap, kLightmapSize, kLightmapSize, 1, 1, conduit::format::rgba8_unorm,
                          gpu::SamplerKind::LinearClamp, "lightmap"))
@@ -469,7 +472,7 @@ namespace perlin {
         DestroyShadows();
         for (conduit::buffer_handle* b :
              {&topSky, &bottomSky, &skyBox, &skyBoxIdx, &screenTri, &starVerts, &starIdx, &sunriseVerts,
-              &sunriseIdx, &sunVerts, &moonVerts, &quadIdx, &fanIdx}) {
+              &sunriseIdx, &sunVerts, &moonVerts, &quadIdx, &fanIdx, &customSkyBox, &customSkyCube, &endSkyBox}) {
             if (*b) {
                 gpu.ForgetBuffer(*b);
                 dev.destroy(*b);
@@ -484,6 +487,9 @@ namespace perlin {
              {&lightmap, &sunTex, &moonTex, &endSkyTex, &cloudMapTex, &tileFlagsTex, &crosshair, &javaNoise,
               &javaNormalDef, &javaSpecDef, &javaBlack, &javaCloudWater, &javaMaterials})
             FreeTexture(*t);
+        for (TexRec& t : customSkyTex)
+            FreeTexture(t);
+        customSkyTex.clear();
         FreeAtlas();
         javaTexReady = false;
         javaMaterialCount = 0;

@@ -625,6 +625,7 @@ namespace perlin {
         }
         m.Toggle(detail::TrOr("options.graphics.fancy", "Fancy Graphics"), options.fancyGraphics);
         m.Toggle("Better Grass", options.betterGrass);
+        m.Toggle(detail::TrOr("perlin.options.customSkies", "Custom Skies"), options.customSkies);
         m.Choice("Glass", options.glass,
                  {{"normal", "Normal"},
                   {"connected", "Connected"},
@@ -688,6 +689,8 @@ namespace perlin {
                  options.thirdPersonCrosshair);
         m.Toggle(detail::TrOr("perlin.options.thirdNametag", "Third Person Nametag"),
                  options.thirdPersonNametag);
+        m.Toggle(detail::TrOr("perlin.options.nametagBackground", "Nametag Background"), options.nametagBackground);
+        m.Toggle(detail::TrOr("perlin.options.nametagShadow", "Nametag Text Shadow"), options.nametagShadow);
         {
             OptRow h{"Zoom", "", -1.0f, [](float, bool) {}};
             h.header = true;

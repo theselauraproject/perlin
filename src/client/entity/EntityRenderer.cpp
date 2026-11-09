@@ -216,6 +216,12 @@ namespace perlin::entity {
         bool hasArmR = false, hasArmL = false;
         java::PlayerBodyClock body;
         CapeChain cape;
+        bool headTickInit = false;
+        float headTickPrev = 0, headTickCur = 0;
+        double headTickClock = 0;
+        // the 1.7 limb pose; refitted under each layer's own geometry, whose bone hierarchy may differ
+        bool classicPose = false;
+        java::PlayerPose classicLimbs;
     };
 
     namespace {
@@ -509,6 +515,24 @@ namespace perlin::entity {
             v.yaw = turn(v.yaw, e.yaw);
             v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / dt;
             v.headYaw = turn(v.headYaw, e.headYaw);
+            if (e.isSelf && e.isPlayer && ClassicAnimations()) {
+                // rotationYawHead is sampled on the 20 Hz tick and drawn between the last two samples, so in third
+                // person the head trails the camera (which setAngles moves every frame) by up to a tick
+                if (!v.headTickInit) {
+                    v.headTickInit = true;
+                    v.headTickPrev = v.headTickCur = e.headYaw;
+                    v.headTickClock = 0.0;
+                }
+                v.headTickClock += dt;
+                for (int guard = 0; v.headTickClock >= 0.05 && guard < 8; ++guard) {
+                    v.headTickClock -= 0.05;
+                    v.headTickPrev = v.headTickCur;
+                    v.headTickCur = e.headYaw;
+                }
+                v.headTickClock = std::min(v.headTickClock, 0.05);
+                v.headYaw = v.headTickPrev +
+                            WrapDegrees(v.headTickCur - v.headTickPrev) * static_cast<float>(v.headTickClock / 0.05);
+            }
             v.pitch = v.pitch + WrapDegrees(e.pitch - v.pitch) * static_cast<float>(follow);
         }
         if (projectile) {
@@ -1007,6 +1031,7 @@ namespace perlin::entity {
             if (e.AimingBow())
                 ps.right = java::ArmPose::Bow;
             const java::PlayerPose jp = java::AnimatePlayerClassic(ps);
+            v.classicLimbs = jp;
             // root keeps the Bedrock riding seat offset: put back after the limbs are refitted without it
             const attachable::BoneXform root = pose.count("root") ? pose["root"] : attachable::BoneXform{};
             attachable::Pose posed = pose;
@@ -1019,6 +1044,7 @@ namespace perlin::entity {
                 classicPosed = true;
             }
         }
+        v.classicPose = classicPosed;
         if (!classicPosed && e.isPlayer && e.Has(flag::Riding) && v.swimAmount < 0.01f && v.lieAmount < 0.01f) {
 
             pose["rightleg"].rotation = {-81.0f, 18.0f, 0.0f};
@@ -1164,15 +1190,29 @@ namespace perlin::entity {
                     physicsCape = true;
                 }
             }
+            // a skin's own geometry can parent its bones differently from the one the pose was fitted to: fit
+            // again, or the 1.7 body twist leaks into the head
+            attachable::Pose fittedPose;
+            const attachable::Pose* layerPose = &pose;
+            if (v.classicPose && geometry != bindGeometry) {
+                fittedPose = pose;
+                if (java::ApplyPlayerPose(v.classicLimbs, geometry, fittedPose)) {
+                    for (const char* kept :
+                         {"root", "hat", "jacket", "leftsleeve", "rightsleeve", "leftpants", "rightpants"})
+                        if (const auto found = pose.find(kept); found != pose.end())
+                            fittedPose[kept] = found->second;
+                    layerPose = &fittedPose;
+                }
+            }
             if (!allowCapeOnly && !v.hasArmR && !v.hasArmL) {
                 const glm::mat4 toJava = glm::scale(glm::mat4(1.0f), glm::vec3(16.0f, -16.0f, 16.0f));
                 glm::mat4 w;
                 glm::vec3 pv;
-                if (attachable::BoneWorld(*geometry, pose, "rightarm", w, pv)) {
+                if (attachable::BoneWorld(*geometry, *layerPose, "rightarm", w, pv)) {
                     v.armR = w * glm::translate(glm::mat4(1.0f), pv) * toJava;
                     v.hasArmR = true;
                 }
-                if (attachable::BoneWorld(*geometry, pose, "leftarm", w, pv)) {
+                if (attachable::BoneWorld(*geometry, *layerPose, "leftarm", w, pv)) {
                     v.armL = w * glm::translate(glm::mat4(1.0f), pv) * toJava;
                     v.hasArmL = true;
                 }
@@ -1181,7 +1221,7 @@ namespace perlin::entity {
                 if (e.isPlayer && e.skin && e.skin->slim && ClassicAnimations()) {
                     glm::mat4 parentWorld;
                     glm::vec3 parentPivot;
-                    if (attachable::BoneWorld(*geometry, pose, "body", parentWorld, parentPivot)) {
+                    if (attachable::BoneWorld(*geometry, *layerPose, "body", parentWorld, parentPivot)) {
                         const glm::mat4 toParent = glm::inverse(parentWorld);
                         if (v.hasArmR)
                             v.armR = parentWorld * glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) *
@@ -1191,10 +1231,10 @@ namespace perlin::entity {
                                      toParent * v.armL;
                     }
                 }
-                v.hasItemR = attachable::BoneWorld(*geometry, pose, "rightitem", v.itemR, pv);
+                v.hasItemR = attachable::BoneWorld(*geometry, *layerPose, "rightitem", v.itemR, pv);
                 if (v.hasItemR)
                     v.itemR = v.itemR * glm::translate(glm::mat4(1.0f), pv);
-                v.hasItemL = attachable::BoneWorld(*geometry, pose, "leftitem", v.itemL, pv);
+                v.hasItemL = attachable::BoneWorld(*geometry, *layerPose, "leftitem", v.itemL, pv);
                 if (v.hasItemL)
                     v.itemL = v.itemL * glm::translate(glm::mat4(1.0f), pv);
             }
@@ -1292,7 +1332,7 @@ namespace perlin::entity {
                         return materialOf(bone) == group && (!filter || filter(bone));
                     });
                 attachable::BuiltMesh mesh;
-                attachable::BuildMesh(*geometry, pose, nullptr, mesh, groupFilter, nullptr, true);
+                attachable::BuildMesh(*geometry, *layerPose, nullptr, mesh, groupFilter, nullptr, true);
                 if (mesh.body.empty())
                     continue;
                 static const bool debug = PERLIN_ENV("PERLIN_ENTITY_DEBUG") != nullptr;
@@ -1957,7 +1997,13 @@ namespace perlin::entity {
                                                              glm::vec3(0.0f, 0.0f, 1e-6f));
                 const glm::vec3 flatRight(right.x, 0.0f, right.z);
                 if (in.fire)
-                    for (const FrameIn::FireSprite& sprite : *in.fire) {
+                    for (const FrameIn::FireSprite& burning : *in.fire) {
+                        // RenderManager.renderEntityOnFire draws at the interpolated render position, the
+                        // same place as the model
+                        FrameIn::FireSprite sprite = burning;
+                        if (const auto drawn = views.find(burning.runtimeId);
+                            drawn != views.end() && drawn->second && drawn->second->init)
+                            sprite.pos = drawn->second->pos;
                         const float scale = std::max(sprite.width, 0.05f) * 1.4f;
                         float remaining = sprite.height / scale;
                         const float zBase = -0.3f + static_cast<float>(static_cast<int>(remaining)) * 0.02f;
@@ -2138,12 +2184,14 @@ namespace perlin::entity {
                     break;
                 start = nl + 1;
             }
-            static thread_local std::vector<UiVertex> bgV, textV;
-            static thread_local std::vector<uint32_t> bgI, textI;
+            static thread_local std::vector<UiVertex> bgV, textV, shadowV;
+            static thread_local std::vector<uint32_t> bgI, textI, shadowI;
             bgV.clear();
             textV.clear();
+            shadowV.clear();
             bgI.clear();
             textI.clear();
+            shadowI.clear();
             const auto corner = [&](float x, float y) { return right * (x * kScale) + up * (-y * kScale); };
 
             const auto quad = [&](std::vector<UiVertex>& vv, std::vector<uint32_t>& ii, float x0, float y0,
@@ -2169,7 +2217,7 @@ namespace perlin::entity {
                 const float left = -width * 0.5f;
 
                 const bool joinsNext = row + 1 < rows.size() && !rows[row + 1].empty();
-                if (!text.empty())
+                if (!text.empty() && in.nametagBackground)
                     quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + (joinsNext ? 9.0f : 8.0f),
                          0, 0, 0, 0, PackColor(glm::vec3(0.0f), 0.25f));
                 float pen = left;
@@ -2198,6 +2246,11 @@ namespace perlin::entity {
 
                         for (int pass = 0; pass < (style.bold ? 2 : 1); pass++) {
                             const float x0 = pen + g.left + static_cast<float>(pass);
+                            // FontRenderer shadow: one pixel down and right at a quarter of the colour
+                            if (in.nametagShadow)
+                                quad(shadowV, shadowI, x0 + 1.0f, y0 + 1.0f, x0 + 1.0f + g.width, y1 + 1.0f, g.u0,
+                                     g.v0, g.u1, g.v1, PackColor(g.colored ? glm::vec3(0.25f) : col * 0.25f),
+                                     slantTop, slantBottom);
                             quad(textV, textI, x0, y0, x0 + g.width, y1, g.u0, g.v0, g.u1, g.v1,
                                  PackColor(g.colored ? glm::vec3(1.0f) : col), slantTop, slantBottom);
                         }
@@ -2235,9 +2288,12 @@ namespace perlin::entity {
                 renderer->UiSubmit(UiLayer::WorldLate, draw);
             };
             submit(bgV, bgI, 0, true, 1.0f);
+            submit(shadowV, shadowI, fontTexture, true, tag.sneaking ? 1.0f : 32.0f / 255.0f);
             submit(textV, textI, fontTexture, true, tag.sneaking ? 1.0f : 32.0f / 255.0f);
-            if (!tag.sneaking)
+            if (!tag.sneaking) {
+                submit(shadowV, shadowI, fontTexture, false, 1.0f);
                 submit(textV, textI, fontTexture, false, 1.0f);
+            }
             if (in.nametagDepth && !bgV.empty()) {
                 const uint32_t mesh =
                     renderer->UiCreateFrameMesh(bgV.data(), static_cast<uint32_t>(bgV.size()), bgI.data(),

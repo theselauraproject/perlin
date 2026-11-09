@@ -178,6 +178,9 @@ namespace perlin {
         void DrawHudCursor(float x, float y, float w, float h) override;
         void UploadSkyTextures(const Texture& sun, const Texture& moon, const Texture& clouds) override;
         void UploadEndSkyTexture(const Texture& endSky) override;
+        void UploadCustomSkyTextures(const std::vector<Texture>& textures) override;
+        void DrawCustomSky(const glm::mat4& view, const glm::mat4& celestial);
+        void DrawEndSky(const glm::mat4& view);
         void UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) override;
         bool AppendAtlasTiles(const uint8_t* rgba, int tilePx, int first, int tiles) override;
         void UploadTileFlags(const std::vector<uint8_t>& flags) override;
@@ -469,6 +472,7 @@ namespace perlin {
                     const conduit::rect* scissor = nullptr);
         void ApplyMaterial(DrawState& state, const char* material) const;
         DrawState Base(Program program, bool depth, bool depthWrite, conduit::compare_op op) const;
+        static void ApplySkyBlend(DrawState& s, uint8_t blend, float brightness, float modulator[4]);
         void SetTransform(const glm::mat4& model);
         void SetMatrix(const float columnMajor[16]);
         void BindTexture(const char* name, conduit::texture_handle texture, gpu::SamplerKind sampler);
@@ -618,7 +622,8 @@ namespace perlin {
         Texture sunSource, moonSource, endSkySource, cloudSource, iconSource;
 
         conduit::buffer_handle topSky, bottomSky, skyBox, skyBoxIdx, screenTri, starVerts, starIdx, sunriseVerts,
-            sunriseIdx, sunVerts, moonVerts, quadIdx, fanIdx;
+            sunriseIdx, sunVerts, moonVerts, quadIdx, fanIdx, customSkyBox, customSkyCube, endSkyBox;
+        std::vector<TexRec> customSkyTex;
         uint32_t starIndexCount = 0, skyFanIndexCount = 0, sunriseIndexCount = 0;
 
         CloudTexture cloudTexture;
