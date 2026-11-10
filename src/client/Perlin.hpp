@@ -433,6 +433,7 @@ namespace perlin {
         Mining mining;
         heldbuild::HeldBuild heldBuild;
         RecentBreak lastLocalBreak;
+        RecentBreak lastLocalPlace;
         bool usingItem = false;
         uint64_t useStartTick = 0;
         bool useConsumed = false, useWasHeld = false;

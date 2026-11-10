@@ -108,6 +108,10 @@ namespace perlin {
             uint32_t texture = 0;
             bool block = false;
             bool valid = false;
+            // distinct face normals, so ground items can share one GPU mesh per shading level
+            mutable std::vector<glm::vec3> groupNormals;
+            mutable std::vector<uint8_t> quadGroup;
+            mutable bool grouped = false, tooManyGroups = false;
         };
         struct ArmModel {
             std::vector<Quad> base, sleeve;
@@ -116,7 +120,15 @@ namespace perlin {
         bool DrawGeometryItem(const ui::HudItem& item, const glm::mat4& base, bool leftHand, bool firstPerson,
                               const glm::vec3& light);
         void DrawModel(const std::vector<Quad>& quads, uint32_t texture, const glm::mat4& model,
-                       const glm::vec3& light, float alphaCutoff, bool glint = false, float redTint = 0.0f);
+                       const glm::vec3& light, float alphaCutoff, bool glint = false, float redTint = 0.0f,
+                       const Model* cacheable = nullptr);
+        struct CachedMesh {
+            uint32_t mesh = 0;
+            uint64_t used = 0;
+        };
+        std::unordered_map<uint64_t, CachedMesh> meshCache;
+        uint64_t meshCacheTick = 0;
+        void ClearMeshCache();
         void EnsureSleeves3d(const FrameIn& in);
         std::vector<Quad> sleeve3d[2];
         uint64_t sleeve3dSerial = ~0ull;

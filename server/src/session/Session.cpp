@@ -1133,7 +1133,7 @@ namespace perlin::server {
                     Exhaust(0.1f);
                     if (crit)
                         for (Session* s : server.PlayersIn(dimension))
-                            s->MobEvent(on->entityRuntimeId, 17, 0);
+                            s->CritAnimation(on->entityRuntimeId);
                     const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
                     if (n.ends_with("_sword") || n == "minecraft:trident" || n == "minecraft:mace")
                         DamageHeld(1);
@@ -1775,6 +1775,13 @@ namespace perlin::server {
         Send(p);
     }
 
+    void Session::CritAnimation(uint64_t id) {
+        proto::AnimatePacket p;
+        p.actionId = proto::AnimatePacketActionId::CriticalHit;
+        p.runtimeEntityId = id;
+        Send(p);
+    }
+
     void Session::MobEvent(uint64_t id, int event, int data) {
         proto::EntityEventPacket p;
         p.runtimeEntityId = id;
@@ -2336,7 +2343,7 @@ namespace perlin::server {
         if (victim.Damage(damage, DamageCause::Player, posX, posZ, name, this, knock)) {
             if (crit)
                 for (Session* s : server.PlayersIn(dimension))
-                    s->MobEvent(victim.runtimeId, 17, 0);
+                    s->CritAnimation(victim.runtimeId);
             const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
             if (n.ends_with("_sword") || n == "minecraft:trident" || n == "minecraft:mace")
                 DamageHeld(1);

@@ -1511,6 +1511,20 @@ namespace perlin {
             if (p.actionId == AnimatePacketActionId::SwingArm &&
                 !(runtimeId != 0 && p.runtimeEntityId == runtimeId))
                 entities.Swing(p.runtimeEntityId);
+            if (p.actionId == AnimatePacketActionId::CriticalHit ||
+                p.actionId == AnimatePacketActionId::MagicCriticalHit) {
+                // only what the server sends: servers that turn crits off never send this
+                entity::Entity e;
+                if (!entities.Find(p.runtimeEntityId, e))
+                    return;
+                ParticleEvent pe;
+                pe.name = p.actionId == AnimatePacketActionId::CriticalHit ? "minecraft:critical_hit_emitter"
+                                                                           : "minecraft:magic_critical_hit_emitter";
+                pe.x = e.pos.x;
+                pe.y = e.pos.y + 1.0;
+                pe.z = e.pos.z;
+                PushParticle(std::move(pe));
+            }
         });
 
         On<EntityEventPacket>([this](const EntityEventPacket& p) {

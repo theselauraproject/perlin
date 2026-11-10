@@ -86,6 +86,7 @@ namespace perlin::server {
         void MobData(const Mob& mob);
         void MobMotion(const Mob& mob);
         void MobEvent(uint64_t id, int event, int data);
+        void CritAnimation(uint64_t id);
         enum class DamageCause : uint8_t {
             Generic,
             Mob,

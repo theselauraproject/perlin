@@ -289,9 +289,17 @@ namespace perlin {
                 id = 0;
             }
 
+            // the blurred copies belong to the old pack too: drop them so a stale id can never be drawn
+            if (!panorama.blurJob.valid())
+                for (uint32_t& id : panorama.blurred) {
+                    if (id)
+                        renderer->UiDestroyTexture(id);
+                    id = 0;
+                }
             panorama.blurKey = -1;
             panorama.ready = false;
             panorama.retryAt = {};
+            panorama.blurRetryAt = {};
         }
         if (!panorama.ready && now >= panorama.retryAt) {
             panorama.retryAt = now + std::chrono::seconds(2);

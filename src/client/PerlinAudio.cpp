@@ -1,3 +1,7 @@
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include "client/PerlinInternal.hpp"
 #include "util/Log.hpp"
 
@@ -62,9 +66,20 @@ namespace perlin {
                 case BedrockSession::SoundRequest::Kind::Named:
                     sounds.PlayNamed(r.name, at, r.volume, r.pitch, !r.global);
                     break;
-                case BedrockSession::SoundRequest::Kind::Level:
+                case BedrockSession::SoundRequest::Kind::Level: {
+                    // the place sound was already played when the block was predicted: drop the server's copy
+                    std::string lowered = r.name;
+                    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if ((lowered == "place" || lowered == "itemuseon") &&
+                        std::chrono::steady_clock::now() - lastLocalPlace.at < std::chrono::milliseconds(900) &&
+                        std::abs(static_cast<int>(std::floor(r.x)) - lastLocalPlace.x) <= 1 &&
+                        std::abs(static_cast<int>(std::floor(r.y)) - lastLocalPlace.y) <= 1 &&
+                        std::abs(static_cast<int>(std::floor(r.z)) - lastLocalPlace.z) <= 1)
+                        break;
                     sounds.PlayLevelSound(r.name, at, r.extra, r.entityType, r.baby, r.global);
                     break;
+                }
                 case BedrockSession::SoundRequest::Kind::Stop:
                     if (r.stopAll)
                         audioEngine.StopAll();

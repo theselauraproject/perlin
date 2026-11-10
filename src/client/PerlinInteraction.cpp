@@ -164,14 +164,6 @@ namespace perlin {
                     const float click[3] = {static_cast<float>(aimHit.point.x), static_cast<float>(aimHit.point.y),
                                             static_cast<float>(aimHit.point.z)};
                     live->SendAttackEntity(aimHit.entity, eyeF, click);
-                    const physics::State& cst = player.State();
-                    if (!cst.onGround && cst.vy < 0.0 && !cst.inWater && !cst.inLava && !player.Flying()) {
-                        const glm::dvec3 centre((aimHit.boxLo.x + aimHit.boxHi.x) * 0.5,
-                                                aimHit.boxLo.y + (aimHit.boxHi.y - aimHit.boxLo.y) * 0.6,
-                                                (aimHit.boxLo.z + aimHit.boxHi.z) * 0.5);
-                        for (int ci = 0; ci < 12; ++ci)
-                            particles.Spawn(particle::Kind::Crit, centre);
-                    }
                 }
             }
         }
@@ -518,6 +510,7 @@ namespace perlin {
                     }
                     sounds.PlayBlockEvent(held.name, "place",
                                           glm::dvec3(dest[0] + 0.5, dest[1] + 0.5, dest[2] + 0.5));
+                    lastLocalPlace = {dest[0], dest[1], dest[2], std::chrono::steady_clock::now()};
                 }
             }
             if (usePressed && !earlyItemUse && !blockedFoodUse && live && holdsItem &&

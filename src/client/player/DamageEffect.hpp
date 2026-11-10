@@ -31,7 +31,7 @@ namespace perlin {
         }
 
         void Redirect(float hurtDirDegrees) {
-            if (hurtTime > 0 && age <= 2)
+            if (hurtTime > 0 && age <= 4)
                 dir = hurtDirDegrees;
         }
 

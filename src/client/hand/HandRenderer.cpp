@@ -186,6 +186,7 @@ namespace perlin {
                 if (model.texture)
                     renderer->UiDestroyTexture(model.texture);
         items.clear();
+        ClearMeshCache();
         if (renderer)
             for (const auto& [path, id] : attachableTextures)
                 if (id)
@@ -816,38 +817,121 @@ namespace perlin {
         }
     }
 
+    void HandRenderer::ClearMeshCache() {
+        // may be called mid-frame: let BeginWorldItems destroy them once nothing can still draw them
+        for (auto& [key, entry] : meshCache)
+            if (entry.mesh)
+                worldMeshes.push_back(entry.mesh);
+        meshCache.clear();
+    }
+
     void HandRenderer::DrawModel(const std::vector<Quad>& quads, uint32_t texture, const glm::mat4& model,
-                                 const glm::vec3& light, float alphaCutoff, bool glint, float redTint) {
+                                 const glm::vec3& light, float alphaCutoff, bool glint, float redTint,
+                                 const Model* cacheable) {
         if (!renderer || quads.empty())
             return;
         static const glm::vec3 l0 = glm::normalize(glm::vec3(0.2f, 1.0f, -0.7f));
         static const glm::vec3 l1 = glm::normalize(glm::vec3(-0.2f, 1.0f, 0.7f));
         const glm::mat3 normalMatrix(model);
         const bool packLit = renderer->JavaPackDrawing() && !(worldPass && dollClip);
-        std::vector<UiVertex> vertices;
-        vertices.reserve(quads.size() * 4);
-        std::vector<uint32_t> indices;
-        indices.reserve(quads.size() * 6);
-        for (const Quad& q : quads) {
-            glm::vec3 n = normalMatrix * q.n;
+        const auto shade = [&](const glm::vec3& qn) {
+            glm::vec3 n = normalMatrix * qn;
             const float len = glm::length(n);
             if (len > 1e-6f)
                 n /= len;
             const float lit = std::min(
                 1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
-            const uint32_t color = packLit ? 0xFFFFFFFFu : PackColor(light * lit);
-            const uint32_t base = static_cast<uint32_t>(vertices.size());
-            for (int i = 0; i < 4; i++)
-                vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
-            for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
-                indices.push_back(base + i);
+            return packLit ? 0xFFFFFFFFu : PackColor(light * lit);
+        };
+        const auto buildMesh = [&](const uint32_t* groupColors) {
+            std::vector<UiVertex> vertices;
+            vertices.reserve(quads.size() * 4);
+            std::vector<uint32_t> indices;
+            indices.reserve(quads.size() * 6);
+            for (size_t qi = 0; qi < quads.size(); qi++) {
+                const Quad& q = quads[qi];
+                const uint32_t color = groupColors ? groupColors[cacheable->quadGroup[qi]] : shade(q.n);
+                const uint32_t base = static_cast<uint32_t>(vertices.size());
+                for (int i = 0; i < 4; i++)
+                    vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
+                for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
+                    indices.push_back(base + i);
+            }
+            return std::pair(std::move(vertices), std::move(indices));
+        };
+
+        uint32_t mesh = 0;
+        bool shared = false;
+        if (cacheable && worldPass && !dollClip && &cacheable->quads == &quads) {
+            // dropped items: the mesh only changes with its shading, so reuse one per quantised shading level
+            if (!cacheable->grouped) {
+                cacheable->grouped = true;
+                cacheable->quadGroup.reserve(quads.size());
+                for (const Quad& q : quads) {
+                    size_t g = 0;
+                    for (; g < cacheable->groupNormals.size(); g++)
+                        if (glm::dot(cacheable->groupNormals[g], q.n) > 0.9999f)
+                            break;
+                    if (g == cacheable->groupNormals.size()) {
+                        if (g >= 16) {
+                            cacheable->tooManyGroups = true;
+                            break;
+                        }
+                        cacheable->groupNormals.push_back(q.n);
+                    }
+                    cacheable->quadGroup.push_back(static_cast<uint8_t>(g));
+                }
+            }
+            if (!cacheable->tooManyGroups && cacheable->quadGroup.size() == quads.size()) {
+                const auto quantise = [](uint32_t c) {
+                    uint32_t out = 0;
+                    for (int s = 0; s < 32; s += 8) {
+                        const uint32_t b = (c >> s) & 0xFFu;
+                        out |= (((b & 0xF8u) | (b >> 5)) & 0xFFu) << s;
+                    }
+                    return out;
+                };
+                uint32_t colors[16];
+                uint64_t key = reinterpret_cast<uintptr_t>(quads.data()) * 0x9E3779B97F4A7C15ull ^ quads.size();
+                for (size_t g = 0; g < cacheable->groupNormals.size(); g++) {
+                    colors[g] = quantise(shade(cacheable->groupNormals[g]));
+                    key = (key ^ colors[g]) * 0x100000001B3ull;
+                    key ^= key >> 31;
+                }
+                const auto it = meshCache.find(key);
+                if (it != meshCache.end()) {
+                    it->second.used = ++meshCacheTick;
+                    mesh = it->second.mesh;
+                    shared = true;
+                } else {
+                    auto [vertices, indices] = buildMesh(colors);
+                    mesh = renderer->UiCreateMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
+                                                  indices.data(), static_cast<uint32_t>(indices.size()));
+                    if (mesh) {
+                        shared = true;
+                        meshCache[key] = {mesh, ++meshCacheTick};
+                        constexpr size_t kMaxCachedMeshes = 128;
+                        while (meshCache.size() > kMaxCachedMeshes) {
+                            auto oldest = meshCache.begin();
+                            for (auto e = meshCache.begin(); e != meshCache.end(); ++e)
+                                if (e->second.used < oldest->second.used)
+                                    oldest = e;
+                            worldMeshes.push_back(oldest->second.mesh);
+                            meshCache.erase(oldest);
+                        }
+                    }
+                }
+            }
         }
-        const uint32_t mesh =
-            renderer->UiCreateFrameMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
-                                        indices.data(), static_cast<uint32_t>(indices.size()));
-        if (!mesh)
-            return;
-        (worldPass ? worldMeshes : pendingMeshes).push_back(mesh);
+        if (!mesh) {
+            auto [vertices, indices] = buildMesh(nullptr);
+            mesh = renderer->UiCreateFrameMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
+                                               indices.data(), static_cast<uint32_t>(indices.size()));
+            if (!mesh)
+                return;
+        }
+        if (!shared)
+            (worldPass ? worldMeshes : pendingMeshes).push_back(mesh);
         UiDraw draw;
         draw.mesh = mesh;
         draw.texture = texture;
@@ -947,7 +1031,7 @@ namespace perlin {
                 m = m * itemdisplay::Apply(groundDisplay.ground, false) * T(-0.5f, -0.5f, -0.5f);
             else
                 m = m * T(0.0f, display, 0.0f) * S(scale) * T(-0.5f, -0.5f, -0.5f);
-            DrawModel(model.quads, model.texture, m, light, 0.1f, false);
+            DrawModel(model.quads, model.texture, m, light, 0.1f, false, 0.0f, &model);
             if (!solid)
                 base = base * T(0.0f, 0.0f, 0.09375f * kz);
         }
@@ -965,7 +1049,7 @@ namespace perlin {
         const glm::mat4 m = T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z)) *
                             T(0.0f, 0.5f, 0.0f) * S(scale) * T(-0.5f, -0.5f, -0.5f);
         worldPass = true;
-        DrawModel(model.quads, model.texture, m, light, 0.1f, false);
+        DrawModel(model.quads, model.texture, m, light, 0.1f, false, 0.0f, &model);
         worldPass = false;
     }
 
