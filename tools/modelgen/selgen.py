@@ -1,3 +1,4 @@
+"""Bakes resources/block_selection.bin from a PREG1002 dump: per-block pick shape, selection boxes and outline."""
 import os
 import struct
 import sys

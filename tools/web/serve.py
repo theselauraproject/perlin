@@ -1,13 +1,17 @@
+#!/usr/bin/env python3
+"""Serves tools/web as a static site and relays the sign-in endpoints that answer without CORS headers.
+
+    serve.py [port]
+"""
 import http.client
 import http.server
 import ipaddress
 import os
+import socket
 import socketserver
 import sys
 
-root = os.path.dirname(os.path.abspath(__file__))
-port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
-os.chdir(root)
+ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 # Microsoft sign-in, Xbox Live, Realms and Minecraft services answer browsers without CORS headers: the page sends
@@ -39,7 +43,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         host, port, rest = parts[2], int(parts[3]), "/" + parts[4]
         try:
-            ip = ipaddress.ip_address(__import__("socket").gethostbyname(host))
+            ip = ipaddress.ip_address(socket.gethostbyname(host))
             if not (ip.is_loopback or ip.is_private):
                 self.send_error(403, "relay only reaches local/private addresses")
                 return
@@ -112,16 +116,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_PUT(self):
-        self._relay_https() if self.path.startswith("/__relay-https/") else self.send_error(501)
+        if self.path.startswith("/__relay-https/"):
+            self._relay_https()
+        else:
+            self.send_error(501)
 
     def do_DELETE(self):
-        self._relay_https() if self.path.startswith("/__relay-https/") else self.send_error(501)
+        if self.path.startswith("/__relay-https/"):
+            self._relay_https()
+        else:
+            self.send_error(501)
 
     def log_message(self, *args):
         pass
 
 
-socketserver.ThreadingTCPServer.allow_reuse_address = True
-with socketserver.ThreadingTCPServer(("127.0.0.1", port), Handler) as server:
-    print(f"Perlin web: http://localhost:{port}/")
-    server.serve_forever()
+def main():
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+    os.chdir(ROOT)
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    with socketserver.ThreadingTCPServer(("127.0.0.1", port), Handler) as server:
+        print(f"Perlin web: http://localhost:{port}/")
+        server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()
