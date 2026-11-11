@@ -146,13 +146,16 @@ namespace perlin {
                                    : inv.furnaceKind == 2 ? "container.smoker"
                                                           : "container.furnace");
             } else if (inv.chestOpen) {
-                v.chestRows = inv.chestSlots > 27 ? 6 : 3;
+                v.chestRows = inv.chestFitRows ? std::clamp((inv.chestSlots + 8) / 9, 1, 6)
+                                               : inv.chestSlots > 27 ? 6
+                                                                     : 3;
                 for (int i = 0; i < 54; i++)
                     v.chestItems[static_cast<size_t>(i)] = detail::ToHudItem(inv.chest[i]);
                 v.title =
                     i18n::Tr(v.chestRows == 6 && inv.chestTitle == "container.chest" ? "container.chestDouble"
                                                                                      : inv.chestTitle);
-                inventory.chestScreen = ui::ChestScreenName(inv.chestTitle, v.chestRows);
+                inventory.chestScreen =
+                    ui::ChestScreenName(inv.chestFitRows ? "container.chest" : inv.chestTitle, v.chestRows);
             }
             v.offhand = detail::ToHudItem(inv.offhand);
             v.output = detail::ToHudItem(inv.output);

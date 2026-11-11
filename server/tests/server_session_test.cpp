@@ -1,5 +1,3 @@
-// full bedrock handshake against a live Server over the in-process loopback transport,
-// with a scripted client built from the same generated packets the real client uses
 #include "test_util.hpp"
 #include "test_auth.hpp"
 
@@ -9,12 +7,14 @@
 #include "inventory/Recipes.hpp"
 #include "world/BlockCatalog.hpp"
 #include "net/Batch.hpp"
+#include "world/Mobs.hpp"
 
 #include "protocol/Packets.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/Blocks.hpp"
 #include "world/level/chunk/ChunkCodec.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -65,7 +65,6 @@ namespace {
             endpoint->Send(wire.data(), wire.size());
         }
 
-        // pump the server a few ticks and collect what arrived
         void Settle(int ticks = 3) {
             for (int i = 0; i < ticks; i++) {
                 server.Tick();
@@ -117,7 +116,6 @@ namespace {
                 return;
             proto::LoginPacket login;
             login.protocolVersion = protocol;
-            // an offline login: one self-signed link, real signatures
             login.tokens.identity = account.Identity(account.Chain(false), 2);
             login.tokens.client = account.ClientToken();
             Send(login);
@@ -148,7 +146,6 @@ namespace {
         r.chunkRadius = radius;
         r.maxRadius = static_cast<uint8_t>(radius);
         c.Send(r);
-        // terrain is generated on a worker: give it a moment
         for (int i = 0; i < 60; i++)
             c.Settle(2);
     }
@@ -163,12 +160,10 @@ int main(int argc, char** argv) {
         fs::copy_file(argv[1], plugins / "hello_server.wasm");
 
     ServerConfig config;
-    // creative by default for these tests; the survival cases below override it
     config.gameMode = 1;
     config.generator = "flat";
     config.loopbackOnly = false;
     config.nethernet = false;
-    // PS_TEST_BACKEND=gpu runs the whole session on the gpu backend
     config.terrainBackend = std::getenv("PS_TEST_BACKEND") ? std::getenv("PS_TEST_BACKEND") : "cpu";
     config.pluginDir = plugins.string();
     config.viewDistance = 6;
@@ -185,7 +180,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // wrong protocol: told so, then dropped
     {
         Client old(server, "Old");
         old.Login(100);
@@ -229,7 +223,6 @@ int main(int argc, char** argv) {
     CHECK(radius.size() == 1 && radius[0].chunkRadius == 4);
     CHECK(alice.Take<proto::NetworkChunkPublisherUpdatePacket>().size() >= 1);
     const auto chunks = alice.Take<proto::LevelChunkPacket>();
-    // radius 4 is a disc of 49 columns
     CHECK(chunks.size() == 49);
     for (const auto& c : chunks) {
         std::vector<std::pair<int, perlin::SubChunkData>> subs;
@@ -241,7 +234,6 @@ int main(int argc, char** argv) {
     const auto spawn = alice.Take<proto::PlayStatusPacket>();
     CHECK(!spawn.empty() && spawn.back().status == proto::PlayStatusPacketStatus::PlayerSpawn);
 
-    // joining
     proto::SetLocalPlayerAsInitializedPacket init;
     alice.Send(init);
     alice.Settle();
@@ -255,7 +247,6 @@ int main(int argc, char** argv) {
     CHECK(welcomed == (argc > 1));
     CHECK(server.InGamePlayers().size() == 1);
 
-    // a second player: each sees the other
     Client bob(server, "Bob");
     Join(bob);
     proto::SetLocalPlayerAsInitializedPacket init2;
@@ -271,7 +262,6 @@ int main(int argc, char** argv) {
     alice.inbox.clear();
     bob.inbox.clear();
 
-    // chat reaches both with the sender's name
     proto::TextPacket say;
     say.type = proto::TextPacketType::Chat;
     say.sourceName = "Alice";
@@ -286,7 +276,6 @@ int main(int argc, char** argv) {
         CHECK(bobChat[0].sourceName == "Alice" && bobChat[0].message == "hi bob" &&
               bobChat[0].type == proto::TextPacketType::Chat);
 
-    // the example plugin swallows one word
     if (argc > 1) {
         proto::TextPacket bad;
         bad.type = proto::TextPacketType::Chat;
@@ -299,7 +288,6 @@ int main(int argc, char** argv) {
         CHECK(reply.empty() || reply[0].message.contains("do not say that word"));
     }
 
-    // commands: /list for anyone, /say refused for a non operator, allowed for Alice
     proto::CommandRequestPacket cmd;
     cmd.command = "/list";
     bob.Send(cmd);
@@ -311,7 +299,6 @@ int main(int argc, char** argv) {
     bob.Send(cmd);
     bob.Settle();
     listReply = bob.Take<proto::TextPacket>();
-    // java answers a command you may not use exactly like one that does not exist
     CHECK(listReply.size() == 2 && listReply[0].message.contains("Unknown or incomplete command") &&
           listReply[1].message.contains("/say<--[HERE]"));
     cmd.command = "/say server notice";
@@ -330,7 +317,6 @@ int main(int argc, char** argv) {
         CHECK(hello.size() == 1 && hello[0].message == "Hello! Players online: 2");
     }
 
-    // moving is relayed
     alice.inbox.clear();
     bob.inbox.clear();
     proto::PlayerAuthInputPacket move;
@@ -341,22 +327,38 @@ int main(int argc, char** argv) {
     const auto moves = bob.Take<proto::MovePlayerPacket>();
     CHECK(!moves.empty() && moves.back().position.x == 40.5f);
 
-    // plugin api edits reach the world and the players who have the chunk
     CHECK(server.SetBlock(1, -60, 1, "stone") == perlin::abi::Status::Ok);
     bob.Settle();
     CHECK(bob.Take<proto::UpdateBlockPacket>().size() == 1);
     std::string block;
     CHECK(server.GetBlock(1, -60, 1, block) == perlin::abi::Status::Ok && block == "minecraft:stone");
 
-    // building: creative menu, placing, breaking, picking
+    {
+        CHECK(server.SetBlock(5, -50, 5, "sand") == perlin::abi::Status::Ok);
+        for (int i = 0; i < 60; i++)
+            server.Tick();
+        std::string here, top;
+        CHECK(server.GetBlock(5, -50, 5, top) == perlin::abi::Status::Ok && top == "minecraft:air");
+        CHECK(server.GetBlock(5, -60, 5, here) == perlin::abi::Status::Ok && here == "minecraft:sand");
+        CHECK(server.SetBlock(9, -60, 9, "stone") == perlin::abi::Status::Ok);
+        server.Mobs().SpawnPrimedTnt(9.5, -60, 10.5, 5);
+        for (int i = 0; i < 20; i++)
+            server.Tick();
+        std::string blasted, ground;
+        CHECK(server.GetBlock(9, -60, 9, blasted) == perlin::abi::Status::Ok && blasted == "minecraft:air");
+        CHECK(server.GetBlock(9, -61, 10, ground) == perlin::abi::Status::Ok && ground == "minecraft:air");
+        alice.Drain();
+        bob.Drain();
+        alice.inbox.clear();
+        bob.inbox.clear();
+    }
+
     {
         using T = proto::ItemStackRequestActionsEntryTypeId;
         using C = proto::ContainerSlotType;
         const CatalogItem* stone = BlockCatalog::Instance().ItemByName("minecraft:stone");
         CHECK(stone != nullptr);
-        // the item and creative lists reach the client
         CHECK(!start.empty());
-        // back next to the build site: reach is checked against where the server last saw her
         proto::PlayerAuthInputPacket home;
         home.position = {2.5f, -58.38f, 2.5f};
         alice.Send(home);
@@ -395,7 +397,6 @@ int main(int argc, char** argv) {
             CHECK(e.containers && !e.containers->empty());
         }
 
-        // place on top of the grass block at the origin column: face 1 is up
         const int32_t stoneHash = stone->blockHash;
         proto::InventoryTransactionPacket place;
         place.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
@@ -415,14 +416,12 @@ int main(int argc, char** argv) {
               static_cast<int32_t>(updates[0].blockRuntimeId) == stoneHash);
         CHECK(alice.Take<proto::UpdateBlockPacket>().size() == 1);
 
-        // placing into an occupied cell is refused and the client is corrected
         alice.Send(place);
         alice.Settle();
         bob.Settle();
         CHECK(bob.Take<proto::UpdateBlockPacket>().empty());
         CHECK(alice.Take<proto::UpdateBlockPacket>().size() >= 1);
 
-        // too far away: refused
         proto::InventoryTransactionPacket far = place;
         proto::TransactionUseItem farUse = use;
         farUse.blockPosition = {120, -61, 120};
@@ -431,7 +430,6 @@ int main(int argc, char** argv) {
         alice.Settle();
         CHECK(server.GetBlock(120, -60, 120, name) != perlin::abi::Status::Ok || name == "minecraft:air");
 
-        // break it again with the creative start-break action
         proto::PlayerActionPacket dig;
         dig.runtimeEntityId = 1;
         dig.action = proto::Action::StartBreak;
@@ -443,7 +441,6 @@ int main(int argc, char** argv) {
         bob.Settle();
         CHECK(server.GetBlock(2, -60, 2, name) == perlin::abi::Status::Ok && name == "minecraft:air");
         CHECK(bob.Take<proto::UpdateBlockPacket>().size() == 1);
-        // the break transaction that follows in the same click changes nothing more
         proto::InventoryTransactionPacket brk;
         brk.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
         proto::TransactionUseItem bu;
@@ -453,7 +450,6 @@ int main(int argc, char** argv) {
         alice.Send(brk);
         alice.Settle();
 
-        // pick block copies the block into the hotbar
         proto::BlockPickRequestPacket pick;
         pick.x = 3;
         pick.y = -61;
@@ -464,19 +460,16 @@ int main(int argc, char** argv) {
         alice.Settle();
         CHECK(!alice.Take<proto::MobEquipmentPacket>().empty());
 
-        // the plugin api can hand out items
         CHECK(server.GiveItem(server.FindByName("Alice")->Id(), "dirt", 5) == 0);
         alice.Settle();
         CHECK(alice.Take<proto::InventoryContentPacket>().size() >= 1);
     }
 
-    // leaving removes the player for the others
     bob.endpoint->Close();
     alice.Settle();
     CHECK(alice.Take<proto::RemoveEntityPacket>().size() == 1);
     CHECK(server.InGamePlayers().size() == 1);
 
-    // commands: gamemode, give, op/deop, tick, whitelist
     {
         const auto run = [&](const std::string& line) {
             alice.inbox.clear();
@@ -489,7 +482,6 @@ int main(int argc, char** argv) {
         const auto mode = alice.Take<proto::SetPlayerGameTypePacket>();
         CHECK(mode.size() == 1 && mode[0].gamemode == proto::GameMode::Survival);
         CHECK(alice.Take<proto::UpdateAbilitiesPacket>().size() == 1);
-        // spectator: no-clip flight, nothing to touch, five flying speeds
         {
             namespace F = proto::FlagsAbilitySet;
             run("/gamemode spectator");
@@ -520,26 +512,22 @@ int main(int argc, char** argv) {
                                       t.message == "Flying speed: " + std::to_string(level) + "x");
                 CHECK(shown);
             }
-            // "5x" works too; 3 is refused and nothing is resent
             run("/flyspeed 5x");
             CHECK(alice.Take<proto::UpdateAbilitiesPacket>().size() == 1);
             run("/flyspeed 3");
             CHECK(alice.Take<proto::UpdateAbilitiesPacket>().empty());
             CHECK(!alice.Take<proto::TextPacket>().empty());
-            // leaving and re-entering spectator starts at 1x again
             run("/gamemode creative");
             alice.inbox.clear();
             run("/gamemode spectator");
             ab = alice.Take<proto::UpdateAbilitiesPacket>();
             CHECK(!ab.empty() && ab[0].abilities[0].flySpeed == 0.05f);
-            // outside spectator the speed is not changeable and the abilities stay put
             run("/gamemode survival");
             alice.inbox.clear();
             run("/flyspeed 10");
             CHECK(alice.Take<proto::UpdateAbilitiesPacket>().empty());
             run("/gamemode survival");
         }
-        // java syntax: selectors, relative coordinates, typed arguments, java-style errors
         {
             const auto texts = [&] {
                 std::string all;
@@ -564,7 +552,6 @@ int main(int argc, char** argv) {
             run("/tp @a[name=Alice] 4 70 4 90 0");
             moved = alice.Take<proto::MovePlayerPacket>();
             CHECK(moved.size() == 1 && moved[0].yaw == 90.0f);
-            // selectors that match nobody, and errors in java's words with the "<--[HERE]" context
             run("/tp @a[gamemode=adventure] 0 0 0");
             std::string out = texts();
             CHECK(out.contains("No player was found"));
@@ -579,7 +566,6 @@ int main(int argc, char** argv) {
             CHECK(texts().contains("Unknown item 'minecraft:not_an_item'"));
             run("/give @s stone abc");
             CHECK(texts().contains("Expected integer"));
-            // two words are two player names to java too: valid syntax, and nobody by those names
             run("/tp 1 2");
             CHECK(texts().contains("No player was found"));
             run("/tp");
@@ -590,14 +576,12 @@ int main(int argc, char** argv) {
             CHECK(texts().contains("/nonsense<--[HERE]"));
             run("/help give");
             CHECK(texts().contains("/give <targets> <item> [<count>]"));
-            // time, weather, game rules, difficulty
             run("/time set day");
             CHECK(!alice.Take<proto::SetTimePacket>().empty());
             run("/time set 18000");
             run("/time add 100");
             run("/time query daytime");
             {
-                // the daylight cycle keeps running while the test settles, so allow a few ticks
                 const std::string said = texts();
                 const size_t at = said.find("The time is ");
                 const long shown = at == std::string::npos ? -1 : std::atol(said.c_str() + at + 12);
@@ -629,7 +613,6 @@ int main(int argc, char** argv) {
             run("/defaultgamemode spectator");
             CHECK(server.Config().gameMode == 6);
             run("/defaultgamemode creative");
-            // blocks
             run("/setblock 5 60 5 stone");
             CHECK(texts().contains("Changed the block at 5, 60, 5"));
             CHECK(server.GetBlock(5, 60, 5, out) == perlin::abi::Status::Ok && out.contains("stone"));
@@ -641,7 +624,6 @@ int main(int argc, char** argv) {
             CHECK(texts().find("Too many blocks in the specified area (maximum 32768") != std::string::npos);
             run("/setblock 100000 60 5 stone");
             CHECK(texts().contains("That position is not loaded"));
-            // misc
             run("/title @s actionbar \"hello there\"");
             const auto titles = alice.Take<proto::SetTitlePacket>();
             CHECK(titles.size() == 1 && titles[0].text == "hello there");
@@ -753,6 +735,135 @@ int main(int argc, char** argv) {
                         CHECK(a->Inventory().craft[0].Empty());
                     }
                 }
+                if (Session* a = server.FindByName("Alice")) {
+                    alice.Settle(30);
+                    run("/xp 30");
+                    CHECK(a->XpLevel() == 3);
+                    run("/xp 5L");
+                    CHECK(a->XpLevel() == 8);
+                    alice.Settle();
+                    bool levelSent = false;
+                    for (const auto& u : alice.Take<proto::UpdateAttributesPacket>())
+                        for (const auto& at : u.attributes)
+                            levelSent = levelSent || (at.name == "minecraft:player.level" && at.current == 8.0f);
+                    CHECK(levelSent);
+
+                    const CatalogItem* plate = BlockCatalog::Instance().ItemByName("minecraft:diamond_chestplate");
+                    CHECK(plate != nullptr);
+                    alice.Settle(25);
+                    if (plate) {
+                        a->Inventory().armor[1] = a->Inventory().MakeStack(plate->networkId, 1);
+                        const float before = a->Health();
+                        CHECK(a->Damage(10.0f, Session::DamageCause::Mob, a->X() + 1, a->Z()));
+                        CHECK(std::abs((before - a->Health()) - 8.4f) < 0.01f);
+                        CHECK(a->Inventory().armor[1].damage == 2);
+                        CHECK(!a->Damage(5.0f, Session::DamageCause::Mob, a->X() + 1, a->Z()));
+                        a->Inventory().armor[1] = ItemStack{};
+                    }
+                    alice.Settle(25);
+                    a->Heal(20.0f);
+                    CHECK(a->Health() == 20.0f);
+                    run("/tp 0 -50 0");
+                    for (int i = 0; i < 10; i++) {
+                        proto::PlayerAuthInputPacket fall;
+                        fall.position = {0.5f, -48.38f - static_cast<float>(i + 1), 0.5f};
+                        alice.Send(fall);
+                        alice.Settle();
+                    }
+                    proto::PlayerAuthInputPacket land;
+                    land.position = {0.5f, -58.38f, 0.5f};
+                    land.inputData.push_back(proto::InputData::VerticalCollision);
+                    alice.Send(land);
+                    alice.Settle();
+                    CHECK(a->Health() >= 16.0f && a->Health() < 17.5f);
+                    run("/menu");
+                    const auto forms = alice.Take<proto::ModalFormRequestPacket>();
+                    CHECK(forms.size() == 1 && forms[0].data.contains("Heal me"));
+                    if (!forms.empty()) {
+                        proto::ModalFormResponsePacket answer;
+                        answer.formId = forms[0].formId;
+                        answer.hasResponseData = true;
+                        answer.data = "0";
+                        alice.Send(answer);
+                        alice.Settle();
+                        CHECK(a->Health() == 20.0f);
+                    }
+
+                    const CatalogItem* bread = BlockCatalog::Instance().ItemByName("minecraft:bread");
+                    CHECK(bread != nullptr);
+                    if (bread) {
+                        a->SetFood(10, 0.0f);
+                        a->Inventory().main[0] = a->Inventory().MakeStack(bread->networkId, 3);
+                        a->Inventory().selected = 0;
+                        proto::InventoryTransactionPacket eat;
+                        eat.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
+                        proto::TransactionUseItem eu;
+                        eu.actionType = proto::TransactionUseItemActionType::ClickAir;
+                        eu.hotbarSlot = 0;
+                        eat.transaction.transactionData = eu;
+                        alice.Send(eat);
+                        alice.Settle(40);
+                        CHECK(a->Food() == 15);
+                        CHECK(a->Inventory().main[0].count == 2);
+                    }
+
+                    const CatalogItem* pick = BlockCatalog::Instance().ItemByName("minecraft:iron_pickaxe");
+                    const CatalogItem* diamond = BlockCatalog::Instance().ItemByName("minecraft:diamond");
+                    CHECK(pick && diamond);
+                    if (pick && diamond) {
+                        const auto count = [&](int16_t id) {
+                            int n = 0;
+                            for (const auto& it : server.Items())
+                                if (it.stack.networkId == id)
+                                    n += it.stack.count;
+                            return n;
+                        };
+                        const int had = count(diamond->networkId);
+                        a->Inventory().main[0] = ItemStack{};
+                        CHECK(server.SetBlock(1, -60, 2, "diamond_ore") == perlin::abi::Status::Ok);
+                        CHECK(server.PlayerBreak(*a, 1, -60, 2));
+                        CHECK(count(diamond->networkId) == had);
+                        a->Inventory().main[0] = a->Inventory().MakeStack(pick->networkId, 1);
+                        CHECK(server.SetBlock(1, -60, 2, "diamond_ore") == perlin::abi::Status::Ok);
+                        CHECK(server.PlayerBreak(*a, 1, -60, 2));
+                        CHECK(count(diamond->networkId) == had + 1);
+                        CHECK(a->Inventory().main[0].damage == 1);
+                        size_t orbs = 0;
+                        for (const Mob& m : server.Mobs().All())
+                            orbs += m.kind == 3 ? 1 : 0;
+                        CHECK(orbs > 0);
+                    }
+
+                    alice.inbox.clear();
+                    run("/summon cow ~2 ~ ~");
+                    auto cows = alice.Take<proto::AddEntityPacket>();
+                    std::erase_if(cows, [](const proto::AddEntityPacket& e) { return e.entityType != "minecraft:cow"; });
+                    CHECK(cows.size() == 1);
+                    if (!cows.empty()) {
+                        const CatalogItem* leather = BlockCatalog::Instance().ItemByName("minecraft:leather");
+                        const CatalogItem* beef = BlockCatalog::Instance().ItemByName("minecraft:beef");
+                        CHECK(leather && beef);
+                        CHECK(server.Mobs().Attack(*a, cows[0].runtimeId, 100.0f));
+                        int meat = 0;
+                        for (const auto& it : server.Items())
+                            if (beef && it.stack.networkId == beef->networkId)
+                                meat += it.stack.count;
+                        CHECK(meat >= 1);
+                    }
+                    run("/effect @s regeneration 5 1");
+                    CHECK(a->EffectLevel(10) == 2);
+                    run("/effect @s clear");
+                    CHECK(a->EffectLevel(10) == 0);
+                    const int levelBefore = a->XpLevel();
+                    run("/kill @s");
+                    CHECK(a->Dead());
+                    CHECK(a->XpLevel() == 0 || levelBefore == 0);
+                    proto::RespawnPacket respawn;
+                    respawn.state = 2;
+                    alice.Send(respawn);
+                    alice.Settle();
+                    CHECK(!a->Dead() && a->Health() == 20.0f && a->Food() == 20);
+                }
                 run("/gamemode creative");
                 alice.Settle(25);
                 alice.inbox.clear();
@@ -763,7 +874,6 @@ int main(int argc, char** argv) {
             CHECK(texts().contains("items") || true);
             run("/gamemode survival");
         }
-        // what clients are told: typed overloads, not one raw-text blob
         {
             proto::AvailableCommandsPacket packet;
             FillAvailableCommands(packet, server.Commands(), true);
@@ -810,7 +920,6 @@ int main(int argc, char** argv) {
         CHECK(!lines.empty() && lines[0].message.find("Gave 5 stone to Alice") == 0);
         CHECK(!alice.Take<proto::InventoryContentPacket>().empty());
         run("/help");
-        // one chat line per command, not one message with newlines in it
         lines = alice.Take<proto::TextPacket>();
         bool noNewlines = lines.size() > 5;
         for (const auto& l : lines)
@@ -831,7 +940,6 @@ int main(int argc, char** argv) {
         run("/tick query");
         lines = alice.Take<proto::TextPacket>();
         CHECK(!lines.empty() && lines[0].message.contains("running normally"));
-        // permissions and the allowlist live in the files bds uses
         server.RunConsoleCommand("op Bob");
         CHECK(server.IsOperator("Bob", ""));
         CHECK(server.PermissionOf("Bob", "") == "operator");
@@ -840,7 +948,6 @@ int main(int argc, char** argv) {
         CHECK(server.PermissionOf("Bob", "") == "member");
         server.RunConsoleCommand("allowlist add Bob");
         CHECK(server.IsWhitelisted("bob", ""));
-        // the old command name still works
         server.RunConsoleCommand("whitelist add Carol");
         CHECK(server.IsWhitelisted("carol", ""));
         CHECK(fs::exists(config.dataDir + "/permissions.json") &&
@@ -848,9 +955,133 @@ int main(int argc, char** argv) {
         CHECK(!fs::exists(config.dataDir + "/ops.json") && !fs::exists(config.dataDir + "/whitelist.json"));
     }
 
+    {
+        const auto send = [&](Client& who, const std::string& line) {
+            who.inbox.clear();
+            proto::CommandRequestPacket c;
+            c.command = line;
+            who.Send(c);
+            who.Settle();
+        };
+        const auto said = [&](Client& who) {
+            std::string all;
+            for (const auto& t : who.Take<proto::TextPacket>())
+                all += t.message + "\n";
+            return all;
+        };
+        send(alice, "/gamemode creative");
+        send(alice, "/execute in the_nether run tp @s 8 70 8");
+        for (int i = 0; i < 80; i++)
+            alice.Settle(2);
+        const auto change = alice.Take<proto::ChangeDimensionPacket>();
+        CHECK(change.size() == 1 && change[0].dimension == 1);
+        const auto netherChunks = alice.Take<proto::LevelChunkPacket>();
+        CHECK(!netherChunks.empty());
+        for (const auto& c : netherChunks) {
+            CHECK(c.dimension == 1 && c.subChunkCount == 8);
+            std::vector<std::pair<int, perlin::SubChunkData>> subs;
+            size_t used = 0;
+            CHECK(perlin::ChunkCodec::ParseColumn(c.payload.data(), c.payload.size(), c.subChunkCount, 0, 8, subs, used));
+            CHECK(subs.size() == 8);
+        }
+        proto::PlayerActionPacket ack;
+        ack.action = proto::Action::DimensionChangeAck;
+        alice.Send(ack);
+        alice.Settle();
+        Session* a = server.FindByName("Alice");
+        CHECK(a && a->DimensionId() == 1);
+        CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 8, 0, 8)) == "minecraft:bedrock");
+        send(alice, "/execute if dimension the_nether");
+        CHECK(said(alice).contains("Test passed"));
+        send(alice, "/execute unless entity @a[name=Bob,distance=..1000]");
+        CHECK(said(alice).contains("Test passed"));
+        send(alice, "/execute as @s at @s if dimension the_nether run say still here");
+        CHECK(said(alice).contains("still here"));
+        send(alice, "/execute as @s at @s if dimension overworld run say wrong place");
+        CHECK(!said(alice).contains("wrong place"));
+        send(alice, "/execute positioned 8 70 9 run setblock ~ ~ ~ obsidian");
+        CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 8, 70, 9)) == "minecraft:obsidian");
+        CHECK(BlockRegistry::Instance().Name(server.BlockAt(0, 8, 70, 9)) != "minecraft:obsidian");
+        const CatalogItem* flint = BlockCatalog::Instance().ItemByName("minecraft:flint_and_steel");
+        if (flint && a) {
+            send(alice, "/fill 5 69 12 8 73 12 obsidian");
+            send(alice, "/fill 6 70 12 7 72 12 air");
+            a->Inventory().main[0] = ItemStack{};
+            a->Inventory().main[0].networkId = flint->networkId;
+            a->Inventory().main[0].count = 1;
+            proto::InventoryTransactionPacket light;
+            light.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
+            proto::TransactionUseItem use;
+            use.actionType = proto::TransactionUseItemActionType::ClickBlock;
+            use.blockPosition = {6, 69, 12};
+            use.face = 1;
+            use.hotbarSlot = 0;
+            light.transaction.transactionData = use;
+            alice.Send(light);
+            alice.Settle();
+            CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 6, 70, 12)) == "minecraft:portal");
+            CHECK(BlockRegistry::Instance().Name(server.BlockAt(1, 7, 72, 12)) == "minecraft:portal");
+            alice.inbox.clear();
+            send(alice, "/tp @s 6.5 70 12.5");
+            for (int i = 0; i < 40; i++)
+                alice.Settle(2);
+            const auto back = alice.Take<proto::ChangeDimensionPacket>();
+            CHECK(back.size() == 1 && back[0].dimension == 0);
+            CHECK(a->DimensionId() == 0);
+            if (!back.empty())
+                CHECK(BlockRegistry::Instance().Name(server.BlockAt(0, static_cast<int>(std::floor(back[0].position.x)),
+                                                                    static_cast<int>(std::floor(back[0].position.y - 1.62f)),
+                                                                    static_cast<int>(std::floor(back[0].position.z)))) ==
+                      "minecraft:portal");
+            alice.Send(ack);
+            alice.Settle();
+            send(alice, "/fill 0 -60 -10 4 -60 -6 end_portal_frame");
+            const CatalogItem* eye = BlockCatalog::Instance().ItemByName("minecraft:ender_eye");
+            if (eye) {
+                send(alice, "/fill 1 -60 -9 3 -60 -7 air");
+                send(alice, "/setblock 0 -60 -10 air");
+                send(alice, "/setblock 4 -60 -10 air");
+                send(alice, "/setblock 0 -60 -6 air");
+                send(alice, "/setblock 4 -60 -6 air");
+                send(alice, "/tp @s 2 -59 -4");
+                a->Inventory().main[1].networkId = eye->networkId;
+                a->Inventory().main[1].count = 12;
+                const int ring[12][2] = {{1, -10}, {2, -10}, {3, -10}, {1, -6}, {2, -6}, {3, -6},
+                                         {0, -9},  {0, -8},  {0, -7},  {4, -9}, {4, -8}, {4, -7}};
+                for (const auto& r : ring) {
+                    proto::InventoryTransactionPacket put;
+                    put.transaction.transactionType = proto::TransactionTransactionType::ItemUse;
+                    proto::TransactionUseItem u;
+                    u.actionType = proto::TransactionUseItemActionType::ClickBlock;
+                    u.blockPosition = {r[0], -60, r[1]};
+                    u.face = 1;
+                    u.hotbarSlot = 1;
+                    put.transaction.transactionData = u;
+                    alice.Send(put);
+                    alice.Settle(1);
+                }
+                CHECK(BlockRegistry::Instance().Name(server.BlockAt(0, 2, -60, -8)) == "minecraft:end_portal");
+                alice.inbox.clear();
+                send(alice, "/tp @s 2.5 -60 -7.5");
+                for (int i = 0; i < 40; i++)
+                    alice.Settle(2);
+                const auto toEnd = alice.Take<proto::ChangeDimensionPacket>();
+                CHECK(toEnd.size() == 1 && toEnd[0].dimension == 2);
+                CHECK(BlockRegistry::Instance().Name(server.BlockAt(2, 100, 48, 0)) == "minecraft:obsidian");
+                alice.Send(ack);
+                alice.Settle();
+            }
+        }
+        send(alice, "/execute in overworld run tp @s 0 -59 0");
+        for (int i = 0; i < 20; i++)
+            alice.Settle(2);
+        CHECK(a && a->DimensionId() == 0);
+        alice.Send(ack);
+        alice.Settle();
+    }
+
     server.Stop();
 
-    // survival: placing spends the item, breaking pays it into the inventory, no creative menu
     {
         ServerConfig survivalConfig = config;
         survivalConfig.gameMode = 0;
@@ -880,7 +1111,6 @@ int main(int argc, char** argv) {
         CHECK(survival.GetBlock(1, -60, 1, n) == perlin::abi::Status::Ok && n == "minecraft:stone");
         carol.Send(place);
         carol.Settle();
-        // second attempt: the cell is taken, nothing is spent
         proto::PlayerActionPacket stop;
         stop.action = proto::Action::StopBreak;
         stop.position = {1, -60, 1};
@@ -888,7 +1118,6 @@ int main(int argc, char** argv) {
         carol.Settle();
         CHECK(survival.GetBlock(1, -60, 1, n) == perlin::abi::Status::Ok && n == "minecraft:air");
         carol.inbox.clear();
-        // bedrock does not break in survival
         stop.position = {1, -64, 1};
         carol.Send(stop);
         carol.Settle();

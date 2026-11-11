@@ -7792,7 +7792,7 @@ namespace perlin::server::vanilla {
         36,36,36,36,35,35,34,36,36,35,36,35,34,36,36,36,36,34,35,36,36,36,36,35,36,34,36,36,35,34,35,36,36,36,34,36,36,36,36,36,
         36,36,35,36,36,34,35,36,36,36,34,36,34,36,36,36,36,36,36,36,36,35,35,35,35,35,35,35,35,35,35,35,35,35
     };
-    extern const int kBiomeCount = 56;
+    extern const int kBiomeCount = 66;
     extern const BiomeMaterials kBiomes[] = {
         {"mushroom_fields", "mushroom_island", "minecraft:mycelium", "minecraft:dirt", "minecraft:stone", "minecraft:gravel", "minecraft:water", 7, 0},
         {"deep_frozen_ocean", "deep_frozen_ocean", "minecraft:grass_block", "minecraft:dirt", "minecraft:stone", "minecraft:gravel", "minecraft:water", 7, 1},
@@ -7850,5 +7850,15 @@ namespace perlin::server::vanilla {
         {"lush_caves", "lush_caves", "minecraft:grass_block", "minecraft:dirt", "minecraft:stone", "minecraft:gravel", "minecraft:water", 7, 0},
         {"sulfur_caves", "sulfur_caves", "minecraft:grass_block", "minecraft:dirt", "minecraft:stone", "minecraft:gravel", "minecraft:water", 7, 0},
         {"deep_dark", "deep_dark", "minecraft:grass_block", "minecraft:dirt", "minecraft:stone", "minecraft:gravel", "minecraft:water", 7, 0},
+        {"nether_wastes", "hell", "minecraft:netherrack", "minecraft:netherrack", "minecraft:netherrack", "minecraft:netherrack", "minecraft:lava", 0, 0},
+        {"soul_sand_valley", "soulsand_valley", "minecraft:soul_sand", "minecraft:netherrack", "minecraft:netherrack", "minecraft:netherrack", "minecraft:lava", 0, 0},
+        {"crimson_forest", "crimson_forest", "minecraft:crimson_nylium", "minecraft:netherrack", "minecraft:netherrack", "minecraft:netherrack", "minecraft:lava", 0, 0},
+        {"warped_forest", "warped_forest", "minecraft:warped_nylium", "minecraft:netherrack", "minecraft:netherrack", "minecraft:netherrack", "minecraft:lava", 0, 0},
+        {"basalt_deltas", "basalt_deltas", "minecraft:basalt", "minecraft:netherrack", "minecraft:netherrack", "minecraft:netherrack", "minecraft:lava", 0, 0},
+        {"the_end", "the_end", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:air", 0, 0},
+        {"end_highlands", "the_end", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:air", 0, 0},
+        {"end_midlands", "the_end", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:air", 0, 0},
+        {"small_end_islands", "the_end", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:air", 0, 0},
+        {"end_barrens", "the_end", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:end_stone", "minecraft:air", 0, 0},
     };
 }

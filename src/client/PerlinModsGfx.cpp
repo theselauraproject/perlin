@@ -24,9 +24,20 @@ namespace perlin {
                 seen.insert(key);
                 ModGfxTexture& slot = modGfxTextures[key];
                 if (slot.gpu == 0 || slot.version != t.version) {
-                    if (slot.gpu)
-                        renderer->UiDestroyTexture(slot.gpu);
-                    slot.gpu = renderer->UiCreateTexture(t.width, t.height, t.rgba->data(), t.linear);
+                    const bool partial = slot.gpu != 0 && slot.version == t.rectFrom && slot.width == t.width &&
+                                         slot.height == t.height && t.rx1 > t.rx0 && t.ry1 > t.ry0;
+                    const bool updated =
+                        partial &&
+                        renderer->UiUpdateTexture(slot.gpu, t.rx0, t.ry0, t.rx1 - t.rx0, t.ry1 - t.ry0,
+                                                  t.rgba->data() + (static_cast<size_t>(t.ry0) * t.width + t.rx0) * 4,
+                                                  t.width * 4);
+                    if (!updated) {
+                        if (slot.gpu)
+                            renderer->UiDestroyTexture(slot.gpu);
+                        slot.gpu = renderer->UiCreateTexture(t.width, t.height, t.rgba->data(), t.linear);
+                        slot.width = t.width;
+                        slot.height = t.height;
+                    }
                     slot.version = t.version;
                 }
             }

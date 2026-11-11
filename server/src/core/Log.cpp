@@ -7,7 +7,6 @@
 
 namespace perlin::server {
     namespace {
-        // chat colour codes (section sign plus one character) mean nothing on a console, and show as garbage on codepages that are not utf-8
         std::string StripFormatting(const std::string& s) {
             std::string out;
             out.reserve(s.size());
@@ -24,6 +23,14 @@ namespace perlin::server {
 
         std::mutex g_mutex;
         LogSink g_sink;
+        thread_local std::string* g_capture = nullptr;
+    }
+
+    LogCapture::LogCapture() : previous(g_capture) {
+        g_capture = &text;
+    }
+    LogCapture::~LogCapture() {
+        g_capture = previous;
     }
 
     void SetLogSink(LogSink sink) {
@@ -32,6 +39,11 @@ namespace perlin::server {
     }
 
     void Log(LogLevel level, const std::string& text) {
+        if (g_capture && level == LogLevel::Info) {
+            *g_capture += StripFormatting(text);
+            *g_capture += '\n';
+            return;
+        }
         std::lock_guard lock(g_mutex);
         if (g_sink) {
             g_sink(level, text);

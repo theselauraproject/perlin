@@ -176,26 +176,8 @@ namespace perlin::ui {
         }
 
         void Fire(const HudState& s, const LNode& n, RmlWriter& w) {
+            // the flames themselves are drawn in the world pass, where the view's perspective belongs to them
             ScreenAnimation(s, n, w);
-            if (!s.burning)
-                return;
-            const float unit = s.guiH * 1.4286f;
-            const float top = s.guiH * 0.2143f;
-            ImageStyle st;
-            st.u = 0;
-            st.v = static_cast<float>(s.fireFrame * 16);
-            st.uw = 16;
-            st.vh = 16;
-            st.alpha = 0.9f;
-            // two animated layers at slightly different heights, mirrors the vanilla composite
-            for (const float side : {-1.0f, 1.0f}) {
-                w.Image(s.guiW * 0.5f + side * 0.24f * unit - unit * 0.5f, top, unit, unit, n.layer,
-                        "textures/blocks/fire_1", st);
-                ImageStyle inner = st;
-                inner.alpha = 0.7f;
-                w.Image(s.guiW * 0.5f + side * 0.18f * unit - unit * 0.4f, top + unit * 0.12f, unit * 0.8f,
-                        unit * 0.8f, n.layer + 1, "textures/blocks/fire_0", inner);
-            }
         }
 
         void Offhand(const HudState& s, float slotX, float slotY, float slotW, float slotH, int layer, float alpha,

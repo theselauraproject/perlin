@@ -61,11 +61,20 @@ namespace perlin {
             if (tints.Ready())
                 tint = tints.Water(biomeName);
             c[0] = c[1] = c[2] = 1.0f;
-        } else if (tints.Ready() && (Has(name, "leaves") || Has(name, "vine"))) {
-            tint = Has(name, "birch")    ? tints.MapAverage("birch")
-                   : Has(name, "spruce") ? tints.MapAverage("evergreen")
-                                         : tints.Foliage(biomeName);
-        } else if (tints.Ready() && (Has(name, "grass") || look.tintTop)) {
+        } else if (tints.Ready() && (Has(name, "leaves") || (Has(name, "vine") && !Has(name, "cave_vines") &&
+                                                               !Has(name, "twisting") && !Has(name, "weeping")))) {
+            const float hi = std::max({c[0], c[1], c[2]}), lo = std::min({c[0], c[1], c[2]});
+            const bool coloured = (tile > 0 && blocks.SaturationOf(tile) > 0.25f) || (hi > 0.0f && (hi - lo) / hi > 0.18f) ||
+                                  Has(name, "cherry") || Has(name, "azalea") || Has(name, "pale_oak");
+            if (!coloured)
+                tint = Has(name, "birch")      ? tints.MapAverage("birch")
+                       : Has(name, "spruce")   ? tints.MapAverage("evergreen")
+                       : Has(name, "mangrove") ? tints.MapAverage("mangrove_swamp_foliage")
+                                               : tints.Foliage(biomeName);
+        } else if (tints.Ready() && (name == "minecraft:grass_block" || name == "minecraft:short_grass" ||
+                                     name == "minecraft:tall_grass" || name == "minecraft:fern" ||
+                                     name == "minecraft:large_fern" || name == "minecraft:sugar_cane" ||
+                                     name == "minecraft:reeds" || look.tintTop)) {
             tint = tints.Grass(biomeName);
         } else {
             tint = {look.tintR, look.tintG, look.tintB};
@@ -176,7 +185,6 @@ namespace perlin {
     }
 
     void LodStore::Evict(int centreX, int centreZ, int radius, std::vector<ChunkPos>& removed) {
-        // whole tiles outside the square go without touching their columns one by one in the map scan
         std::vector<int64_t> outside;
         for (const auto& [key, count] : tiles) {
             const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
@@ -253,8 +261,6 @@ namespace perlin {
                 col[i][2] = c.b / 255.0f * k;
             }
         };
-        // tops first: a run of cells with the same height, water flag and (near enough) colour is one quad. Oceans and
-        // plains collapse to a few quads, which is most of what far tiles contain
         const auto similar = [](const Cell& a, const Cell& b) {
             return b.present && a.y == b.y && a.water == b.water && std::abs(a.r - b.r) <= 2 &&
                    std::abs(a.g - b.g) <= 2 && std::abs(a.b - b.b) <= 2;

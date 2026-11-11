@@ -51,12 +51,14 @@ namespace perlin::server::vanilla {
         void BiomesOf(const float* density, int chunkX, int chunkZ, uint8_t* biomes) const;
         int NoiseBiome(int quartX, int quartY, int quartZ) const;
         const uint8_t* ChunkFill(int chunkX, int chunkZ) const;
+        void PrimeChunkFill(int chunkX, int chunkZ, const int32_t* targets) const;
         int BiomeAt(int x, int y, int z) const;
         void QuartBiomes(int chunkX, int chunkZ, ChunkColumn& column) const;
         int64_t ZoomSeed() const { return zoomSeed; }
 
     private:
         VanillaCpuBackend() = default;
+        const uint8_t* SearchFill(int chunkX, int chunkZ, const int32_t* targets) const;
         std::unique_ptr<DataPack> pack;
         std::unique_ptr<DensityGraph> graph;
         DfPtr finalDensity;
@@ -66,6 +68,7 @@ namespace perlin::server::vanilla {
         std::unique_ptr<JavaDecorator> decorator;
         AquiferFunctions aquifers;
         int64_t zoomSeed = 0;
+        uint64_t instance = 0;
         std::unique_ptr<VanillaMaterials> materials;
         std::unique_ptr<VanillaCarvers> carvers;
         TerrainStages stages;

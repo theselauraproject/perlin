@@ -8,6 +8,7 @@
 
 #include "core/Log.hpp"
 #include "world/Blocks.hpp"
+#include "world/vanilla/VanillaDimension.hpp"
 #include "world/vanilla/VanillaTerrain.hpp"
 
 #include <conduit/device.hpp>
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <random>
@@ -28,15 +30,16 @@ namespace perlin::server {
     namespace {
         // chunks per submit; the density buffer (393 KB a chunk) is sized for it
         constexpr uint32_t kBatch = 16;
-        constexpr uint64_t kBlocksPerChunk = static_cast<uint64_t>(kHeight) * 256;
-        constexpr uint64_t kCornersPerChunk = static_cast<uint64_t>(vanilla::GpuProgram::kCornersXz) *
-                                              vanilla::GpuProgram::kCornersXz *
-                                              vanilla::GpuProgram::kCornersY;
+        constexpr int kOverworldQuartLayers = ChunkColumn::kQuartLayers;
         // per column: the ground index and the biome
         constexpr uint64_t kColumnWords = 2;
 
         struct PushParams {
-            uint32_t chunkCount, phase, orderBegin, orderCount, root, interpCount, columnBase, reserved1;
+            uint32_t chunkCount, phase, orderBegin, orderCount, root, interpCount, columnBase, climateBase;
+            int32_t minY;
+            uint32_t height, cellXz, cellY;
+            int32_t quartMinY;
+            uint32_t quartLayers, reserved0, reserved1;
         };
 
         // what one submit brings back
@@ -44,6 +47,7 @@ namespace perlin::server {
             std::vector<float>
                 density; // [chunk][x][z][y]; after the surface phase the bits are block ids instead
             std::vector<uint32_t> columns; // [chunk][x * 16 + z] -> ground index (as int), biome
+            std::vector<int32_t> climate;
         };
 
         class GpuVanillaBackend final : public TerrainBackend, public DensityBackend {
@@ -63,40 +67,68 @@ namespace perlin::server {
                 device->destroy(densityBuffer);
                 device->destroy(readback);
                 device->destroy(readbackColumns);
+                device->destroy(readbackClimate);
                 device->destroy(fence);
             }
 
             const char* Name() const override { return failed ? "vanilla/cpu (gpu failed)" : name.c_str(); }
             size_t PreferredBatch() const override { return failed ? 1 : kBatch; }
+            int dimension = kOverworld;
+            std::unique_ptr<vanilla::VanillaDimensionBackend> dim;
+            int genMinY = kMinY, genHeight = kHeight, quartMinY = kMinY >> 2, quartLayers = kOverworldQuartLayers;
+            uint64_t blocksPerChunk = static_cast<uint64_t>(kHeight) * 256, cornersPerChunk = 0;
+            uint32_t climateBase = 0;
             // the device section of a batch (upload, dispatch, wait, readback) is one critical section; everything after it (block storage, the cpu stages, the cpu
             // fallback) runs outside it, so several workers keep the cpu busy while the next batch is on the gpu
             bool ThreadSafe() const override { return true; }
-            bool FindSpawn(int& x, int& y, int& z) override { return cpu->FindSpawn(x, y, z); }
+            bool FindSpawn(int& x, int& y, int& z) override { return cpu ? cpu->FindSpawn(x, y, z) : false; }
             // searching samples single points on the cpu's workers; the gpu is built for batches of whole chunks
             bool LocateBiome(int biome, int fromX, int fromZ, int radius, const std::atomic<bool>& cancel,
                              int& x, int& y, int& z) override {
-                return cpu->LocateBiome(biome, fromX, fromZ, radius, cancel, x, y, z);
+                return cpu ? cpu->LocateBiome(biome, fromX, fromZ, radius, cancel, x, y, z)
+                           : dim->LocateBiome(biome, fromX, fromZ, radius, cancel, x, y, z);
             }
             bool HasBiomes() const override { return true; }
-            bool Decorates() const override { return cpu->Decorates(); }
-            const json::Value* Spawns(int tableIndex) const override { return cpu->Spawns(tableIndex); }
+            bool Decorates() const override { return cpu && cpu->Decorates(); }
+            const json::Value* Spawns(int tableIndex) const override { return cpu ? cpu->Spawns(tableIndex) : nullptr; }
             void Decorate(ChunkPos pos, const ChunkColumn* const region[9], ChunkColumn& out) const override {
                 cpu->Decorate(pos, region, out);
             }
 
-            bool Init(const ServerConfig& config, std::string& note) {
+            bool Init(const ServerConfig& config, int dimensionId, std::string& note) {
                 std::string error;
-                cpu = vanilla::VanillaCpuBackend::Create(config, error);
-                if (!cpu) {
-                    note = error;
-                    return false;
+                dimension = dimensionId;
+                if (dimension == kOverworld) {
+                    cpu = vanilla::VanillaCpuBackend::Create(config, error);
+                    if (!cpu) {
+                        note = error;
+                        return false;
+                    }
+                    program = vanilla::GpuProgram::Build(cpu->FinalDensity(), cpu->Climate().Roots(), error);
+                } else {
+                    dim = vanilla::VanillaDimensionBackend::Create(config, dimension, error);
+                    if (!dim) {
+                        note = error;
+                        return false;
+                    }
+                    genMinY = dim->GenMinY();
+                    genHeight = dim->GenHeight();
+                    quartMinY = 0;
+                    quartLayers = 64;
+                    blocksPerChunk = static_cast<uint64_t>(genHeight) * 256;
+                    program = vanilla::GpuProgram::Build(dim->FinalDensity(), dim->ClimateRoots(), error);
                 }
-                program = vanilla::GpuProgram::Build(cpu->FinalDensity(), cpu->Climate().Roots(), error);
                 if (!program) {
                     note = "terrain graph does not fit the gpu kernel: " + error;
                     return false;
                 }
-                tables = vanilla::PackTables(*program, cpu->Surface());
+                if (genHeight % static_cast<int>(program->cellY) != 0) {
+                    note = "terrain height is not a whole number of cells";
+                    return false;
+                }
+                cornersPerChunk = static_cast<uint64_t>(16 / program->cellXz + 1) * (16 / program->cellXz + 1) *
+                                  (static_cast<uint64_t>(genHeight) / program->cellY + 1);
+                tables = cpu ? vanilla::PackTables(*program, cpu->Surface()) : program->Pack();
 
                 conduit::probe_options po;
                 po.read_caps = false;
@@ -188,7 +220,8 @@ namespace perlin::server {
 
                 interpCount = static_cast<uint32_t>(program->interpolatedInputs.size());
                 columnBase =
-                    static_cast<uint32_t>(kBatch * kCornersPerChunk * std::max<uint32_t>(1, interpCount));
+                    static_cast<uint32_t>(kBatch * cornersPerChunk * std::max<uint32_t>(1, interpCount));
+                climateBase = columnBase + static_cast<uint32_t>(kBatch * 256 * kColumnWords);
                 conduit::buffer_desc b;
                 b.size = static_cast<uint64_t>(tables.size()) * 4;
                 b.usage = conduit::buffer_usage::storage;
@@ -201,13 +234,13 @@ namespace perlin::server {
                 b.name = "vanilla chunks";
                 chunkBuffer = device->create_buffer(b);
                 // corners first, then the per-column results
-                b.size = (static_cast<uint64_t>(columnBase) + kBatch * 256 * kColumnWords) * 4;
+                b.size = (static_cast<uint64_t>(climateBase) + kBatch * 16 * static_cast<uint64_t>(quartLayers) * 6) * 4;
                 b.usage = conduit::buffer_usage::storage | conduit::buffer_usage::copy_src;
                 b.memory = conduit::memory_class::gpu_only;
                 b.stride = 4;
                 b.name = "vanilla scratch";
                 scratchBuffer = device->create_buffer(b);
-                b.size = static_cast<uint64_t>(kBatch) * kBlocksPerChunk * 4;
+                b.size = static_cast<uint64_t>(kBatch) * blocksPerChunk * 4;
                 b.name = "vanilla density";
                 densityBuffer = device->create_buffer(b);
                 b.usage = conduit::buffer_usage::copy_dst;
@@ -218,11 +251,14 @@ namespace perlin::server {
                 b.size = static_cast<uint64_t>(kBatch) * 256 * kColumnWords * 4;
                 b.name = "vanilla column readback";
                 readbackColumns = device->create_buffer(b);
+                b.size = static_cast<uint64_t>(kBatch) * 16 * static_cast<uint64_t>(quartLayers) * 6 * 4;
+                b.name = "vanilla climate readback";
+                readbackClimate = device->create_buffer(b);
                 fence = device->create_fence(0);
 
                 uint8_t* t = device->map(tableBuffer);
                 if (!t || !device->map(chunkBuffer) || !device->map(readback) ||
-                    !device->map(readbackColumns) || !pipeline || !fence || !scratchBuffer ||
+                    !device->map(readbackColumns) || !device->map(readbackClimate) || !pipeline || !fence || !scratchBuffer ||
                     !densityBuffer) {
                     note = "terrain pipeline or buffers could not be created on " + pick->adapter.name;
                     return false;
@@ -262,30 +298,37 @@ namespace perlin::server {
                     vanilla::DfCacheScope cache;
                     const int bx = probe[n].x * 16, bz = probe[n].z * 16;
                     const bool full = n == 0;
-                    const int samples = full ? 16 * 16 * kHeight : 4096;
+                    const int samples = full ? 16 * 16 * genHeight : 4096;
                     for (int s = 0; s < samples; s++) {
                         int x, z, y;
                         if (full) {
-                            x = s / (16 * kHeight);
-                            z = (s / kHeight) & 15;
-                            y = s % kHeight;
+                            x = s / (16 * genHeight);
+                            z = (s / genHeight) & 15;
+                            y = s % genHeight;
                         } else {
                             x = static_cast<int>(rng() & 15);
                             z = static_cast<int>(rng() & 15);
-                            y = static_cast<int>(rng() % kHeight);
+                            y = static_cast<int>(rng() % static_cast<uint32_t>(genHeight));
                         }
-                        const float want = cpu->Density(bx + x, kMinY + y, bz + z);
+                        const float want = cpu ? cpu->Density(bx + x, genMinY + y, bz + z) : dim->Density(bx + x, genMinY + y, bz + z);
                         const float got =
-                            d.density[n * kBlocksPerChunk + static_cast<size_t>((x * 16 + z) * kHeight + y)];
+                            d.density[n * blocksPerChunk + static_cast<size_t>((x * 16 + z) * genHeight + y)];
                         if (std::memcmp(&want, &got, sizeof want) != 0 && !(want != want && got != got)) {
                             note = "density differs at (" + std::to_string(bx + x) + "," +
-                                   std::to_string(kMinY + y) + "," + std::to_string(bz + z) + "): cpu " +
+                                   std::to_string(genMinY + y) + "," + std::to_string(bz + z) + "): cpu " +
                                    std::to_string(want) + ", gpu " + std::to_string(got);
                             return false;
                         }
                     }
                 }
 
+                gpuClimate = !std::getenv("PERLIN_GPU_NO_CLIMATE") && ValidateClimate(probe, note);
+                if (!cpu) {
+                    name = std::string("vanilla/gpu-") + (dimension == kNether ? "nether" : "end") + " (" + deviceName +
+                           "; gpu: density" + (gpuClimate ? ", climate" : "") + ")";
+                    note = name + ", identical to the cpu reference on the probe chunks" + (gpuClimate ? "" : "; " + note);
+                    return true;
+                }
                 // stage 2, biome: the ground height and biome of every column, from the densities the gpu itself produced
                 std::string biomeNote, surfaceNote;
                 BatchOut c;
@@ -295,7 +338,7 @@ namespace perlin::server {
                 std::vector<uint8_t> expectedBiome(chunks * 256);
                 std::vector<int> expectedTop(chunks * 256);
                 for (size_t n = 0; n < chunks && gpuBiome; n++) {
-                    cpu->BiomesOf(c.density.data() + n * kBlocksPerChunk, probe[n].x, probe[n].z,
+                    cpu->BiomesOf(c.density.data() + n * blocksPerChunk, probe[n].x, probe[n].z,
                                   expectedBiome.data() + n * 256);
                     for (int col = 0; col < 256; col++) {
                         const size_t at = n * 256 + static_cast<size_t>(col);
@@ -342,7 +385,7 @@ namespace perlin::server {
                         }
                 }
 
-                std::string on = "density", off;
+                std::string on = gpuClimate ? "density, climate" : "density", off;
                 if (gpuBiome)
                     on += ", biome";
                 else
@@ -364,7 +407,7 @@ namespace perlin::server {
             void Generate(std::span<const ChunkPos> positions, std::span<ChunkColumn> out) override {
                 for (size_t first = 0; first < positions.size(); first += kBatch) {
                     if (failed) {
-                        cpu->Generate(positions.subspan(first), out.subspan(first));
+                        Fallback(positions.subspan(first), out.subspan(first));
                         return;
                     }
                     const size_t n = std::min<size_t>(kBatch, positions.size() - first);
@@ -372,14 +415,21 @@ namespace perlin::server {
                         // the device stopped answering: the cpu takes over from here, nothing else changes
                         if (!failed.exchange(true))
                             LogWarn("gpu terrain stopped responding; generating on the cpu from now on");
-                        cpu->Generate(positions.subspan(first), out.subspan(first));
+                        Fallback(positions.subspan(first), out.subspan(first));
                         return;
                     }
                 }
             }
 
+            void Fallback(std::span<const ChunkPos> positions, std::span<ChunkColumn> out) {
+                if (cpu)
+                    cpu->Generate(positions, out);
+                else
+                    dim->Generate(positions, out);
+            }
+
             void Density(std::span<const ChunkPos> positions, std::vector<float>& out) override {
-                out.resize(positions.size() * kBlocksPerChunk);
+                out.resize(positions.size() * blocksPerChunk);
                 for (size_t first = 0; first < positions.size() && !failed; first += kBatch) {
                     const size_t n = std::min<size_t>(kBatch, positions.size() - first);
                     BatchOut b;
@@ -387,28 +437,40 @@ namespace perlin::server {
                         failed = true;
                         return;
                     }
-                    std::memcpy(out.data() + first * kBlocksPerChunk, b.density.data(),
-                                n * kBlocksPerChunk * 4);
+                    std::memcpy(out.data() + first * blocksPerChunk, b.density.data(),
+                                n * blocksPerChunk * 4);
                 }
             }
 
         private:
             // one submit's worth of chunks through every stage that runs on the gpu, then the cpu stages
             bool Batch(std::span<const ChunkPos> positions, std::span<ChunkColumn> out) {
+                if (!cpu) {
+                    BatchOut b;
+                    if (!Dispatch(positions, 1, false, b, gpuClimate))
+                        return false;
+                    for (size_t i = 0; i < positions.size(); i++) {
+                        if (gpuClimate)
+                            dim->PrimeChunkFill(positions[i].x, positions[i].z,
+                                                b.climate.data() + i * 16 * static_cast<size_t>(quartLayers) * 6);
+                        dim->Build(positions[i].x, positions[i].z, b.density.data() + i * blocksPerChunk, out[i]);
+                    }
+                    return true;
+                }
                 const bool surfaceStage = gpuSurface && !cpu->Aquifers();
                 const int last = surfaceStage ? 3 : (gpuBiome ? 2 : 1);
+                const bool wantClimate = gpuClimate && cpu->Stages()->biome && !surfaceStage;
                 BatchOut b;
-                // the columns come back whenever the biome stage ran on the gpu: the features need each column's biome
-                if (!Dispatch(positions, last, gpuBiome, b))
+                if (!Dispatch(positions, last, gpuBiome, b, wantClimate))
                     return false;
                 std::vector<uint16_t> blocks;
                 std::array<uint8_t, 256> biomes;
                 for (size_t i = 0; i < positions.size(); i++) {
-                    const float* density = b.density.data() + i * kBlocksPerChunk;
+                    const float* density = b.density.data() + i * blocksPerChunk;
                     if (surfaceStage) {
-                        blocks.resize(kBlocksPerChunk);
+                        blocks.resize(blocksPerChunk);
                         const uint32_t* ids = reinterpret_cast<const uint32_t*>(density);
-                        for (size_t k = 0; k < kBlocksPerChunk; k++)
+                        for (size_t k = 0; k < blocksPerChunk; k++)
                             blocks[k] = static_cast<uint16_t>(ids[k]);
                         // the surface stage runs only after the biome stage, so the columns are here
                         for (size_t col = 0; col < 256; col++)
@@ -424,15 +486,49 @@ namespace perlin::server {
                     } else {
                         cpu->BiomesOf(density, positions[i].x, positions[i].z, biomes.data());
                     }
+                    vanilla::DfCacheScope cache(true);
+                    if (wantClimate)
+                        cpu->PrimeChunkFill(positions[i].x, positions[i].z,
+                                            b.climate.data() + i * 16 * static_cast<size_t>(quartLayers) * 6);
                     cpu->Surface().Fill(density, biomes.data(), out[i], cpu->Decorates() ? nullptr : &cpu->Features(), positions[i].x,
                                         positions[i].z, cpu->Stages());
+                    if (cpu->Stages()->biome)
+                        cpu->QuartBiomes(positions[i].x, positions[i].z, out[i]);
                 }
+                return true;
+            }
+
+            bool ValidateClimate(const std::vector<ChunkPos>& probe, std::string& note) {
+                BatchOut c;
+                if (!Dispatch(probe, 1, false, c, true)) {
+                    note = "the device did not finish the climate probe";
+                    return false;
+                }
+                const std::array<vanilla::DfPtr, 6> roots = cpu ? cpu->Climate().Roots() : dim->ClimateRoots();
+                for (size_t n = 0; n < probe.size(); n++)
+                    for (int col = 0; col < 16; col++)
+                        for (int qy = 0; qy < quartLayers; qy++) {
+                            vanilla::DfCacheScope cache;
+                            const int x = probe[n].x * 16 + (col / 4) * 4, z = probe[n].z * 16 + (col % 4) * 4;
+                            const int y = (quartMinY + qy) * 4;
+                            for (int k = 0; k < 6; k++) {
+                                const float v = roots[static_cast<size_t>(k)]->Eval(x, y, z);
+                                const float scaled = v * 10000.0f;
+                                const int32_t want = scaled != scaled ? 0 : static_cast<int32_t>(std::clamp(scaled, -2.0e9f, 2.0e9f));
+                                const int32_t got = c.climate[((n * 16 + static_cast<size_t>(col)) * static_cast<size_t>(quartLayers) + static_cast<size_t>(qy)) * 6 + static_cast<size_t>(k)];
+                                if (want != got) {
+                                    note = "climate " + std::to_string(k) + " differs at (" + std::to_string(x) + "," + std::to_string(y) +
+                                           "," + std::to_string(z) + "): cpu " + std::to_string(want) + ", gpu " + std::to_string(got);
+                                    return false;
+                                }
+                            }
+                        }
                 return true;
             }
 
             // runs phases 0..lastPhase for up to kBatch chunks and reads back the density buffer (and the column results when asked); false when the device hangs
             bool Dispatch(std::span<const ChunkPos> positions, int lastPhase, bool wantColumns,
-                          BatchOut& out) {
+                          BatchOut& out, bool wantClimate = false) {
                 std::lock_guard<std::mutex> lock(deviceMutex);
                 if (failed)
                     return false;
@@ -448,7 +544,9 @@ namespace perlin::server {
                 cmd->set_pipeline(pipeline);
                 cmd->set_bind_group(0, bindGroup);
                 const auto run = [&](uint32_t phase, uint32_t begin, uint32_t number, uint64_t threads) {
-                    PushParams push{count, phase, begin, number, program->root, interpCount, columnBase, 0};
+                    PushParams push{count, phase, begin, number, program->root, interpCount, columnBase, climateBase,
+                                    genMinY, static_cast<uint32_t>(genHeight), program->cellXz, program->cellY,
+                                    quartMinY, static_cast<uint32_t>(quartLayers), 0, 0};
                     cmd->push_constants(&push, sizeof push);
                     cmd->dispatch(static_cast<uint32_t>((threads + 63) / 64), 1, 1);
                     // the next phase reads what this one wrote
@@ -461,15 +559,18 @@ namespace perlin::server {
                     dens.buffer = densityBuffer;
                     cmd->barrier(dens);
                 };
-                run(0, 0, program->innerCount, static_cast<uint64_t>(count) * kCornersPerChunk);
+                run(0, 0, program->innerCount, static_cast<uint64_t>(count) * cornersPerChunk);
                 run(1, program->innerCount, program->outerCount,
-                    static_cast<uint64_t>(count) * kBlocksPerChunk);
+                    static_cast<uint64_t>(count) * blocksPerChunk);
                 if (lastPhase >= 2)
                     run(2, 0, 0, static_cast<uint64_t>(count) * 256);
                 if (lastPhase >= 3)
-                    run(3, 0, 0, static_cast<uint64_t>(count) * kBlocksPerChunk);
+                    run(3, 0, 0, static_cast<uint64_t>(count) * blocksPerChunk);
+                if (wantClimate)
+                    run(4, 0, 0, static_cast<uint64_t>(count) * 16 * static_cast<uint64_t>(quartLayers));
 
-                const uint64_t bytes = static_cast<uint64_t>(count) * kBlocksPerChunk * 4;
+                const uint64_t bytes = static_cast<uint64_t>(count) * blocksPerChunk * 4;
+                const uint64_t climateBytes = static_cast<uint64_t>(count) * 16 * static_cast<uint64_t>(quartLayers) * 6 * 4;
                 const uint64_t columnBytes = static_cast<uint64_t>(count) * 256 * kColumnWords * 4;
                 conduit::buffer_barrier toCopy;
                 toCopy.buffer = densityBuffer;
@@ -486,6 +587,14 @@ namespace perlin::server {
                     cmd->copy_buffer(readbackColumns, 0, scratchBuffer, static_cast<uint64_t>(columnBase) * 4,
                                     columnBytes);
                 }
+                if (wantClimate) {
+                    conduit::buffer_barrier cols;
+                    cols.buffer = scratchBuffer;
+                    cols.before = conduit::state::shader_write;
+                    cols.after = conduit::state::copy_src;
+                    cmd->barrier(cols);
+                    cmd->copy_buffer(readbackClimate, 0, scratchBuffer, static_cast<uint64_t>(climateBase) * 4, climateBytes);
+                }
                 const conduit::fence_op signal{fence, ++fenceValue};
                 conduit::submit_desc sd;
                 conduit::command_list* lists[] = {cmd};
@@ -498,12 +607,17 @@ namespace perlin::server {
                     return false;
                 }
                 device->invalidate(readback, 0, bytes);
-                out.density.resize(static_cast<size_t>(count) * kBlocksPerChunk);
+                out.density.resize(static_cast<size_t>(count) * blocksPerChunk);
                 std::memcpy(out.density.data(), device->map(readback), bytes);
                 if (wantColumns) {
                     device->invalidate(readbackColumns, 0, columnBytes);
                     out.columns.resize(static_cast<size_t>(count) * 256 * kColumnWords);
                     std::memcpy(out.columns.data(), device->map(readbackColumns), columnBytes);
+                }
+                if (wantClimate) {
+                    device->invalidate(readbackClimate, 0, climateBytes);
+                    out.climate.resize(climateBytes / 4);
+                    std::memcpy(out.climate.data(), device->map(readbackClimate), climateBytes);
                 }
                 return true;
             }
@@ -512,7 +626,7 @@ namespace perlin::server {
             std::string deviceName;
             std::atomic<bool> failed{false};
             std::mutex deviceMutex;
-            bool gpuBiome = false, gpuSurface = false;
+            bool gpuBiome = false, gpuSurface = false, gpuClimate = false;
             // the reference, the fallback for every stage, and the owner of the biome and block rules
             std::unique_ptr<vanilla::VanillaCpuBackend> cpu;
             std::unique_ptr<vanilla::GpuProgram> program;
@@ -526,15 +640,19 @@ namespace perlin::server {
             conduit::pipeline_layout_handle pipelineLayout;
             conduit::pipeline_handle pipeline;
             conduit::buffer_handle tableBuffer, chunkBuffer, scratchBuffer, densityBuffer, readback,
-                readbackColumns;
+                readbackColumns, readbackClimate;
             conduit::fence_handle fence;
             uint64_t fenceValue = 0;
         };
     }
 
     std::unique_ptr<TerrainBackend> CreateGpuVanillaBackend(const ServerConfig& config, std::string& note) {
+        return CreateGpuDimensionBackend(config, kOverworld, note);
+    }
+
+    std::unique_ptr<TerrainBackend> CreateGpuDimensionBackend(const ServerConfig& config, int dimension, std::string& note) {
         auto backend = std::make_unique<GpuVanillaBackend>();
-        if (!backend->Init(config, note))
+        if (!backend->Init(config, dimension, note))
             return nullptr;
         const auto started = std::chrono::steady_clock::now();
         std::string result;

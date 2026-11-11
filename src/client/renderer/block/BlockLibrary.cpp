@@ -12,6 +12,7 @@
 #include "util/Resources.hpp"
 #include "client/resources/TexturePack.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -305,6 +306,47 @@ namespace perlin {
                     cache.emplace(std::move(paths[i]), std::move(decoded[i]));
         }
 
+        std::unordered_map<std::string, Texture>& ServerPrefetchCache() {
+            static std::unordered_map<std::string, Texture> cache;
+            return cache;
+        }
+
+        // decoding on every core up front: the build loop would otherwise decode one file at a time
+        void PrefetchServerTextures(const std::vector<std::string>& dirs) {
+            namespace fs = std::filesystem;
+            std::vector<std::string> paths;
+            std::error_code ec;
+            for (const std::string& dir : dirs) {
+                const fs::path root = fs::path(dir) / "textures";
+                if (!fs::is_directory(root, ec))
+                    continue;
+                for (fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec), end;
+                     !ec && it != end; it.increment(ec)) {
+                    const std::string name = it->path().filename().string();
+                    if (it->is_directory(ec)) {
+                        if (name == "entity" || name == "items" || name == "item" || name == "ui" || name == "gui" ||
+                            name == "particle" || name == "environment" || name == "painting" || name == "map")
+                            it.disable_recursion_pending();
+                        continue;
+                    }
+                    const std::string ext = it->path().extension().string();
+                    if ((ext == ".png" || ext == ".tga") && it->file_size(ec) < (4u << 20))
+                        paths.push_back(it->path().generic_string());
+                }
+            }
+            std::vector<Texture> decoded(paths.size());
+            std::vector<char> ok(paths.size(), 0);
+            ThreadPool pool(HardwareThreads());
+            pool.ParallelFor(paths.size(),
+                             [&](size_t i) { ok[i] = LoadTexture(paths[i], decoded[i]) ? 1 : 0; });
+            auto& cache = ServerPrefetchCache();
+            cache.clear();
+            cache.reserve(paths.size());
+            for (size_t i = 0; i < paths.size(); i++)
+                if (ok[i])
+                    cache.emplace(std::move(paths[i]), std::move(decoded[i]));
+        }
+
         struct PrefetchGuard {
             ~PrefetchGuard() { PrefetchCache().clear(); }
         };
@@ -314,14 +356,25 @@ namespace perlin {
         auto it = tileByPng.find(pngRelPath);
         if (it != tileByPng.end())
             return it->second;
-        if (nextTile >= MaxTiles())
+        if (nextTile >= MaxTiles()) {
+            // one line per library: a full atlas is the only reason a texture would show as missing
+            if (!atlasFullLogged.exchange(true))
+                Log("blocks", "atlas full at {} tiles: further textures fall back to tile 0", MaxTiles());
             return 0;
+        }
         const int kTilePx = tilePxValue;
         std::string full;
         int w = 0, h = 0;
         Texture tex;
         std::vector<std::string> tries;
+        // "path#x0,y0,x1,y1": one cell of a model sheet, corners as fractions of the texture
         std::string stem = pngRelPath;
+        float crop[4] = {0, 0, 1, 1};
+        bool cropped = false;
+        if (const size_t hash = stem.find('#'); hash != std::string::npos) {
+            cropped = std::sscanf(stem.c_str() + hash + 1, "%f,%f,%f,%f", &crop[0], &crop[1], &crop[2], &crop[3]) == 4;
+            stem.resize(hash);
+        }
         const std::string suffix = "_opaque";
         if (stem.size() > suffix.size() &&
             stem.compare(stem.size() - suffix.size(), suffix.size(), suffix) == 0)
@@ -335,13 +388,19 @@ namespace perlin {
         bool ok = false;
         TexturePack& pack = TexturePack::Instance();
         for (const std::string& dir : ServerPacks::Instance().Directories()) {
-            for (auto& t : tries)
-                if (LoadTexture(dir + "/" + t, tex) && tex.width > 0 && tex.height > 0) {
+            for (auto& t : tries) {
+                const std::string path = dir + "/" + t;
+                const auto warm = ServerPrefetchCache().find(path);
+                if (warm != ServerPrefetchCache().end())
+                    tex = warm->second;
+                if ((warm != ServerPrefetchCache().end() || LoadTexture(path, tex)) && tex.width > 0 &&
+                    tex.height > 0) {
                     w = tex.width;
                     h = tex.height;
                     ok = true;
                     break;
                 }
+            }
             if (ok)
                 break;
         }
@@ -370,6 +429,19 @@ namespace perlin {
         if (!ok) {
             fetchFails++;
             return 0;
+        }
+        if (cropped) {
+            const int x0 = std::clamp(static_cast<int>(std::lround(crop[0] * w)), 0, w - 1);
+            const int y0 = std::clamp(static_cast<int>(std::lround(crop[1] * h)), 0, h - 1);
+            const int x1 = std::clamp(static_cast<int>(std::lround(crop[2] * w)), x0 + 1, w);
+            const int y1 = std::clamp(static_cast<int>(std::lround(crop[3] * h)), y0 + 1, h);
+            std::vector<unsigned char> cell(static_cast<size_t>(x1 - x0) * (y1 - y0) * 4);
+            for (int y = y0; y < y1; y++)
+                std::copy_n(tex.pixels.data() + (static_cast<size_t>(y) * w + x0) * 4, (x1 - x0) * 4,
+                            cell.data() + static_cast<size_t>(y - y0) * (x1 - x0) * 4);
+            tex.pixels = std::move(cell);
+            tex.width = w = x1 - x0;
+            tex.height = h = y1 - y0;
         }
         if (stem.contains("water_") && !stem.contains("lava")) {
             double luma = 0;
@@ -427,11 +499,14 @@ namespace perlin {
         }
         alpha.centerHollow = tilePixels[((size_t)(kTilePx / 2) * kTilePx + kTilePx / 2) * 4 + 3] < 128;
         alpha.translucent = partialAlpha >= kTilePx * kTilePx / 2;
-        alphaByTile[tile] = alpha;
         if (satN > 0)
-            alphaByTile[tile].saturation = (float)(satSum / satN);
-        alphaByTile[tile].frame = (float)frameOpaque / (float)(4 * (kTilePx - 1));
-        alphaByTile[tile].holeFrac = 1.0f - (float)opaqueAll / (float)(kTilePx * kTilePx);
+            alpha.saturation = (float)(satSum / satN);
+        alpha.frame = (float)frameOpaque / (float)(4 * (kTilePx - 1));
+        alpha.holeFrac = 1.0f - (float)opaqueAll / (float)(kTilePx * kTilePx);
+        {
+            std::unique_lock alphaLock(alphaMutex);
+            alphaByTile[tile] = alpha;
+        }
         if (frames == 1) {
             uint64_t hash = 1469598103934665603ull;
             const uint64_t* words = reinterpret_cast<const uint64_t*>(tilePixels);
@@ -442,7 +517,10 @@ namespace perlin {
             if (same != tileByHash.end() &&
                 std::memcmp(atlas.data() + (size_t)same->second * kTilePx * kTilePx * 4, tilePixels,
                             (size_t)kTilePx * kTilePx * 4) == 0) {
-                alphaByTile.erase(tile);
+                {
+                    std::unique_lock alphaLock(alphaMutex);
+                    alphaByTile.erase(tile);
+                }
                 nextTile--;
                 atlas.resize((size_t)nextTile * kTilePx * kTilePx * 4);
                 tileByPng[pngRelPath] = same->second;
@@ -493,7 +571,10 @@ namespace perlin {
                     p[c] = static_cast<uint8_t>(std::min(255.0f, base[c] * shade));
                 p[3] = 255;
             }
-        alphaByTile[tile] = TileAlpha{};
+        {
+            std::unique_lock alphaLock(alphaMutex);
+            alphaByTile[tile] = TileAlpha{};
+        }
         pathByTile[tile] = "synthetic/" + label;
         synthTiles.push_back(tile);
         return tile;
@@ -530,6 +611,8 @@ namespace perlin {
     BlockLibrary::TileAlpha BlockLibrary::AlphaOf(int tile) const {
         if (tile <= 0)
             return {};
+        // mesh threads read while a late build adds tiles
+        std::shared_lock alphaLock(alphaMutex);
         auto it = alphaByTile.find(tile);
         return it == alphaByTile.end() ? TileAlpha{} : it->second;
     }
@@ -537,6 +620,7 @@ namespace perlin {
     float BlockLibrary::SaturationOf(int tile) const {
         if (tile <= 0)
             return 0;
+        std::shared_lock alphaLock(alphaMutex);
         auto it = alphaByTile.find(tile);
         return it == alphaByTile.end() ? 0 : it->second.saturation;
     }
@@ -621,6 +705,8 @@ namespace perlin {
                 BlockPalette::Instance().LoadServerStatesText(table, "block_states.json");
             else
                 Log("blocks", "block_states.json is not bundled: sequential-id servers will read as air");
+            if (std::string versions; resources::Read("block_versions.json", versions))
+                BlockPalette::Instance().LoadVersionDeltas(versions);
         }
         const std::vector<std::string> allNames = BlockPalette::Instance().AllNames();
         int noTexture = 0;
@@ -755,6 +841,15 @@ namespace perlin {
                     bare = bare.substr(10);
                 auto al = aliases.find(bare);
                 std::string vkey = (al == aliases.end()) ? bare : al->second;
+                // aliases run both ways: older servers and older samples still use the name before a rename
+                if (!vBlocks.contains(vkey) && vBlocks.contains(bare))
+                    vkey = bare;
+                if (!vBlocks.contains(vkey))
+                    for (const auto& [current, previous] : aliases)
+                        if (previous == bare && vBlocks.contains(current)) {
+                            vkey = current;
+                            break;
+                        }
                 if (!vBlocks.contains(vkey)) {
                     std::string rpKey = BlockPalette::Instance().ResourcePackKey(name);
                     if (!rpKey.empty() && vBlocks.contains(rpKey))
@@ -1174,136 +1269,171 @@ namespace perlin {
         }
     }
 
-    bool BlockLibrary::ApplyCustom(const std::string& vanillaRpRoot) {
-        if (!ServerBlocks::Instance().Pending())
+    bool BlockLibrary::ApplyCustom(const std::string& vanillaRpRoot, double budgetMs) {
+        if (!ServerBlocks::Instance().Pending()) {
+            // decoded server textures are only worth their memory while definitions are still being built
+            ServerPrefetchCache().clear();
             return false;
+        }
         std::vector<CustomBlockDef> defs = ServerBlocks::Instance().Take();
-        std::unordered_map<std::string, std::string> pathByKey;
-        for (const std::string& dir : ServerPacks::Instance().Directories()) {
-            std::string text;
+        // the per-pack lookups cost a scan of every server texture folder: once per set of packs, not per slice
+        const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
+        std::string ctxKey = vanillaRpRoot;
+        for (const std::string& dir : serverDirs)
+            ctxKey += "|" + dir;
+        auto& pathByKey = customCtx.pathByKey;
+        auto& vanillaPathByKey = customCtx.vanillaPathByKey;
+        auto& legacyFaces = customCtx.legacyFaces;
+        auto& stems = customCtx.stems;
+        if (customCtx.key != ctxKey) {
+            customCtx = CustomContext{};
+            customCtx.key = ctxKey;
+            PrefetchServerTextures(serverDirs);
+            for (const std::string& dir : ServerPacks::Instance().Directories()) {
+                std::string text;
+                {
+                    std::ifstream in(dir + "/textures/terrain_texture.json", std::ios::binary);
+                    if (!in)
+                        continue;
+                    std::stringstream ss;
+                    ss << in.rdbuf();
+                    text = ss.str();
+                }
+                ui::Json doc;
+                std::string error;
+                if (!ui::Json::Parse(text, doc, error))
+                    continue;
+                const ui::Json* data = doc.Find("texture_data");
+                if (!data || !data->IsObject())
+                    continue;
+                for (const auto& [key, value] : data->object) {
+                    const ui::Json* tex = value.Find("textures");
+                    if (!tex)
+                        continue;
+                    if (tex->IsArray() && !tex->array.empty())
+                        tex = &tex->array[0];
+                    if (tex->IsObject())
+                        tex = tex->Find("path");
+                    if (tex && tex->IsString())
+                        pathByKey[key] = tex->string;
+                }
+            }
             {
-                std::ifstream in(dir + "/textures/terrain_texture.json", std::ios::binary);
+                std::ifstream in(vanillaRpRoot + "/textures/terrain_texture.json", std::ios::binary);
+                if (in) {
+                    std::stringstream ss;
+                    ss << in.rdbuf();
+                    if (const auto doc = json::Document::Parse(ss.str(), true))
+                        for (const auto member : doc->root()["texture_data"].members()) {
+                            json::View tex = member.value["textures"];
+                            if (tex.isArray())
+                                tex = tex[static_cast<size_t>(0)];
+                            if (tex.isObject())
+                                tex = tex["path"];
+                            if (tex.isString())
+                                vanillaPathByKey.emplace(member.key, tex.str());
+                        }
+                }
+            }
+            for (const std::string& dir : serverDirs) {
+                std::ifstream in(dir + "/blocks.json", std::ios::binary);
                 if (!in)
                     continue;
                 std::stringstream ss;
                 ss << in.rdbuf();
-                text = ss.str();
-            }
-            ui::Json doc;
-            std::string error;
-            if (!ui::Json::Parse(text, doc, error))
-                continue;
-            const ui::Json* data = doc.Find("texture_data");
-            if (!data || !data->IsObject())
-                continue;
-            for (const auto& [key, value] : data->object) {
-                const ui::Json* tex = value.Find("textures");
-                if (!tex)
+                ui::Json doc;
+                std::string error;
+                if (!ui::Json::Parse(ss.str(), doc, error) || !doc.IsObject())
                     continue;
-                if (tex->IsArray() && !tex->array.empty())
-                    tex = &tex->array[0];
-                if (tex->IsObject())
-                    tex = tex->Find("path");
-                if (tex && tex->IsString())
-                    pathByKey[key] = tex->string;
-            }
-        }
-        std::unordered_map<std::string, std::string> vanillaPathByKey;
-        {
-            std::ifstream in(vanillaRpRoot + "/textures/terrain_texture.json", std::ios::binary);
-            if (in) {
-                std::stringstream ss;
-                ss << in.rdbuf();
-                if (const auto doc = json::Document::Parse(ss.str(), true))
-                    for (const auto member : doc->root()["texture_data"].members()) {
-                        json::View tex = member.value["textures"];
-                        if (tex.isArray())
-                            tex = tex[static_cast<size_t>(0)];
-                        if (tex.isObject())
-                            tex = tex["path"];
-                        if (tex.isString())
-                            vanillaPathByKey.emplace(member.key, tex.str());
+                for (const auto& [blockName, entry] : doc.object) {
+                    if (!entry.IsObject())
+                        continue;
+                    const ui::Json* tex = entry.Find("textures");
+                    if (!tex)
+                        continue;
+                    std::string key = blockName;
+                    if (!key.contains(':'))
+                        key = "minecraft:" + key;
+                    std::map<std::string, std::string> faces;
+                    if (tex->IsString()) {
+                        faces["*"] = tex->string;
+                    } else if (tex->IsObject()) {
+                        for (const auto& [face, v] : tex->object)
+                            if (v.IsString())
+                                faces[face] = v.string;
                     }
+                    if (!faces.empty())
+                        legacyFaces[key] = std::move(faces);
+                }
+            }
+            for (const std::string& dir : serverDirs) {
+                std::error_code ec;
+                for (std::filesystem::recursive_directory_iterator
+                         it(std::filesystem::path(dir) / "textures",
+                            std::filesystem::directory_options::skip_permission_denied, ec),
+                     end;
+                     !ec && it != end; it.increment(ec)) {
+                    if (!it->is_regular_file(ec))
+                        continue;
+                    std::string name = it->path().filename().string();
+                    constexpr std::string_view kSet = ".texture_set.json";
+                    std::string stem;
+                    size_t extSize = 0;
+                    if (name.size() > kSet.size() &&
+                        name.compare(name.size() - kSet.size(), kSet.size(), kSet) == 0) {
+                        stem = name.substr(0, name.size() - kSet.size());
+                        extSize = kSet.size();
+                    } else {
+                        const std::string ext = it->path().extension().string();
+                        if (ext != ".png" && ext != ".tga")
+                            continue;
+                        stem = it->path().stem().string();
+                        extSize = ext.size();
+                    }
+                    std::string rel = std::filesystem::relative(it->path(), dir, ec).generic_string();
+                    rel.resize(rel.size() - extSize);
+                    stems.emplace(std::move(stem), std::move(rel));
+                }
             }
         }
         bool any = false;
-        const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
-        std::unordered_map<std::string, std::map<std::string, std::string>> legacyFaces;
-        for (const std::string& dir : serverDirs) {
-            std::ifstream in(dir + "/blocks.json", std::ios::binary);
-            if (!in)
-                continue;
-            std::stringstream ss;
-            ss << in.rdbuf();
-            ui::Json doc;
-            std::string error;
-            if (!ui::Json::Parse(ss.str(), doc, error) || !doc.IsObject())
-                continue;
-            for (const auto& [blockName, entry] : doc.object) {
-                if (!entry.IsObject())
-                    continue;
-                const ui::Json* tex = entry.Find("textures");
-                if (!tex)
-                    continue;
-                std::string key = blockName;
-                if (!key.contains(':'))
-                    key = "minecraft:" + key;
-                std::map<std::string, std::string> faces;
-                if (tex->IsString()) {
-                    faces["*"] = tex->string;
-                } else if (tex->IsObject()) {
-                    for (const auto& [face, v] : tex->object)
-                        if (v.IsString())
-                            faces[face] = v.string;
-                }
-                if (!faces.empty())
-                    legacyFaces[key] = std::move(faces);
-            }
-        }
-        std::unordered_map<std::string, std::string> stems;
-        for (const std::string& dir : serverDirs) {
-            std::error_code ec;
-            for (std::filesystem::recursive_directory_iterator
-                     it(std::filesystem::path(dir) / "textures",
-                        std::filesystem::directory_options::skip_permission_denied, ec),
-                 end;
-                 !ec && it != end; it.increment(ec)) {
-                if (!it->is_regular_file(ec))
-                    continue;
-                std::string name = it->path().filename().string();
-                constexpr std::string_view kSet = ".texture_set.json";
-                std::string stem;
-                size_t extSize = 0;
-                if (name.size() > kSet.size() &&
-                    name.compare(name.size() - kSet.size(), kSet.size(), kSet) == 0) {
-                    stem = name.substr(0, name.size() - kSet.size());
-                    extSize = kSet.size();
-                } else {
-                    const std::string ext = it->path().extension().string();
-                    if (ext != ".png" && ext != ".tga")
-                        continue;
-                    stem = it->path().stem().string();
-                    extSize = ext.size();
-                }
-                std::string rel = std::filesystem::relative(it->path(), dir, ec).generic_string();
-                rel.resize(rel.size() - extSize);
-                stems.emplace(std::move(stem), std::move(rel));
-            }
-        }
         const BlockGeometry::FetchFn fetchGeometry = [this, &stems](const std::string& p,
                                                                     const std::string& root) {
             fetchingGeometry = true;
             int tile = FetchTile(p, root);
             if (tile == 0) {
-                const size_t slash = p.find_last_of('/');
-                const auto found = stems.find(slash == std::string::npos ? p : p.substr(slash + 1));
+                const size_t hash = p.find('#');
+                const std::string base = p.substr(0, hash), cell = hash == std::string::npos ? "" : p.substr(hash);
+                const size_t slash = base.find_last_of('/');
+                const auto found = stems.find(slash == std::string::npos ? base : base.substr(slash + 1));
                 if (found != stems.end())
-                    tile = FetchTile(found->second, root);
+                    tile = FetchTile(found->second + cell, root);
             }
             fetchingGeometry = false;
             return tile;
         };
-        for (const CustomBlockDef& def : defs) {
+        // slab sheets first: if the atlas runs short, a slab is the block whose faces fill whole cells
+        // and a squeezed sheet shows on all of them
+        const auto isSlabSheet = [](const CustomBlockDef& d) {
+            const std::string shortName = AfterColon(d.name);
+            return d.json.contains(".slab.") || (shortName.size() > 5 && shortName.ends_with("_slab"));
+        };
+        const auto buildStart = std::chrono::steady_clock::now();
+        const size_t slabCount =
+            static_cast<size_t>(std::stable_partition(defs.begin(), defs.end(), isSlabSheet) - defs.begin());
+        for (size_t defIndex = 0; defIndex < defs.size(); defIndex++) {
+            // a live library builds a slice per frame: what is left waits for the next call
+            if (budgetMs > 0 && defIndex > 0 &&
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count() >
+                    budgetMs) {
+                ServerBlocks::Instance().Return(
+                    std::vector<CustomBlockDef>(defs.begin() + static_cast<std::ptrdiff_t>(defIndex), defs.end()));
+                defs.resize(defIndex);
+                break;
+            }
+            const CustomBlockDef& def = defs[defIndex];
+            if (defIndex == slabCount && slabCount > 0)
+                geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
             if (!def.json.empty()) {
                 geometry.AddCustom(def.name, def.json, serverDirs, vanillaRpRoot, fetchGeometry);
                 any = true;
@@ -1400,6 +1530,15 @@ namespace perlin {
             }
             any = true;
         }
+        for (const CustomBlockDef& def : defs)
+            ServerBlocks::Instance().MarkBuilt(def.name);
+        // last: model sheets get full-resolution cells from whatever atlas room every block's own textures left
+        if (any)
+            geometry.CutCustomSheets(vanillaRpRoot, fetchGeometry);
+        Log("blocks", "custom blocks built: {} definitions, {} atlas tiles in total, {} ms", defs.size(),
+            TilesLoaded(),
+            static_cast<int>(
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count()));
         return any;
     }
 
@@ -1460,7 +1599,12 @@ namespace perlin {
 
     const BlockAppearance* BlockLibrary::LookByName(const std::string& name) const {
         auto it = appearances.find(name);
-        return it == appearances.end() ? nullptr : &it->second;
+        if (it == appearances.end()) {
+            if (name.contains(':') && !name.starts_with("minecraft:"))
+                ServerBlocks::Instance().Want(name, ServerBlocks::kNoChunk, 0);
+            return nullptr;
+        }
+        return &it->second;
     }
 
     bool BlockLibrary::TilePixels(int tile, std::vector<uint8_t>& rgba) const {

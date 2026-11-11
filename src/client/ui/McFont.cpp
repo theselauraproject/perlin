@@ -616,6 +616,22 @@ namespace perlin::ui {
         return fallback;
     }
 
+    uint32_t McFont::Obfuscated(uint32_t codepoint) const {
+        const float advance = Get(codepoint).advance;
+        static uint32_t state = 0x2545F491u;
+        uint32_t same[95];
+        int count = 0;
+        for (uint32_t c = 33; c < 127; c++)
+            if (Get(c).advance == advance)
+                same[count++] = c;
+        if (count == 0)
+            return codepoint;
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return same[state % static_cast<uint32_t>(count)];
+    }
+
     float McFont::Width(const std::string& s, float scale) const {
         float width = 0;
         bool bold = false;

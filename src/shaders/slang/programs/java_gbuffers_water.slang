@@ -3464,7 +3464,7 @@ void stageMain() {
     vec2( 0.375,-0.875),
     vec2( 0.875, 0.875)
 );
-        vec4 colorP = texture2DArray(s_atlas, float3(texCoord, jLayer));
+        vec4 colorP = perlinAtlas(float3(texCoord, jLayer));
 
         vec4 color = colorP * vec4(glColor.rgb, 1.0);
 
@@ -3555,7 +3555,7 @@ lmCoordM = vec2(0.0);
         float portalStep = (i + dither) / sampleCount;
         coord += interval * portalStep;
         vec2 sampleCoord = fract(coord) * absMidCoordPos2 + minimumMidCoordPos;
-        vec4 psample = texture2DArrayLod(s_atlas, float3(sampleCoord, jLayer), 0);
+        vec4 psample = perlinAtlasLod(float3(sampleCoord, jLayer), 0);
 
         float factor = 1.0 - portalStep;
         psample *= pow(factor, 0.1);
@@ -3715,7 +3715,7 @@ DoTranslucentTweaks(color, fresnelM, reflectMult, lViewPos);
         if (mat < 32016) {
             if (mat == 32008) { // Glass
 // @included "/lib/materials/specificMaterials/translucents/glass.glsl"
-    float minAlpha = min(color.a, texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0).a);
+    float minAlpha = min(color.a, perlinAtlasLod(float3(texCoord, jLayer), 0).a);
 
 if (minAlpha > 0.001) {
     smoothnessG = 1.0;
@@ -3747,7 +3747,7 @@ else {
             } else /*if (mat == 32012)*/ { // Glass Pane
                 if (color.a < 0.001  &&  abs(NdotU) > 0.95) discard; // Fixing artifacts on CTM/Opti connected glass panes
 // @included "/lib/materials/specificMaterials/translucents/glass.glsl"
-    float minAlpha = min(color.a, texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0).a);
+    float minAlpha = min(color.a, perlinAtlasLod(float3(texCoord, jLayer), 0).a);
 
 if (minAlpha > 0.001) {
     smoothnessG = 1.0;
@@ -3788,7 +3788,7 @@ else {
                 if (color.b > 0.5) {
                     if (color.g - color.b < 0.01  &&  color.g < 0.99) {
 // @included "/lib/materials/specificMaterials/translucents/glass.glsl"
-    float minAlpha = min(color.a, texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0).a);
+    float minAlpha = min(color.a, perlinAtlasLod(float3(texCoord, jLayer), 0).a);
 
 if (minAlpha > 0.001) {
     smoothnessG = 1.0;

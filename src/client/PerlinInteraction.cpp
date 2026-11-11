@@ -9,7 +9,6 @@ namespace perlin {
             if (inputManager.Pressed(static_cast<Action>(static_cast<int>(Action::Hotbar1) + i)))
                 newSlot = i;
         static float scrollAccum = 0.0f;
-        // in spectator the wheel sets the flying speed (1x, 2x, 5x, 10x, 20x) instead of picking a hotbar slot; the server resets to 1x on entering the mode
         static int spectatorSpeed = 0;
         static const int kSpectatorSpeeds[5] = {1, 2, 5, 10, 20};
         const bool wheelFliesFaster = live && hudState.mode == ui::GameMode::Spectator;
@@ -76,10 +75,47 @@ namespace perlin {
                 },
                 {camera.x, camera.y, camera.z}, glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch)), PickRange(creative, 1),
                 EntityPickRange(creative));
+            // looking down past an edge with nothing in reach (pick 0x144E090C0): clip 2 blocks straight down
+            // from the eye; that block becomes the target, on the face of the look's dominant horizontal axis
+            const glm::dvec3 look(targeting::ViewVector(camera.yaw, camera.pitch));
+            if (aimHit.kind == AimHit::Kind::None && look.y < -0.7) {
+                const std::vector<entity::Entity> noEntities;
+                AimHit below = Raycast(
+                    live ? live->NetLevel() : *previewLevel, &levelRenderer->Blocks(), noEntities,
+                    [](const entity::Entity&) { return glm::vec2(0.0f); }, {camera.x, camera.y, camera.z},
+                    glm::dvec3(0.0, -1.0, 0.0), 2.0, 0.0);
+                if (below.kind == AimHit::Kind::Block) {
+                    below.face = std::fabs(look.x) > std::fabs(look.z) ? (look.x < 0.0 ? 4 : 5) : (look.z < 0.0 ? 2 : 3);
+                    below.buildAssist = true;
+                    aimHit = below;
+                }
+            }
         }
         if (PERLIN_ENV("PERLIN_AIM_DEBUG"))
             Log("aim", "kind {} block {},{},{} face {} dist {}", static_cast<int>(aimHit.kind), aimHit.bx,
                 aimHit.by, aimHit.bz, aimHit.face, aimHit.distance);
+    }
+
+    namespace {
+        // what the game's GameMode::startDestroyBlock refuses before it sends anything: no mine ability,
+        // spectators, adventure without a can_destroy match, and blocks with negative hardness outside creative
+        bool MayStartBreaking(BedrockSession& live, const ui::HudItem& held, bool creative,
+                              const std::string& blockName) {
+            if (live.Spectator() || !live.MayMine())
+                return false;
+            const int type = live.GameType() == 5 ? live.World().worldGameMode : live.GameType();
+            if (type == 2) {
+                const std::string bare = blockName.starts_with("minecraft:") ? blockName.substr(10) : blockName;
+                const bool listed = std::any_of(held.canDestroy.begin(), held.canDestroy.end(), [&](std::string n) {
+                    if (n.starts_with("minecraft:"))
+                        n.erase(0, 10);
+                    return n == bare;
+                });
+                if (held.Empty() || !listed)
+                    return false;
+            }
+            return creative || destroy::Lookup(blockName).hardness >= 0.0f;
+        }
     }
 
     void Perlin::StopBreaking(BedrockSession* live) {
@@ -125,16 +161,10 @@ namespace perlin {
                                         live->Entities().Find(aimHit.entity, attacked) && !attacked.isPlayer;
                 if (aimHit.kind == AimHit::Kind::Entity && !mobBlocked &&
                     !DispatchModInteract(abi::InteractKind::Attack, 0, 0, 0, 0, aimHit.entity)) {
-                    // click position: where the ray meets the target's hitbox, relative to its base coordinate, not world
-                    const glm::dvec3 feet((aimHit.boxLo.x + aimHit.boxHi.x) * 0.5, aimHit.boxLo.y,
-                                          (aimHit.boxLo.z + aimHit.boxHi.z) * 0.5);
-                    const glm::vec3 offset = EntityClickOffset(
-                        {camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), feet,
-                        (aimHit.boxHi.x - aimHit.boxLo.x) * 0.5, aimHit.boxHi.y - aimHit.boxLo.y,
-                        (aimHit.boxLo + aimHit.boxHi) * 0.5);
-                    float click[3] = {offset.x, offset.y, offset.z};
+                    // HitResult::mPos as is: GameMode::attack copies it into the click pos
+                    const float click[3] = {static_cast<float>(aimHit.point.x), static_cast<float>(aimHit.point.y),
+                                            static_cast<float>(aimHit.point.z)};
                     live->SendAttackEntity(aimHit.entity, eyeF, click);
-                    // vanilla predicts the crit burst locally: falling, airborne, out of fluids, not flying
                     const physics::State& cst = player.State();
                     if (!cst.onGround && cst.vy < 0.0 && !cst.inWater && !cst.inLava && !player.Flying()) {
                         const glm::dvec3 centre((aimHit.boxLo.x + aimHit.boxHi.x) * 0.5,
@@ -164,6 +194,10 @@ namespace perlin {
                 const uint16_t fireId = live->NetLevel().GetBlock(fx, fy, fz, fireLoaded);
                 const std::string fireName =
                     fireLoaded ? BlockPalette::Instance().Name(fireId) : std::string();
+                bool targetLoaded = false;
+                const uint16_t targetId = live->NetLevel().GetBlock(aimHit.bx, aimHit.by, aimHit.bz, targetLoaded);
+                const std::string targetName =
+                    targetLoaded ? BlockPalette::Instance().Name(targetId) : std::string();
                 if (fireName == "minecraft:fire" || fireName == "minecraft:soul_fire") {
                     live->SendPlayerAuthInputBlockAction(0, aimHit.bx, aimHit.by, aimHit.bz, aimHit.face);
                     live->SendPlayerAuthInputBlockAction(1, aimHit.bx, aimHit.by, aimHit.bz, aimHit.face);
@@ -173,6 +207,8 @@ namespace perlin {
                     breakDelayTicks = 5;
                     if (creative)
                         creativeBreakReadyAt = detail::MsNow() + 250;
+                } else if (!MayStartBreaking(*live, held, creative, targetName)) {
+                    // no start-break, crack or prediction: the server would only put the block back
                 } else {
                     bkx = aimHit.bx;
                     bky = aimHit.by;
@@ -209,6 +245,12 @@ namespace perlin {
                     c.heldItem = held.Empty() ? std::string() : held.name;
                     c.onGround = player.State().onGround;
                     c.inWater = hudState.inWater;
+                    for (const auto& fx : live->GetEffects()) {
+                        if (fx.id == 3 || fx.id == 26)
+                            c.haste = std::max(c.haste, fx.amplifier + 1);
+                        else if (fx.id == 4)
+                            c.miningFatigue = fx.amplifier + 1;
+                    }
                     step = destroy::ProgressPerTick(destroy::Lookup(blockName), c);
                 }
                 if (!live->ServerAuthoritativeBlockBreaking() && !creative)
@@ -295,24 +337,17 @@ namespace perlin {
         auto& blockedFoodUse = f.blockedFoodUse;
         auto& previewLevel = loop->previewLevel;
         const float eyeF[3] = {camera.x, camera.y, camera.z};
-        // GameMode::buildBlock 0x143771570: binary32 hit point minus the binary32 block position
         const auto clickOf = [](const AimHit& aim, float out[3]) {
             out[0] = static_cast<float>(aim.point.x) - static_cast<float>(aim.bx);
             out[1] = static_cast<float>(aim.point.y) - static_cast<float>(aim.by);
             out[2] = static_cast<float>(aim.point.z) - static_cast<float>(aim.bz);
         };
         double& useClock = mining.useClock;
-        // with bedrock bridging, a fresh press on air beside your footing places against the block under you
-        // (reach-around); the game itself builds only on a crosshair block hit (ClientInstance::_tickBuildAction
-        // 0x1465a2950). held use keeps building from the last placed block (heldbuild::HeldBuild)
         AimHit useAim = aimHit;
-        const bool bedrockBuild = options.bedrockBridging && !held.Empty() && held.blockRuntimeId != 0;
+        const bool bedrockBuild = !held.Empty() && held.blockRuntimeId != 0;
         const glm::vec3 buildEye(camera.x, camera.y, camera.z);
-        // the game times builds on the steady clock in ns
         const int64_t buildNow =
             std::chrono::duration_cast<std::chrono::nanoseconds>(detail::Clock::now().time_since_epoch()).count();
-        static const int kFaceNormal[6][3] = {{0, -1, 0}, {0, 1, 0},  {0, 0, -1},
-                                              {0, 0, 1},  {-1, 0, 0}, {1, 0, 0}};
         const auto aimAt = [&](glm::ivec3 support, int face, glm::dvec3 point) {
             useAim.kind = AimHit::Kind::Block;
             useAim.bx = support.x;
@@ -321,49 +356,14 @@ namespace perlin {
             useAim.face = face;
             useAim.point = point;
         };
-        if (bedrockBuild && live && levelRenderer && aimHit.kind == AimHit::Kind::None) {
-            Level& level = live->NetLevel();
-            const LevelCollision collision(level, &levelRenderer->Blocks());
-            auto& palette = BlockPalette::Instance();
-            const auto& shape =
-                LevelCollision::ShapeOf(palette.InternRuntime(static_cast<int32_t>(held.blockRuntimeId)));
-            const std::vector<physics::Box> heldShape(shape.boxes.begin(), shape.boxes.end());
-            bridging::Request request;
-            request.eye = {camera.x, camera.y, camera.z};
-            request.direction = glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch));
-            request.body = physics::BoundingBox(player.State(), player.Sneaking());
-            request.sneaking = player.Sneaking();
-            request.reach = PickRange(creative, 1);
-            request.placedShape = heldShape;
-            request.horizontalSlab = held.name.contains("slab") && heldShape.size() == 1 &&
-                                     std::abs(heldShape[0].y1 - heldShape[0].y0 - 0.5) < 1e-5;
-            const auto around = bridging::FindTarget(request, [&](glm::ivec3 position) {
-                bridging::Cell cell;
-                bool loaded = false;
-                const uint16_t id = level.GetBlock(position.x, position.y, position.z, loaded);
-                const std::string& name = palette.Name(id);
-                cell.loaded = loaded;
-                cell.replaceable = blockuse::IsReplaceableCell(loaded, id, name);
-                cell.interactive = blockuse::IsInteractive(name);
-                if (loaded && !cell.replaceable) {
-                    collision.Selection(position.x, position.y, position.z, cell.collision);
-                }
-                return cell;
-            });
-            if (around)
-                aimAt(around->anchor, around->face, around->point);
-        }
-        // startBuildBlock only for a press on a block (0x146584810)
         if (bedrockBuild && inputManager.Pressed(Action::Use))
             heldBuild.Start(player.TickCount(), useAim.kind == AimHit::Kind::Block);
-        // held repeats follow the game's build rules (heldbuild::HeldBuild): direct crosshair hits only, the
-        // repeat delay and the build line; reach-around is for fresh presses
         bool heldRepeat = false;
         if (bedrockBuild && inputManager.IsDown(Action::Use) && !inputManager.Pressed(Action::Use)) {
             heldbuild::Hit hit;
             hit.block = aimHit.kind == AimHit::Kind::Block;
+            hit.assist = aimHit.buildAssist;
             hit.target = {{aimHit.bx, aimHit.by, aimHit.bz}, aimHit.face};
-            // line ray ends at the block or entity hit, else at full reach
             hit.point = aimHit.kind != AimHit::Kind::None ? glm::vec3(aimHit.point)
                                                           : buildEye + glm::normalize(camera.Direction()) *
                                                                            static_cast<float>(PickRange(creative, 1));
@@ -414,7 +414,6 @@ namespace perlin {
                 use = blockuse::Use::Nothing;
             std::copy(r.dest, r.dest + 3, dest);
         }
-        // stopBuildBlock only on release: switching items keeps the line
         if (!inputManager.IsDown(Action::Use))
             heldBuild.Stop();
         const glm::ivec3 destination{dest[0], dest[1], dest[2]};
@@ -423,22 +422,17 @@ namespace perlin {
         static uint64_t lastBuildAt = 0;
         static glm::ivec3 lastBuildCell{0, -1000, 0};
         const bool tooSoon = Clock::now() - lastUseSent < std::chrono::milliseconds(60);
-        // held building repeats only when build rules allow it this tick; other held use keeps the 200 ms repeat
         const bool repeatReady =
             bedrockBuild && use == blockuse::Use::Place ? heldRepeat : useClock >= 0.2 && !tooSoon;
-        // outside the build rules press and repeat can fire on consecutive ticks for the same cell: drop the duplicate
         const bool sameCell = !bedrockBuild && destination == lastBuildCell && useTime - lastBuildAt < 200;
         if (use == blockuse::Use::Place && holdsBlock && sameCell && useHeld && !usePressed)
             use = blockuse::Use::Nothing;
-        // never place a block into the player's own body, and send nothing: servers that trust the
-        // click, or see the player a tick behind mid-jump, place it and push the player out
         bool intoBody = false;
         if (use == blockuse::Use::Place && holdsBlock) {
             const uint16_t placedId =
                 BlockPalette::Instance().InternRuntime(static_cast<int32_t>(held.blockRuntimeId));
             const auto& placed = LevelCollision::ShapeOf(placedId);
             std::vector<physics::Box> shape(placed.boxes.begin(), placed.boxes.end());
-            // an id the palette can't resolve reads as air, with no shape: assume a full cube
             if (placedId == 0)
                 shape = {physics::Box{0, 0, 0, 1, 1, 1}};
             if (heldbuild::OverlapsBody(destination, shape,
@@ -447,7 +441,6 @@ namespace perlin {
                 intoBody = true;
             }
         }
-        // fresh clicks start item use immediately, food included
         if (usePressed || (useHeld && repeatReady)) {
             lastUseSent = Clock::now();
             useClock = 0;
@@ -457,11 +450,9 @@ namespace perlin {
                 if (live->Entities().Find(useAim.entity, target) && frame::IsInteractable(target.type) &&
                     !(live->InputLocks() & 128u) &&
                     !DispatchModInteract(abi::InteractKind::InteractEntity, 0, 0, 0, 0, useAim.entity)) {
-                    const glm::vec3 offset = EntityClickOffset(
-                        {camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), target.pos,
-                        (useAim.boxHi.x - useAim.boxLo.x) * 0.5, useAim.boxHi.y - useAim.boxLo.y,
-                        (useAim.boxLo + useAim.boxHi) * 0.5);
-                    float click[3] = {offset.x, offset.y, offset.z};
+                    // same HitResult::mPos the game passes to attack
+                    const float click[3] = {static_cast<float>(useAim.point.x), static_cast<float>(useAim.point.y),
+                                            static_cast<float>(useAim.point.z)};
                     SwingHand();
                     live->SendSwingArm("interact");
                     live->SendInteractEntity(useAim.entity, eyeF, click);
@@ -495,7 +486,6 @@ namespace perlin {
                                         false, buildNow, !usePressed);
                     }
                 }
-                // padded-body overlap: no local place, so no swing and no sound either (useOn result Success|Swing)
                 bool overlapsPadded = false;
                 if (sent && live && use == blockuse::Use::Place && holdsBlock && !bedrockBuild && !player.Flying()) {
                     const physics::State& pst = player.State();
@@ -516,7 +506,6 @@ namespace perlin {
                 }
                 if (sent && !overlapsPadded && use == blockuse::Use::Place && holdsBlock) {
                     if (live && bedrockBuild) {
-                        // bridge placements checked against the actual body: the airborne padding below would block jump bridging
                         float click[3];
                         clickOf(useAim, click);
                         live->PredictBridgePlace(dest[0], dest[1], dest[2],

@@ -10,9 +10,11 @@ namespace perlin::server::vanilla {
 
     struct AquiferFunctions {
         DfPtr barrier, floodedness, spread, lava, exclusion, surfaceLevel;
-        Xoroshiro::Factory random;
+        WorldRandom::Factory random;
         int seaLevel = 63;
         bool ok = false;
+        bool disabled = false;
+        uint8_t defaultFluid = 0;
 
         static AquiferFunctions Load(const DataPack& pack, DensityGraph& graph);
     };

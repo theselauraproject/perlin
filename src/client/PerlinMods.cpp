@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <unordered_map>
 #include "util/Platform.hpp"
 
 namespace perlin {
@@ -190,7 +191,6 @@ namespace perlin {
         SetupModActions();
         SetupModAdvanced();
         SetupModHooks();
-        // registered last: these replace any earlier handler for the same op
         SetupModInteractionApi();
     }
 
@@ -516,14 +516,24 @@ namespace perlin {
             static const void* atlasSeen = nullptr;
             static size_t atlasSize = 0;
             static std::vector<uint8_t> traits;
-            enum : uint8_t { known = 1, water = 2, lava = 4, snow = 8, leaves = 16, cube = 32 };
+            enum : uint8_t { known = 1, water = 2, lava = 4, snow = 8, leaves = 16, cube = 32, tree = 64 };
             const BlockLibrary& blocks = levelRenderer->Blocks();
             const BiomeTints& tints = levelRenderer->Tints();
+            struct MapEntry {
+                uint64_t version = 0;
+                const void* level = nullptr;
+                uint64_t epoch = 0;
+                std::vector<uint8_t> bytes;
+            };
+            static std::unordered_map<uint64_t, MapEntry> mapCache;
+            static uint64_t colourEpoch = 0;
             if (blocks.AtlasPixels().data() != atlasSeen || blocks.AtlasPixels().size() != atlasSize) {
                 atlasSeen = blocks.AtlasPixels().data();
                 atlasSize = blocks.AtlasPixels().size();
                 colours.InvalidateColours();
                 traits.clear();
+                colourEpoch++;
+                mapCache.clear();
             }
             const auto traitsOf = [&](uint16_t id) -> uint8_t {
                 if (id >= traits.size())
@@ -540,6 +550,12 @@ namespace perlin {
                         t |= snow;
                     if (name.contains("leaves"))
                         t |= leaves;
+                    if (name.contains("leaves") || name.ends_with("_log") || name.ends_with("_wood") ||
+                        name.ends_with("_stem") || name.ends_with("_hyphae") || name.contains("mushroom_block") ||
+                        name.contains("mushroom_stem") || name.contains("bamboo") || name.contains("vine") ||
+                        name.contains("azalea") || name.contains("mangrove_roots") || name.contains("wart_block") ||
+                        name.contains("shroomlight") || name.contains("bee_nest") || name.contains("cocoa"))
+                        t |= tree;
                     if (id != 0 && blocks.Look(id).shape == BlockAppearance::Shape::Cube)
                         t |= cube;
                 }
@@ -557,6 +573,16 @@ namespace perlin {
                 return Status::Ok;
             }
             const Chunk& chunk = it->second;
+            const uint64_t cacheKey = (static_cast<uint64_t>(static_cast<uint32_t>(cx)) * 0x9E3779B97F4A7C15ull) ^
+                                      (static_cast<uint64_t>(static_cast<uint32_t>(cz)) << 20) ^
+                                      static_cast<uint64_t>(static_cast<uint32_t>(caveY)) * 0xC2B2AE3D27D4EB4Full;
+            if (const auto hit = mapCache.find(cacheKey); hit != mapCache.end() && hit->second.version == chunk.version &&
+                                                          hit->second.level == modLevel &&
+                                                          hit->second.epoch == colourEpoch) {
+                w.raw(hit->second.bytes.data(), hit->second.bytes.size());
+                return Status::Ok;
+            }
+            const size_t replyStart = w.data.size();
             w.boolean(true).put<uint64_t>(chunk.version * 31 + static_cast<uint64_t>(caveY == INT32_MIN ? 0 : caveY + 1000));
             const auto rgb = [](const LodStore::Rgb& c) {
                 return static_cast<uint32_t>(c.r) << 16 | static_cast<uint32_t>(c.g) << 8 | c.b;
@@ -569,7 +595,7 @@ namespace perlin {
                         if (id == 0)
                             continue;
                         const uint8_t t = traitsOf(id);
-                        if ((t & cube) && !(t & leaves) && !(t & water)) {
+                        if ((t & cube) && !(t & tree) && !(t & water)) {
                             top = static_cast<int16_t>(ty);
                             break;
                         }
@@ -648,6 +674,13 @@ namespace perlin {
                     }
                     w.put<uint32_t>(colour).put<int16_t>(height).put<int16_t>(top).put<uint8_t>(depth).put<uint8_t>(flags);
                 }
+            if (mapCache.size() > 2500)
+                mapCache.clear();
+            MapEntry& entry = mapCache[cacheKey];
+            entry.version = chunk.version;
+            entry.level = modLevel;
+            entry.epoch = colourEpoch;
+            entry.bytes.assign(w.data.begin() + static_cast<std::ptrdiff_t>(replyStart), w.data.end());
             return Status::Ok;
         });
 
@@ -1203,8 +1236,8 @@ namespace perlin {
             const double scale = e.scale > 0 ? e.scale : 1.0;
             const double halfWidth = hb.first * 0.5 * scale, height = hb.second * scale;
             const glm::dvec3 centre(e.pos.x, e.pos.y + height * 0.5, e.pos.z);
-            return EntityClickOffset({camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), e.pos,
-                                     halfWidth, height, centre);
+            return EntityClickPoint({camera.x, camera.y, camera.z}, glm::dvec3(camera.Direction()), e.pos,
+                                    halfWidth, height, centre);
         };
 
         mm.Register(Op::MousePosition, [this](CallContext&, abi::Reader&, abi::Writer& w) {
@@ -1378,8 +1411,8 @@ namespace perlin {
             if (!modLive->Entities().Find(id, e))
                 return Status::NotFound;
             const float eye[3] = {camera.x, camera.y, camera.z};
-            const glm::vec3 offset = ModEntityClick(e);
-            const float click[3] = {offset.x, offset.y, offset.z};
+            const glm::vec3 point = ModEntityClick(e);
+            const float click[3] = {point.x, point.y, point.z};
             handRenderer.Swing(options.hand);
             modLive->SendSwingArm("attack");
             modLive->SendAttackEntity(id, eye, click);
@@ -1396,8 +1429,8 @@ namespace perlin {
             if (!modLive->Entities().Find(id, e))
                 return Status::NotFound;
             const float eye[3] = {camera.x, camera.y, camera.z};
-            const glm::vec3 offset = ModEntityClick(e);
-            const float click[3] = {offset.x, offset.y, offset.z};
+            const glm::vec3 point = ModEntityClick(e);
+            const float click[3] = {point.x, point.y, point.z};
             handRenderer.Swing(options.hand);
             modLive->SendSwingArm("interact");
             modLive->SendInteractEntity(id, eye, click);

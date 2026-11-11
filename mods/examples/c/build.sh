@@ -1,11 +1,14 @@
 #!/bin/sh
 set -e
 cd "$(dirname "$0")"
+target=wasm64
 if [ "$1" = "--wasm32" ]; then
+    target=wasm32
     shift
-    : "${WASI_SDK_PATH:?set WASI_SDK_PATH}"
-    "$WASI_SDK_PATH/bin/clang" --target=wasm32-wasip1 -O2 -mexec-model=reactor -o "${2:-hello.wasm}" "${1:-hello.c}"
-else
-    emcc -O2 -sMEMORY64=1 -sSTANDALONE_WASM=1 -sPURE_WASI=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1GB -sERROR_ON_UNDEFINED_SYMBOLS=0 --no-entry \
-        -sEXPORTED_FUNCTIONS=_perlin_alloc,_perlin_free,_perlin_event,_perlin_subscriptions -o "${2:-hello.wasm}" "${1:-hello.c}"
+elif [ "$1" = "--wasm64" ]; then
+    shift
 fi
+clang --target=$target -O2 -nostdlib -ffreestanding -fno-builtin -fvisibility=hidden \
+    -Wl,--no-entry -Wl,--export-dynamic -Wl,--allow-undefined -Wl,-z,stack-size=65536 \
+    -I ../../sdk -o "${2:-hello.wasm}" "${1:-hello.c}"
+echo "built ${2:-hello.wasm} ($target)"

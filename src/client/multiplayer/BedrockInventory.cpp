@@ -696,9 +696,16 @@ namespace perlin {
         InvEnqueue([this, addr, hotbar](ItemStackRequest& r) {
             Mover m{*this, r, [this](int a) -> ItemStackInfo& { return InvInfoLocked(a); },
                     [this](int a) -> ItemV4& { return InvRawLocked(a); }};
-            if (InvInfoLocked(addr).Empty() && InvInfoLocked(hotbar).Empty())
+            const bool addrEmpty = InvInfoLocked(addr).Empty(), hotbarEmpty = InvInfoLocked(hotbar).Empty();
+            if (addrEmpty && hotbarEmpty)
                 return false;
-            m.Swap(hotbar, addr);
+            // into an empty slot the game places the whole stack; servers can refuse a swap with an empty side
+            if (hotbarEmpty)
+                m.Move(addr, hotbar, InvInfoLocked(addr).count);
+            else if (addrEmpty)
+                m.Move(hotbar, addr, InvInfoLocked(hotbar).count);
+            else
+                m.Swap(hotbar, addr);
             return true;
         });
     }

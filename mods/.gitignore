@@ -1,0 +1,10 @@
+build/
+out/
+/tests/data/perlin_current_*.txt
+.cache/
+.cpm-cache/
+dist/
+.vs/
+.idea/
+CMakeUserPresets.json
+

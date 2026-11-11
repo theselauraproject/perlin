@@ -1,0 +1,20 @@
+{
+  "namespace": "routes",
+  "slot": {
+    "type": "collection_panel",
+    "visible": false,
+    "property_bag": {"#collection_length": ["m"]},
+    "bindings": [{"binding_type": "view", "source_property_name": "(#title_text = $route)", "target_property_name": "#visible"}]
+  },
+  "first": {"type": "label", "text": "WRONG_FIRST_ROUTE"},
+  "middle": {"type": "label", "text": "EXPECTED_MIDDLE_ROUTE"},
+  "last": {"type": "label", "text": "WRONG_LAST_ROUTE"},
+  "routing_screen": {
+    "type": "panel",
+    "controls": [
+      {"menu_slot@routes.slot": {"$route": "first", "factory": {"control_ids": {"m": "@routes.first"}}}},
+      {"menu_slot@routes.slot": {"$route": "middle", "factory": {"control_ids": {"m": "@routes.middle"}}}},
+      {"menu_slot@routes.slot": {"$route": "last", "factory": {"control_ids": {"m": "@routes.last"}}}}
+    ]
+  }
+}

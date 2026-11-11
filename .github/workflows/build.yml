@@ -317,9 +317,34 @@ jobs:
           archive: false
           if-no-files-found: error
 
-      # the shader pack is the same file for every Vulkan-only build: FreeBSD (no slang compiler exists for it) uses this one
+  # the Vulkan shader pack on its own, so the FreeBSD build (which has no slang compiler) starts at once instead of
+  # waiting for every native package to finish; the file is identical to the one the linux-x64 build makes
+  shader-pack:
+    name: shader-pack
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: cpm-complete-v2-linux-x64-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          restore-keys: cpm-complete-v2-linux-x64-
+      - name: Install Linux packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
+            libxtst-dev libxrender-dev libwayland-dev wayland-protocols libxkbcommon-dev libasound2-dev \
+            libpulse-dev libudev-dev libdbus-1-dev
+      - name: Build shaders only
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target perlin_shader_pack --parallel
       - name: Upload shader pack
-        if: matrix.name == 'linux-x64'
         uses: actions/upload-artifact@v7
         with:
           name: shader-pack-vulkan
@@ -401,7 +426,7 @@ jobs:
   # build (the same backends, the same file)
   freebsd:
     name: freebsd-x64
-    needs: native
+    needs: shader-pack
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:

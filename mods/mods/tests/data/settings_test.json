@@ -1,0 +1,22 @@
+{
+  "name": "Speedometer",
+  "description": "Shows your horizontal speed in the corner, with a /speed command and a toggle key (F7). Open its settings from the Mods screen.",
+  "version": "1.1.0",
+  "author": "Perlin",
+  "permissions": [],
+  "settings": [
+    {"type": "header", "label": "Readout"},
+    {"id": "visible", "type": "toggle", "label": "Show speedometer", "default": true,
+     "description": "Draws your speed in a corner of the screen.", "icon": {"item": "minecraft:clock"}},
+    {"id": "unit", "type": "choice", "label": "Unit", "default": "BlocksPerSecond", "icon": {"item": "minecraft:compass"},
+     "choices": [{"value": "BlocksPerSecond", "label": "Blocks per second"}, {"value": "KilometersPerHour", "label": "Kilometers per hour"}]},
+    {"id": "corner", "type": "choice", "label": "Corner", "default": "TopRight",
+     "choices": [{"value": "TopRight", "label": "Top right"}, {"value": "TopLeft", "label": "Top left"}]},
+    {"id": "warn_at", "type": "number", "label": "Highlight above", "default": 8, "min": 1, "max": 40, "step": 0.5, "unit": "b/s",
+     "description": "Speed at which the readout turns gold."},
+    {"id": "smoothing", "type": "integer", "label": "Smoothing", "default": 4, "min": 1, "max": 20,
+     "description": "Ticks averaged into the readout."},
+    {"type": "header", "label": "Peak"},
+    {"id": "reset_peak", "type": "button", "label": "Reset peak", "icon": {"item": "minecraft:barrier"}}
+  ]
+}

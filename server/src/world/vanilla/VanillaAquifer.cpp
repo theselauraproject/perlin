@@ -65,6 +65,8 @@ namespace perlin::server::vanilla {
 
     VanillaAquifer::VanillaAquifer(const AquiferFunctions& functions, int chunkX, int chunkZ, int minY, int height)
         : f(functions) {
+        if (f.disabled)
+            return;
         const int minX = chunkX * 16, maxX = minX + 15, minZ = chunkZ * 16, maxZ = minZ + 15;
         const int maxY = minY + height - 1;
         minGridX = GridX(minX - 5);
@@ -217,6 +219,8 @@ namespace perlin::server::vanilla {
     VanillaAquifer::Substance VanillaAquifer::Compute(int x, int y, int z, double density) {
         if (density > 0.0)
             return Substance::Solid;
+        if (f.disabled)
+            return y < f.seaLevel ? static_cast<Substance>(f.defaultFluid) : Substance::Air;
         const Fluid global = Global(y);
         if (y > skipAboveY)
             return global.At(y);
@@ -232,7 +236,7 @@ namespace perlin::server::vanilla {
                     const int index = Index(gx, gy, gz);
                     const size_t li = static_cast<size_t>(index) * 3;
                     if (!located[static_cast<size_t>(index)]) {
-                        Xoroshiro r = f.random.At(gx, gy, gz);
+                        WorldRandom r = f.random.At(gx, gy, gz);
                         locations[li] = FromGridX(gx, r.NextInt(10));
                         locations[li + 1] = FromGridY(gy, r.NextInt(9));
                         locations[li + 2] = FromGridX(gz, r.NextInt(10));

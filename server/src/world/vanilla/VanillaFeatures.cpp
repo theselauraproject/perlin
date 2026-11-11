@@ -16,7 +16,7 @@ namespace perlin::server::vanilla {
 
         // a rule in the order the passes run, then by name
         struct Stream {
-            Xoroshiro rng;
+            WorldRandom rng;
             Stream(uint64_t a, uint64_t b) : rng(MixStafford13(a), MixStafford13(b ^ kGolden64)) {}
             // 0 <= v < n
             int Below(int n) { return n <= 1 ? 0 : static_cast<int>(rng.NextDouble() * n); }

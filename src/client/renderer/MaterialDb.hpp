@@ -43,6 +43,9 @@ namespace perlin::material {
         std::string primitive = "Triangle";
         std::vector<std::string> vertexFields;
         std::set<std::string> defines;
+        // defines a material took away from its parent ("-defines"): the game's engine-added ones (FANCY) are
+        // not always in our resolved set, so their removal has to be remembered on its own
+        std::set<std::string> removedDefines;
         std::set<std::string> states;
         std::vector<Sampler> samplers;
         BlendFactor blendSrc = BlendFactor::SrcAlpha;

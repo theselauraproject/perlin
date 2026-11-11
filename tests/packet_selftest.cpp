@@ -251,6 +251,14 @@ int main() {
               (*out.blockAction)[0].position.y == 64);
         net::context::SetProtocol(0);
     }
+    for (const int version : {0, 944, 975, 1001, 2168, 2193}) {
+        // move_entity rotation bytes: pitch, yaw, head yaw on every version; round trips can't catch a swap
+        net::context::SetProtocol(version);
+        const std::vector<uint8_t> wire{0x05, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0x40, 0x41};
+        MoveEntityPacket move;
+        CHECK(Decode(wire, move) && move.rotation.pitch == 0x10 && move.rotation.yaw == 0x40 &&
+              move.rotation.headYaw == 0x41);
+    }
     for (const int version : {944, 975, 1001, 2168, 2193}) {
         net::context::SetProtocol(version);
         std::string failed;

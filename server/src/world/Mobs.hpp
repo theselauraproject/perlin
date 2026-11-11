@@ -16,6 +16,8 @@ namespace perlin::server {
 
     bool BlockSolid(uint16_t id);
     bool BlockLiquid(uint16_t id);
+    bool FallsWithGravity(uint16_t id);
+    bool FallingFree(uint16_t id);
 
     struct Mob {
         uint64_t id = 0;
@@ -43,7 +45,13 @@ namespace perlin::server {
         int burnTicks = 0;
         int shootCooldown = 0;
         bool projectile = false;
+        int kind = 0;
+        uint16_t block = 0;
         uint64_t owner = 0;
+        int invulnerable = 0;
+        float lastHurt = 0;
+        uint64_t lastAttacker = 0;
+        int lastAttackerTicks = 0;
         float lastX = 0, lastY = 0, lastZ = 0, lastYaw = 0, lastHead = 0;
         uint64_t lastFlags = 0;
     };
@@ -54,10 +62,18 @@ namespace perlin::server {
 
         void Tick();
         Mob* Spawn(const std::string& identifier, double x, double y, double z, bool persistent = true);
+        Mob* SpawnFallingBlock(double x, double y, double z, uint16_t block);
+        Mob* SpawnPrimedTnt(double x, double y, double z, int fuse);
+        void Explosion(double x, double y, double z, float power, uint64_t source, bool breakBlocks = true);
         bool Kill(uint64_t id);
+        bool Remove(uint64_t id);
+        bool Damage(uint64_t id, float amount);
+        void Moved(Mob& m);
         int KillAll(const std::string& identifier);
         void Show(Session& to) const;
-        bool Attack(Session& by, uint64_t entity, float damage);
+        void Hide(Session& to) const;
+        bool Attack(Session& by, uint64_t entity, float damage, float knockback = 0.4f);
+        void SpawnXpOrbs(double x, double y, double z, int amount);
         bool Interact(Session& by, uint64_t entity);
         Mob* Find(uint64_t id);
         const std::list<Mob>& All() const { return mobs; }
@@ -77,8 +93,9 @@ namespace perlin::server {
         bool Dark(int x, int y, int z) const;
         bool Day() const;
         Session* Nearest(const Mob& m, double range, bool survivalOnly);
-        void Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by);
+        bool Hurt(Mob& m, float damage, double fromX, double fromZ, Session* by, float knockback = 0.4f);
         void Explode(Mob& m);
+        bool TickSpecial(Mob& m);
         void Shoot(Mob& m, Session& at);
 
         Server& server;

@@ -35,6 +35,7 @@ if(CMAKE_HOST_WIN32 AND PERLIN_USE_CLANG_CL AND NOT CMAKE_GENERATOR MATCHES "Vis
 endif()
 
 project(Perlin VERSION 1.0.0 LANGUAGES C CXX)
+include("${CMAKE_CURRENT_SOURCE_DIR}/mods/cmake/PerlinApi.cmake")
 # -pthread rather than an empty Threads::Threads where libc only stubs pthreads (freebsd)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 # target cpu / os: arm64 builds (Windows on ARM, Linux on ARM, Apple silicon) and FreeBSD change a few choices below
@@ -217,7 +218,7 @@ endfunction()
 perlin_quiet_targets("${wasmedge_SOURCE_DIR}")
 add_library(perlin_wasmedge STATIC
     "${wasmedge_SOURCE_DIR}/lib/api/wasmedge.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/client/mods/WasmEdgeStop.cpp")
+    ${PERLIN_API_HOST_WASMEDGE_STOP_SOURCES})
 target_compile_definitions(perlin_wasmedge PUBLIC WASMEDGE_COMPILE_LIBRARY)
 target_include_directories(perlin_wasmedge PUBLIC
     "${CMAKE_BINARY_DIR}/_deps/wasmedge-build/include/api"
@@ -496,11 +497,10 @@ list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/render/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/javashaders/") # built into perlin_gpu
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/mods/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/(src|tests)/")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/mods/WasmEdgeStop\\.cpp$")
 if(PERLIN_WASM3)
-    list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/mods/WasmRuntime\\.cpp$")
+    list(APPEND PERLIN_SOURCES ${PERLIN_API_HOST_CORE_SOURCES} ${PERLIN_API_HOST_WASM3_SOURCES})
 else()
-    list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/mods/WasmRuntimeWasm3\\.cpp$")
+    list(APPEND PERLIN_SOURCES ${PERLIN_API_HOST_CORE_SOURCES} ${PERLIN_API_HOST_WASMEDGE_SOURCES})
 endif()
 if(EMSCRIPTEN)
     list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/network/(NetherNet|Http|RakNet)\\.cpp")
@@ -606,7 +606,7 @@ endif()
 
 target_include_directories(Perlin PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/mods/sdk"
+    ${PERLIN_API_INCLUDE_DIRS}
     "${stb_SOURCE_DIR}"
     "${concurrentqueue_SOURCE_DIR}"
     "${glm_SOURCE_DIR}"
@@ -770,9 +770,9 @@ endif()
 # The build intention rejects non-finite rays and velocities; keep those guards when the application enables
 # relaxed floating point.
 if(MSVC AND NOT PERLIN_CLANG_CL_BUILD)
-    set_source_files_properties(src/client/player/Bridging.cpp src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
+    set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
 else()
-    set_source_files_properties(src/client/player/Bridging.cpp src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
+    set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
 endif()
 
 include(CheckIPOSupported)
@@ -887,12 +887,16 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(skin_lifetime_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(skin_lifetime_selftest PRIVATE cxx_std_23)
     add_test(NAME skin_lifetime_selftest COMMAND skin_lifetime_selftest)
+    add_executable(actor_lerp_selftest tests/actor_lerp_selftest.cpp src/client/entity/EntityTracker.cpp)
+    target_include_directories(actor_lerp_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(actor_lerp_selftest PRIVATE cxx_std_23)
+    add_test(NAME actor_lerp_selftest COMMAND actor_lerp_selftest)
     add_executable(block_palette_selftest tests/block_palette_selftest.cpp
         src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
     target_include_directories(block_palette_selftest PRIVATE src)
     target_link_libraries(block_palette_selftest PRIVATE glaze::glaze)
     target_compile_features(block_palette_selftest PRIVATE cxx_std_23)
-    add_test(NAME block_palette_selftest COMMAND block_palette_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_states.json")
+    add_test(NAME block_palette_selftest COMMAND block_palette_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_states.json" "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_versions.json")
     add_executable(entity_render_selftest tests/entity_render_selftest.cpp
         src/client/entity/EntityQuery.cpp src/client/entity/EntityTracker.cpp src/client/entity/BlockEntityView.cpp
         src/client/multiplayer/BlockEntities.cpp src/client/attachable/Geometry.cpp
@@ -906,6 +910,18 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(player_fov_selftest PRIVATE src)
     target_compile_features(player_fov_selftest PRIVATE cxx_std_23)
     add_test(NAME player_fov_selftest COMMAND player_fov_selftest)
+    add_executable(panorama_blur_selftest tests/panorama_blur_selftest.cpp src/client/ui/TitlePanorama.cpp)
+    target_include_directories(panorama_blur_selftest PRIVATE src)
+    target_compile_features(panorama_blur_selftest PRIVATE cxx_std_23)
+    add_test(NAME panorama_blur_selftest COMMAND panorama_blur_selftest)
+    add_executable(format_codes_selftest tests/format_codes_selftest.cpp src/client/ui/Json.cpp src/client/ui/UiExpr.cpp
+        src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/ui/McFont.cpp src/client/ui/TenFont.cpp
+        src/client/ui/RmlEmit.cpp src/client/ui/FormatCodes.cpp src/client/ui/HudData.cpp src/client/ui/EffectData.cpp
+        src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp
+        src/util/Resources.cpp src/util/Paths.cpp)
+    target_include_directories(format_codes_selftest PRIVATE src "${stb_SOURCE_DIR}")
+    target_compile_features(format_codes_selftest PRIVATE cxx_std_23)
+    add_test(NAME format_codes_selftest COMMAND format_codes_selftest)
     add_executable(block_box_definition_selftest tests/block_box_definition_selftest.cpp
         src/client/resources/BlockBoxDefinition.cpp src/client/ui/Json.cpp)
     target_include_directories(block_box_definition_selftest PRIVATE src "${glm_SOURCE_DIR}")
@@ -1028,15 +1044,14 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(hand_anim_selftest PRIVATE src)
     target_compile_features(hand_anim_selftest PRIVATE cxx_std_23)
     add_test(NAME hand_anim_selftest COMMAND hand_anim_selftest)
-    add_executable(bridging_selftest
-        tests/bridging_selftest.cpp
-        src/client/player/Bridging.cpp
+    add_executable(heldbuild_selftest
+        tests/heldbuild_selftest.cpp
         src/client/player/HeldBuild.cpp
         src/client/player/PlayerPhysics.cpp
         src/client/player/BlockUse.cpp)
-    target_include_directories(bridging_selftest PRIVATE src "${glm_SOURCE_DIR}")
-    target_compile_features(bridging_selftest PRIVATE cxx_std_23)
-    add_test(NAME bridging_selftest COMMAND bridging_selftest)
+    target_include_directories(heldbuild_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(heldbuild_selftest PRIVATE cxx_std_23)
+    add_test(NAME heldbuild_selftest COMMAND heldbuild_selftest)
     add_executable(entity_animation_selftest tests/entity_animation_selftest.cpp
         src/client/entity/JavaAnimation.cpp src/client/attachable/Geometry.cpp
         src/client/attachable/Animation.cpp src/client/attachable/Molang.cpp src/client/ui/Json.cpp)
@@ -1461,13 +1476,13 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     # the same wasm engine as the app: wasm3 where wasmedge is not built (freebsd, web)
     if(PERLIN_WASM3)
-        set(PERLIN_MOD_RUNTIME_SOURCE src/client/mods/WasmRuntimeWasm3.cpp)
+        set(PERLIN_MOD_RUNTIME_SOURCE ${PERLIN_API_HOST_WASM3_SOURCES})
     else()
-        set(PERLIN_MOD_RUNTIME_SOURCE src/client/mods/WasmRuntime.cpp)
+        set(PERLIN_MOD_RUNTIME_SOURCE ${PERLIN_API_HOST_WASMEDGE_SOURCES})
     endif()
     add_executable(mod_selftest tests/mod_selftest.cpp src/client/mods/ModManager.cpp ${PERLIN_MOD_RUNTIME_SOURCE}
-        src/client/ui/Json.cpp)
-    target_include_directories(mod_selftest PRIVATE src mods/sdk)
+        ${PERLIN_API_HOST_CORE_SOURCES} src/client/ui/Json.cpp)
+    target_include_directories(mod_selftest PRIVATE src ${PERLIN_API_INCLUDE_DIRS})
     target_link_libraries(mod_selftest PRIVATE ${PERLIN_WASM_ENGINE} Threads::Threads)
     target_compile_features(mod_selftest PRIVATE cxx_std_23)
     set(PERLIN_TEST_PLUGINS "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/plugins")
@@ -1484,7 +1499,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_FOUND)
-        add_test(NAME mod_api_check COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/mods/tools/check_api.py")
+        perlin_api_add_checks()
         if(NOT MSVC)
             set(PERLIN_MODS_GEN "${CMAKE_CURRENT_BINARY_DIR}/mods_gen")
             foreach(spec "waila:mods/waila/waila.json" "sdk:mods/tests/data/settings_test.json")
@@ -1506,6 +1521,10 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
             target_include_directories(sdk_test PRIVATE mods/sdk "${PERLIN_MODS_GEN}/sdk")
             target_compile_features(sdk_test PRIVATE cxx_std_23)
             add_test(NAME sdk_test COMMAND sdk_test)
+            add_executable(c_header_test mods/tests/c_header_test.c)
+            target_include_directories(c_header_test PRIVATE ${PERLIN_API_INCLUDE_DIRS})
+            set_target_properties(c_header_test PROPERTIES C_STANDARD 99)
+            add_test(NAME c_header_test COMMAND c_header_test)
             foreach(wire_test abi_test meta_test plugin_test)
                 add_executable(${wire_test} mods/tests/${wire_test}.cpp)
                 target_include_directories(${wire_test} PRIVATE mods/sdk)

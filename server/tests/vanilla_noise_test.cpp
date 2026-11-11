@@ -32,7 +32,7 @@ int main() {
     CHECK(SeedFromHashOf("").hi != 0);
     {
         // xoroshiro: seed 12345/67890 from the real class
-        Xoroshiro r(12345ull, 67890ull);
+        WorldRandom r(12345ull, 67890ull);
         CHECK(static_cast<int64_t>(r.NextLong()) == 10516574265ll);
         CHECK(static_cast<int64_t>(r.NextLong()) == -8655457884744189457ll);
         CHECK(static_cast<int64_t>(r.NextLong()) == -8457254179187378397ll);
@@ -51,9 +51,9 @@ int main() {
         cont.baseOctave = -9;
         cont.octaveCount = 9;
         cont.amplitudeModifiers = {1, 1, 2, 2, 2, 1, 1, 1, 1};
-        // RandomState: Xoroshiro(seed).forkPositional(), then fromHashOf("minecraft:<name>")
-        Xoroshiro root = Xoroshiro::FromSeed(12345);
-        const Xoroshiro::Factory positional = root.ForkPositional();
+        // RandomState: WorldRandom(seed).forkPositional(), then fromHashOf("minecraft:<name>")
+        WorldRandom root = WorldRandom::FromSeed(12345);
+        const WorldRandom::Factory positional = root.ForkPositional();
         NormalNoise noise(cont, positional.FromHashOf("minecraft:continentalness"));
         const uint32_t expected[6] = {0xbece23a6, 0x3f01a0f8, 0xbd6b554b, 0xbd6c10e3, 0xbf6d4f25, 0xbece27c2};
         for (int i = 0; i < 6; i++) {
@@ -84,8 +84,8 @@ int main() {
             const double pts[6][3] = {{0, 0, 0},        {100.5, 70.25, -200.75},
                                       {-512, 100, 640}, {12345.678, -33.5, -98765.4321},
                                       {1e6, 5, -1e6},   {0.001, 0.002, 0.003}};
-            Xoroshiro root = Xoroshiro::FromSeed(12345);
-            const Xoroshiro::Factory positional = root.ForkPositional();
+            WorldRandom root = WorldRandom::FromSeed(12345);
+            const WorldRandom::Factory positional = root.ForkPositional();
             for (const Ref& ref : refs) {
                 perlin::server::json::Value v;
                 CHECK(perlin::server::json::Parse(

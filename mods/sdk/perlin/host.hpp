@@ -1,7 +1,4 @@
 #pragma once
-// host side of the plugin abi, shared by the client (src/client/mods) and the server (server/src/plugin).
-// A host fills an OpTable with handlers; Handle<Op>() decodes the request and encodes the response from the
-// types in abi_table.h, so a handler is plain C++: (Context&, const Request&) -> Result<Response>.
 #include "perlin/abi.hpp"
 
 #include <array>
@@ -16,7 +13,6 @@
 namespace perlin::abi::host {
     template <class T> using Result = std::expected<T, Status>;
 
-    // a typed handler as a raw one: decodes the request, encodes the response, from the op's table entry
     template <Op O, class Ctx, class Fn> auto Typed(Fn&& fn) {
         using Req = typename OpSpec<O>::Request;
         using Res = typename OpSpec<O>::Response;
@@ -65,20 +61,17 @@ namespace perlin::abi::host {
     public:
         using RawHandler = std::function<Status(Ctx&, Reader&, Writer&)>;
 
-        // a hand-encoded handler; permission defaults to the table's
         void Raw(Op op, RawHandler handler, uint32_t permission) {
             handlers[static_cast<uint32_t>(op)] = {std::move(handler), permission};
         }
         void Raw(Op op, RawHandler handler) { Raw(op, std::move(handler), PermissionOf(op)); }
 
-        // fn(Ctx&, const Request&) or fn(Ctx&) for Nothing; returns Response, Result<Response>, Status or void
         template <Op O, class Fn> void Handle(Fn&& fn) {
             Raw(O, Typed<O, Ctx>(std::forward<Fn>(fn)), OpSpec<O>::kPermission);
         }
 
         bool Has(uint32_t op) const { return handlers.contains(op); }
 
-        // granted: the caller's permission bits; a handler needing more answers Denied
         Status Call(Ctx& ctx, uint32_t op, std::span<const uint8_t> in, Writer& out, uint32_t granted) const {
             const auto it = handlers.find(op);
             if (it == handlers.end())
@@ -97,7 +90,6 @@ namespace perlin::abi::host {
         std::unordered_map<uint32_t, Entry> handlers;
     };
 
-    // the bytes a plugin receives for event E
     template <Event E> Writer Encode(const payload_t<E>& payload) {
         Writer w;
         if constexpr (!std::is_same_v<payload_t<E>, EventNothing>)
@@ -105,7 +97,36 @@ namespace perlin::abi::host {
         return w;
     }
 
-    constexpr uint64_t SubscriptionBit(Event e) {
-        return uint64_t{1} << static_cast<uint32_t>(e);
+    template <class T> bool DecodesExactly(std::span<const uint8_t> bytes) {
+        if constexpr (std::is_same_v<T, Nothing>) {
+            return bytes.empty();
+        } else {
+            Reader r(bytes.data(), bytes.size());
+            T value{};
+            r.read_into(value);
+            return r.Ok() && r.Remaining() == 0;
+        }
+    }
+
+    namespace detail {
+        template <bool Response, size_t... I>
+        bool MatchesSchema(Op op, std::span<const uint8_t> bytes, std::index_sequence<I...>) {
+            bool known = false, ok = false;
+            (void)((kAllOps[I] == op
+                        ? (known = true,
+                           ok = DecodesExactly<std::conditional_t<Response, typename OpSpec<kAllOps[I]>::Response,
+                                                                  typename OpSpec<kAllOps[I]>::Request>>(bytes),
+                           true)
+                        : false) ||
+                   ...);
+            return known && ok;
+        }
+    }
+
+    inline bool RequestMatchesSchema(Op op, std::span<const uint8_t> bytes) {
+        return detail::MatchesSchema<false>(op, bytes, std::make_index_sequence<kAllOps.size()>{});
+    }
+    inline bool ResponseMatchesSchema(Op op, std::span<const uint8_t> bytes) {
+        return detail::MatchesSchema<true>(op, bytes, std::make_index_sequence<kAllOps.size()>{});
     }
 }

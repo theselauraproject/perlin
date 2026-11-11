@@ -10,6 +10,7 @@
 #include "world/ChunkManager.hpp"
 #include "world/Mobs.hpp"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <deque>
@@ -25,15 +26,21 @@
 
 namespace perlin::server {
 
+    struct CatalogItem;
+
+    struct PortalFrame {
+        int dimension = 0;
+        int x = 0, y = 0, z = 0;
+        int axis = 0;
+        int width = 2, height = 3;
+    };
+
     struct CommandDef {
         std::string name;
         std::string description;
-        // the overloads, in the notation of core/Commands.hpp; empty for plugin commands, which take any text
         std::vector<OverloadSpec> overloads;
-        // plugin that owns it, empty for built-ins
         std::string plugin;
         bool operatorOnly = false;
-        // built-ins run here once their arguments have parsed; plugin commands are forwarded to the plugin
         std::function<void(CommandCtx&)> handler;
     };
 
@@ -43,75 +50,63 @@ namespace perlin::server {
         ~Server() override;
 
         bool Start(std::string& error);
-        // blocking loop at the configured tick rate until RequestStop
         void Run();
-        // one tick; hosts that drive the loop themselves (embedded) call this
         void Tick();
         void Stop();
         void RequestStop() { stopRequested = true; }
         bool StopRequested() const { return stopRequested; }
 
-        // console / embedding entry point for a command line without the leading slash
         void RunConsoleCommand(const std::string& line);
 
         LoopbackListener& Loopback() { return *loopback; }
 
         const ServerConfig& Config() const { return config; }
         ChunkManager& Chunks() { return *chunks; }
+        ChunkManager& World(int dimension);
+        ChunkManager* LoadedWorld(int dimension) const;
+        std::vector<Session*> PlayersIn(int dimension);
+        void ChangeDimension(Session& who, int dimension, double x, double y, double z);
+        uint16_t BlockAt(int dimension, int x, int y, int z);
+        void SetBlockIn(int dimension, int x, int y, int z, uint16_t block) { ApplyBlock(dimension, x, y, z, block); }
         PluginHost& Plugins() { return *plugins; }
         uint64_t TickCount() const { return tick; }
-        // how long the host loop should wait after a tick: the target rate's period, or nothing while sprinting or stepping
         std::chrono::nanoseconds TickDelay() const;
         const std::map<std::string, CommandDef>& Commands() const { return commands; }
 
-        // session callbacks
         void OnPlayerJoined(Session& session);
         void OnPlayerLeft(Session& session);
         void HandleChat(Session& from, const std::string& message);
         void RunPlayerCommand(Session& from, const std::string& line);
         std::vector<Session*> InGamePlayers();
-        // tells every player (the wearer too) what `wearer` has on
         void BroadcastArmor(const Session& wearer);
         Session* FindSession(uint64_t id);
         Session* FindByName(const std::string& name);
         bool IsOperatorName(const std::string& name) const;
-        // operators may be listed by name or by xuid; with xbox_auth only an xuid is a safe key
         bool IsOperator(const std::string& name, const std::string& xuid) const;
-        // allowlist.json (bds name; whitelist.json is read instead when it exists)
         bool IsWhitelisted(const std::string& name, const std::string& xuid) const {
             return allowList.Contains(name, xuid);
         }
-        // "visitor", "member" or "operator": the permissions.json entry, else default-player-permission-level
         std::string PermissionOf(const std::string& name, const std::string& xuid) const;
         AccessList& Permissions() { return permissionList; }
         AccessList& Whitelist() { return allowList; }
-        // where the allowlist is read and written
         std::string AllowlistPath() const;
         std::string PermissionsPath() const;
-        // true when the player is on the allowlist with ignoresPlayerLimit
         bool IgnoresPlayerLimit(const std::string& name, const std::string& xuid) const;
-        // the loopback test and old callers: the same list as Permissions()
         AccessList& Ops() { return permissionList; }
-        // grants or removes operator by name (online or not); returns a one-line result for the caller
         std::string SetOperator(const std::string& name, bool op);
         bool Full() const;
-        // the world spawn (the first free block above the ground); the flat default until Start asks the terrain backend
         double SpawnX() const { return static_cast<double>(spawnX); }
         double SpawnY() const { return static_cast<double>(spawnY); }
         double SpawnZ() const { return static_cast<double>(spawnZ); }
         void SetWorldSpawn(int x, int y, int z);
 
-        // the world clock and weather that /time and /weather drive; the clock advances with the daylight cycle rule
         int64_t DayTime() const { return dayTime; }
         void SetDayTime(int64_t ticks);
-        // "clear", "rain" or "thunder"; the duration is in ticks (0 = until changed)
         void SetWeather(const std::string& kind, int durationTicks);
         bool Raining() const { return raining; }
         bool Thundering() const { return thundering; }
-        // weather and game rules, for a player who just joined
         void SendWorldState(Session& to);
 
-        // /gamerule. keys are lowercase
         struct GameRule {
             std::string display;
             bool boolean = true;
@@ -126,14 +121,15 @@ namespace perlin::server {
         }
         AccessList& Bans() { return banList; }
 
-        // players editing the world: the server validates, runs plugin events, applies and tells everyone who has the chunk
         bool PlayerBreak(Session& by, int x, int y, int z);
+        void DropBlockLoot(int dimension, int x, int y, int z, uint16_t block, const std::string& tool,
+                           float explosionRadius, Session* by);
+        void SpawnXp(int dimension, double x, double y, double z, int amount);
         bool PlayerPlace(Session& by, int x, int y, int z, int face);
         void SendBlockTo(Session& to, int x, int y, int z);
-        // items in the world: a player throws a stack, a broken block leaves one; Tick moves them and lets players pick them up
         void DropFromPlayer(Session& by, const ItemStack& stack);
         void SpawnItem(const ItemStack& stack, double x, double y, double z, double vx, double vy, double vz,
-                       int pickupDelay);
+                       int pickupDelay, int dimension = kOverworld);
         const std::vector<ItemEntity>& Items() const { return itemEntities; }
         MobWorld& Mobs() { return *mobWorld; }
         struct BlockContainer {
@@ -142,6 +138,7 @@ namespace perlin::server {
             std::vector<ItemStack> slots;
             int burn = 0, burnMax = 0, cook = 0;
             bool lit = false;
+            int dimension = 0;
         };
         bool UseBlock(Session& by, int x, int y, int z);
         void SyncContainer(Session& by);
@@ -150,36 +147,116 @@ namespace perlin::server {
         const std::vector<uint8_t>& ItemRegistryBody() const { return itemRegistryBody; }
         const std::vector<uint8_t>& CreativeContentBody() const { return creativeBody; }
 
-        // PluginApi
-        void Broadcast(const std::string& text) override;
-        bool Message(uint64_t player, const std::string& text) override;
-        bool Kick(uint64_t player, const std::string& reason) override;
+        void Broadcast(const std::string& text);
+        bool Message(uint64_t player, const std::string& text);
+        bool Kick(uint64_t player, const std::string& reason);
+        bool Teleport(uint64_t player, double x, double y, double z);
+        abi::Status SetBlock(int x, int y, int z, const std::string& block);
+        abi::Status GetBlock(int x, int y, int z, std::string& block);
+        std::expected<int, abi::Status> GiveItem(uint64_t player, const std::string& item, int count);
         void RegisterCommand(const std::string& plugin, const std::string& name,
                              const std::string& description) override;
-        std::vector<PlayerInfo> Players() override;
-        bool Teleport(uint64_t player, double x, double y, double z) override;
-        abi::Status SetBlock(int x, int y, int z, const std::string& block) override;
-        abi::Status GetBlock(int x, int y, int z, std::string& block) override;
-        Status GetStatus() override;
-        std::expected<int, abi::Status> GiveItem(uint64_t player, const std::string& item,
-                                                 int count) override;
+        void UnregisterCommand(const std::string& plugin, const std::string& name) override;
+
+        abi::host::Result<void> OpBroadcast(PluginCall&, const abi::TextMessage&) override;
+        abi::host::Result<void> OpPlayerMessage(PluginCall&, const abi::PlayerText&) override;
+        abi::host::Result<void> OpKick(PluginCall&, const abi::PlayerText&) override;
+        abi::host::Result<abi::OnlinePlayerList> OpOnlinePlayers(PluginCall&) override;
+        abi::host::Result<void> OpTeleport(PluginCall&, const abi::ServerTeleport&) override;
+        abi::host::Result<void> OpSetBlock(PluginCall&, const abi::BlockWrite&) override;
+        abi::host::Result<abi::TextMessage> OpBlockName(PluginCall&, const abi::BlockCoord&) override;
+        abi::host::Result<abi::ServerStatus> OpServerInfo(PluginCall&) override;
+        abi::host::Result<abi::GiveItemResult> OpGiveItem(PluginCall&, const abi::GiveItemRequest&) override;
+        abi::host::Result<abi::PlayerDetails> OpPlayerInfo(PluginCall&, const abi::PlayerInfoRequest&) override;
+        abi::host::Result<void> OpPlayerSetGameMode(PluginCall&, const abi::PlayerSetGameModeRequest&) override;
+        abi::host::Result<void> OpPlayerSetHealth(PluginCall&, const abi::PlayerSetHealthRequest&) override;
+        abi::host::Result<bool> OpPlayerDamage(PluginCall&, const abi::PlayerDamageRequest&) override;
+        abi::host::Result<void> OpPlayerKill(PluginCall&, const abi::PlayerKillRequest&) override;
+        abi::host::Result<void> OpPlayerSetFood(PluginCall&, const abi::PlayerSetFoodRequest&) override;
+        abi::host::Result<void> OpPlayerAddExperience(PluginCall&, const abi::PlayerAddExperienceRequest&) override;
+        abi::host::Result<void> OpPlayerEffectAdd(PluginCall&, const abi::PlayerEffectAddRequest&) override;
+        abi::host::Result<void> OpPlayerEffectRemove(PluginCall&, const abi::PlayerEffectRemoveRequest&) override;
+        abi::host::Result<abi::ServerInventory> OpPlayerInventory(PluginCall&, const abi::PlayerInventoryRequest&) override;
+        abi::host::Result<void> OpPlayerSetSlot(PluginCall&, const abi::PlayerSetSlotRequest&) override;
+        abi::host::Result<void> OpPlayerClearInventory(PluginCall&, const abi::PlayerClearInventoryRequest&) override;
+        abi::host::Result<void> OpPlayerSetVelocity(PluginCall&, const abi::PlayerSetVelocityRequest&) override;
+        abi::host::Result<void> OpPlayerTransferDimension(PluginCall&, const abi::PlayerTransferDimensionRequest&) override;
+        abi::host::Result<void> OpPlayerTitle(PluginCall&, const abi::PlayerTitleRequest&) override;
+        abi::host::Result<void> OpPlayerActionBar(PluginCall&, const abi::PlayerActionBarRequest&) override;
+        abi::host::Result<void> OpPlayerSound(PluginCall&, const abi::PlayerSoundRequest&) override;
+        abi::host::Result<void> OpPlayerTransfer(PluginCall&, const abi::PlayerTransferRequest&) override;
+        abi::host::Result<void> OpPlayerSetOperator(PluginCall&, const abi::PlayerSetOperatorRequest&) override;
+        abi::host::Result<uint32_t> OpPlayerForm(PluginCall&, const abi::PlayerFormRequest&) override;
+        abi::host::Result<void> OpPlayerRunCommand(PluginCall&, const abi::PlayerRunCommandRequest&) override;
+        abi::host::Result<void> OpPlayerSetSpawn(PluginCall&, const abi::PlayerSetSpawnRequest&) override;
+        abi::host::Result<uint64_t> OpPlayerByName(PluginCall&, const abi::PlayerByNameRequest&) override;
+        abi::host::Result<abi::BlockInfo> OpBlockState(PluginCall&, const abi::BlockStateRequest&) override;
+        abi::host::Result<void> OpBlockStateSet(PluginCall&, const abi::BlockStateSetRequest&) override;
+        abi::host::Result<uint32_t> OpFill(PluginCall&, const abi::FillRequest&) override;
+        abi::host::Result<abi::TimeGetResponse> OpTimeGet(PluginCall&) override;
+        abi::host::Result<void> OpTimeSet(PluginCall&, const abi::TimeSetRequest&) override;
+        abi::host::Result<void> OpWeatherSet(PluginCall&, const abi::WeatherSetRequest&) override;
+        abi::host::Result<int32_t> OpGameRuleGet(PluginCall&, const abi::GameRuleGetRequest&) override;
+        abi::host::Result<void> OpGameRuleSet(PluginCall&, const abi::GameRuleSetRequest&) override;
+        abi::host::Result<void> OpDifficultySet(PluginCall&, const abi::DifficultySetRequest&) override;
+        abi::host::Result<void> OpExplode(PluginCall&, const abi::ExplodeRequest&) override;
+        abi::host::Result<int32_t> OpHighestBlock(PluginCall&, const abi::HighestBlockRequest&) override;
+        abi::host::Result<void> OpParticleAt(PluginCall&, const abi::ParticleAtRequest&) override;
+        abi::host::Result<void> OpDropItem(PluginCall&, const abi::DropItemRequest&) override;
+        abi::host::Result<abi::BlockCoord> OpWorldSpawnGet(PluginCall&) override;
+        abi::host::Result<void> OpWorldSpawnSet(PluginCall&, const abi::BlockCoord&) override;
+        abi::host::Result<uint64_t> OpEntitySpawn(PluginCall&, const abi::EntitySpawnRequest&) override;
+        abi::host::Result<abi::EntityListResponse> OpEntityList(PluginCall&, const abi::EntityListRequest&) override;
+        abi::host::Result<void> OpEntityRemove(PluginCall&, const abi::EntityRemoveRequest&) override;
+        abi::host::Result<bool> OpEntityDamage(PluginCall&, const abi::EntityDamageRequest&) override;
+        abi::host::Result<void> OpEntityTeleport(PluginCall&, const abi::EntityTeleportRequest&) override;
+        abi::host::Result<void> OpEntitySetVelocity(PluginCall&, const abi::EntitySetVelocityRequest&) override;
+        abi::host::Result<abi::ServerEntity> OpEntityInfo(PluginCall&, const abi::EntityInfoRequest&) override;
+        abi::host::Result<void> OpEntitySetHealth(PluginCall&, const abi::EntitySetHealthRequest&) override;
+        abi::host::Result<abi::RestText> OpRunCommand(PluginCall&, const abi::RunCommandRequest&) override;
+        abi::host::Result<void> OpMotdSet(PluginCall&, const abi::MotdSetRequest&) override;
+        abi::host::Result<void> OpLootTableOverride(PluginCall&, const abi::LootTableOverrideRequest&) override;
+        abi::host::Result<abi::RestText> OpLootTableGet(PluginCall&, const abi::LootTableGetRequest&) override;
+
+        bool HookPreLogin(Session& who, std::string& reason);
+        bool HookPlayerDamage(Session& who, float& amount, Session::DamageCause cause, Session* attacker,
+                              const std::string& source);
+        void HookPlayerDeath(Session& who, Session::DamageCause cause, const std::string& source);
+        void HookPlayerRespawn(Session& who);
+        bool HookPlayerUse(Session& who, int x, int y, int z, int face);
+        bool HookPlayerAttack(Session& who, uint64_t target, float& damage);
+        bool HookEntityDamage(Mob& mob, float& amount, Session* attacker);
+        void HookEntityDeath(Mob& mob, Session* killer);
+        bool HookEntitySpawn(const std::string& type, uint64_t id, double x, double y, double z, bool natural);
+        bool HookItemConsume(Session& who, const std::string& item);
+        void HookGameModeChange(Session& who, int from, int to);
+        void HookFormResponse(Session& who, uint32_t form, const std::string& data);
+        void HookPlayerMove(Session& who);
+        bool HookExplosion(double x, double y, double z, float& power, uint64_t source);
+        bool HookItemDrop(Session& who, const ItemStack& stack);
+        bool HookItemPickup(Session& who, const ItemStack& stack);
+        bool HookContainerOpen(Session& who, int x, int y, int z, const std::string& block);
+        void HookDimensionChange(Session& who, int from, int to);
+        bool HookServerCommand(Session* from, std::string& line);
 
         std::string Describe() const;
 
     private:
         void RegisterBuiltins();
         void BuildItemPackets();
-        // writes a block into the world and sends the change to every player who has that column
-        void ApplyBlock(int x, int y, int z, uint16_t block);
+        void ApplyBlock(int x, int y, int z, uint16_t block) { ApplyBlock(kOverworld, x, y, z, block); }
+        void ApplyBlock(int dimension, int x, int y, int z, uint16_t block);
         void Pump();
         void TickItems();
         void ReapClosed();
 
         ServerConfig config;
         std::unique_ptr<ChunkManager> chunks;
+        std::array<std::unique_ptr<ChunkManager>, kDimensionCount> otherWorlds;
         std::unique_ptr<PluginHost> plugins;
         std::unique_ptr<LoopbackListener> loopback;
         std::unique_ptr<Listener> nethernet;
+        std::unique_ptr<Listener> raknet;
         EventQueue events;
         int spawnX = 0, spawnY = 0, spawnZ = 0;
         int64_t dayTime = 6000;
@@ -189,7 +266,6 @@ namespace perlin::server {
         AccessList banList{AccessList::Kind::Allowlist};
         void InitGameRules();
         void DrainLocate();
-        // /locate searches: run on their own threads, answered from the tick thread
         std::mutex locateMutex;
         std::vector<std::pair<uint64_t, std::string>> locateDone;
         std::vector<std::thread> locateThreads;
@@ -205,11 +281,23 @@ namespace perlin::server {
         std::unique_ptr<MobWorld> mobWorld;
         std::unordered_map<int64_t, BlockContainer> containers;
         void TickContainers();
-        void DropContainer(int x, int y, int z);
+        void DropContainer(int dimension, int x, int y, int z);
+        bool UseItemOn(Session& by, int dimension, int x, int y, int z, int face, const CatalogItem& item);
+        void OnBlockRemoved(Session& by, int dimension, int x, int y, int z, const std::string& name);
+        bool TryLightPortal(int dimension, int x, int y, int z);
+        bool FindPortalFrame(int dimension, int x, int y, int z, int axis, PortalFrame& out);
+        void FillPortal(const PortalFrame& frame);
+        bool PlacePortalNear(int dimension, int x, int y, int z, PortalFrame& out);
+        std::vector<PortalFrame> portals;
+        void TickPortals();
+        void TickGravity();
+        std::vector<std::array<int, 4>> gravityQueue;
+        void TravelThroughPortal(Session& who, bool endPortal);
+        void BuildEndPlatform();
+        bool endPlatformBuilt = false;
         void PushContainer(BlockContainer& c, bool slotsChanged);
         uint64_t nextEntityId = 1'000'000;
         uint64_t tick = 0;
-        // /tick: the game clock can be slowed, sped up, frozen and stepped. networking keeps running while frozen
         double tickRateTarget = 20.0;
         bool frozen = false;
         int64_t stepRemaining = 0;
@@ -220,11 +308,14 @@ namespace perlin::server {
         std::string TickQuery() const;
         void RunTickCommand(Session* from, const std::string& args);
         void RunCommand(Session* from, const std::string& line);
+        int RunExecute(Session* from, const std::string& args);
+        bool executeElevated = false;
         std::atomic<bool> stopRequested{false};
+        std::map<std::pair<uint64_t, uint32_t>, abi::FormKind> formKinds;
         bool started = false;
     };
 
-    // implemented in net/NetherNetListener.cpp when built with nethernet support
     std::unique_ptr<Listener> CreateNetherNetListener(const ServerConfig& config,
                                                       std::function<std::string()> infoJson);
+    std::unique_ptr<Listener> CreateRakNetListener(const ServerConfig& config, std::function<std::string()> motd);
 }

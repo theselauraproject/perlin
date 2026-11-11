@@ -1,0 +1,87 @@
+## Perlin's own strings. English only (compiled into the exe by tools/gen_builtin_lang.py); other languages fall back to these.
+## Placeholders: %s takes the next argument, %1$s the first one, and so on.
+
+## --- status line / window title ---
+perlin.status.skin_failed=Skin not loaded: %s
+perlin.status.sign_in=Sign in at %1$s with code %2$s (copied to the clipboard)
+perlin.status.sign_in_failed=Sign-in failed: %s
+perlin.status.login_failed=Login failed: %s
+perlin.title.fps=%s FPS
+perlin.title.chunks=%s chunks
+perlin.chat.server=Server
+perlin.chat.preview_player=Player
+perlin.unknown=unknown
+perlin.true=true
+perlin.false=false
+
+## --- F3 debug screen ---
+perlin.debug.fps=%1$s fps T: %2$s%3$s%4$s%5$s B: %6$s
+perlin.debug.inf=inf
+perlin.debug.vsync= vsync
+perlin.debug.fancy= fancy
+perlin.debug.fast= fast
+perlin.debug.clouds_fancy= fancy-clouds
+perlin.debug.clouds_fast= fast-clouds
+perlin.debug.server="%1$s" server, %2$s tx, %3$s rx
+perlin.debug.chunks=C: %1$s/%2$s (s) D: %3$s, pC: %4$s, pU: %5$s, aB: %6$s
+perlin.debug.entities=E: %1$s/%2$s, B: %3$s, SD: %4$s
+perlin.debug.particles=P: %1$s. T: %2$s
+perlin.debug.chunk_cache=Chunk Cache: %s
+perlin.debug.dimension=%s FC: 0
+perlin.debug.xyz=XYZ: %1$s / %2$s / %3$s
+perlin.debug.block=Block: %1$s %2$s %3$s
+perlin.debug.chunk=Chunk: %1$s %2$s %3$s in %4$s %5$s %6$s
+perlin.debug.facing=Facing: %1$s (%2$s / %3$s)
+perlin.debug.facing.south=south (Towards positive Z)
+perlin.debug.facing.west=west (Towards negative X)
+perlin.debug.facing.north=north (Towards negative Z)
+perlin.debug.facing.east=east (Towards positive X)
+perlin.debug.light=Client Light: %1$s (%2$s sky, %3$s block)
+perlin.debug.heightmaps=CH S: %1$s M: %2$s
+perlin.debug.biome=Biome: %s
+perlin.debug.outside=Outside of world...
+perlin.debug.compiler=C++: %s 64bit
+perlin.debug.memory=Mem: %1$s%% %2$s/%3$sMB
+perlin.debug.allocated=Allocated: %1$s%% %2$sMB
+perlin.debug.cpu=CPU: %1$sx %2$s
+perlin.debug.display=Display: %1$sx%2$s (%3$s)
+perlin.debug.target_block=Targeted Block: %1$s, %2$s, %3$s
+perlin.debug.target_fluid=Targeted Fluid: %1$s, %2$s, %3$s
+
+
+## --- F3 debug shortcuts ---
+perlin.debug.prefix=§e[Debug]:§r
+perlin.debug.on=on
+perlin.debug.off=off
+perlin.debug.reload_chunks=Reloading all chunks
+perlin.debug.copied_location=Copied location to clipboard: %s
+perlin.debug.manual_crash=Manually triggered debug crash
+perlin.debug.chat_cleared=Cleared chat
+perlin.debug.chunk_borders_on=Chunk borders: shown
+perlin.debug.hitboxes_on=Hitboxes: shown
+perlin.debug.hitboxes_off=Hitboxes: hidden
+perlin.debug.chunk_borders_off=Chunk borders: hidden
+perlin.debug.advanced_tooltips_on=Advanced tooltips: shown
+perlin.debug.advanced_tooltips_off=Advanced tooltips: hidden
+perlin.debug.copied_block=Copied block to clipboard: %s
+perlin.debug.copied_entity=Copied entity to clipboard: %s
+perlin.debug.nothing_targeted=Nothing targeted
+perlin.debug.gamemode_toggle=Toggled spectator mode
+perlin.debug.pause_on_lost_focus_on=Pause on lost focus: enabled
+perlin.debug.pause_on_lost_focus_off=Pause on lost focus: disabled
+perlin.debug.reload_resources=Reloaded resource packs
+perlin.debug.paused=Paused without a menu
+perlin.debug.unpaused=Resumed
+perlin.item.durability=Durability: %s / %s
+perlin.gamemode.switcher=Game mode
+
+## --- death screen (Java's DeathScreen) ---
+perlin.death.title=You Died!
+perlin.death.respawn=Respawn
+perlin.death.title_screen=Title Screen
+container.inventory=Inventory
+container.crafting=Crafting
+menu.game=Game Menu
+menu.returnToGame=Back to Game
+menu.options=Options...
+menu.disconnect=Disconnect

@@ -87,6 +87,9 @@ namespace perlin {
     bool BlockPalette::LoadVanillaDefinitions(const std::string& path) {
         if (namesLoaded)
             return true;
+        std::lock_guard loadLock(loadMutex);
+        if (namesLoaded)
+            return true;
         std::ifstream f(path, std::ios::binary);
         if (!f)
             return false;
@@ -202,6 +205,9 @@ namespace perlin {
     }
 
     bool BlockPalette::LoadServerStatesText(const std::string& text, const std::string& path) {
+        std::lock_guard loadLock(loadMutex);
+        if (path == "block_states.json" && sequenceFrozen)
+            return true;
         const auto document = json::Document::Parse(text);
         if (!document)
             return false;
@@ -260,7 +266,7 @@ namespace perlin {
             sequenceKeys = baseKeys;
             BuildLayoutLocked(false);
         }
-        namesLoaded = namesLoaded || !nameByHash.empty();
+        namesLoaded = namesLoaded.load() || !nameByHash.empty();
         Log("blocks", "server registry: {} ids added, {} renamed from {}", added, replaced, path);
         return added + replaced > 0 || !nameByHash.empty();
     }
@@ -297,6 +303,87 @@ namespace perlin {
         BuildLayoutLocked(false);
     }
 
+    bool BlockPalette::LoadVersionDeltas(const std::string& text) {
+        const auto document = json::Document::Parse(text);
+        if (!document)
+            return false;
+        std::vector<VersionDelta> deltas;
+        for (const json::View v : document->root()["versions"].items()) {
+            VersionDelta d;
+            d.before = v["before"].integer();
+            d.protocol = v["protocol"].integer();
+            for (const json::View r : v["removed"].items())
+                d.removed.insert(r.str());
+            for (const auto [block, props] : v["pinned"].members()) {
+                auto& list = d.pinned[std::string(block)];
+                for (const auto [key, value] : props.members()) {
+                    StateValue sv;
+                    if (value.isBool()) {
+                        sv.kind = StateValue::Bool;
+                        sv.i = value.boolean() ? 1 : 0;
+                    } else if (value.isNumber()) {
+                        sv.kind = StateValue::Int;
+                        sv.i = value.integer();
+                    } else {
+                        sv.kind = StateValue::String;
+                        sv.s = value.str();
+                    }
+                    list.emplace_back(std::string(key), std::move(sv));
+                }
+            }
+            deltas.push_back(std::move(d));
+        }
+        std::lock_guard<std::mutex> lk(mutex);
+        versionDeltas = std::move(deltas);
+        versionDeltasLoaded = true;
+        return true;
+    }
+
+    void BlockPalette::UseProtocol(int protocol) {
+        std::lock_guard<std::mutex> lk(mutex);
+        if (protocol == sequenceProtocol && !baseSequence.empty())
+            return;
+        sequenceProtocol = protocol;
+        versionHidden.clear();
+        size_t applied = 0;
+        for (const VersionDelta& d : versionDeltas) {
+            if (protocol >= d.before)
+                continue;
+            applied++;
+            for (const int32_t h : baseSequence) {
+                const auto name = nameByHash.find(h);
+                if (name == nameByHash.end())
+                    continue;
+                if (d.removed.contains(name->second)) {
+                    versionHidden.insert(h);
+                    continue;
+                }
+                const auto pin = d.pinned.find(name->second);
+                if (pin == d.pinned.end())
+                    continue;
+                const auto st = statesByHash.find(h);
+                if (st == statesByHash.end())
+                    continue;
+                for (const auto& [key, want] : pin->second) {
+                    const auto have = std::find_if(st->second.begin(), st->second.end(),
+                                                   [&](const auto& kv) { return kv.first == key; });
+                    if (have == st->second.end())
+                        continue;
+                    const bool same = want.kind == StateValue::String ? have->second.s == want.s
+                                                                      : have->second.i == want.i;
+                    if (!same) {
+                        versionHidden.insert(h);
+                        break;
+                    }
+                }
+            }
+        }
+        layoutVerified = false;
+        BuildLayoutLocked(layoutAppended);
+        Log("blocks", "block ids for protocol {}: {} older-version deltas, {} states hidden, {} in the sequence",
+            protocol, applied, versionHidden.size(), sequence.size());
+    }
+
     void BlockPalette::InsertCustomRuns(std::vector<CustomRun> runs) {
         std::lock_guard<std::mutex> lk(mutex);
         if (baseSequence.empty())
@@ -305,8 +392,6 @@ namespace perlin {
         for (const int32_t h : baseSequence)
             if (const auto it = nameByHash.find(h); it != nameByHash.end())
                 (dataDrivenHashes.contains(h) ? dataDriven : vanilla).insert(it->second);
-        // A data-driven block the table already lists keeps the table's states and slots: servers often declare
-        // these blocks without their properties, which would give one state where the game has many.
         keptDataDriven.clear();
         for (const CustomRun& r : runs)
             if (dataDriven.contains(r.name))
@@ -325,6 +410,8 @@ namespace perlin {
         sequence.clear();
         sequenceKeys.clear();
         for (size_t i = 0; i < baseSequence.size(); ++i) {
+            if (versionHidden.contains(baseSequence[i]))
+                continue;
             if (dataDrivenHashes.contains(baseSequence[i])) {
                 const auto name = nameByHash.find(baseSequence[i]);
                 if (name == nameByHash.end() || !keptDataDriven.contains(name->second))
@@ -519,6 +606,20 @@ namespace perlin {
         if (local >= count.load(std::memory_order_acquire))
             return 0;
         return netByLocal[local];
+    }
+
+    int32_t BlockPalette::CurrentHash(uint16_t local) const {
+        static const std::unordered_map<std::string, std::string> kRenamed = {
+            {"minecraft:chain", "minecraft:iron_chain"},
+        };
+        const int32_t hash = NetworkId(local);
+        const auto it = kRenamed.find(Name(local));
+        if (it == kRenamed.end())
+            return hash;
+        auto states = States(local);
+        std::sort(states.begin(), states.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        return HashState(it->second, states);
     }
 
     bool BlockPalette::LearnName(int32_t networkId, const std::string& name) {

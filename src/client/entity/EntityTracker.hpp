@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include <chrono>
 #include <functional>
 #include <glm/glm.hpp>
@@ -105,6 +106,9 @@ namespace perlin::entity {
         float scale = 1.0f;
         // hitbox the server reported (metadata BOUNDINGBOX_WIDTH/HEIGHT); 0 if never sent
         float boxWidth = 0.0f, boxHeight = 0.0f;
+        // boxSent tells a server's explicit 0 (decorations: nothing to hit, no shadow) from a box never sent
+        bool boxSent = false;
+        bool NoBox() const { return boxSent && (boxWidth <= 0.0f || boxHeight <= 0.0f); }
         int variant = 0, markVariant = 0, color = 0;
         float health = -1.0f;
         uint32_t moveSerial = 0;
@@ -115,6 +119,23 @@ namespace perlin::entity {
         glm::dvec3 vel{0.0};
         bool sleeping = false, sleepExt = false, sleepPlayer = false;
         bool simulated = false;
+        // MovementInterpolatorComponent: pos above is the actor's tick position, moved toward the last received
+        // one over a few ticks; prevPos/prev* are the previous tick for render interpolation
+        struct Lerp {
+            glm::dvec3 pos{0.0};
+            float pitch = 0, yaw = 0, headYaw = 0;
+            int steps = 0;
+            bool forceCompletion = false;
+        };
+        Lerp lerp, queued;
+        bool hasQueued = false;
+        glm::dvec3 prevPos{0.0};
+        float prevYaw = 0, prevHeadYaw = 0, prevPitch = 0;
+        bool ticked = false;
+        // last absolute pose received: move_entity_delta only sends the changed lanes
+        glm::dvec3 netPos{0.0};
+        float netPitch = 0, netYaw = 0, netHeadYaw = 0;
+        bool haveNet = false;
         bool haveServerPos = false;
         glm::dvec3 lastServerPos{0.0};
         std::chrono::steady_clock::time_point lastServerAt;
@@ -160,16 +181,25 @@ namespace perlin::entity {
         void SetMotion(uint64_t rid, glm::dvec3 velocity);
         void SetSleeping(uint64_t rid, bool sleeping, bool playerFlag = false);
         void StepItems(const std::function<bool(int, int, int)>& solid);
-        void Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw, bool onGround);
+        // how a server position reaches the actor: Place sets it now (our own predicted vehicles), Lerp and
+        // Teleport go through Actor::lerpTo like the game's move_entity / move_entity_delta handler
+        enum class MoveKind { Place, Lerp, Teleport };
+        void Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw, bool onGround,
+                  MoveKind kind = MoveKind::Place, uint64_t ticks = 0, bool forceCompletion = false);
         void MoveDelta(uint64_t rid, const double* x, const double* y, const double* z, const float* pitch,
-                       const float* yaw, const float* headYaw, bool onGround);
+                       const float* yaw, const float* headYaw, bool onGround, bool teleport = false,
+                       uint64_t ticks = 0, bool forceCompletion = false);
+        // one client tick of MovementInterpolatorSystem::tickClient for every actor
+        void TickInterpolation();
         void SetFlags(uint64_t rid, uint64_t flags);
         void SetFlagsExtended(uint64_t rid, uint64_t flags);
         void SetCrawling(uint64_t rid, bool crawling);
         void SetScale(uint64_t rid, float scale);
         void SetBoundingBox(uint64_t rid, float width, float height);
         void SetNameTag(uint64_t rid, const std::string& nameTag);
-        void SetVariant(uint64_t rid, int variant, int markVariant, int color);
+        // an update that leaves a field out keeps its value: servers resend only what changed
+        void SetVariant(uint64_t rid, std::optional<int> variant, std::optional<int> markVariant,
+                        std::optional<int> color);
         void SetHealth(uint64_t rid, float health);
         void SetAttribute(uint64_t rid, const std::string& name, float min, float value, float max);
         void SetOwner(uint64_t rid, int64_t ownerUid);

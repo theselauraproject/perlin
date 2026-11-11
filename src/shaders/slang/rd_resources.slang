@@ -29,3 +29,42 @@ SAMPLER2D(s_lightmap, 2, 3);
 SAMPLER2D(s_sky, 22, 23);
 SAMPLER2D(s_uiTex, 24, 25);
 SAMPLER2D(s_uiGlint, 26, 27);
+
+// block atlas pages: a tile index past PERLIN_ATLAS_PAGE_LAYERS continues in the next page's texture array
+#define PERLIN_ATLAS_PAGE_LAYERS 2048.0
+SAMPLER2DARRAY(s_atlas2, 86, 87);
+SAMPLER2DARRAY(s_atlas3, 88, 89);
+SAMPLER2DARRAY(s_atlas4, 90, 91);
+
+float4 perlinAtlasLod(float3 uvl, float lod)
+{
+    // the layer arrives interpolated: round it before the split so 2047.9999 stays in the first page
+    float tile = floor(uvl.z + 0.5);
+    float page = floor(tile * (1.0 / PERLIN_ATLAS_PAGE_LAYERS));
+    float3 local = float3(uvl.xy, tile - page * PERLIN_ATLAS_PAGE_LAYERS);
+    if (page < 0.5)
+        return s_atlas.SampleLevel(s_atlas_s, local, lod);
+    if (page < 1.5)
+        return s_atlas2.SampleLevel(s_atlas2_s, local, lod);
+    if (page < 2.5)
+        return s_atlas3.SampleLevel(s_atlas3_s, local, lod);
+    return s_atlas4.SampleLevel(s_atlas4_s, local, lod);
+}
+
+float4 perlinAtlas(float3 uvl)
+{
+    // derivatives are taken before the page branch: they are undefined inside one
+    float2 gx = ddx(uvl.xy);
+    float2 gy = ddy(uvl.xy);
+    float tile = floor(uvl.z + 0.5);
+    float page = floor(tile * (1.0 / PERLIN_ATLAS_PAGE_LAYERS));
+    float3 local = float3(uvl.xy, tile - page * PERLIN_ATLAS_PAGE_LAYERS);
+    if (page < 0.5)
+        return s_atlas.SampleGrad(s_atlas_s, local, gx, gy);
+    if (page < 1.5)
+        return s_atlas2.SampleGrad(s_atlas2_s, local, gx, gy);
+    if (page < 2.5)
+        return s_atlas3.SampleGrad(s_atlas3_s, local, gx, gy);
+    return s_atlas4.SampleGrad(s_atlas4_s, local, gx, gy);
+}
+

@@ -22,6 +22,14 @@ struct Params
     uint root;
     uint interpCount;
     uint columnBase;
+    uint climateBase;
+    int minY;
+    uint height;
+    uint cellXz;
+    uint cellY;
+    int quartMinY;
+    uint quartLayers;
+    uint reserved0;
     uint reserved1;
 };
 
@@ -32,14 +40,13 @@ struct Params
 [[vk::binding(2, 0)]] RWStructuredBuffer<uint> corners;
 [[vk::binding(3, 0)]] RWStructuredBuffer<float> density;
 
-static const uint kNodeStride = 12;
+static const uint kNodeStride = 14;
 static const uint kLayerStride = 12;
 static const uint kBlendStride = 16;
-static const int kMinY = -64;
-static const uint kHeight = 384;
-// cell grid of a chunk: 4 blocks across, 8 up
-static const uint kCornersXz = 5;
-static const uint kCornersY = 49;
+#define kMinY (params.minY)
+#define kHeight (params.height)
+#define kCornersXz (16u / params.cellXz + 1u)
+#define kCornersY (params.height / params.cellY + 1u)
 
 // header words
 static const uint H_NODES = 0;
@@ -331,6 +338,117 @@ float blendedGet(uint index, int x, int y, int z)
     return r;
 }
 
+// ---- simplex and the end islands -------------------------------------------------------------------------------
+
+static const int2 kGrad2[12] = {
+    int2(1, 1), int2(-1, 1), int2(1, -1), int2(-1, -1), int2(1, 0), int2(-1, 0), int2(1, 0), int2(-1, 0),
+    int2(0, 1), int2(0, -1), int2(0, 1), int2(0, -1)
+};
+
+double simplexCorner(int g, double x, double y)
+{
+    precise double xx = x * x;
+    precise double yy = y * y;
+    precise double t0 = 0.5 - xx;
+    precise double t = t0 - yy;
+    if (t < 0.0)
+        return 0.0;
+    precise double t2 = t * t;
+    precise double t4 = t2 * t2;
+    precise double gx = double(kGrad2[g].x) * x;
+    precise double gy = double(kGrad2[g].y) * y;
+    precise double dot = gx + gy;
+    precise double r = t4 * dot;
+    return r;
+}
+
+float simplex2(uint perm, double xin, double yin)
+{
+    double kF2 = asdouble(0xd0b09954u, 0x3fd76cf5u);
+    double kG2 = asdouble(0x74df99c8u, 0x3fcb0cb1u);
+    precise double xy = xin + yin;
+    precise double s = xy * kF2;
+    int i = javaFloor(xin + s);
+    int j = javaFloor(yin + s);
+    precise double t = double(i + j) * kG2;
+    precise double X0 = double(i) - t;
+    precise double Y0 = double(j) - t;
+    precise double x0 = xin - X0;
+    precise double y0 = yin - Y0;
+    int i1 = x0 > y0 ? 1 : 0;
+    int j1 = x0 > y0 ? 0 : 1;
+    precise double x1a = x0 - double(i1);
+    precise double x1 = x1a + kG2;
+    precise double y1a = y0 - double(j1);
+    precise double y1 = y1a + kG2;
+    precise double g2x2 = 2.0 * kG2;
+    precise double x2a = x0 - 1.0;
+    precise double x2 = x2a + g2x2;
+    precise double y2a = y0 - 1.0;
+    precise double y2 = y2a + g2x2;
+    int ii = i & 255;
+    int jj = j & 255;
+    int g0 = permute(perm, ii + permute(perm, jj)) % 12;
+    int g1 = permute(perm, ii + i1 + permute(perm, jj + j1)) % 12;
+    int g2 = permute(perm, ii + 1 + permute(perm, jj + 1)) % 12;
+    precise double n01 = simplexCorner(g0, x0, y0) + simplexCorner(g1, x1, y1);
+    precise double n = n01 + simplexCorner(g2, x2, y2);
+    precise double r = 70.0 * n;
+    return float(r);
+}
+
+float fmodExact(float a, float b)
+{
+    double q = trunc(double(a) / double(b));
+    precise double prod = q * double(b);
+    precise double rem = double(a) - prod;
+    return float(rem);
+}
+
+float endIslands(uint perm, int bx, int bz)
+{
+    int sectionX = bx / 8;
+    int sectionZ = bz / 8;
+    int chunkX = sectionX / 2;
+    int chunkZ = sectionZ / 2;
+    int subX = sectionX % 2;
+    int subZ = sectionZ % 2;
+    float offs = -100.0f;
+    [loop]
+    for (int xo = -12; xo <= 12; xo++)
+    {
+        [loop]
+        for (int zo = -12; zo <= 12; zo++)
+        {
+            double tx = double(chunkX + xo);
+            double tz = double(chunkZ + zo);
+            precise double txx = tx * tx;
+            precise double tzz = tz * tz;
+            precise double d2 = txx + tzz;
+            if (d2 <= 4096.0)
+                continue;
+            if (!(simplex2(perm, tx, tz) < -0.9f))
+                continue;
+            precise float ax = abs(float(tx)) * 3439.0f;
+            precise float az = abs(float(tz)) * 147.0f;
+            precise float sum = ax + az;
+            precise float size = fmodExact(sum, 13.0f) + 9.0f;
+            float xd = float(subX - xo * 2);
+            float zd = float(subZ - zo * 2);
+            precise float xx = xd * xd;
+            precise float zz = zd * zd;
+            precise float dd = xx + zz;
+            float root = float(sqrt(double(dd)));
+            precise float scaled = root * size;
+            precise float v = 100.0f - scaled;
+            v = clampf(v, -100.0f, 80.0f);
+            offs = max(offs, v);
+        }
+    }
+    precise float shifted = offs - 8.0f;
+    return fdiv(shifted, 128.0f);
+}
+
 // ---- splines ------------------------------------------------------------------------------------------------------
 // a spline point's value is a constant or another spline, and shaders cannot recurse: one function per nesting level.
 // aux layout: [coordinate node, point count] then per point [location, derivative, nested?, constant bits or nested spline offset]
@@ -423,9 +541,9 @@ float interpolated(uint k)
 {
     if (g_fx == 0 && g_fy == 0 && g_fz == 0)
         return cornerAt(k, g_cx, g_cy, g_cz);
-    float tx = fdiv(float(g_fx), 4.0f);
-    float ty = fdiv(float(g_fy), 8.0f);
-    float tz = fdiv(float(g_fz), 4.0f);
+    float tx = fdiv(float(g_fx), float(params.cellXz));
+    float ty = fdiv(float(g_fy), float(params.cellY));
+    float tz = fdiv(float(g_fz), float(params.cellXz));
     float v000 = cornerAt(k, g_cx, g_cy, g_cz);
     float v100 = cornerAt(k, g_cx + 1, g_cy, g_cz);
     float v010 = cornerAt(k, g_cx, g_cy + 1, g_cz);
@@ -440,7 +558,7 @@ float interpolated(uint k)
 }
 
 // evaluates the nodes whose ids are listed at tables[listBase ...], in that order, for the block position p
-void evalNodes(int3 p, uint listBase, uint count)
+void evalNodes(int3 p0, uint listBase, uint count)
 {
     uint nodes = tables[H_NODES];
     uint orderBase = listBase;
@@ -449,6 +567,14 @@ void evalNodes(int3 p, uint listBase, uint count)
         uint n = tables[orderBase + s];
         uint b = nodes + n * kNodeStride;
         uint op = tables[b];
+        int3 p = p0;
+        uint ov = tables[b + 12];
+        if ((ov & 1u) != 0)
+            p.x = asint(tables[b + 13]);
+        if ((ov & 2u) != 0)
+            p.y = asint(tables[b + 13]);
+        if ((ov & 4u) != 0)
+            p.z = asint(tables[b + 13]);
         uint c1 = tables[b + 1], c2 = tables[b + 2], c3 = tables[b + 3];
         float r = 0.0f;
         // noise nodes (15 to 18) are handled before the switch, in one place: a single lookup call site keeps the compiled shader small, and
@@ -636,6 +762,46 @@ void evalNodes(int3 p, uint listBase, uint count)
         case 26: // old blended noise
             r = blendedGet(tables[b + 6], p.x, p.y, p.z);
             break;
+        case 28: // slice: the child was evaluated at the sliced position
+            r = g_vals[c1];
+            break;
+        case 29: // distance to point
+        {
+            precise float dx = float(asint(tables[b + 4]) - p.x);
+            precise float dy = float(asint(tables[b + 5]) - p.y);
+            precise float dz = float(asint(tables[b + 6]) - p.z);
+            uint metric = tables[b + 7];
+            if (metric == 1)
+            {
+                precise float a = dx * dx;
+                precise float bb = dy * dy;
+                precise float c = dz * dz;
+                precise float ab = a + bb;
+                precise float sum = ab + c;
+                r = sum;
+            }
+            else if (metric == 2)
+            {
+                precise float sum = abs(dx) + abs(dy);
+                precise float sum2 = sum + abs(dz);
+                r = sum2;
+            }
+            else if (metric == 3)
+                r = max(max(abs(dx), abs(dy)), abs(dz));
+            else
+            {
+                precise float a = dx * dx;
+                precise float bb = dy * dy;
+                precise float c = dz * dz;
+                precise float ab = a + bb;
+                precise float sum = ab + c;
+                r = float(sqrt(double(sum)));
+            }
+            break;
+        }
+        case 30: // end islands
+            r = endIslands(tables[b + 6], p.x, p.z);
+            break;
         default:
             break;
         }
@@ -751,7 +917,7 @@ void csMain(uint3 id : SV_DispatchThreadID)
         uint cx = q % kCornersXz;
         uint chunk = q / kCornersXz;
         int2 origin = chunks[chunk] * 16;
-        int3 p = int3(origin.x + int(cx) * 4, kMinY + int(cy) * 8, origin.y + int(cz) * 4);
+        int3 p = int3(origin.x + int(cx * params.cellXz), kMinY + int(cy * params.cellY), origin.y + int(cz * params.cellXz));
         evalNodes(p, tables[H_ORDER] + params.orderBegin, params.orderCount);
         uint at = (((chunk * kCornersXz + cx) * kCornersXz + cz) * kCornersY + cy) * params.interpCount;
         uint inputs = tables[H_INTERP];
@@ -770,12 +936,12 @@ void csMain(uint3 id : SV_DispatchThreadID)
         uint x = q % 16;
         uint chunk = q / 16;
         g_chunk = chunk;
-        g_cx = int(x >> 2);
-        g_cy = int(y >> 3);
-        g_cz = int(z >> 2);
-        g_fx = int(x & 3);
-        g_fy = int(y & 7);
-        g_fz = int(z & 3);
+        g_cx = int(x / params.cellXz);
+        g_cy = int(y / params.cellY);
+        g_cz = int(z / params.cellXz);
+        g_fx = int(x % params.cellXz);
+        g_fy = int(y % params.cellY);
+        g_fz = int(z % params.cellXz);
         int2 origin = chunks[chunk] * 16;
         int3 p = int3(origin.x + int(x), kMinY + int(y), origin.y + int(z));
         evalNodes(p, tables[H_ORDER] + params.orderBegin, params.orderCount);
@@ -812,6 +978,23 @@ void csMain(uint3 id : SV_DispatchThreadID)
         uint biome = findBiome();
         corners[params.columnBase + t * 2] = asuint(top);
         corners[params.columnBase + t * 2 + 1] = biome;
+    }
+    else if (params.phase == 4)
+    {
+        uint total = params.chunkCount * 16 * params.quartLayers;
+        if (t >= total)
+            return;
+        uint qy = t % params.quartLayers;
+        uint q = t / params.quartLayers;
+        uint column = q % 16;
+        uint chunk = q / 16;
+        int2 origin = chunks[chunk] * 16;
+        int3 site = int3(origin.x + int(column / 4) * 4, (params.quartMinY + int(qy)) * 4, origin.y + int(column % 4) * 4);
+        uint climate = tables[H_CLIMATE];
+        evalNodes(site, climate + 1, tables[climate]);
+        uint at = params.climateBase + t * 6;
+        for (uint i = 0; i < 6; i++)
+            corners[at + i] = asuint(quantizeClimate(g_vals[tables[climate + 1 + tables[climate] + i]]));
     }
     else
     {

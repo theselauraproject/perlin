@@ -43,8 +43,9 @@ strings and field usage, not from symbols.
   `sendContinuousPickHitResult`. These are event notifications, not the ray
   itself.
 - There are no strings for a bridging assist or air-targeting placement.
-  Whether the vanilla client builds against air next to a block is therefore
-  still unconfirmed.
+  The 26.60 build lambda (`0x143771570`) takes the click from the player's
+  `HitResult`: `mPos - BlockPos` on a block hit, `(0, 0, 0)` without one, so a
+  click that the look ray does not reach never comes from the vanilla client.
 
 ## Open questions
 

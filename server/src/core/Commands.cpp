@@ -104,7 +104,11 @@ namespace perlin::server {
             return {s.X(), s.Y() - kEye, s.Z()};
         }
 
+        thread_local const CommandOrigin* t_origin = nullptr;
+
         Vec Origin(Server& server, Session* source) {
+            if (t_origin)
+                return {t_origin->x, t_origin->y + (t_origin->eyes ? kEye : 0.0), t_origin->z};
             if (source)
                 return FeetOf(*source);
             return {server.SpawnX() + 0.5, server.SpawnY(), server.SpawnZ() + 0.5};
@@ -131,6 +135,18 @@ namespace perlin::server {
         }
 
         const char* kSelectorOptions = "name, distance, x, y, z, limit, sort, gamemode, type";
+    }
+
+    const CommandOrigin* ActiveOrigin() { return t_origin; }
+
+    OriginScope::OriginScope(const CommandOrigin& origin) : previous(t_origin), current(origin) { t_origin = &current; }
+
+    OriginScope::~OriginScope() { t_origin = previous; }
+
+    int CommandDimension(Session* source) {
+        if (t_origin)
+            return t_origin->dimension;
+        return source ? source->DimensionId() : 0;
     }
 
     bool ResolveSelector(Server& server, Session* source, const std::string& text, std::vector<Session*>& out,
@@ -199,7 +215,10 @@ namespace perlin::server {
         std::string sort = kind == 'p' ? "nearest" : kind == 'r' ? "random" : "arbitrary";
         std::vector<std::pair<bool, int>> modes; // (negated, mode)
         bool typeOk = true;
+        bool positional = kind == 'p';
         for (const auto& [key, value] : options) {
+            if (key == "distance" || key == "x" || key == "y" || key == "z")
+                positional = true;
             if (key == "name") {
                 haveName = true;
                 nameNegate = !value.empty() && value[0] == '!';
@@ -269,6 +288,10 @@ namespace perlin::server {
         }
         if (!typeOk)
             candidates.clear();
+        if (positional && kind != 's') {
+            const int dim = CommandDimension(source);
+            std::erase_if(candidates, [dim](Session* s) { return s->DimensionId() != dim; });
+        }
         std::vector<std::pair<double, Session*>> kept;
         for (Session* s : candidates) {
             if (haveName && ((s->Name() == nameFilter) == nameNegate))
@@ -467,8 +490,8 @@ namespace perlin::server {
             const Vec base = Origin(server, source);
             if (anyLocal) {
                 constexpr double kPi = 3.14159265358979323846;
-                const double yaw = (source ? source->Yaw() : 0.0) * kPi / 180.0,
-                             pitch = (source ? source->Pitch() : 0.0) * kPi / 180.0;
+                const double yaw = (t_origin ? t_origin->yaw : source ? source->Yaw() : 0.0) * kPi / 180.0,
+                             pitch = (t_origin ? t_origin->pitch : source ? source->Pitch() : 0.0) * kPi / 180.0;
                 // forward, left, and up = forward x left, for yaw 0 facing +z
                 const double fx = -std::sin(yaw) * std::cos(pitch), fy = -std::sin(pitch),
                              fz = std::cos(yaw) * std::cos(pitch);
@@ -630,9 +653,18 @@ namespace perlin::server {
                                                  full == "minecraft:void_air")) {
                     v.text = "minecraft:air";
                     v.index = 0;
+                    v.block = 0;
                     break;
                 }
                 const CatalogItem* item = BlockCatalog::Instance().ItemByName(full);
+                if (p.kind == ArgKind::Block && (!item || !item->block) && BlockCatalog::Instance().Knows(full)) {
+                    v.text = full;
+                    v.index = -1;
+                    std::string states = cut != std::string::npos && t.text[cut] == '[' ? t.text.substr(cut) : std::string();
+                    std::erase(states, '"');
+                    v.block = BlockCatalog::Instance().Resolve(full + states);
+                    break;
+                }
                 if (!item || (p.kind == ArgKind::Block && !item->block)) {
                     st.status = 1;
                     st.error =
@@ -642,6 +674,12 @@ namespace perlin::server {
                 }
                 v.text = full;
                 v.index = item->networkId;
+                if (p.kind == ArgKind::Block) {
+                    std::string states = cut != std::string::npos && t.text[cut] == '[' ? t.text.substr(cut) : std::string();
+                    std::erase(states, '"');
+                    v.block = states.empty() ? BlockCatalog::Instance().RegistryId(item->blockHash)
+                                             : BlockCatalog::Instance().Resolve(full + states);
+                }
                 break;
             }
             case ArgKind::Biome: {

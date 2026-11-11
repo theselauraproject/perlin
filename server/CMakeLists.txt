@@ -25,6 +25,7 @@ option(PERLIN_SERVER_BUILD_EXE "build the perlin-server executable" ON)
 option(PERLIN_SERVER_BUILD_TESTS "build the server tests" ${PERLIN_SERVER_STANDALONE})
 
 get_filename_component(PERLIN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+include("${PERLIN_ROOT}/mods/cmake/PerlinApi.cmake")
 include(FetchContent)
 find_package(Threads REQUIRED)
 
@@ -74,10 +75,12 @@ set(PS_SOURCES
     src/core/Json.cpp
     src/core/Log.cpp
     src/core/Server.cpp
+    src/core/ServerPlugins.cpp
     src/inventory/Inventory.cpp
     src/net/Batch.cpp
     src/net/Connection.cpp
     src/net/LoopbackListener.cpp
+    src/net/RakNetListener.cpp
     src/plugin/PluginHost.cpp
     src/session/Session.cpp
     src/world/Backends.cpp
@@ -86,7 +89,11 @@ set(PS_SOURCES
     src/world/Chunk.cpp
     src/world/ChunkManager.cpp
     src/world/Mobs.cpp
+    src/world/Loot.cpp
+    src/world/LootData.cpp
     src/core/ServerContainers.cpp
+    src/core/ServerPortals.cpp
+    src/core/CommandExecute.cpp
     src/inventory/Recipes.cpp
     src/inventory/RecipeData.cpp
     src/world/MobData.cpp
@@ -95,21 +102,25 @@ set(PS_SOURCES
     src/world/vanilla/DensityFunction.cpp
     src/world/vanilla/Noise.cpp
     src/world/vanilla/VanillaTerrain.cpp
+    src/world/vanilla/VanillaDimension.cpp
     src/world/vanilla/OverworldShapeData.cpp
     src/world/vanilla/BiomeData.cpp
     src/world/vanilla/VanillaSurface.cpp
     src/world/vanilla/VanillaAquifer.cpp
     src/world/vanilla/VanillaMaterials.cpp
-    src/world/vanilla/VanillaCarvers.cpp
+    src/world/vanilla/VanillaCarvers.cpp src/world/vanilla/VanillaDimension.cpp
     src/world/vanilla/VanillaFeatures.cpp
     src/world/vanilla/FeatureData.cpp
     src/world/vanilla/JavaDecorator.cpp
     src/world/vanilla/JavaFeatureData.cpp
     src/gpu/VanillaGpuProgram.cpp)
 
-# wasm runtime: wasm3 through the client's own wrapper (WasmRuntimeWasm3.cpp), so plugins behave the same.
-# it is plain c with no dependencies, which keeps it safe to link into a shared library next to the client's WasmEdge
-if(TRUE)
+# wasm runtime: WasmEdge (wasm64 and wasm32) when the client build provides it, otherwise wasm3 (wasm32 only), both through mods/host
+option(PERLIN_SERVER_WASM3 "Run server plugins on wasm3 (32-bit modules only) even when WasmEdge is available" OFF)
+if(TARGET perlin_wasmedge AND NOT PERLIN_SERVER_WASM3)
+    set(PS_WASM_SOURCES ${PERLIN_API_HOST_WASMEDGE_SOURCES} ${PERLIN_API_HOST_CORE_SOURCES})
+    set(PS_WASM_LIB perlin_wasmedge)
+else()
     if(NOT TARGET wasm3_core)
         FetchContent_Declare(wasm3 GIT_REPOSITORY https://github.com/wasm3/wasm3.git GIT_TAG 28ecb9af6d2040e474a70f7cb7f43666740141fb)
         FetchContent_GetProperties(wasm3)
@@ -127,7 +138,7 @@ if(TRUE)
         target_compile_options(wasm3_core PRIVATE -w)
         set_target_properties(wasm3_core PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 11)
     endif()
-    set(PS_WASM_SOURCES "${PERLIN_ROOT}/src/client/mods/WasmRuntimeWasm3.cpp")
+    set(PS_WASM_SOURCES ${PERLIN_API_HOST_WASM3_SOURCES} ${PERLIN_API_HOST_CORE_SOURCES})
     set(PS_WASM_LIB wasm3_core)
 endif()
 
@@ -208,7 +219,7 @@ if(PERLIN_SERVER_EMBED)
     list(APPEND PS_LIBS perlin_server_embed)
 endif()
 foreach(t perlin_server_objects ${PS_LIBS})
-    target_include_directories(${t} PUBLIC "${PERLIN_ROOT}/mods/sdk" include PRIVATE src "${PERLIN_ROOT}/src")
+    target_include_directories(${t} PUBLIC ${PERLIN_API_INCLUDE_DIRS} include PRIVATE src "${PERLIN_ROOT}/src")
     target_compile_features(${t} PUBLIC cxx_std_23)
     set_target_properties(${t} PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
     target_compile_definitions(${t} PRIVATE PERLIN_SERVER_BUILD_SHARED "PERLIN_SERVER_RESOURCE_DIR=\"${PERLIN_ROOT}/resources\"")
@@ -217,11 +228,17 @@ foreach(t perlin_server_objects ${PS_LIBS})
         # the client builds libdatachannel static (position independent) and shared; the static one keeps the library self contained
         if(TARGET datachannel-static)
             target_link_libraries(${t} PUBLIC datachannel-static OpenSSL::SSL)
+            # same httplib macros as the client: these objects are linked into it, and a header-only class
+            # built with different macros breaks every inline copy the linker keeps (one definition rule)
+            target_compile_definitions(${t} PRIVATE PERLIN_SERVER_HAS_SSL CPPHTTPLIB_OPENSSL_SUPPORT)
+            if(APPLE AND NOT IOS)
+                target_compile_definitions(${t} PRIVATE CPPHTTPLIB_USE_CERTS_FROM_MACOSX_KEYCHAIN)
+                target_link_libraries(${t} PUBLIC "-framework Security" "-framework CoreFoundation")
+            endif()
         else()
             target_link_libraries(${t} PUBLIC datachannel)
         endif()
         target_include_directories(${t} PRIVATE "${httplib_SOURCE_DIR}")
-        target_compile_definitions(${t} PRIVATE CPPHTTPLIB_THREAD_POOL_COUNT=16)
     endif()
     if(PERLIN_SERVER_GPU)
         target_link_libraries(${t} PUBLIC conduit::conduit)
@@ -239,7 +256,7 @@ foreach(t perlin_server_objects ${PS_LIBS})
 endforeach()
 # float results must match java's strict ieee arithmetic bit for bit: no fused multiply-add
 if(NOT MSVC)
-    set_source_files_properties(src/world/vanilla/Noise.cpp src/world/vanilla/DensityFunction.cpp src/world/vanilla/VanillaTerrain.cpp src/world/vanilla/VanillaSurface.cpp src/world/vanilla/VanillaAquifer.cpp src/world/vanilla/VanillaMaterials.cpp src/world/vanilla/VanillaCarvers.cpp
+    set_source_files_properties(src/world/vanilla/Noise.cpp src/world/vanilla/DensityFunction.cpp src/world/vanilla/VanillaTerrain.cpp src/world/vanilla/VanillaSurface.cpp src/world/vanilla/VanillaAquifer.cpp src/world/vanilla/VanillaMaterials.cpp src/world/vanilla/VanillaCarvers.cpp src/world/vanilla/VanillaDimension.cpp
     src/gpu/VanillaGpuProgram.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 endif()
 
@@ -281,7 +298,7 @@ if(PERLIN_SERVER_BUILD_TESTS)
 
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
         COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/examples/hello_server/build.sh" "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm"
-        DEPENDS examples/hello_server/hello_server.c ${PERLIN_ROOT}/mods/sdk/perlin.h ${PERLIN_ROOT}/mods/sdk/perlin/abi_table.h examples/hello_server/build.sh
+        DEPENDS examples/hello_server/hello_server.c ${PERLIN_ROOT}/mods/sdk/perlin.h ${PERLIN_ROOT}/mods/sdk/perlin_abi.h examples/hello_server/build.sh
         COMMENT "Building the example plugin" VERBATIM)
     add_custom_target(server_example_plugin DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/hello_server.wasm")
 

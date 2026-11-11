@@ -15,7 +15,16 @@ namespace perlin::server::vanilla {
         using Temperature = std::function<float(int biome, int x, int y, int z)>;
         using BiomeAt = std::function<int(int x, int y, int z)>;
 
+        struct Options {
+            std::string rules = "overworld";
+            int seaLevel = 63;
+        int genMinY = -64, genMaxY = 319;
+            int minY = -64, height = 384;
+            std::string defaultBlock;
+            DfPtr preliminary;
+        };
         static std::unique_ptr<VanillaMaterials> Load(const DataPack& pack, DensityGraph& graph, int seaLevel);
+        static std::unique_ptr<VanillaMaterials> Load(const DataPack& pack, DensityGraph& graph, const Options& options);
         ~VanillaMaterials();
 
         void Apply(int chunkX, int chunkZ, const uint8_t* biomes, uint16_t* blocks, const Temperature& temperature,
@@ -40,10 +49,11 @@ namespace perlin::server::vanilla {
         std::vector<Cond> conds;
         int root = -1;
         int seaLevel = 63;
+        int genMinY = -64, genMaxY = 319;
         uint16_t stone = 0, water = 0, lava = 0, packedIce = 0, snowBlock = 0;
         std::array<uint16_t, 192> bands{};
-        Xoroshiro::Factory noiseRandom;
-        Xoroshiro::Factory oreRandom;
+        WorldRandom::Factory noiseRandom;
+        WorldRandom::Factory oreRandom;
         const NormalNoise* surfaceNoise = nullptr;
         const NormalNoise* surfaceSecondary = nullptr;
         const NormalNoise* bandOffset = nullptr;

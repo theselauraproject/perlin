@@ -8,12 +8,18 @@
 #include <cmath>
 
 namespace perlin::ui {
+    std::string MenuBackdropRml(bool panorama) {
+        // menu_background.png: flat black at alpha 64 over the blurred panorama
+        if (panorama)
+            return R"(<div style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; background-color: #00000040;"></div>)";
+        return R"(<mcimg src="textures/blocks/dirt" tiled="1" tilescale="{{tile_scale}}" color="0.25 0.25 0.25" style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;"></mcimg>)";
+    }
+
     std::string DefaultLoadingScreenTemplate() {
         return R"PERLINRML(<rml>
 <head>
 <title>loading</title>
 <style>
-/* Edit this file while the game runs: it is reloaded when it changes. {{name}} placeholders are filled in by Perlin. */
 body { position: absolute; left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; margin: 0; padding: 0; background: transparent; }
 div { display: block; position: absolute; }
 mcimg { display: block; position: absolute; }
@@ -36,7 +42,7 @@ mcimg { display: block; position: absolute; }
 </style>
 </head>
 <body>
-  <mcimg src="textures/blocks/dirt" tiled="1" tilescale="{{tile_scale}}" color="0.25 0.25 0.25" style="left: 0px; top: 0px; width: {{w}}px; height: {{h}}px;"></mcimg>
+  {{backdrop}}
   <div id="title">{{title}}</div>
   <div id="message">{{message}}</div>
   <div id="track"><div id="fill"></div></div>
@@ -59,6 +65,7 @@ mcimg { display: block; position: absolute; }
         const int detailY = bar ? barY + 10 : msgY + 14;
         const int btnY = std::min(guiH - 24, detailY + 36 + (t.warning.empty() ? 0 : 32));
         std::string d = templateText;
+        ReplaceAll(d, "backdrop", MenuBackdropRml(t.panorama));
         ReplaceAll(d, "w", std::to_string(guiW));
         ReplaceAll(d, "h", std::to_string(guiH));
         ReplaceAll(d, "tile_scale", "2");
@@ -118,7 +125,7 @@ div { display: block; position: absolute; }
         const auto N = [](int v) { return std::to_string(v); };
         const int barW = std::min(guiW - 40, 240);
         const int x = (guiW - barW) / 2;
-        const int rowsH = static_cast<int>(t.rows.size()) * 34;
+        const int rowsH = static_cast<int>(t.rows.size()) * 42;
         const bool buttons = !t.retry.empty() || !t.skip.empty();
         const int contentH = 28 + rowsH + (buttons ? 30 : 0);
         int y = std::max(10, (guiH - contentH) / 2);
@@ -134,7 +141,7 @@ div { display: block; position: absolute; }
             d += "<div class=\"t\" style=\"left:" + N(x) + "px;top:" + N(y) + "px;width:" + N(barW) +
                  "px;\">" + EscapeRml(r.label) + "</div>\n";
             d += "<div class=\"t" + std::string(r.failed ? " bad" : " dim") + "\" style=\"left:" + N(x) +
-                 "px;top:" + N(y) + "px;width:" + N(barW) + "px;text-align:right;\">" + EscapeRml(r.status) +
+                 "px;top:" + N(y + 20) + "px;width:" + N(barW) + "px;text-align:right;\">" + EscapeRml(r.status) +
                  "</div>\n";
             const int by = y + 12;
             d += "<div style=\"left:" + N(x) + "px;top:" + N(by) + "px;width:" + N(barW) +
@@ -152,7 +159,7 @@ div { display: block; position: absolute; }
                 d += "<div style=\"left:" + N(gx) + "px;top:" + N(by + 1) + "px;width:" + N(gw) +
                      "px;height:3px;background-color:" + fill + ";\"></div>\n";
             }
-            y += 34;
+            y += 42;
         }
         if (buttons) {
             const bool both = !t.retry.empty() && !t.skip.empty();

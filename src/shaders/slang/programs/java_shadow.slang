@@ -2401,7 +2401,7 @@ void stageMain() {
     sunVec = GetSunVector();
     SdotU = dot(sunVec, upVec);
     sunVisibility = clamp(SdotU + 0.0625, 0.0, 0.125) / 0.125;
-    vec4 color1 = texture2DArrayLod(s_atlas, float3(texCoord, jLayer), 0); // Shadow Color
+    vec4 color1 = perlinAtlasLod(float3(texCoord, jLayer), 0); // Shadow Color
 
 
     if (entityId > 0) {

@@ -125,6 +125,7 @@ namespace perlin::material {
         std::vector<std::string> list;
         if (const Json* v = json.Find("defines")) {
             def.defines.clear();
+            def.removedDefines.clear();
             list.clear();
             StringList(v, list);
             def.defines.insert(list.begin(), list.end());
@@ -132,10 +133,14 @@ namespace perlin::material {
         list.clear();
         StringList(json.Find("+defines"), list);
         def.defines.insert(list.begin(), list.end());
+        for (const std::string& d : list)
+            def.removedDefines.erase(d);
         list.clear();
         StringList(json.Find("-defines"), list);
-        for (const std::string& d : list)
+        for (const std::string& d : list) {
             def.defines.erase(d);
+            def.removedDefines.insert(d);
+        }
 
         if (const Json* v = json.Find("states")) {
             def.states.clear();

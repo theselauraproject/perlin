@@ -1,4 +1,5 @@
 #include "client/entity/EntityRenderer.hpp"
+#include "world/level/block/BlockPalette.hpp"
 #include "client/entity/CapeGeometry.inc"
 #include "client/entity/CapePhysics.hpp"
 
@@ -72,8 +73,6 @@ namespace perlin::entity {
                 const float b = std::asin(std::clamp(-fit[0][2], -1.0f, 1.0f));
                 const float cc = std::atan2(fit[1][2], fit[2][2]);
                 const float a = std::atan2(fit[0][1], fit[0][0]);
-                // fit = Rz(a) Ry(b) Rx(cc); EulerZYX(v) is Rz(zs * v.z) Ry(v.y) Rx(-v.x), so v.y is +b. (The
-                // sign was flipped before, which mirrored the head's yaw while crouching: the "weird turn".)
                 const glm::vec3 euler(-glm::degrees(cc), glm::degrees(b), glm::degrees(a) / zs);
                 x.rotation = euler - restOf(name);
                 const glm::mat3 r(attachable::EulerZYX(euler));
@@ -156,14 +155,6 @@ namespace perlin::entity {
     struct EntityRenderer::View {
         bool init = false;
         glm::dvec3 pos{0.0}, lastPos{0.0};
-        struct Sample {
-            double t = 0;
-            glm::dvec3 pos{0.0};
-            float yaw = 0, headYaw = 0, pitch = 0;
-        };
-        std::deque<Sample> samples;
-        double interval = 0.05, jitter = 0.0, delay = 0.1;
-        double lastArrival = 0;
         float yaw = 0, headYaw = 0, pitch = 0;
         uint32_t moveSerial = 0, hurtSerial = 0, swingSerial = 0;
         float limbSwing = 0, limbAmount = 0;
@@ -184,6 +175,9 @@ namespace perlin::entity {
         double born = 0, lastSeen = 0, now = 0;
         float dt = 0;
         float animTime = 0;
+        // projectiles point along their flight: kept between ticks, a stuck one keeps its last heading
+        float flightYaw = 0, flightPitch = 0;
+        bool flightKnown = false;
         float glideTime = 0, yawSpeed = 0, standAmount = 0, sitAmount = 0, swimAmount = 0, lieAmount = 0,
               swellAmount = 0;
         molang::Scope scope;
@@ -191,6 +185,8 @@ namespace perlin::entity {
         struct AnimStamp {
             double start = 0;
             uint32_t seen = 0;
+            // the animation's clock last frame (-1 before its first): particle cues fire as it passes them
+            double last = -1.0;
         };
         std::unordered_map<std::string, AnimStamp> animStart;
         uint32_t animEpoch = 0;
@@ -245,17 +241,22 @@ namespace perlin::entity {
     }
 
     glm::dvec3 EntityRenderer::SeatPosition(const Entity& v, bool playerRider) const {
+        return SeatPosition(v, playerRider, v.pos, v.yaw);
+    }
+
+    glm::dvec3 EntityRenderer::SeatPosition(const Entity& v, bool playerRider, glm::dvec3 pos,
+                                            float yaw) const {
         float sx = 0, sy = 0, sz = 0;
         if (!assets.Seat(v.type, sx, sy, sz))
             sy = -0.2f;
-        const double yawRad = glm::radians(static_cast<double>(v.yaw));
+        const double yawRad = glm::radians(static_cast<double>(yaw));
         const glm::dvec3 forward(-std::sin(yawRad), 0.0, std::cos(yawRad)),
             side(std::cos(yawRad), 0.0, std::sin(yawRad));
         const bool rails = v.type.contains("boat") || v.type.contains("minecart");
         double lift = rails ? 0.1 : 0.0;
         if (playerRider && !rails)
             lift -= v.type == "minecraft:cushion" ? 0.35 : 0.6;
-        return v.pos + side * static_cast<double>(sx) + forward * static_cast<double>(sz) +
+        return pos + side * static_cast<double>(sx) + forward * static_cast<double>(sz) +
                glm::dvec3(0.0, sy + lift, 0.0);
     }
 
@@ -271,17 +272,21 @@ namespace perlin::entity {
                 continue;
             const Entity& v = entities[it->second];
             const bool rails = v.type.contains("boat") || v.type.contains("minecart");
-            e.pos = SeatPosition(v, e.isPlayer);
+            // both ends of the tick: riders are drawn between prevPos and pos, a raw prevPos left here would
+            // make them flicker between the seat and wherever the server last placed them
+            e.pos = SeatPosition(v, e.isPlayer, v.pos, v.yaw);
+            e.prevPos = SeatPosition(v, e.isPlayer, v.prevPos, v.prevYaw);
             e.flags |= flag::Riding;
             e.onGround = true;
-            if (rails)
+            if (rails) {
                 e.yaw = v.yaw;
+                e.prevYaw = v.prevYaw;
+            }
         }
     }
 
     std::pair<float, float> EntityRenderer::HitBox(const Entity& e) const {
         const float scale = e.scale > 0.0f ? e.scale : 1.0f;
-        // server's bounding box wins: metadata BOUNDINGBOX_WIDTH/HEIGHT is what it collides and raycasts with
         if (e.boxWidth > 0.0f && e.boxHeight > 0.0f)
             return {e.boxWidth * scale, e.boxHeight * scale};
         if (e.isPlayer)
@@ -293,7 +298,8 @@ namespace perlin::entity {
         float w, h;
         if (assets.CollisionBox(e.type, w, h))
             return {w * scale, h * scale};
-        return {0.6f, 1.0f};
+        // no server box and no definition: minecraft:collision_box defaults to 0.6 x 1.8 (0x142EBA9A0)
+        return {0.6f * scale, 1.8f * scale};
     }
 
     void EntityRenderer::ClearCaches() {
@@ -439,7 +445,6 @@ namespace perlin::entity {
     }
 
     void EntityRenderer::TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw) {
-        // v.yaw holds the server yaw here: what a ridden vehicle turns the body toward
         v.yaw =
             v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
         v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / std::max(dt, 0.001f);
@@ -468,63 +473,25 @@ namespace perlin::entity {
                                 e.type == "minecraft:small_fireball" ||
                                 e.type == "minecraft:shulker_bullet" || e.type == "minecraft:llama_spit" ||
                                 e.type == "minecraft:dragon_fireball";
-        const bool buffered = !e.isSelf && !projectile;
+        // projectiles draw between the last two ticks like everything else: easing toward the newest position
+        // trailed a fast arrow several blocks behind where it really was
+        const bool buffered = !e.isSelf;
         const double follow = e.isSelf ? 1.0 : 1.0 - std::exp(-static_cast<double>(dt) / 0.06);
         v.lastPos = v.pos;
         const float prevYaw = v.yaw;
         glm::dvec3 d = e.pos - v.pos;
         if (buffered) {
-            if (v.samples.empty() || v.samples.back().pos != e.pos || v.samples.back().yaw != e.yaw ||
-                v.samples.back().headYaw != e.headYaw || v.samples.back().pitch != e.pitch) {
-                if (!v.samples.empty() && glm::length(e.pos - v.samples.back().pos) > 12.0) {
-                    v.samples.clear();
-                    v.pos = e.pos;
-                    v.lastPos = e.pos;
-                    v.yaw = e.yaw;
-                    v.headYaw = e.headYaw;
-                    v.pitch = e.pitch;
-                    v.lastArrival = 0;
-                }
-                if (v.lastArrival > 0) {
-                    const double gap = std::clamp(in.time - v.lastArrival, 0.005, 0.5);
-                    const double dev = std::fabs(gap - v.interval);
-                    v.interval += (gap - v.interval) * 0.1;
-                    v.jitter += (dev - v.jitter) * 0.1;
-                }
-                v.lastArrival = in.time;
-                v.samples.push_back({in.time, e.pos, e.yaw, e.headYaw, e.pitch});
-                while (v.samples.size() > 64)
-                    v.samples.pop_front();
-            }
-            const double wantDelay = std::clamp(v.interval * 1.25 + v.jitter * 2.0, 0.06, 0.25);
-            v.delay += (wantDelay - v.delay) * std::min(1.0, static_cast<double>(dt) * 2.0);
-            const double renderT = in.time - v.delay;
-            while (v.samples.size() > 2 && v.samples[1].t <= renderT)
-                v.samples.pop_front();
-            if (v.samples.size() >= 2 && renderT >= v.samples[0].t) {
-                const auto& a = v.samples[0];
-                const auto& b = v.samples[1];
-                const double span = b.t - a.t;
-                const double f = span > 1e-6 ? std::clamp((renderT - a.t) / span, 0.0, 1.0) : 1.0;
-                v.pos = a.pos + (b.pos - a.pos) * f;
-                const auto mix = [&](float x, float y) {
-                    return x + WrapDegrees(y - x) * static_cast<float>(f);
-                };
-                v.yaw = mix(a.yaw, b.yaw);
-                v.headYaw = mix(a.headYaw, b.headYaw);
-                v.pitch = a.pitch + WrapDegrees(b.pitch - a.pitch) * static_cast<float>(f);
-            } else if (v.samples.size() >= 2) {
-                v.pos = v.samples[0].pos;
-            } else if (!v.samples.empty()) {
-                const double catchUp = 1.0 - std::exp(-static_cast<double>(dt) / 0.06);
-                v.pos += (v.samples.back().pos - v.pos) * catchUp;
-                const auto turnTo = [&](float cur, float target) {
-                    return cur + WrapDegrees(target - cur) * static_cast<float>(catchUp);
-                };
-                v.yaw = turnTo(v.yaw, v.samples.back().yaw);
-                v.headYaw = turnTo(v.headYaw, v.samples.back().headYaw);
-                v.pitch += WrapDegrees(v.samples.back().pitch - v.pitch) * static_cast<float>(catchUp);
-            }
+            // the tracker moves actors once per tick like MovementInterpolatorSystem::tickClient; draw between the
+            // last two ticks so the drawn body is the one our hits are tested against
+            const double a = std::clamp(static_cast<double>(in.partialTick), 0.0, 1.0);
+            const glm::dvec3 step = e.pos - e.prevPos;
+            v.pos = glm::dot(step, step) > 144.0 ? e.pos : e.prevPos + step * a;
+            const auto mix = [&](float from, float to) {
+                return from + WrapDegrees(to - from) * static_cast<float>(a);
+            };
+            v.yaw = mix(e.prevYaw, e.yaw);
+            v.headYaw = mix(e.prevHeadYaw, e.headYaw);
+            v.pitch = mix(e.prevPitch, e.pitch);
             v.yawSpeed = WrapDegrees(v.yaw - prevYaw) / dt;
         } else {
             v.pos = glm::length(d) > 24.0 ? e.pos : v.pos + d * follow;
@@ -536,16 +503,27 @@ namespace perlin::entity {
             v.headYaw = turn(v.headYaw, e.headYaw);
             v.pitch = v.pitch + WrapDegrees(e.pitch - v.pitch) * static_cast<float>(follow);
         }
-        // velocity-aligned flight: arrows, tridents and lobbed bottles alike
         if (projectile) {
-            const double len = glm::length(d);
-            if (len > 0.04) {
-                const float targetYaw = static_cast<float>(std::atan2(-d.x, d.z) * 180.0 / 3.14159265358979);
-                const float targetPitch = static_cast<float>(-std::asin(std::clamp(d.y / len, -1.0, 1.0)) *
+            const glm::dvec3 flight = e.pos - e.prevPos;
+            const double len = glm::length(flight);
+            if (len > 0.01 && len < 16.0) {
+                const float targetYaw = static_cast<float>(std::atan2(-flight.x, flight.z) * 180.0 / 3.14159265358979);
+                const float targetPitch = static_cast<float>(-std::asin(std::clamp(flight.y / len, -1.0, 1.0)) *
                                                              180.0 / 3.14159265358979);
-                const float aim = 1.0f - std::exp(-dt / 0.03f);
-                v.yaw = v.yaw + WrapDegrees(targetYaw - v.yaw) * aim;
-                v.pitch = v.pitch + (targetPitch - v.pitch) * aim;
+                if (!v.flightKnown) {
+                    v.flightYaw = targetYaw;
+                    v.flightPitch = targetPitch;
+                    v.flightKnown = true;
+                } else {
+                    // a short ease hides the tick-to-tick jitter of the heading without lagging a turn
+                    const float aim = 1.0f - std::exp(-dt / 0.02f);
+                    v.flightYaw += WrapDegrees(targetYaw - v.flightYaw) * aim;
+                    v.flightPitch += (targetPitch - v.flightPitch) * aim;
+                }
+            }
+            if (v.flightKnown) {
+                v.yaw = v.flightYaw;
+                v.pitch = v.flightPitch;
             }
             v.headYaw = v.yaw;
             v.yawSpeed = 0.0f;
@@ -656,7 +634,6 @@ namespace perlin::entity {
         }
         if (static const char* forced = PERLIN_ENV("PERLIN_PREVIEW_ATTACK"); forced && e.isSelf)
             v.attackTime = static_cast<float>(std::atof(forced));
-        // own swing: the hand state, stepped per tick like Mob::updateAttackAnim 0x142c2d060
         else if (e.isSelf && in.ownAttackTime >= 0.0f)
             v.attackTime = in.ownAttackTime;
         else if (v.attackTime > 0) {
@@ -701,6 +678,25 @@ namespace perlin::entity {
             return it->second.start;
         };
         EntityHost* host = static_cast<EntityHost*>(scope.host);
+        // a cue names an effect through the entity's particle_effects map; at a locator if the model has it, else the
+        // actor's position. the locator is placed like the model: pixels to blocks, scaled, mirrored z, turned by yaw
+        const auto fire = [&](const attachable::ParticleCue& cue) {
+            const auto fx = def.particleEffects.find(LowerCase(cue.effect));
+            if (fx == def.particleEffects.end() || v.fp)
+                return;
+            glm::dvec3 at = v.pos;
+            if (!cue.locator.empty() && bindGeometry)
+                if (const auto loc = bindGeometry->locators.find(LowerCase(cue.locator));
+                    loc != bindGeometry->locators.end()) {
+                    const float scale = e.scale > 0.0f ? e.scale : 1.0f;
+                    const glm::vec3 local = loc->second / 16.0f * scale * glm::vec3(1.0f, 1.0f, -1.0f);
+                    const float yaw = glm::radians(-v.yaw);
+                    const float c = std::cos(yaw), s = std::sin(yaw);
+                    at += glm::dvec3(c * local.x + s * local.z, local.y, -s * local.x + c * local.z);
+                }
+            if (particleRequests.size() < 256)
+                particleRequests.push_back({fx->second, at, cue.preScript});
+        };
 
         std::function<void(const std::string&, float, int, const std::string&)> run;
         std::function<void(const std::string&, float, int, const std::string&)> runId;
@@ -713,10 +709,15 @@ namespace perlin::entity {
             runId(found->second, weight, depth, path);
         };
         runId = [&](const std::string& id, float weight, int depth, const std::string& path) {
+            // the draw turns these models to the camera itself; running the animation too would turn them twice
+            if (id == "animation.actor.billboard")
+                return;
             if (weight == 0.0f || depth > 4)
                 return;
             if (const auto* controller = assets.animations.FindController(id)) {
                 auto& cs = v.ctrl[path + id];
+                const std::string stateBefore = cs.state;
+                const bool startedBefore = cs.started;
                 attachable::StartController(*controller, scope, cs.state, cs.entered, cs.started, now);
                 std::string key;
                 if (const auto st = controller->states.find(cs.state); st != controller->states.end()) {
@@ -751,6 +752,10 @@ namespace perlin::entity {
                 const auto st = controller->states.find(cs.state);
                 if (st == controller->states.end())
                     return;
+                // entering a state starts its particle_effects
+                if (!startedBefore || cs.state != stateBefore)
+                    for (const attachable::ParticleCue& cue : st->second.particles)
+                        fire(cue);
                 if (PERLIN_ENV("PERLIN_POSE_DEBUG"))
                     Log("ctrl", "{} state {}", id, cs.state);
                 const std::string childPath = path + id + "/" + cs.state + "/";
@@ -775,6 +780,19 @@ namespace perlin::entity {
                     since = std::min(since, static_cast<double>(a->length));
             }
             host->animTime = static_cast<float>(since);
+            if (!a->particles.empty()) {
+                // fire every cue the clock passed since last frame; a loop that wrapped passes the end and the start
+                View::AnimStamp& stamp = v.animStart[path + id];
+                const double prev = stamp.last;
+                for (const auto& [time, cue] : a->particles) {
+                    const bool passed = prev < 0.0      ? time <= since
+                                        : since >= prev ? time > prev && time <= since
+                                                        : time > prev || time <= since;
+                    if (passed)
+                        fire(cue);
+                }
+                stamp.last = since;
+            }
             if (PERLIN_ENV("PERLIN_POSE_DEBUG"))
                 Log("anim", "{} {} w={}", e.type, id, weight);
             attachable::Apply(*a, scope, static_cast<float>(since), weight, pose, restRotation,
@@ -941,8 +959,9 @@ namespace perlin::entity {
                 Log("pose", "{} {} rot {},{},{} pos {},{},{}", e.type, bn, xf.rotation.x, xf.rotation.y,
                     xf.rotation.z, xf.position.x, xf.position.y, xf.position.z);
         if (e.isPlayer && e.Has(flag::Riding) && v.swimAmount < 0.01f && v.lieAmount < 0.01f) {
-            pose["rightleg"].rotation = {-81.0f, -18.0f, -4.5f};
-            pose["leftleg"].rotation = {-81.0f, 18.0f, 4.5f};
+            // animation.player.riding.legs: absolute ("- this"), feet spread outward
+            pose["rightleg"].rotation = {-81.0f, 18.0f, 0.0f};
+            pose["leftleg"].rotation = {-81.0f, -18.0f, 0.0f};
             pose["rightarm"].rotation.x += -36.0f;
             pose["leftarm"].rotation.x += -36.0f;
         }
@@ -1163,6 +1182,33 @@ namespace perlin::entity {
                 }
             }
             layer.translucent = rc->translucent;
+            layer.ignoreLighting = rc->ignoreLighting;
+            layer.lightMultiplier = rc->lightMultiplierExpr
+                                        ? static_cast<float>(rc->lightMultiplierExpr->Number(v.scope))
+                                        : rc->lightMultiplier;
+            const auto rgba = [&](const ExprPtr* exprs, float* out, float fallback) {
+                for (int i = 0; i < 4; i++) {
+                    v.scope.thisValue = fallback;
+                    out[i] = exprs[i] ? static_cast<float>(exprs[i]->Number(v.scope)) : fallback;
+                }
+            };
+            if (rc->hasOverlay) {
+                rgba(rc->overlay, layer.overlay, 0.0f);
+                layer.hasOverlay = true;
+            }
+            if (rc->hasHurtColor)
+                rgba(rc->hurtColor, layer.hurtColor, 0.0f);
+            if (rc->hasFireColor) {
+                rgba(rc->fireColor, layer.fireColor, 0.0f);
+                layer.hasFireColor = true;
+            }
+            if (rc->hasUvAnim) {
+                for (int i = 0; i < 2; i++) {
+                    layer.uvOffset[i] = rc->uvOffset[i] ? static_cast<float>(rc->uvOffset[i]->Number(v.scope)) : 0.0f;
+                    layer.uvScale[i] = rc->uvScale[i] ? static_cast<float>(rc->uvScale[i]->Number(v.scope)) : 1.0f;
+                }
+                layer.uvAnim = true;
+            }
             for (const std::string& group : groups) {
                 const bool single = groups.size() == 1;
                 const attachable::BoneFilter groupFilter =
@@ -1304,9 +1350,6 @@ namespace perlin::entity {
                 bool haveRoot = false;
                 if (bindGeometry && e.isPlayer)
                     haveRoot = attachable::BoneWorld(*bindGeometry, pose, "root", rootWorld, rootPivot);
-                // Java's armour models copy the wearer's part poses (HumanoidArmorLayer): each armour bone takes the
-                // world matrix of the player's bone of the same name. The armour files parent their legs to the
-                // body, so through their own chain a crouch tipped the leggings and boots forward with the torso
                 if (bindGeometry && e.isPlayer && wornBones.empty())
                     attachable::ComputeBoneWorlds(*bindGeometry, pose, wornBones);
                 const bool attach = !wornBones.empty() && item != "minecraft:elytra";
@@ -1339,6 +1382,16 @@ namespace perlin::entity {
     }
 
     namespace {
+        // thrown items and fireballs are flat sprites that always turn to face the viewer, like java's
+        // billboard renderers; a model whose definition asks for the billboard animation does the same
+        bool FacesCamera(const std::string& type) {
+            return type == "minecraft:snowball" || type == "minecraft:egg" || type == "minecraft:ender_pearl" ||
+                   type == "minecraft:splash_potion" || type == "minecraft:lingering_potion" ||
+                   type == "minecraft:xp_bottle" || type == "minecraft:fireball" ||
+                   type == "minecraft:small_fireball" || type == "minecraft:dragon_fireball" ||
+                   type == "minecraft:eye_of_ender_signal" || type == "minecraft:fishing_hook";
+        }
+
         double gEntityProf[3] = {};
         int gEntityProfFrames = 0;
     }
@@ -1354,14 +1407,26 @@ namespace perlin::entity {
                     billboard = true;
                     break;
                 }
-        const bool mirrored = !fpModel && !billboard;
-        const float rotation = (fpModel || billboard) ? 180.0f : -v.yaw;
+        const bool faceCamera = !fpModel && (billboard || FacesCamera(e.type));
+        // turned toward the camera: the heading a mob would need to look at it, tilted up or down by the same
+        // elevation, so the sprite is square on from any side
+        float toCameraYaw = 0.0f, toCameraPitch = 0.0f;
+        if (faceCamera) {
+            const glm::dvec3 d = in.camera - (v.pos + glm::dvec3(0.0, 0.15, 0.0));
+            const double flat = std::sqrt(d.x * d.x + d.z * d.z);
+            toCameraYaw = static_cast<float>(std::atan2(-d.x, d.z) * 180.0 / 3.14159265358979);
+            toCameraPitch = static_cast<float>(-std::atan2(d.y, std::max(flat, 1e-6)) * 180.0 / 3.14159265358979);
+        }
+        const bool mirrored = !fpModel;
+        const float rotation = fpModel ? 180.0f : faceCamera ? -toCameraYaw : -v.yaw;
         const glm::mat4 mirrorZ =
             mirrored ? glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f)) : glm::mat4(1.0f);
+        const glm::mat4 tilt = faceCamera ? glm::rotate(glm::mat4(1.0f), toCameraPitch * kDeg, glm::vec3(1, 0, 0))
+                                          : glm::mat4(1.0f);
         const glm::mat3 rot =
-            glm::mat3(glm::rotate(glm::mat4(1.0f), rotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ);
+            glm::mat3(glm::rotate(glm::mat4(1.0f), rotation * kDeg, glm::vec3(0, 1, 0)) * tilt * mirrorZ);
         glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(v.pos));
-        model = glm::rotate(model, rotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ;
+        model = glm::rotate(model, rotation * kDeg, glm::vec3(0, 1, 0)) * tilt * mirrorZ;
         if (v.deathTime > 0.0f) {
             const float t = v.deathTime * 20.0f;
             const float f = std::min(std::sqrt(std::max(0.0f, (t - 1.0f) / 20.0f * 1.6f)), 1.0f);
@@ -1388,18 +1453,10 @@ namespace perlin::entity {
             model = glm::rotate(model, (90.0f + v.pitch) * kDeg, glm::vec3(1, 0, 0));
             model = glm::translate(model, glm::vec3(0.0f, -12.0f / 16.0f * scale, 0.0f));
         }
-        // lobbed items tumble around x/z instead of holding a fixed pose
-        if (e.type == "minecraft:xp_bottle" || e.type == "minecraft:splash_potion" ||
-            e.type == "minecraft:lingering_potion" || e.type == "minecraft:snowball" ||
-            e.type == "minecraft:egg" || e.type == "minecraft:ender_pearl") {
-            const float spin = std::fmod(static_cast<float>((in.time - v.born) * 10800.0), 360.0f);
-            model = glm::rotate(model, spin * kDeg, glm::vec3(1, 0, 0));
-        }
         model = glm::scale(model, glm::vec3(scale / 16.0f) * modScale);
         glm::vec3 light(1.0f);
         if (in.light)
             light = in.light(v.pos + glm::dvec3(0.0, 1.0, 0.0));
-        // a java pack lights the model itself (lightmap coordinates, normals): it gets the plain tint
         const bool packLit = renderer->JavaPackDrawing() && !dollModel;
         glm::ivec2 levels(-1, -1);
         if (packLit && in.lightLevels)
@@ -1423,7 +1480,6 @@ namespace perlin::entity {
         std::stable_sort(ordered.begin(), ordered.end(), [](const Layer* a, const Layer* b) {
             return static_cast<int>(a->material.blend) < static_cast<int>(b->material.blend);
         });
-        // invisibility hides the body (players and mobs); armor and held items stay, as in both editions
         const bool hideBody = e.Has(flag::Invisible) && !v.fp && !dollModel;
         for (const Layer* layerPtr : ordered) {
             const Layer& layer = *layerPtr;
@@ -1440,7 +1496,8 @@ namespace perlin::entity {
                 char maskKey[16] = "";
                 if (layer.material.colorMask)
                     std::snprintf(maskKey, sizeof(maskKey), "#mask%06x", layer.maskRgb & 0xFFFFFFu);
-                const std::string key = layer.texture + maskKey;
+                // a uv_anim layer samples past the edges: its own repeating copy of the texture
+                const std::string key = layer.texture + maskKey + (layer.uvAnim ? "#repeat" : "");
                 auto it = textures.find(key);
                 if (it == textures.end()) {
                     Texture t;
@@ -1448,7 +1505,7 @@ namespace perlin::entity {
                     if (ui::UiAssets::Instance().Image(layer.texture, t) && t.width > 0) {
                         if (layer.material.colorMask)
                             BakeColorMask(t, layer.maskRgb);
-                        id = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), false);
+                        id = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), false, layer.uvAnim);
                     } else if (!warned[layer.texture]) {
                         warned[layer.texture] = true;
                         Log("entity", "texture {} not found", layer.texture);
@@ -1471,15 +1528,21 @@ namespace perlin::entity {
             const float layerHurt = layer.material.hurtTint ? hurt : 0.0f;
             const bool fullbright = layer.material.emissive == 2;
             const glm::vec3 tint(layer.tint[0], layer.tint[1], layer.tint[2]);
+            const glm::vec3 layerLight = layer.ignoreLighting ? glm::vec3(layer.lightMultiplier) : light;
             for (const attachable::Quad& q : layer.quads) {
                 const glm::vec3 n = rot * q.n;
-                const float lit = std::min(
-                    1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
+                const float lit =
+                    !layer.material.faceShading
+                        ? 1.0f
+                        : std::min(1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f +
+                                             0.4f);
                 const uint32_t color = fullbright || packLit ? PackColor(tint, layer.tint[3])
-                                                             : PackColor(light * lit * tint, layer.tint[3]);
+                                                             : PackColor(layerLight * lit * tint, layer.tint[3]);
                 const uint32_t base = static_cast<uint32_t>(vertices.size());
                 for (int i = 0; i < 4; i++)
-                    vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color, q.uv[i].x, q.uv[i].y});
+                    vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color,
+                                        q.uv[i].x * layer.uvScale[0] + layer.uvOffset[0],
+                                        q.uv[i].y * layer.uvScale[1] + layer.uvOffset[1]});
                 for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
                     indices.push_back(base + i);
             }
@@ -1513,7 +1576,7 @@ namespace perlin::entity {
             draw.material = DrawMaterial::Entity;
             draw.player = e.isPlayer;
             draw.entityType = e.type.c_str();
-            if (fullbright) {
+            if (fullbright || layer.ignoreLighting) {
                 draw.blockLight = 15;
                 draw.skyLight = 15;
             } else if (levels.x >= 0) {
@@ -1522,15 +1585,23 @@ namespace perlin::entity {
             }
             draw.colorMask = layer.material.colorMask;
             draw.emissive = layer.material.emissive;
-            if (layerHurt > 0.0f) {
-                draw.overlay[0] = 1.0f;
-                draw.overlay[1] = 0.0f;
-                draw.overlay[2] = 0.0f;
-                draw.overlay[3] = 0.3f;
-            }
+            // hurt flash first (is_hurt_color may recolour or switch it off), then fire, then the controller's overlay
+            const float* overlay = layerHurt > 0.0f && layer.hurtColor[3] > 0.0f    ? layer.hurtColor
+                                   : layer.hasFireColor && e.Has(flag::Onfire)        ? layer.fireColor
+                                   : layer.hasOverlay && layer.overlay[3] > 0.0f      ? layer.overlay
+                                                                                      : nullptr;
+            if (overlay)
+                std::copy_n(overlay, 4, draw.overlay);
             draw.depthWrite = layer.material.depthWrite && draw.blend != 2;
             draw.depth = layer.material.depthTest;
             draw.depthFunc = layer.material.depthFunc;
+            // one-sided materials (no DisableCulling) hide faces seen from behind: some packs build a background
+            // box from inward-facing planes that must not cover the model; the world mirrors model z, which
+            // turns the faces' winding around
+            CullMode cull = layer.material.noCull ? CullMode::None : layer.material.cull;
+            if (cull != CullMode::None && glm::determinant(glm::mat3(model)) < 0.0f)
+                cull = cull == CullMode::Back ? CullMode::Front : CullMode::Back;
+            draw.cull = cull;
             draw.colorWrite = layer.material.colorWrite;
             draw.alphaWrite = layer.material.alphaWrite;
             if (layer.material.customBlend && layer.material.blend != Blend::AlphaTest &&
@@ -1726,9 +1797,23 @@ namespace perlin::entity {
         renderer->UiSubmit(UiLayer::World, draw);
     }
 
+    int EntityRenderer::FlipbookFrames(const std::string& name) {
+        const auto cached = flipbookFrames.find(name);
+        if (cached != flipbookFrames.end())
+            return cached->second;
+        int frames = 0;
+        Texture t;
+        // every pack format stores flames as a strip of square frames, so the height says how many there are
+        if (ui::UiAssets::Instance().Image(name, t) && t.width > 0 && t.height >= t.width)
+            frames = std::max(1, t.height / t.width);
+        flipbookFrames.emplace(name, frames);
+        return frames;
+    }
+
     void EntityRenderer::DrawParticles(const FrameIn& in) {
         const bool haveCustom = in.dataParticles && in.dataParticles->Count() > 0;
-        if (!renderer || ((!in.particles || in.particles->empty()) && !haveCustom))
+        const bool haveFire = !shadowOnlyPass && (in.screenFire || (in.fire && !in.fire->empty()));
+        if (!renderer || ((!in.particles || in.particles->empty()) && !haveCustom && !haveFire))
             return;
         if (!particleSheet && !particleSheetTried) {
             particleSheetTried = true;
@@ -1745,7 +1830,7 @@ namespace perlin::entity {
         struct Batch {
             std::vector<UiVertex> vertices;
             std::vector<uint32_t> indices;
-            std::vector<int8_t> light; // block, sky per vertex (java packs)
+            std::vector<int8_t> light;
         };
         const auto pushLight = [](std::vector<int8_t>& light, int8_t block, int8_t sky) {
             for (int k = 0; k < 4; k++) {
@@ -1770,7 +1855,7 @@ namespace perlin::entity {
                 b.indices.push_back(i0 + k);
         }
         const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(base));
-        if (haveCustom) {
+        if (haveCustom || haveFire) {
             particle::CameraView view;
             view.position = in.camera;
             view.right = right;
@@ -1778,7 +1863,88 @@ namespace perlin::entity {
             view.forward = forward;
             static std::vector<particle::CustomQuad> custom;
             custom.clear();
-            in.dataParticles->Collect(view, in.dataWorld, custom);
+            if (haveCustom)
+                in.dataParticles->Collect(view, in.dataWorld, custom);
+            if (haveFire) {
+                const int64_t tick = static_cast<int64_t>(std::floor(std::max(in.worldTicks, 0.0)));
+                // the flames play one frame per tick, whatever the frame rate
+                const auto frameRows = [&](int frames, float& top, float& bottom) {
+                    const int frame = frames > 1 ? static_cast<int>(tick % frames) : 0;
+                    top = static_cast<float>(frame) / static_cast<float>(std::max(frames, 1));
+                    bottom = static_cast<float>(frame + 1) / static_cast<float>(std::max(frames, 1));
+                };
+                const auto flameName = [&](int layer, bool soul) {
+                    std::string name = std::string("textures/blocks/") + (soul ? "soul_fire_" : "fire_") +
+                                       (layer % 2 == 0 ? "0" : "1");
+                    if (soul && FlipbookFrames(name) == 0)
+                        name = std::string("textures/blocks/fire_") + (layer % 2 == 0 ? "0" : "1");
+                    return name;
+                };
+                // flames on an actor: planes parallel to the view, 1.4 tall per 1.0 wide, stacked up the body a
+                // layer per 0.45 and narrowing, the lowest nearest the camera, alternating the two flame textures
+                // and flipping every second layer so the pattern doesn't repeat
+                const glm::vec3 flatForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z) +
+                                                             glm::vec3(0.0f, 0.0f, 1e-6f));
+                const glm::vec3 flatRight(right.x, 0.0f, right.z);
+                if (in.fire)
+                    for (const FrameIn::FireSprite& sprite : *in.fire) {
+                        const float scale = std::max(sprite.width, 0.05f) * 1.4f;
+                        float remaining = sprite.height / scale;
+                        const float zBase = -0.3f + static_cast<float>(static_cast<int>(remaining)) * 0.02f;
+                        float half = 0.5f, lift = 0.0f, depth = 0.0f;
+                        for (int layer = 0; remaining > 0.0f && layer < 24; layer++) {
+                            const std::string name = flameName(layer, sprite.soul);
+                            const int frames = FlipbookFrames(name);
+                            if (frames == 0)
+                                break;
+                            particle::CustomQuad q;
+                            q.texture = name;
+                            q.blend = 2;
+                            q.centre = sprite.pos + glm::dvec3((flatForward * ((zBase + depth) * scale)) +
+                                                               glm::vec3(0.0f, (0.7f + lift) * scale, 0.0f));
+                            q.right = flatRight * (half * scale);
+                            q.up = glm::vec3(0.0f, 0.7f * scale, 0.0f);
+                            frameRows(frames, q.v0, q.v1);
+                            // the actor's own +x is the camera's left: the unflipped layers read mirrored
+                            const bool flipped = (layer / 2) % 2 == 0;
+                            q.u0 = flipped ? 0.0f : 1.0f;
+                            q.u1 = flipped ? 1.0f : 0.0f;
+                            custom.push_back(std::move(q));
+                            remaining -= 0.45f;
+                            lift += 0.45f;
+                            half *= 0.9f;
+                            depth += 0.03f;
+                        }
+                    }
+                // flames on the camera itself: two copies of the second flame texture a half block ahead, pushed
+                // out to either side and low, each turned ten degrees about the vertical
+                if (in.screenFire) {
+                    const std::string name = "textures/blocks/fire_1";
+                    if (const int frames = FlipbookFrames(name); frames > 0) {
+                        const auto toWorld = [&](const glm::vec3& v) {
+                            return right * v.x + up * v.y + forward * -v.z;
+                        };
+                        for (int copy = 0; copy < 2; copy++) {
+                            const float side = static_cast<float>(copy * 2 - 1);
+                            const glm::mat4 place =
+                                glm::translate(glm::mat4(1.0f), glm::vec3(-side * 0.24f, -0.3f, 0.0f)) *
+                                glm::rotate(glm::mat4(1.0f), side * 10.0f * kDeg, glm::vec3(0, 1, 0));
+                            const glm::mat3 turn(place);
+                            particle::CustomQuad q;
+                            q.texture = name;
+                            q.blend = 3;
+                            q.abgr = 0xE6FFFFFFu;
+                            q.centre = in.camera + glm::dvec3(toWorld(glm::vec3(place * glm::vec4(0, 0, -0.5f, 1))));
+                            q.right = toWorld(turn * glm::vec3(0.5f, 0, 0));
+                            q.up = toWorld(turn * glm::vec3(0, 0.5f, 0));
+                            frameRows(frames, q.v0, q.v1);
+                            q.u0 = 1.0f;
+                            q.u1 = 0.0f;
+                            custom.push_back(std::move(q));
+                        }
+                    }
+                }
+            }
             struct CustomBatch {
                 std::vector<UiVertex> vertices;
                 std::vector<uint32_t> indices;
@@ -1823,8 +1989,11 @@ namespace perlin::entity {
                 draw.premultiplied = false;
                 StyleFromMaterial(draw, keyPair.second == 1
                                             ? "particles_add"
-                                            : (keyPair.second == 2 ? "particles_blend" : "particles_alpha"));
+                                            : (keyPair.second >= 2 ? "particles_blend" : "particles_alpha"));
                 draw.alphaCutoff = keyPair.second == 0 ? 0.5f : 0.02f;
+                // flames over the view draw on top of whatever is nearer than the half block they sit at
+                if (keyPair.second == 3)
+                    draw.depth = false;
                 draw.emissive = 2;
                 draw.shadowOnly = shadowOnlyPass;
                 draw.vertexLight = b.light.data();
@@ -1907,12 +2076,13 @@ namespace perlin::entity {
             bgI.clear();
             textI.clear();
             const auto corner = [&](float x, float y) { return right * (x * kScale) + up * (-y * kScale); };
+            // slant: italic shear in pixels at y0 (the game's glyph top leans 1px right, bottom 1px left)
             const auto quad = [&](std::vector<UiVertex>& vv, std::vector<uint32_t>& ii, float x0, float y0,
-                                  float x1, float y1, float u0, float v0, float u1, float v1,
-                                  uint32_t color) {
+                                  float x1, float y1, float u0, float v0, float u1, float v1, uint32_t color,
+                                  float slantTop = 0.0f, float slantBottom = 0.0f) {
                 const uint32_t base = static_cast<uint32_t>(vv.size());
-                const glm::vec3 p0 = corner(x0, y1), p1 = corner(x1, y1), p2 = corner(x1, y0),
-                                p3 = corner(x0, y0);
+                const glm::vec3 p0 = corner(x0 + slantBottom, y1), p1 = corner(x1 + slantBottom, y1),
+                                p2 = corner(x1 + slantTop, y0), p3 = corner(x0 + slantTop, y0);
                 vv.push_back({p0.x, p0.y, p0.z, color, u0, v1});
                 vv.push_back({p1.x, p1.y, p1.z, color, u1, v1});
                 vv.push_back({p2.x, p2.y, p2.z, color, u1, v0});
@@ -1920,46 +2090,50 @@ namespace perlin::entity {
                 for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u, 0u, 2u, 1u, 0u, 3u, 2u})
                     ii.push_back(base + i);
             };
-            glm::vec3 col(1.0f);
-            bool bold = false;
+            // one state for the whole tag: a colour set on the first line carries onto the second
+            ui::FormatState style;
             for (size_t row = 0; row < rows.size(); row++) {
                 const std::string& text = rows[row];
                 const float rowY = (static_cast<float>(row) - static_cast<float>(rows.size() - 1)) * 10.0f;
-                const float width = font.Width(text);
+                // measured with the bold the line inherits
+                const float width = font.Width(style.Codes() + text);
                 const float left = -width * 0.5f;
+                // rows sit 10px apart but a plate is 9 tall: stretch to the next row so stacked plates touch
+                const bool joinsNext = row + 1 < rows.size() && !rows[row + 1].empty();
                 if (!text.empty())
-                    quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + 8.0f, 0, 0, 0, 0,
-                         PackColor(glm::vec3(0.0f), 0.25f));
+                    quad(bgV, bgI, left - 1.0f, rowY - 1.0f, left + width + 1.0f, rowY + (joinsNext ? 9.0f : 8.0f),
+                         0, 0, 0, 0, PackColor(glm::vec3(0.0f), 0.25f));
                 float pen = left;
                 for (size_t i = 0; i < text.size();) {
                     uint32_t cp = 0;
                     if (!ui::McFont::Next(text, i, cp))
                         break;
-                    if (cp == 0xA7 && i < text.size()) {
-                        const char c = static_cast<char>(std::tolower(static_cast<unsigned char>(text[i++])));
-                        uint32_t rgb = 0;
-                        if (ui::FormatCodeColor(c, rgb)) {
-                            col = glm::vec3(static_cast<float>((rgb >> 16) & 0xFF),
-                                            static_cast<float>((rgb >> 8) & 0xFF),
-                                            static_cast<float>(rgb & 0xFF)) /
-                                  255.0f;
-                            bold = false;
-                        } else if (c == 'l') {
-                            bold = true;
-                        } else if (c == 'r') {
-                            col = glm::vec3(1.0f);
-                            bold = false;
-                        }
+                    if (cp == 0xA7) {
+                        uint32_t code = 0;
+                        if (ui::McFont::Next(text, i, code))
+                            style.Apply(code);
                         continue;
                     }
                     if (cp < 0x20)
                         continue;
-                    const ui::McFont::Glyph& g = font.Get(cp);
-                    if (g.width > 0)
-                        quad(textV, textI, pen + g.left, rowY + g.top, pen + g.left + g.width,
-                             rowY + g.top + g.height, g.u0, g.v0, g.u1, g.v1,
-                             PackColor(g.colored ? glm::vec3(1.0f) : col));
-                    pen += static_cast<float>(g.advance) + (bold ? 1.0f : 0.0f);
+                    const ui::McFont::Glyph& g = font.Get(style.obfuscated ? font.Obfuscated(cp) : cp);
+                    if (g.width > 0) {
+                        const uint32_t rgb = style.hasColor ? style.rgb : 0xFFFFFFu;
+                        const glm::vec3 col =
+                            glm::vec3(static_cast<float>((rgb >> 16) & 0xFF),
+                                      static_cast<float>((rgb >> 8) & 0xFF), static_cast<float>(rgb & 0xFF)) /
+                            255.0f;
+                        const float y0 = rowY + g.top, y1 = y0 + g.height;
+                        const float slantTop = style.italic ? 1.0f - 0.25f * (y0 - rowY) : 0.0f,
+                                    slantBottom = style.italic ? 1.0f - 0.25f * (y1 - rowY) : 0.0f;
+                        // bold: the glyph again one pixel over
+                        for (int pass = 0; pass < (style.bold ? 2 : 1); pass++) {
+                            const float x0 = pen + g.left + static_cast<float>(pass);
+                            quad(textV, textI, x0, y0, x0 + g.width, y1, g.u0, g.v0, g.u1, g.v1,
+                                 PackColor(g.colored ? glm::vec3(1.0f) : col), slantTop, slantBottom);
+                        }
+                    }
+                    pen += static_cast<float>(g.advance) + (style.bold ? 1.0f : 0.0f);
                 }
             }
             glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(tag.at.x, tag.at.y, tag.at.z));
@@ -2123,8 +2297,6 @@ namespace perlin::entity {
             const glm::dvec3 delta = v.pos - in.camera;
             if (glm::dot(delta, delta) > static_cast<double>(in.maxDistance) * in.maxDistance)
                 continue;
-            // server holograms hide the model, keep the name: entity scaled to zero, or invisible mob/armor stand with no gear
-            // (with armor or held items only those show; Draw hides the body)
             const bool gearless = e.mainHand.empty() && e.offHand.empty() &&
                                   std::all_of(std::begin(e.armor), std::end(e.armor),
                                               [](const std::string& a) { return a.empty(); });
@@ -2145,7 +2317,6 @@ namespace perlin::entity {
                     culled++;
                     continue;
                 }
-                // behind walls: no model; names still show through walls
                 if (in.sectionReached && !e.isSelf && !e.isPlayer && e.nameTag.empty() &&
                     !in.sectionReached(static_cast<int>(std::floor(x)) >> 4,
                                        static_cast<int>(std::floor(y)) >> 4,
@@ -2154,23 +2325,21 @@ namespace perlin::entity {
                     continue;
                 }
             }
+            // no box, no shadow: the game sizes the blob from the box, so decorations sent without one cast none
             if (in.blobShadows && !modelHidden && !e.Has(flag::Invisible) && e.type != "minecraft:cushion" &&
-                !(e.isSelf && in.firstPerson)) {
+                !e.NoBox() && !(e.isSelf && in.firstPerson)) {
                 if (e.isItem) {
                     DrawShadow(v.pos, 0.15f, 0.75f, in);
                 } else if (!e.dying || v.deathTime < 0.9f) {
+                    // HitBox is already scaled: cap the unscaled width, then scale once (scale squared before)
+                    const float scale = e.scale > 0 ? e.scale : 1.0f;
                     const auto hb = HitBox(e);
-                    DrawShadow(v.pos, std::min(hb.first, 1.4f) * 0.8f * (e.scale > 0 ? e.scale : 1.0f), 1.0f,
-                               in);
+                    DrawShadow(v.pos, std::min(hb.first / scale, 1.4f) * 0.8f * scale, 1.0f, in);
                 }
             }
-            // invisible players hide their name; invisible holograms (armor stands, mobs) keep an always-shown name
             const bool nameHidden = e.Has(flag::Invisible) && (e.isPlayer || !e.Has(flag::AlwaysShowName));
-            // name shown only when the server allows it (can-show / always-show flags); fake-player npcs leave both off
-            // text: name tag, falling back to a player's username
-            const bool nameAllowed =
-                e.isSelf || e.Has(flag::CanShowName) || e.Has(flag::AlwaysShowName) || !e.isPlayer;
-            if (in.nametags && !e.isItem && !nameHidden && nameAllowed &&
+            // players show their name tag without CAN_SHOW_NAME / ALWAYS_SHOW_NAME: servers often send neither
+            if (in.nametags && !e.isItem && !nameHidden &&
                 !(e.isSelf && (in.firstPerson || !in.ownNametag))) {
                 const std::string& label = style && style->nameTag == 1   ? std::string()
                                            : style && style->nameTag == 2 ? style->nameText
@@ -2198,7 +2367,7 @@ namespace perlin::entity {
                     t.text = label;
                     t.at =
                         v.pos +
-                        glm::dvec3(0.0, static_cast<double>(hb.second * (e.scale > 0 ? e.scale : 1.0f)) + 0.5,
+                        glm::dvec3(0.0, static_cast<double>(hb.second) + 0.5,  // HitBox is already scaled
                                    0.0);
                     t.sneaking = e.Has(flag::Sneaking);
                     tags.push_back(std::move(t));
@@ -2206,6 +2375,44 @@ namespace perlin::entity {
             }
             if (modelHidden)
                 continue;
+            if ((e.type == "minecraft:falling_block" || e.type == "minecraft:tnt") && itemRenderer) {
+                ui::HudItem item;
+                if (e.type == "minecraft:tnt") {
+                    item.name = "minecraft:tnt";
+                } else {
+                    BlockPalette& palette = BlockPalette::Instance();
+                    const uint16_t local = palette.Intern(e.variant);
+                    item.name = palette.Name(local);
+                    item.blockRuntimeId = e.variant;
+                }
+                item.count = 1;
+                if (!item.name.empty() && item.name != "minecraft:air") {
+                    glm::vec3 light(1.0f);
+                    if (in.light)
+                        light = in.light(v.pos + glm::dvec3(0.0, 0.5, 0.0));
+                    float scale = 1.0f;
+                    if (e.type == "minecraft:tnt") {
+                        const double ticks = (in.time - v.born) * 20.0;
+                        const double left = 80.0 - ticks;
+                        if (left < 10.0) {
+                            const float grow = static_cast<float>(std::clamp(1.0 - left / 10.0, 0.0, 1.0));
+                            scale = 1.0f + grow * grow * grow * grow * 0.3f;
+                        }
+                        if ((static_cast<int>(ticks) / 5) % 2 == 0)
+                            light = glm::min(light * 1.8f + glm::vec3(0.35f), glm::vec3(2.0f));
+                    }
+                    if (renderer->JavaPackDrawing() && in.lightLevels) {
+                        const glm::ivec2 l = in.lightLevels(v.pos + glm::dvec3(0.0, 0.5, 0.0));
+                        itemRenderer->SetPackLight(l.x, l.y);
+                    }
+                    itemRenderer->SetPackEntity(e.type.c_str());
+                    itemRenderer->DrawWorldBlock(item, v.pos, scale, light);
+                    itemRenderer->SetPackEntity(nullptr);
+                    itemRenderer->SetPackLight(-1, -1);
+                    drawn++;
+                }
+                continue;
+            }
             if (e.isItem) {
                 if (itemRenderer) {
                     ui::HudItem item;
@@ -2602,7 +2809,7 @@ namespace perlin::entity {
                              static_cast<float>(in.camera.z), 1.0f);
         std::copy_n(&model[0][0], 16, draw.model);
         draw.shadowOnly = shadowOnlyPass;
-        draw.packKind = UiDraw::PackKind::Line; // iris: gbuffers_line
+        draw.packKind = UiDraw::PackKind::Line;
         renderer->UiSubmit(UiLayer::World, draw);
     }
 
@@ -3029,7 +3236,6 @@ namespace perlin::entity {
             fontTextureVersion = font.Version();
         }
         const bool packLit = renderer->JavaPackDrawing();
-        // java packs: per vertex light levels, kept beside each batch's vertices
         std::unordered_map<const std::vector<UiVertex>*, std::vector<int8_t>> batchLight;
         glm::ivec2 curLevels(-1, -1);
         const auto syncLight = [&](const std::vector<UiVertex>& vv) {
@@ -3366,38 +3572,33 @@ namespace perlin::entity {
                 const glm::vec3 ink(baseB, baseG, baseR);
                 const glm::vec3 lit = glow ? glm::vec3(1.0f) : light;
                 const float top = -static_cast<float>(lines.size()) * lineHeight * 0.5f;
+                // one string on the sign: formatting runs on into the next line
+                ui::FormatState style;
                 for (size_t row = 0; row < lines.size(); row++) {
                     const std::string& line = lines[row];
-                    const float width = font.Width(line);
+                    const float width = font.Width(style.Codes() + line);
                     float pen = -width * 0.5f;
-                    glm::vec3 col = ink;
-                    bool bold = false;
                     const float y0 = top + static_cast<float>(row) * lineHeight;
                     for (size_t i = 0; i < line.size();) {
                         uint32_t cp = 0;
                         if (!ui::McFont::Next(line, i, cp))
                             break;
-                        if (cp == 0xA7 && i < line.size()) {
-                            const char code =
-                                static_cast<char>(std::tolower(static_cast<unsigned char>(line[i++])));
-                            uint32_t rgb = 0;
-                            if (ui::FormatCodeColor(code, rgb)) {
-                                col = glm::vec3(static_cast<float>((rgb >> 16) & 0xFF),
-                                                static_cast<float>((rgb >> 8) & 0xFF),
-                                                static_cast<float>(rgb & 0xFF)) /
-                                      255.0f;
-                                bold = false;
-                            } else if (code == 'l')
-                                bold = true;
-                            else if (code == 'r') {
-                                col = ink;
-                                bold = false;
-                            }
+                        if (cp == 0xA7) {
+                            uint32_t code = 0;
+                            if (ui::McFont::Next(line, i, code))
+                                style.Apply(code);
                             continue;
                         }
                         if (cp < 0x20)
                             continue;
-                        const ui::McFont::Glyph& g = font.Get(cp);
+                        const glm::vec3 col = style.hasColor
+                                                  ? glm::vec3(static_cast<float>((style.rgb >> 16) & 0xFF),
+                                                              static_cast<float>((style.rgb >> 8) & 0xFF),
+                                                              static_cast<float>(style.rgb & 0xFF)) /
+                                                        255.0f
+                                                  : ink;
+                        const bool bold = style.bold;
+                        const ui::McFont::Glyph& g = font.Get(style.obfuscated ? font.Obfuscated(cp) : cp);
                         if (g.width > 0) {
                             const uint32_t color = PackColor(g.colored ? glm::vec3(1.0f) : col * lit);
                             for (int pass = 0; pass < (bold ? 2 : 1); pass++) {
@@ -3466,7 +3667,6 @@ namespace perlin::entity {
         for (auto& [color, batch] : beds)
             submit(batch.first, batch.second, TextureByPath(std::string("bed_") + kDyeNames[color] + ".png"),
                    0.0f, kBedBlocks[color]);
-        // iris TEXT_BE: sign text draws with gbuffers_block_translucent
         submit(text.first, text.second, fontTexture, 0.1f, "minecraft:oak_sign", true);
     }
 }

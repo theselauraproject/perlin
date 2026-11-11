@@ -1,0 +1,8 @@
+{
+  "name": "Barrel Roll",
+  "description": "Press R while gliding on an elytra to roll the camera and your model through a full barrel roll.",
+  "version": "1.0.0",
+  "author": "Perlin",
+  "permissions": ["control"],
+  "settings": []
+}

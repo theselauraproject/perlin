@@ -1,161 +1,62 @@
 #include "plugin/PluginHost.hpp"
 
-#include "client/mods/WasmRuntime.hpp"
+#include "host/PluginCore.hpp"
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "util/FileIo.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
-#include <random>
+#include <fstream>
+#include <thread>
+
+#if __has_include(<httplib.h>)
+#include <httplib.h>
+#define PERLIN_SERVER_PLUGIN_HTTP 1
+#endif
 
 namespace perlin::server {
     namespace fs = std::filesystem;
     using mods::WasmInstance;
+    using abi::Status;
+    template <class T> using Result = abi::host::Result<T>;
 
     struct PluginHost::Plugin {
         Info info;
+        std::string dataDir;
         std::vector<uint8_t> wasm;
         std::unique_ptr<WasmInstance> instance;
-        uint64_t subscriptions = 0;
-        bool hasAlloc = false, hasFree = false;
+        mods::GuestExports exports;
+        mods::Subscriptions subscriptions = mods::AllEvents();
         std::set<std::string> commands;
+        std::map<std::string, std::string> settings;
     };
 
     namespace {
-        constexpr uint32_t kWasiNoSys = 52, kWasiBadf = 8;
-
-        uint64_t NowNs() {
-            return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                             std::chrono::system_clock::now().time_since_epoch())
-                                             .count());
+        Result<void> Check(bool ok, Status failure = Status::Failed) {
+            if (ok)
+                return {};
+            return std::unexpected(failure);
         }
 
-        template <class T> bool Poke(WasmInstance& w, uint64_t at, T value) {
-            uint8_t* p = w.Memory(at, sizeof(T));
-            if (!p)
+        bool SafePath(const std::string& root, const std::string& rel, fs::path& out) {
+            if (rel.size() > 512 || rel.find('\0') != std::string::npos)
                 return false;
-            std::memcpy(p, &value, sizeof(T));
+            const fs::path p = fs::path(rel).lexically_normal();
+            if (p.is_absolute() || p.has_root_name())
+                return false;
+            for (const auto& part : p)
+                if (part == "..")
+                    return false;
+            out = fs::path(root) / p;
             return true;
         }
 
-        // just enough wasi for a freestanding reactor: no files, no sockets, output goes to the log
-        WasmInstance::HostFn WasiFunction(const std::string& name, const std::string& pluginName) {
-            using Ctx = WasmInstance::HostContext;
-            const auto status = [](uint32_t code) {
-                return [code](Ctx&, const uint64_t*, uint32_t, uint64_t* r, uint32_t nr) {
-                    if (nr)
-                        r[0] = code;
-                    return true;
-                };
-            };
-            if (name == "args_sizes_get" || name == "environ_sizes_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t, uint64_t* r, uint32_t nr) {
-                    Poke<uint32_t>(c.instance, a[0], 0);
-                    Poke<uint32_t>(c.instance, a[1], 0);
-                    if (nr)
-                        r[0] = 0;
-                    return true;
-                };
-            if (name == "args_get" || name == "environ_get")
-                return status(0);
-            if (name == "clock_time_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t, uint64_t* r, uint32_t nr) {
-                    Poke<uint64_t>(c.instance, a[2], NowNs());
-                    if (nr)
-                        r[0] = 0;
-                    return true;
-                };
-            if (name == "random_get")
-                return [](Ctx& c, const uint64_t* a, uint32_t, uint64_t* r, uint32_t nr) {
-                    if (uint8_t* p = c.instance.Memory(a[0], a[1])) {
-                        static thread_local std::mt19937_64 rng{std::random_device{}()};
-                        for (uint64_t i = 0; i < a[1]; i++)
-                            p[i] = static_cast<uint8_t>(rng());
-                    }
-                    if (nr)
-                        r[0] = 0;
-                    return true;
-                };
-            if (name == "fd_write")
-                return [pluginName](Ctx& c, const uint64_t* a, uint32_t, uint64_t* r, uint32_t nr) {
-                    // iovec: u32 pointer, u32 length (wasm32 layout)
-                    uint32_t total = 0;
-                    std::string text;
-                    for (uint32_t i = 0; i < a[2]; i++) {
-                        const uint8_t* iov = c.instance.Memory(a[1] + i * 8ull, 8);
-                        if (!iov)
-                            break;
-                        uint32_t ptr, len;
-                        std::memcpy(&ptr, iov, 4);
-                        std::memcpy(&len, iov + 4, 4);
-                        if (const uint8_t* s = c.instance.Memory(ptr, len))
-                            text.append(reinterpret_cast<const char*>(s), len);
-                        total += len;
-                    }
-                    if (!text.empty()) {
-                        while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
-                            text.pop_back();
-                        if (!text.empty())
-                            LogInfo("[" + pluginName + "] " + text);
-                    }
-                    Poke<uint32_t>(c.instance, a[3], total);
-                    if (nr)
-                        r[0] = 0;
-                    return true;
-                };
-            if (name == "proc_exit")
-                return [](Ctx& c, const uint64_t*, uint32_t, uint64_t*, uint32_t) {
-                    c.error = "plugin called exit";
-                    return false;
-                };
-            if (name == "sched_yield" || name == "fd_close" || name == "fd_sync")
-                return status(0);
-            if (name.starts_with("fd_"))
-                return status(kWasiBadf);
-            return status(kWasiNoSys);
-        }
-
-        // bits 0-31 from perlin_subscriptions, 32-63 from perlin_subscriptions_hi
-        uint64_t ReadSubscriptions(WasmInstance& w) {
-            std::string ignored;
-            uint64_t lo = 0, hi = 0;
-            if (w.HasExport("perlin_subscriptions"))
-                w.Call("perlin_subscriptions", {}, &lo, ignored);
-            if (w.HasExport("perlin_subscriptions_hi"))
-                w.Call("perlin_subscriptions_hi", {}, &hi, ignored);
-            return (lo & 0xFFFFFFFFu) | (hi << 32);
-        }
-
-        // calls perlin_event on one plugin; false when it trapped
-        bool CallEvent(WasmInstance& w, bool hasAlloc, bool hasFree, uint32_t id,
-                       std::span<const uint8_t> payload, uint32_t& result, std::string& error) {
-            uint64_t ptr = 0;
-            const uint64_t len = payload.size();
-            if (len) {
-                if (!hasAlloc) {
-                    error = "plugin has no perlin_alloc export";
-                    return false;
-                }
-                if (!w.Call("perlin_alloc", {len}, &ptr, error))
-                    return false;
-                uint8_t* dst = ptr ? w.Memory(ptr, len) : nullptr;
-                if (!dst) {
-                    error = "perlin_alloc returned a bad pointer";
-                    return false;
-                }
-                std::memcpy(dst, payload.data(), payload.size());
-            }
-            uint64_t rc = 0;
-            if (!w.Call("perlin_event", {id, ptr, len}, &rc, error))
-                return false;
-            result = static_cast<uint32_t>(rc);
-            std::string ignored;
-            if (len && hasFree)
-                w.Call("perlin_free", {ptr}, nullptr, ignored);
-            return true;
+        std::string Escape(const std::string& s) {
+            return json::Escape(s);
         }
     }
 
@@ -164,80 +65,256 @@ namespace perlin::server {
     }
     PluginHost::~PluginHost() {
         UnloadAll();
+        while (httpActive.load() > 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    PluginHost::Plugin* PluginHost::Find(const std::string& name) const {
+        for (const auto& p : plugins)
+            if (p->info.name == name)
+                return p.get();
+        return nullptr;
     }
 
     void PluginHost::RegisterOps() {
         using abi::Op;
-        using abi::Status;
-        using Ctx = CallContext;
-        const auto found = [](bool ok) { return ok ? Status::Ok : Status::NotFound; };
+        using Ctx = PluginCall;
+        api.Bind(ops);
 
-        ops.Raw(Op::Log, [](Ctx& c, abi::Reader& in, abi::Writer&) {
-            const int32_t level = in.get<int32_t>();
-            const std::string text = in.str();
-            if (!in.Ok())
-                return Status::BadArguments;
-            Log(static_cast<LogLevel>(std::clamp(level, 0, 3)), "[" + c.plugin.info.name + "] " + text);
-            return Status::Ok;
+        ops.Handle<Op::Log>([](Ctx& c, const abi::LogRequest& r) {
+            Log(static_cast<LogLevel>(std::clamp(static_cast<int>(r.level), 0, 3)), "[" + c.plugin + "] " + r.text);
         });
         ops.Handle<Op::Clock>([](Ctx&) {
             return static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                             std::chrono::system_clock::now().time_since_epoch())
                                             .count());
         });
-        // name, usage, description: the SDK's command registration
-        ops.Raw(Op::CommandRegister, [](Ctx& c, abi::Reader& in, abi::Writer&) {
-            std::string name = in.str();
-            in.str();
-            const std::string description = in.str();
-            if (!in.Ok() || name.empty())
-                return Status::BadArguments;
+        ops.Handle<Op::CommandRegister>([this](Ctx& c, const abi::CommandRegisterRequest& r) -> Result<void> {
+            std::string name = r.name;
             if (name.starts_with('/'))
                 name.erase(0, 1);
-            c.plugin.commands.insert(name);
-            c.api.RegisterCommand(c.plugin.info.name, name, description);
-            return Status::Ok;
+            if (name.empty())
+                return std::unexpected(Status::BadArguments);
+            if (Plugin* p = Find(c.plugin))
+                p->commands.insert(name);
+            api.RegisterCommand(c.plugin, name, r.description);
+            return {};
         });
-        ops.Raw(Op::CommandUnregister, [](Ctx& c, abi::Reader& in, abi::Writer&) {
-            c.plugin.commands.erase(in.str());
-            return in.Ok() ? Status::Ok : Status::BadArguments;
+        ops.Handle<Op::CommandUnregister>([this](Ctx& c, const abi::CommandUnregisterRequest& r) {
+            if (Plugin* p = Find(c.plugin))
+                p->commands.erase(r.name);
+            api.UnregisterCommand(c.plugin, r.name);
         });
-        ops.Handle<Op::Broadcast>([](Ctx& c, const abi::TextMessage& m) { c.api.Broadcast(m.text); });
-        ops.Handle<Op::PlayerMessage>(
-            [found](Ctx& c, const abi::PlayerText& m) { return found(c.api.Message(m.player, m.text)); });
-        ops.Handle<Op::Kick>(
-            [found](Ctx& c, const abi::PlayerText& m) { return found(c.api.Kick(m.player, m.text)); });
-        ops.Handle<Op::OnlinePlayers>([](Ctx& c) {
-            abi::OnlinePlayerList list;
-            for (const auto& p : c.api.Players())
-                list.players.push_back({p.id, p.name, p.x, p.y, p.z});
-            return list;
+
+        ops.Handle<Op::StorageRead>([](Ctx& c, const abi::StorageReadRequest& r) -> Result<abi::RestBytes> {
+            fs::path p;
+            if (!SafePath(c.dataDir, r.path, p))
+                return std::unexpected(Status::BadArguments);
+            abi::RestBytes out;
+            if (!file::ReadBytes(p.string(), out.value))
+                return std::unexpected(Status::NotFound);
+            return out;
         });
-        ops.Handle<Op::Teleport>([found](Ctx& c, const abi::ServerTeleport& t) {
-            return found(c.api.Teleport(t.player, t.x, t.y, t.z));
+        ops.Handle<Op::StorageWrite>([](Ctx& c, const abi::StorageWriteRequest& r) -> Result<void> {
+            fs::path p;
+            if (!SafePath(c.dataDir, r.path, p) || r.data.size() > (64u << 20))
+                return std::unexpected(Status::BadArguments);
+            std::error_code ec;
+            fs::create_directories(p.parent_path(), ec);
+            std::ofstream f(p, std::ios::binary | std::ios::trunc);
+            f.write(reinterpret_cast<const char*>(r.data.data()), static_cast<std::streamsize>(r.data.size()));
+            return Check(static_cast<bool>(f));
         });
-        ops.Handle<Op::SetBlock>(
-            [](Ctx& c, const abi::BlockWrite& b) { return c.api.SetBlock(b.x, b.y, b.z, b.block); });
-        ops.Handle<Op::BlockName>(
-            [](Ctx& c, const abi::BlockCoord& at) -> abi::host::Result<abi::TextMessage> {
-                abi::TextMessage name;
-                if (const Status s = c.api.GetBlock(at.x, at.y, at.z, name.text); s != Status::Ok)
-                    return std::unexpected(s);
-                return name;
-            });
-        ops.Handle<Op::ServerInfo>([](Ctx& c) {
-            const PluginApi::Status s = c.api.GetStatus();
-            return abi::ServerStatus{s.name, s.players, s.maxPlayers, s.tick, s.backend};
+        ops.Handle<Op::StorageList>([](Ctx& c, const abi::StorageListRequest& r) -> Result<abi::StorageListResponse> {
+            fs::path p;
+            if (!SafePath(c.dataDir, r.path.empty() ? "." : r.path, p))
+                return std::unexpected(Status::BadArguments);
+            abi::StorageListResponse out;
+            std::error_code ec;
+            for (const auto& e : fs::directory_iterator(p, ec))
+                out.names.push_back(e.path().filename().string() + (e.is_directory() ? "/" : ""));
+            std::ranges::sort(out.names);
+            return out;
         });
-        ops.Handle<Op::GiveItem>(
-            [](Ctx& c, const abi::GiveItemRequest& r) -> abi::host::Result<abi::GiveItemResult> {
-                if (r.count == 0 || r.count > 4096)
-                    return std::unexpected(Status::BadArguments);
-                const auto left = c.api.GiveItem(r.player, r.item, static_cast<int>(r.count));
-                if (!left)
-                    return std::unexpected(left.error());
-                return abi::GiveItemResult{static_cast<uint32_t>(*left)};
-            });
+        ops.Handle<Op::StorageRemove>([](Ctx& c, const abi::StorageRemoveRequest& r) -> Result<void> {
+            fs::path p;
+            if (!SafePath(c.dataDir, r.path, p) || r.path.empty())
+                return std::unexpected(Status::BadArguments);
+            std::error_code ec;
+            return Check(fs::remove_all(p, ec) > 0, Status::NotFound);
+        });
+        ops.Handle<Op::StorageExists>([](Ctx& c, const abi::StorageExistsRequest& r) -> Result<bool> {
+            fs::path p;
+            if (!SafePath(c.dataDir, r.path, p))
+                return std::unexpected(Status::BadArguments);
+            std::error_code ec;
+            return fs::exists(p, ec);
+        });
+        ops.Handle<Op::StorageMakeDir>([](Ctx& c, const abi::StorageMakeDirRequest& r) -> Result<void> {
+            fs::path p;
+            if (!SafePath(c.dataDir, r.path, p))
+                return std::unexpected(Status::BadArguments);
+            std::error_code ec;
+            fs::create_directories(p, ec);
+            return Check(!ec);
+        });
+
+        ops.Handle<Op::SettingGet>([this](Ctx& c, const abi::SettingGetRequest& r) -> Result<abi::RestText> {
+            const Plugin* p = Find(c.plugin);
+            const auto it = p ? p->settings.find(r.id) : decltype(p->settings.cend()){};
+            if (!p || it == p->settings.end())
+                return std::unexpected(Status::NotFound);
+            return abi::RestText{it->second};
+        });
+        ops.Handle<Op::SettingSet>([this](Ctx& c, const abi::SettingSetRequest& r) -> Result<void> {
+            Plugin* p = Find(c.plugin);
+            if (!p || r.id.empty() || r.id.size() > 128 || r.value.size() > 65536)
+                return std::unexpected(Status::BadArguments);
+            p->settings[r.id] = r.value;
+            SaveSettings(*p);
+            return {};
+        });
+        ops.Handle<Op::SettingList>([this](Ctx& c) {
+            abi::SettingListResponse out;
+            if (const Plugin* p = Find(c.plugin))
+                for (const auto& [id, value] : p->settings)
+                    out.settings.push_back({id, value});
+            return out;
+        });
+        ops.Handle<Op::ModList>([this](Ctx& c) {
+            abi::ModListResponse out;
+            for (const auto& p : plugins) {
+                abi::ModEntry e;
+                e.name = p->info.name;
+                e.displayName = p->info.name;
+                e.description = p->info.description;
+                e.version = p->info.version;
+                e.author = p->info.author;
+                e.state = p->info.enabled ? "running" : (p->info.error.empty() ? "disabled" : "error");
+                e.enabled = p->info.enabled;
+                e.self = p->info.name == c.plugin;
+                e.hasSettings = !p->settings.empty();
+                e.arch = p->info.arch;
+                for (const abi::Event ev : abi::kAllEvents)
+                    if (mods::Subscribed(p->subscriptions, ev) && abi::HostsOf(ev) != abi::Hosts::Client)
+                        e.hooks.emplace_back(abi::SnakeName(ev));
+                out.mods.push_back(std::move(e));
+            }
+            return out;
+        });
+        ops.Handle<Op::ModSend>([this](Ctx& c, const abi::ModMessageData& m) -> Result<void> {
+            if (m.channel.empty() || m.body.size() > (1u << 20) || mail.size() > 4096)
+                return std::unexpected(Status::BadArguments);
+            if (!m.to.empty() && !Find(m.to))
+                return std::unexpected(Status::NotFound);
+            mail.emplace_back(c.plugin, m);
+            return {};
+        });
+        ops.Handle<Op::HttpRequest>([this](Ctx& c, const abi::HttpRequestRequest& r) -> Result<void> {
+#ifdef PERLIN_SERVER_PLUGIN_HTTP
+            static const std::set<std::string> methods = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"};
+            if (!methods.contains(r.method) || r.body.size() > (4u << 20) || r.headers.size() > 64)
+                return std::unexpected(Status::BadArguments);
+            const bool tls = r.url.starts_with("https://");
+            if (!tls && !r.url.starts_with("http://"))
+                return std::unexpected(Status::BadArguments);
+#ifndef CPPHTTPLIB_OPENSSL_SUPPORT
+            if (tls)
+                return std::unexpected(Status::Unavailable);
+#endif
+            if (httpActive.load() >= 8)
+                return std::unexpected(Status::Unavailable);
+            httpActive++;
+            std::thread([this, plugin = c.plugin, r] {
+                abi::EventHttp ev;
+                ev.id = r.id;
+                const size_t schemeEnd = r.url.find("://") + 3;
+                const size_t pathAt = r.url.find('/', schemeEnd);
+                const std::string origin = r.url.substr(0, pathAt);
+                const std::string path = pathAt == std::string::npos ? "/" : r.url.substr(pathAt);
+                httplib::Client cli(origin);
+                const auto timeout = std::chrono::milliseconds(std::clamp(r.timeoutMs, 500, 60000));
+                cli.set_connection_timeout(timeout);
+                cli.set_read_timeout(timeout);
+                cli.set_follow_location(true);
+                httplib::Headers headers;
+                for (const auto& [k, v] : r.headers)
+                    headers.emplace(k, v);
+                const std::string body(r.body.begin(), r.body.end());
+                std::string type = "application/octet-stream";
+                for (const auto& [k, v] : r.headers)
+                    if (k.size() == 12 && std::equal(k.begin(), k.end(), "content-type",
+                                                     [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == b; }))
+                        type = v;
+                httplib::Result res = r.method == "GET"      ? cli.Get(path, headers)
+                                      : r.method == "HEAD"   ? cli.Head(path, headers)
+                                      : r.method == "DELETE" ? cli.Delete(path, headers, body, type)
+                                      : r.method == "PUT"    ? cli.Put(path, headers, body, type)
+                                      : r.method == "PATCH"  ? cli.Patch(path, headers, body, type)
+                                                             : cli.Post(path, headers, body, type);
+                if (res) {
+                    ev.status = res->status;
+                    for (const auto& [k, v] : res->headers)
+                        ev.headers.emplace_back(k, v);
+                    ev.body.assign(res->body.begin(), res->body.end());
+                } else {
+                    ev.status = -1;
+                    ev.error = httplib::to_string(res.error());
+                }
+                {
+                    std::lock_guard lock(httpMutex);
+                    httpDone.push_back({plugin, std::move(ev)});
+                }
+                httpActive--;
+            }).detach();
+            return {};
+#else
+            (void)c;
+            (void)r;
+            return std::unexpected(Status::Unavailable);
+#endif
+        });
+        ops.Handle<Op::EventAmend>([this](Ctx&, const abi::EventAmendRequest& r) -> Result<void> {
+            if (dispatchDepth == 0 || r.field.empty())
+                return std::unexpected(Status::Unavailable);
+            Amendment& a = amendments[r.field];
+            a.number = r.number;
+            a.text = r.text;
+            return {};
+        });
+    }
+
+    std::optional<double> PluginHost::AmendedNumber(const std::string& field) const {
+        const auto it = amendments.find(field);
+        return it == amendments.end() ? std::nullopt : it->second.number;
+    }
+    std::optional<std::string> PluginHost::AmendedText(const std::string& field) const {
+        const auto it = amendments.find(field);
+        return it == amendments.end() ? std::nullopt : it->second.text;
+    }
+
+    void PluginHost::LoadSettings(Plugin& p) {
+        std::string text;
+        if (!file::Read((fs::path(p.dataDir) / "settings.json").string(), text))
+            return;
+        json::Value v;
+        if (!json::Parse(text, v))
+            return;
+        for (const auto& [k, value] : v.members)
+            p.settings[k] = value.String();
+    }
+
+    void PluginHost::SaveSettings(const Plugin& p) const {
+        std::string text = "{";
+        bool first = true;
+        for (const auto& [k, v] : p.settings) {
+            text += (first ? "\n  \"" : ",\n  \"") + Escape(k) + "\": \"" + Escape(v) + "\"";
+            first = false;
+        }
+        text += "\n}\n";
+        std::error_code ec;
+        fs::create_directories(p.dataDir, ec);
+        std::ofstream(fs::path(p.dataDir) / "settings.json", std::ios::trunc) << text;
     }
 
     void PluginHost::LoadDirectory(const std::string& dir) {
@@ -254,6 +331,7 @@ namespace perlin::server {
             if (!LoadFile(file.string(), error))
                 LogWarn("plugin " + file.filename().string() + " not loaded: " + error);
         }
+        DispatchEncoded(abi::Event::ModsLoaded, {});
     }
 
     bool PluginHost::LoadFile(const std::string& path, std::string& error) {
@@ -265,8 +343,7 @@ namespace perlin::server {
             error = "cannot read the file";
             return false;
         }
-        // optional name.json beside the module
-        if (std::string text; file::Read(fs::path(path).replace_extension(".json"), text)) {
+        if (std::string text; file::Read(fs::path(path).replace_extension(".json").string(), text)) {
             json::Value manifest;
             if (json::Parse(text, manifest)) {
                 if (std::string name = manifest["name"].String(); !name.empty())
@@ -276,75 +353,38 @@ namespace perlin::server {
                 plugin->info.description = manifest["description"].String();
             }
         }
+        plugin->dataDir = (fs::path(path).parent_path() / "data" / plugin->info.name).string();
+        LoadSettings(*plugin);
 
         Plugin* raw = plugin.get();
-        const std::string pluginName = plugin->info.name;
         raw->instance = std::make_unique<WasmInstance>();
-        const auto resolver = [this, raw, pluginName](const std::string& module,
-                                                      const std::string& name) -> WasmInstance::HostFn {
-            if (module == "perlin" && name == "call")
-                return [this, raw](WasmInstance::HostContext& c, const uint64_t* a, uint32_t n, uint64_t* r,
-                                   uint32_t nr) {
-                    if (n != 5 || nr != 1) {
-                        c.error = "perlin.call has the wrong signature";
-                        return false;
-                    }
-                    const uint8_t* in = c.instance.Memory(a[1], a[2]);
-                    uint8_t* out = c.instance.Memory(a[3], a[4]);
-                    if ((!in && a[2]) || (!out && a[4])) {
-                        r[0] = static_cast<uint32_t>(abi::Status::BadArguments);
-                        return true;
-                    }
-                    CallContext ctx{*raw, api};
-                    abi::Writer reply;
-                    // server plugins hold every permission: the operator chose to install them
-                    const abi::Status status = ops.Call(ctx, static_cast<uint32_t>(a[0]),
-                                                        {in, static_cast<size_t>(a[2])}, reply, ~0u);
-                    int32_t rc = static_cast<int32_t>(status);
-                    if (status == abi::Status::Ok) {
-                        if (reply.Size() > a[4]) {
-                            // the SDK grows its buffer and calls again
-                            rc = -static_cast<int32_t>(abi::kNeedMoreBase + reply.Size());
-                        } else {
-                            if (reply.Size())
-                                std::memcpy(out, reply.Data(), reply.Size());
-                            rc = static_cast<int32_t>(reply.Size());
-                        }
-                    }
-                    r[0] = static_cast<uint32_t>(rc);
-                    return true;
-                };
-            if (module == "wasi_snapshot_preview1")
-                return WasiFunction(name, pluginName);
-            if (module == "env" && name == "emscripten_notify_memory_growth")
-                return [](WasmInstance::HostContext&, const uint64_t*, uint32_t, uint64_t* r, uint32_t nr) {
-                    if (nr)
-                        r[0] = 0;
-                    return true;
-                };
-            return {};
+        const std::string pluginName = raw->info.name;
+        const auto call = [this, raw](uint32_t op, std::span<const uint8_t> in, uint8_t* out, uint32_t cap,
+                                      std::string&) {
+            PluginCall ctx{raw->info.name, raw->dataDir};
+            abi::Writer reply;
+            const Status status = ops.Call(ctx, op, in, reply, ~0u);
+            return mods::Reply(status, reply, out, cap);
         };
-
-        if (!raw->instance->Load(raw->wasm.data(), raw->wasm.size(), resolver, error))
+        const auto log = [pluginName](const std::string& text) { LogInfo("[" + pluginName + "] " + text); };
+        if (!raw->instance->Load(raw->wasm.data(), raw->wasm.size(), mods::StandardImports(call, log), error))
             return false;
-        if (!raw->instance->HasExport("perlin_event")) {
+        raw->exports = mods::ProbeExports(*raw->instance);
+        if (!raw->exports.event) {
             error = "not a Perlin plugin (no perlin_event export)";
             return false;
         }
-        raw->hasAlloc = raw->instance->HasExport("perlin_alloc");
-        raw->hasFree = raw->instance->HasExport("perlin_free");
         std::string ignored;
-        if (raw->instance->HasExport("_initialize"))
+        if (raw->exports.initialize)
             raw->instance->Call("_initialize", {}, nullptr, ignored);
         raw->info.enabled = true;
+        raw->info.arch = raw->instance->Is64() ? "wasm64" : "wasm32";
         LogInfo("plugin " + raw->info.name + (raw->info.version.empty() ? "" : " " + raw->info.version) +
-                " loaded (" + (raw->instance->Is64() ? "wasm64" : "wasm32") + " on " + raw->info.engine +
-                ")");
+                " loaded (" + raw->info.arch + " on " + raw->info.engine + ")");
         plugins.push_back(std::move(plugin));
         uint32_t result = 0;
-        // the SDK boots the plugin class on Load; subscriptions are only known after that
         CallPlugin(*raw, abi::Event::Load, {}, result);
-        raw->subscriptions = ReadSubscriptions(*raw->instance);
+        raw->subscriptions = mods::ReadSubscriptions(*raw->instance);
         return true;
     }
 
@@ -357,12 +397,41 @@ namespace perlin::server {
         plugins.clear();
     }
 
+    void PluginHost::Pump() {
+        std::vector<HttpDone> done;
+        {
+            std::lock_guard lock(httpMutex);
+            done.swap(httpDone);
+        }
+        for (HttpDone& d : done)
+            if (Plugin* p = Find(d.plugin); p && p->info.enabled) {
+                const abi::Writer w = abi::host::Encode<abi::Event::HttpResponse>(d.event);
+                uint32_t result = 0;
+                CallPlugin(*p, abi::Event::HttpResponse, {w.Data(), w.Size()}, result);
+            }
+        auto letters = std::move(mail);
+        mail.clear();
+        for (auto& [from, m] : letters) {
+            const abi::Writer w = abi::host::Encode<abi::Event::ModMessage>({from, m.channel, m.body});
+            for (auto& p : plugins) {
+                if (!p->info.enabled || p->info.name == from || (!m.to.empty() && p->info.name != m.to))
+                    continue;
+                if (!mods::Subscribed(p->subscriptions, abi::Event::ModMessage))
+                    continue;
+                uint32_t result = 0;
+                CallPlugin(*p, abi::Event::ModMessage, {w.Data(), w.Size()}, result);
+            }
+        }
+    }
+
     bool PluginHost::CallPlugin(Plugin& p, abi::Event event, std::span<const uint8_t> payload,
                                 uint32_t& result) {
         std::string error;
-        if (CallEvent(*p.instance, p.hasAlloc, p.hasFree, static_cast<uint32_t>(event), payload, result,
-                      error))
+        if (mods::CallEvent(*p.instance, p.exports, static_cast<uint32_t>(event), payload, result, error)) {
+            if (p.exports.subscriptions && event != abi::Event::Tick && event != abi::Event::PlayerMove)
+                p.subscriptions = mods::ReadSubscriptions(*p.instance);
             return true;
+        }
         p.info.enabled = false;
         p.info.error = error;
         LogError("plugin " + p.info.name + " disabled after an error: " + error);
@@ -370,33 +439,37 @@ namespace perlin::server {
     }
 
     bool PluginHost::AnyoneListens(abi::Event event) const {
-        const uint64_t bit = abi::host::SubscriptionBit(event);
-        return std::ranges::any_of(
-            plugins, [bit](const auto& p) { return p->info.enabled && (p->subscriptions & bit); });
+        return std::ranges::any_of(plugins, [event](const auto& p) {
+            return p->info.enabled && mods::Subscribed(p->subscriptions, event);
+        });
     }
 
     bool PluginHost::DispatchEncoded(abi::Event event, std::span<const uint8_t> payload) {
-        const uint64_t bit = abi::host::SubscriptionBit(event);
+        if (dispatchDepth == 0)
+            amendments.clear();
+        dispatchDepth++;
+        bool cancelled = false;
         for (auto& p : plugins) {
-            if (!p->info.enabled || !(p->subscriptions & bit))
+            if (!p->info.enabled || !mods::Subscribed(p->subscriptions, event))
                 continue;
             uint32_t result = 0;
-            if (CallPlugin(*p, event, payload, result) && (result & abi::kEventCancel))
-                return true;
+            if (CallPlugin(*p, event, payload, result) && (result & abi::kEventCancel) && abi::Cancellable(event)) {
+                cancelled = true;
+                break;
+            }
         }
-        return false;
+        dispatchDepth--;
+        return cancelled;
     }
 
     bool PluginHost::DispatchCommand(const std::string& plugin, uint64_t player, const std::string& command,
                                      const std::string& args) {
-        for (auto& p : plugins) {
-            if (p->info.name != plugin || !p->info.enabled)
-                continue;
-            const abi::Writer w = abi::host::Encode<abi::Event::Command>({command, args, player});
-            uint32_t result = 0;
-            return CallPlugin(*p, abi::Event::Command, {w.Data(), w.Size()}, result);
-        }
-        return false;
+        Plugin* p = Find(plugin);
+        if (!p || !p->info.enabled)
+            return false;
+        const abi::Writer w = abi::host::Encode<abi::Event::Command>({command, args, player});
+        uint32_t result = 0;
+        return CallPlugin(*p, abi::Event::Command, {w.Data(), w.Size()}, result);
     }
 
     std::vector<PluginHost::Info> PluginHost::List() const {

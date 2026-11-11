@@ -484,6 +484,10 @@ namespace perlin::ui {
                 {"oak_sign", "sign"},
                 {"popped_chorus_fruit", "chorus_fruit_popped"},
                 {"sugar_cane", "reeds"},
+                {"book", "book_normal"},
+                {"writable_book", "book_writable"},
+                {"written_book", "book_written"},
+                {"enchanted_book", "book_enchanted"},
                 {"compass", "compass_item"},
                 {"clock", "clock_item"},
                 {"recovery_compass", "recovery_compass_item"},
@@ -539,6 +543,13 @@ namespace perlin::ui {
                                    std::clamp(aux, 0, static_cast<int>(it->second.size()) - 1))],
                                t))
                     continue;
+            }
+            // animated item textures (compass, clock, ingots) are frames stacked in one tall strip: showing the
+            // whole strip stretches it into a single huge sprite, so the icon is its first frame
+            if (t.width > 0 && t.height > t.width && t.height % t.width == 0 &&
+                t.pixels.size() >= static_cast<size_t>(t.width) * t.width * 4) {
+                t.pixels.resize(static_cast<size_t>(t.width) * t.width * 4);
+                t.height = t.width;
             }
             if (name == "shield" && t.width >= 64 && t.height >= 64) {
                 const int scale = t.width / 64;
@@ -703,6 +714,15 @@ namespace perlin::ui {
             stemIndexBuilt = false;
         }
         auto it = items.find(key);
+        if (it != items.end()) {
+            // a server block's icon made before its textures were built: make it again once they are
+            if (it->second.generic && blocks && blocks->Ready() && unbuiltIcons.contains(key) &&
+                blocks->LookByName(key.substr(0, key.find_first_of(";@"))) != nullptr) {
+                unbuiltIcons.erase(key);
+                items.erase(it);
+                it = items.end();
+            }
+        }
         if (it != items.end())
             return it->second.ok ? &it->second : nullptr;
         ItemSprite sprite;
@@ -845,6 +865,8 @@ namespace perlin::ui {
                 Log("items", "no texture found for {}{}, using a generic icon", id,
                     (customItem ? " (icon '" + custom.icon + "')" : std::string()));
             MakeGenericIcon(id, sprite);
+            if (id.contains(':') && !id.starts_with("minecraft:"))
+                unbuiltIcons.insert(key);
         }
         auto inserted = items.emplace(key, std::move(sprite)).first;
         return &inserted->second;

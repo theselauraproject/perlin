@@ -1,4 +1,5 @@
 #include "client/PerlinFrame.hpp"
+#include "client/resources/AssetJobs.hpp"
 #include "util/Log.hpp"
 
 namespace perlin {
@@ -15,7 +16,6 @@ namespace perlin {
                 bands.clear();
                 owner = &level;
             }
-            // changeCounter is level-wide: busy servers bump it every tick, refreshing every band at once
             static std::chrono::steady_clock::time_point budgetFrame{};
             static int budget = 0;
             if (now != budgetFrame) {
@@ -30,13 +30,11 @@ namespace perlin {
             const uint64_t counter = level.changeCounter.load(std::memory_order_relaxed);
             const auto age = now - b.at;
             const bool fresh = b.at == std::chrono::steady_clock::time_point{};
-            // out of budget: open sky until this band's turn comes
             if (fresh && budget <= 0)
                 return 0xF0;
             if (fresh || (budget > 0 && ((counter != b.counter && age > std::chrono::milliseconds(400)) ||
                                          age > std::chrono::seconds(20)))) {
                 budget--;
-                // the level lock is held by chunk application and meshing: never wait for it on the render thread
                 if (ChunkLighting::Compute(level, {cx, cz}, band * 16 - 8, band * 16 + 23, b.lit, true)) {
                     b.at = now;
                     b.counter = counter;
@@ -176,7 +174,6 @@ namespace perlin {
     }
 
     namespace {
-        // segment from a to b against a box; returns the entry fraction, or a value past 1 when missed
         float SegmentBoxEntry(const glm::vec3& a, const glm::vec3& b, const glm::vec3& lo,
                               const glm::vec3& hi) {
             float enter = 0.0f, leave = 1.0f;
@@ -198,8 +195,6 @@ namespace perlin {
             return enter;
         }
 
-        // BlockSource clip walk (0x1432DA390) with the camera shape (shape type 2): cells in ray order, at most 200,
-        // the first hit against a block's camera box ends it
         std::optional<glm::vec3> CameraClip(const Level& level, const LevelCollision& col, glm::vec3 from,
                                             glm::vec3 to) {
             glm::ivec3 cell(static_cast<int>(std::floor(from.x)), static_cast<int>(std::floor(from.y)),
@@ -221,8 +216,6 @@ namespace perlin {
                 bool loaded = false;
                 const std::string& name =
                     BlockPalette::Instance().Name(level.GetBlock(cell.x, cell.y, cell.z, loaded));
-                // camera shape overrides: grates never stop the camera (0x147726070), soul sand and mud use a
-                // full cube instead of their lowered collision (0x148F936E0)
                 if (name.ends_with("copper_grate"))
                     shape.boxes.clear();
                 else if (name == "minecraft:soul_sand" || name == "minecraft:mud")
@@ -249,14 +242,9 @@ namespace perlin {
         }
     }
 
-    // CameraAvoidanceSystem, lambda 0x146F838E0, with the code defaults: no whisker rays, distance_constraint_min 0,
-    // relax spring 4 (0x40800000)
     void Perlin::UpdateThirdPersonDistance(BedrockSession* live, float dt) {
-        // TODO: the vanilla preset distance and whisker rays come from the camera presets json, 5 until they're read
         constexpr float desired = 5.0f;
         if (camera.mode == PerspectiveMode::FirstPerson) {
-            // entering third person puts the camera straight at its distance (no zoom out from the eye): negative
-            // marks "not placed yet"
             camera.thirdPersonDistance = -1.0f;
             camera.avoidanceVelocity = 0.0f;
             return;
@@ -269,8 +257,6 @@ namespace perlin {
                 camera.mode == PerspectiveMode::ThirdPersonBack ? -camera.Direction() : camera.Direction();
             const glm::vec3 wanted = pivot + dir * desired;
             const float nearClip = camera.nearPlane;
-            // 8 rays from the corners of a +-0.1 box around the pivot, parallel to pivot -> camera; the hit distance
-            // is measured from the pivot centre
             float best = std::numeric_limits<float>::max();
             for (int i = 0; i < 8; ++i) {
                 const glm::vec3 o(static_cast<float>(((2 * i) & 2) - 1) * 0.1f,
@@ -281,13 +267,10 @@ namespace perlin {
             }
             target = desired < best ? desired : std::max(best, 0.0f);
         }
-        // the camera sits straight at its distance: no spring back out after a wall pulled it in or after a
-        // perspective switch (only the zoom key eases)
         camera.thirdPersonDistance = target;
         camera.avoidanceVelocity = 0.0f;
         if (target >= 0.0f)
             return;
-        // only the box rays pull the camera in at once; going back out is a critically damped spring
         if (camera.thirdPersonDistance > target) {
             camera.thirdPersonDistance = target;
             camera.avoidanceVelocity = 0.0f;
@@ -343,7 +326,6 @@ namespace perlin {
         headUnderwater = underwater;
         headInLava = eyeInLava;
         {
-            // java nether portal overlay: ramps up over ~4 s inside a portal, fades fast outside
             const auto nowPortal = Clock::now();
             static auto lastPortalAt = nowPortal;
             const float portalDt =
@@ -357,7 +339,6 @@ namespace perlin {
         if (live && session) {
             const int dim = live->DimensionId();
             if (lastDimId != -1 && dim != lastDimId) {
-                // dimension hop (portal, end gateway): loading screen until the new terrain arrives
                 loading.done = false;
                 loading.startAt = {};
                 loading.readyArmed = false;
@@ -398,7 +379,6 @@ namespace perlin {
         hudState.sidebar.clear();
         if (live) {
             const auto sb = live->Scoreboard();
-            // json ui sidebar when the server restyles it; else the java one
             hudState.sidebarVisible = sb.visible && !pause.shown && hud && hud->Overrides("scoreboard");
             hudState.sidebarTitle = sb.title;
             for (const auto& r : sb.rows)
@@ -436,7 +416,6 @@ namespace perlin {
                         else if (fx.id == 4)
                             slow = std::max(slow, fx.amplifier);
                     }
-                    // TODO: the held item own swing duration, base 6 for now
                     handIn.swingTicks = hand::SwingTicks(6, fast, slow);
                 }
                 handIn.survival = hudState.Survival();
@@ -451,8 +430,8 @@ namespace perlin {
                     const bool always =
                         mn == "minecraft:golden_apple" || mn == "minecraft:enchanted_golden_apple" ||
                         mn == "minecraft:chorus_fruit" || drink || mn == "minecraft:suspicious_stew";
-                    handIn.eating = handIn.survival && handIn.useHeld && HandRenderer::IsFood(mn) &&
-                                    (always || hudState.food < 20);
+                    handIn.eating = handIn.survival && handIn.useHeld && HandRenderer::IsFood(mn);
+                    (void)always;
                 }
                 handRenderer.Tick(handIn, options.hand);
                 {
@@ -557,7 +536,6 @@ namespace perlin {
         fogInput.cloudRangeChunks = graphics.cloudRange;
         fogInput.forward = camera.Direction();
         fogInput.cameraY = eye.y;
-        // java scales the void darkening down to one block above the floor in flat worlds (clear colour scale 1 instead of 1/32)
         if (session && session->FlatWorld())
             fogInput.voidDarknessOnsetRange = 1.0f;
         fogInput.rain = rain;
@@ -621,7 +599,6 @@ namespace perlin {
                     fog.color = glm::vec4(*m.color, fog.color.w);
             } else if (live &&
                        static_cast<Dimension>(std::clamp(live->DimensionId(), 0, 2)) == Dimension::Nether) {
-                // no server fog pushed: fall back to per-biome nether haze
                 const std::string bn = eyeBiome.starts_with("minecraft:") ? eyeBiome.substr(10) : eyeBiome;
                 glm::vec3 tint(0.2f, 0.05f, 0.05f);
                 if (bn == "crimson_forest")
@@ -697,7 +674,6 @@ namespace perlin {
         params.shadowEntities = options.shadowEntities;
         params.cameraMedium = headUnderwater ? 1 : (headInLava ? 2 : 0);
         params.waterSurfaceAbove = waterSurfaceAbove;
-        // java packs draw only the real chunks, so their fog belongs at that edge even with lods beyond it
         params.renderDistance = std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks));
         params.eyeSkyLight = loop->handSky;
         params.eyeBlockLight = loop->handBlock;
@@ -793,7 +769,6 @@ namespace perlin {
         params.sky.starBrightness = env.starBrightness;
         std::copy_n(glm::value_ptr(env.sunriseColor), 4, params.sky.sunrise);
         params.sky.moonPhase = env.moonPhase;
-        // the sky turns dark below the horizon: sea level in a normal world, the world floor in a flat one
         params.sky.darkDisc =
             eye.y < (session && session->FlatWorld() ? frame::kFlatHorizonHeight : frame::kHorizonHeight);
 
@@ -804,6 +779,13 @@ namespace perlin {
         std::copy_n(glm::value_ptr(cloudColor), 4, params.cloud.color);
         params.cloud.height = env.cloudHeight;
         params.cloud.gameTicks = std::chrono::duration<double>(frameStart - startedAt).count() * 20.0;
+        if (!f.live && !loop->preview) {
+            static constexpr float kIdle[4] = {0.075f, 0.078f, 0.086f, 1.0f};
+            params.sky.enabled = false;
+            params.cloud.enabled = false;
+            std::copy_n(kIdle, 3, params.sky.skyColor);
+            std::copy_n(kIdle, 4, params.fogColor);
+        }
 
         params.crosshair = false;
         {
@@ -859,7 +841,6 @@ namespace perlin {
                 params.worldDay = static_cast<int>(day);
                 params.worldTick = tick;
             } else {
-                // preview/offline: renderer clock stands in for session time
                 params.worldDay = static_cast<int>(worldTicks / 24000.0);
                 params.worldTick = static_cast<int>(std::fmod(worldTicks, 24000.0));
             }
@@ -872,6 +853,23 @@ namespace perlin {
         lightmap.ambientColor = env.ambientColor;
         lightmap.blockLightTint = env.blockLightTint;
         lightmap.nightVisionColor = env.nightVisionColor;
+        // light texture tick 0x1453E5F40: night vision or conduit power, the longer one wins (-1 = infinite);
+        // flickers sin((ticks - 1) * pi / 5) over its last 200 ticks
+        if (sessionReady && session) {
+            bool active = false;
+            int ticks = 0;
+            for (const auto& fx : session->GetEffects())
+                if (fx.id == 16 || fx.id == 26) {
+                    if (!active || fx.ticks == -1 || (ticks != -1 && fx.ticks > ticks))
+                        ticks = fx.ticks;
+                    active = true;
+                }
+            if (active)
+                lightmap.nightVisionFactor =
+                    ticks == -1 || ticks > 200
+                        ? 1.0f
+                        : std::sin(static_cast<float>(ticks - 1) * 3.1415927f * 0.2f) * 0.3f + 0.7f;
+        }
         lightmap.brightness = options.gamma;
         BuildLightmap(lightmap, params.lightmap);
     }
@@ -1008,13 +1006,11 @@ namespace perlin {
                     ApplyBedPose(live->NetLevel(), e);
         if (!live && !previewWalk.empty()) {
             static std::unordered_map<uint64_t, glm::dvec3> base;
-            // timed from when the world settles: the screenshot fires at PERLIN_PREVIEW_WAIT on the same clock
             const double t = std::chrono::duration<double>(frameStart - previewReadyAt).count();
             static const bool walking = PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK") != nullptr;
             static const double walkTurn = PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK_DIR")
                                                ? std::atof(PERLIN_ENV("PERLIN_PREVIEW_ENTITY_WALK_DIR"))
                                                : 0.0;
-            // head turns by this much between 0.5 s and 1.5 s
             static const float headTurn =
                 PERLIN_ENV("PERLIN_PREVIEW_ENTITY_HEAD")
                     ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_PREVIEW_ENTITY_HEAD")))
@@ -1023,14 +1019,13 @@ namespace perlin {
                 if (std::find(previewWalk.begin(), previewWalk.end(), pe.runtimeId) != previewWalk.end()) {
                     const glm::dvec3 b = base.emplace(pe.runtimeId, pe.pos).first->second;
                     const double yawRad = glm::radians(static_cast<double>(pe.yaw) + walkTurn);
-                    // always from the base: Move takes eye height for players, feeding pos back would sink it
                     pe.pos = b + glm::dvec3(-std::sin(yawRad), 0.0, std::cos(yawRad)) *
                                      (walking ? std::sin(t * 1.5) * 1.5 : 0.0);
                     pe.headYaw = pe.yaw + headTurn * static_cast<float>(std::clamp(t - 0.5, 0.0, 1.0));
                     previewEntities.Move(pe.runtimeId, pe.pos, pe.pitch, pe.yaw, pe.headYaw, true);
                 }
         }
-        const bool firstPerson = camera.mode == PerspectiveMode::FirstPerson;
+        const bool firstPerson = camera.mode == PerspectiveMode::FirstPerson && !cameraDetached;
         if (live || !firstPerson || PERLIN_ENV("PERLIN_PREVIEW_SELF")) {
             entity::Entity self;
             self.runtimeId = 0xFFFFFFFFFFFF0001ull;
@@ -1039,6 +1034,8 @@ namespace perlin {
             if (live && live->Invisible())
                 self.flags |= entity::flag::Invisible;
             self.name = live ? live->PlayerName() : std::string("Perlin");
+            if (live)
+                self.nameTag = live->OwnNameTag();
             self.pos = {camera.x,
                         camera.y - (live ? static_cast<double>(player.EyeOffset()) : entity::kPlayerEye),
                         camera.z};
@@ -1128,6 +1125,9 @@ namespace perlin {
         entity::EntityRenderer::FrameIn ein;
         ein.time = std::chrono::duration<double>(frameStart - startedAt).count();
         ein.dt = dt;
+        ein.partialTick = replayCtl.Playing()
+                              ? static_cast<float>(std::clamp(loop->replayActorClock / physics::kTickSeconds, 0.0, 1.0))
+                              : player.PartialTick();
         {
             const glm::vec3 eyePos = camera.EyePosition();
             ein.camera = {eyePos.x, eyePos.y, eyePos.z};
@@ -1260,7 +1260,6 @@ namespace perlin {
             }
             return entry.colour;
         };
-        // java packs light entities from lightmap coordinates: the block / sky levels where they stand
         ein.lightLevels = [&, lightFn = ein.light](const glm::dvec3& p) -> glm::ivec2 {
             lightFn(p);
             const int bx = static_cast<int>(std::floor(p.x)), by = static_cast<int>(std::floor(p.y)),
@@ -1428,6 +1427,10 @@ namespace perlin {
                 }
             }
         }
+        // effects started by entity animations and controllers (pack particle_effects)
+        for (const auto& request : entityRenderer.TakeParticleRequests())
+            if (!dataParticles.Spawn(request.effect, request.at, {}, request.preScript))
+                particles.SpawnNamed(request.effect, request.at);
         if (!live)
             if (const char* pb = PERLIN_ENV("PERLIN_PREVIEW_BREAK")) {
                 static double burstClock = 0;
@@ -1457,41 +1460,32 @@ namespace perlin {
         }
         particleQuads.clear();
         particles.Collect(static_cast<float>(particleClock / 0.05), pw, particleQuads);
-        if (const int fireTile = levelRenderer->Blocks().TileContaining("fire_1"); fireTile >= 0) {
-            const int soulTile = levelRenderer->Blocks().TileContaining("soul_fire_1");
-            for (const entity::Entity& burner : entities) {
-                const bool selfBurning = burner.isSelf && hudState.burning;
-                if (!selfBurning && !(burner.flags & entity::flag::Onfire))
-                    continue;
-                if ((burner.flags & entity::flag::FireImmune) || burner.dying || burner.isItem)
-                    continue;
-                const glm::dvec3 at = burner.pos;
-                const float scale = burner.scale;
-                // blue flames when standing on soul soil/sand, matches the valley look
-                int tile = fireTile;
-                {
-                    bool loaded = false;
-                    const uint16_t below = live->NetLevel().GetBlock(
-                        static_cast<int>(std::floor(at.x)), static_cast<int>(std::floor(at.y - 0.5)),
-                        static_cast<int>(std::floor(at.z)), loaded);
-                    if (loaded && soulTile >= 0) {
-                        const std::string bn = BlockPalette::Instance().Name(below);
-                        if (bn == "soul_sand" || bn == "soul_soil")
-                            tile = soulTile;
-                    }
-                }
-                for (int k = 0; k < 6; k++) {
-                    const float a = static_cast<float>(k) * 1.0472f + 0.5f;
-                    const float h = 0.15f + 0.3f * static_cast<float>(k % 3);
-                    particle::Quad q;
-                    q.centre = at + glm::dvec3(std::cos(a) * 0.3 * scale, (h + 0.35f * (k / 3)) * scale,
-                                               std::sin(a) * 0.3 * scale);
-                    q.half = 0.4f * scale;
-                    q.terrainTile = tile;
-                    particleQuads.push_back(q);
-                }
+        fireSprites.clear();
+        for (const entity::Entity& burner : entities) {
+            const bool selfBurning = burner.isSelf && hudState.burning;
+            if (!selfBurning && !(burner.flags & entity::flag::Onfire))
+                continue;
+            if ((burner.flags & entity::flag::FireImmune) || burner.dying || burner.isItem)
+                continue;
+            // the camera's own flames are the overlay: planes around the head would sit in the view
+            if (burner.isSelf && ein.firstPerson)
+                continue;
+            entity::EntityRenderer::FrameIn::FireSprite sprite;
+            sprite.pos = burner.pos;
+            sprite.width = (burner.boxWidth > 0.0f ? burner.boxWidth : 0.6f * burner.scale);
+            sprite.height = (burner.boxHeight > 0.0f ? burner.boxHeight : 1.8f * burner.scale);
+            bool loaded = false;
+            const uint16_t below = live->NetLevel().GetBlock(static_cast<int>(std::floor(burner.pos.x)),
+                                                             static_cast<int>(std::floor(burner.pos.y - 0.5)),
+                                                             static_cast<int>(std::floor(burner.pos.z)), loaded);
+            if (loaded) {
+                const std::string blockName = BlockPalette::Instance().Name(below);
+                sprite.soul = blockName == "minecraft:soul_sand" || blockName == "minecraft:soul_soil";
             }
+            fireSprites.push_back(sprite);
         }
+        ein.fire = &fireSprites;
+        ein.screenFire = hudState.burning && ein.firstPerson && hudState.mode != ui::GameMode::Spectator;
         ein.particles = &particleQuads;
         ein.dataParticles = &dataParticles;
         ein.dataWorld = dataWorld;
@@ -1549,7 +1543,7 @@ namespace perlin {
         auto& handBlock = loop->handBlock;
         if ((live || preview) &&
             (!replayCtl.Playing() || replayCtl.cameraMode == replay::CameraMode::Follow) &&
-            camera.mode == PerspectiveMode::FirstPerson && options.showHud &&
+            camera.mode == PerspectiveMode::FirstPerson && !cameraDetached && options.showHud &&
             hudState.mode != ui::GameMode::Spectator && !death.shown &&
             !ui::UiAssets::Instance().VanillaRoot().empty()) {
             HandRenderer::FrameIn handFrame;
@@ -1653,15 +1647,26 @@ namespace perlin {
         static double hudRetry = 0;
         const double nowSeconds = std::chrono::duration<double>(frameStart - startedAt).count();
         const std::string vanillaRoot = options.bedrockSamplesDir + "/repo/resource_pack";
-        if (!hud && nowSeconds >= hudRetry) {
+        static bool hudBootstrap = false;
+        if (nowSeconds >= hudRetry && (!hud || hudBootstrap)) {
             hudRetry = nowSeconds + 2.0;
-            if (std::filesystem::exists(vanillaRoot + "/ui/hud_screen.json")) {
+            const bool vanillaUi = std::filesystem::exists(vanillaRoot + "/ui/hud_screen.json") &&
+                                   !assets::Busy(assets::Samples());
+            if (hud && vanillaUi) {
                 ui::UiAssets::Instance().Configure(vanillaRoot, &levelRenderer->Blocks());
+                hud->RequestReload();
+                hudBootstrap = false;
+            } else if (!hud) {
+                if (vanillaUi)
+                    ui::UiAssets::Instance().Configure(vanillaRoot, &levelRenderer->Blocks());
                 auto candidate = std::make_unique<ui::Hud>();
-                if (candidate->Initialize(*renderer, vanillaRoot, paths::DataDir()))
+                candidate->SetJavaStyle(true);
+                if (candidate->Initialize(*renderer, vanillaRoot, paths::DataDir(), !vanillaUi)) {
+                    hudBootstrap = !candidate->HasLevelUi();
                     hud = std::move(candidate);
-                else
+                } else {
                     candidate->Shutdown();
+                }
             }
         }
         if (hud) {
@@ -1701,15 +1706,11 @@ namespace perlin {
                     this->input.SetKeyboard(keyboard);
                 }
                 const bool pressed = this->input.IsMouseDown(0);
-                const bool onButton = hud->Overlay().OverlayHoverIsButton();
-                if (pressed && !uiClickWasDown && onButton && !chat.IsOpen()) {
-                    std::string clickName = "random.click";
-                    float clickVolume = 1.0f, clickPitch = 1.0f;
-                    hud->Overlay().OverlayHoverSound(clickName, clickVolume, clickPitch);
-                    if (!clickName.empty())
-                        sounds.PlayNamed(clickName, {camera.x, camera.y, camera.z}, clickVolume, clickPitch,
-                                         false);
-                }
+                std::string clickName;
+                float clickVolume = 1.0f, clickPitch = 1.0f;
+                if (pressed && !uiClickWasDown && !chat.IsOpen() &&
+                    hud->Overlay().OverlayHoverClickSound(clickName, clickVolume, clickPitch))
+                    sounds.PlayNamed(clickName, {camera.x, camera.y, camera.z}, clickVolume, clickPitch, false);
                 uiClickWasDown = pressed;
             }
             DrawModTint(fbW, fbH);
@@ -1791,7 +1792,7 @@ namespace perlin {
                 }
             }
             float cx, cy, cw, ch;
-            if (options.showHud && !replayCtl.Playing() && !screens.AnyCoveringOpen() &&
+            if (options.showHud && !replayCtl.Playing() && !screens.AnyCoveringOpen() && !WorldCovered() &&
                 (camera.mode == PerspectiveMode::FirstPerson || options.thirdPersonCrosshair) &&
                 hudState.mode != ui::GameMode::Spectator && hud->Cursor(cx, cy, cw, ch))
                 renderer->DrawHudCursor(cx, cy, cw, ch);
@@ -1829,8 +1830,8 @@ namespace perlin {
             previewControls.SetViewport(width, height);
             previewControls.SetState(touchState);
             previewControls.Draw(*renderer, true);
-        } else if (optionsUi.touchEditing || (!death.shown && !pause.shown && !inventory.shown &&
-                                              !disconnect.shown && !loading.shown && !titleScreen.shown)) {
+        } else if (optionsUi.touchEditing || (live && hud && !asset.shown && !death.shown && !pause.shown &&
+                                              !inventory.shown && !WorldCovered())) {
             platform->DrawTouchOverlay(*renderer);
         }
         platform->DrawPointerOverlay(*renderer);

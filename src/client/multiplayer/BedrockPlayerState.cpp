@@ -409,6 +409,10 @@ namespace perlin {
                     blockNamesLearned = true;
                 }
             }
+            if (const auto* with = std::get_if<ItemExtraDataWithBlockingTick>(&raw.extra))
+                info.canDestroy = with->canDestroy;
+            else if (const auto* without = std::get_if<ItemExtraDataWithoutBlockingTick>(&raw.extra))
+                info.canDestroy = without->canDestroy;
             if (const auto* nbt = ItemNbt(raw)) {
                 int damage = 0;
                 FindNbtString(*nbt, "Name", info.customName);
@@ -634,7 +638,7 @@ namespace perlin {
                     invInFlight.erase(r.requestId);
                     const bool newerPending =
                         !invSnapshots.empty() && invSnapshots.begin()->first < r.requestId;
-                    if (r.status != ItemStackResponsesEntryStatus::Ok || !r.containers || newerPending)
+                    if (r.status != ItemStackResponsesEntryStatus::Ok || !r.containers)
                         continue;
                     for (const auto& c : *r.containers) {
                         const ContainerSlotType type = c.slotType.containerId;
@@ -679,6 +683,13 @@ namespace perlin {
                                 continue;
                             ItemStackInfo& info = InvInfoLocked(slot);
                             ItemV4& raw = InvRawLocked(slot);
+                            // newer requests own the predicted counts, but a slot still named by this request's
+                            // id must take the server's: the id stops being valid once this response is out
+                            if (newerPending) {
+                                if (s.itemStackId && raw.hasStackId && raw.stackId == r.requestId)
+                                    raw.stackId = s.itemStackId;
+                                continue;
+                            }
                             if (s.count != 0 && raw.networkId == 0 && before && slot < 36) {
                                 const ItemV4& old = before->raw[slot];
                                 if (old.networkId != 0 &&
@@ -842,6 +853,7 @@ namespace perlin {
                 inventory.horseOpen = false;
             }
             inventory.chestOpen = false;
+            inventory.chestFitRows = false;
             inventory.furnaceKind = -1;
             chestWindow = -1;
             if (p.windowType == WindowType::Furnace || p.windowType == WindowType::BlastFurnace ||
@@ -861,17 +873,35 @@ namespace perlin {
             }
             // plain chests on boats and minecarts arrive as their own window types
             const auto wt = p.windowType;
+            // our own inventory request can be answered in a numbered window too: still the player's inventory
+            const auto askedNs = ownInventoryAskedAt.exchange(0);
+            const bool ownInventory =
+                wt == WindowType::Inventory && askedNs != 0 &&
+                std::chrono::steady_clock::now() -
+                        std::chrono::steady_clock::time_point(std::chrono::steady_clock::duration(askedNs)) <
+                    std::chrono::seconds(3);
+            // an actor with a generic inventory (loot crates, custom chests) opens as "inventory" in a window of its own;
+            // window 0 is the player's own inventory
+            const bool actorInventory =
+                wt == WindowType::Inventory && static_cast<int>(p.windowId) != 0 && !ownInventory;
+            // the open names its owning actor (-1 for a block): an npc shop arrives as a plain container this way
+            const bool actorOwned =
+                actorInventory || (wt == WindowType::Container && p.runtimeEntityId != -1 && p.runtimeEntityId != 0);
             const bool plainContainer = wt == WindowType::Container || wt == WindowType::MinecartChest ||
                                         wt == WindowType::ChestBoat || wt == WindowType::Hopper ||
-                                        wt == WindowType::Dropper || wt == WindowType::Dispenser;
-            if (wt != WindowType::Container && wt != WindowType::Horse && wt != WindowType::Workbench &&
+                                        wt == WindowType::Dropper || wt == WindowType::Dispenser || actorInventory;
+            if (!plainContainer && !ownInventory && wt != WindowType::Horse && wt != WindowType::Workbench &&
                 inventory.furnaceKind < 0)
                 Log("bedrock", "container open window {} type {} (unhandled)", static_cast<int>(p.windowId),
                     static_cast<int>(wt));
             if (plainContainer) {
                 bool loaded = false;
-                const std::string name = BlockPalette::Instance().Name(
-                    netLevel.GetBlock(p.coordinates.x, p.coordinates.y, p.coordinates.z, loaded));
+                // actor containers carry no block: whatever sits at their coordinates says nothing about them
+                const std::string name =
+                    actorOwned
+                        ? std::string()
+                        : BlockPalette::Instance().Name(
+                              netLevel.GetBlock(p.coordinates.x, p.coordinates.y, p.coordinates.z, loaded));
                 const auto has = [&](const char* s) { return name.contains(s); };
                 chestSlotType = has("shulker_box") ? ContainerSlotType::Shulker
                                 : has("barrel")    ? ContainerSlotType::Barrel
@@ -880,6 +910,15 @@ namespace perlin {
                                        : has("shulker_box") ? "container.shulkerBox"
                                        : has("barrel")      ? "container.barrel"
                                                             : "container.chest";
+                inventory.chestFitRows = actorOwned;
+                if (actorOwned) {
+                    // the actor's own name heads the window, as in the game; the container open names its unique id
+                    entity::Entity holder;
+                    if ((entities.FindUnique(p.runtimeEntityId, holder) ||
+                         entities.Find(static_cast<uint64_t>(p.runtimeEntityId), holder)) &&
+                        !holder.nameTag.empty())
+                        inventory.chestTitle = holder.nameTag.substr(0, holder.nameTag.find('\n'));
+                }
                 inventory.chestOpen = true;
                 inventory.chestSlots = 27;
                 chestWindow = static_cast<int>(p.windowId);
@@ -1082,11 +1121,18 @@ namespace perlin {
             std::lock_guard lock(statusMutex);
             const auto now = std::chrono::steady_clock::now();
             switch (p.type) {
+            // clear and reset take the title and subtitle off screen; the action bar is its own line and stays.
+            // reset also puts the durations back to the game's defaults: servers send it before a countdown that
+            // relies on them, after an earlier short "times" for something else
             case SetTitlePacketType::Clear:
             case SetTitlePacketType::Reset:
                 titleText.title.clear();
                 titleText.subtitle.clear();
-                titleText.actionBar.clear();
+                if (p.type == SetTitlePacketType::Reset) {
+                    titleText.fadeIn = 10;
+                    titleText.stay = 70;
+                    titleText.fadeOut = 20;
+                }
                 titleText.serial++;
                 break;
             case SetTitlePacketType::SetTitle:

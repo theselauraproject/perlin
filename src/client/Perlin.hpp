@@ -1,4 +1,5 @@
 #pragma once
+#include "client/platform/DiscordRpc.hpp"
 #include "client/Accounts.hpp"
 #include "client/Camera.hpp"
 #include "client/ClientControl.hpp"
@@ -36,6 +37,7 @@
 #include "client/ui/FormScreen.hpp"
 #include "client/ui/Hud.hpp"
 #include "client/ui/InventoryScreen.hpp"
+#include "client/ui/TitlePanorama.hpp"
 #include "client/ui/TitleScreen.hpp"
 #include "client/ui/UiTemplate.hpp"
 #include "network/FriendWorld.hpp"
@@ -86,7 +88,6 @@ namespace perlin {
         std::string stun;
         bool hidden = false;
         int controlPort = 0;
-        // --benchmark [seconds]: run the benchmark, write the result and quit
         double benchmarkSeconds = 0;
         uint64_t benchmarkSeed = 0;
         std::string benchmarkOut;
@@ -110,7 +111,6 @@ namespace perlin {
         using Clock = std::chrono::steady_clock;
         using TimePoint = Clock::time_point;
 
-        // the parts every rml overlay screen keeps between frames
         struct OverlayState {
             bool shown = false;
             bool leftDown = false;
@@ -118,7 +118,6 @@ namespace perlin {
             TimePoint openedAt;
         };
 
-        // lifecycle (Perlin.cpp)
         bool AcceptEula();
         void Connect();
         void StartAssetDownloads();
@@ -129,7 +128,6 @@ namespace perlin {
         void VibrateBlockBroken();
         LocalBreakState LocalBreak() const;
 
-        // frame loop (PerlinFrame.cpp, PerlinFrameWorld.cpp, PerlinFrameRender.cpp)
         void RenderThreadMain();
         void InitRenderThread();
         void FrameStep();
@@ -138,6 +136,7 @@ namespace perlin {
         void ImportDroppedFiles();
         void UpdateLook(FrameContext& f);
         void UpdateCameraEffects();
+        void RestorePlayerCamera();
         void TrackDamage();
         void UpdateSession(FrameContext& f);
         void UpdateRiding(BedrockSession& live, const std::vector<entity::Entity>& entities);
@@ -176,7 +175,6 @@ namespace perlin {
         void EndFrame(FrameContext& f);
         void PaceFrame(FrameContext& f);
 
-        // rml screens (PerlinScreens.cpp); RegisterScreens lists them all, in the order they get the frame
         void RegisterScreens();
         void UpdateServerLayer(ui::Hud& hud, BedrockSession* live, int fbW, int fbH);
         void UpdateFormScreen(ui::Hud& hud, BedrockSession* live, int fbW, int fbH);
@@ -191,14 +189,12 @@ namespace perlin {
                 input.RequestCursorCenter();
         }
 
-        // inventory (PerlinInventory.cpp, PerlinCreative.cpp)
         void UpdateInventoryScreen(ui::Hud& hud, BedrockSession* live, const ui::HudState& state, int fbW,
                                    int fbH);
         void UpdateCreativeScreen(ui::Hud& hud, BedrockSession* live, const ui::HudState& state, int fbW,
                                   int fbH);
         void OpenInventory(TimePoint now);
 
-        // pause and options menus (PerlinPause.cpp, PerlinOptions.cpp, PerlinPackMenu.cpp, PerlinWardrobe.cpp)
         void UpdatePauseScreen(ui::Hud& hud, BedrockSession* live, int fbW, int fbH);
         bool OpenPauseScreen(ui::Hud& hud, BedrockSession* live, TimePoint now, bool preview);
         void UpdateKeybindPage(PauseFrame& f);
@@ -217,7 +213,7 @@ namespace perlin {
         void BuildJavaShaderSettingsOptions(OptionsModel& m, PauseFrame& f);
         void BuildShaderSettingsOptions(OptionsModel& m, PauseFrame& f);
         void BuildSkinOptions(OptionsModel& m, PauseFrame& f);
-        void BuildHandOptions(OptionsModel& m, PauseFrame& f);
+        void BuildPerlinOptions(OptionsModel& m, PauseFrame& f);
         void BuildKeyBindsOptions(OptionsModel& m, PauseFrame& f);
         void UpdatePauseMenu(PauseFrame& f);
         const Binding& BindingOf(Action a) const {
@@ -230,16 +226,16 @@ namespace perlin {
                 options.SetKey(a, b);
         }
 
-        // title, loading and disconnect screens (PerlinTitle.cpp)
         bool UpdateTitleScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateAssetScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateLoadingScreen(ui::Hud& hud, int fbW, int fbH);
         bool UpdateDisconnectScreen(ui::Hud& hud, int fbW, int fbH);
-        void DrawTitlePanorama(int fbW, int fbH);
+        bool DrawTitlePanorama(int fbW, int fbH, bool blurred = false);
+        bool PollBlurredPanorama(int fbH, bool wait);
+        bool WorldCovered() const;
         void LeaveToServerList(ui::Hud& hud);
         int FrameGenMultiplier();
 
-        // accounts and server browser (PerlinServers.cpp)
         void ApplyActiveAccount();
         std::string ActiveAuthPath() const;
         void PrewarmSignIn();
@@ -250,9 +246,9 @@ namespace perlin {
         void RefreshTab(ui::ServerTab tab);
         void RefreshFeatured(bool force);
         void JoinServer(const std::string& address);
-        // the world folder, seed and game mode are for the benchmark; the defaults are the player's own world
+        void UpdateDiscord();
+        void HandleDiscordJoin(const std::string& secret);
         void JoinSingleplayer(const std::string& worldDir = {}, uint64_t seed = 0, int gameMode = -1);
-        // benchmark mode (Benchmark.hpp)
         void StartBenchmark(bench::Settings settings);
         void UpdateBenchmark(FrameContext& f);
         void FinishBenchmark();
@@ -265,7 +261,6 @@ namespace perlin {
         void AddRealm(const std::string& code);
         void SetJoinMessage(const std::string& text);
 
-        // resource and shader packs (PerlinPacks.cpp)
         void ApplyTexturePacks();
         void UnloadServerPacks(bool leavingLevel = false);
         void CommitTexturePacks();
@@ -273,19 +268,16 @@ namespace perlin {
         void PollJavaPack(BedrockSession* live);
         void PollHotReload();
 
-        // hud state (PerlinHud.cpp)
         void FillHudState(ui::HudState& state, BedrockSession* live, bool preview);
         void FillDebug(ui::HudState& state, BedrockSession* live, Level* level);
         void TickHud();
         void UpdateAudio(BedrockSession* live, double now, float dt);
         void SpawnPreviewEntities();
 
-        // remote control api (PerlinControl.cpp)
         void PollControl();
         void PublishControl();
         void TraceControlTick(uint64_t tick, const physics::State& state, const physics::Input& input);
 
-        // mods (PerlinMods*.cpp)
         void SetupMods();
         void SetupModPlayerApi();
         void SetupModWorldApi();
@@ -317,7 +309,6 @@ namespace perlin {
         void PumpModHooks(BedrockSession* live);
         void ApplyModSkins(std::vector<entity::Entity>& entities);
         void PrepareModRender(entity::EntityRenderer::FrameIn& in);
-        // true: a mod cancelled the action
         bool DispatchModInteract(abi::InteractKind kind, int x, int y, int z, int face, uint64_t entity);
         bool DispatchModSlotClick(int slot, bool right, bool shift);
         bool DispatchModToast(const std::string& title, const std::string& body);
@@ -325,7 +316,6 @@ namespace perlin {
         void PumpModInput(mods::ModManager& mm);
         void DrawModGfx(int fbW, int fbH, bool hudBand);
 
-        // replay recording, playback and the timeline editor (PerlinReplay.cpp, PerlinEditor.cpp)
         void ToggleReplayRecording(bool start);
         void FinishReplayRecording(const char* why);
         void StartReplayPlayback(const std::string& path);
@@ -345,7 +335,6 @@ namespace perlin {
         void LoadTimeline();
         void SaveTimeline();
 
-        // video export (PerlinExport.cpp, PerlinExportUi.cpp)
         struct ExportRequest {
             replay::ExportConfig cfg;
             bool screenshot = false;
@@ -366,7 +355,6 @@ namespace perlin {
         LaunchArgs args;
         AppPlatform* platform = nullptr;
         Options options;
-        // the renderer the game started with; a new choice is saved and takes effect on the next launch
         std::string runningRenderer, notifiedRenderer;
         Input input;
         InputManager inputManager{input, options};
@@ -385,6 +373,7 @@ namespace perlin {
         const Level* particleLevel = nullptr;
         double particleClock = 0;
         std::vector<particle::Quad> particleQuads;
+        std::vector<entity::EntityRenderer::FrameIn::FireSprite> fireSprites;
         FogDefs fogDefs;
         audio::AudioEngine audioEngine;
         audio::SoundSystem sounds{audioEngine};
@@ -408,7 +397,6 @@ namespace perlin {
         int lastDimId = -1;
         float portalTime = 0.0f;
 
-        // block targeting, breaking and placing; render thread only
         struct LocalCrack {
             bool active = false;
             int x = 0, y = 0, z = 0, stage = 0;
@@ -434,8 +422,12 @@ namespace perlin {
         heldbuild::HeldBuild heldBuild;
         RecentBreak lastLocalBreak;
         bool usingItem = false;
+        // a server camera (/camera set, a spline, a focus target, attach) is placing the view away from the player
+        bool cameraDetached = false;
+        bool cameraModeForced = false, cameraOverridden = false;
+        float cameraPlayerView[5] = {0, 0, 0, 0, 0};
+        PerspectiveMode cameraSavedMode = PerspectiveMode::FirstPerson;
 
-        // persistent state of the frame loop
         struct FrameLoop;
         std::unique_ptr<FrameLoop> loop;
 
@@ -516,7 +508,6 @@ namespace perlin {
         struct FormScreen : OverlayState {
             ui::FormModel model;
             ui::FormUi ui;
-            // the json ui could not draw this form: stay on the built-in layout
             bool engine = false, engineFailed = false;
             float scroll = 0.0f, contentH = 0.0f, viewH = 0.0f;
             int dragSlider = -1;
@@ -621,6 +612,11 @@ namespace perlin {
         ui::TitleModel title;
         struct Panorama {
             uint32_t textures[6] = {};
+            uint32_t blurred[6] = {};
+            int blurKey = -1, blurJobKey = -1;
+            uint64_t blurJobStamp = 0;
+            std::future<std::vector<ui::PanoramaImage>> blurJob;
+            TimePoint blurRetryAt;
             bool ready = false;
             uint64_t packStamp = 0;
             TimePoint clock, retryAt;
@@ -636,7 +632,7 @@ namespace perlin {
         } asset;
 
         struct LoadingScreen : OverlayState {
-            bool textMode = false, done = false, readyArmed = false;
+            bool textMode = false, done = false, readyArmed = false, modHidden = false;
             TimePoint readyAt, startAt;
             int chunkBase = 0;
             ui::TemplateSlot tmpl;
@@ -647,7 +643,6 @@ namespace perlin {
             ui::TemplateSlot tmpl;
         } disconnect;
 
-        // texture/shader pack state
         std::string javaPackPending;
         bool benchmarkWorldOnly = false;
         int javaPackDimension = 0;
@@ -659,7 +654,6 @@ namespace perlin {
         TimePoint hotPollAt;
         std::string hotTexStamp, hotShaderStamp, shaderBuildReport;
 
-        // accounts; the sign-in runs on a worker
         AccountList accounts;
         struct SignIn {
             std::mutex mutex;
@@ -670,7 +664,6 @@ namespace perlin {
             std::atomic<int> state{0};
         } signIn;
 
-        // server browser tabs; filled by workers under tabMutex
         std::mutex pingMutex;
         std::map<std::string, ui::ServerEntry> pingResults;
         std::mutex tabMutex;
@@ -678,8 +671,7 @@ namespace perlin {
         std::string tabLanMsg, tabRealmsMsg, tabFriendsMsg, tabJoinMsg, realmJoinAddress;
         bool tabDirty = false, realmJoinReady = false;
         std::atomic<bool> lanBusy{false}, realmsBusy{false}, friendsBusy{false}, realmJoinBusy{false};
-        std::atomic<bool> featuredBusy{false}, featuredPing{false};
-        TimePoint featuredAt;
+        std::atomic<bool> featuredBusy{false}, featuredPing{false}, featuredCacheLoaded{false};
         std::atomic<bool> realmAddBusy{false}, realmAddedFlag{false};
         TimePoint realmAddedAt;
         std::atomic<bool> leaseJoining{false}, leaseJoinFailed{false};
@@ -687,9 +679,12 @@ namespace perlin {
         std::mutex lanSessionMutex;
         std::shared_ptr<friendworld::Lease> friendLease;
         std::shared_ptr<friendworld::Lease> friendLeaseReady;
+        std::unique_ptr<discord::Client> discordRpc;
+        TimePoint discordNextUpdate{};
+        uint64_t discordGeneration = 0;
+        int64_t discordSince = 0;
         std::atomic<bool> friendJoinBusy{false};
 
-        // mods
         int modOpenView = -1, modOpenPage = 0;
         std::string modSettingsFor;
         BedrockSession* modLive = nullptr;
@@ -716,7 +711,6 @@ namespace perlin {
             std::array<float, 16> viewProjection{};
             std::vector<entity::EntityRenderer::FrameIn::ModLine> frameLines;
         } modAdv;
-        // keyed by plugin, dropped on unload
         struct ModHooks {
             using TimePoint = std::chrono::steady_clock::time_point;
             std::mutex mutex;
@@ -728,12 +722,12 @@ namespace perlin {
                 TimePoint until;
                 abi::EntityOverride rule;
             };
-            std::map<std::string, std::map<std::string, EntityRule>> entities; // plugin -> "id:N" / "type:X"
+            std::map<std::string, std::map<std::string, EntityRule>> entities;
             struct Mesh {
                 TimePoint until;
                 abi::WorldMeshData data;
             };
-            std::map<std::string, Mesh> meshes; // "plugin/id"
+            std::map<std::string, Mesh> meshes;
             std::map<std::string, abi::FrameLimitData> frame;
             struct Button {
                 std::string plugin;
@@ -746,10 +740,10 @@ namespace perlin {
             std::set<std::string> loadingHidden;
             std::map<std::string, abi::SkinOverrideData> skins;
             uint64_t skinSerial = 0;
-            std::map<std::string, abi::AmbientSoundData> ambient; // "plugin/id"
+            std::map<std::string, abi::AmbientSoundData> ambient;
             std::vector<std::pair<std::string, abi::EventServerPing>> pings;
             std::atomic<uint32_t> nextPing{1};
-            std::vector<std::pair<std::string, std::string>> packs; // plugin, absolute path
+            std::vector<std::pair<std::string, std::string>> packs;
             std::vector<abi::ParticleRequest> particles;
             bool windowFocused = true, windowMinimized = false;
         } modHooks;
@@ -779,6 +773,7 @@ namespace perlin {
         struct ModGfxTexture {
             uint32_t gpu = 0;
             uint64_t version = 0;
+            int width = 0, height = 0;
         };
         std::unordered_map<std::string, ModGfxTexture> modGfxTextures;
         int modLastDim = 0, modLastSlot = -1;
@@ -796,7 +791,6 @@ namespace perlin {
         uint32_t modCommandsVersion = 0;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> modPackets;
 
-        // replay
         replay::ReplayController replayCtl;
         struct ReplayUi {
             bool menuOpen = true, grab = false, hideHud = true, camInit = false, leftDown = false,
@@ -842,7 +836,6 @@ namespace perlin {
         int replayClickRow = -1;
         TimePoint replayClickAt;
 
-        // export
         struct ExportUi {
             bool open = false, cfgLoaded = false, catQueried = false, leftDown = false;
             int tab = 0, scroll = 0;
@@ -909,26 +902,22 @@ namespace perlin {
             }
         } exportJob;
 
-        // sessions
         std::unique_ptr<BedrockSession> session;
         std::vector<std::unique_ptr<BedrockSession>> retiredSessions;
-        // singleplayer: the world server runs in this process; its transport goes to the next Connect
 #ifdef PERLIN_SINGLEPLAYER
         std::unique_ptr<EmbeddedServer> singleplayerServer;
         std::unique_ptr<bench::Run> benchmark;
         std::chrono::steady_clock::time_point benchmarkLastFrame{};
         bool benchmarkJoinIssued = false;
         bool benchmarkCliStarted = false;
-        // a server that advertised an older version than perlin's: the next join to it announces that version
         struct VersionOverride {
             std::string server;
             int protocol = 0;
             std::string version;
-            bool dontAsk = false; // the disconnect screen's checkbox, saved when the join goes ahead
+            bool dontAsk = false;
         } versionOverride;
 #endif
         std::unique_ptr<Transport> pendingSingleplayer;
-        // the current session is the embedded server: leaving it goes to the title screen, not the server list
         bool inSingleplayer = false;
         std::shared_ptr<xbox::Account> account;
         std::mutex statusMutex;

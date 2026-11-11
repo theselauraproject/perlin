@@ -4,14 +4,9 @@
 #include "perlin/runtime.hpp"
 
 namespace perlin {
-    // a plugin is a class: derive from Plugin, override what it needs and PERLIN_REGISTER it. Every member
-    // named on<Event>() for an event in abi_table.h (onTick, onChatReceived, onPlayerJoin, ...) is subscribed
-    // automatically, with or without the payload parameter; returning Flow::Cancel cancels a cancellable event.
-    // The same class runs on the client and on the server: each host raises only its own events.
     class Plugin {
     public:
         virtual ~Plugin() = default;
-        // runs before onEnable; commands registered here exist before any event arrives
         virtual void registerCommands(Context&) {}
         virtual void onEnable(Context&) {}
         virtual void onDisable(Context&) {}
@@ -23,7 +18,6 @@ namespace perlin {
         Context* ctx_ = nullptr;
     };
 
-    // the old name of the context handed to plugin classes
     using PluginCtx = Context;
 
     namespace detail_plugin {
@@ -32,21 +26,7 @@ namespace perlin {
             return value;
         }
 
-#define PERLIN_WIRE_Internal(Name)
-#define PERLIN_WIRE_Method(Name)                                                                             \
-    if constexpr (requires(T& t, const typename event::Name::Payload& p) { t.on##Name(p); })                 \
-        ctx.on<event::Name>([&self](const typename event::Name::Payload& p) { return self.on##Name(p); });   \
-    else if constexpr (requires(T& t) { t.on##Name(); })                                                     \
-        ctx.on<event::Name>([&self]() { return self.on##Name(); });
-#define PERLIN_X(Name, Id, Payload, Hosts, Wiring) PERLIN_WIRE_##Wiring(Name)
-
-        template <class T> void wire_events(T& self, Context& ctx) {
-            PERLIN_ABI_EVENTS(PERLIN_X)
-        }
-
-#undef PERLIN_X
-#undef PERLIN_WIRE_Method
-#undef PERLIN_WIRE_Internal
+#include "perlin/gen/plugin_wire.hpp"
     }
 
     template <class T> void detail_boot(Context& ctx) {

@@ -253,7 +253,7 @@ namespace perlin {
                     gpu::SamplerKind::PointClamp);
         BindShadowSampling();
         BindTexture("s_lightmap", lightmap.handle, gpu::SamplerKind::LinearClamp);
-        BindTexture("s_atlas", atlas.used ? atlas.handle : gpu.WhiteArray(), gpu::SamplerKind::PointMipClamp);
+        BindAtlas();
     }
 
     void RenderContext_rhi::RecordJavaChain() {

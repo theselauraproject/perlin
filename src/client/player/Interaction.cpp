@@ -7,20 +7,18 @@
 namespace perlin {
     using targeting::RayBox;
 
-    glm::vec3 EntityClickOffset(const glm::dvec3& eye, const glm::dvec3& dir, const glm::dvec3& feet,
-                                double halfWidth, double height, const glm::dvec3& fallback) {
-        constexpr double kInset = 0.002;
-        const glm::dvec3 lo(feet.x - halfWidth + kInset, feet.y + kInset, feet.z - halfWidth + kInset);
-        const glm::dvec3 hi(feet.x + halfWidth - kInset, feet.y + height - kInset,
-                            feet.z + halfWidth - kInset);
+    glm::vec3 EntityClickPoint(const glm::dvec3& eye, const glm::dvec3& dir, const glm::dvec3& feet,
+                               double halfWidth, double height, const glm::dvec3& fallback) {
+        const double pad = targeting::PickRadius;
+        const glm::dvec3 lo(feet.x - halfWidth - pad, feet.y - pad, feet.z - halfWidth - pad);
+        const glm::dvec3 hi(feet.x + halfWidth + pad, feet.y + height + pad, feet.z + halfWidth + pad);
         glm::dvec3 point = fallback;
         double t;
         int face;
         const double length = glm::length(dir);
         if (length > 1e-9 && RayBox(eye, dir / length, lo, hi, 64.0, t, face))
             point = eye + dir / length * t;
-        point = glm::clamp(point, lo, hi);
-        return glm::vec3(point - feet);
+        return glm::vec3(glm::clamp(point, lo, hi));
     }
 
     AimHit Raycast(const Level& level, const BlockLibrary* blocks,
@@ -95,7 +93,8 @@ namespace perlin {
         }
 
         for (const entity::Entity& e : entities) {
-            if (e.isSelf || e.isItem)
+            // a server-sent 0 box (world borders, holograms) is nothing to hit: blocks behind it stay targetable
+            if (e.isSelf || e.isItem || e.NoBox())
                 continue;
             {
                 const double far = (entityReach >= 0.0 ? entityReach : reach) + 6.0;
