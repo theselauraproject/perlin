@@ -160,26 +160,12 @@ def translate(bname, st, jb):
             props["powered"] = b(int(st["rail_data_bit"]))
         return jn, props, search
 
-    if n == "portal":
-        props["axis"] = "z" if st.get("portal_axis") == "z" else "x"
-        return "nether_portal", props, search
-
-    if n == "bed":
-        return None
-        jn = "red_bed"
-        props["part"] = "head" if int(st["head_piece_bit"]) else "foot"
-        props["facing"] = DIRN[int(st["direction"])]
-        return jn, props, search
-
     if "candles" in st:
         props["candles"] = str(int(st["candles"]) + 1)
         props["lit"] = b(int(st["lit"]))
         return jn, props, search
     if n.endswith("candle_cake"):
         props["lit"] = b(int(st["lit"]))
-        return jn, props, search
-    if n == "cake":
-        props["bites"] = str(int(st["bite_counter"]))
         return jn, props, search
 
     if "powered_shelf_type" in st:
@@ -198,288 +184,273 @@ def translate(bname, st, jb):
         props["facing"] = st["minecraft:block_face"]
         return jn, props, search
 
-    if n == "hopper":
-        d = FD[int(st["facing_direction"])]
-        props["facing"] = d if d != "up" else "down"
-        props["enabled"] = b(not int(st["toggle_bit"]))
-        return jn, props, search
-    if n in ("piston", "sticky_piston"):
-        props["facing"] = FD[int(st["facing_direction"])]
-        props["extended"] = "false"
-        return jn, props, search
-    if n == "observer":
-        props["facing"] = st["minecraft:facing_direction"]
-        props["powered"] = b(int(st["powered_bit"]))
-        return jn, props, search
-    if n in ("dispenser", "dropper"):
-        props["facing"] = FD[int(st["facing_direction"])]
-        props["triggered"] = b(int(st["triggered_bit"]))
-        return jn, props, search
-    if n == "barrel":
-        props["facing"] = FD[int(st["facing_direction"])]
-        props["open"] = b(int(st["open_bit"]))
-        return jn, props, search
-    if n.endswith("command_block"):
-        props["facing"] = FD[int(st["facing_direction"])]
-        props["conditional"] = b(int(st["conditional_bit"]))
-        return jn, props, search
-    if n.endswith("lightning_rod"):
-        props["facing"] = FD[int(st["facing_direction"])]
-        props["powered"] = b(int(st["powered_bit"]))
-        return jn, props, search
-    if jn.endswith("glazed_terracotta"):
-        props["facing"] = FD.get(int(st["facing_direction"]), "north")
-        return jn, props, search
-    if n in ("furnace", "blast_furnace", "smoker", "lit_furnace", "lit_blast_furnace", "lit_smoker"):
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["lit"] = b(n.startswith("lit_"))
-        return jn, props, search
-
-    if "copper_bulb" in n:
-        props["lit"] = b(int(st["lit"]))
-        props["powered"] = b(int(st["powered_bit"]))
-        return jn, props, search
-
-    if n in ("anvil", "chipped_anvil", "damaged_anvil", "deprecated_anvil"):
-        jn = {"deprecated_anvil": "anvil"}.get(n, n)
-        props["facing"] = st["minecraft:cardinal_direction"]
-        search["facing"] = [st["minecraft:cardinal_direction"]] + [x for x in HORIZ if x != st["minecraft:cardinal_direction"]]
-        return jn, props, search
-    if n in ("campfire", "soul_campfire"):
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["lit"] = b(not int(st["extinguished"]))
-        return jn, props, search
-    if n == "lectern":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["powered"] = b(int(st["powered_bit"]))
-        return jn, props, search
-    if n == "end_portal_frame":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["eye"] = b(int(st["end_portal_eye_bit"]))
-        return jn, props, search
-    if n == "bell":
-        props["attachment"] = {"standing": "floor", "hanging": "ceiling", "side": "single_wall",
-                               "multiple": "double_wall"}[st["attachment"]]
-        props["facing"] = DIRN[int(st["direction"])]
-        return jn, props, search
-    if n == "grindstone":
-        a = st["attachment"]
-        props["face"] = {"standing": "floor", "hanging": "ceiling", "side": "wall", "multiple": "wall"}[a]
-        props["facing"] = DIRN[int(st["direction"])]
-        return jn, props, search
-    if n in ("loom", "decorated_pot"):
-        props["facing"] = DIRN[int(st["direction"])]
-        return jn, props, search
-    if n in ("beehive", "bee_nest"):
-        props["facing"] = DIRN[int(st["direction"])]
-        props["honey_level"] = str(int(st["honey_level"]))
-        return jn, props, search
-    if n == "composter":
-        props["level"] = str(int(st["composter_fill_level"]))
-        return jn, props, search
-    if n == "brewing_stand":
-        for i, k in enumerate("abc"):
-            props["has_bottle_%d" % i] = b(int(st["brewing_stand_slot_%s_bit" % k]))
-        return jn, props, search
-    if n == "cauldron":
-        lvl = int(st["fill_level"])
-        liq = st["cauldron_liquid"]
-        if lvl == 0:
-            return "cauldron", {}, search
-        if liq == "lava":
-            return "lava_cauldron", {}, search
-        return ("water_cauldron" if liq == "water" else "powder_snow_cauldron"), {"level": str(max(1, min(3, (lvl + 1) // 2)))}, search
-    if n == "cocoa":
-        props["age"] = str(int(st["age"]))
-        props["facing"] = DIRN[int(st["direction"])]
-        search["facing"] = [DIRN[int(st["direction"])]] + [x for x in HORIZ if x != DIRN[int(st["direction"])]]
-        return jn, props, search
-    if n == "tripwire_hook":
-        props["facing"] = DIRN[int(st["direction"])]
-        props["attached"] = b(int(st["attached_bit"]))
-        props["powered"] = b(int(st["powered_bit"]))
-        return jn, props, search
-    if n == "tripwire" or n == "trip_wire":
-        for d in ("north", "east", "south", "west"):
-            props[d] = b(int(st["minecraft:connection_" + d]))
-        props["attached"] = b(int(st["attached_bit"]))
-        props["powered"] = b(int(st["powered_bit"]))
-        props["disarmed"] = b(int(st["disarmed_bit"]))
-        return "tripwire", props, search
-    if n in ("unpowered_repeater", "powered_repeater"):
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["delay"] = str(int(st["repeater_delay"]) + 1)
-        props["powered"] = b(n == "powered_repeater")
-        return "repeater", props, search
-    if n in ("unpowered_comparator", "powered_comparator"):
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["mode"] = "subtract" if int(st["output_subtract_bit"]) else "compare"
-        props["powered"] = b(int(st["output_lit_bit"]))
-        return "comparator", props, search
-    if n == "small_dripleaf_block":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["half"] = "upper" if int(st["upper_block_bit"]) else "lower"
-        return "small_dripleaf", props, search
-    if n == "big_dripleaf":
-        tilt = {"none": "none", "unstable": "unstable", "partial_tilt": "partial", "full_tilt": "full"}[st["big_dripleaf_tilt"]]
-        props["facing"] = st["minecraft:cardinal_direction"]
-        if int(st["big_dripleaf_head"]):
-            props["tilt"] = tilt
-            return "big_dripleaf", props, search
-        return "big_dripleaf_stem", props, search
-    if n == "bamboo":
-        props["age"] = "1" if st["bamboo_stalk_thickness"] == "thick" else "0"
-        props["leaves"] = {"no_leaves": "none", "small_leaves": "small", "large_leaves": "large"}[st["bamboo_leaf_size"]]
-        return jn, props, search
-
-    if n in ("wheat", "carrots", "potatoes") and "growth" in st:
-        props["age"] = str(int(st["growth"]))
-        return jn, props, search
-    if n in ("beetroot", "torchflower_crop") and "growth" in st:
-        g = int(st["growth"])
-        props["age"] = str(g * 3 // 7) if n == "beetroot" else str(min(1, g // 4))
-        return jn, props, search
-    if n == "nether_wart":
-        props["age"] = str(int(st["age"]))
-        return jn, props, search
-    if n == "sweet_berry_bush":
-        props["age"] = str(min(3, int(st["growth"]) // 2))
-        return jn, props, search
-    if n in ("melon_stem", "pumpkin_stem"):
-        d = int(st["facing_direction"])
-        if d >= 2:
-            return "attached_" + n, {"facing": FD[d]}, search
-        props["age"] = str(int(st["growth"]))
-        return jn, props, search
-    if n == "pitcher_crop":
-        props["age"] = str(min(4, int(st["growth"])))
-        props["half"] = "upper" if int(st["upper_block_bit"]) else "lower"
-        return jn, props, search
-    if "upper_block_bit" in st and n not in ("pitcher_crop", "small_dripleaf_block", "pale_moss_carpet") and "door" not in n:
-        props["half"] = "upper" if int(st["upper_block_bit"]) else "lower"
-        return jn, props, search
-    if n == "seagrass":
-        t = st["sea_grass_type"]
-        if t == "default":
-            return "seagrass", {}, search
-        return "tall_seagrass", {"half": "lower" if t == "double_bot" else "upper"}, search
-    if n == "chorus_flower":
-        props["age"] = str(int(st["age"]))
-        return jn, props, search
-    if n == "farmland":
-        props["moisture"] = str(int(st["moisturized_amount"]))
-        return jn, props, search
-    if n == "snow_layer":
-        props["layers"] = str(int(st["height"]) + 1)
-        return "snow", props, search
-    if n in ("kelp",):
-        return "kelp", {"age": str(min(25, int(st["kelp_age"])))}, search
-    if n in ("weeping_vines", "twisting_vines"):
-        return n, {"age": str(min(25, int(st[n + "_age"])))}, search
-    if n == "cave_vines" or n.startswith("cave_vines"):
-        berries = "berries" in n
-        head = "head" in n
-        return ("cave_vines" if head or n == "cave_vines" else "cave_vines_plant"), {"berries": b(berries)}, search
-    if n == "vine":
-        bits = int(st["vine_direction_bits"])
-        props["south"] = b(bits & 1)
-        props["west"] = b(bits & 2)
-        props["north"] = b(bits & 4)
-        props["east"] = b(bits & 8)
-        props["up"] = "false"
-        return jn, props, search
-    if "multi_face_direction_bits" in st:
-        bits = int(st["multi_face_direction_bits"])
-        for i, d in enumerate(("down", "up", "north", "south", "west", "east")):
-            props[d] = b(bits & (1 << i))
-        return jn, props, search
-    if "huge_mushroom_bits" in st:
-        bits = int(st["huge_mushroom_bits"])
-        faces = {"down": 0, "up": 0, "north": 0, "south": 0, "west": 0, "east": 0}
-        table = {
-            1: ("up", "west", "north"), 2: ("up", "north"), 3: ("up", "east", "north"), 4: ("up", "west"),
-            5: ("up",), 6: ("up", "east"), 7: ("up", "west", "south"), 8: ("up", "south"),
-            9: ("up", "east", "south"), 10: ("north", "east", "south", "west"),
-            14: ("down", "up", "north", "south", "west", "east"), 15: ("down", "up", "north", "south", "west", "east"),
-        }
-        for d in table.get(bits, ()):
-            faces[d] = 1
-        if n == "mushroom_stem":
-            faces = {d: 1 for d in faces}
-        for d, v in faces.items():
-            props[d] = b(v)
-        return jn, props, search
-    if n in ("pink_petals", "wildflowers"):
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["flower_amount"] = str((int(st["growth"]) & 3) + 1)
-        return jn, props, search
-    if n == "leaf_litter":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["segment_amount"] = str((int(st["growth"]) & 3) + 1)
-        return jn, props, search
-    if n == "turtle_egg":
-        props["eggs"] = {"one_egg": "1", "two_egg": "2", "three_egg": "3", "four_egg": "4"}[st["turtle_egg_count"]]
-        props["hatch"] = {"no_cracks": "0", "cracked": "1", "max_cracked": "2"}[st["cracked_state"]]
-        return jn, props, search
-    if n == "sniffer_egg":
-        props["hatch"] = {"no_cracks": "0", "cracked": "1", "max_cracked": "2"}[st["cracked_state"]]
-        return jn, props, search
-    if n == "sea_pickle":
-        props["pickles"] = str(int(st["cluster_count"]) + 1)
-        props["waterlogged"] = b(not int(st["dead_bit"]))
-        return jn, props, search
-    if n == "pale_hanging_moss":
-        props["tip"] = b(int(st["tip"]))
-        return jn, props, search
-    if n == "pale_moss_carpet":
-        props["bottom"] = b(not int(st["upper_block_bit"]))
-        for d in ("north", "east", "south", "west"):
-            props[d] = {"none": "none", "short": "low", "tall": "tall"}[st["pale_moss_carpet_side_" + d]]
-        return jn, props, search
-    if n == "scaffolding":
-        props["bottom"] = b(int(st["stability"]) > 0)
-        return jn, props, search
-    if n == "respawn_anchor":
-        props["charges"] = str(int(st["respawn_anchor_charge"]))
-        return jn, props, search
-    if n == "sculk_catalyst":
-        props["bloom"] = b(int(st["bloom"]))
-        return jn, props, search
-    if n == "sculk_sensor":
-        props["sculk_sensor_phase"] = ["inactive", "active", "cooldown"][int(st["sculk_sensor_phase"])]
-        return jn, props, search
-    if n == "calibrated_sculk_sensor":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["sculk_sensor_phase"] = ["inactive", "active", "cooldown"][int(st["sculk_sensor_phase"])]
-        return jn, props, search
-    if n == "sculk_shrieker":
-        props["can_summon"] = b(int(st["can_summon"]))
-        return jn, props, search
-    if n == "dried_ghast":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["hydration"] = str(int(st["rehydration_level"]))
-        return jn, props, search
-    if n.endswith("_hanging_sign") or n.endswith("_sign"):
-        return None
-    if "coral_fan" in n and "wall" not in n:
-        return jn, props, search
-    if "coral_wall_fan" in n:
-        props["facing"] = DIRN.get(int(st["coral_direction"]), "north")
-        return jn, props, search
-    if n == "creaking_heart":
-        props["axis"] = st["pillar_axis"]
-        props["creaking_heart_state"] = {"uprooted": "uprooted", "dormant": "dormant", "awake": "awake"}[st["creaking_heart_state"]]
-        return jn, props, search
-    if n == "vault":
-        props["facing"] = st["minecraft:cardinal_direction"]
-        props["ominous"] = b(int(st["ominous"]))
-        props["vault_state"] = st["vault_state"]
-        return jn, props, search
-    if n == "trial_spawner":
-        props["ominous"] = b(int(st["ominous"]))
-        return jn, props, search
-    if n == "cactus" or n == "cactus_flower":
-        return jn, props, search
+    match (n):
+        case "portal":
+            props["axis"] = "z" if st.get("portal_axis") == "z" else "x"
+            return "nether_portal", props, search
+        case "bed":
+            return None
+        case "cake":
+            props["bites"] = str(int(st["bite_counter"]))
+            return jn, props, search
+        case "hopper":
+            d = FD[int(st["facing_direction"])]
+            props["facing"] = d if d != "up" else "down"
+            props["enabled"] = b(not int(st["toggle_bit"]))
+            return jn, props, search
+        case "piston" | "sticky_piston":
+            props["facing"] = FD[int(st["facing_direction"])]
+            props["extended"] = "false"
+            return jn, props, search
+        case "observer":
+            props["facing"] = st["minecraft:facing_direction"]
+            props["powered"] = b(int(st["powered_bit"]))
+            return jn, props, search
+        case "dispenser" | "dropper":
+            props["facing"] = FD[int(st["facing_direction"])]
+            props["triggered"] = b(int(st["triggered_bit"]))
+            return jn, props, search
+        case "barrel":
+            props["facing"] = FD[int(st["facing_direction"])]
+            props["open"] = b(int(st["open_bit"]))
+            return jn, props, search
+        case _ if n.endswith("command_block"):
+            props["facing"] = FD[int(st["facing_direction"])]
+            props["conditional"] = b(int(st["conditional_bit"]))
+            return jn, props, search
+        case _ if n.endswith("lightning_rod"):
+            props["facing"] = FD[int(st["facing_direction"])]
+            props["powered"] = b(int(st["powered_bit"]))
+            return jn, props, search
+        case _ if jn.endswith("glazed_terracotta"):
+            props["facing"] = FD.get(int(st["facing_direction"]), "north")
+            return jn, props, search
+        case "furnace" | "blast_furnace" | "smoker" | "lit_furnace" | "lit_blast_furnace" | "lit_smoker":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["lit"] = b(n.startswith("lit_"))
+            return jn, props, search
+        case _ if "copper_bulb" in n:
+            props["lit"] = b(int(st["lit"]))
+            props["powered"] = b(int(st["powered_bit"]))
+            return jn, props, search
+        case "anvil" | "chipped_anvil" | "damaged_anvil" | "deprecated_anvil":
+            jn = {"deprecated_anvil": "anvil"}.get(n, n)
+            props["facing"] = st["minecraft:cardinal_direction"]
+            search["facing"] = [st["minecraft:cardinal_direction"]] + [x for x in HORIZ if x != st["minecraft:cardinal_direction"]]
+            return jn, props, search
+        case "campfire" | "soul_campfire":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["lit"] = b(not int(st["extinguished"]))
+            return jn, props, search
+        case "lectern":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["powered"] = b(int(st["powered_bit"]))
+            return jn, props, search
+        case "end_portal_frame":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["eye"] = b(int(st["end_portal_eye_bit"]))
+            return jn, props, search
+        case "bell":
+            props["attachment"] = {"standing": "floor", "hanging": "ceiling", "side": "single_wall",
+                                   "multiple": "double_wall"}[st["attachment"]]
+            props["facing"] = DIRN[int(st["direction"])]
+            return jn, props, search
+        case "grindstone":
+            a = st["attachment"]
+            props["face"] = {"standing": "floor", "hanging": "ceiling", "side": "wall", "multiple": "wall"}[a]
+            props["facing"] = DIRN[int(st["direction"])]
+            return jn, props, search
+        case "loom" | "decorated_pot":
+            props["facing"] = DIRN[int(st["direction"])]
+            return jn, props, search
+        case "beehive" | "bee_nest":
+            props["facing"] = DIRN[int(st["direction"])]
+            props["honey_level"] = str(int(st["honey_level"]))
+            return jn, props, search
+        case "composter":
+            props["level"] = str(int(st["composter_fill_level"]))
+            return jn, props, search
+        case "brewing_stand":
+            for i, k in enumerate("abc"):
+                props["has_bottle_%d" % i] = b(int(st["brewing_stand_slot_%s_bit" % k]))
+            return jn, props, search
+        case "cauldron":
+            lvl = int(st["fill_level"])
+            liq = st["cauldron_liquid"]
+            if lvl == 0:
+                return "cauldron", {}, search
+            if liq == "lava":
+                return "lava_cauldron", {}, search
+            return ("water_cauldron" if liq == "water" else "powder_snow_cauldron"), {"level": str(max(1, min(3, (lvl + 1) // 2)))}, search
+        case "cocoa":
+            props["age"] = str(int(st["age"]))
+            props["facing"] = DIRN[int(st["direction"])]
+            search["facing"] = [DIRN[int(st["direction"])]] + [x for x in HORIZ if x != DIRN[int(st["direction"])]]
+            return jn, props, search
+        case "tripwire_hook":
+            props["facing"] = DIRN[int(st["direction"])]
+            props["attached"] = b(int(st["attached_bit"]))
+            props["powered"] = b(int(st["powered_bit"]))
+            return jn, props, search
+        case "tripwire" | "trip_wire":
+            for d in ("north", "east", "south", "west"):
+                props[d] = b(int(st["minecraft:connection_" + d]))
+            props["attached"] = b(int(st["attached_bit"]))
+            props["powered"] = b(int(st["powered_bit"]))
+            props["disarmed"] = b(int(st["disarmed_bit"]))
+            return "tripwire", props, search
+        case "unpowered_repeater" | "powered_repeater":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["delay"] = str(int(st["repeater_delay"]) + 1)
+            props["powered"] = b(n == "powered_repeater")
+            return "repeater", props, search
+        case "unpowered_comparator" | "powered_comparator":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["mode"] = "subtract" if int(st["output_subtract_bit"]) else "compare"
+            props["powered"] = b(int(st["output_lit_bit"]))
+            return "comparator", props, search
+        case "small_dripleaf_block":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["half"] = "upper" if int(st["upper_block_bit"]) else "lower"
+            return "small_dripleaf", props, search
+        case "big_dripleaf":
+            tilt = {"none": "none", "unstable": "unstable", "partial_tilt": "partial", "full_tilt": "full"}[st["big_dripleaf_tilt"]]
+            props["facing"] = st["minecraft:cardinal_direction"]
+            if int(st["big_dripleaf_head"]):
+                props["tilt"] = tilt
+                return "big_dripleaf", props, search
+            return "big_dripleaf_stem", props, search
+        case "bamboo":
+            props["age"] = "1" if st["bamboo_stalk_thickness"] == "thick" else "0"
+            props["leaves"] = {"no_leaves": "none", "small_leaves": "small", "large_leaves": "large"}[st["bamboo_leaf_size"]]
+            return jn, props, search
+        case "wheat" | "carrots" | "potatoes" if "growth" in st:
+            props["age"] = str(int(st["growth"]))
+            return jn, props, search
+        case "beetroot" | "torchflower_crop" if "growth" in st:
+            g = int(st["growth"])
+            props["age"] = str(g * 3 // 7) if n == "beetroot" else str(min(1, g // 4))
+            return jn, props, search
+        case "nether_wart":
+            props["age"] = str(int(st["age"]))
+            return jn, props, search
+        case "sweet_berry_bush":
+            props["age"] = str(min(3, int(st["growth"]) // 2))
+            return jn, props, search
+        case "melon_stem" | "pumpkin_stem":
+            d = int(st["facing_direction"])
+            if d >= 2:
+                return "attached_" + n, {"facing": FD[d]}, search
+            props["age"] = str(int(st["growth"]))
+            return jn, props, search
+        case "pitcher_crop":
+            props["age"] = str(min(4, int(st["growth"])))
+            props["half"] = "upper" if int(st["upper_block_bit"]) else "lower"
+            return jn, props, search
+        case _ if "upper_block_bit" in st and n not in ("pitcher_crop", "small_dripleaf_block", "pale_moss_carpet") and "door" not in n:
+            props["half"] = "upper" if int(st["upper_block_bit"]) else "lower"
+            return jn, props, search
+        case "seagrass":
+            t = st["sea_grass_type"]
+            if t == "default":
+                return "seagrass", {}, search
+            return "tall_seagrass", {"half": "lower" if t == "double_bot" else "upper"}, search
+        case "chorus_flower":
+            props["age"] = str(int(st["age"]))
+            return jn, props, search
+        case "farmland":
+            props["moisture"] = str(int(st["moisturized_amount"]))
+            return jn, props, search
+        case "snow_layer":
+            props["layers"] = str(int(st["height"]) + 1)
+            return "snow", props, search
+        case "kelp":
+            return "kelp", {"age": str(min(25, int(st["kelp_age"])))} , search
+        case "weeping_vines" | "twisting_vines":
+            return n, {"age": str(min(25, int(st[n + "_age"])))}, search
+        case _ if n == "cave_vines" or n.startswith("cave_vines"):
+            berries = "berries" in n
+            head = "head" in n
+            return ("cave_vines" if head or n == "cave_vines" else "cave_vines_plant"), {"berries": b(berries)}, search
+        case "vine":
+            bits = int(st["vine_direction_bits"])
+            props["south"] = b(bits & 1)
+            props["west"] = b(bits & 2)
+            props["north"] = b(bits & 4)
+            props["east"] = b(bits & 8)
+            props["up"] = "false"
+            return jn, props, search
+        case "pink_petals" | "wildflowers":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["flower_amount"] = str((int(st["growth"]) & 3) + 1)
+            return jn, props, search
+        case "leaf_litter":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["segment_amount"] = str((int(st["growth"]) & 3) + 1)
+            return jn, props, search
+        case "turtle_egg":
+            props["eggs"] = {"one_egg": "1", "two_egg": "2", "three_egg": "3", "four_egg": "4"}[st["turtle_egg_count"]]
+            props["hatch"] = {"no_cracks": "0", "cracked": "1", "max_cracked": "2"}[st["cracked_state"]]
+            return jn, props, search
+        case "sniffer_egg":
+            props["hatch"] = {"no_cracks": "0", "cracked": "1", "max_cracked": "2"}[st["cracked_state"]]
+            return jn, props, search
+        case "sea_pickle":
+            props["pickles"] = str(int(st["cluster_count"]) + 1)
+            props["waterlogged"] = b(not int(st["dead_bit"]))
+            return jn, props, search
+        case "pale_hanging_moss":
+            props["tip"] = b(int(st["tip"]))
+            return jn, props, search
+        case "pale_moss_carpet":
+            props["bottom"] = b(not int(st["upper_block_bit"]))
+            for d in ("north", "east", "south", "west"):
+                props[d] = {"none": "none", "short": "low", "tall": "tall"}[st["pale_moss_carpet_side_" + d]]
+            return jn, props, search
+        case "scaffolding":
+            props["bottom"] = b(int(st["stability"]) > 0)
+            return jn, props, search
+        case "respawn_anchor":
+            props["charges"] = str(int(st["respawn_anchor_charge"]))
+            return jn, props, search
+        case "sculk_catalyst":
+            props["bloom"] = b(int(st["bloom"]))
+            return jn, props, search
+        case "sculk_sensor":
+            props["sculk_sensor_phase"] = ["inactive", "active", "cooldown"][int(st["sculk_sensor_phase"])]
+            return jn, props, search
+        case "calibrated_sculk_sensor":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["sculk_sensor_phase"] = ["inactive", "active", "cooldown"][int(st["sculk_sensor_phase"])]
+            return jn, props, search
+        case "sculk_shrieker":
+            props["can_summon"] = b(int(st["can_summon"]))
+            return jn, props, search
+        case "dried_ghast":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["hydration"] = str(int(st["rehydration_level"]))
+            return jn, props, search
+        case _ if n.endswith("_hanging_sign") or n.endswith("_sign"):
+            return None
+        case _ if "coral_fan" in n and "wall" not in n:
+            return jn, props, search
+        case _ if "coral_wall_fan" in n:
+            props["facing"] = DIRN.get(int(st["coral_direction"]), "north")
+            return jn, props, search
+        case "creaking_heart":
+            props["axis"] = st["pillar_axis"]
+            props["creaking_heart_state"] = {"uprooted": "uprooted", "dormant": "dormant", "awake": "awake"}[st["creaking_heart_state"]]
+            return jn, props, search
+        case "vault":
+            props["facing"] = st["minecraft:cardinal_direction"]
+            props["ominous"] = b(int(st["ominous"]))
+            props["vault_state"] = st["vault_state"]
+            return jn, props, search
+        case "trial_spawner":
+            props["ominous"] = b(int(st["ominous"]))
+            return jn, props, search
+        case "cactus" | "cactus_flower":
+            return jn, props, search
 
     if not st or all(k in IGNORE_KEYS for k in st):
         return jn, props, search
