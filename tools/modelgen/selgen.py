@@ -5,7 +5,6 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "..", "resources", "block_selection.bin")
 SRC = sys.argv[1]
-S = 1e8
 data = open(SRC, "rb").read()
 body = data[:-32]
 assert body[:8] == b"PREG1002"

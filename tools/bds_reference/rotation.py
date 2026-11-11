@@ -29,7 +29,7 @@ def install_direction_dependencies(machine, sine_path):
     regions = list(machine.cpu.mem_regions())
     base = 0x1472B2560
     for page in range(base & ~4095, (base + len(table) + 4095) & ~4095, 4096):
-        if not any(begin <= page <= end for begin, end, permissions in regions):
+        if not any(begin <= page <= end for begin, end, _permissions in regions):
             machine.cpu.mem_map(page, 4096)
     machine.cpu.mem_write(base, table)
 

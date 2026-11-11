@@ -21,7 +21,7 @@ def generate(data):
     if data["input_sha256"] != INPUT_SHA256 or data["input_name"] != "Windows Server 1.26.10":
         raise ValueError("Wrong BDS reference")
     machine = Machine(data["functions"])
-    if not any(begin <= 0x14712EC10 <= end for begin, end, permissions in machine.cpu.mem_regions()):
+    if not any(begin <= 0x14712EC10 <= end for begin, end, _permissions in machine.cpu.mem_regions()):
         machine.cpu.mem_map(0x14712E000, 4096)
     lines = ["# BDS relative movement v1", f"# input_sha256 {INPUT_SHA256}",
              "# complete kernel, bundled trig and rare helpers; no substituted calls"]

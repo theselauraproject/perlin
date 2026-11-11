@@ -14,9 +14,9 @@ def generate(data, sine_path):
         raise ValueError("Wrong BDS reference")
     machine = Machine(data["functions"])
     install_direction_dependencies(machine, sine_path)
-    if not any(begin <= 0x147337950 <= end for begin, end, permissions in machine.cpu.mem_regions()):
+    if not any(begin <= 0x147337950 <= end for begin, end, _permissions in machine.cpu.mem_regions()):
         machine.cpu.mem_map(0x147337000, 4096)
-    if not any(begin <= 0x147147150 <= end for begin, end, permissions in machine.cpu.mem_regions()):
+    if not any(begin <= 0x147147150 <= end for begin, end, _permissions in machine.cpu.mem_regions()):
         machine.cpu.mem_map(0x147147000, 4096)
     lines = ["# BDS gliding v1", f"# input_sha256 {INPUT_SHA256}",
              f"# sine_table sha256 {SINE_SHA256}", "# external CRT fmodf: host IEEE remainder on binary32 arguments"]

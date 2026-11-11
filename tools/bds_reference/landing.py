@@ -13,7 +13,7 @@ from pathlib import Path
 import unicorn
 from unicorn import x86_const as x86
 
-from generate import HEAP, INPUT_SHA256, RETURN, Machine, bits
+from generate import HEAP, INPUT_SHA256, Machine, bits
 
 COMPONENTS = (0x0EC93C91, 0x33475976, 0x76E7A1DF, 0xC140391A, 0x3A5A9567, 0x870ED430)
 HANDLERS = (0x143F3BF60, 0x143F0ECA0, 0x144282EC0)

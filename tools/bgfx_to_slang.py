@@ -17,17 +17,12 @@ ATTRIBUTE_LOCATIONS = {
 }
 
 BUILTIN_UNIFORMS = {
-    'u_viewRect':       'vec4', 
-    'u_viewTexel':      'vec4', 
-    'u_modelViewProj':  'mat4', 
+    'u_viewRect':       'vec4',
+    'u_viewTexel':      'vec4',
+    'u_modelViewProj':  'mat4',
     'u_viewProj':       'mat4',
-    'u_view':           'mat4', 
+    'u_view':           'mat4',
     'u_proj':           'mat4',
-}
-
-SAMPLER_KINDS = {
-    'SAMPLER2D': 'SAMPLER2D', 
-    'SAMPLER2DARRAY': 'SAMPLER2DARRAY'
 }
 
 

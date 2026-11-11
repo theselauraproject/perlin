@@ -39,16 +39,6 @@ def java_name(bname):
     n = bname.replace("minecraft:", "")
     return ALIASES.get(n, n)
 
-def _facing4(st):
-    """Horizontal facing for the several Bedrock encodings."""
-    if "minecraft:cardinal_direction" in st:
-        return st["minecraft:cardinal_direction"]
-    if "direction" in st:
-        return DIRN[int(st["direction"])]
-    if "facing_direction" in st:
-        return FD.get(int(st["facing_direction"]), "north")
-    return "north"
-
 def translate(bname, st, jb):
     """jb: dict of Java blocks.  Returns (jname, props, search) or None."""
     n = bname.replace("minecraft:", "")
@@ -78,8 +68,6 @@ def translate(bname, st, jb):
     if "pillar_axis" in st and not ("creaking_heart_state" in st):
         props["axis"] = st["pillar_axis"]
         return jn, props, search
-    if jn.endswith("_chain") or jn == "chain" or jn == "iron_chain":
-        pass
 
     if "minecraft:connection_north" in st and "trip" not in n:
         for d in ("north", "east", "south", "west"):

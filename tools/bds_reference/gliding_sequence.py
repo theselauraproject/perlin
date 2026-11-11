@@ -19,7 +19,7 @@ def generate(data, sine_path):
     machine = Machine(data["functions"])
     install_direction_dependencies(machine, sine_path)
     for address in (0x147337950, 0x147147150):
-        if not any(begin <= address <= end for begin, end, permissions in machine.cpu.mem_regions()):
+        if not any(begin <= address <= end for begin, end, _permissions in machine.cpu.mem_regions()):
             machine.cpu.mem_map(address & ~4095, 4096)
     lines = ["# BDS chained gliding v1", f"# input_sha256 {INPUT_SHA256}",
              f"# sine_table sha256 {SINE_SHA256}", "# external CRT fmodf: host IEEE remainder on binary32 arguments"]

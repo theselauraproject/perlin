@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Regenerates the reference sections at the end of README.md from the SDK headers and the host's operation table."""
 import re
-import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
@@ -96,7 +95,7 @@ def main():
     table, perms = ops()
     perm_names = {"network": "network", "packets": "packets", "control": "control", "files": "files", "native": "native"}
     parts.append("| Op | Id | Needs |\n| --- | --- | --- |")
-    for name, (num, note, group) in table.items():
+    for name, (num, note, _group) in table.items():
         need = perms.get(name, "")
         shown = ", ".join(sorted({p for p in perm_names if re.search(r"\b" + p + r"\b", need, re.I)})) or "always allowed"
         parts.append(f"| `{name}` | `{num}` | {shown} |")

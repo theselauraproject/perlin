@@ -10,7 +10,6 @@ Biome filters are evaluated here, once, for each biome the server can generate, 
 The output is deterministic and committed; nothing reads the sources at run time.
 """
 import glob
-import json
 import os
 import re
 import sys

@@ -87,7 +87,7 @@ def generate(data):
         machine.put(HEAP + 0x200, [bits(v) for v in box])
         machine.put(HEAP + 0x300, [bits(v) for v in old])
         machine.run(entry, budget=1000000)
-        begin, end, capacity = struct.unpack('<3Q', machine.cpu.mem_read(HEAP + 0x100, 24))
+        begin, end, _capacity = struct.unpack('<3Q', machine.cpu.mem_read(HEAP + 0x100, 24))
         count = (end - begin) // 24
         if count < 0 or count > 32:
             raise RuntimeError('Unexpected cache-difference output')

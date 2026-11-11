@@ -42,8 +42,6 @@ def resolve_model(ref):
     _cache[ref] = (disp, chain, data)
     return _cache[ref]
 
-HAND_CONTEXTS = {"firstperson_righthand", "firstperson_lefthand", "thirdperson_righthand", "thirdperson_lefthand"}
-
 def pick(node, ctx):
     """Chooses the leaf model of an items/*.json tree for a display context ('hand' or 'ground'), idle state."""
     if not node:
@@ -103,8 +101,7 @@ def describe(leaf):
     
     ref = leaf["model"]
 
-    # data is unused?
-    disp, chain, data = resolve_model(ref)
+    disp, chain, _ = resolve_model(ref)
     
     root = chain[0] if chain else ""
 
