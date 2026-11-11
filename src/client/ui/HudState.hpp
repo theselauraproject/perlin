@@ -145,6 +145,12 @@ namespace perlin::ui {
         bool chatOpen = false;
         bool chatScrolled = false;
         int chatTotalLines = 0, chatScroll = 0;
+        float chatScale = 1.0f;
+        int chatWrapWidth = 320;
+        int chatLineHeight = 9;
+        int chatPageLines = 20;
+        float chatTextAlpha = 1.0f;
+        float chatBackgroundAlpha = 0.5f;
         std::string chatInput;
         int chatCaret = 0;
         int chatSelStart = 0, chatSelEnd = 0;

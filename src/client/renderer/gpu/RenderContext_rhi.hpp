@@ -619,6 +619,13 @@ namespace perlin {
         bool lightmapValid = false;
         int crosshairPx = 0;
         std::vector<TexRec> uiTextures;
+        // ui texture id = slot | generation << kUiTexSlotBits: a stale id (released twice, or drawn after its
+        // slot was reused) no longer reaches the texture now living in that slot
+        static constexpr uint32_t kUiTexSlotBits = 20;
+        static constexpr uint32_t kUiTexSlotMask = (1u << kUiTexSlotBits) - 1u;
+        std::vector<uint32_t> uiTextureGen;
+        TexRec* LookupUiTexture(uint32_t id);
+        uint32_t StoreUiTexture(const TexRec& rec);
         std::vector<uint8_t> tileFlagData;
         std::vector<uint8_t> atlasSource;
         int atlasTiles = 0;

@@ -324,9 +324,12 @@ namespace perlin::attachable {
                                     !b.cubes.empty() && !m.cubes.empty() &&
                                     std::all_of(b.cubes.begin(), b.cubes.end(),
                                                 [](const Cube& c) { return c.inflate > 0.0f; });
-                                if (overlay)
+                                if (overlay) {
                                     m.cubes.insert(m.cubes.end(), b.cubes.begin(), b.cubes.end());
-                                else
+                                    // geometry.humanoid hides its hat; a skin that adds the layer shows it
+                                    if (b.hasNeverRender)
+                                        m.neverRender = b.neverRender;
+                                } else
                                     m = b;
                                 replaced = true;
                             }

@@ -122,6 +122,21 @@ namespace perlin {
                    type == "minecraft:skeleton_horse" || type == "minecraft:zombie_horse";
         }
 
+        // interactions that take the right-click from the held item; any other entity falls back to the
+        // item's own use when its interaction does nothing (bows and rods on mobs, server entities)
+        inline bool InteractionTakesUse(std::string_view type, bool food) {
+            if (TakesItemUse(type))
+                return true;
+            static constexpr std::string_view kTrading[] = {"minecraft:villager", "minecraft:villager_v2",
+                                                            "minecraft:wandering_trader", "minecraft:npc",
+                                                            "minecraft:armor_stand"};
+            for (std::string_view t : kTrading)
+                if (type == t)
+                    return true;
+            // food on a vanilla mob breeds or tames it instead of eating
+            return food && type.starts_with("minecraft:");
+        }
+
         inline bool IsInteractable(std::string_view type) {
             if (type == "minecraft:cushion")
                 return true;

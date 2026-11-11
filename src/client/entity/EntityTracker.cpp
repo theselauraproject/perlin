@@ -3,6 +3,8 @@
 #include <cmath>
 #include "client/entity/EntityTracker.hpp"
 
+#include <optional>
+
 namespace perlin::entity {
     namespace {
         float SignedPitch(float degrees) {
@@ -139,9 +141,9 @@ namespace perlin::entity {
             e.lastServerPos = target;
             e.haveServerPos = true;
             e.lastServerAt = now;
-            e.pos = target;
+            e.itemTarget = target;
+            e.itemPending = true;
             e.onGround = onGround;
-            e.moveSerial++;
         }
     }
 
@@ -153,6 +155,51 @@ namespace perlin::entity {
             if (degrees < -180.0f)
                 degrees += 360.0f;
             return degrees;
+        }
+
+        struct Ballistics {
+            double gravity, drag;
+        };
+        // per tick, from the vanilla projectile components (arrow 0.05 / 0.99, thrown items 0.03 / 0.99)
+        std::optional<Ballistics> ProjectileBallistics(const std::string& type) {
+            if (type == "minecraft:arrow" || type == "minecraft:thrown_trident" ||
+                type == "minecraft:splash_potion" || type == "minecraft:lingering_potion")
+                return Ballistics{0.05, 0.99};
+            if (type == "minecraft:snowball" || type == "minecraft:egg" || type == "minecraft:ender_pearl")
+                return Ballistics{0.03, 0.99};
+            if (type == "minecraft:xp_bottle")
+                return Ballistics{0.07, 0.99};
+            if (type == "minecraft:fireball" || type == "minecraft:small_fireball" ||
+                type == "minecraft:dragon_fireball" || type == "minecraft:wither_skull" ||
+                type == "minecraft:shulker_bullet" || type == "minecraft:llama_spit")
+                return Ballistics{0.0, 1.0};
+            return std::nullopt;
+        }
+
+        bool IsProjectile(Entity& e) {
+            if (e.projectile < 0)
+                e.projectile = ProjectileBallistics(e.type) ? 1 : 0;
+            return e.projectile == 1;
+        }
+
+        // 2 ticks of dead reckoning cover servers that update every other tick; past that the projectile has
+        // most likely stopped in a block and waits for the server
+        constexpr int kProjectileCoast = 2;
+
+        void StepProjectile(Entity& e) {
+            e.projTicksSince++;
+            if (e.projPending) {
+                e.projPending = false;
+                e.pos = e.projTarget;
+                return;
+            }
+            // tick 1 applies the server position, the next kProjectileCoast ones coast
+            if (e.projTicksSince > kProjectileCoast + 1 || glm::dot(e.vel, e.vel) < 1e-8)
+                return;
+            const auto b = ProjectileBallistics(e.type);
+            e.pos += e.vel;
+            e.vel *= b->drag;
+            e.vel.y -= b->gravity;
         }
 
         void PlaceNow(Entity& e, const Entity::Lerp& to) {
@@ -185,6 +232,21 @@ namespace perlin::entity {
             const glm::dvec3 jump = next - e.pos;
             const bool farTeleport =
                 kind == EntityTracker::MoveKind::Teleport && glm::dot(jump, jump) >= 0.25;
+            if (IsProjectile(e) && e.ticked && kind != EntityTracker::MoveKind::Place && !farTeleport) {
+                if (e.projHaveServer && e.projTicksSince > 0)
+                    e.vel = (next - e.projLastServer) / static_cast<double>(e.projTicksSince);
+                e.projHaveServer = true;
+                e.projLastServer = next;
+                e.projTicksSince = 0;
+                e.projTarget = next;
+                e.projPending = true;
+                e.pitch = pitch;
+                e.yaw = yaw;
+                e.headYaw = headYaw;
+                e.lerp.steps = 0;
+                e.hasQueued = false;
+                return;
+            }
 
             if (kind == EntityTracker::MoveKind::Place || farTeleport || !e.ticked)
                 PlaceNow(e, to);
@@ -247,8 +309,16 @@ namespace perlin::entity {
             e.prevYaw = e.yaw;
             e.prevHeadYaw = e.headYaw;
             e.ticked = true;
-            if (e.isSelf || (e.isItem && e.simulated) || pickups.contains(rid))
+            if (e.isItem && e.simulated && !pickups.contains(rid)) {
+                StepItemLocked(e);
                 continue;
+            }
+            if (e.isSelf || pickups.contains(rid))
+                continue;
+            if (IsProjectile(e) && (e.projHaveServer || glm::dot(e.vel, e.vel) > 1e-8)) {
+                StepProjectile(e);
+                continue;
+            }
 
             if (e.hasQueued) {
                 if (e.lerp.forceCompletion && e.lerp.steps != 0) {
@@ -467,18 +537,28 @@ namespace perlin::entity {
             it->second.simulated = true;
     }
 
-    void EntityTracker::StepItems(const std::function<bool(double, double, double, double, double, double)>& hit) {
+    void EntityTracker::SetItemCollider(ItemCollider hit) {
         std::lock_guard lock(mutex);
+        itemCollider = std::move(hit);
+    }
+
+    void EntityTracker::StepItemLocked(Entity& e) {
+        if (e.itemPending) {
+            e.itemPending = false;
+            e.pos = e.itemTarget;
+            e.moveSerial++;
+            return;
+        }
+        if (!itemCollider)
+            return;
         constexpr double kHalf = 0.125, kHeight = 0.25;
         const auto blocked = [&](double x, double y, double z) {
-            return hit(x - kHalf, y, z - kHalf, x + kHalf, y + kHeight, z + kHalf);
+            return itemCollider(x - kHalf, y, z - kHalf, x + kHalf, y + kHeight, z + kHalf);
         };
-        for (auto& [rid, e] : entities) {
-            if (!e.isItem || !e.simulated)
-                continue;
+        {
             if (e.haveServerPos &&
                 std::chrono::steady_clock::now() - e.lastServerAt < std::chrono::milliseconds(70))
-                continue;
+                return;
             e.vel.y -= 0.04;
             glm::dvec3 p = e.pos;
             bool grounded = false;

@@ -169,13 +169,14 @@ namespace perlin {
 
     void PackDownloader::MountAll() {
         const ServerPacks::Batch batch;
-        ServerPacks::Instance().Clear();
+        std::vector<ServerPacks::PackRef> refs;
         for (const Offered& o : offeredPacks) {
             const auto path = std::filesystem::path(directory) / o.fileName;
             std::error_code ec;
             if (std::filesystem::exists(path, ec))
-                ServerPacks::Instance().Mount(path.string(), o.uuid, o.key);
+                refs.push_back({path.string(), o.uuid, o.key});
         }
+        ServerPacks::Instance().Replace(refs);
     }
 
     PackDownloader::Result PackDownloader::OnDataInfo(const proto::ResourcePackDataInfoPacket& info) {

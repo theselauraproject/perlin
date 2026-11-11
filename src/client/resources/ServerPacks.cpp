@@ -123,15 +123,56 @@ namespace perlin {
 
     bool ServerPacks::Mount(const std::string& zipPath, const std::string& id,
                             const std::string& contentKey) {
-        std::string base;
         {
             std::lock_guard lock(mutex);
             if (root.empty())
                 return false;
-            base = root;
             for (const std::string& d : dirs)
                 if (d.contains(LowerName(id)))
                     return true;
+        }
+        const std::string packRoot = Extract(zipPath, id, contentKey);
+        if (packRoot.empty())
+            return false;
+        std::lock_guard lock(mutex);
+        dirs.push_back(packRoot);
+        generation++;
+        Log("packs", "mounted {}", packRoot);
+        return true;
+    }
+
+    void ServerPacks::Replace(const std::vector<PackRef>& packs) {
+        std::vector<std::string> next;
+        {
+            std::lock_guard lock(mutex);
+            if (root.empty())
+                return;
+            next = pinned;
+        }
+        for (const PackRef& p : packs) {
+            const std::string lowered = LowerName(p.id);
+            if (std::any_of(next.begin(), next.end(), [&](const std::string& d) { return d.contains(lowered); }))
+                continue;
+            const std::string packRoot = Extract(p.zipPath, p.id, p.contentKey);
+            if (!packRoot.empty())
+                next.push_back(packRoot);
+        }
+        std::lock_guard lock(mutex);
+        if (next == dirs) {
+            Log("packs", "same {} packs as before: kept loaded", next.size() - pinned.size());
+            return;
+        }
+        dirs = std::move(next);
+        generation++;
+        Log("packs", "mounted {} packs", dirs.size() - pinned.size());
+    }
+
+    std::string ServerPacks::Extract(const std::string& zipPath, const std::string& id,
+                                     const std::string& contentKey) {
+        std::string base;
+        {
+            std::lock_guard lock(mutex);
+            base = root;
         }
         std::error_code ec;
         const fs::path out =
@@ -147,7 +188,7 @@ namespace perlin {
             mz_zip_archive zip{};
             if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
                 Log("packs", "cannot open {}", zipPath);
-                return false;
+                return {};
             }
             const mz_uint count = mz_zip_reader_get_num_files(&zip);
             size_t extracted = 0, failed = 0;
@@ -193,11 +234,7 @@ namespace perlin {
         }
         if (packRoot.empty())
             packRoot = out.string();
-        std::lock_guard lock(mutex);
-        dirs.push_back(packRoot);
-        generation++;
-        Log("packs", "mounted {}", packRoot);
-        return true;
+        return packRoot;
     }
 
 }

@@ -116,6 +116,15 @@ namespace perlin::entity {
         uint32_t swingSerial = 0;
         bool isItem = false;
         glm::dvec3 vel{0.0};
+        // server position of a simulated item, applied on the next interpolation tick
+        bool itemPending = false;
+        glm::dvec3 itemTarget{0.0};
+        // projectiles: placed at each server position (no 3-tick lerp) and moved with their own
+        // gravity and drag between updates; -1 not checked yet
+        int8_t projectile = -1;
+        bool projPending = false, projHaveServer = false;
+        glm::dvec3 projTarget{0.0}, projLastServer{0.0};
+        int projTicksSince = 0;
         bool sleeping = false, sleepExt = false, sleepPlayer = false;
         bool simulated = false;
 
@@ -179,7 +188,9 @@ namespace perlin::entity {
         void SetMotion(uint64_t rid, glm::dvec3 velocity);
         void SetSleeping(uint64_t rid, bool sleeping, bool playerFlag = false);
 
-        void StepItems(const std::function<bool(double, double, double, double, double, double)>& hit);
+        using ItemCollider = std::function<bool(double, double, double, double, double, double)>;
+        // dropped items step inside TickInterpolation, on the clock the renderer interpolates with
+        void SetItemCollider(ItemCollider hit);
 
         enum class MoveKind { Place, Lerp, Teleport };
         void Move(uint64_t rid, glm::dvec3 pos, float pitch, float yaw, float headYaw, bool onGround,
@@ -229,6 +240,8 @@ namespace perlin::entity {
             glm::dvec3 from{0.0};
         };
         void StepPickupsLocked(std::vector<uint64_t>* finished) const;
+        void StepItemLocked(Entity& e);
+        ItemCollider itemCollider;
         mutable std::mutex mutex;
         mutable std::unordered_map<uint64_t, Entity> entities;
         mutable std::unordered_map<int64_t, uint64_t> byUnique;

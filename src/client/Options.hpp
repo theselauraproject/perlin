@@ -46,6 +46,17 @@ namespace perlin {
         bool subtitles = false;
     };
 
+    // java chat options, same ranges and defaults (fractions 0..1)
+    struct ChatSettings {
+        float scale = 1.0f;
+        float width = 1.0f;
+        float focusedHeight = 1.0f;
+        float unfocusedHeight = 0.44366196f;
+        float textOpacity = 1.0f;
+        float backgroundOpacity = 0.5f;
+        float lineSpacing = 0.0f;
+    };
+
     struct SkinParts {
         bool cape = true;
         bool jacket = true;
@@ -61,7 +72,7 @@ namespace perlin {
         int maxFps = 120;
         bool vsync = true;
         bool fullscreen = false;
-        bool centerCursor = true;
+        bool centerCursor = false;
         bool autoUpdate = true;
         bool versionMismatchNoAsk = false;
         bool discordPresence = true;
@@ -109,6 +120,7 @@ namespace perlin {
         float bloom = 0.5f;
         ZoomSettings zoom;
         HandSettings hand;
+        ChatSettings chat;
         int guiScale = 0;
         SoundSettings sound;
         std::string dynamicLights = "off";

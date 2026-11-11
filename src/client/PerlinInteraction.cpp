@@ -66,7 +66,29 @@ namespace perlin {
         auto& frameEntities = loop->frameEntities;
         aimHit = AimHit{};
         if ((live || previewLevel) && !spectator && levelRenderer) {
-            const std::vector<entity::Entity>& aimEntities = frameEntities;
+            // java ProjectileUtil.getEntityHitResult: passengers of the player's own vehicle chain are not
+            // picked (a carried flag sits in front of the camera)
+            const int64_t selfUid = live ? live->SelfUid() : 0;
+            const auto ridesSelf = [&](const entity::Entity& e) {
+                int64_t vehicle = e.vehicleUid;
+                for (int depth = 0; vehicle != 0 && depth < 8; depth++) {
+                    if (vehicle == selfUid || (live && vehicle == live->RidingUid()))
+                        return true;
+                    const auto it = std::find_if(frameEntities.begin(), frameEntities.end(),
+                                                 [&](const entity::Entity& o) { return o.uniqueId == vehicle; });
+                    if (it == frameEntities.end())
+                        return false;
+                    vehicle = it->vehicleUid;
+                }
+                return false;
+            };
+            std::vector<entity::Entity> unridden;
+            const bool anyRider = selfUid != 0 && std::any_of(frameEntities.begin(), frameEntities.end(), ridesSelf);
+            if (anyRider)
+                for (const entity::Entity& e : frameEntities)
+                    if (!ridesSelf(e))
+                        unridden.push_back(e);
+            const std::vector<entity::Entity>& aimEntities = anyRider ? unridden : frameEntities;
             aimHit = Raycast(
                 live ? live->NetLevel() : *previewLevel, &levelRenderer->Blocks(), aimEntities,
                 [&](const entity::Entity& e) {
@@ -357,9 +379,10 @@ namespace perlin {
             hit.block = aimHit.kind == AimHit::Kind::Block;
             hit.assist = aimHit.buildAssist;
             hit.target = {{aimHit.bx, aimHit.by, aimHit.bz}, aimHit.face};
-            hit.point = aimHit.kind != AimHit::Kind::None ? glm::vec3(aimHit.point)
-                                                          : buildEye + glm::normalize(camera.Direction()) *
-                                                                           static_cast<float>(PickRange(creative, 1));
+            // the assist hit lies straight under the eye: the line test needs the look ray's own end
+            hit.point = aimHit.kind != AimHit::Kind::None && !aimHit.buildAssist
+                            ? glm::vec3(aimHit.point)
+                            : buildEye + glm::normalize(camera.Direction()) * static_cast<float>(PickRange(creative, 1));
             const glm::vec3 velocity(static_cast<float>(player.State().vx), static_cast<float>(player.State().vy),
                                      static_cast<float>(player.State().vz));
             const auto chosen = heldBuild.Next(
@@ -449,7 +472,7 @@ namespace perlin {
                     SwingHand();
                     live->SendSwingArm("interact");
                     live->SendInteractEntity(useAim.entity, eyeF, click);
-                    interactedEntity = true;
+                    interactedEntity = frame::InteractionTakesUse(target.type, HandRenderer::IsFood(held.name));
                 }
             }
             const bool allowed = usePressed || (use == blockuse::Use::Place);

@@ -112,6 +112,8 @@ namespace perlin {
             BuildSkinOptions(m, f);
         else if (optionsUi.page == 4)
             BuildPerlinOptions(m, f);
+        else if (optionsUi.page == 12)
+            BuildChatOptions(m, f);
         else
             BuildKeyBindsOptions(m, f);
 
@@ -449,9 +451,39 @@ namespace perlin {
         m.Nav(detail::TrOr("options.videoTitle", "Video Settings..."), 1);
         m.Nav(detail::TrOr("options.controls", "Controls..."), 3);
         m.Nav(detail::TrOr("options.language", "Language..."), 6);
+        m.Nav(detail::TrOr("options.chat", "Chat Settings..."), 12);
         m.Nav(detail::TrOr("resourcePack.title", "Resource Packs..."), 7);
         m.Nav(detail::TrOr("perlin.shaderPacks", "Shader Packs..."), 8);
         m.Nav(detail::TrOr("perlin.options.perlin", "Perlin Settings..."), 4);
+    }
+
+    void Perlin::BuildChatOptions(OptionsModel& m, PauseFrame&) {
+        m.title = detail::TrOr("options.chat.title", "Chat Settings");
+        auto& c = options.chat;
+        const auto fraction = [&m](const char* key, const char* fallback, float& ref, std::string shown) {
+            m.Slider(detail::TrOr(key, fallback), std::move(shown), ref,
+                     [&ref](float f) { ref = Snap(f, 100.0f); });
+        };
+        // value labels follow java's: pixels for width/height, percent for the rest
+        const auto px = [](float v, float range, float min) {
+            return std::to_string(static_cast<int>(std::floor(v * range + min))) + "px";
+        };
+        fraction("options.chat.opacity", "Chat Text Opacity", c.textOpacity, Percent(c.textOpacity * 0.9f + 0.1f));
+        fraction("options.accessibility.text_background_opacity", "Text Background Opacity", c.backgroundOpacity,
+                 Percent(c.backgroundOpacity));
+        m.Slider(detail::TrOr("options.chat.scale", "Chat Text Size"), Percent(std::max(0.1f, c.scale)),
+                 (c.scale - 0.1f) / 0.9f, [&c](float f) { c.scale = 0.1f + Snap(f, 90.0f) * 0.9f; });
+        fraction("options.chat.line_spacing", "Line Spacing", c.lineSpacing, Percent(c.lineSpacing));
+        fraction("options.chat.width", "Width", c.width, px(c.width, 280.0f, 40.0f));
+        fraction("options.chat.height.focused", "Focused Height", c.focusedHeight, px(c.focusedHeight, 160.0f, 20.0f));
+        fraction("options.chat.height.unfocused", "Unfocused Height", c.unfocusedHeight,
+                 px(c.unfocusedHeight, 160.0f, 20.0f));
+        OptRow reset{detail::TrOr("controls.reset", "Reset"), "", -1.0f, [this](float, bool click) {
+                         if (click)
+                             options.chat = ChatSettings{};
+                     }};
+        reset.wide = true;
+        m.rows.push_back(reset);
     }
 
     void Perlin::BuildPerlinOptions(OptionsModel& m, PauseFrame& f) {

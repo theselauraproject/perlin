@@ -757,6 +757,7 @@ namespace perlin {
         bool SendInteractEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendLeaveVehicle();
         int64_t RidingUid() const { return ridingUid.load(); }
+        int64_t SelfUid() const { return uniqueId; }
         bool SendPickBlock(int bx, int by, int bz);
         bool SendPickEntity(uint64_t runtimeId);
         bool SendDropSelected(int count);
