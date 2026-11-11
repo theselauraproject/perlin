@@ -438,14 +438,26 @@ namespace perlin::gpu {
         buffer_desc bd;
         bd.size = std::max(kRingChunk, AlignUp(minimum, 65536)) + uniformRangeBytes;
         // storage: the ui cull pass reads its draw list straight from the ring
-        bd.usage = buffer_usage::vertex | buffer_usage::index | buffer_usage::uniform | buffer_usage::copy_src |
-                   buffer_usage::storage;
+        buffer_usage plain = buffer_usage::vertex | buffer_usage::index | buffer_usage::uniform | buffer_usage::copy_src;
         if (Caps().features.multi_draw_indirect)
-            bd.usage = bd.usage | buffer_usage::indirect;
+            plain = plain | buffer_usage::indirect;
+        bd.usage = plain | buffer_usage::storage;
         bd.memory = memory_class::upload;
         bd.name = "frame ring";
         RingChunk ring;
-        ring.buffer = device->create_buffer(bd);
+        if (ringStorage) {
+            ring.buffer = device->create_buffer(bd);
+            if (!ring.buffer) {
+                // some backends cannot read storage from cpu-visible memory: keep the ring plain from now on,
+                // and the gpu culling of world draws stays off
+                ringStorage = false;
+                Log("gpu", "the frame ring cannot be shader storage here: gpu culling of entities is off");
+            }
+        }
+        if (!ring.buffer) {
+            bd.usage = plain;
+            ring.buffer = device->create_buffer(bd);
+        }
         if (!ring.buffer)
             return false;
         ring.data = device->map(ring.buffer);

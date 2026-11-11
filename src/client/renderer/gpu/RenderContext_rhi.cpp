@@ -1319,7 +1319,7 @@ namespace perlin {
                 // world draws (entities, particles, weather) are culled on the gpu: size the output for all of them
                 size_t worldDraws = views[static_cast<size_t>(View::Entity)].draws.size() +
                                     views[static_cast<size_t>(View::Late)].draws.size();
-                const bool cull = !noCull && worldDraws && EnsureUiCull();
+                const bool cull = !noCull && worldDraws && gpu.RingStorage() && EnsureUiCull();
                 if (cull && worldDraws > uiCull.capacity) {
                     uint32_t size = std::max(uiCull.capacity, 4096u);
                     while (size < worldDraws)

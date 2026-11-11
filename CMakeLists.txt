@@ -986,7 +986,17 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME gpu_terrain_selftest COMMAND gpu_terrain_selftest "${PERLIN_SHADER_PACK}")
     set_tests_properties(gpu_terrain_selftest PROPERTIES SKIP_RETURN_CODE 77)
     # the terrain cull shader itself, compiled to c++ by slang and run on the cpu
-    if(PERLIN_SLANGC)
+    # slang's c++ target includes <stdfloat>, which apple's libc++ and older standard libraries lack
+    include(CheckCXXSourceCompiles)
+    set(_perlin_saved_flags "${CMAKE_REQUIRED_FLAGS}")
+    if(MSVC)
+        set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /std:c++latest")
+    else()
+        set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -std=c++23")
+    endif()
+    check_cxx_source_compiles("#include <stdfloat>\nint main() { return 0; }" PERLIN_HAVE_STDFLOAT)
+    set(CMAKE_REQUIRED_FLAGS "${_perlin_saved_flags}")
+    if(PERLIN_SLANGC AND PERLIN_HAVE_STDFLOAT)
         set(_cull_cpu "${CMAKE_CURRENT_BINARY_DIR}/generated/terrain_cull_cpu.cpp")
         add_custom_command(OUTPUT "${_cull_cpu}"
             COMMAND "${PERLIN_SLANGC}" "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/slang/programs/terrain_cull.slang"

@@ -192,6 +192,8 @@ namespace perlin::gpu {
         conduit::bind_group_handle UniformGroup(uint32_t chunk) const { return ringGroups[FrameSlot()][chunk]; }
         conduit::buffer_handle RingBuffer(uint32_t chunk) const { return rings[FrameSlot()][chunk].buffer; }
         uint32_t uniformRange() const { return uniformRangeBytes; }
+        // whether frame ring memory can also be bound as read-only shader storage
+        bool RingStorage() const { return ringStorage; }
 
         conduit::bind_group_handle TextureGroup(const TextureSet& set);
         void ForgetTexture(conduit::texture_handle texture);
@@ -276,6 +278,7 @@ namespace perlin::gpu {
         conduit::pipeline_layout_handle pipelineLayout;
         std::array<conduit::sampler_handle, static_cast<size_t>(SamplerKind::Count)> samplers{};
         uint32_t uniformRangeBytes = 4096;
+        bool ringStorage = true;
 
         std::unordered_map<PipelineKey, conduit::pipeline_handle, PipelineKeyHash> pipelines;
         std::unordered_map<TextureSet, conduit::bind_group_handle, TextureSetHash> textureGroups;
