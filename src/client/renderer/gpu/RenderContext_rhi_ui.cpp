@@ -12,6 +12,52 @@
 
 namespace perlin {
     namespace {
+        void SphereOf(const UiVertex* v, uint32_t n, float out[4]) {
+            if (!n) {
+                out[0] = out[1] = out[2] = 0;
+                out[3] = -1;
+                return;
+            }
+            float lo[3] = {v[0].x, v[0].y, v[0].z}, hi[3] = {v[0].x, v[0].y, v[0].z};
+            for (uint32_t i = 1; i < n; i++) {
+                const float p[3] = {v[i].x, v[i].y, v[i].z};
+                for (int k = 0; k < 3; k++) {
+                    lo[k] = std::min(lo[k], p[k]);
+                    hi[k] = std::max(hi[k], p[k]);
+                }
+            }
+            float r2 = 0;
+            for (int k = 0; k < 3; k++)
+                out[k] = (lo[k] + hi[k]) * 0.5f;
+            for (uint32_t i = 0; i < n; i++) {
+                const float dx = v[i].x - out[0], dy = v[i].y - out[1], dz = v[i].z - out[2];
+                r2 = std::max(r2, dx * dx + dy * dy + dz * dz);
+            }
+            out[3] = std::sqrt(r2);
+        }
+
+        // rd ui, entity and particle programs read their per-draw values from the instance stream
+        bool Instanced(Program program) {
+            using P = Program;
+            switch (program) {
+            case P::Ui:
+            case P::Entity:
+            case P::EntityMask:
+            case P::EntityEmissive:
+            case P::EntityGlint:
+            case P::Particle:
+            case P::ParticleCutout:
+            case P::Weather:
+            case P::Cracks:
+            case P::Nametag:
+                return true;
+            default:
+                return false;
+            }
+        }
+    }
+
+    namespace {
         conduit::blend_factor ToRhi(BlendFactor f) {
             switch (f) {
             case BlendFactor::Zero:
@@ -267,6 +313,7 @@ namespace perlin {
         mesh.iCount = indexCount;
         mesh.cpuVertices = std::make_shared<const std::vector<UiVertex>>(vertices, vertices + vertexCount);
         mesh.cpuIndices = std::make_shared<const std::vector<uint32_t>>(indices, indices + indexCount);
+        SphereOf(vertices, vertexCount, mesh.bounds);
         gpu.WriteBuffer(p.vb, static_cast<uint64_t>(mesh.vFirst) * sizeof(UiVertex), vertices,
                         static_cast<uint64_t>(vertexCount) * sizeof(UiVertex));
         gpu.WriteBuffer(p.ib, static_cast<uint64_t>(mesh.iFirst) * sizeof(uint32_t), indices,
@@ -291,13 +338,14 @@ namespace perlin {
         UiMeshGpu mesh;
         mesh.iCount = indexCount;
         mesh.transient = true;
+        SphereOf(vertices, vertexCount, mesh.bounds);
         if (PackRunning()) {
             mesh.cpuVertices =
                 std::make_shared<const std::vector<UiVertex>>(vertices, vertices + vertexCount);
             mesh.cpuIndices = std::make_shared<const std::vector<uint32_t>>(indices, indices + indexCount);
             mesh.lazyRing = true;
         } else {
-            mesh.tv = gpu.Ring(static_cast<uint64_t>(vertexCount) * sizeof(UiVertex), 16);
+            mesh.tv = gpu.Ring(static_cast<uint64_t>(vertexCount) * sizeof(UiVertex), 48);
             mesh.ti = gpu.Ring(static_cast<uint64_t>(indexCount) * sizeof(uint32_t), 4);
             if (!mesh.tv.data || !mesh.ti.data)
                 return 0;
@@ -449,7 +497,7 @@ namespace perlin {
             mesh.lazyRing = false;
             if (!mesh.cpuVertices || !mesh.cpuIndices || mesh.cpuVertices->empty() || mesh.cpuIndices->empty())
                 return;
-            mesh.tv = gpu.Ring(static_cast<uint64_t>(mesh.cpuVertices->size()) * sizeof(UiVertex), 16);
+            mesh.tv = gpu.Ring(static_cast<uint64_t>(mesh.cpuVertices->size()) * sizeof(UiVertex), 48);
             mesh.ti = gpu.Ring(static_cast<uint64_t>(mesh.cpuIndices->size()) * sizeof(uint32_t), 4);
             if (!mesh.tv.data || !mesh.ti.data) {
                 mesh.tv = mesh.ti = {};
@@ -494,7 +542,10 @@ namespace perlin {
         if (draw.shadowOnly)
             return;
 
-        SetTransform(glm::make_mat4(draw.model));
+        // per-draw values go to the instance stream for the programs that read it, so the uniform block stays the
+        // same across draws (no per-draw block upload) and neighbouring draws can share one multi draw
+        const glm::mat4 modelMatrix = glm::make_mat4(draw.model);
+
         BindTexture("s_uiTex", texture ? texture->handle : gpu.White2D(),
                     texture ? texture->sampler : gpu::SamplerKind::LinearRepeat);
         if (glint)
@@ -506,13 +557,6 @@ namespace perlin {
         const DrawMaterial domain = draw.material == DrawMaterial::Auto
                                         ? (entityView ? DrawMaterial::Entity : DrawMaterial::Auto)
                                         : draw.material;
-        uni.Vec4("u_rdMaterial", world && domain != DrawMaterial::Nametag ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f);
-        uni.Vec4("u_uiParams", draw.alphaCutoff, glint ? 1.0f : 0.0f, draw.glintStrength,
-                 static_cast<float>(draw.emissive));
-        uni.Set("u_uiOverlay", draw.overlay, 4);
-        uni.Vec4("u_uiGlintA", draw.glintMatrix[0], draw.glintMatrix[1], draw.glintMatrix[2],
-                 draw.glintMatrix[3]);
-        uni.Vec4("u_uiGlintB", draw.glintOffset[0], draw.glintOffset[1], 0.0f, 0.0f);
 
         Program program = Program::Ui;
         if (glint)
@@ -581,7 +625,53 @@ namespace perlin {
             scissor = &rect;
         }
 
-        Submit(view, state, vertices, &indices, conduit::index_type::u32, 0, count, scissor);
+        if (!Instanced(program)) {
+            SetTransform(modelMatrix);
+            Submit(view, state, vertices, &indices, conduit::index_type::u32, 0, count, scissor);
+            return;
+        }
+        state.layout = gpu::VertexLayout::UiInstanced;
+        const gpu::RingSlice slot = gpu.Ring(sizeof(gpu::UiInstance), sizeof(gpu::UiInstance));
+        if (!slot.data) {
+            ResetBindings();
+            return;
+        }
+        gpu::UiInstance inst{};
+        for (int r = 0; r < 4; r++)
+            for (int c = 0; c < 4; c++)
+                inst.modelRows[r][c] = modelMatrix[c][r];
+        inst.params[0] = draw.alphaCutoff;
+        inst.params[1] = glint ? 1.0f : 0.0f;
+        inst.params[2] = draw.glintStrength;
+        inst.params[3] = static_cast<float>(draw.emissive);
+        std::memcpy(inst.overlay, draw.overlay, sizeof(inst.overlay));
+        std::memcpy(inst.glint, draw.glintMatrix, sizeof(inst.glint));
+        inst.material[0] = world && domain != DrawMaterial::Nametag ? 1.0f : 0.0f;
+        inst.material[1] = draw.glintOffset[0];
+        inst.material[2] = draw.glintOffset[1];
+        if (mesh.bounds[3] >= 0.0f) {
+            const glm::vec4 c = modelMatrix * glm::vec4(mesh.bounds[0], mesh.bounds[1], mesh.bounds[2], 1.0f);
+            const float scale = std::sqrt(std::max({glm::dot(glm::vec3(modelMatrix[0]), glm::vec3(modelMatrix[0])),
+                                                    glm::dot(glm::vec3(modelMatrix[1]), glm::vec3(modelMatrix[1])),
+                                                    glm::dot(glm::vec3(modelMatrix[2]), glm::vec3(modelMatrix[2]))}));
+            inst.bounds[0] = c.x;
+            inst.bounds[1] = c.y;
+            inst.bounds[2] = c.z;
+            inst.bounds[3] = mesh.bounds[3] * scale;
+        } else {
+            inst.bounds[3] = -1.0f;
+        }
+        std::memcpy(slot.data, &inst, sizeof(inst));
+        DrawCall dc;
+        if (Prepare(view, state, dc)) {
+            Push(view, dc, vertices, &indices, conduit::index_type::u32, 0, count, scissor);
+            DrawCall& queued = views[static_cast<size_t>(view)].draws.back();
+            queued.instances = slot.buffer;
+            queued.instanceOffset = slot.offset;
+            queued.cullable = world && inst.bounds[3] >= 0.0f && !draw.scissor;
+            std::memcpy(queued.bounds, inst.bounds, sizeof(inst.bounds));
+        }
+        ResetBindings();
     }
 
     void RenderContext_rhi::DrawHudCursor(float x, float y, float w, float h) {

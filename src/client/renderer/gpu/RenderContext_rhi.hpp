@@ -3,7 +3,7 @@
 #include "client/renderer/SkyGeometry.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
-#include "client/renderer/gpu/GpuChunkCull.hpp"
+#include "client/renderer/gpu/GpuTerrain.hpp"
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/ModGpu.hpp"
@@ -72,6 +72,8 @@ namespace perlin {
         ShadowGlass,
         ShadowEntity,
         World,
+        // opaque terrain the occlusion pass found newly visible: same camera as World, drawn after the depth pyramid
+        WorldLate,
         Entity,
         Late,
         Hand,
@@ -228,6 +230,9 @@ namespace perlin {
         bool ReadBackFrame(std::vector<uint8_t>& rgba, uint32_t& w, uint32_t& h);
 
         gpu::Gpu& Gpu() { return gpu; }
+        const gpu::GpuTerrain& Terrain() const { return terrain; }
+        // what the cpu path would draw for the opaque layers this frame (benchmarks and tests)
+        uint64_t CpuOpaqueIndices();
 
     private:
         struct DrawCall {
@@ -247,7 +252,35 @@ namespace perlin {
             conduit::buffer_handle indirect;
             uint64_t indirectOffset = 0;
             uint32_t indirectDraws = 0;
+            // set: indirectDraws is the most that can run, the gpu-written count here decides
+            conduit::buffer_handle countBuffer;
+            uint64_t countOffset = 0;
+            // ui / entity / particle draws: per-draw values on vertex stream 1 (UiInstance)
+            conduit::buffer_handle instances;
+            uint64_t instanceOffset = 0;
+            bool cullable = false;
+            float bounds[4] = {};
         };
+        // consecutive ui draws that differ only in mesh and instance become one multi draw; the world ones get their
+        // draws culled against the frustum by a compute pass first
+        void BatchUiDraws(View view, bool cull);
+        void RecordUiCull(conduit::command_list& list);
+        bool EnsureUiCull();
+        struct UiCullEntry {
+            uint32_t command[5];
+            uint32_t pad[3];
+            float bounds[4];
+        };
+        struct UiCull {
+            conduit::shader_handle shader;
+            conduit::bind_layout_handle bindLayout;
+            conduit::pipeline_layout_handle layout;
+            conduit::pipeline_handle pipeline;
+            conduit::buffer_handle output;
+            uint32_t capacity = 0;
+            std::vector<UiCullEntry> entries;
+            bool failed = false;
+        } uiCull;
         bool PushRuns(View view, const DrawCall& templ, conduit::buffer_handle vertexBuffer, conduit::buffer_handle indexBuffer,
                       const std::vector<gpu::ChunkMeshStore::Run>& list, size_t begin, size_t end);
         bool UseMultiDraw() const;
@@ -323,12 +356,15 @@ namespace perlin {
             bool transient = false;
             bool lazyRing = false;
             gpu::RingSlice tv, ti;
+            // local bounding sphere: centre xyz, radius w
+            float bounds[4] = {0, 0, 0, -1};
         };
         bool RouteToJavaPack(UiLayer layer, const UiDraw& draw, const UiMeshGpu& mesh,
                              conduit::texture_handle texture, bool glint);
 
         struct Stage {
-            enum class Kind : uint8_t { Pass, Copy } kind = Kind::Pass;
+            // Occlusion: depth pyramid from the depth of the pass before it, then the late terrain cull
+            enum class Kind : uint8_t { Pass, Copy, Occlusion } kind = Kind::Pass;
             Target target;
             bool toScreen = false, useScreenDepth = false;
             std::vector<View> views;
@@ -444,6 +480,9 @@ namespace perlin {
             glm::vec3 buildRight{1, 0, 0}, buildUp{0, 1, 0}, buildFwd{0, 0, 1};
             float buildCx = 0, buildCy = 0, buildCz = 0;
             std::vector<std::pair<int64_t, uint8_t>> buildList;
+            // opaque casters culled and drawn by the gpu terrain pass; only glass stays in buildList
+            bool gpuCasters = false;
+            float casterPlanes[6][4] = {};
             size_t buildCursor = 0;
             int buildSlice = 0, buildSlices = 1;
             float sampleE[16] = {}, rasterE[16] = {}, infoE[4] = {};
@@ -498,13 +537,16 @@ namespace perlin {
         void DrawSky();
         void DrawClouds();
         void DrawScreenTint();
-        void DrawLayer(RenderLayer layer, Program program, View view);
+        void DrawLayer(RenderLayer layer, Program program, View view, bool late = false);
+        bool SplitForOcclusion();
+        bool OcclusionTarget(uint32_t& w, uint32_t& h) const;
         DrawState PassState(RenderLayer layer) const;
         conduit::cull_mode cullMode = conduit::cull_mode::back;
         conduit::front_face frontFace = conduit::front_face::clockwise;
         std::vector<gpu::ChunkMeshStore::Run> runs;
-        gpu::GpuChunkCull cull;
+        gpu::GpuTerrain terrain;
         bool gpuCullFrame = false;
+        std::vector<gpu::GpuTerrain::Draw> terrainDraws;
         gpu::PipelineKey KeyFor(const ViewData& view, const DrawState& state) const;
 
         void ConvertDepth(const float in[16], float out[16]) const;

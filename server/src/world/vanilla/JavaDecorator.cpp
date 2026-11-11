@@ -12,7 +12,10 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <map>
 #include <mutex>
+#include <shared_mutex>
+#include <string_view>
 #include <optional>
 #include <cstdio>
 #include <cstdlib>
@@ -245,12 +248,45 @@ namespace perlin::server::vanilla {
             return f;
         }
 
-        bool InTag(const std::string& tag, uint16_t id) const {
-            const std::string t = tag.starts_with('#') ? tag.substr(1) : tag;
-            const auto it = tags.find(t);
-            if (it == tags.end())
+        // per tag and block id: 0 not looked up yet, 1 outside, 2 inside. the tag sets hold names, and naming an
+        // id locks the registry and copies a string: ore and tree placement asked that for every block they touched
+        struct TagMask {
+            std::array<std::atomic<uint8_t>, 65536> state{};
+            const std::unordered_set<std::string>* names = nullptr;
+        };
+        mutable std::shared_mutex maskMutex;
+        mutable std::map<std::string, std::unique_ptr<TagMask>, std::less<>> masks;
+
+        const TagMask* MaskFor(std::string_view tag) const {
+            if (tag.starts_with('#'))
+                tag.remove_prefix(1);
+            {
+                std::shared_lock lock(maskMutex);
+                const auto it = masks.find(tag);
+                if (it != masks.end())
+                    return it->second.get();
+            }
+            std::unique_lock lock(maskMutex);
+            auto& slot = masks[std::string(tag)];
+            if (!slot) {
+                slot = std::make_unique<TagMask>();
+                const auto it = tags.find(std::string(tag));
+                slot->names = it == tags.end() ? nullptr : &it->second;
+            }
+            return slot.get();
+        }
+
+        bool InTag(std::string_view tag, uint16_t id) const {
+            const TagMask* mask = MaskFor(tag);
+            if (!mask->names)
                 return false;
-            return it->second.contains(BlockRegistry::Instance().Name(id));
+            auto& cell = const_cast<TagMask*>(mask)->state[id];
+            uint8_t known = cell.load(std::memory_order_relaxed);
+            if (!known) {
+                known = mask->names->contains(BlockRegistry::Instance().Name(id)) ? 2 : 1;
+                cell.store(known, std::memory_order_relaxed);
+            }
+            return known == 2;
         }
     };
 
@@ -847,12 +883,15 @@ namespace perlin::server::vanilla {
             }
 
             bool RuleTest(const json::Value& t, uint16_t id, const Pos& p) {
-                const std::string type = t["predicate_type"].String();
-                const std::string_view name = std::string_view(type).substr(type.starts_with("minecraft:") ? 10 : 0);
+                const json::Value& typeValue = t["predicate_type"];
+                const std::string_view type = typeValue.IsString() ? std::string_view(typeValue.text) : std::string_view();
+                const std::string_view name = type.substr(type.starts_with("minecraft:") ? 10 : 0);
                 if (name == "always_true")
                     return true;
-                if (name == "tag_match")
-                    return d.InTag(t["tag"].String(), id);
+                if (name == "tag_match") {
+                    const json::Value& tag = t["tag"];
+                    return tag.IsString() && d.InTag(tag.text, id);
+                }
                 if (name == "block_match")
                     return id == StateId(t["block"]) ||
                            BlockRegistry::Instance().Name(id) == BlockRegistry::Instance().Name(StateId(t["block"]));

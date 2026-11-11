@@ -58,16 +58,29 @@ TERRAIN_VERTEX = '''void main()
     v_fog = vec4(u_fogColor.rgb, max(rdFog(relative), 1.0 - visibility));
 }
 '''
+# i_data: one instance per draw carries what used to be per-draw uniforms (rows of the model matrix, ui params,
+# overlay, glint, material), so ui, entity and particle draws share one uniform block and batch into multi draws
 UI_VARYING = '''vec3 a_position : POSITION;
 vec4 a_color0 : COLOR0;
 vec2 a_texcoord0 : TEXCOORD0;
+vec4 i_data0 : INSTANCE0;
+vec4 i_data1 : INSTANCE1;
+vec4 i_data2 : INSTANCE2;
+vec4 i_data3 : INSTANCE3;
+vec4 i_data4 : INSTANCE4;
+vec4 i_data5 : INSTANCE5;
+vec4 i_data6 : INSTANCE6;
+vec4 i_data7 : INSTANCE7;
 vec4 v_color0 : COLOR0;
 vec2 v_texcoord0 : TEXCOORD0;
 vec4 v_fog : COLOR1;
 vec4 v_light : COLOR2;
 vec4 v_layerUv : TEXCOORD1;
+vec4 v_uiParams : TEXCOORD2;
+vec4 v_uiOverlay : TEXCOORD3;
 '''
 UI_IO = 'v_color0, v_texcoord0, v_fog, v_light, v_layerUv'
+UI_STAGE_IO = UI_IO + ', v_uiParams, v_uiOverlay'
 UI_ARGS = 'vec4 v_color0, vec2 v_texcoord0, vec4 v_fog, vec4 v_light, vec4 v_layerUv'
 UI_UNIFORMS = '#include "rd_ui.slang"\n'
 
@@ -132,7 +145,7 @@ def generate(root, out):
             manifest[name] = source
     def fragment(name, family, render_pass, io, args, prefix, call_args, suffix='', samples=None, replacements=None):
         body = upstream(root, family, render_pass, args, 'rdMain', samples, replacements)
-        write(name + '.sc', '$input ' + io + '\n' + COMMON + DEFINES + prefix + body +
+        write(name + '.sc', '$input ' + (UI_STAGE_IO if io == UI_IO else io) + '\n' + COMMON + DEFINES + prefix + body +
               '\nvoid main() { vec4 color = rdMain(' + call_args + ');\n' + suffix + '\ngl_FragColor = color; }\n',
               f'{family}.{render_pass}')
 
@@ -147,21 +160,25 @@ def generate(root, out):
               '\nvoid main() { gl_FragColor = rdMain(' + TERRAIN_IO + '); }\n', 'RenderChunk.' + render_pass)
 
     write('varying_ui.def.sc', UI_VARYING)
-    write('vs_ui.sc', '$input a_position, a_color0, a_texcoord0\n$output ' + UI_IO + '\n' + COMMON + UI_UNIFORMS + '''
+    write('vs_ui.sc', '$input a_position, a_color0, a_texcoord0, i_data0, i_data1, i_data2, i_data3, i_data4, i_data5, i_data6, i_data7\n$output ' + UI_STAGE_IO + '\n' + COMMON + UI_UNIFORMS + '''
 void main()
 {
-    gl_Position = mul(u_modelViewProj, vec4(a_position, 1.0));
-    vec3 world = mul(u_model[0], vec4(a_position, 1.0)).xyz;
+    mat4 model = mat4(i_data0, i_data1, i_data2, i_data3);
+    vec3 world = mul(model, vec4(a_position, 1.0)).xyz;
+    gl_Position = mul(u_viewProj, vec4(world, 1.0));
     v_color0 = a_color0;
     v_texcoord0 = a_texcoord0;
     v_light = vec4(a_color0.rgb, 1.0);
-    v_fog = vec4(u_fogColor.rgb, rdFog(world - u_camera.xyz) * u_rdMaterial.x);
+    v_fog = vec4(u_fogColor.rgb, rdFog(world - u_camera.xyz) * i_data7.x);
+    v_uiParams = i_data4;
+    v_uiOverlay = i_data5;
     // Bedrock foil: two layers rotated -20 and 80 degrees about the texture centre, scaled by
-    // u_uiGlintA.zw and scrolled along U by u_uiGlintA.xy.
+    // glint zw and scrolled along U by glint xy.
+    vec4 glintA = i_data6;
     vec2 glintC = a_texcoord0 - vec2(0.5, 0.5);
     vec2 glint0 = vec2(dot(glintC, vec2(0.9396926, -0.3420201)), dot(glintC, vec2(0.3420201, 0.9396926))) + vec2(0.5, 0.5);
     vec2 glint1 = vec2(dot(glintC, vec2(0.1736482, 0.9848078)), dot(glintC, vec2(-0.9848078, 0.1736482))) + vec2(0.5, 0.5);
-    v_layerUv = vec4(glint0 * u_uiGlintA.zw + vec2(u_uiGlintA.x, 0.0), glint1 * u_uiGlintA.zw + vec2(u_uiGlintA.y, 0.0));
+    v_layerUv = vec4(glint0 * glintA.zw + vec2(glintA.x, 0.0), glint1 * glintA.zw + vec2(glintA.y, 0.0));
 }
 ''')
     samples = {'s_MatTexture0': 'rdBase', 's_MatTexture1': 'rdGlint', 's_GlyphTexture': 'rdBase', 's_ParticleTexture': 'rdBase', 's_CracksTexture': 'rdBase'}
@@ -188,7 +205,7 @@ vec4 rdOcclusion(vec2 uv) { return vec4(0.0, 0.0, 15.0 / 255.0, 0.0); }
                     {'s_WeatherTexture': 'rdWeather', 's_OcclusionTexture': 'rdOcclusion'},
                     {'v_occlusionUV': 'vec2_splat(0.5)', 'v_occlusionHeight': '(-1.0)'})
     body = re.sub(r'texture2D\(s_LightingTexture,\s*var_17770\)', 'vec4(v_color0.rgb, 1.0)', body)
-    write('fs_weather.sc', '$input ' + UI_IO + '\n' + COMMON + DEFINES + weather_prefix + body +
+    write('fs_weather.sc', '$input ' + UI_STAGE_IO + '\n' + COMMON + DEFINES + weather_prefix + body +
           '\nvoid main() { vec4 color = rdMain(' + UI_IO + '); color.a *= v_color0.a; gl_FragColor = color; }\n', 'Weather.Transparent')
 
     sky_varying = '''vec3 a_position : POSITION;

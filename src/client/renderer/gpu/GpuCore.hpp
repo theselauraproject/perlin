@@ -11,13 +11,28 @@
 #include <vector>
 
 namespace perlin::gpu {
-    enum class VertexLayout : uint8_t { Terrain, Position, Color, Texture, Ui, Count };
+    // UiInstanced: the ui vertex plus one instance per draw (UiInstance) carrying its per-draw values
+    enum class VertexLayout : uint8_t { Terrain, Position, Color, Texture, Ui, UiInstanced, Count };
 
     struct VertexLayoutInfo {
         uint32_t stride;
-        std::array<conduit::vertex_attribute_desc, 8> attributes;
+        std::array<conduit::vertex_attribute_desc, 16> attributes;
         uint32_t attributeCount;
+        uint32_t instanceStride = 0;
     };
+
+    // one per ui, entity or particle draw, read as instance attributes 8..15 (see vs_ui in
+    // gen_renderdragon_shaders.py); the bounds are only for the gpu culling pass
+    struct UiInstance {
+        float modelRows[4][4];
+        float params[4];
+        float overlay[4];
+        float glint[4];
+        float material[4];
+        float bounds[4];
+        float pad[4];
+    };
+    static_assert(sizeof(UiInstance) == 160, "UiInstance must stay a multiple of 16 bytes");
     const VertexLayoutInfo& LayoutInfo(VertexLayout layout);
 
     struct PipelineKey {

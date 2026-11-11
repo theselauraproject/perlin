@@ -451,10 +451,10 @@ namespace perlin {
             std::memcpy(m, glm::value_ptr(proj), sizeof(m));
             ApplyJitter(m, plan.jitter[0], plan.jitter[1]);
             const glm::mat4 jittered = glm::make_mat4(m);
-            for (View v : {View::World, View::Entity, View::Late})
+            for (View v : {View::World, View::WorldLate, View::Entity, View::Late})
                 views[static_cast<size_t>(v)].proj = jittered;
         }
-        for (View v : {View::World, View::Entity, View::Late}) {
+        for (View v : {View::World, View::WorldLate, View::Entity, View::Late}) {
             ViewData& vd = views[static_cast<size_t>(v)];
             vd.w = static_cast<uint32_t>(plan.w);
             vd.h = static_cast<uint32_t>(plan.h);
@@ -487,7 +487,7 @@ namespace perlin {
             }
             world.color1 = post.javaAux;
             world.color2 = post.javaC4;
-            for (View v : {View::World, View::Entity, View::Late}) {
+            for (View v : {View::World, View::WorldLate, View::Entity, View::Late}) {
                 views[static_cast<size_t>(v)].colorCount = 3;
                 views[static_cast<size_t>(v)].colorFormat2 = kPostColor;
                 views[static_cast<size_t>(v)].colorFormat1 = kPostColor;

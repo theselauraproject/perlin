@@ -38,6 +38,20 @@ namespace perlin::gpu {
             {24,
              {{{0, 0, format::rgb32_float, 0}, {2, 0, format::rgba8_unorm, 12}, {4, 0, format::rg32_float, 16}}},
              3},
+            {24,
+             {{{0, 0, format::rgb32_float, 0},
+               {2, 0, format::rgba8_unorm, 12},
+               {4, 0, format::rg32_float, 16},
+               {8, 1, format::rgba32_float, 0},
+               {9, 1, format::rgba32_float, 16},
+               {10, 1, format::rgba32_float, 32},
+               {11, 1, format::rgba32_float, 48},
+               {12, 1, format::rgba32_float, 64},
+               {13, 1, format::rgba32_float, 80},
+               {14, 1, format::rgba32_float, 96},
+               {15, 1, format::rgba32_float, 112}}},
+             11,
+             sizeof(UiInstance)},
         };
     }
 
@@ -362,6 +376,10 @@ namespace perlin::gpu {
             const VertexLayoutInfo& layout = LayoutInfo(key.layout);
             gd.streams[0] = {layout.stride, vertex_step::vertex};
             gd.stream_count = 1;
+            if (layout.instanceStride) {
+                gd.streams[1] = {layout.instanceStride, vertex_step::instance};
+                gd.stream_count = 2;
+            }
             for (uint32_t i = 0; i < layout.attributeCount; i++)
                 gd.attributes[i] = layout.attributes[i];
             gd.attribute_count = layout.attributeCount;
@@ -419,7 +437,9 @@ namespace perlin::gpu {
     bool Gpu::CreateRing(uint32_t slot, uint64_t minimum) {
         buffer_desc bd;
         bd.size = std::max(kRingChunk, AlignUp(minimum, 65536)) + uniformRangeBytes;
-        bd.usage = buffer_usage::vertex | buffer_usage::index | buffer_usage::uniform | buffer_usage::copy_src;
+        // storage: the ui cull pass reads its draw list straight from the ring
+        bd.usage = buffer_usage::vertex | buffer_usage::index | buffer_usage::uniform | buffer_usage::copy_src |
+                   buffer_usage::storage;
         if (Caps().features.multi_draw_indirect)
             bd.usage = bd.usage | buffer_usage::indirect;
         bd.memory = memory_class::upload;

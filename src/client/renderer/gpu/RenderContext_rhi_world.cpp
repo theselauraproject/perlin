@@ -682,23 +682,28 @@ namespace perlin {
         return s;
     }
 
-    void RenderContext_rhi::DrawLayer(RenderLayer layer, Program program, View view) {
+    void RenderContext_rhi::DrawLayer(RenderLayer layer, Program program, View view, bool late) {
         static const bool hideBlend = PERLIN_ENV("PERLIN_HIDE_TRANSLUCENT") != nullptr;
         if (hideBlend && (layer == RenderLayer::Translucent || layer == RenderLayer::TranslucentCull))
             return;
         const bool ordered = layer == RenderLayer::Translucent || layer == RenderLayer::TranslucentCull;
-        const bool onGpu = gpuCullFrame && gpu::GpuChunkCull::Handles(layer);
-        if (onGpu)
+        const bool onGpu = gpuCullFrame && gpu::GpuTerrain::Handles(layer);
+        if (onGpu) {
             runs.clear();
-        else
+            terrain.Draws(layer, late, terrainDraws);
+        } else {
+            terrainDraws.clear();
+            if (late)
+                return;
             meshes.CollectRuns(layer, ordered, runs);
+        }
         if (javaActive && PERLIN_ENV("PERLIN_JAVA_DBG")) {
             static int m = 0;
             if (m++ < 10)
                 std::fprintf(stderr, "[javadbg] runs layer=%d count=%zu\n", static_cast<int>(layer),
                              runs.size());
         }
-        if (onGpu ? cull.Buckets(layer).empty() : runs.empty())
+        if (onGpu ? terrainDraws.empty() : runs.empty())
             return;
         DrawState state = PassState(layer);
         state.program = program;
@@ -743,16 +748,18 @@ namespace perlin {
         }
         const bool multi = UseMultiDraw();
         if (onGpu) {
-            for (const gpu::GpuChunkCull::Bucket& b : cull.Buckets(layer)) {
+            for (const gpu::GpuTerrain::Draw& d : terrainDraws) {
                 DrawCall dc = templ;
-                dc.vertices = meshes.Vertices(b.page);
+                dc.vertices = meshes.Vertices(d.page);
                 dc.vertexOffset = 0;
-                dc.indices = meshes.Indices(b.page, layer);
+                dc.indices = meshes.Indices(d.page, layer);
                 dc.indexOffset = 0;
                 dc.indexType = conduit::index_type::u32;
-                dc.indirect = cull.Commands();
-                dc.indirectOffset = static_cast<uint64_t>(b.firstCommand) * sizeof(conduit::draw_indexed_indirect_command);
-                dc.indirectDraws = b.commands;
+                dc.indirect = terrain.Commands(late);
+                dc.indirectOffset = d.commandOffset;
+                dc.indirectDraws = d.maxDraws;
+                dc.countBuffer = terrain.Counts();
+                dc.countOffset = d.countOffset;
                 views[static_cast<size_t>(view)].draws.push_back(dc);
             }
         }
@@ -801,6 +808,62 @@ namespace perlin {
         Submit(View::Late, state, {screenTri, 0}, nullptr, conduit::index_type::u32, 0, 3);
     }
 
+    uint64_t RenderContext_rhi::CpuOpaqueIndices() {
+        uint64_t total = 0;
+        std::vector<gpu::ChunkMeshStore::Run> list;
+        meshes.Select(Frustum::FromViewProjection(glm::make_mat4(frame.viewProjection)), frame.cameraPosition[0],
+                      frame.cameraPosition[1], frame.cameraPosition[2], chunkCullRadius, caveCulling, frame.timeSeconds);
+        for (RenderLayer layer : gpu::GpuTerrain::kLayers) {
+            meshes.CollectRuns(layer, false, list);
+            for (const auto& r : list)
+                total += r.count;
+        }
+        return total;
+    }
+
+    bool RenderContext_rhi::OcclusionTarget(uint32_t& w, uint32_t& h) const {
+        for (const Stage& stage : stages) {
+            if (stage.kind != Stage::Kind::Pass ||
+                std::find(stage.views.begin(), stage.views.end(), View::World) == stage.views.end())
+                continue;
+            if (stage.toScreen) {
+                if (!stage.useScreenDepth || !screenDepth)
+                    return false;
+                w = screenDepthW;
+                h = screenDepthH;
+                return true;
+            }
+            if (!stage.target.depth)
+                return false;
+            w = stage.target.w;
+            h = stage.target.h;
+            return w && h;
+        }
+        return false;
+    }
+
+    // the world pass becomes: terrain visible last frame, the depth pyramid and late cull, then everything else
+    bool RenderContext_rhi::SplitForOcclusion() {
+        for (size_t i = 0; i < stages.size(); i++) {
+            Stage& stage = stages[i];
+            if (stage.kind != Stage::Kind::Pass)
+                continue;
+            const auto at = std::find(stage.views.begin(), stage.views.end(), View::World);
+            if (at == stage.views.end())
+                continue;
+            Stage rest = stage;
+            rest.views.erase(rest.views.begin() + (at - stage.views.begin()));
+            rest.views.insert(rest.views.begin(), View::WorldLate);
+            rest.clearColor = rest.clearDepth = false;
+            stage.views = {View::World};
+            Stage hook;
+            hook.kind = Stage::Kind::Occlusion;
+            stages.insert(stages.begin() + static_cast<std::ptrdiff_t>(i) + 1, {hook, rest});
+            return true;
+        }
+        return false;
+    }
+
     void RenderContext_rhi::DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) {
         if (!initialized || !frameOpen)
             return;
@@ -829,8 +892,10 @@ namespace perlin {
                 std::fprintf(stderr, "[javadbg] census chunks=%zu solid=%zu\n", total, solidChunks);
             }
         }
+        static const bool noOcclusion = PERLIN_ENV("PERLIN_NO_OCCLUSION") != nullptr;
+        const bool wantGpu = !pack && terrain.Ready() && UseMultiDraw();
         meshes.Select(frustum, camX, frame.cameraPosition[1], camZ, chunkCullRadius, caveCulling,
-                      frame.timeSeconds);
+                      frame.timeSeconds, wantGpu);
         if (pack) {
 
             jpack->SetViewFrustum(frustum);
@@ -841,11 +906,44 @@ namespace perlin {
             DrawScreenTint();
             return;
         }
-        gpuCullFrame = cull.Ready() && UseMultiDraw() && cull.Prepare(meshes, frustum, camX, camZ, chunkCullRadius);
+        gpuCullFrame = false;
+        if (wantGpu) {
+            gpu::GpuTerrain::FrameInput in;
+            in.frustum = frustum;
+            in.clipFromWorld = ReverseDepth(glm::make_mat4(frame.viewProjection));
+            in.camera[0] = frame.cameraPosition[0];
+            in.camera[1] = frame.cameraPosition[1];
+            in.camera[2] = frame.cameraPosition[2];
+            in.cullRadius = chunkCullRadius;
+            in.caveCulling = caveCulling;
+            uint32_t dw = 0, dh = 0;
+            in.occlusion = !noOcclusion && OcclusionTarget(dw, dh);
+            in.depthWidth = dw;
+            in.depthHeight = dh;
+            gpuCullFrame = terrain.Prepare(in);
+            if (gpuCullFrame && terrain.Occluding())
+                SplitForOcclusion();
+            if (!gpuCullFrame)
+                meshes.Select(frustum, camX, frame.cameraPosition[1], camZ, chunkCullRadius, caveCulling,
+                              frame.timeSeconds);
+        }
+        {
+            ViewData& early = views[static_cast<size_t>(View::World)];
+            ViewData& lateView = views[static_cast<size_t>(View::WorldLate)];
+            std::vector<DrawCall> keep = std::move(lateView.draws);
+            lateView = early;
+            lateView.draws = std::move(keep);
+            lateView.draws.clear();
+        }
         RenderShadows(frame.cameraPosition[0], frame.cameraPosition[1], frame.cameraPosition[2]);
         DrawLayer(RenderLayer::Solid, Program::TerrainSolid, View::World);
         DrawLayer(RenderLayer::Cutout, Program::TerrainCutout, View::World);
         DrawLayer(RenderLayer::CutoutCull, Program::TerrainCutout, View::World);
+        if (gpuCullFrame && terrain.Occluding()) {
+            DrawLayer(RenderLayer::Solid, Program::TerrainSolid, View::WorldLate, true);
+            DrawLayer(RenderLayer::Cutout, Program::TerrainCutout, View::WorldLate, true);
+            DrawLayer(RenderLayer::CutoutCull, Program::TerrainCutout, View::WorldLate, true);
+        }
         DrawLayer(RenderLayer::Translucent, Program::TerrainTranslucent, View::Late);
         DrawLayer(RenderLayer::TranslucentCull, Program::TerrainTranslucent, View::Late);
         DrawClouds();

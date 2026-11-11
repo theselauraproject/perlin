@@ -16,6 +16,9 @@ namespace perlin {
         visibility.clear();
         specials.clear();
         quads.clear();
+        for (auto& groups : pending)
+            for (auto& g : groups)
+                g.clear();
         curBlock = 0;
         layer = RenderLayer::Solid;
         building = true;
@@ -131,7 +134,27 @@ namespace perlin {
         if (CaptureQuadInfo())
             quads.push_back({curX, curY, curZ, curBlock, static_cast<uint8_t>(layer)});
 
-        std::vector<uint32_t>& out = indices[static_cast<size_t>(layer)];
+        std::vector<uint32_t>* target = &indices[static_cast<size_t>(layer)];
+        const int split = SplitSlot(layer);
+        if (split >= 0 && !sections.empty()) {
+            // facing from the stored outward normal, axis-aligned within ~8 degrees
+            constexpr float kAxis = 0.99f;
+            int group = 3;
+            if (nx > kAxis)
+                group = 0;
+            else if (ny > kAxis)
+                group = 1;
+            else if (nz > kAxis)
+                group = 2;
+            else if (nz < -kAxis)
+                group = 4;
+            else if (ny < -kAxis)
+                group = 5;
+            else if (nx < -kAxis)
+                group = 6;
+            target = &pending[static_cast<size_t>(split)][static_cast<size_t>(group)];
+        }
+        std::vector<uint32_t>& out = *target;
         static constexpr uint32_t kForward[6] = {0, 1, 2, 0, 2, 3};
         static constexpr uint32_t kFlipped[6] = {1, 2, 3, 1, 3, 0};
         static const bool noFlip = std::getenv("PERLIN_NOFLIP") != nullptr;
@@ -146,11 +169,29 @@ namespace perlin {
         AddQuad(v, c, uv, flip, light);
     }
 
+    void Tessellator::FlushFaces() {
+        if (sections.empty())
+            return;
+        MeshSection& cur = sections.back();
+        cur.split = true;
+        for (int s = 0; s < kSplitLayers; s++) {
+            std::vector<uint32_t>& out =
+                indices[static_cast<size_t>(s == 0 ? RenderLayer::Solid : RenderLayer::CutoutCull)];
+            for (int g = 0; g < kFaceGroups; g++) {
+                std::vector<uint32_t>& group = pending[static_cast<size_t>(s)][static_cast<size_t>(g)];
+                cur.faces[static_cast<size_t>(s)][static_cast<size_t>(g)] = static_cast<uint32_t>(group.size());
+                out.insert(out.end(), group.begin(), group.end());
+                group.clear();
+            }
+        }
+    }
+
     void Tessellator::EnterSection(int sy) {
         if (!building)
             return;
         if (!sections.empty() && sections.back().sy == sy)
             return;
+        FlushFaces();
         MeshSection section{};
         section.sy = sy;
         for (int i = 0; i < kRenderLayerCount; i++)
@@ -161,6 +202,7 @@ namespace perlin {
     void Tessellator::End() {
         if (!building)
             return;
+        FlushFaces();
         building = false;
 
         const size_t n = sections.size();

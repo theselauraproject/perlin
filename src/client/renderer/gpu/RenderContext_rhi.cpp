@@ -49,7 +49,7 @@ namespace perlin {
             {"celestial", "vv_celestial", gpu::VertexLayout::Texture},
             {"cloud", "vv_cloud", gpu::VertexLayout::Texture},
             {"screen", nullptr, gpu::VertexLayout::Position},
-            {"ui", nullptr, gpu::VertexLayout::Ui},
+            {"ui", nullptr, gpu::VertexLayout::UiInstanced},
             {"post", nullptr, gpu::VertexLayout::Position},
             {nullptr, "vv_shadow", gpu::VertexLayout::Terrain, "vv_shadow"},
             {nullptr, "vv_shadow_cutout", gpu::VertexLayout::Terrain, "vv_shadow_cutout"},
@@ -60,15 +60,15 @@ namespace perlin {
             {"upscale", nullptr, gpu::VertexLayout::Position},
             {"taa", nullptr, gpu::VertexLayout::Position},
             {"framegen", nullptr, gpu::VertexLayout::Position},
-            {"entity", nullptr, gpu::VertexLayout::Ui},
-            {"entity_mask", nullptr, gpu::VertexLayout::Ui},
-            {"entity_emissive", nullptr, gpu::VertexLayout::Ui},
-            {"entity_glint", nullptr, gpu::VertexLayout::Ui},
-            {"particle", nullptr, gpu::VertexLayout::Ui},
-            {"particle_cutout", nullptr, gpu::VertexLayout::Ui},
-            {"weather", nullptr, gpu::VertexLayout::Ui},
-            {"cracks", nullptr, gpu::VertexLayout::Ui},
-            {"nametag", nullptr, gpu::VertexLayout::Ui},
+            {"entity", nullptr, gpu::VertexLayout::UiInstanced},
+            {"entity_mask", nullptr, gpu::VertexLayout::UiInstanced},
+            {"entity_emissive", nullptr, gpu::VertexLayout::UiInstanced},
+            {"entity_glint", nullptr, gpu::VertexLayout::UiInstanced},
+            {"particle", nullptr, gpu::VertexLayout::UiInstanced},
+            {"particle_cutout", nullptr, gpu::VertexLayout::UiInstanced},
+            {"weather", nullptr, gpu::VertexLayout::UiInstanced},
+            {"cracks", nullptr, gpu::VertexLayout::UiInstanced},
+            {"nametag", nullptr, gpu::VertexLayout::UiInstanced},
             {nullptr, nullptr, gpu::VertexLayout::Position, "java_deferred1"},
             {nullptr, nullptr, gpu::VertexLayout::Position, "java_composite"},
             {nullptr, nullptr, gpu::VertexLayout::Position, "java_composite1"},
@@ -390,11 +390,13 @@ namespace perlin {
     }
 
     bool RenderContext_rhi::CreateStaticResources() {
-        if (!PERLIN_ENV("PERLIN_NO_GPU_CULL") && !cull.Ready()) {
-            if (cull.Init(gpu))
-                Log("render", "chunk culling runs on the gpu");
-            else
-                cull.Shutdown();
+        if (!PERLIN_ENV("PERLIN_NO_GPU_CULL") && !terrain.Ready()) {
+            if (terrain.Init(gpu, meshes)) {
+                Log("render", "terrain is gpu-driven (compute culling, indirect count draws)");
+            } else {
+                terrain.Shutdown();
+                Log("render", "terrain culls on the cpu: the device lacks multi draw indirect with a gpu count");
+            }
         }
         if (!ResolvePrograms())
             return false;
@@ -474,8 +476,14 @@ namespace perlin {
     }
 
     void RenderContext_rhi::DestroyStaticResources() {
-        cull.Shutdown();
+        terrain.Shutdown();
         auto& dev = gpu.Dev();
+        dev.destroy(uiCull.pipeline);
+        dev.destroy(uiCull.layout);
+        dev.destroy(uiCull.bindLayout);
+        dev.destroy(uiCull.shader);
+        dev.destroy(uiCull.output);
+        uiCull = UiCull{};
         DestroyPostTargets();
         DestroyFrameGenTargets();
         fgenBlocked = false;
@@ -722,6 +730,168 @@ namespace perlin {
         return true;
     }
 
+    bool RenderContext_rhi::EnsureUiCull() {
+        if (uiCull.pipeline)
+            return true;
+        if (uiCull.failed)
+            return false;
+        uiCull.failed = true;
+        const conduit::shader_library& library = gpu.Library();
+        const conduit::program_info* info = library.find("ui_cull");
+        if (!info)
+            return false;
+        const conduit::shader_target target = conduit::shader_library::target_for(gpu.Api());
+        const auto code = library.code(*info, conduit::shader_stage::compute, target);
+        if (code.empty())
+            return false;
+        conduit::device& dev = gpu.Dev();
+        conduit::shader_desc sd;
+        sd.stage = conduit::shader_stage::compute;
+        sd.format = conduit::shader_library::format_for(target);
+        sd.code = code;
+        sd.entry = conduit::shader_library::entry_for(conduit::shader_stage::compute, target);
+        sd.name = "ui_cull";
+        uiCull.shader = dev.create_shader(sd);
+        const conduit::bind_layout_entry entries[] = {
+            {0, conduit::binding_type::storage_buffer, conduit::shader_stage::compute},
+            {1, conduit::binding_type::storage_buffer_rw, conduit::shader_stage::compute},
+        };
+        conduit::bind_layout_desc bl;
+        bl.entries = entries;
+        bl.name = "ui cull bindings";
+        uiCull.bindLayout = dev.create_bind_layout(bl);
+        conduit::pipeline_layout_desc pl;
+        pl.sets[0] = uiCull.bindLayout;
+        pl.push_constant_bytes = 112;
+        pl.push_constant_stages = conduit::shader_stage::compute;
+        pl.name = "ui cull layout";
+        uiCull.layout = dev.create_pipeline_layout(pl);
+        conduit::compute_pipeline_desc cp;
+        cp.compute = uiCull.shader;
+        cp.layout = uiCull.layout;
+        cp.name = "ui_cull";
+        uiCull.pipeline = uiCull.shader && uiCull.bindLayout && uiCull.layout ? dev.create_compute_pipeline(cp)
+                                                                                : conduit::pipeline_handle{};
+        uiCull.failed = !uiCull.pipeline;
+        return !uiCull.failed;
+    }
+
+    void RenderContext_rhi::BatchUiDraws(View view, bool cull) {
+        std::vector<DrawCall>& draws = views[static_cast<size_t>(view)].draws;
+        if (draws.size() < 2)
+            return;
+        constexpr uint64_t kInst = sizeof(gpu::UiInstance);
+        const auto batchable = [](const DrawCall& d) {
+            return d.instances && d.indices && !d.indirectDraws && d.indexType == conduit::index_type::u32 &&
+                   d.vertexOffset % sizeof(UiVertex) == 0 && d.indexOffset % 4 == 0 && d.instanceOffset % kInst == 0;
+        };
+        const auto same = [](const DrawCall& a, const DrawCall& b) {
+            return a.pipeline == b.pipeline && a.uniformChunk == b.uniformChunk && a.uniformOffset == b.uniformOffset &&
+                   a.textures == b.textures && a.vertices == b.vertices && a.indices == b.indices &&
+                   a.instances == b.instances && a.scissor == b.scissor &&
+                   (!a.scissor || (a.rect.x == b.rect.x && a.rect.y == b.rect.y && a.rect.width == b.rect.width &&
+                                   a.rect.height == b.rect.height));
+        };
+        std::vector<DrawCall> out;
+        out.reserve(draws.size());
+        for (size_t i = 0; i < draws.size();) {
+            size_t j = i + 1;
+            if (batchable(draws[i]))
+                while (j < draws.size() && batchable(draws[j]) && same(draws[i], draws[j]))
+                    j++;
+            const size_t n = j - i;
+            if (n < 2) {
+                out.push_back(draws[i]);
+                i = j;
+                continue;
+            }
+            bool cullRun = cull;
+            for (size_t k = i; k < j && cullRun; k++)
+                cullRun = draws[k].cullable;
+            DrawCall merged = draws[i];
+            merged.vertexOffset = 0;
+            merged.indexOffset = 0;
+            merged.instanceOffset = 0;
+            merged.first = merged.count = 0;
+            merged.indirectDraws = static_cast<uint32_t>(n);
+            const auto command = [&](const DrawCall& d, uint32_t* c) {
+                c[0] = d.count;
+                c[1] = 1;
+                c[2] = static_cast<uint32_t>(d.indexOffset / 4) + d.first;
+                c[3] = static_cast<uint32_t>(d.vertexOffset / sizeof(UiVertex));
+                c[4] = static_cast<uint32_t>(d.instanceOffset / kInst);
+            };
+            if (cullRun && uiCull.entries.size() + n <= uiCull.capacity) {
+                merged.indirect = uiCull.output;
+                merged.indirectOffset = uiCull.entries.size() * sizeof(conduit::draw_indexed_indirect_command);
+                for (size_t k = i; k < j; k++) {
+                    UiCullEntry e{};
+                    command(draws[k], e.command);
+                    std::memcpy(e.bounds, draws[k].bounds, sizeof(e.bounds));
+                    uiCull.entries.push_back(e);
+                }
+            } else {
+                const gpu::RingSlice slice = gpu.Ring(n * sizeof(conduit::draw_indexed_indirect_command), 16);
+                if (!slice.data) {
+                    out.insert(out.end(), draws.begin() + static_cast<std::ptrdiff_t>(i),
+                               draws.begin() + static_cast<std::ptrdiff_t>(j));
+                    i = j;
+                    continue;
+                }
+                auto* cmds = reinterpret_cast<uint32_t*>(slice.data);
+                for (size_t k = i; k < j; k++)
+                    command(draws[k], cmds + (k - i) * 5);
+                merged.indirect = slice.buffer;
+                merged.indirectOffset = slice.offset;
+            }
+            out.push_back(merged);
+            i = j;
+        }
+        draws.swap(out);
+    }
+
+    void RenderContext_rhi::RecordUiCull(conduit::command_list& list) {
+        if (uiCull.entries.empty())
+            return;
+        const uint64_t align = std::max<uint64_t>(256, gpu.Caps().limits.storage_buffer_alignment);
+        const uint64_t bytes = uiCull.entries.size() * sizeof(UiCullEntry);
+        const gpu::RingSlice slice = gpu.Ring(bytes, align);
+        if (!slice.data) {
+            uiCull.entries.clear();
+            return;
+        }
+        std::memcpy(slice.data, uiCull.entries.data(), bytes);
+        conduit::bind_group_entry entries[2] = {};
+        entries[0].binding = 0;
+        entries[0].buffer = {slice.buffer, slice.offset, bytes};
+        entries[1].binding = 1;
+        entries[1].buffer = {uiCull.output, 0, 0};
+        conduit::bind_group_desc bg;
+        bg.layout = uiCull.bindLayout;
+        bg.entries = entries;
+        bg.per_frame = true;
+        bg.name = "ui cull group";
+        const conduit::bind_group_handle group = gpu.Dev().create_bind_group(bg);
+        if (group) {
+            struct {
+                float planes[6][4];
+                uint32_t count, pad[3];
+            } push{};
+            const Frustum f = Frustum::FromViewProjection(glm::make_mat4(frame.viewProjection));
+            std::memcpy(push.planes, f.planes, sizeof(push.planes));
+            push.count = static_cast<uint32_t>(uiCull.entries.size());
+            list.barrier(conduit::buffer_barrier{uiCull.output, conduit::state::indirect_argument,
+                                                 conduit::state::shader_write});
+            list.set_pipeline(uiCull.pipeline);
+            list.set_bind_group(0, group);
+            list.push_constants(&push, sizeof push);
+            list.dispatch((push.count + 63) / 64, 1, 1);
+            list.barrier(conduit::buffer_barrier{uiCull.output, conduit::state::shader_write,
+                                                 conduit::state::indirect_argument});
+        }
+        uiCull.entries.clear();
+    }
+
     void RenderContext_rhi::Submit(View view, const DrawState& state, const Source& vertices,
                                    const Source* indices, conduit::index_type indexType, uint32_t first,
                                    uint32_t count, const conduit::rect* scissor) {
@@ -734,8 +904,8 @@ namespace perlin {
     void RenderContext_rhi::Replay(conduit::command_list& list, const std::vector<DrawCall>& draws) {
         conduit::pipeline_handle pipeline;
         conduit::bind_group_handle textures;
-        conduit::buffer_handle vb, ib;
-        uint64_t vbo = 0, ibo = 0;
+        conduit::buffer_handle vb, ib, instB;
+        uint64_t vbo = 0, ibo = 0, instO = 0;
         conduit::index_type it = conduit::index_type::u32;
         uint32_t chunk = ~0u;
         uint32_t boundOffset = ~0u;
@@ -762,6 +932,11 @@ namespace perlin {
                 vb = dc.vertices;
                 vbo = dc.vertexOffset;
             }
+            if (dc.instances && (dc.instances != instB || dc.instanceOffset != instO)) {
+                list.set_vertex_buffer(1, dc.instances, dc.instanceOffset);
+                instB = dc.instances;
+                instO = dc.instanceOffset;
+            }
             if (dc.indices) {
                 if (dc.indices != ib || dc.indexOffset != ibo || dc.indexType != it) {
                     list.set_index_buffer(dc.indices, dc.indexType, dc.indexOffset);
@@ -777,7 +952,10 @@ namespace perlin {
                 list.set_scissor({0, 0, gpu.TargetWidth(), gpu.TargetHeight()});
                 scissored = false;
             }
-            if (dc.indirectDraws)
+            if (dc.indirectDraws && dc.countBuffer)
+                list.draw_indexed_indirect_count(dc.indirect, dc.indirectOffset, dc.countBuffer, dc.countOffset,
+                                                 dc.indirectDraws, sizeof(conduit::draw_indexed_indirect_command));
+            else if (dc.indirectDraws)
                 list.draw_indexed_indirect(dc.indirect, dc.indirectOffset, dc.indirectDraws,
                                          sizeof(conduit::draw_indexed_indirect_command));
             else if (dc.indices)
@@ -837,7 +1015,7 @@ namespace perlin {
         for (View v : {View::ShadowBuild, View::ShadowGlass, View::ShadowEntity})
             views[static_cast<size_t>(v)].reversedZ = false;
         const glm::mat4 worldProj = ReverseDepth(glm::make_mat4(params.viewProjection));
-        for (View v : {View::World, View::Entity, View::Late}) {
+        for (View v : {View::World, View::WorldLate, View::Entity, View::Late}) {
             views[static_cast<size_t>(v)].proj = worldProj;
         }
         views[static_cast<size_t>(View::Hand)].proj = ReverseDepth(glm::make_mat4(params.handProjection));
@@ -993,6 +1171,7 @@ namespace perlin {
         FinishReadbacks();
         ReleaseFrameMeshes();
         uniformCache.assign(uniformCache.size(), {});
+        gpuCullFrame = false;
         frameOpen = true;
         frame = params;
         if (jpack)
@@ -1132,8 +1311,38 @@ namespace perlin {
         modScreen.format = gpu.TargetFormat();
         modGpu->Record(*list, gpu::ModStage::Pre, &modScreen);
         if (gpuCullFrame)
-            cull.Record(*list);
-        gpuCullFrame = false;
+            terrain.RecordEarly(*list);
+        {
+            static const bool noBatch = PERLIN_ENV("PERLIN_NO_GPU_UI") != nullptr;
+            static const bool noCull = PERLIN_ENV("PERLIN_NO_GPU_ENTITY_CULL") != nullptr;
+            if (!noBatch && UseMultiDraw() && gpu.Caps().features.draw_indirect_first_instance) {
+                // world draws (entities, particles, weather) are culled on the gpu: size the output for all of them
+                size_t worldDraws = views[static_cast<size_t>(View::Entity)].draws.size() +
+                                    views[static_cast<size_t>(View::Late)].draws.size();
+                const bool cull = !noCull && worldDraws && EnsureUiCull();
+                if (cull && worldDraws > uiCull.capacity) {
+                    uint32_t size = std::max(uiCull.capacity, 4096u);
+                    while (size < worldDraws)
+                        size *= 2;
+                    if (uiCull.output)
+                        gpu.Dev().destroy(uiCull.output);
+                    conduit::buffer_desc bd;
+                    bd.size = uint64_t{size} * sizeof(conduit::draw_indexed_indirect_command);
+                    bd.usage = conduit::buffer_usage::storage | conduit::buffer_usage::indirect;
+                    bd.memory = conduit::memory_class::gpu_only;
+                    bd.stride = 4;
+                    bd.name = "ui culled draws";
+                    uiCull.output = gpu.Dev().create_buffer(bd);
+                    uiCull.capacity = uiCull.output ? size : 0;
+                }
+                uiCull.entries.clear();
+                for (View v : {View::Entity, View::Late})
+                    BatchUiDraws(v, cull && uiCull.output);
+                for (View v : {View::Hand, View::Gui, View::Doll, View::Top, View::ExportUi})
+                    BatchUiDraws(v, false);
+                RecordUiCull(*list);
+            }
+        }
 
         Target screen;
         screen.color = image.texture;
@@ -1208,6 +1417,10 @@ namespace perlin {
                 bool decided = false;
                 for (size_t j = i + 1; j < stages.size() && !decided; j++) {
                     const Stage& n = stages[j];
+                    if (n.kind == Stage::Kind::Occlusion) {
+                        decided = true;
+                        continue;
+                    }
                     if (n.kind == Stage::Kind::Copy) {
                         decided = n.copySrc == s.target.depth || n.copyDst == s.target.depth;
                         continue;
@@ -1228,7 +1441,14 @@ namespace perlin {
         fgen.valid = false;
         bool hudlessTaken = false;
         bool underHudDone = false;
+        conduit::texture_handle passDepth;
         for (const Stage& stage : stages) {
+            if (stage.kind == Stage::Kind::Occlusion) {
+                terrain.RecordLate(*list, passDepth);
+                continue;
+            }
+            if (stage.kind == Stage::Kind::Pass)
+                passDepth = stage.target.depth;
             if (generate && !hudlessTaken && stage.kind == Stage::Kind::Pass && !stage.views.empty() &&
                 stage.views.front() == View::Hand) {
                 CaptureHudless(*list, screen);
@@ -1253,6 +1473,7 @@ namespace perlin {
         if (!pendingSinks.empty() || !pendingShots.empty())
             ResolveCapture(*list, screen);
         gpu.Transition(*list, image.texture, offscreen ? conduit::state::copy_src : conduit::state::present);
+        gpuCullFrame = false;
         gpu.FlushRings();
         dev.submit(conduit::queue_type::graphics, list);
         gpu.PresentImage();

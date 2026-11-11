@@ -21,6 +21,31 @@ namespace perlin {
         }
     };
 
+    // 4096 block or liquid ids of one section: one byte per cell plus a palette while the section holds at most
+    // 256 distinct ids (nearly every section), two bytes per cell past that. halves the resident chunk memory
+    class Cells16 {
+    public:
+        bool Empty() const { return !narrow && !wide; }
+        uint16_t Get(int cell) const {
+            return narrow ? palette[narrow[static_cast<size_t>(cell)]] : wide[static_cast<size_t>(cell)];
+        }
+        void Reset();
+        void Fill(uint16_t value);
+        void Set(int cell, uint16_t value);
+        // cells in section order ((y * 16 + z) * 16 + x)
+        void Load(const uint16_t* cells);
+        void CopyOut(int cell, int n, uint16_t* out) const;
+        bool AllZero(int cell, int n) const;
+        size_t Bytes() const;
+        Cells16 Clone() const;
+
+    private:
+        void Widen();
+        std::unique_ptr<uint8_t[]> narrow;
+        std::unique_ptr<uint16_t[]> wide;
+        std::vector<uint16_t> palette;
+    };
+
     class Chunk {
     public:
         static constexpr int SIZE = 16;
@@ -64,23 +89,22 @@ namespace perlin {
 
     private:
         struct Section {
-            std::unique_ptr<std::array<uint16_t, 4096>> blocks;
-            std::unique_ptr<std::array<uint16_t, 4096>> liquid;
+            Cells16 blocks;
+            Cells16 liquid;
             std::unique_ptr<std::array<uint8_t, 4096>> biomes;
             uint16_t uniform = 0;
             uint8_t uniformBiome = DEFAULT_BIOME;
-            uint16_t Block(int cell) const { return blocks ? (*blocks)[static_cast<size_t>(cell)] : uniform; }
+            uint16_t Block(int cell) const { return blocks.Empty() ? uniform : blocks.Get(cell); }
             uint8_t Biome(int cell) const {
                 return biomes ? (*biomes)[static_cast<size_t>(cell)] : uniformBiome;
             }
             void SetBlock(int cell, uint16_t id) {
-                if (!blocks) {
+                if (blocks.Empty()) {
                     if (id == uniform)
                         return;
-                    blocks = std::make_unique<std::array<uint16_t, 4096>>();
-                    blocks->fill(uniform);
+                    blocks.Fill(uniform);
                 }
-                (*blocks)[static_cast<size_t>(cell)] = id;
+                blocks.Set(cell, id);
             }
         };
 

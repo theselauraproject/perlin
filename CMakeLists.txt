@@ -967,6 +967,51 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(gpu_level_unload_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
     target_link_libraries(gpu_level_unload_selftest PRIVATE perlin_gpu)
     add_test(NAME gpu_level_unload_selftest COMMAND gpu_level_unload_selftest "${PERLIN_SHADER_PACK}")
+    add_executable(ui_batch_selftest tests/ui_batch_selftest.cpp tests/gpu_context_stubs.cpp
+        src/client/renderer/Tessellator.cpp src/client/renderer/SkyGeometry.cpp src/client/renderer/MaterialDb.cpp
+        src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp
+        src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
+        src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
+        src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+    target_include_directories(ui_batch_selftest PRIVATE "${stb_SOURCE_DIR}")
+    target_link_libraries(ui_batch_selftest PRIVATE glaze::glaze miniz perlin_gpu)
+    target_include_directories(ui_batch_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
+    add_test(NAME ui_batch_selftest COMMAND ui_batch_selftest "${PERLIN_SHADER_PACK}")
+    add_test(NAME ui_batch_fallback_selftest COMMAND ui_batch_selftest "${PERLIN_SHADER_PACK}")
+    set_tests_properties(ui_batch_fallback_selftest PROPERTIES ENVIRONMENT "PERLIN_NO_GPU_UI=1")
+    set_tests_properties(ui_batch_selftest ui_batch_fallback_selftest PROPERTIES SKIP_RETURN_CODE 77)
+    add_executable(gpu_terrain_selftest tests/gpu_terrain_selftest.cpp src/client/renderer/Tessellator.cpp)
+    target_include_directories(gpu_terrain_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
+    target_link_libraries(gpu_terrain_selftest PRIVATE perlin_gpu)
+    add_test(NAME gpu_terrain_selftest COMMAND gpu_terrain_selftest "${PERLIN_SHADER_PACK}")
+    set_tests_properties(gpu_terrain_selftest PROPERTIES SKIP_RETURN_CODE 77)
+    # the terrain cull shader itself, compiled to c++ by slang and run on the cpu
+    if(PERLIN_SLANGC)
+        set(_cull_cpu "${CMAKE_CURRENT_BINARY_DIR}/generated/terrain_cull_cpu.cpp")
+        add_custom_command(OUTPUT "${_cull_cpu}"
+            COMMAND "${PERLIN_SLANGC}" "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/slang/programs/terrain_cull.slang"
+                    -target cpp -entry csMain -stage compute -o "${_cull_cpu}"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/slang/programs/terrain_cull.slang"
+            COMMENT "Compiling terrain_cull.slang for the cpu" VERBATIM)
+        add_executable(terrain_cull_cpu_selftest tests/terrain_cull_cpu_selftest.cpp src/client/renderer/Tessellator.cpp
+            "${_cull_cpu}")
+        set_source_files_properties("${_cull_cpu}" PROPERTIES HEADER_FILE_ONLY ON)
+        target_include_directories(terrain_cull_cpu_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}/generated")
+        target_compile_options(terrain_cull_cpu_selftest PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-w>)
+        target_link_libraries(terrain_cull_cpu_selftest PRIVATE perlin_gpu)
+        add_test(NAME terrain_cull_cpu_selftest COMMAND terrain_cull_cpu_selftest "${PERLIN_SHADER_PACK}")
+        set_tests_properties(terrain_cull_cpu_selftest PROPERTIES SKIP_RETURN_CODE 77)
+    endif()
+    add_executable(render_bench tools/render_bench.cpp tests/gpu_context_stubs.cpp
+        src/client/renderer/Tessellator.cpp src/client/renderer/SkyGeometry.cpp src/client/renderer/MaterialDb.cpp
+        src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp
+        src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
+        src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
+        src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+    target_include_directories(render_bench PRIVATE "${stb_SOURCE_DIR}")
+    target_link_libraries(render_bench PRIVATE glaze::glaze miniz perlin_gpu)
+    target_include_directories(render_bench BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
     add_executable(mod_gpu_selftest tests/mod_gpu_selftest.cpp)
     target_include_directories(mod_gpu_selftest PRIVATE src ${PERLIN_API_INCLUDE_DIRS})
     target_link_libraries(mod_gpu_selftest PRIVATE perlin_gpu)
@@ -1121,6 +1166,9 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(level_undo_selftest PRIVATE cxx_std_23)
     add_test(NAME level_undo_selftest COMMAND level_undo_selftest)
 
+    add_executable(cells16_selftest tests/cells16_selftest.cpp src/world/level/Level.cpp)
+    target_include_directories(cells16_selftest PRIVATE src)
+    add_test(NAME cells16_selftest COMMAND cells16_selftest)
     add_executable(chunk_selftest
         tests/chunk_selftest.cpp
         src/world/level/chunk/ChunkCodec.cpp)

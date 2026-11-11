@@ -14,6 +14,9 @@ from pathlib import Path
 ATTRIBUTE_LOCATIONS = {
     'POSITION': 0, 'NORMAL': 1, 'COLOR0': 2, 'COLOR1': 3,
     'TEXCOORD0': 4, 'TEXCOORD1': 5, 'TEXCOORD2': 6, 'TEXCOORD3': 7,
+    # per-draw data on an instance-rate stream (see i_data in gen_renderdragon_shaders.py)
+    'INSTANCE0': 8, 'INSTANCE1': 9, 'INSTANCE2': 10, 'INSTANCE3': 11,
+    'INSTANCE4': 12, 'INSTANCE5': 13, 'INSTANCE6': 14, 'INSTANCE7': 15,
 }
 
 BUILTIN_UNIFORMS = {
@@ -141,7 +144,7 @@ def resource_block(uniforms, samplers):
     return out
 
 def interface_struct(name, items, varying, attribute):
-    varying_names = [n for n in varying if not n.startswith('a_')]
+    varying_names = [n for n in varying if not n.startswith(('a_', 'i_'))]
     lines = [f'struct {name}', '{']
     for item in items:
         typ, semantic = varying[item]
@@ -155,7 +158,7 @@ def interface_struct(name, items, varying, attribute):
 
 def convert(vs_text, fs_text, varying_text, dirs, header='', resources=None, inline=True, shared=None):
     varying = read_varying(varying_text)
-    varying_names = [n for n in varying if not n.startswith('a_')]
+    varying_names = [n for n in varying if not n.startswith(('a_', 'i_'))]
     vs = Stage(vs_text, dirs, inline)
     fs = Stage(fs_text, dirs, inline)
     uniforms, samplers = {}, {}

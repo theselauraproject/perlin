@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace perlin::gpu {
@@ -16,6 +17,8 @@ namespace perlin::gpu {
             int sy = 0;
             std::array<uint32_t, kRenderLayerCount> start{};
             std::array<uint32_t, kRenderLayerCount> count{};
+            bool split = false;
+            std::array<std::array<uint32_t, kFaceGroups>, kSplitLayers> faces{};
         };
         struct Chunk {
             int page = -1;
@@ -70,8 +73,9 @@ namespace perlin::gpu {
         void Remove(bool lod, int cx, int cz);
         void ReleaseEmptyPages();
 
+        // translucentOnly: the gpu draws the opaque layers, only chunks with blended geometry need sorting here
         void Select(const Frustum& frustum, float camX, float camY, float camZ, int cullRadius,
-                    bool caveCulling, double now);
+                    bool caveCulling, double now, bool translucentOnly = false);
         void CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out);
         bool SectionReached(int sx, int sy, int sz, bool caveCulling) const;
 
@@ -88,6 +92,27 @@ namespace perlin::gpu {
         size_t Chunks() const { return chunks.size(); }
         size_t LodTiles() const { return lods.size(); }
         const std::unordered_map<int64_t, Chunk>& ChunkMap() const { return chunks; }
+        const std::unordered_map<int64_t, Chunk>& LodMap() const { return lods; }
+
+        struct Change {
+            int64_t key;
+            bool lod;
+        };
+        // chunk keys added, replaced or removed since the last call; cleared: every chunk went away first
+        void TrackChanges(bool on) {
+            tracking = on;
+            changes.clear();
+            clearedAll = false;
+        }
+        void TakeChanges(std::vector<Change>& out, bool& cleared) {
+            out.swap(changes);
+            changes.clear();
+            cleared = clearedAll;
+            clearedAll = false;
+        }
+        static int64_t KeyOf(int cx, int cz) { return Key(cx, cz); }
+        static int KeyX(int64_t key) { return static_cast<int>(key >> 32); }
+        static int KeyZ(int64_t key) { return static_cast<int>(static_cast<uint32_t>(key)); }
         bool Empty() const { return chunks.empty() && lods.empty(); }
         uint64_t Generation() const { return generation; }
         uint64_t VertexBytes() const;
@@ -120,11 +145,26 @@ namespace perlin::gpu {
         static void Recalc(LodGroup& group);
         std::unordered_map<int64_t, LodGroup> lodGroups;
 
+        void Note(int64_t key, bool lod) {
+            if (tracking)
+                changes.push_back({key, lod});
+        }
+        void NoteAll() {
+            if (tracking) {
+                changes.clear();
+                clearedAll = true;
+            }
+        }
+        bool tracking = false, clearedAll = false;
+        std::vector<Change> changes;
+
         uint32_t extBytes = 0;
         ExtendFn extConvert;
         Gpu* gpu = nullptr;
         std::vector<Page> pages;
         std::unordered_map<int64_t, Chunk> chunks;
+        // chunks with blended layers: the gpu path still sorts those on the cpu, the rest it never visits
+        std::unordered_set<const Chunk*> blended;
         std::unordered_map<int64_t, Chunk> lods;
         std::vector<Visible> visible;
         std::vector<const Section*> visibleSections;

@@ -35,7 +35,7 @@ if(NOT TARGET perlin_gpu)
         ModGpu.cpp
         ModGpuRun.cpp
         ChunkMeshStore.cpp
-        GpuChunkCull.cpp
+        GpuTerrain.cpp
         RenderContext_rhi.cpp
         RenderContext_rhi_java.cpp
         RenderContext_rhi_pack.cpp
@@ -45,6 +45,35 @@ if(NOT TARGET perlin_gpu)
         RenderContext_rhi_world.cpp
         ../../../util/GraphicsDebugger.cpp)
     target_include_directories(perlin_gpu PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+
+    # the terrain cull as a d3d12 work graph (opt-in with PERLIN_WORK_GRAPHS=1): needs dxc for shader model 6.8;
+    # without it the symbol is empty and the renderer keeps the compute cull
+    set(_wg_hlsl "${CMAKE_CURRENT_SOURCE_DIR}/../../../shaders/hlsl/terrain_cull_graph.hlsl")
+    set(_wg_cpp "${CMAKE_CURRENT_BINARY_DIR}/generated/TerrainGraphDxil.cpp")
+    set(_wg_dxc "")
+    if(CONDUIT_D3D12 AND PERLIN_DXC_LIBS)
+        foreach(_candidate "${PERLIN_DXC_LIBS}/dxc.exe" "${PERLIN_DXC_LIBS}/../bin/dxc" "${PERLIN_DXC_LIBS}/dxc")
+            if(EXISTS "${_candidate}" AND NOT _wg_dxc)
+                set(_wg_dxc "${_candidate}")
+            endif()
+        endforeach()
+    endif()
+    if(_wg_dxc)
+        set(_wg_dxil "${CMAKE_CURRENT_BINARY_DIR}/generated/terrain_cull_graph.dxil")
+        add_custom_command(OUTPUT "${_wg_cpp}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+            COMMAND ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${PERLIN_DXC_LIBS}" "${_wg_dxc}" -T lib_6_8 -HV 2021 -O3
+                    -Fo "${_wg_dxil}" "${_wg_hlsl}"
+            COMMAND ${CMAKE_COMMAND} -DINPUT=${_wg_dxil} -DOUTPUT=${_wg_cpp} -DSYMBOL=kTerrainGraphDxil
+                    -DNAMESPACE=perlin::gpu -P "${CMAKE_CURRENT_SOURCE_DIR}/../../../../cmake/EmbedBinary.cmake"
+            DEPENDS "${_wg_hlsl}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../../cmake/EmbedBinary.cmake"
+            COMMENT "Compiling the terrain work graph (lib_6_8)"
+            VERBATIM)
+    else()
+        file(WRITE "${_wg_cpp}.in" "#include <cstddef>\nnamespace perlin::gpu {\n    extern const unsigned char kTerrainGraphDxil[] = {0};\n    extern const size_t kTerrainGraphDxilSize = 0;\n}\n")
+        configure_file("${_wg_cpp}.in" "${_wg_cpp}" COPYONLY)
+    endif()
+    target_sources(perlin_gpu PRIVATE "${_wg_cpp}")
     if(PERLIN_API_INCLUDE_DIRS)
         target_include_directories(perlin_gpu PUBLIC ${PERLIN_API_INCLUDE_DIRS})
     elseif(PERLIN_API_DIR)

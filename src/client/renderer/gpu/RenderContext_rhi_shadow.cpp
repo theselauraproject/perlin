@@ -263,6 +263,19 @@ namespace perlin {
                 uint32_t first;
                 int64_t key;
             };
+            static const bool cpuCasters = PERLIN_ENV("PERLIN_NO_GPU_SHADOW_CULL") != nullptr;
+            shadow.gpuCasters = !cpuCasters && gpuCullFrame;
+            {
+                const glm::vec3 axes[3] = {eb.right, eb.up, eb.fwd};
+                const float centre[3] = {cx, cy, cz}, half[3] = {R, R, D};
+                for (int a = 0; a < 3; a++) {
+                    float* lo = shadow.casterPlanes[a * 2];
+                    float* hi = shadow.casterPlanes[a * 2 + 1];
+                    lo[0] = axes[a].x, lo[1] = axes[a].y, lo[2] = axes[a].z, lo[3] = -(centre[a] - half[a]);
+                    hi[0] = -axes[a].x, hi[1] = -axes[a].y, hi[2] = -axes[a].z, hi[3] = centre[a] + half[a];
+                }
+            }
+            const uint8_t firstPass = shadow.gpuCasters ? 3 : 0;
             std::vector<Found> found;
             for (const auto& entry : meshes.ChunkMap()) {
                 const gpu::ChunkMeshStore::Chunk& g = entry.second;
@@ -274,7 +287,7 @@ namespace perlin {
                     std::abs(glm::dot(centre, eb.up) - cy) > R + radius ||
                     std::abs(glm::dot(centre, eb.fwd) - cz) > D + radius)
                     continue;
-                for (uint8_t pass = 0; pass < (shadow.tintEnabled ? 5 : 3); pass++) {
+                for (uint8_t pass = firstPass; pass < (shadow.tintEnabled ? 5 : 3); pass++) {
                     const size_t slot = static_cast<size_t>(kShadowLayers[pass]);
                     if (g.layerCount[slot])
                         found.push_back({pass, g.page, g.iOff[slot], entry.first});
@@ -353,6 +366,25 @@ namespace perlin {
             bool primedOk = false;
             DrawCall templ;
             const auto& chunkMap = meshes.ChunkMap();
+            // casters batched per pass and page into one multi draw: thousands of chunk draws become a handful
+            std::vector<gpu::ChunkMeshStore::Run> batch;
+            int batchPass = -1;
+            uint32_t batchPage = 0;
+            const bool multi = UseMultiDraw();
+            const auto flush = [&] {
+                if (batch.empty() || batchPass < 0)
+                    return;
+                const RenderLayer layer = kShadowLayers[batchPass];
+                const View target = batchPass >= 3 ? View::ShadowGlass : View::ShadowBuild;
+                const conduit::buffer_handle vb = meshes.Vertices(batchPage), ib = meshes.Indices(batchPage, layer);
+                if (!multi || !PushRuns(target, templ, vb, ib, batch, 0, batch.size())) {
+                    const Source vertices{vb, 0};
+                    const Source indices{ib, 0};
+                    for (const auto& r : batch)
+                        Push(target, templ, vertices, &indices, conduit::index_type::u32, r.first, r.count);
+                }
+                batch.clear();
+            };
             for (size_t i = 0; i < count; i++) {
                 const auto [chunkKey, pass] = shadow.buildList[shadow.buildCursor + i];
                 const auto it = chunkMap.find(chunkKey);
@@ -363,25 +395,47 @@ namespace perlin {
                 const size_t slot = static_cast<size_t>(layer);
                 if (!g.layerCount[slot])
                     continue;
-                if (primedPass != pass) {
-                    primedOk = prime(pass, templ);
-                    primedPass = pass;
+                if (primedPass != pass || batchPage != static_cast<uint32_t>(g.page)) {
+                    flush();
+                    if (primedPass != pass) {
+                        primedOk = prime(pass, templ);
+                        primedPass = pass;
+                    }
+                    batchPass = pass;
+                    batchPage = static_cast<uint32_t>(g.page);
                 }
                 if (!primedOk)
                     continue;
-                const View target = pass >= 3 ? View::ShadowGlass : View::ShadowBuild;
-                const Source vertices{meshes.Vertices(static_cast<uint32_t>(g.page)), 0};
-                const Source indices{meshes.Indices(static_cast<uint32_t>(g.page), layer), 0};
-                std::vector<DrawCall>& queued = views[static_cast<size_t>(target)].draws;
-                if (!queued.empty() && queued.back().pipeline == templ.pipeline &&
-                    queued.back().textures == templ.textures && queued.back().uniformOffset == templ.uniformOffset &&
-                    queued.back().uniformChunk == templ.uniformChunk && queued.back().vertices == vertices.buffer &&
-                    queued.back().indices == indices.buffer &&
-                    queued.back().first + queued.back().count == g.iOff[slot]) {
-                    queued.back().count += g.layerCount[slot];
+                if (!batch.empty() && batch.back().first + batch.back().count == g.iOff[slot]) {
+                    batch.back().count += g.layerCount[slot];
                     continue;
                 }
-                Push(target, templ, vertices, &indices, conduit::index_type::u32, g.iOff[slot], g.layerCount[slot]);
+                batch.push_back({static_cast<uint32_t>(g.page), g.iOff[slot], g.layerCount[slot]});
+            }
+            if (primedOk)
+                flush();
+            if (shadow.gpuCasters && gpuCullFrame) {
+                terrain.CullShadows(shadow.casterPlanes, static_cast<uint32_t>(shadow.buildSlice),
+                                    static_cast<uint32_t>(std::max(1, shadow.buildSlices)));
+                for (int pass = 0; pass < 3; pass++) {
+                    const RenderLayer layer = kShadowLayers[pass];
+                    terrain.ShadowDraws(layer, terrainDraws);
+                    if (terrainDraws.empty() || !prime(pass, templ))
+                        continue;
+                    for (const gpu::GpuTerrain::Draw& d : terrainDraws) {
+                        DrawCall dc = templ;
+                        dc.vertices = meshes.Vertices(d.page);
+                        dc.indices = meshes.Indices(d.page, layer);
+                        dc.indexType = conduit::index_type::u32;
+                        dc.indirect = terrain.ShadowCommands();
+                        dc.indirectOffset = d.commandOffset;
+                        dc.indirectDraws = d.maxDraws;
+                        dc.countBuffer = terrain.Counts();
+                        dc.countOffset = d.countOffset;
+                        views[static_cast<size_t>(View::ShadowBuild)].draws.push_back(dc);
+                    }
+                }
+                primedPass = -1;
             }
 
             const float one[4] = {1, 1, 1, 1};
@@ -407,7 +461,8 @@ namespace perlin {
 
             shadow.buildCursor += count;
             shadow.buildSlice++;
-            if (shadow.buildSlice >= shadow.buildSlices || shadow.buildCursor >= shadow.buildList.size()) {
+            if (shadow.buildSlice >= shadow.buildSlices ||
+                (!shadow.gpuCasters && shadow.buildCursor >= shadow.buildList.size())) {
                 shadow.building = false;
                 if (shadow.front < 0) {
                     shadow.front = 0;

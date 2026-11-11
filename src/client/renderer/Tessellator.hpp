@@ -21,10 +21,21 @@ namespace perlin {
     };
     static_assert(sizeof(Vertex) == 48, "Vertex layout must match the GPU vertex layout");
 
+    // backface-cullable layers keep each section's quads grouped by facing so whole groups can be skipped when
+    // the camera is behind every plane of that facing; order +x +y +z other -z -y -x: the facings one camera can
+    // see stay next to each other and merge into fewer draws
+    constexpr int kFaceGroups = 7;
+    constexpr int kSplitLayers = 2;
+    constexpr int SplitSlot(RenderLayer layer) {
+        return layer == RenderLayer::Solid ? 0 : layer == RenderLayer::CutoutCull ? 1 : -1;
+    }
+
     struct MeshSection {
         int sy;
         std::array<uint32_t, kRenderLayerCount> start;
         std::array<uint32_t, kRenderLayerCount> count;
+        bool split = false;
+        std::array<std::array<uint32_t, kFaceGroups>, kSplitLayers> faces{};
     };
 
     struct SectionVis {
@@ -109,6 +120,8 @@ namespace perlin {
         std::vector<SectionVis> visibility;
         std::vector<SpecialBlock> specials;
         std::vector<QuadInfo> quads;
+        std::array<std::array<std::vector<uint32_t>, kFaceGroups>, kSplitLayers> pending;
+        void FlushFaces();
         uint16_t curBlock = 0;
         float curX = 0, curY = 0, curZ = 0;
         static inline std::atomic<bool> capture{false};

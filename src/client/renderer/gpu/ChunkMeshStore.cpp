@@ -30,10 +30,12 @@ namespace perlin::gpu {
             return;
         }
         chunks.clear();
+        blended.clear();
         lods.clear();
         lodGroups.clear();
         visible.clear();
         visibleSections.clear();
+        NoteAll();
         if (gpu) {
             gpu->Dev().wait_idle();
             for (Page& p : pages) {
@@ -54,7 +56,9 @@ namespace perlin::gpu {
 
     void ChunkMeshStore::Clear() {
         meshEpoch++;
+        NoteAll();
         chunks.clear();
+        blended.clear();
         lods.clear();
         lodGroups.clear();
         visible.clear();
@@ -240,9 +244,11 @@ namespace perlin::gpu {
         const auto it = target.find(Key(cx, cz));
         if (it == target.end())
             return;
+        Note(Key(cx, cz), lod);
         if (lod)
             LodDrop(it->second);
         Free(it->second);
+        blended.erase(&it->second);
         target.erase(it);
         if (!lod)
             generation++;
@@ -301,10 +307,12 @@ namespace perlin::gpu {
         auto it = target.find(key);
         if (verts.empty() || tess.Empty()) {
             if (it != target.end()) {
+                Note(key, lod);
                 if (lod)
                     LodDrop(it->second);
                 Free(it->second);
-                target.erase(it);
+                blended.erase(&it->second);
+        target.erase(it);
                 if (!lod)
                     generation++;
             }
@@ -312,11 +320,13 @@ namespace perlin::gpu {
         }
         if (it != target.end() && it->second.version == version)
             return;
+        Note(key, lod);
         if (it != target.end()) {
             if (lod)
                 LodDrop(it->second);
             Free(it->second);
-            target.erase(it);
+            blended.erase(&it->second);
+        target.erase(it);
         }
 
         Chunk g;
@@ -374,6 +384,8 @@ namespace perlin::gpu {
                     section.start[l] = ms.start[l];
                     section.count[l] = ms.count[l];
                 }
+                section.split = ms.split;
+                section.faces = ms.faces;
                 g.sections.push_back(section);
             }
         }
@@ -392,6 +404,9 @@ namespace perlin::gpu {
         if (!lod)
             generation++;
         Chunk& stored = target[key] = std::move(g);
+        if (!lod && (stored.layerCount[static_cast<size_t>(RenderLayer::Translucent)] ||
+                     stored.layerCount[static_cast<size_t>(RenderLayer::TranslucentCull)]))
+            blended.insert(&stored);
         if (lod)
             LodAdd(stored);
     }
@@ -424,7 +439,11 @@ namespace perlin::gpu {
     }
 
     void ChunkMeshStore::Select(const Frustum& frustum, float camX, float camY, float camZ, int cullRadius,
-                                bool caveCulling, double now) {
+                                bool caveCulling, double now, bool translucentOnly) {
+        const auto hasBlend = [](const Chunk& g) {
+            return g.layerCount[static_cast<size_t>(RenderLayer::Translucent)] ||
+                   g.layerCount[static_cast<size_t>(RenderLayer::TranslucentCull)];
+        };
         visible.clear();
         visibleSections.clear();
         if (chunks.empty() && lods.empty())
@@ -433,8 +452,17 @@ namespace perlin::gpu {
             UpdateCave(camX, camY, camZ, now);
         const int cullCx = static_cast<int>(std::floor(camX / 16.0f)),
                   cullCz = static_cast<int>(std::floor(camZ / 16.0f));
-        for (const auto& entry : chunks) {
-            const Chunk& g = entry.second;
+        static thread_local std::vector<const Chunk*> pool;
+        pool.clear();
+        if (translucentOnly) {
+            pool.assign(blended.begin(), blended.end());
+        } else {
+            pool.reserve(chunks.size());
+            for (const auto& entry : chunks)
+                pool.push_back(&entry.second);
+        }
+        for (const Chunk* chunk : pool) {
+            const Chunk& g = *chunk;
             if (g.page < 0 || g.sections.empty())
                 continue;
             if (cullRadius > 0) {
@@ -460,7 +488,7 @@ namespace perlin::gpu {
             if (groupResult == Frustum::Result::Outside)
                 continue;
             for (const Chunk* g : group.members) {
-                if (g->page < 0 || g->sections.empty())
+                if (g->page < 0 || g->sections.empty() || (translucentOnly && !hasBlend(*g)))
                     continue;
                 const float s = static_cast<float>(g->size);
                 const float x0 = g->cx * s, z0 = g->cz * s;

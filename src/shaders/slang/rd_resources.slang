@@ -20,6 +20,7 @@ UNIFORMS_BEGIN
     vec4 u_uiGlintB;
     vec4 u_rdMaterial;
     mat4 u_modelViewProj;
+    mat4 u_viewProj;
     mat4 u_model[1];
 UNIFORMS_END
 
