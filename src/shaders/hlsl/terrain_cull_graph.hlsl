@@ -194,22 +194,22 @@ struct SectionBatch
 void chunks(DispatchNodeInputRecord<ChunkInput> input, uint tid : SV_DispatchThreadID,
             [MaxRecords(64)] NodeOutput<SectionBatch> sections)
 {
-    bool pass = false;
+    bool keep = false;
     ChunkRow row = (ChunkRow)0;
     if (tid < input.Get().chunkCount)
     {
         row = chunkTable[tid];
-        pass = row.count != 0u && inRadius(row.chunkX, row.chunkZ, row.flags) &&
+        keep = row.count != 0u && inRadius(row.chunkX, row.chunkZ, row.flags) &&
                boxInFrustum(float3(row.minX, row.minY, row.minZ), float3(row.maxX, row.maxY, row.maxZ));
     }
-    ThreadNodeOutputRecords<SectionBatch> out = sections.GetThreadNodeOutputRecords(pass ? 1 : 0);
-    if (pass)
+    ThreadNodeOutputRecords<SectionBatch> batch = sections.GetThreadNodeOutputRecords(keep ? 1 : 0);
+    if (keep)
     {
-        out.Get().grid = min((row.count + 31u) / 32u, 64u);
-        out.Get().first = row.start;
-        out.Get().count = row.count;
+        batch.Get().grid = min((row.count + 31u) / 32u, 64u);
+        batch.Get().first = row.start;
+        batch.Get().count = row.count;
     }
-    out.OutputComplete();
+    batch.OutputComplete();
 }
 
 [Shader("node")]
