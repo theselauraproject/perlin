@@ -210,13 +210,19 @@ namespace perlin {
         virtual bool RendererSwitchPending() const { return false; }
         virtual std::string ActiveRendererId() const { return {}; }
         // process gpu memory: device-local and system (shared) segments, false when the backend cannot tell
-        virtual bool GpuMemoryUsage(uint64_t& dedicated, uint64_t& shared) { (void)dedicated; (void)shared; return false; }
+        virtual bool GpuMemoryUsage(uint64_t& dedicated, uint64_t& shared) {
+            (void)dedicated;
+            (void)shared;
+            return false;
+        }
         virtual std::string RendererName() const { return {}; }
         virtual std::string GpuVendor() const { return {}; }
         virtual std::string GpuDescription() const { return {}; }
 
         virtual void BeginFrame(const FrameParams& params) = 0;
         virtual void EndFrame() = 0;
+        // gpu time of a recent frame in ms, or < 0 when not measured (PERLIN_PROFILE turns measuring on)
+        virtual double LastGpuMs() const { return -1.0; }
         virtual bool PresentGenerated(int, int) { return false; }
         virtual bool CanGenerateFrames() const { return false; }
         virtual void RequestScreenshot(const std::string& path) = 0;
@@ -242,7 +248,8 @@ namespace perlin {
 
         // linear, mipmapped: levels[0] is width x height, each next level half the size; for images shown
         // small and far, like nametag icons
-        virtual uint32_t UiCreateTextureMipped(int width, int height, const std::vector<const uint8_t*>& levels) {
+        virtual uint32_t UiCreateTextureMipped(int width, int height,
+                                               const std::vector<const uint8_t*>& levels) {
             return levels.empty() ? 0 : UiCreateTexture(width, height, levels[0], true);
         }
         virtual uint32_t UiCreateTexture(int width, int height, const uint8_t* rgba, bool linear,

@@ -100,8 +100,8 @@ namespace perlin::gpu {
 
     class Arena {
     public:
-        bool Create(conduit::device& device, uint32_t elements, uint32_t elementBytes, conduit::buffer_usage usage,
-                    const char* name);
+        bool Create(conduit::device& device, uint32_t elements, uint32_t elementBytes,
+                    conduit::buffer_usage usage, const char* name);
         void Destroy(conduit::device& device);
         bool Alloc(uint32_t count, uint32_t& first) { return ranges.Alloc(count, first); }
         void Free(uint32_t first, uint32_t count) { ranges.Free(first, count); }
@@ -189,7 +189,9 @@ namespace perlin::gpu {
         uint32_t FrameSlot() const { return device->frame_slot(); }
 
         RingSlice Ring(uint64_t bytes, uint64_t align);
-        conduit::bind_group_handle UniformGroup(uint32_t chunk) const { return ringGroups[FrameSlot()][chunk]; }
+        conduit::bind_group_handle UniformGroup(uint32_t chunk) const {
+            return ringGroups[FrameSlot()][chunk];
+        }
         conduit::buffer_handle RingBuffer(uint32_t chunk) const { return rings[FrameSlot()][chunk].buffer; }
         uint32_t uniformRange() const { return uniformRangeBytes; }
         // whether frame ring memory can also be bound as read-only shader storage
@@ -197,7 +199,9 @@ namespace perlin::gpu {
 
         conduit::bind_group_handle TextureGroup(const TextureSet& set);
         void ForgetTexture(conduit::texture_handle texture);
-        conduit::sampler_handle Sampler(SamplerKind kind) const { return samplers[static_cast<size_t>(kind)]; }
+        conduit::sampler_handle Sampler(SamplerKind kind) const {
+            return samplers[static_cast<size_t>(kind)];
+        }
         conduit::pipeline_layout_handle Layout() const { return pipelineLayout; }
         conduit::bind_layout_handle UniformLayout() const { return uniformLayout; }
         conduit::texture_handle White2D() const { return white2d; }
@@ -206,12 +210,12 @@ namespace perlin::gpu {
         void WriteBuffer(const Arena& arena, uint64_t byteOffset, const void* data, uint64_t bytes) {
             WriteBuffer(arena.Buffer(), arena.BarrierState(), byteOffset, data, bytes);
         }
-        void WriteBuffer(conduit::buffer_handle buffer, conduit::state resting, uint64_t byteOffset, const void* data,
-                         uint64_t bytes);
+        void WriteBuffer(conduit::buffer_handle buffer, conduit::state resting, uint64_t byteOffset,
+                         const void* data, uint64_t bytes);
 
         void ForgetBuffer(conduit::buffer_handle buffer) { bufferStates.erase(buffer.value); }
         conduit::buffer_handle CreateStatic(const void* data, uint64_t bytes, conduit::buffer_usage usage,
-                                       const char* name);
+                                            const char* name);
         struct ImageWrite {
             conduit::texture_handle texture;
             uint32_t mip = 0, layer = 0, x = 0, y = 0, width = 0, height = 0;
@@ -219,8 +223,9 @@ namespace perlin::gpu {
             uint32_t rowBytes = 0;
         };
 
-        void WriteTexture(conduit::texture_handle texture, uint32_t layer, uint32_t x, uint32_t y, uint32_t width,
-                          uint32_t height, const void* data, uint32_t rowBytes = 0, uint32_t mip = 0);
+        void WriteTexture(conduit::texture_handle texture, uint32_t layer, uint32_t x, uint32_t y,
+                          uint32_t width, uint32_t height, const void* data, uint32_t rowBytes = 0,
+                          uint32_t mip = 0);
 
         conduit::texture_handle CreateSampled(conduit::texture_desc desc);
         void DestroyTexture(conduit::texture_handle texture);
@@ -287,7 +292,13 @@ namespace perlin::gpu {
         std::vector<std::vector<conduit::bind_group_handle>> ringGroups;
         std::vector<uint32_t> ringCursor;
 
-        std::vector<uint8_t> pendingBytes;
+        // a byte that resize leaves uninitialized: every pending byte is written straight after it is added, so
+        // zero-filling first (what std::vector<uint8_t> does) only costs a pass over each upload
+        struct RawByte {
+            uint8_t v;
+            RawByte() {} // NOLINT(modernize-use-equals-default): = default would zero-fill again
+        };
+        std::vector<RawByte> pendingBytes;
         std::vector<BufferWrite> bufferWrites;
         std::vector<ImageWrite> imageWrites;
         std::unordered_map<uint32_t, conduit::state> textureStates;

@@ -693,7 +693,7 @@ namespace perlin::gpu {
             return;
         const uint64_t at = AlignUp(pendingBytes.size(), 16);
         pendingBytes.resize(at + bytes);
-        std::memcpy(pendingBytes.data() + at, data, bytes);
+        std::memcpy(&pendingBytes[at], data, bytes);
         bufferWrites.push_back({buffer, resting, byteOffset, bytes, at});
     }
 
@@ -725,7 +725,7 @@ namespace perlin::gpu {
                 AlignUp(pendingBytes.size(), std::max<uint64_t>(16, Caps().limits.copy_offset_alignment));
             pendingBytes.resize(at + static_cast<uint64_t>(pitch) * rows);
             for (uint32_t row = 0; row < rows; row++)
-                std::memcpy(pendingBytes.data() + at + static_cast<uint64_t>(row) * pitch,
+                std::memcpy(&pendingBytes[at + static_cast<uint64_t>(row) * pitch],
                             static_cast<const uint8_t*>(data) + static_cast<uint64_t>(first + row) * srcPitch,
                             packed);
             imageWrites.push_back({texture, mip, layer, x, y + first, width, rows, at, pitch});
@@ -793,7 +793,7 @@ namespace perlin::gpu {
                     (b.end - b.begin) >> 20);
                 continue;
             }
-            std::memcpy(b.slice.data, pendingBytes.data() + b.begin, b.end - b.begin);
+            std::memcpy(b.slice.data, &pendingBytes[b.begin], b.end - b.begin);
         }
         const auto stagingFor = [&](uint64_t source, conduit::buffer_handle& buffer, uint64_t& offset) {
             for (const Batch& b : batches)
@@ -892,7 +892,7 @@ namespace perlin::gpu {
         pendingBytes.clear();
 
         if (pendingBytes.capacity() > (48ull << 20))
-            std::vector<uint8_t>().swap(pendingBytes);
+            decltype(pendingBytes)().swap(pendingBytes);
     }
 }
 

@@ -57,6 +57,9 @@ namespace perlin::gpu {
         void Advance(bool worldFrame, double intervalMs);
 
         bool Testing() const { return phase == Phase::Testing; }
+        // time every frame on the gpu, not only during trials (PERLIN_PROFILE)
+        void TimeEveryFrame(bool on) { everyFrame = on; }
+        double LastGpuMs() const { return lastGpuMs; }
 
     private:
         enum class Phase { Off, Waiting, Testing, Done };
@@ -101,6 +104,8 @@ namespace perlin::gpu {
         uint32_t curSlot = 0;
         bool timestamps = false;
         bool frameTimed = false;
+        bool everyFrame = false;
+        double lastGpuMs = -1.0;
         double period = 1.0;
     };
 

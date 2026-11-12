@@ -165,6 +165,7 @@ namespace perlin {
         caveCulling = !PERLIN_ENV("PERLIN_NO_CAVECULL");
         Log("render", "{} on {}", rendererName, adapterName);
         tuner.Init(gpu.Caps().adapter, paths::DataDir() + "/render-tune.txt");
+        tuner.TimeEveryFrame(PERLIN_ENV("PERLIN_PROFILE") != nullptr);
         meshes.Init(gpu);
         if (!CreateStaticResources())
             return false;

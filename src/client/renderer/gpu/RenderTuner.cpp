@@ -162,7 +162,7 @@ namespace perlin::gpu {
     void RenderTuner::GpuBegin(conduit::device& dev, conduit::command_list& list, uint32_t slot,
                                uint32_t slots) {
         frameTimed = false;
-        if (phase != Phase::Testing || !dev.caps().features.timestamp_queries)
+        if ((phase != Phase::Testing && !everyFrame) || !dev.caps().features.timestamp_queries)
             return;
         device = &dev;
         slots = std::max(1u, slots);
@@ -193,10 +193,13 @@ namespace perlin::gpu {
             if (const uint8_t* data = dev.map(readback[curSlot])) {
                 uint64_t t[2];
                 std::memcpy(t, data, sizeof(t));
-                if (p.feature == feature && p.block < blocks.size() &&
-                    p.sample < blocks[p.block].samples.size() && t[1] > t[0])
-                    blocks[p.block].samples[p.sample].gpuMs =
-                        static_cast<double>(t[1] - t[0]) * period * 1e-6;
+                if (t[1] > t[0]) {
+                    const double ms = static_cast<double>(t[1] - t[0]) * period * 1e-6;
+                    lastGpuMs = ms;
+                    if (p.feature >= 0 && p.feature == feature && p.block < blocks.size() &&
+                        p.sample < blocks[p.block].samples.size())
+                        blocks[p.block].samples[p.sample].gpuMs = ms;
+                }
             }
         }
         p.valid = false;
@@ -209,6 +212,8 @@ namespace perlin::gpu {
             return;
         list.write_timestamp(queries, curSlot * 2 + 1);
         list.resolve_queries(queries, curSlot * 2, 2, readback[curSlot], 0);
+        // read back when this slot comes round again; a trial frame also says which sample it belongs to
+        pending[curSlot] = {true, -1, 0, 0};
     }
 
     void RenderTuner::Release(conduit::device& dev) {

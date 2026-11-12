@@ -30,6 +30,11 @@ namespace perlin {
                 Frame,
                 Particles,
                 Weather,
+                Input,   // look, chat, game input, view settings
+                Session, // network packets and the world they change
+                Prep,    // hud state, debug text, audio
+                Tick,    // game ticks
+                Gpu,     // gpu time of the frame, from timestamp queries (not part of the cpu frame)
                 kStages
             };
 
@@ -45,9 +50,10 @@ namespace perlin {
 
             void AddToAverage(Stage stage, double ms) { total[stage] += ms; }
 
-            void FinishFrame(std::chrono::steady_clock::time_point frameStart) {
+            // true when this frame closed a report window
+            bool FinishFrame(std::chrono::steady_clock::time_point frameStart) {
                 if (!enabled)
-                    return;
+                    return false;
                 const double frameMs =
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart)
                         .count();
@@ -58,8 +64,10 @@ namespace perlin {
                     last[i] = 0;
                 }
                 frameTimes.push_back(frameMs);
-                if (++frames >= 240)
-                    Report();
+                if (++frames < 240)
+                    return false;
+                Report();
+                return true;
             }
 
         private:
@@ -85,8 +93,8 @@ namespace perlin {
             }
 
             static constexpr const char* kNames[kStages] = {
-                "logic", "level update", "level render", "entities",  "hand",
-                "hud",   "end frame",    "frame",        "particles", "weather"};
+                "logic",     "level update", "level render", "entities", "hand", "hud",  "end frame", "frame",
+                "particles", "weather",      "input",        "session",  "prep", "tick", "gpu"};
             bool enabled = PERLIN_ENV("PERLIN_PROFILE") != nullptr;
             double total[kStages] = {};
             double worst[kStages] = {};

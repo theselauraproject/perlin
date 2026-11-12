@@ -1,3 +1,4 @@
+#include "client/renderer/chunk/ChunkMesher.hpp"
 #include "client/PerlinFrame.hpp"
 #include "util/Log.hpp"
 #include <algorithm>
@@ -132,21 +133,36 @@ namespace perlin {
         BeginFrame(f);
         ImportDroppedFiles();
         RestorePlayerCamera();
-        UpdateLook(f);
-        TrackDamage();
-        UpdateSession(f);
-        UpdateDiscord();
-        UpdateViewSettings(f);
-        UpdateChat(f);
-        UpdateGameInput(f);
-        UpdatePreviewWorld(f);
-        UpdateThirdPersonDistance(f.live, f.dt);
-        SampleEyeEnvironment(f);
-        FillFrameHud(f);
-        HandleDebugKeys(f);
-        FillDebug(hudState, f.live, f.live ? &f.live->NetLevel() : loop->previewLevel.get());
-        UpdateAudio(f.live, detail::SecondsSince(loop->startedAt, f.frameStart), f.dt);
-        TickGame(f);
+        {
+            frame::ProfileScope p(frame::Profiler::Input);
+            UpdateLook(f);
+            TrackDamage();
+        }
+        {
+            frame::ProfileScope p(frame::Profiler::Session);
+            UpdateSession(f);
+            UpdateDiscord();
+        }
+        {
+            frame::ProfileScope p(frame::Profiler::Input);
+            UpdateViewSettings(f);
+            UpdateChat(f);
+            UpdateGameInput(f);
+            UpdatePreviewWorld(f);
+            UpdateThirdPersonDistance(f.live, f.dt);
+        }
+        {
+            frame::ProfileScope p(frame::Profiler::Prep);
+            SampleEyeEnvironment(f);
+            FillFrameHud(f);
+            HandleDebugKeys(f);
+            FillDebug(hudState, f.live, f.live ? &f.live->NetLevel() : loop->previewLevel.get());
+            UpdateAudio(f.live, detail::SecondsSince(loop->startedAt, f.frameStart), f.dt);
+        }
+        {
+            frame::ProfileScope p(frame::Profiler::Tick);
+            TickGame(f);
+        }
         if (args.benchmarkSeconds > 0 && !benchmarkCliStarted) {
             benchmarkCliStarted = true;
             bench::Settings s;
@@ -371,7 +387,8 @@ namespace perlin {
                 out.pitch = base.pitch;
                 return true;
             }
-            const glm::vec3 feet(static_cast<float>(e.pos.x), static_cast<float>(e.pos.y), static_cast<float>(e.pos.z));
+            const glm::vec3 feet(static_cast<float>(e.pos.x), static_cast<float>(e.pos.y),
+                                 static_cast<float>(e.pos.z));
             out.center = feet + glm::vec3(0.0f, h * 0.5f, 0.0f);
             out.eye = feet + glm::vec3(0.0f, e.isPlayer ? 1.62f : h * 0.9f, 0.0f);
             out.yaw = e.headYaw + 90.0f;
@@ -580,8 +597,7 @@ namespace perlin {
         const bool always = drink || name == "minecraft:golden_apple" ||
                             name == "minecraft:enchanted_golden_apple" || name == "minecraft:chorus_fruit" ||
                             name == "minecraft:suspicious_stew";
-        const bool eating =
-            hudState.Survival() && HandRenderer::IsFood(name);
+        const bool eating = hudState.Survival() && HandRenderer::IsFood(name);
         (void)always;
         blockedFoodUse = HandRenderer::IsFood(name) && !eating;
         bool aimInteracts = false;
@@ -827,7 +843,12 @@ namespace perlin {
                                        [&](int i, int n) { return renderer->PresentGenerated(i, n); });
             }
         }
-        frame::Profiler::Get().FinishFrame(frameStart);
+        if (frame::Profiler::Get().Enabled()) {
+            if (const double gpuMs = renderer->LastGpuMs(); gpuMs >= 0)
+                frame::Profiler::Get().Add(frame::Profiler::Gpu, gpuMs);
+            if (frame::Profiler::Get().FinishFrame(frameStart))
+                MeshProfilePrint();
+        }
 
         if (frameStart - animationAt >= frame::kAnimationStep) {
             animationAt = frameStart;
@@ -904,7 +925,8 @@ namespace perlin {
                 // at the normal rate, instead of finishing a 200 ms minimized-rate sleep
                 const auto target = frameStart + std::chrono::microseconds(1000000 / cap);
                 while (Clock::now() < target && away())
-                    std::this_thread::sleep_until(std::min(target, Clock::now() + std::chrono::milliseconds(5)));
+                    std::this_thread::sleep_until(
+                        std::min(target, Clock::now() + std::chrono::milliseconds(5)));
             }
         }
         const int fpsCap = ModFrameLimit(options.maxFps);

@@ -166,6 +166,7 @@ namespace perlin {
 
         void BeginFrame(const FrameParams& params) override;
         void EndFrame() override;
+        double LastGpuMs() const override { return tuner.LastGpuMs(); }
         bool PresentGenerated(int index, int total) override;
         bool CanGenerateFrames() const override {
             return initialized && !offscreen && !fgenBlocked && ProgramIndex(Program::FrameGen) >= 0;
