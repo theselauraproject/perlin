@@ -88,6 +88,9 @@ namespace perlin {
 
         void SetLayer(RenderLayer value) { layer = value; }
         void EnterSection(int sy);
+        // copies section sy of an earlier mesh of the same column in place of building it: vertices, every
+        // layer's indices (rebased), face groups, specials. Call where EnterSection(sy) would go, then skip its rows
+        void AppendSection(const Tessellator& from, int sy);
         void AddVisibility(int sy, uint16_t conn) { visibility.push_back({sy, conn}); }
         const std::vector<SectionVis>& Visibility() const { return visibility; }
         void AddSpecial(int x, int y, int z, uint16_t id) { specials.push_back({x, y, z, id}); }
@@ -127,5 +130,7 @@ namespace perlin {
         static inline std::atomic<bool> capture{false};
         RenderLayer layer = RenderLayer::Solid;
         bool building = false;
+        // the last section was copied whole: its face groups are final, the next flush must leave them alone
+        bool backSealed = false;
     };
 }

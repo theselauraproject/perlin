@@ -4,6 +4,7 @@
 #include "util/Log.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -266,9 +267,11 @@ namespace perlin::gpu {
         const Feature f = static_cast<Feature>(feature);
         state[f] = v.on;
         tested[f] = true;
-        Log("tune", "{}",
-            std::format("{}: on {:.2f} ms, off {:.2f} ms ({}) -> {}", kNames[f], v.onMs, v.offMs,
-                        v.byGpu ? "gpu time" : "frame time", v.on ? "on" : "off"));
+        // snprintf, not std::format: apple's libc++ formats floats only from macos 13.3
+        char line[160];
+        std::snprintf(line, sizeof(line), "%s: on %.2f ms, off %.2f ms (%s) -> %s", kNames[f], v.onMs, v.offMs,
+                      v.byGpu ? "gpu time" : "frame time", v.on ? "on" : "off");
+        Log("tune", "{}", line);
         StartFeature();
     }
 

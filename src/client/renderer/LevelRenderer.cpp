@@ -146,6 +146,7 @@ namespace perlin {
         meshKey.clear();
         inFlight.clear();
         generation++;
+        DropReuse(nullptr);
         {
             std::lock_guard lock(doneMutex);
             done.clear();
@@ -354,10 +355,11 @@ namespace perlin {
                 continue;
             if (r.generation == current) {
                 context.UpdateChunkMesh(r.pos.x, r.pos.z, *r.mesh, r.key);
+                // copied, not moved: the mesh may live on in the reuse cache, which needs them
                 if (r.mesh->Specials().empty())
                     specials.erase(r.pos);
                 else
-                    specials[r.pos] = std::move(r.mesh->Specials());
+                    specials[r.pos] = r.mesh->Specials();
                 if (shown.insert(r.pos).second)
                     MarkLodTile(r.pos);
             }
@@ -373,6 +375,7 @@ namespace perlin {
         for (const auto& entry : meshKey)
             context.RemoveChunkMesh(entry.first.x, entry.first.z);
         generation++;
+        DropReuse(nullptr);
         {
             std::lock_guard lock(doneMutex);
             done.clear();
@@ -463,6 +466,7 @@ namespace perlin {
                 specials.erase(d.pos);
                 if (meshKey.erase(d.pos))
                     context.RemoveChunkMesh(d.pos.x, d.pos.z);
+                DropReuse(&d.pos);
                 wantKey.erase(d.pos);
                 if (shown.erase(d.pos))
                     MarkLodTile(d.pos);
@@ -568,6 +572,8 @@ namespace perlin {
 
         for (size_t i = 0; i < take; i++) {
             const Pending job = pending[i];
+            // shown before: an edit or a neighbour change, where most sections are as they were
+            const bool remesh = meshKey.contains(job.pos);
             meshKey[job.pos] = job.key;
             wantKey.erase(job.pos);
             inFlight.insert(job.pos);
@@ -575,15 +581,22 @@ namespace perlin {
             const uint32_t gen = generation.load();
             Level* target = &level;
 
-            meshPool->Submit([this, target, job, gen, lib = blocks, tints = biomeTints] {
+            meshPool->Submit([this, target, job, gen, remesh, lib = blocks, tints = biomeTints] {
                 if (stopping)
                     return;
-                auto mesh = std::make_unique<Tessellator>();
+                auto mesh = std::make_shared<Tessellator>();
+                std::shared_ptr<MeshReuse> reuse = remesh ? TakeReuse(job.pos) : nullptr;
+                if (reuse)
+                    reuse->generation = gen;
                 const auto t0 = std::chrono::steady_clock::now();
                 mesh->Begin();
-                BuildChunkMesh(*target, job.pos, *mesh, lib.get(), tints.get());
+                BuildChunkMesh(*target, job.pos, *mesh, lib.get(), tints.get(), reuse.get());
                 mesh->End();
                 context.PrepareChunkMesh(*mesh);
+                if (reuse && generation.load() == gen) {
+                    reuse->mesh = mesh;
+                    KeepReuse(job.pos, std::move(reuse));
+                }
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                     std::chrono::steady_clock::now() - t0)
                                     .count();
@@ -821,6 +834,33 @@ namespace perlin {
         context.SetChunkCullRadius(
             std::max(3, std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks))) + 2);
         context.DrawChunkMeshes(frustum, camX, camZ);
+    }
+
+    std::shared_ptr<MeshReuse> LevelRenderer::TakeReuse(const ChunkPos& pos) {
+        std::lock_guard lock(reuseMutex);
+        for (auto it = reuseCache.begin(); it != reuseCache.end(); ++it)
+            if (it->first == pos) {
+                std::shared_ptr<MeshReuse> found = std::move(it->second);
+                reuseCache.erase(it);
+                return found;
+            }
+        return std::make_shared<MeshReuse>();
+    }
+
+    void LevelRenderer::KeepReuse(const ChunkPos& pos, std::shared_ptr<MeshReuse> reuse) {
+        std::lock_guard lock(reuseMutex);
+        std::erase_if(reuseCache, [&](const auto& e) { return e.first == pos; });
+        reuseCache.insert(reuseCache.begin(), {pos, std::move(reuse)});
+        if (reuseCache.size() > kReuseColumns)
+            reuseCache.resize(kReuseColumns);
+    }
+
+    void LevelRenderer::DropReuse(const ChunkPos* pos) {
+        std::lock_guard lock(reuseMutex);
+        if (!pos)
+            reuseCache.clear();
+        else
+            std::erase_if(reuseCache, [&](const auto& e) { return e.first == *pos; });
     }
 
     void LevelRenderer::BenchmarkMeshing(Level& level, int rounds) {

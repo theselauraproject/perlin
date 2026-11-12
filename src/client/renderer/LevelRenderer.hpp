@@ -4,6 +4,7 @@
 #include "client/renderer/RenderContext.hpp"
 #include "client/renderer/CustomSky.hpp"
 #include "client/renderer/Tessellator.hpp"
+#include "client/renderer/chunk/ChunkMesher.hpp"
 #include "client/renderer/chunk/LodStore.hpp"
 #include "client/renderer/block/BiomeTints.hpp"
 #include "client/renderer/block/BlockLibrary.hpp"
@@ -94,7 +95,7 @@ namespace perlin {
             ChunkPos pos;
             uint64_t key;
             uint32_t generation;
-            std::unique_ptr<Tessellator> mesh;
+            std::shared_ptr<Tessellator> mesh;
         };
 
         struct Pending {
@@ -174,6 +175,15 @@ namespace perlin {
 
         std::mutex doneMutex;
         std::vector<MeshResult> done;
+
+        // the last build of recently re-meshed columns: an edit there rebuilds only the sections it touched.
+        // Few columns, most recent first: building happens in one place, and each entry holds a whole mesh
+        static constexpr size_t kReuseColumns = 16;
+        std::mutex reuseMutex;
+        std::vector<std::pair<ChunkPos, std::shared_ptr<MeshReuse>>> reuseCache;
+        std::shared_ptr<MeshReuse> TakeReuse(const ChunkPos& pos);
+        void KeepReuse(const ChunkPos& pos, std::shared_ptr<MeshReuse> reuse);
+        void DropReuse(const ChunkPos* pos);
         PosSet inFlight;
         PosMap<ChunkInfo> info;
         PosMap<uint64_t> meshKey;

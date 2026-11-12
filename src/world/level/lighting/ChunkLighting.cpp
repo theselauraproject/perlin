@@ -76,10 +76,16 @@ namespace perlin {
         grid.sky.assign(cells, 0);
         grid.block.assign(cells, 0);
 
+        // colTop: highest row whose sky light is below full. colLit: lowest row still above 1. Sky light only
+        // falls going down a column and 0 stays 0, so a column stops at its first dark cell (the grid is zeroed)
+        // and the lit cells, the only ones that can seed the flood, are the run from the top down to colLit
         static thread_local std::vector<int16_t> colTop;
+        static thread_local std::vector<int16_t> colLit;
         colTop.assign(kLayer, -1);
+        colLit.assign(kLayer, static_cast<int16_t>(rows));
         for (int z = 0; z < kSpan; z++)
             for (int x = 0; x < kSpan; x++) {
+                const size_t c = static_cast<size_t>(z) * kSpan + x;
                 int level = kMaxLight;
                 size_t i = grid.Index(x, grid.yBase + rows - 1, z);
                 for (int row = rows - 1; row >= 0; row--, i -= kLayer) {
@@ -91,9 +97,13 @@ namespace perlin {
                         level = 0;
                     else
                         level = std::max(0, level - cost);
+                    if (level < kMaxLight && colTop[c] < row)
+                        colTop[c] = static_cast<int16_t>(row);
+                    if (level == 0)
+                        break;
                     grid.sky[i] = static_cast<uint8_t>(level);
-                    if (level < kMaxLight && colTop[static_cast<size_t>(z) * kSpan + x] < row)
-                        colTop[static_cast<size_t>(z) * kSpan + x] = static_cast<int16_t>(row);
+                    if (level > 1)
+                        colLit[c] = static_cast<int16_t>(row);
                 }
             }
 
@@ -112,7 +122,7 @@ namespace perlin {
                 if (z < kSpan - 1)
                     top = std::max<int>(top, colTop[c + kSpan]);
                 const int scanTop = std::min(rows - 1, top + 1);
-                for (int row = 0; row <= scanTop; row++) {
+                for (int row = colLit[c]; row <= scanTop; row++) {
                     const uint32_t i = static_cast<uint32_t>(static_cast<size_t>(row) * kLayer + c);
                     const int level = grid.sky[i];
                     if (level <= 1)
@@ -231,21 +241,35 @@ namespace perlin {
         const LightRegistry& registry = LightRegistry::Instance();
         const size_t cells = grid.ids.size();
         grid.opacity.resize(cells);
-        grid.shaped.assign(cells, 0);
+        grid.shaped.resize(cells);
         scratch.emitters.clear();
+        // each distinct id is resolved once per call (the registry can change between calls): opacity in the
+        // low byte, emission in bits 8-11, bit 12 for a shaped (partly occluding) block, bit 15 for resolved
+        static thread_local std::vector<uint16_t> props(65536, 0);
+        static thread_local std::vector<uint16_t> seenIds;
+        constexpr uint16_t kResolved = 0x8000, kShaped = 0x1000;
         for (size_t i = 0; i < cells; i++) {
             const uint16_t id = grid.ids[i];
-            if (id == 0) {
-                grid.opacity[i] = 0;
-                continue;
+            uint16_t p = props[id];
+            if (!(p & kResolved)) {
+                p = kResolved;
+                if (id != 0) {
+                    const BlockLightProps lp = registry.Resolve(id);
+                    p |= static_cast<uint16_t>(lp.opacity | (lp.emission << 8));
+                    if (lp.opacity < kMaxLight && registry.Occlusion(id))
+                        p |= kShaped;
+                }
+                props[id] = p;
+                seenIds.push_back(id);
             }
-            const BlockLightProps props = registry.Resolve(id);
-            grid.opacity[i] = props.opacity;
-            if (props.opacity < kMaxLight && registry.Occlusion(id))
-                grid.shaped[i] = 1;
-            if (props.emission > 0)
-                scratch.emitters.push_back({static_cast<uint32_t>(i), props.emission});
+            grid.opacity[i] = static_cast<uint8_t>(p & 0xFF);
+            grid.shaped[i] = (p & kShaped) ? 1 : 0;
+            if (const uint8_t emission = static_cast<uint8_t>((p >> 8) & 15); emission > 0)
+                scratch.emitters.push_back({static_cast<uint32_t>(i), emission});
         }
+        for (const uint16_t id : seenIds)
+            props[id] = 0;
+        seenIds.clear();
         for (int dz = 0; dz < 3; dz++)
             for (int dx = 0; dx < 3; dx++) {
                 if (present[dz][dx])

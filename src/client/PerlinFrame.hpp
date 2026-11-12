@@ -2,6 +2,7 @@
 
 #include "client/PerlinInternal.hpp"
 #include "util/Log.hpp"
+#include <cstdio>
 #include <format>
 #include <string>
 #include <string_view>
@@ -76,15 +77,21 @@ namespace perlin {
                 const size_t n = frameTimes.size();
                 const double p99 = frameTimes[std::min(n - 1, static_cast<size_t>(n * 0.99))];
                 // through the log, so it lands in perlin.log on windows, where a gui exe has no console
+                // snprintf, not std::format: apple's libc++ formats floats only from macos 13.3
+                char buf[96];
                 std::string line = "avg ms:";
-                for (int i = 0; i < kStages; i++)
-                    line += std::format(" {}={:.2f}", kNames[i], total[i] / frames);
+                for (int i = 0; i < kStages; i++) {
+                    std::snprintf(buf, sizeof(buf), " %s=%.2f", kNames[i], total[i] / frames);
+                    line += buf;
+                }
                 line += " | worst ms:";
-                for (int i = 0; i < kStages; i++)
-                    line += std::format(" {}={:.2f}", kNames[i], worst[i]);
-                line += std::format(" | avg {:.1f} fps, 1% low {:.1f} fps",
-                                    total[Frame] > 0 ? 1000.0 * frames / total[Frame] : 0.0,
-                                    p99 > 0 ? 1000.0 / p99 : 0.0);
+                for (int i = 0; i < kStages; i++) {
+                    std::snprintf(buf, sizeof(buf), " %s=%.2f", kNames[i], worst[i]);
+                    line += buf;
+                }
+                std::snprintf(buf, sizeof(buf), " | avg %.1f fps, 1%% low %.1f fps",
+                              total[Frame] > 0 ? 1000.0 * frames / total[Frame] : 0.0, p99 > 0 ? 1000.0 / p99 : 0.0);
+                line += buf;
                 Log("profile", "{}", line);
                 std::ranges::fill(total, 0.0);
                 std::ranges::fill(worst, 0.0);

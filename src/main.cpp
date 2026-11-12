@@ -2,6 +2,7 @@
 #include "util/Relaunch.hpp"
 #include "client/EmbeddedProvider.hpp"
 #include "client/Perlin.hpp"
+#include "client/renderer/chunk/MeshBench.hpp"
 #include "client/platform/DiscordRpc.hpp"
 #include "client/platform/sdl/AppPlatform_SDL.hpp"
 #include "util/GraphicsDebugger.hpp"
@@ -317,6 +318,9 @@ int main(int argc, char** argv) {
     if (const char* tool = perlin::gfxdebug::Attached())
         std::printf("[perlin] %s is attached: single device, no pipeline cache, no failure records\n", tool);
     perlin::RegisterEmbeddedResources();
+    for (int i = 1; i < argc; i++)
+        if (std::string(argv[i]) == "--meshbench")
+            return perlin::RunMeshBench(i + 1 < argc ? std::atoi(argv[i + 1]) : 6, i + 2 < argc ? std::atoi(argv[i + 2]) : 3);
 #ifndef __EMSCRIPTEN__
 
     std::thread([] {

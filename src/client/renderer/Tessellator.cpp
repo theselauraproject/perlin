@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/block/BlockLibrary.hpp"
@@ -22,6 +23,7 @@ namespace perlin {
         curBlock = 0;
         layer = RenderLayer::Solid;
         building = true;
+        backSealed = false;
     }
 
     void Tessellator::Reserve(size_t quads) {
@@ -172,6 +174,10 @@ namespace perlin {
     void Tessellator::FlushFaces() {
         if (sections.empty())
             return;
+        if (backSealed) {
+            backSealed = false;
+            return;
+        }
         MeshSection& cur = sections.back();
         cur.split = true;
         for (int s = 0; s < kSplitLayers; s++) {
@@ -215,5 +221,48 @@ namespace perlin {
         std::erase_if(sections, [](const MeshSection& s) {
             return !s.count[0] && !s.count[1] && !s.count[2] && !s.count[3] && !s.count[4];
         });
+    }
+
+    void Tessellator::AppendSection(const Tessellator& from, int sy) {
+        if (!building)
+            return;
+        const MeshSection* src = nullptr;
+        for (const MeshSection& s : from.sections)
+            if (s.sy == sy) {
+                src = &s;
+                break;
+            }
+        if (!src)
+            return; // empty there before: nothing to copy, and End would drop an empty section anyway
+        FlushFaces();
+        // the section's quads were added in one run, so its vertices are one contiguous range
+        uint32_t lo = UINT32_MAX, hi = 0;
+        for (int l = 0; l < kRenderLayerCount; l++)
+            for (uint32_t i = 0; i < src->count[l]; i++) {
+                const uint32_t v = from.indices[l][src->start[l] + i];
+                lo = std::min(lo, v);
+                hi = std::max(hi, v);
+            }
+        MeshSection section = *src;
+        for (int l = 0; l < kRenderLayerCount; l++)
+            section.start[l] = static_cast<uint32_t>(indices[l].size());
+        if (lo <= hi) {
+            const uint32_t base = static_cast<uint32_t>(vertices.size());
+            vertices.insert(vertices.end(), from.vertices.begin() + lo, from.vertices.begin() + hi + 1);
+            for (int l = 0; l < kRenderLayerCount; l++) {
+                std::vector<uint32_t>& out = indices[l];
+                const auto first = from.indices[l].begin() + src->start[l];
+                for (auto it = first; it != first + src->count[l]; ++it)
+                    out.push_back(*it - lo + base);
+            }
+        }
+        sections.push_back(section);
+        backSealed = true;
+        for (const SpecialBlock& b : from.specials)
+            if ((b.y >> 4) == sy)
+                specials.push_back(b);
+        for (const QuadInfo& q : from.quads)
+            if ((static_cast<int>(std::floor(q.by)) >> 4) == sy)
+                quads.push_back(q);
     }
 }

@@ -1,4 +1,5 @@
 #include <unordered_set>
+#include <cstring>
 #include <mutex>
 #include "client/renderer/chunk/ChunkMesher.hpp"
 #include "world/level/Level.hpp"
@@ -881,7 +882,7 @@ namespace perlin {
     }
 
     void BuildChunkMesh(Level& level, const ChunkPos& pos, Tessellator& tess, BlockLibrary* library,
-                        BiomeTints* tints) {
+                        BiomeTints* tints, MeshReuse* reuse) {
         const uint64_t t0 = NowUs();
         bool textured = library && library->Ready();
         bool haveTints = tints && tints->Ready();
@@ -959,7 +960,62 @@ namespace perlin {
 
         int baseX = pos.x * 16, baseZ = pos.z * 16;
         std::unordered_set<uint16_t> askedFor;
+
+        // sections that can be copied from the previous build of this column
+        static thread_local std::vector<uint8_t> keep;
+        keep.assign(Chunk::SECTION_COUNT + 2, 0);
+        const int sectionBase = Chunk::MIN_Y >> 4;
+        uint64_t reuseKey = 0;
+        if (reuse) {
+            reuseKey = reuse->generation * 0x9E3779B97F4A7C15ull;
+            for (const uint64_t v : {static_cast<uint64_t>(reinterpret_cast<uintptr_t>(library)),
+                                     static_cast<uint64_t>(reinterpret_cast<uintptr_t>(tints)),
+                                     static_cast<uint64_t>(gMemoGlobal.load()),
+                                     static_cast<uint64_t>(textured) | (static_cast<uint64_t>(haveTints) << 1)})
+                reuseKey = (reuseKey ^ v) * 1099511628211ull;
+        }
+        const bool partial = reuse && reuse->mesh && reuse->key == reuseKey && reuse->cellBase == cache.yBase &&
+                             reuse->cellRows == cache.yRows && reuse->lightBase == lighting.yBase &&
+                             reuse->lightRows == lighting.rows && reuse->faceLo == faceLo &&
+                             reuse->cells.size() == cache.cells.size() &&
+                             reuse->light.size() == lighting.packed.size();
+        if (partial) {
+            constexpr size_t kRow = 18 * 18;
+            const auto rowDiffers = [](const auto& a, const auto& b, int row) {
+                return std::memcmp(&a[static_cast<size_t>(row) * kRow], &b[static_cast<size_t>(row) * kRow],
+                                   kRow * sizeof(a[0])) != 0;
+            };
+            std::vector<int> changed; // rows (world y) whose inputs differ, with the reach of each kind
+            for (int row = 0; row < cache.yRows; row++)
+                if (rowDiffers(cache.cells, reuse->cells, row) || rowDiffers(cache.liquid, reuse->liquid, row) ||
+                    rowDiffers(cache.biome, reuse->biome, row)) {
+                    const int y = cache.yBase + row;
+                    for (int sy = (y - 3) >> 4; sy <= (y + 3) >> 4; sy++)
+                        if (sy - sectionBase >= 0 && sy - sectionBase < static_cast<int>(keep.size()))
+                            keep[sy - sectionBase] |= 2;
+                }
+            for (int row = 0; row < lighting.rows; row++)
+                if (rowDiffers(lighting.packed, reuse->light, row)) {
+                    const int y = lighting.yBase + row;
+                    for (int sy = (y - 2) >> 4; sy <= (y + 2) >> 4; sy++)
+                        if (sy - sectionBase >= 0 && sy - sectionBase < static_cast<int>(keep.size()))
+                            keep[sy - sectionBase] |= 2;
+                }
+            for (auto& k : keep)
+                k = k & 2 ? 0 : 1;
+        }
+        int rebuiltSections = 0, copiedSections = 0;
         for (int y = faceLo; y <= yHi; y++) {
+            if ((y == faceLo || (y & 15) == 0)) {
+                const int sy = y >> 4;
+                if (partial && keep[sy - sectionBase]) {
+                    tess.AppendSection(*reuse->mesh, sy);
+                    copiedSections++;
+                    y = std::min(yHi, y | 15);
+                    continue;
+                }
+                rebuiltSections++;
+            }
             tess.EnterSection(y >> 4);
             for (int z = 0; z < 16; z++)
                 for (int x = 0; x < 16; x++) {
@@ -2350,6 +2406,21 @@ namespace perlin {
                         }
                     }
                 }
+        }
+        if (reuse) {
+            reuse->mesh.reset();
+            reuse->key = reuseKey;
+            reuse->cellBase = cache.yBase;
+            reuse->cellRows = cache.yRows;
+            reuse->lightBase = lighting.yBase;
+            reuse->lightRows = lighting.rows;
+            reuse->faceLo = faceLo;
+            reuse->cells = cache.cells;
+            reuse->liquid = cache.liquid;
+            reuse->biome = cache.biome;
+            reuse->light = lighting.packed;
+            reuse->rebuilt = rebuiltSections;
+            reuse->copied = copiedSections;
         }
         const uint64_t t4 = NowUs();
         gProf[0] += t1 - t0;
