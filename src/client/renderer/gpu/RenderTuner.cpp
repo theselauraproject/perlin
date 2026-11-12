@@ -1,0 +1,333 @@
+#include "client/renderer/gpu/RenderTuner.hpp"
+
+#include "util/FileIo.hpp"
+#include "util/Log.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <format>
+#include <map>
+#include <sstream>
+
+namespace perlin::gpu {
+
+    namespace {
+        // the environment names: PERLIN_<on> forces a feature on, PERLIN_NO_<on> forces it off
+        constexpr const char* kEnv[RenderTuner::kFeatureCount] = {
+            "GPU_CULL", "OCCLUSION", "FACE_CULL", "GPU_SHADOW_CULL", "GPU_ENTITY_CULL", "GPU_UI"};
+        constexpr const char* kNames[RenderTuner::kFeatureCount] = {"gpu_cull",    "occlusion",   "face_cull",
+                                                                    "shadow_cull", "entity_cull", "gpu_ui"};
+
+        bool EnvSet(const std::string& name) {
+            const char* v = std::getenv(name.c_str());
+            return v && *v && std::strcmp(v, "0") != 0;
+        }
+
+        double Median(std::vector<double> v) {
+            if (v.empty())
+                return 0;
+            const size_t mid = v.size() / 2;
+            std::nth_element(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(mid), v.end());
+            return v[mid];
+        }
+
+        // the sections of the save file: one per adapter key, each a list of "name 0|1"
+        std::map<std::string, std::map<std::string, int>> ReadSaved(const std::string& path) {
+            std::map<std::string, std::map<std::string, int>> out;
+            std::string text;
+            if (!file::Read(path, text))
+                return out;
+            std::istringstream in(text);
+            std::string line, section;
+            while (std::getline(in, line)) {
+                if (!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                if (line.empty() || line[0] == '#')
+                    continue;
+                if (line.rfind("adapter ", 0) == 0) {
+                    section = line.substr(8);
+                    continue;
+                }
+                const size_t space = line.find(' ');
+                if (section.empty() || space == std::string::npos)
+                    continue;
+                out[section][line.substr(0, space)] = std::atoi(line.c_str() + space + 1);
+            }
+            return out;
+        }
+    } // namespace
+
+    RenderTuner::RenderTuner() {
+        ApplyEnvironment();
+    }
+
+    void RenderTuner::ApplyEnvironment() {
+        for (int f = 0; f < kFeatureCount; f++) {
+            if (EnvSet(std::string("PERLIN_NO_") + kEnv[f])) {
+                state[f] = false;
+                forced[f] = true;
+            } else if (EnvSet(std::string("PERLIN_") + kEnv[f])) {
+                state[f] = true;
+                forced[f] = true;
+            }
+        }
+    }
+
+    const char* RenderTuner::Name(Feature f) {
+        return kNames[f];
+    }
+
+    RenderTuner::Verdict RenderTuner::Decide(const std::vector<Sample>& on, const std::vector<Sample>& off) {
+        Verdict v;
+        if (on.size() < kBlockFrames || off.size() < kBlockFrames)
+            return v;
+        std::vector<double> a, b, ga, gb;
+        for (const Sample& s : on) {
+            a.push_back(s.intervalMs);
+            if (s.gpuMs >= 0)
+                ga.push_back(s.gpuMs);
+        }
+        for (const Sample& s : off) {
+            b.push_back(s.intervalMs);
+            if (s.gpuMs >= 0)
+                gb.push_back(s.gpuMs);
+        }
+        v.decided = true;
+        v.onMs = Median(a);
+        v.offMs = Median(b);
+        // turning a feature off has to win clearly; a tie keeps it on
+        if (v.offMs < v.onMs * 0.97) {
+            v.on = false;
+            return v;
+        }
+        if (v.onMs < v.offMs * 0.97 || ga.size() < kBlockFrames || gb.size() < kBlockFrames)
+            return v;
+        // frame time tied: vsync or a frame cap hides the work, so compare gpu time
+        v.byGpu = true;
+        v.onMs = Median(ga);
+        v.offMs = Median(gb);
+        v.on = !(v.offMs < v.onMs * 0.95);
+        return v;
+    }
+
+    double RenderTuner::Now() const {
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+    }
+
+    void RenderTuner::Init(const conduit::adapter_info& adapter, std::string savePath) {
+        path = std::move(savePath);
+        key = std::format("{}|{}|{}", adapter.name, adapter.driver_version, static_cast<int>(adapter.api));
+        for (int f = 0; f < kFeatureCount; f++) {
+            state[f] = true;
+            forced[f] = false;
+            tested[f] = false;
+        }
+        // until measured, occlusion starts off where it usually costs more than it saves
+        state[Occlusion] = adapter.type != conduit::adapter_type::integrated;
+        ApplyEnvironment();
+        if (EnvSet("PERLIN_NO_AUTOTUNE")) {
+            phase = Phase::Off;
+            Log("tune", "auto-tune off (PERLIN_NO_AUTOTUNE)");
+            return;
+        }
+        if (!EnvSet("PERLIN_AUTOTUNE_RESET")) {
+            const auto saved = ReadSaved(path);
+            if (const auto it = saved.find(key); it != saved.end()) {
+                std::string summary;
+                for (int f = 0; f < kFeatureCount; f++) {
+                    const auto v = it->second.find(kNames[f]);
+                    if (v == it->second.end())
+                        continue;
+                    tested[f] = true;
+                    if (!forced[f])
+                        state[f] = v->second != 0;
+                    summary += std::format(" {}={}", kNames[f], state[f] ? "on" : "off");
+                }
+                Log("tune", "using the saved tuning for {}:{}", adapter.name, summary);
+            }
+        }
+        phase = Phase::Done;
+        for (int f = 0; f < kFeatureCount; f++)
+            if (!forced[f] && !tested[f])
+                phase = Phase::Waiting;
+        settle = 0;
+        if (phase == Phase::Waiting)
+            Log("tune", "will measure which gpu-driven features are fastest on {} once a world has loaded",
+                adapter.name);
+    }
+
+    void RenderTuner::GpuBegin(conduit::device& dev, conduit::command_list& list, uint32_t slot,
+                               uint32_t slots) {
+        frameTimed = false;
+        if (phase != Phase::Testing || !dev.caps().features.timestamp_queries)
+            return;
+        device = &dev;
+        slots = std::max(1u, slots);
+        if (!queries) {
+            conduit::query_set_desc qd;
+            qd.count = 2 * slots;
+            qd.name = "auto-tune times";
+            queries = dev.create_query_set(qd);
+            if (!queries)
+                return;
+            readback.assign(slots, {});
+            pending.assign(slots, {});
+            for (auto& b : readback) {
+                conduit::buffer_desc bd;
+                bd.size = 2 * sizeof(uint64_t);
+                bd.usage = conduit::buffer_usage::copy_dst;
+                bd.memory = conduit::memory_class::readback;
+                bd.name = "auto-tune times";
+                b = dev.create_buffer(bd);
+            }
+            period = dev.timestamp_period_ns();
+        }
+        curSlot = slot % static_cast<uint32_t>(readback.size());
+        // this slot's previous frame has finished (the frame fence was waited on): credit its gpu time
+        Pending& p = pending[curSlot];
+        if (p.valid && readback[curSlot]) {
+            dev.invalidate(readback[curSlot], 0, 2 * sizeof(uint64_t));
+            if (const uint8_t* data = dev.map(readback[curSlot])) {
+                uint64_t t[2];
+                std::memcpy(t, data, sizeof(t));
+                if (p.feature == feature && p.block < blocks.size() &&
+                    p.sample < blocks[p.block].samples.size() && t[1] > t[0])
+                    blocks[p.block].samples[p.sample].gpuMs =
+                        static_cast<double>(t[1] - t[0]) * period * 1e-6;
+            }
+        }
+        p.valid = false;
+        list.write_timestamp(queries, curSlot * 2);
+        frameTimed = true;
+    }
+
+    void RenderTuner::GpuEnd(conduit::command_list& list) {
+        if (!frameTimed)
+            return;
+        list.write_timestamp(queries, curSlot * 2 + 1);
+        list.resolve_queries(queries, curSlot * 2, 2, readback[curSlot], 0);
+    }
+
+    void RenderTuner::Release(conduit::device& dev) {
+        for (auto& b : readback)
+            if (b)
+                dev.destroy(b);
+        readback.clear();
+        pending.clear();
+        if (queries)
+            dev.destroy(queries);
+        queries = {};
+    }
+
+    void RenderTuner::StartFeature() {
+        // the terrain sub-features first, with gpu culling on, then gpu culling itself with its best settings:
+        // otherwise a costly sub-feature would make gpu culling as a whole look slow
+        static constexpr Feature kOrder[] = {Occlusion, FaceCull, ShadowCull, GpuCull, EntityCull, GpuUi};
+        feature = -1;
+        for (const Feature f : kOrder) {
+            if (forced[f] || tested[f])
+                continue;
+            if (f != GpuCull && f <= ShadowCull && !state[GpuCull]) {
+                // gpu culling is forced off: these do nothing
+                tested[f] = true;
+                continue;
+            }
+            feature = f;
+            break;
+        }
+        if (feature < 0) {
+            phase = Phase::Done;
+            std::string summary;
+            for (int f = 0; f < kFeatureCount; f++)
+                summary += std::format(" {}={}", kNames[f], state[f] ? "on" : "off");
+            Log("tune", "done:{} (saved; PERLIN_AUTOTUNE_RESET=1 measures again)", summary);
+            Save();
+            return;
+        }
+        blocks.clear();
+        blocks.push_back({true, {}});
+        state[feature] = true;
+        frameInBlock = 0;
+    }
+
+    void RenderTuner::FinishFeature() {
+        std::vector<Sample> on, off;
+        for (const Block& b : blocks)
+            (b.on ? on : off).insert((b.on ? on : off).end(), b.samples.begin(), b.samples.end());
+        const Verdict v = Decide(on, off);
+        const Feature f = static_cast<Feature>(feature);
+        state[f] = v.on;
+        tested[f] = true;
+        Log("tune", "{}",
+            std::format("{}: on {:.2f} ms, off {:.2f} ms ({}) -> {}", kNames[f], v.onMs, v.offMs,
+                        v.byGpu ? "gpu time" : "frame time", v.on ? "on" : "off"));
+        StartFeature();
+    }
+
+    void RenderTuner::EndFrame(bool worldFrame) {
+        const double now = Now();
+        const double interval = lastTime > 0 ? now - lastTime : 0;
+        lastTime = now;
+        Advance(worldFrame, interval);
+    }
+
+    void RenderTuner::Advance(bool worldFrame, double interval) {
+        if (phase == Phase::Waiting) {
+            // wait for chunk streaming and pipeline compiles to settle after joining
+            settle = worldFrame ? settle + 1 : 0;
+            if (settle >= kSettleFrames) {
+                phase = Phase::Testing;
+                Log("tune", "measuring the gpu-driven features (a few seconds; the picture does not change)");
+                StartFeature();
+            }
+            return;
+        }
+        if (phase != Phase::Testing)
+            return;
+        if (!worldFrame) {
+            // left the world mid-trial: start this feature over when back
+            phase = Phase::Waiting;
+            settle = 0;
+            if (feature >= 0)
+                state[feature] = true;
+            return;
+        }
+        Block& block = blocks.back();
+        if (frameInBlock++ >= kWarmup && interval > 0 && interval < 250) {
+            if (frameTimed && curSlot < pending.size())
+                pending[curSlot] = {true, feature, blocks.size() - 1, block.samples.size()};
+            block.samples.push_back({interval, -1});
+        }
+        if (static_cast<int>(block.samples.size()) < kBlockFrames)
+            return;
+        if (static_cast<int>(blocks.size()) >= kRounds * 2) {
+            FinishFeature();
+            return;
+        }
+        const bool next = !block.on;
+        blocks.push_back({next, {}});
+        state[feature] = next;
+        frameInBlock = 0;
+    }
+
+    void RenderTuner::Save() const {
+        auto saved = ReadSaved(path);
+        auto& mine = saved[key];
+        for (int f = 0; f < kFeatureCount; f++)
+            if (tested[f] && !forced[f])
+                mine[kNames[f]] = state[f] ? 1 : 0;
+        std::string text = "# perlin render auto-tune: the fastest gpu-driven features per gpu and driver\n"
+                           "# delete this file or set PERLIN_AUTOTUNE_RESET=1 to measure again\n";
+        for (const auto& [k, values] : saved) {
+            text += "adapter " + k + "\n";
+            for (const auto& [n, v] : values)
+                text += std::format("{} {}\n", n, v);
+        }
+        if (!file::Write(path, text))
+            Log("tune", "could not save {}", path);
+    }
+
+} // namespace perlin::gpu

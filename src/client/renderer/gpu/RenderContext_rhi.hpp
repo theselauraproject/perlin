@@ -4,6 +4,7 @@
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
 #include "client/renderer/gpu/GpuTerrain.hpp"
+#include "client/renderer/gpu/RenderTuner.hpp"
 #include "client/renderer/gpu/JavaPack.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
 #include "client/renderer/gpu/ModGpu.hpp"
@@ -546,6 +547,9 @@ namespace perlin {
         std::vector<gpu::ChunkMeshStore::Run> runs;
         gpu::GpuTerrain terrain;
         bool gpuCullFrame = false;
+        // measures which gpu-driven features are fastest here and switches them
+        gpu::RenderTuner tuner;
+        bool tuneWorldFrame = false;
         std::vector<gpu::GpuTerrain::Draw> terrainDraws;
         gpu::PipelineKey KeyFor(const ViewData& view, const DrawState& state) const;
 

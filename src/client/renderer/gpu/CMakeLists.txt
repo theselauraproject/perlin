@@ -36,6 +36,7 @@ if(NOT TARGET perlin_gpu)
         ModGpuRun.cpp
         ChunkMeshStore.cpp
         GpuTerrain.cpp
+        RenderTuner.cpp
         RenderContext_rhi.cpp
         RenderContext_rhi_java.cpp
         RenderContext_rhi_pack.cpp

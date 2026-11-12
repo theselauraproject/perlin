@@ -263,7 +263,7 @@ namespace perlin {
                 uint32_t first;
                 int64_t key;
             };
-            static const bool cpuCasters = PERLIN_ENV("PERLIN_NO_GPU_SHADOW_CULL") != nullptr;
+            const bool cpuCasters = !tuner.On(gpu::RenderTuner::ShadowCull);
             shadow.gpuCasters = !cpuCasters && gpuCullFrame;
             {
                 const glm::vec3 axes[3] = {eb.right, eb.up, eb.fwd};

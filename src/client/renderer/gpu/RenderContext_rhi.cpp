@@ -164,6 +164,7 @@ namespace perlin {
         rendererName = conduit::api_name(gpu.Api());
         caveCulling = !PERLIN_ENV("PERLIN_NO_CAVECULL");
         Log("render", "{} on {}", rendererName, adapterName);
+        tuner.Init(gpu.Caps().adapter, paths::DataDir() + "/render-tune.txt");
         meshes.Init(gpu);
         if (!CreateStaticResources())
             return false;
@@ -478,6 +479,7 @@ namespace perlin {
     void RenderContext_rhi::DestroyStaticResources() {
         terrain.Shutdown();
         auto& dev = gpu.Dev();
+        tuner.Release(dev);
         dev.destroy(uiCull.pipeline);
         dev.destroy(uiCull.layout);
         dev.destroy(uiCull.bindLayout);
@@ -1297,6 +1299,7 @@ namespace perlin {
         conduit::command_list* list = dev.acquire_command_list(conduit::queue_type::graphics);
         if (!list)
             return;
+        tuner.GpuBegin(dev, *list, gpu.FrameSlot(), gpu.Frames());
         gpu.SetState(image.texture, conduit::state::undefined);
         if (!modGpu)
             modGpu = std::make_unique<gpu::ModGpu>(gpu);
@@ -1313,8 +1316,8 @@ namespace perlin {
         if (gpuCullFrame)
             terrain.RecordEarly(*list);
         {
-            static const bool noBatch = PERLIN_ENV("PERLIN_NO_GPU_UI") != nullptr;
-            static const bool noCull = PERLIN_ENV("PERLIN_NO_GPU_ENTITY_CULL") != nullptr;
+            const bool noBatch = !tuner.On(gpu::RenderTuner::GpuUi);
+            const bool noCull = !tuner.On(gpu::RenderTuner::EntityCull);
             if (!noBatch && UseMultiDraw() && gpu.Caps().features.draw_indirect_first_instance) {
                 // world draws (entities, particles, weather) are culled on the gpu: size the output for all of them
                 size_t worldDraws = views[static_cast<size_t>(View::Entity)].draws.size() +
@@ -1472,12 +1475,15 @@ namespace perlin {
 
         if (!pendingSinks.empty() || !pendingShots.empty())
             ResolveCapture(*list, screen);
+        tuner.GpuEnd(*list);
         gpu.Transition(*list, image.texture, offscreen ? conduit::state::copy_src : conduit::state::present);
         gpuCullFrame = false;
         gpu.FlushRings();
         dev.submit(conduit::queue_type::graphics, list);
         gpu.PresentImage();
         modGpu->EndFrame();
+        tuner.EndFrame(tuneWorldFrame);
+        tuneWorldFrame = false;
     }
 
     void RenderContext_rhi::UploadLightmap(const uint8_t* pixels) {

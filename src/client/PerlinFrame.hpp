@@ -1,6 +1,9 @@
 #pragma once
 
 #include "client/PerlinInternal.hpp"
+#include "util/Log.hpp"
+#include <format>
+#include <string>
 #include <string_view>
 
 namespace perlin {
@@ -64,14 +67,17 @@ namespace perlin {
                 std::ranges::sort(frameTimes);
                 const size_t n = frameTimes.size();
                 const double p99 = frameTimes[std::min(n - 1, static_cast<size_t>(n * 0.99))];
-                std::cout << "[profile] avg ms:";
+                // through the log, so it lands in perlin.log on windows, where a gui exe has no console
+                std::string line = "avg ms:";
                 for (int i = 0; i < kStages; i++)
-                    std::cout << ' ' << kNames[i] << '=' << total[i] / frames;
-                std::cout << " | worst ms:";
+                    line += std::format(" {}={:.2f}", kNames[i], total[i] / frames);
+                line += " | worst ms:";
                 for (int i = 0; i < kStages; i++)
-                    std::cout << ' ' << kNames[i] << '=' << worst[i];
-                std::cout << " | p99 frame=" << p99 << " (" << (p99 > 0 ? 1000.0 / p99 : 0.0)
-                          << " fps 1% low)" << std::endl;
+                    line += std::format(" {}={:.2f}", kNames[i], worst[i]);
+                line += std::format(" | avg {:.1f} fps, 1% low {:.1f} fps",
+                                    total[Frame] > 0 ? 1000.0 * frames / total[Frame] : 0.0,
+                                    p99 > 0 ? 1000.0 / p99 : 0.0);
+                Log("profile", "{}", line);
                 std::ranges::fill(total, 0.0);
                 std::ranges::fill(worst, 0.0);
                 frameTimes.clear();
@@ -131,13 +137,23 @@ namespace perlin {
                 return type == "minecraft:minecart";
             // the game sends the interact for any entity and the server decides what it does: custom entities
             // (loot chests, npcs), villagers, feeding and leashing all depend on it
-            static constexpr std::string_view kInert[] = {
-                "minecraft:item",          "minecraft:xp_orb",        "minecraft:arrow",
-                "minecraft:snowball",      "minecraft:egg",           "minecraft:ender_pearl",
-                "minecraft:fireball",      "minecraft:small_fireball", "minecraft:thrown_trident",
-                "minecraft:splash_potion", "minecraft:lingering_potion", "minecraft:xp_bottle",
-                "minecraft:fishing_hook",  "minecraft:lightning_bolt", "minecraft:area_effect_cloud",
-                "minecraft:falling_block", "minecraft:tnt"};
+            static constexpr std::string_view kInert[] = {"minecraft:item",
+                                                          "minecraft:xp_orb",
+                                                          "minecraft:arrow",
+                                                          "minecraft:snowball",
+                                                          "minecraft:egg",
+                                                          "minecraft:ender_pearl",
+                                                          "minecraft:fireball",
+                                                          "minecraft:small_fireball",
+                                                          "minecraft:thrown_trident",
+                                                          "minecraft:splash_potion",
+                                                          "minecraft:lingering_potion",
+                                                          "minecraft:xp_bottle",
+                                                          "minecraft:fishing_hook",
+                                                          "minecraft:lightning_bolt",
+                                                          "minecraft:area_effect_cloud",
+                                                          "minecraft:falling_block",
+                                                          "minecraft:tnt"};
             for (std::string_view inert : kInert)
                 if (type == inert)
                     return false;

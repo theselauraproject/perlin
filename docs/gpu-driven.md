@@ -56,8 +56,27 @@ instances so the order stays exact.
 | `PERLIN_NO_GPU_SHADOW_CULL=1` | shadow casters from the CPU list |
 | `PERLIN_NO_GPU_UI=1` | UI, entity and particle draws one by one (still instanced, no multi draw, no GPU cull) |
 | `PERLIN_NO_GPU_ENTITY_CULL=1` | UI batching without the frustum cull pass |
+| `PERLIN_<FEATURE>=1` (`GPU_CULL`, `OCCLUSION`, `FACE_CULL`, `GPU_SHADOW_CULL`, `GPU_ENTITY_CULL`, `GPU_UI`) | forces that feature on and keeps the auto-tune from testing it |
+| `PERLIN_NO_AUTOTUNE=1` | no measuring: every feature on, occlusion off on integrated GPUs |
+| `PERLIN_AUTOTUNE_RESET=1` | measure again, ignoring the saved result |
 | `CONDUIT_SYNC_PIPELINES=1` | pipelines compile on the render thread (Vulkan and Direct3D 12) |
 | no multi draw indirect with first instance | UI draws one by one |
+
+## Auto-tune
+
+Which of these features pay off depends on the GPU: occlusion culling, for one, costs about 1 ms a frame on Intel UHD
+graphics and saves time on discrete cards. So Perlin measures them on the machine it runs on (`RenderTuner`).
+
+- Every feature starts on, except occlusion on integrated GPUs.
+- About ten seconds after a world has loaded, each feature is switched on and off in alternating blocks of 30 frames,
+  eight times each. Alternating cancels out changes in the scene, and the medians ignore hitches. The picture does not
+  change while this runs: these are culling choices, not visual ones.
+- The terrain sub-features (occlusion, facing groups, shadow culling) are measured before GPU culling itself, so one
+  costly sub-feature cannot make GPU culling as a whole look slow.
+- Frame-to-frame time decides. When it ties (vsync or an FPS cap hides the work), GPU time from timestamp queries
+  decides. A feature is turned off only when that is at least 3% faster on frame time, or 5% on GPU time.
+- The result is written to `render-tune.txt` in the data folder, one section per GPU, driver and API, and applied at
+  once on later launches. A driver update or another GPU measures again. The log shows each decision under `[tune]`.
 
 ## Work graphs (Direct3D 12, opt-in)
 

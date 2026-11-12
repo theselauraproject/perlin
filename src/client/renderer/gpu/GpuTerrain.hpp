@@ -43,6 +43,7 @@ namespace perlin::gpu {
             int cullRadius = 0;
             bool caveCulling = true;
             bool occlusion = false;
+            bool faceCull = true;
             uint32_t depthWidth = 0, depthHeight = 0;
         };
 

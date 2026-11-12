@@ -892,8 +892,8 @@ namespace perlin {
                 std::fprintf(stderr, "[javadbg] census chunks=%zu solid=%zu\n", total, solidChunks);
             }
         }
-        static const bool noOcclusion = PERLIN_ENV("PERLIN_NO_OCCLUSION") != nullptr;
-        const bool wantGpu = !pack && terrain.Ready() && UseMultiDraw();
+        const bool wantGpu = !pack && terrain.Ready() && UseMultiDraw() && tuner.On(gpu::RenderTuner::GpuCull);
+        tuneWorldFrame = !pack;
         meshes.Select(frustum, camX, frame.cameraPosition[1], camZ, chunkCullRadius, caveCulling,
                       frame.timeSeconds, wantGpu);
         if (pack) {
@@ -917,7 +917,8 @@ namespace perlin {
             in.cullRadius = chunkCullRadius;
             in.caveCulling = caveCulling;
             uint32_t dw = 0, dh = 0;
-            in.occlusion = !noOcclusion && OcclusionTarget(dw, dh);
+            in.occlusion = tuner.On(gpu::RenderTuner::Occlusion) && OcclusionTarget(dw, dh);
+            in.faceCull = tuner.On(gpu::RenderTuner::FaceCull);
             in.depthWidth = dw;
             in.depthHeight = dh;
             gpuCullFrame = terrain.Prepare(in);

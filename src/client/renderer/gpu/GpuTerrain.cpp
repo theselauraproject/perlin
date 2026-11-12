@@ -782,8 +782,7 @@ namespace perlin::gpu {
         p.hizLevels = hizLevels;
         p.depthWidth = in.depthWidth;
         p.depthHeight = in.depthHeight;
-        static const bool noFaces = PERLIN_ENV("PERLIN_NO_FACE_CULL") != nullptr;
-        p.options = (noFaces ? 0u : kOptFaces) | (in.caveCulling ? kOptCave : 0u) | (occluding ? kOptHiz : 0u);
+        p.options = (in.faceCull ? kOptFaces : 0u) | (in.caveCulling ? kOptCave : 0u) | (occluding ? kOptHiz : 0u);
         std::memcpy(p.hizOffsets, hizOffsets.data(), sizeof(p.hizOffsets));
         std::memcpy(paramMaps[frameSlot], &p, sizeof(p));
         gpu->Dev().flush(paramBuffers[frameSlot], 0, sizeof(p));
