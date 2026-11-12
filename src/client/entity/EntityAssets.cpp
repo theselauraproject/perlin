@@ -226,6 +226,49 @@ namespace perlin::entity {
         SyncOverlays();
     }
 
+    bool EntityAssets::ConfigureAsync(const std::string& newRoot) {
+        if (loaded && root == newRoot) {
+            SyncOverlays();
+            return true;
+        }
+        if (newRoot.empty())
+            return false;
+        if (loaded) {
+            Configure(newRoot);
+            return true;
+        }
+        if (!stagedJob.valid() || stagedRoot != newRoot) {
+            if (stagedJob.valid())
+                stagedJob.wait();
+            staged = std::make_shared<EntityAssets>();
+            stagedRoot = newRoot;
+            std::shared_ptr<EntityAssets> job = staged;
+            stagedJob = std::async(std::launch::async, [job, newRoot] {
+                job->root = newRoot;
+                job->LoadAll();
+            });
+            return false;
+        }
+        if (stagedJob.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return false;
+        stagedJob.get();
+        root = newRoot;
+        overlaysLoaded = 0;
+        overlayGeneration = 0;
+        entities = std::move(staged->entities);
+        controllers = std::move(staged->controllers);
+        collisionBoxes = std::move(staged->collisionBoxes);
+        seats = std::move(staged->seats);
+        animations = std::move(staged->animations);
+        geometries = std::move(staged->geometries);
+        staged.reset();
+        // the material registry is shared and not thread safe: set up here, on the render thread
+        materialLibrary.Load(root);
+        loaded = true;
+        SyncOverlays();
+        return true;
+    }
+
     void EntityAssets::SyncOverlays() {
         const uint32_t gen = ServerPacks::Instance().Generation();
         if (gen == overlayGeneration || ServerPacks::Instance().Mounting())

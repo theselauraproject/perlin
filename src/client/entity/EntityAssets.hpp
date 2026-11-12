@@ -1,4 +1,5 @@
 #pragma once
+#include <future>
 #include "client/attachable/Animation.hpp"
 #include "client/attachable/Geometry.hpp"
 #include "client/attachable/Molang.hpp"
@@ -68,6 +69,10 @@ namespace perlin::entity {
     class EntityAssets {
     public:
         void Configure(const std::string& root);
+        // as Configure, but the first load (a few hundred ms of json) runs on a background thread: false until it
+        // is ready, and the caller draws no entities meanwhile. A later change of root loads synchronously, since
+        // views may hold pointers into the current definitions
+        bool ConfigureAsync(const std::string& root);
         void SyncOverlays();
         bool Loaded() const { return loaded; }
         const ClientEntityDef* Entity(const std::string& identifier) const;
@@ -93,6 +98,9 @@ namespace perlin::entity {
         std::unordered_map<std::string, RenderControllerDef> controllers;
         std::unordered_map<std::string, std::pair<float, float>> collisionBoxes;
         std::unordered_map<std::string, std::array<float, 3>> seats;
+        std::shared_ptr<EntityAssets> staged;
+        std::future<void> stagedJob;
+        std::string stagedRoot;
     };
 
     std::string LowerCase(std::string s);

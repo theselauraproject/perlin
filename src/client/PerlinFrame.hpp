@@ -3,7 +3,6 @@
 #include "client/PerlinInternal.hpp"
 #include "util/Log.hpp"
 #include <cstdio>
-#include <format>
 #include <string>
 #include <string_view>
 

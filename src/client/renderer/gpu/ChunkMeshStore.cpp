@@ -1,6 +1,8 @@
 #include "client/renderer/gpu/ChunkMeshStore.hpp"
+#include "util/Env.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <climits>
 #include <cstdlib>
 #include <cmath>
@@ -13,6 +15,7 @@ namespace perlin::gpu {
 
     void ChunkMeshStore::Shutdown() {
         Clear();
+        DropSpare();
         if (!gpu)
             return;
         for (Page& p : pages) {
@@ -36,6 +39,7 @@ namespace perlin::gpu {
         visible.clear();
         visibleSections.clear();
         NoteAll();
+        DropSpare();
         if (gpu) {
             gpu->Dev().wait_idle();
             for (Page& p : pages) {
@@ -136,22 +140,106 @@ namespace perlin::gpu {
         return ok;
     }
 
+    bool ChunkMeshStore::BuildPage(conduit::device& dev, uint32_t vCap,
+                                   const std::array<uint32_t, kRenderLayerCount>& iCap, uint32_t extBytes,
+                                   Page& p) {
+        bool ok =
+            p.vb.Create(dev, vCap, sizeof(Vertex),
+                        conduit::buffer_usage::vertex | conduit::buffer_usage::storage, "chunk vertices");
+        if (ok && extBytes)
+            ok = p.ext.Create(dev, vCap, extBytes, conduit::buffer_usage::vertex, "chunk vertex extras");
+        for (size_t l = 0; l < kRenderLayerCount && ok; l++)
+            ok = p.ib[l].Create(dev, std::max(1u, iCap[l]), sizeof(uint32_t),
+                                conduit::buffer_usage::index | conduit::buffer_usage::storage,
+                                "chunk indices");
+        if (!ok)
+            DestroyPage(dev, p);
+        return ok;
+    }
+
+    void ChunkMeshStore::DestroyPage(conduit::device& dev, Page& p) {
+        p.vb.Destroy(dev);
+        p.ext.Destroy(dev);
+        for (Arena& a : p.ib)
+            a.Destroy(dev);
+    }
+
+    void ChunkMeshStore::NextPageSize(uint32_t& verts, std::array<uint32_t, kRenderLayerCount>& caps) const {
+        size_t live = 0;
+        for (const Page& p : pages)
+            live += p.live ? 1 : 0;
+        verts = std::min<uint32_t>(kPageVerts, (1u << 18) << std::min<size_t>(live, 2));
+        const uint32_t base = (verts / 4) * 6;
+        caps = {base, base / 2, base / 2, base / 4, base / 8};
+    }
+
+    void ChunkMeshStore::PrepareSpare() {
+        if (!gpu || spare || spareJob.valid())
+            return;
+        const conduit::api api = gpu->Caps().adapter.api;
+        // other backends are not safe to create resources from another thread (none: the null device, for tests)
+        if (api != conduit::api::d3d12 && api != conduit::api::vulkan && api != conduit::api::none)
+            return;
+        uint64_t freeVerts = 0;
+        for (const Page& p : pages)
+            if (p.live)
+                freeVerts += p.vb.FreeTotal();
+        uint32_t verts = 0;
+        std::array<uint32_t, kRenderLayerCount> caps{};
+        NextPageSize(verts, caps);
+        if (freeVerts >= verts / 2)
+            return;
+        auto job = std::make_shared<Spare>();
+        job->ext = extBytes;
+        conduit::device* dev = &gpu->Dev();
+        const uint32_t ext = extBytes;
+        spare = job;
+        spareJob = std::async(std::launch::async, [job, dev, verts, caps, ext] {
+            job->ok = BuildPage(*dev, verts, caps, ext, job->page);
+        });
+    }
+
+    bool ChunkMeshStore::AdoptSpare(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need) {
+        if (!spare || !spareJob.valid() ||
+            spareJob.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return false;
+        spareJob.get();
+        std::shared_ptr<Spare> ready = std::move(spare);
+        spare.reset();
+        bool fits = ready->ok && ready->ext == extBytes && ready->page.vb.Capacity() >= v;
+        for (size_t l = 0; l < kRenderLayerCount && fits; l++)
+            fits = ready->page.ib[l].Capacity() >= need[l];
+        if (!fits) {
+            if (ready->ok)
+                DestroyPage(gpu->Dev(), ready->page);
+            return false;
+        }
+        Page p = std::move(ready->page);
+        p.live = true;
+        if (PERLIN_ENV("PERLIN_STATS"))
+            std::printf("[gpu] adopted a mesh page made ahead (%u vertices)\n", p.vb.Capacity());
+        for (size_t i = 0; i < pages.size(); i++)
+            if (!pages[i].live) {
+                pages[i] = std::move(p);
+                return true;
+            }
+        pages.push_back(std::move(p));
+        return true;
+    }
+
+    void ChunkMeshStore::DropSpare() {
+        if (spareJob.valid())
+            spareJob.wait();
+        if (spare && spare->ok && gpu)
+            DestroyPage(gpu->Dev(), spare->page);
+        spare.reset();
+        spareJob = {};
+    }
+
     int ChunkMeshStore::CreatePage(uint32_t vCap, const std::array<uint32_t, kRenderLayerCount>& iCap) {
         Page p;
-        bool ok = p.vb.Create(gpu->Dev(), vCap, sizeof(Vertex),
-                              conduit::buffer_usage::vertex | conduit::buffer_usage::storage, "chunk vertices");
-        if (ok && extBytes)
-            ok = p.ext.Create(gpu->Dev(), vCap, extBytes, conduit::buffer_usage::vertex, "chunk vertex extras");
-        for (size_t l = 0; l < kRenderLayerCount && ok; l++)
-            ok = p.ib[l].Create(gpu->Dev(), std::max(1u, iCap[l]), sizeof(uint32_t),
-                                conduit::buffer_usage::index | conduit::buffer_usage::storage, "chunk indices");
-        if (!ok) {
-            p.vb.Destroy(gpu->Dev());
-            p.ext.Destroy(gpu->Dev());
-            for (Arena& a : p.ib)
-                a.Destroy(gpu->Dev());
+        if (!BuildPage(gpu->Dev(), vCap, iCap, extBytes, p))
             return -1;
-        }
         p.live = true;
         for (size_t i = 0; i < pages.size(); i++)
             if (!pages[i].live) {
@@ -186,8 +274,17 @@ namespace perlin::gpu {
             return true;
         };
         for (size_t pi = 0; pi < pages.size(); pi++)
-            if (tryPage(pages[pi], static_cast<int>(pi)))
+            if (tryPage(pages[pi], static_cast<int>(pi))) {
+                PrepareSpare();
                 return true;
+            }
+        // the page made ahead, if it is ready; else make one now (the old, stalling way)
+        if (AdoptSpare(v, need))
+            for (size_t pi = pages.size(); pi-- > 0;)
+                if (pages[pi].live && tryPage(pages[pi], static_cast<int>(pi))) {
+                    PrepareSpare();
+                    return true;
+                }
         const uint32_t pageVerts =
             std::min<uint32_t>(kPageVerts, (1u << 18) << std::min<size_t>(pages.size(), 2));
         const uint32_t base = (pageVerts / 4) * 6;
@@ -312,7 +409,7 @@ namespace perlin::gpu {
                     LodDrop(it->second);
                 Free(it->second);
                 blended.erase(&it->second);
-        target.erase(it);
+                target.erase(it);
                 if (!lod)
                     generation++;
             }
@@ -326,7 +423,7 @@ namespace perlin::gpu {
                 LodDrop(it->second);
             Free(it->second);
             blended.erase(&it->second);
-        target.erase(it);
+            target.erase(it);
         }
 
         Chunk g;
@@ -611,12 +708,14 @@ namespace perlin::gpu {
             emit(visible[i]);
         if (out.size() - nearRuns < 2)
             return;
-        std::sort(out.begin() + static_cast<std::ptrdiff_t>(nearRuns), out.end(), [](const Run& a, const Run& b) {
-            return a.page != b.page ? a.page < b.page : a.first < b.first;
-        });
+        std::sort(out.begin() + static_cast<std::ptrdiff_t>(nearRuns), out.end(),
+                  [](const Run& a, const Run& b) {
+                      return a.page != b.page ? a.page < b.page : a.first < b.first;
+                  });
         size_t w = nearRuns;
         for (size_t r = nearRuns; r < out.size(); r++) {
-            if (w > nearRuns && out[w - 1].page == out[r].page && out[w - 1].first + out[w - 1].count == out[r].first)
+            if (w > nearRuns && out[w - 1].page == out[r].page &&
+                out[w - 1].first + out[w - 1].count == out[r].first)
                 out[w - 1].count += out[r].count;
             else
                 out[w++] = out[r];

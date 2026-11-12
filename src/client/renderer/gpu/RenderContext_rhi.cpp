@@ -1440,14 +1440,25 @@ namespace perlin {
                     s.discardDepth = true;
             }
         }
-        for (const Stage& stage : shadowStages)
+        // per pass gpu time for PERLIN_PROFILE: a timestamp before each pass, labelled with its first view
+        static constexpr const char* kViewNames[] = {"shadow", "shadow_glass", "shadow_entity", "world", "world_late", "entities", "late", "hand", "gui", "doll", "top", "export_ui", "blur", "post_out", "bloom0", "bloom1", "bloom2", "bloom3", "bloom4", "bloom5", "bloom6", "upscale", "sharpen", "java_deferred", "java_composite", "java_composite1", "java_composite3", "java_composite4", "java_composite5", "java_composite6", "java_composite7", "java_final"};
+        static_assert(std::size(kViewNames) == static_cast<size_t>(View::Count));
+        const auto stageLabel = [](const Stage& s) -> const char* {
+            if (s.kind == Stage::Kind::Copy)
+                return "copy";
+            return s.views.empty() ? "pass" : kViewNames[static_cast<size_t>(s.views.front())];
+        };
+        for (const Stage& stage : shadowStages) {
+            tuner.Mark(*list, stageLabel(stage));
             RunStage(*list, stage);
+        }
         fgen.valid = false;
         bool hudlessTaken = false;
         bool underHudDone = false;
         conduit::texture_handle passDepth;
         for (const Stage& stage : stages) {
             if (stage.kind == Stage::Kind::Occlusion) {
+                tuner.Mark(*list, "occlusion");
                 terrain.RecordLate(*list, passDepth);
                 continue;
             }
@@ -1464,8 +1475,10 @@ namespace perlin {
                 modGpu->Record(*list, gpu::ModStage::UnderHud, &modScreen);
                 underHudDone = true;
             }
+            tuner.Mark(*list, stageLabel(stage));
             RunStage(*list, stage);
         }
+        tuner.Mark(*list, "mods_overlay");
         if (!underHudDone)
             modGpu->Record(*list, gpu::ModStage::UnderHud, &modScreen);
         // Plugin drawing is screen-space like the HUD: it is recorded before the final capture, so generated frames

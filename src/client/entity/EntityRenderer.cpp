@@ -1770,7 +1770,8 @@ namespace perlin::entity {
         const std::string& root = ui::UiAssets::Instance().VanillaRoot();
         if (root.empty())
             return;
-        assets.Configure(root);
+        if (!assets.ConfigureAsync(root))
+            return;
         auto& slot = views[e.runtimeId];
         if (!slot)
             slot = std::make_unique<View>();
@@ -1825,7 +1826,8 @@ namespace perlin::entity {
         const std::string& root = ui::UiAssets::Instance().VanillaRoot();
         if (root.empty())
             return;
-        assets.Configure(root);
+        if (!assets.ConfigureAsync(root))
+            return;
         auto& slot = views[e.runtimeId];
         if (!slot)
             slot = std::make_unique<View>();
@@ -2453,7 +2455,8 @@ namespace perlin::entity {
         const std::string& root = ui::UiAssets::Instance().VanillaRoot();
         if (root.empty())
             return;
-        assets.Configure(root);
+        if (!assets.ConfigureAsync(root))
+            return;
         drawn = considered = unrenderable = culled = 0;
         if (itemRenderer)
             itemRenderer->BeginWorldItems();

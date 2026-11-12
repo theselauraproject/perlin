@@ -8,7 +8,6 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
-#include <format>
 #include <map>
 #include <sstream>
 
@@ -120,7 +119,9 @@ namespace perlin::gpu {
 
     void RenderTuner::Init(const conduit::adapter_info& adapter, std::string savePath) {
         path = std::move(savePath);
-        key = std::format("{}|{}|{}", adapter.name, adapter.driver_version, static_cast<int>(adapter.api));
+        // std::format is avoided: on apple it needs macos 13.3 even for integers
+        key = adapter.name + "|" + std::to_string(adapter.driver_version) + "|" +
+              std::to_string(static_cast<int>(adapter.api));
         for (int f = 0; f < kFeatureCount; f++) {
             state[f] = true;
             forced[f] = false;
@@ -145,7 +146,7 @@ namespace perlin::gpu {
                     tested[f] = true;
                     if (!forced[f])
                         state[f] = v->second != 0;
-                    summary += std::format(" {}={}", kNames[f], state[f] ? "on" : "off");
+                    summary += std::string(" ") + kNames[f] + "=" + (state[f] ? "on" : "off");
                 }
                 Log("tune", "using the saved tuning for {}:{}", adapter.name, summary);
             }
@@ -169,7 +170,7 @@ namespace perlin::gpu {
         slots = std::max(1u, slots);
         if (!queries) {
             conduit::query_set_desc qd;
-            qd.count = 2 * slots;
+            qd.count = kQueriesPerSlot * slots;
             qd.name = "auto-tune times";
             queries = dev.create_query_set(qd);
             if (!queries)
@@ -178,7 +179,7 @@ namespace perlin::gpu {
             pending.assign(slots, {});
             for (auto& b : readback) {
                 conduit::buffer_desc bd;
-                bd.size = 2 * sizeof(uint64_t);
+                bd.size = kQueriesPerSlot * sizeof(uint64_t);
                 bd.usage = conduit::buffer_usage::copy_dst;
                 bd.memory = conduit::memory_class::readback;
                 bd.name = "auto-tune times";
@@ -190,31 +191,75 @@ namespace perlin::gpu {
         // this slot's previous frame has finished (the frame fence was waited on): credit its gpu time
         Pending& p = pending[curSlot];
         if (p.valid && readback[curSlot]) {
-            dev.invalidate(readback[curSlot], 0, 2 * sizeof(uint64_t));
+            dev.invalidate(readback[curSlot], 0, kQueriesPerSlot * sizeof(uint64_t));
             if (const uint8_t* data = dev.map(readback[curSlot])) {
-                uint64_t t[2];
-                std::memcpy(t, data, sizeof(t));
-                if (t[1] > t[0]) {
-                    const double ms = static_cast<double>(t[1] - t[0]) * period * 1e-6;
+                uint64_t t[kQueriesPerSlot];
+                std::memcpy(t, data, p.used * sizeof(uint64_t));
+                const uint32_t last = p.used - 1;
+                if (t[last] > t[0]) {
+                    const double ms = static_cast<double>(t[last] - t[0]) * period * 1e-6;
                     lastGpuMs = ms;
                     if (p.feature >= 0 && p.feature == feature && p.block < blocks.size() &&
                         p.sample < blocks[p.block].samples.size())
                         blocks[p.block].samples[p.sample].gpuMs = ms;
+                    if (everyFrame && p.used > 2) {
+                        // t[0] frame start, t[1..used-2] marks, t[used-1] frame end
+                        AddPass("setup", static_cast<double>(t[1] - t[0]) * period * 1e-6);
+                        for (uint32_t i = 1; i < last; i++)
+                            if (t[i + 1] >= t[i])
+                                AddPass(p.labels[i - 1],
+                                        static_cast<double>(t[i + 1] - t[i]) * period * 1e-6);
+                        if (++passFrames >= 240) {
+                            std::string line = "gpu ms:";
+                            char buf[64];
+                            for (const auto& [label, total] : passTotals) {
+                                std::snprintf(buf, sizeof(buf), " %s=%.3f", label, total / passFrames);
+                                line += buf;
+                            }
+                            Log("profile", "{}", line);
+                            passTotals.clear();
+                            passFrames = 0;
+                        }
+                    }
                 }
             }
         }
         p.valid = false;
-        list.write_timestamp(queries, curSlot * 2);
+        list.write_timestamp(queries, curSlot * kQueriesPerSlot);
+        used = 1;
+        frameLabels.clear();
         frameTimed = true;
+    }
+
+    void RenderTuner::AddPass(const char* label, double ms) {
+        for (auto& [l, total] : passTotals)
+            if (l == label || std::strcmp(l, label) == 0) {
+                total += ms;
+                return;
+            }
+        passTotals.emplace_back(label, ms);
+    }
+
+    void RenderTuner::Mark(conduit::command_list& list, const char* label) {
+        if (!frameTimed || !everyFrame || used + 1 >= kQueriesPerSlot)
+            return;
+        list.write_timestamp(queries, curSlot * kQueriesPerSlot + used);
+        used++;
+        frameLabels.push_back(label);
     }
 
     void RenderTuner::GpuEnd(conduit::command_list& list) {
         if (!frameTimed)
             return;
-        list.write_timestamp(queries, curSlot * 2 + 1);
-        list.resolve_queries(queries, curSlot * 2, 2, readback[curSlot], 0);
+        list.write_timestamp(queries, curSlot * kQueriesPerSlot + used);
+        used++;
+        list.resolve_queries(queries, curSlot * kQueriesPerSlot, used, readback[curSlot], 0);
         // read back when this slot comes round again; a trial frame also says which sample it belongs to
-        pending[curSlot] = {true, -1, 0, 0};
+        Pending& p = pending[curSlot];
+        p.valid = true;
+        p.feature = -1;
+        p.used = used;
+        p.labels = frameLabels;
     }
 
     void RenderTuner::Release(conduit::device& dev) {
@@ -248,7 +293,7 @@ namespace perlin::gpu {
             phase = Phase::Done;
             std::string summary;
             for (int f = 0; f < kFeatureCount; f++)
-                summary += std::format(" {}={}", kNames[f], state[f] ? "on" : "off");
+                summary += std::string(" ") + kNames[f] + "=" + (state[f] ? "on" : "off");
             Log("tune", "done:{} (saved; PERLIN_AUTOTUNE_RESET=1 measures again)", summary);
             Save();
             return;
@@ -269,8 +314,8 @@ namespace perlin::gpu {
         tested[f] = true;
         // snprintf, not std::format: apple's libc++ formats floats only from macos 13.3
         char line[160];
-        std::snprintf(line, sizeof(line), "%s: on %.2f ms, off %.2f ms (%s) -> %s", kNames[f], v.onMs, v.offMs,
-                      v.byGpu ? "gpu time" : "frame time", v.on ? "on" : "off");
+        std::snprintf(line, sizeof(line), "%s: on %.2f ms, off %.2f ms (%s) -> %s", kNames[f], v.onMs,
+                      v.offMs, v.byGpu ? "gpu time" : "frame time", v.on ? "on" : "off");
         Log("tune", "{}", line);
         StartFeature();
     }
@@ -305,8 +350,11 @@ namespace perlin::gpu {
         }
         Block& block = blocks.back();
         if (frameInBlock++ >= kWarmup && interval > 0 && interval < 250) {
-            if (frameTimed && curSlot < pending.size())
-                pending[curSlot] = {true, feature, blocks.size() - 1, block.samples.size()};
+            if (frameTimed && curSlot < pending.size()) {
+                pending[curSlot].feature = feature;
+                pending[curSlot].block = blocks.size() - 1;
+                pending[curSlot].sample = block.samples.size();
+            }
             block.samples.push_back({interval, -1});
         }
         if (static_cast<int>(block.samples.size()) < kBlockFrames)
@@ -332,7 +380,7 @@ namespace perlin::gpu {
         for (const auto& [k, values] : saved) {
             text += "adapter " + k + "\n";
             for (const auto& [n, v] : values)
-                text += std::format("{} {}\n", n, v);
+                text += n + " " + std::to_string(v) + "\n";
         }
         if (!file::Write(path, text))
             Log("tune", "could not save {}", path);

@@ -1,4 +1,6 @@
 #pragma once
+#include <memory>
+#include <future>
 #include "client/renderer/Frustum.hpp"
 #include "client/renderer/Tessellator.hpp"
 #include "client/renderer/gpu/GpuCore.hpp"
@@ -52,7 +54,8 @@ namespace perlin::gpu {
         struct CullBucket {
             uint32_t page, first, count;
         };
-        void BuildCullRecords(RenderLayer layer, std::vector<CullRecord>& records, std::vector<CullBucket>& buckets) const;
+        void BuildCullRecords(RenderLayer layer, std::vector<CullRecord>& records,
+                              std::vector<CullBucket>& buckets) const;
         uint64_t CaveEpoch() const { return caveEpoch; }
         uint64_t MeshEpoch() const { return meshEpoch; }
 
@@ -130,6 +133,27 @@ namespace perlin::gpu {
             return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
         }
         int CreatePage(uint32_t vCap, const std::array<uint32_t, kRenderLayerCount>& iCap);
+        // builds a page's buffers; touches nothing of the store, so it can run on another thread
+        static bool BuildPage(conduit::device& dev, uint32_t vCap,
+                              const std::array<uint32_t, kRenderLayerCount>& iCap, uint32_t extBytes,
+                              Page& out);
+        static void DestroyPage(conduit::device& dev, Page& p);
+        // the next page's size and index capacities, as Alloc would make it now
+        void NextPageSize(uint32_t& verts, std::array<uint32_t, kRenderLayerCount>& caps) const;
+
+        // a page made ahead of need on a background thread (vulkan, d3d12): a big buffer's creation can take
+        // tens of milliseconds there (the os commits and zeroes the memory), which used to land mid-frame
+        // whenever streaming filled the last page
+        struct Spare {
+            Page page;
+            uint32_t ext = 0;
+            bool ok = false;
+        };
+        std::shared_ptr<Spare> spare;
+        std::future<void> spareJob;
+        void PrepareSpare();
+        bool AdoptSpare(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need);
+        void DropSpare();
         bool Alloc(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need, Chunk& out);
         void Free(Chunk& c);
         void Upload(std::unordered_map<int64_t, Chunk>& target, bool lod, int cx, int cz, int size,

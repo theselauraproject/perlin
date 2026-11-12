@@ -5,6 +5,10 @@
 #include "client/renderer/chunk/MeshBench.hpp"
 
 #include "client/renderer/Tessellator.hpp"
+#include <string>
+#include <unordered_map>
+#include "client/renderer/block/BiomeTints.hpp"
+#include "client/renderer/block/BlockLibrary.hpp"
 #include "client/renderer/chunk/ChunkMesher.hpp"
 #include "util/Resources.hpp"
 #include "world/level/block/BlockPalette.hpp"
@@ -46,23 +50,32 @@ namespace perlin {
         }
         // palette ids of real block names, so name-keyed memos behave as in game
         uint16_t kStone, kDirt, kGrass, kSnow, kLog, kLeaves, kOre, kWater;
-        void InternBlocks() {
+        void InternBlocks(bool real) {
             BlockPalette& pal = BlockPalette::Instance();
-            const auto id = [&](int32_t net, const char* name) {
+            std::unordered_map<std::string, int32_t> hashOf;
+            if (real)
+                for (const auto& [hash, name] : pal.OneStatePerName())
+                    hashOf.emplace(name, hash);
+            int32_t fake = -900001;
+            const auto id = [&](const char* name) {
+                if (const auto it = hashOf.find(name); it != hashOf.end())
+                    return pal.Intern(it->second);
+                const int32_t net = fake--;
                 const uint16_t local = pal.Intern(net);
                 pal.LearnName(net, name);
                 return local;
             };
-            kStone = id(-900001, "minecraft:stone");
-            kDirt = id(-900002, "minecraft:dirt");
-            kGrass = id(-900003, "minecraft:grass_block");
-            kSnow = id(-900004, "minecraft:snow");
-            kLog = id(-900005, "minecraft:oak_log");
-            kLeaves = id(-900006, "minecraft:oak_leaves");
-            kOre = id(-900007, "minecraft:iron_ore");
-            kWater = id(-900008, "minecraft:water");
+            kStone = id("minecraft:stone");
+            kDirt = id("minecraft:dirt");
+            kGrass = id("minecraft:grass_block");
+            kSnow = id("minecraft:snow");
+            kLog = id("minecraft:oak_log");
+            kLeaves = id("minecraft:oak_leaves");
+            kOre = id("minecraft:iron_ore");
+            kWater = id("minecraft:water");
         }
-
+    } // namespace
+    namespace {
         uint16_t BlockAt(int x, int y, int z) {
             const int h = Height(x, z);
             if (y < -64)
@@ -101,7 +114,30 @@ namespace perlin {
 
     int RunMeshBench(int radius, int rounds) {
         // light setup as LevelRenderer does it, so the registry caches like it does in game
-        InternBlocks();
+        // PERLIN_SAMPLES=<bedrock-samples checkout>: real block states, textures, models and tints, the game's path
+        std::shared_ptr<BlockLibrary> library;
+        std::shared_ptr<BiomeTints> tints;
+        if (const char* samples = std::getenv("PERLIN_SAMPLES")) {
+            const std::string root = samples;
+            BlockPalette::Instance().LoadVanillaDefinitions(
+                root + "/metadata/vanilladata_modules/mojang-blocks.json");
+            if (std::string table; resources::Read("block_states.json", table))
+                BlockPalette::Instance().LoadServerStatesText(table, "block_states.json");
+            library = std::make_shared<BlockLibrary>();
+            const std::string packDir = root + "/../perlin-pack";
+            if (!library->EnsureLoaded(packDir, root + "/resource_pack")) {
+                std::printf("[meshbench] could not load the block library from %s\n", root.c_str());
+                return 1;
+            }
+            library->ApplyCustom(root + "/resource_pack");
+            tints = std::make_shared<BiomeTints>();
+            tints->EnsureLoaded(root + "/resource_pack");
+            std::printf("[meshbench] textured: library ready=%d complete=%d, tints ready=%d\n",
+                        library->Ready(), library->Complete(), tints->Ready());
+        }
+        InternBlocks(library != nullptr);
+        BlockLibrary* lib = library.get();
+        BiomeTints* tint = tints.get();
         LightRegistry& registry = LightRegistry::Instance();
         if (const std::string rules = resources::ReadText("light.json"); !rules.empty())
             registry.LoadRules(rules);
@@ -137,7 +173,7 @@ namespace perlin {
         for (const ChunkPos& p : todo) {
             Tessellator t;
             t.Begin();
-            BuildChunkMesh(level, p, t, nullptr, nullptr);
+            BuildChunkMesh(level, p, t, lib, tint);
             t.End();
         }
         std::vector<double> times;
@@ -148,7 +184,7 @@ namespace perlin {
                 Tessellator t;
                 const auto t0 = std::chrono::steady_clock::now();
                 t.Begin();
-                BuildChunkMesh(level, p, t, nullptr, nullptr);
+                BuildChunkMesh(level, p, t, lib, tint);
                 t.End();
                 times.push_back(
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
@@ -212,7 +248,7 @@ namespace perlin {
         MeshReuse reuse;
         auto prev = std::make_shared<Tessellator>();
         prev->Begin();
-        BuildChunkMesh(level, col, *prev, nullptr, nullptr, &reuse);
+        BuildChunkMesh(level, col, *prev, lib, tint, &reuse);
         prev->End();
         reuse.mesh = prev;
         int failures = 0;
@@ -231,14 +267,14 @@ namespace perlin {
             Tessellator full;
             auto t0 = std::chrono::steady_clock::now();
             full.Begin();
-            BuildChunkMesh(level, col, full, nullptr, nullptr);
+            BuildChunkMesh(level, col, full, lib, tint);
             full.End();
             fullMs +=
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
             auto next = std::make_shared<Tessellator>();
             t0 = std::chrono::steady_clock::now();
             next->Begin();
-            BuildChunkMesh(level, col, *next, nullptr, nullptr, &reuse);
+            BuildChunkMesh(level, col, *next, lib, tint, &reuse);
             next->End();
             partialMs +=
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();

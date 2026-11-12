@@ -49,6 +49,9 @@ namespace perlin::gpu {
         // gpu timestamps around the frame; safe to call when the device has no timestamp queries
         void GpuBegin(conduit::device& dev, conduit::command_list& list, uint32_t slot, uint32_t slots);
         void GpuEnd(conduit::command_list& list);
+        // a timestamp between passes when timing every frame: the gpu time until the next mark goes to label
+        // (a string that outlives the frame). PERLIN_PROFILE logs the averages per label
+        void Mark(conduit::command_list& list, const char* label);
         void Release(conduit::device& dev);
 
         // once per presented frame. worldFrame: the frame drew a world (trials only run then)
@@ -98,7 +101,16 @@ namespace perlin::gpu {
             bool valid = false;
             int feature = -1;
             size_t block = 0, sample = 0;
+            uint32_t used = 2;               // timestamps written this frame
+            std::vector<const char*> labels; // the label of each mark, in order
         };
+        static constexpr uint32_t kQueriesPerSlot = 48;
+        uint32_t used = 0;
+        std::vector<const char*> frameLabels;
+        // per label gpu ms summed over the report window
+        std::vector<std::pair<const char*, double>> passTotals;
+        int passFrames = 0;
+        void AddPass(const char* label, double ms);
         std::vector<Pending> pending;
         conduit::device* device = nullptr;
         uint32_t curSlot = 0;

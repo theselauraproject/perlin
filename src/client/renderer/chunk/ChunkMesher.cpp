@@ -14,6 +14,7 @@
 #include "client/player/BlockCollision.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -22,6 +23,12 @@
 #include <cstring>
 #include <memory>
 #include <unordered_map>
+
+#if defined(_MSC_VER)
+#define PERLIN_HOT __forceinline
+#else
+#define PERLIN_HOT inline __attribute__((always_inline))
+#endif
 
 namespace perlin {
     static constexpr float kShadeTop = 1.0f;
@@ -405,10 +412,23 @@ namespace perlin {
         return result;
     }
 
+    // memo tables shared by every mesh worker: an entry only ever goes from unknown (-1) to its one value, so
+    // relaxed atomics are enough, and there is no thread_local lookup on each call
+    struct KindMemo {
+        std::array<std::atomic<int8_t>, 65536> v;
+        KindMemo() {
+            for (auto& e : v)
+                e.store(-1, std::memory_order_relaxed);
+        }
+    };
+
     static int SpecialKind(uint16_t id) {
-        thread_local std::vector<int8_t> memo(65536, -1);
-        int8_t& m = memo[id];
-        if (m < 0) {
+        static KindMemo memo;
+        const int8_t known = memo.v[id].load(std::memory_order_relaxed);
+        if (known >= 0)
+            return known;
+        int8_t m = -1;
+        {
             const std::string name = BlockPalette::Instance().Name(id);
             if (name.empty())
                 return 0;
@@ -432,12 +452,13 @@ namespace perlin {
                 : chest                        ? 5
                                                : 0;
         }
+        memo.v[id].store(m, std::memory_order_relaxed);
         return m;
     }
 
     static bool IsDoorId(uint16_t id) {
-        thread_local std::vector<int8_t> memo(65536, -1);
-        int8_t& m = memo[id];
+        static KindMemo memo;
+        int8_t m = memo.v[id].load(std::memory_order_relaxed);
         if (m < 0) {
             BlockPalette& pal = BlockPalette::Instance();
             const std::string name = pal.Name(id);
@@ -445,6 +466,7 @@ namespace perlin {
                         pal.BlockHasProperty(name, "door_hinge_bit")
                     ? 1
                     : 0;
+            memo.v[id].store(m, std::memory_order_relaxed);
         }
         return m == 1;
     }
@@ -622,10 +644,10 @@ namespace perlin {
         bool anyLiquid = false;
         int yBase = 0, yRows = 0;
 
-        size_t Idx(int x, int y, int z) const {
+        PERLIN_HOT size_t Idx(int x, int y, int z) const {
             return ((size_t)(y - yBase) * 18 + (size_t)(z + 1)) * 18 + (size_t)(x + 1);
         }
-        bool InRange(int x, int y, int z) const {
+        PERLIN_HOT bool InRange(int x, int y, int z) const {
             return x >= -1 && x <= 16 && z >= -1 && z <= 16 && y >= yBase && y < yBase + yRows;
         }
 
@@ -638,6 +660,7 @@ namespace perlin {
             anyLiquid = false;
             solid.assign(n, 0);
             biome.assign(n, 1);
+            aoCell.assign(n, 0xFF);
             const Chunk* around[3][3];
             for (int dz = 0; dz < 3; dz++)
                 for (int dx = 0; dx < 3; dx++) {
@@ -704,14 +727,18 @@ namespace perlin {
             return !holes;
         }
 
-        uint16_t Get(int x, int y, int z) const {
+        PERLIN_HOT uint16_t Get(int x, int y, int z) const {
             return InRange(x, y, z) ? cells[Idx(x, y, z)] : (uint16_t)0;
         }
-        uint16_t Liquid(int x, int y, int z) const {
+        PERLIN_HOT uint16_t Liquid(int x, int y, int z) const {
             return InRange(x, y, z) ? liquid[Idx(x, y, z)] : (uint16_t)0;
         }
-        uint8_t Occ(int x, int y, int z) const { return InRange(x, y, z) ? solid[Idx(x, y, z)] : (uint8_t)0; }
-        uint8_t Biome(int x, int y, int z) const {
+        PERLIN_HOT uint8_t Occ(int x, int y, int z) const {
+            return InRange(x, y, z) ? solid[Idx(x, y, z)] : (uint8_t)0;
+        }
+        // AoShade per cell, filled on first use: 0xFF unknown, else 1 for 0.2 (shading) and 0 for 1.0
+        mutable std::vector<uint8_t> aoCell;
+        PERLIN_HOT uint8_t Biome(int x, int y, int z) const {
             return InRange(x, y, z) ? biome[Idx(x, y, z)] : (uint8_t)1;
         }
     };
@@ -767,7 +794,18 @@ namespace perlin {
         return weight ? total / static_cast<float>(weight) : 0.0f;
     }
 
-    static float AoShade(const BlockCache& cache, BlockLibrary* library, int x, int y, int z) {
+    static float AoShadeUncached(const BlockCache& cache, BlockLibrary* library, int x, int y, int z);
+    // a cell's shade cannot change within one build: compute it once, every face around it reads the cache
+    PERLIN_HOT static float AoShade(const BlockCache& cache, BlockLibrary* library, int x, int y, int z) {
+        if (!cache.InRange(x, y, z))
+            return 1.0f;
+        uint8_t& known = cache.aoCell[cache.Idx(x, y, z)];
+        if (known == 0xFF)
+            known = AoShadeUncached(cache, library, x, y, z) == 1.0f ? 0 : 1;
+        return known ? 0.2f : 1.0f;
+    }
+
+    static float AoShadeUncached(const BlockCache& cache, BlockLibrary* library, int x, int y, int z) {
         const uint16_t id = cache.Get(x, y, z);
         if (id == 0)
             return 1.0f;
@@ -1554,9 +1592,13 @@ namespace perlin {
                                 }
 
                                 float base[3] = {1, 1, 1};
-                                const std::string tintTexture = q.tile || q.tex >= bm.Textures().size()
-                                                                    ? library->TilePathOf(tile)
-                                                                    : bm.Textures()[q.tex];
+                                // the model's own texture name by reference: a copy per quad was most of the
+                                // mesher's allocations; only a tile without a model texture builds its path
+                                std::string tilePath;
+                                const bool modelTexture = !q.tile && q.tex < bm.Textures().size();
+                                if (!modelTexture)
+                                    tilePath = library->TilePathOf(tile);
+                                const std::string& tintTexture = modelTexture ? bm.Textures()[q.tex] : tilePath;
                                 {
                                     const std::string& tn0 = tintTexture;
                                     if (tn0.contains("bamboo_leaf") || tn0.contains("bamboo_small_leaf"))
