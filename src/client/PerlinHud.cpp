@@ -213,6 +213,20 @@ namespace perlin {
                                std::chrono::duration<double>(Clock::now().time_since_epoch()).count() * 20.0)
                          : hudAnim.ticks;
         s.inWater = headUnderwater;
+        {
+            // java ChatComponent: width/height floor(v * range + min), line height (int)(9 * (spacing + 1))
+            const ChatSettings& c = options.chat;
+            ui::ChatLog::Layout layout;
+            layout.width = static_cast<int>(std::floor(c.width * 280.0f + 40.0f));
+            layout.scale = std::max(0.1f, c.scale);
+            layout.lineHeight = std::max(1, static_cast<int>(9.0f * (c.lineSpacing + 1.0f)));
+            layout.focusedLines = static_cast<int>(std::floor(c.focusedHeight * 160.0f + 20.0f)) / layout.lineHeight;
+            layout.unfocusedLines =
+                static_cast<int>(std::floor(c.unfocusedHeight * 160.0f + 20.0f)) / layout.lineHeight;
+            layout.textAlpha = c.textOpacity;
+            layout.backgroundAlpha = c.backgroundOpacity;
+            chat.SetLayout(layout);
+        }
         chat.Fill(s, hudAnim.ticks, detail::MsNow());
         s.sidebarVisible = false;
         s.sidebarTitle.clear();

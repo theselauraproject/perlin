@@ -3,6 +3,7 @@
 #include "util/Platform.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include "util/Json.hpp"
 
@@ -10,7 +11,7 @@
 
 namespace perlin {
     namespace {
-        constexpr int kOptionsVersion = 5;
+        constexpr int kOptionsVersion = 6;
     }
     namespace stored {
         struct Stored {
@@ -89,7 +90,7 @@ namespace perlin {
             float touchOpacity = 0.85f;
             std::map<std::string, TouchPlace> touchLayout;
             bool fullscreen = false;
-            bool centerCursor = true;
+            bool centerCursor = false;
             bool autoUpdate = true;
             bool versionMismatchNoAsk = false;
             bool discordPresence = true;
@@ -101,6 +102,7 @@ namespace perlin {
             bool clouds = true;
             bool perlinBadges = true;
             int backgroundFps = 30;
+            ChatSettings chat;
         };
     }
 
@@ -330,6 +332,7 @@ namespace perlin {
             o.betterGrass = Options().betterGrass;
             o.skins3d = Options().skins3d;
             o.capePhysics = Options().capePhysics;
+            o.centerCursor = Options().centerCursor;
         }
 
         for (size_t i = 0; i < kActionCount; i++) {
@@ -370,6 +373,10 @@ namespace perlin {
         o.touchOpacity = std::clamp(stored.touchOpacity, 0.2f, 1.0f);
         o.touchLayout = stored.touchLayout;
         o.fullscreen = stored.fullscreen;
+        o.chat = stored.chat;
+        for (float* v : {&o.chat.scale, &o.chat.width, &o.chat.focusedHeight, &o.chat.unfocusedHeight,
+                         &o.chat.textOpacity, &o.chat.backgroundOpacity, &o.chat.lineSpacing})
+            *v = std::isfinite(*v) ? std::clamp(*v, 0.0f, 1.0f) : 0.0f;
         o.centerCursor = stored.centerCursor;
         o.autoUpdate = stored.autoUpdate;
         o.versionMismatchNoAsk = stored.versionMismatchNoAsk;
@@ -465,6 +472,7 @@ namespace perlin {
         stored.touchLayout = touchLayout;
         stored.fullscreen = fullscreen;
         stored.centerCursor = centerCursor;
+        stored.chat = chat;
         stored.autoUpdate = autoUpdate;
         stored.versionMismatchNoAsk = versionMismatchNoAsk;
         stored.discordPresence = discordPresence;

@@ -102,6 +102,42 @@ int main() {
         t.Move(1, {2, 0, 0}, 0, 0, 0, true, Kind::Lerp);
         CHECK(Near(Get(t, 1).pos.x, 2));
     }
+    {
+        // projectiles: no 3-tick lerp, the server position lands on the next tick
+        EntityTracker t;
+        t.AddEntity(2, 2, "minecraft:arrow", {0, 10, 0}, 0, 0, 0, 0, 1, 0, 0, 0);
+        t.TickInterpolation();
+        t.Move(2, {1, 10, 0}, 0, 0, 0, true, Kind::Lerp);
+        t.TickInterpolation();
+        CHECK(Near(Get(t, 2).pos.x, 1));
+        t.Move(2, {2, 9.95, 0}, 0, 0, 0, true, Kind::Lerp);
+        t.TickInterpolation();
+        CHECK(Near(Get(t, 2).pos.x, 2));
+        CHECK(Near(Get(t, 2).prevPos.x, 1));
+        // between updates it keeps flying with arrow drag and gravity
+        t.TickInterpolation();
+        CHECK(Near(Get(t, 2).pos.x, 3));
+        CHECK(Near(Get(t, 2).pos.y, 9.9));
+        t.TickInterpolation();
+        CHECK(Near(Get(t, 2).pos.x, 3.99));
+        CHECK(std::fabs(Get(t, 2).pos.y - 9.8005) < 1e-9);
+        // then waits for the server (stuck in a block)
+        const double held = Get(t, 2).pos.x;
+        t.TickInterpolation();
+        CHECK(Near(Get(t, 2).pos.x, held));
+    }
+    {
+        // simulated dropped items: a server position applies on the interpolation tick, not mid-frame
+        EntityTracker t;
+        t.AddItem(3, 3, {0, 5, 0}, "minecraft:stone", 1, 0, 0, false);
+        t.SetMotion(3, {0, 0, 0});
+        t.TickInterpolation();
+        t.Move(3, {0.5, 5, 0}, 0, 0, 0, false, Kind::Lerp);
+        CHECK(Near(Get(t, 3).pos.x, 0));
+        t.TickInterpolation();
+        CHECK(Near(Get(t, 3).pos.x, 0.5));
+        CHECK(Near(Get(t, 3).prevPos.x, 0));
+    }
     std::printf("ActorLerp: %d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;
 }

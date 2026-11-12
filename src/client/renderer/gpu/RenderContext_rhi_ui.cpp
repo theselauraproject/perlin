@@ -146,6 +146,29 @@ namespace perlin {
         }
     }
 
+    RenderContext_rhi::TexRec* RenderContext_rhi::LookupUiTexture(uint32_t id) {
+        const uint32_t slot = id & kUiTexSlotMask;
+        if (slot == 0 || slot > uiTextures.size() || !uiTextures[slot - 1].used)
+            return nullptr;
+        if (slot <= uiTextureGen.size() && uiTextureGen[slot - 1] != (id >> kUiTexSlotBits))
+            return nullptr;
+        return &uiTextures[slot - 1];
+    }
+
+    uint32_t RenderContext_rhi::StoreUiTexture(const TexRec& rec) {
+        uiTextureGen.resize(uiTextures.size(), 0);
+        constexpr uint32_t kGenMask = (1u << (32 - kUiTexSlotBits)) - 1u;
+        for (size_t i = 0; i < uiTextures.size(); i++)
+            if (!uiTextures[i].used) {
+                uiTextures[i] = rec;
+                uiTextureGen[i] = (uiTextureGen[i] + 1) & kGenMask;
+                return static_cast<uint32_t>(i + 1) | (uiTextureGen[i] << kUiTexSlotBits);
+            }
+        uiTextures.push_back(rec);
+        uiTextureGen.push_back(0);
+        return static_cast<uint32_t>(uiTextures.size());
+    }
+
     uint32_t RenderContext_rhi::UiCreateTextureMipped(int w, int h, const std::vector<const uint8_t*>& levels) {
         if (!initialized || w <= 0 || h <= 0 || levels.empty() || !levels[0])
             return 0;
@@ -158,13 +181,7 @@ namespace perlin {
             if (levels[l])
                 gpu.WriteTexture(rec.handle, 0, 0, 0, static_cast<uint32_t>(std::max(1, w >> l)),
                                  static_cast<uint32_t>(std::max(1, h >> l)), levels[l], 0, static_cast<uint32_t>(l));
-        for (size_t i = 0; i < uiTextures.size(); i++)
-            if (!uiTextures[i].used) {
-                uiTextures[i] = rec;
-                return static_cast<uint32_t>(i + 1);
-            }
-        uiTextures.push_back(rec);
-        return static_cast<uint32_t>(uiTextures.size());
+        return StoreUiTexture(rec);
     }
 
     uint32_t RenderContext_rhi::UiCreateTexture(int w, int h, const uint8_t* rgba, bool linear, bool repeat) {
@@ -178,21 +195,15 @@ namespace perlin {
                          conduit::format::rgba8_unorm, sampler, "ui texture"))
             return 0;
         gpu.WriteTexture(rec.handle, 0, 0, 0, static_cast<uint32_t>(w), static_cast<uint32_t>(h), rgba);
-        for (size_t i = 0; i < uiTextures.size(); i++)
-            if (!uiTextures[i].used) {
-                uiTextures[i] = rec;
-                return static_cast<uint32_t>(i + 1);
-            }
-        uiTextures.push_back(rec);
-        return static_cast<uint32_t>(uiTextures.size());
+        return StoreUiTexture(rec);
     }
 
     bool RenderContext_rhi::UiUpdateTexture(uint32_t id, int x, int y, int w, int h, const uint8_t* rgba,
                                             int rowBytes) {
-        if (!initialized || id == 0 || id > uiTextures.size() || !uiTextures[id - 1].used || !rgba || w <= 0 ||
-            h <= 0 || x < 0 || y < 0)
+        TexRec* found = initialized ? LookupUiTexture(id) : nullptr;
+        if (!found || !rgba || w <= 0 || h <= 0 || x < 0 || y < 0)
             return false;
-        TexRec& rec = uiTextures[id - 1];
+        TexRec& rec = *found;
         if (static_cast<uint32_t>(x + w) > rec.w || static_cast<uint32_t>(y + h) > rec.h || rec.mips != 1)
             return false;
         const size_t pitch = rowBytes > 0 ? static_cast<size_t>(rowBytes) : static_cast<size_t>(w) * 4;
@@ -202,9 +213,8 @@ namespace perlin {
     }
 
     void RenderContext_rhi::UiDestroyTexture(uint32_t id) {
-        if (id == 0 || id > uiTextures.size() || !uiTextures[id - 1].used)
-            return;
-        FreeTexture(uiTextures[id - 1]);
+        if (TexRec* rec = LookupUiTexture(id))
+            FreeTexture(*rec);
     }
 
     RenderContext_rhi::UiMeshGpu* RenderContext_rhi::LookupUiMesh(uint32_t id) {
@@ -374,11 +384,13 @@ namespace perlin {
             ReleaseUiMeshSlot(static_cast<uint32_t>(i));
         frameUiMeshes.clear();
         staticUiMeshes = 0;
-        for (size_t i = 0; i < uiTextures.size(); i++)
-            UiDestroyTexture(static_cast<uint32_t>(i + 1));
+        for (TexRec& t : uiTextures)
+            if (t.used)
+                FreeTexture(t);
         uiMeshes.clear();
         freeUiMeshes.clear();
         uiTextures.clear();
+        uiTextureGen.clear();
         for (UiPage& p : uiPages) {
             p.vb.Destroy(gpu.Dev());
             p.ib.Destroy(gpu.Dev());
@@ -482,14 +494,12 @@ namespace perlin {
         UiMeshGpu& mesh = *found;
         const uint32_t count = mesh.iCount;
 
-        const TexRec* texture = nullptr;
-        if (draw.texture != 0 && draw.texture <= uiTextures.size() && uiTextures[draw.texture - 1].used)
-            texture = &uiTextures[draw.texture - 1];
-        const bool glint = draw.glintTexture != 0 && draw.glintTexture <= uiTextures.size() &&
-                           uiTextures[draw.glintTexture - 1].used;
+        const TexRec* texture = draw.texture != 0 ? LookupUiTexture(draw.texture) : nullptr;
+        const TexRec* glintRec = draw.glintTexture != 0 ? LookupUiTexture(draw.glintTexture) : nullptr;
+        const bool glint = glintRec != nullptr;
         if (PackRunning() && jpackGathered &&
             RouteToJavaPack(layer, draw, mesh,
-                            glint ? uiTextures[draw.glintTexture - 1].handle
+                            glint ? glintRec->handle
                                   : (texture ? texture->handle : conduit::texture_handle{}),
                             glint))
             return;
@@ -549,8 +559,7 @@ namespace perlin {
         BindTexture("s_uiTex", texture ? texture->handle : gpu.White2D(),
                     texture ? texture->sampler : gpu::SamplerKind::LinearRepeat);
         if (glint)
-            BindTexture("s_uiGlint", uiTextures[draw.glintTexture - 1].handle,
-                        uiTextures[draw.glintTexture - 1].sampler);
+            BindTexture("s_uiGlint", glintRec->handle, glintRec->sampler);
 
         const bool world = layer == UiLayer::World || layer == UiLayer::WorldLate;
         const bool entityView = world || layer == UiLayer::Hand || layer == UiLayer::Doll;

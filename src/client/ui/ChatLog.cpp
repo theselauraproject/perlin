@@ -158,9 +158,33 @@ namespace perlin::ui {
                                  "]\xC2\xA7"
                                  "r");
         }
+        messages.push_back({text, tick});
+        while (messages.size() > kMaxLines)
+            messages.pop_front();
+        AppendWrapped(text, tick);
+        while (lines.size() > kMaxLines)
+            lines.pop_front();
+        scroll = std::min(scroll, std::max(0, static_cast<int>(lines.size()) - PageLines()));
+    }
+
+    void ChatLog::SetLayout(const Layout& next) {
+        const int oldWrap = WrapWidth();
+        layout = next;
+        layout.scale = std::max(0.05f, layout.scale);
+        if (WrapWidth() == oldWrap)
+            return;
+        lines.clear();
+        for (const Message& m : messages)
+            AppendWrapped(m.text, m.added);
+        while (lines.size() > kMaxLines)
+            lines.pop_front();
+        scroll = 0;
+    }
+
+    void ChatLog::AppendWrapped(const std::string& text, uint64_t tick) {
         const std::vector<std::string> urls = FindUrls(text);
         size_t urlAt = 0, urlPos = 0;
-        for (const std::string& piece : Wrap(text, kWidth)) {
+        for (const std::string& piece : Wrap(text, WrapWidth())) {
             if (scroll > 0)
                 scroll++;
             Line line{piece, tick, {}};
@@ -211,9 +235,6 @@ namespace perlin::ui {
             }
             lines.push_back(std::move(line));
         }
-        while (lines.size() > kMaxLines)
-            lines.pop_front();
-        scroll = std::min(scroll, std::max(0, static_cast<int>(lines.size()) - 20));
     }
 
     void ChatLog::Open(const std::string& prefill, uint64_t nowMs) {
@@ -509,7 +530,7 @@ namespace perlin::ui {
         if (wheel != 0.0f) {
             const int step =
                 static_cast<int>(std::lround(wheel > 0 ? std::max(1.0f, wheel) : std::min(-1.0f, wheel)));
-            scroll = std::clamp(scroll + step, 0, std::max(0, static_cast<int>(lines.size()) - 20));
+            scroll = std::clamp(scroll + step, 0, std::max(0, static_cast<int>(lines.size()) - PageLines()));
         }
         for (const auto& t : typed) {
             if (!t.character && (t.key == Key::Tab) && !suggestions.empty()) {
@@ -566,10 +587,10 @@ namespace perlin::ui {
                 Recall(1);
                 break;
             case Key::PageUp:
-                scroll = std::clamp(scroll + 19, 0, std::max(0, static_cast<int>(lines.size()) - 20));
+                scroll = std::clamp(scroll + PageLines() - 1, 0, std::max(0, static_cast<int>(lines.size()) - PageLines()));
                 break;
             case Key::PageDown:
-                scroll = std::clamp(scroll - 19, 0, std::max(0, static_cast<int>(lines.size()) - 20));
+                scroll = std::clamp(scroll - PageLines() + 1, 0, std::max(0, static_cast<int>(lines.size()) - PageLines()));
                 break;
             default:
                 break;
@@ -582,7 +603,13 @@ namespace perlin::ui {
     void ChatLog::Fill(HudState& s, uint64_t tick, uint64_t nowMs) const {
         s.chatOpen = open;
         s.chatLines.clear();
-        const int maxLines = open ? 20 : 10;
+        const int maxLines = open ? PageLines() : std::max(1, layout.unfocusedLines);
+        s.chatScale = layout.scale;
+        s.chatWrapWidth = WrapWidth();
+        s.chatLineHeight = layout.lineHeight;
+        s.chatPageLines = maxLines;
+        s.chatTextAlpha = layout.textAlpha;
+        s.chatBackgroundAlpha = layout.backgroundAlpha;
         const int total = static_cast<int>(lines.size());
         for (int i = 0; i < maxLines && i + scroll < total; i++) {
             const Line& l = lines[static_cast<size_t>(total - 1 - (i + scroll))];

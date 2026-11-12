@@ -1458,15 +1458,14 @@ namespace perlin {
             return s == 1;
         };
         if (live) {
-            static double itemAcc = 0.0;
-            itemAcc = std::min(itemAcc + static_cast<double>(dt), 0.15);
-            const auto itemHit = [&](double x0, double y0, double z0, double x1, double y1, double z1) {
+            Level* itemLevel = &entityLevel;
+            const auto itemHit = [itemLevel](double x0, double y0, double z0, double x1, double y1, double z1) {
                 for (int bx = static_cast<int>(std::floor(x0)); bx <= static_cast<int>(std::floor(x1)); bx++)
                     for (int by = static_cast<int>(std::floor(y0)); by <= static_cast<int>(std::floor(y1)); by++)
                         for (int bz = static_cast<int>(std::floor(z0)); bz <= static_cast<int>(std::floor(z1));
                              bz++) {
                             bool loaded = false;
-                            const uint16_t id = entityLevel.GetBlock(bx, by, bz, loaded);
+                            const uint16_t id = itemLevel->GetBlock(bx, by, bz, loaded);
                             if (!loaded)
                                 return true;
                             if (id == 0)
@@ -1478,10 +1477,7 @@ namespace perlin {
                         }
                 return false;
             };
-            while (itemAcc >= 0.05) {
-                itemAcc -= 0.05;
-                live->Entities().StepItems(itemHit);
-            }
+            live->Entities().SetItemCollider(itemHit);
         }
         pw.light = ein.light;
         if (renderer && renderer->JavaPackDrawing())

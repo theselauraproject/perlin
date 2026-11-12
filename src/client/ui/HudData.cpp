@@ -434,6 +434,11 @@ namespace perlin::ui {
             for (const std::string& l : s.debugRight)
                 mixs(l);
         }
+        mixf(s.chatScale);
+        mix(static_cast<uint64_t>(s.chatWrapWidth) | (static_cast<uint64_t>(s.chatLineHeight) << 20) |
+            (static_cast<uint64_t>(s.chatPageLines) << 40));
+        mixq(s.chatTextAlpha);
+        mixq(s.chatBackgroundAlpha);
         for (const auto& l : s.chatLines) {
             mixs(l.text);
             mixq(l.alpha);

@@ -441,36 +441,44 @@ namespace perlin::ui {
         void Chat(const HudState& s, const LNode& n, RmlWriter& w) {
             TabList(s, n, w);
             const McFont& font = McFont::Instance();
-            const float width = 320.0f;
+            const float sc = s.chatScale;
+            const float width = static_cast<float>(s.chatWrapWidth);
+            const float lineH = static_cast<float>(s.chatLineHeight);
+            // rows grow upward from the section's bottom edge (180), like the java chat from its baseline
+            constexpr float kBottom = 180.0f;
+            // java ChatComponent: text alpha = opacity * 0.9 + 0.1, background alpha untouched by it
+            const float textAlpha = s.chatTextAlpha * 0.9f + 0.1f;
             w.BeginSection();
             for (const HudState::ChatLine& l : s.chatLines) {
-                if (l.alpha * 255.0f <= 3.0f)
+                const float a = l.alpha * textAlpha;
+                if (a * 255.0f <= 3.0f)
                     continue;
-                const float top = 171.0f - static_cast<float>(l.row) * 9.0f;
-                if (top < 0.0f)
-                    continue;
-                w.Rect(0, top, width + 8, 9, 1, 0, 0, 0, 0.5f * l.alpha);
+                const float top = kBottom - (static_cast<float>(l.row) + 1.0f) * lineH * sc;
+                const float textTop = top + ((lineH - 9.0f) * 0.5f + 1.0f) * sc;
+                w.Rect(0, top, (width + 8) * sc, lineH * sc, 1, 0, 0, 0, s.chatBackgroundAlpha * l.alpha);
                 for (const HudState::ChatLine::Click& c : l.clicks) {
                     const bool url = c.command.starts_with("url:");
                     if (url)
-                        w.Rect(4 + c.x, top + 9.0f, c.w, 1, 3, 0.33f, 0.55f, 1.0f, l.alpha);
+                        w.Rect((4 + c.x) * sc, textTop + 8.0f * sc, c.w * sc, sc, 3, 0.33f, 0.55f, 1.0f, a);
                     if (url ? s.chatOpen : true)
-                        w.Link(4 + c.x, top, c.w, 9, 4, c.command);
+                        w.Link((4 + c.x) * sc, top, c.w * sc, lineH * sc, 4, c.command);
                 }
                 TextStyle st;
                 st.shadow = true;
-                st.a = l.alpha;
-                w.Text(4, top + 1, width, 9, 2, {l.text}, st);
+                st.a = a;
+                st.scale = sc;
+                w.Text(4 * sc, textTop, width * sc, 9 * sc, 2, {l.text}, st);
             }
             w.EndSection("chat_lines");
             w.BeginSection();
             if (s.chatScrolled && s.chatTotalLines > 0) {
-                const float track = 180.0f;
-                const float thumb =
-                    std::max(4.0f, track * 20.0f / static_cast<float>(std::max(20, s.chatTotalLines)));
+                const int page = std::max(1, s.chatPageLines);
+                const float track = static_cast<float>(page) * lineH * sc;
+                const float thumb = std::max(4.0f, track * static_cast<float>(page) /
+                                                       static_cast<float>(std::max(page, s.chatTotalLines)));
                 const float pos = (track - thumb) * static_cast<float>(s.chatScroll) /
-                                  static_cast<float>(std::max(1, s.chatTotalLines - 20));
-                w.Rect(0, 180.0f - pos - thumb, 2, thumb, 1, 0.8f, 0.8f, 0.8f, 0.9f);
+                                  static_cast<float>(std::max(1, s.chatTotalLines - page));
+                w.Rect(0, kBottom - pos - thumb, 2, thumb, 1, 0.8f, 0.8f, 0.8f, 0.9f);
             }
             w.EndSection("chat_scroll");
             w.BeginSection();

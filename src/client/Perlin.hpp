@@ -217,6 +217,7 @@ namespace perlin {
         void BuildSkinOptions(OptionsModel& m, PauseFrame& f);
         void BuildPerlinOptions(OptionsModel& m, PauseFrame& f);
         void BuildKeyBindsOptions(OptionsModel& m, PauseFrame& f);
+        void BuildChatOptions(OptionsModel& m, PauseFrame& f);
         void UpdatePauseMenu(PauseFrame& f);
         const Binding& BindingOf(Action a) const {
             return optionsUi.bindDevice == 1 ? options.GetPadKey(a) : options.GetKey(a);

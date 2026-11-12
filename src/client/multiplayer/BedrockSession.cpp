@@ -1267,8 +1267,10 @@ namespace perlin {
         {
             std::lock_guard lock(hurtMutex);
             lastHurtAt = now;
-            const bool recentKnock =
-                knockAt.time_since_epoch().count() != 0 && now - knockAt < std::chrono::seconds(1);
+            // same hit only: the server sends the hurt event and its knockback within a tick of each other;
+            // an older knockback belongs to the previous hit of a combo
+            const bool recentKnock = knockAt.time_since_epoch().count() != 0 &&
+                                     now - knockAt < std::chrono::milliseconds(150);
             hurtSource.known = recentKnock;
             hurtSource.dx = recentKnock ? -knockX : 0.0f;
             hurtSource.dz = recentKnock ? -knockZ : 0.0f;
@@ -1285,8 +1287,7 @@ namespace perlin {
         knockX = vx;
         knockZ = vz;
         knockAt = now;
-        if (!hurtSource.known && lastHurtAt.time_since_epoch().count() != 0 &&
-            now - lastHurtAt < std::chrono::milliseconds(150)) {
+        if (lastHurtAt.time_since_epoch().count() != 0 && now - lastHurtAt < std::chrono::milliseconds(150)) {
             hurtSource.known = true;
             hurtSource.dx = -vx;
             hurtSource.dz = -vz;
