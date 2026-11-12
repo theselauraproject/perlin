@@ -213,6 +213,8 @@ namespace perlin::ui {
         {
             std::vector<std::string> roots;
             const std::vector<std::string> server = ServerPacks::Instance().Directories();
+            builtPackDirs = server;
+            builtPackDirsKnown = true;
             for (size_t i = server.size(); i-- > 0;)
                 roots.push_back(server[i] + "/ui");
             const std::string packUi = ExtractPackUi(dataDir);
@@ -303,7 +305,8 @@ namespace perlin::ui {
 
         if (serverPacksChangedAt >= 0.0 && now - serverPacksChangedAt > 0.3 && !ServerPacks::Instance().Mounting()) {
             serverPacksChangedAt = -1.0;
-            reloadRequested = true;
+            if (!builtPackDirsKnown || ServerPacks::Instance().Directories() != builtPackDirs)
+                reloadRequested = true;
         }
         if (reloadRequested || now - sinceCheck > 3.0) {
             sinceCheck = now;
@@ -338,7 +341,28 @@ namespace perlin::ui {
         }
         if (!tree)
             return scale;
-        if (now - templateCheck > 2.0 || templatesStale) {
+        // a stamp of both files (write time and size): unchanged, nothing to read; the check runs every 2 s on the
+        // render thread, and reading and hashing two files each time showed up as hud spikes
+        const auto stampOf = [&] {
+            uint64_t stamp = 1469598103934665603ull;
+            for (const char* name : {"hud_screen.rml", "chat_screen.rml"}) {
+                std::error_code ec;
+                const std::filesystem::path file = std::filesystem::path(dataDir) / "ui" / name;
+                const auto when = std::filesystem::last_write_time(file, ec);
+                const uint64_t t = ec ? 0 : static_cast<uint64_t>(when.time_since_epoch().count());
+                const uint64_t size = ec ? 0 : static_cast<uint64_t>(std::filesystem::file_size(file, ec));
+                stamp = (stamp ^ t) * 1099511628211ull;
+                stamp = (stamp ^ size) * 1099511628211ull;
+            }
+            return stamp;
+        };
+        bool templatesDue = templatesStale;
+        if (!templatesDue && now - templateCheck > 2.0) {
+            templateCheck = now;
+            const uint64_t stamp = stampOf();
+            templatesDue = stamp != templateStamp;
+        }
+        if (templatesDue) {
             templateCheck = now;
             uint64_t vh = 0, vc = 0;
             std::string hudT = LoadUiTemplate(dataDir, "hud_screen.rml", DefaultHudTemplate(), vh);
@@ -352,6 +376,7 @@ namespace perlin::ui {
                 templatesStale = false;
                 Log("ui", "loaded {}/ui/hud_screen.rml and chat_screen.rml", dataDir);
             }
+            templateStamp = stampOf(); // after LoadUiTemplate, which may have written the files
         }
 
         if (crosshairTree && (!cursorValid || resized || rebuilt)) {

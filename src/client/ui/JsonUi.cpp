@@ -52,7 +52,8 @@ namespace perlin::ui {
 
             in.clear();
             in.seekg(0);
-            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            std::string text;
+            file::ReadRest(in, text);
             if (text.size() <= head.size())
                 return {};
             Json doc;

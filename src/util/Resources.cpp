@@ -1,4 +1,5 @@
 #include "util/Resources.hpp"
+#include "util/FileIo.hpp"
 #include "util/Paths.hpp"
 
 #include <cstdlib>
@@ -13,7 +14,7 @@ namespace perlin::resources {
             std::ifstream f(path, std::ios::binary);
             if (!f)
                 return false;
-            out.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+            file::ReadRest(f, out);
             return true;
         }
     }

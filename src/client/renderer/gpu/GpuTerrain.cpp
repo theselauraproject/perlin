@@ -64,7 +64,7 @@ namespace perlin::gpu {
             const conduit::program_info* info = library.find(name);
             if (!info)
                 return {};
-            const conduit::shader_target target = conduit::shader_library::target_for(g.Api());
+            const conduit::shader_target target = g.ShaderTarget();
             const auto code = library.code(*info, conduit::shader_stage::compute, target);
             if (code.empty())
                 return {};

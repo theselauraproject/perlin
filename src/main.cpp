@@ -319,7 +319,9 @@ int main(int argc, char** argv) {
         std::printf("[perlin] %s is attached: single device, no pipeline cache, no failure records\n", tool);
     perlin::RegisterEmbeddedResources();
     for (int i = 1; i < argc; i++)
-        if (std::string(argv[i]) == "--meshbench")
+        if (std::string(argv[i]) == "--uibench" && i + 1 < argc)
+            return perlin::RunUiBench(argv[i + 1], i + 2 < argc ? std::atoi(argv[i + 2]) : 3);
+        else if (std::string(argv[i]) == "--meshbench")
             return perlin::RunMeshBench(i + 1 < argc ? std::atoi(argv[i + 1]) : 6, i + 2 < argc ? std::atoi(argv[i + 2]) : 3);
 #ifndef __EMSCRIPTEN__
 

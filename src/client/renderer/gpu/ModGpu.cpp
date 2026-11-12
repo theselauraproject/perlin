@@ -141,7 +141,7 @@ namespace perlin::gpu {
         info.int64 = caps.features.shader_int64;
         info.subgroups = caps.features.subgroup_ops;
         info.sceneCopy = true;
-        info.target = conduit::shader_library::target_for(gpu.Api());
+        info.target = gpu.ShaderTarget();
         static const char* kTargets[] = {"spirv", "dxil", "hlsl", "msl", "wgsl"};
         info.shaderTarget = kTargets[static_cast<size_t>(info.target)];
         (void)rendererName;
@@ -488,7 +488,7 @@ namespace perlin::gpu {
             Report(op.plugin, "shader pack: " + error);
             return;
         }
-        const conduit::shader_target target = conduit::shader_library::target_for(gpu.Api());
+        const conduit::shader_target target = gpu.ShaderTarget();
         for (const conduit::program_info& p : pack.library.programs()) {
             Program prog;
             prog.name = p.name;

@@ -155,6 +155,8 @@ namespace perlin::gpu {
         const GpuSettings& Settings() const { return settings; }
         conduit::swapchain* Chain() { return swapchain.get(); }
         const conduit::shader_library& Library() const { return library; }
+        // the shader target in use: the backend's, or for the null device whatever the pack holds
+        conduit::shader_target ShaderTarget() const { return target; }
         uint32_t Frames() const { return settings.framesInFlight; }
 
         int Program(std::string_view name) const;

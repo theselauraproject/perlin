@@ -165,6 +165,24 @@ namespace perlin::gpu {
         if (!library.load(packBytes, &packError))
             return fail("shader pack: " + packError);
         target = shader_library::target_for(s.api);
+        // the null device runs no shader code, so any target in the pack will do: a pack built for one platform
+        // (metal only on macos) still has every program for tests on the null device
+        if (s.api == conduit::api::none) {
+            const auto& all = library.programs();
+            const auto has = [&](shader_target t) {
+                for (const auto& p : all)
+                    for (shader_stage st : {shader_stage::vertex, shader_stage::fragment, shader_stage::compute})
+                        if (!library.code(p, st, t).empty())
+                            return true;
+                return false;
+            };
+            if (!has(target))
+                for (int t = 0; t < static_cast<int>(shader_target::count); t++)
+                    if (has(static_cast<shader_target>(t))) {
+                        target = static_cast<shader_target>(t);
+                        break;
+                    }
+        }
 
         const auto& programs = library.programs();
         vertexShaders.assign(programs.size(), {});

@@ -743,7 +743,7 @@ namespace perlin {
         const conduit::program_info* info = library.find("ui_cull");
         if (!info)
             return false;
-        const conduit::shader_target target = conduit::shader_library::target_for(gpu.Api());
+        const conduit::shader_target target = gpu.ShaderTarget();
         const auto code = library.code(*info, conduit::shader_stage::compute, target);
         if (code.empty())
             return false;

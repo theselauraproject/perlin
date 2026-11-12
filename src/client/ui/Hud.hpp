@@ -69,6 +69,10 @@ namespace perlin::ui {
 
         RmlBackend backend;
         UiLibrary library;
+        // the server pack folders the current tree was built from: a pack change that leaves them as they were
+        // (joining a server that sends none) needs no reload of fonts, textures and the whole hud
+        std::vector<std::string> builtPackDirs;
+        bool builtPackDirsKnown = false;
         std::unique_ptr<Node> tree;
         RmlEmitter emitter;
         std::unique_ptr<Node> crosshairTree;
@@ -101,6 +105,8 @@ namespace perlin::ui {
         bool templatesStale = true, emitterDefault = false;
         double templateCheck = 0;
         uint64_t hudTemplateVersion = 0, chatTemplateVersion = 0;
+        // the templates' modification stamps: the 2 s check reads and hashes them only when one changed
+        uint64_t templateStamp = 0;
         bool dumped = false;
         bool javaStyle = false;
         uint64_t fontVersion = 0;
