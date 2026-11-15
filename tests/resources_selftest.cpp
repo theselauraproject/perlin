@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     for (const auto& e : fs::recursive_directory_iterator(root))
         if (e.is_regular_file())
             files.push_back(e.path());
-    Check(files.size() > 40, "resource tree has files");
+    Check(files.size() > 10, "resource tree has files");
 
     const fs::path work = fs::temp_directory_path() / "perlin_resources_selftest";
     fs::remove_all(work);

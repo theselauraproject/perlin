@@ -19,7 +19,7 @@
   "client/systems/resources": 6,
   "client/systems/sprites": 19,
   "client/systems/text": 1,
-  "client/ui": 80,
+  "client/ui": 78,
   "world/level": 6,
   "world/movement": 1
 }

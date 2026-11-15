@@ -757,6 +757,7 @@ namespace perlin {
         std::vector<TexRec> customSkyTex;
         std::vector<conduit::buffer_handle> customSkyVb;
         void FreeCustomSkyVb();
+        void DropQueuedDraws();
         uint32_t starIndexCount = 0, skyFanIndexCount = 0, sunriseIndexCount = 0;
 
         CloudTexture cloudTexture;

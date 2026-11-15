@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "client/screen/screens/HudScreen.hpp"
 #include "client/systems/multiplayer/HudItemConvert.hpp"
 #include "client/systems/sprites/ItemData.hpp"
@@ -417,14 +418,19 @@ namespace perlin::screen {
 
         if (a.overlayTime > 0)
             a.overlayTime--;
+        if (a.actionSincePush < 100000)
+            a.actionSincePush++;
         if (a.titleTime > 0)
             a.titleTime--;
         if (session) {
             const auto text = session->GetTitleText();
             if (text.actionAt != a.actionAtSeen) {
                 a.actionAtSeen = text.actionAt;
-                if (!text.actionBar.empty())
-                    a.overlayTime = 60;
+                if (!text.actionBar.empty()) {
+                    const int gap = a.actionSincePush;
+                    a.actionSincePush = 0;
+                    a.overlayTime = gap < 400 ? std::clamp(gap * 5 / 4 + 20, 60, 400) : 60;
+                }
             }
             if (text.titleAt != a.titleAtSeen) {
                 a.titleAtSeen = text.titleAt;

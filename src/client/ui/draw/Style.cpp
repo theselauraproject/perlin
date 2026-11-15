@@ -324,6 +324,8 @@ namespace perlin::ui::draw {
                 else if (c.Has("ten"))
                     c.s.family = "minecraft-ten";
             }
+            if (c.Has("bt"))
+                c.s.pointer = true;
             c.OnlyOnHover("ul", "link");
             c.OnlyOnHover("hv", "bt");
             if (c.Has("df")) {
@@ -426,6 +428,8 @@ namespace perlin::ui::draw {
         }
         if (c.Has("nowrap"))
             s.nowrap = true;
+        if (n.id == "tip" || n.id == "cursor" || n.id == "top")
+            s.pointer = false;
         if (!n.cls.empty() || theme == Theme::Hud) {
             switch (theme) {
             case Theme::Title:

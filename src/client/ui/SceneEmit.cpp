@@ -660,6 +660,8 @@ namespace perlin::ui {
                 inSlot = true;
                 Visit(n, out);
                 inSlot = false;
+                out.BeginBox(n.ax + 1, n.ay + 1, n.w - 2, n.h - 2, TopLayer(n) + 100, "hl", "", false);
+                out.EndBox();
                 out.EndBox();
                 return;
             }

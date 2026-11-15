@@ -12,7 +12,7 @@ namespace perlin::ui {
         int toolTimer = 0;
         HudItem lastTool;
         TimePoint titleAtSeen, actionAtSeen;
-        int overlayTime = 0, titleTime = 0, titleFadeIn = 10, titleStay = 70, titleFadeOut = 20;
+        int overlayTime = 0, actionSincePush = 1000, titleTime = 0, titleFadeIn = 10, titleStay = 70, titleFadeOut = 20;
         bool haveHealth = false;
         int lastHealth = 0;
         int lastHealthTick = 0, lastHurtTick = -1000;

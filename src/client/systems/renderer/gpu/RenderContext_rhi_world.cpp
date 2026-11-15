@@ -224,6 +224,7 @@ namespace perlin {
     void RenderContext_rhi::UploadAtlas(const uint8_t* rgba, int tilePx, int tiles) {
         if (!initialized || !rgba || tilePx <= 0 || tiles <= 0)
             return;
+        DropQueuedDraws();
         animatedTiles.clear();
         const int limit = std::max<int>(1, static_cast<int>(gpu.Caps().limits.max_texture_layers));
         atlasPageCap = std::min(limit, kAtlasPageLayers);
@@ -328,6 +329,7 @@ namespace perlin {
                                               const Texture& clouds) {
         if (!initialized)
             return;
+        DropQueuedDraws();
         const auto create = [&](TexRec& rec, const Texture& texture, gpu::SamplerKind sampler,
                                 const char* name) {
             FreeTexture(rec);
@@ -363,6 +365,11 @@ namespace perlin {
         if (MakeTexture(endSkyTex, static_cast<uint32_t>(endSky.width), static_cast<uint32_t>(endSky.height), 1, 1,
                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointRepeat, "end sky"))
             gpu.WriteTexture(endSkyTex.handle, 0, 0, 0, endSkyTex.w, endSkyTex.h, endSky.pixels.data());
+    }
+
+    void RenderContext_rhi::DropQueuedDraws() {
+        for (ViewData& v : views)
+            v.draws.clear();
     }
 
     void RenderContext_rhi::FreeCustomSkyVb() {
@@ -417,6 +424,7 @@ namespace perlin {
     void RenderContext_rhi::UploadCustomSkyTextures(const std::vector<Texture>& textures) {
         if (!initialized)
             return;
+        DropQueuedDraws();
         for (TexRec& t : customSkyTex)
             FreeTexture(t);
         FreeCustomSkyVb();
@@ -503,40 +511,41 @@ namespace perlin {
         const Source quad{quadIdx, 0};
         for (int i = 0; i < std::min(sky.customCount, SkyFrame::kMaxCustomLayers); i++) {
             const SkyFrame::CustomLayer& layer = sky.custom[i];
-            const float b = layer.brightness;
             DrawState s = Base(Program::Celestial, false, false, conduit::compare_op::less_equal);
             s.layout = gpu::VertexLayout::Texture;
             float mod[4];
-            ApplySkyBlend(s, layer.blend, b, mod);
-            uni.Vec4("u_modulator", mod[0], mod[1], mod[2], mod[3]);
+            ApplySkyBlend(s, layer.blend, layer.brightness, mod);
             glm::mat4 rotation;
             std::memcpy(&rotation[0][0], layer.rotation, sizeof(layer.rotation));
+            const size_t slot = static_cast<size_t>(layer.texture);
             if (layer.cubemap) {
-                SetMatrix(glm::value_ptr(view));
                 for (int face = 0; face < 6; face++) {
-                    const size_t slot = static_cast<size_t>(layer.texture + face);
-                    if (slot >= customSkyTex.size() || !customSkyTex[slot].used)
+                    const size_t faceSlot = slot + static_cast<size_t>(face);
+                    if (faceSlot >= customSkyTex.size() || !customSkyTex[faceSlot].used)
                         continue;
-                    BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearMipClamp);
-                    const bool inset = slot < customSkyVb.size() && customSkyVb[slot];
+                    SetMatrix(glm::value_ptr(view));
+                    uni.Vec4("u_modulator", mod[0], mod[1], mod[2], mod[3]);
+                    BindTexture("s_sky", customSkyTex[faceSlot].handle, gpu::SamplerKind::LinearMipClamp);
+                    const bool inset = faceSlot < customSkyVb.size() && customSkyVb[faceSlot];
                     Submit(View::World, s,
-                           {inset ? customSkyVb[slot] : customSkyCube,
+                           {inset ? customSkyVb[faceSlot] : customSkyCube,
                             static_cast<uint64_t>((inset ? 24 : 0) + face * 4) * sizeof(TextureVertex)},
                            &quad, conduit::index_type::u16, 0, 6);
                 }
                 continue;
             }
-            const size_t slot = static_cast<size_t>(layer.texture);
             if (slot >= customSkyTex.size() || !customSkyTex[slot].used)
                 continue;
             const glm::mat4 pose = celestial * rotation;
-            SetMatrix(glm::value_ptr(pose));
-            BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearMipClamp);
             const conduit::buffer_handle box =
                 slot < customSkyVb.size() && customSkyVb[slot] ? customSkyVb[slot] : customSkyBox;
-            for (int side = 0; side < 6; side++)
+            for (int side = 0; side < 6; side++) {
+                SetMatrix(glm::value_ptr(pose));
+                uni.Vec4("u_modulator", mod[0], mod[1], mod[2], mod[3]);
+                BindTexture("s_sky", customSkyTex[slot].handle, gpu::SamplerKind::LinearMipClamp);
                 Submit(View::World, s, {box, static_cast<uint64_t>(side) * 4 * sizeof(TextureVertex)}, &quad,
                        conduit::index_type::u16, 0, 6);
+            }
         }
     }
 

@@ -156,6 +156,18 @@ namespace perlin::gpu {
 
     int ChunkMeshStore::CreatePage(uint32_t minVerts, uint32_t minIndices) {
         uint64_t block = kBlockBytes;
+        {
+            conduit::device& dev = gpu->Dev();
+            const conduit::adapter_info& adapter = gpu->Caps().adapter;
+            if (adapter.type != conduit::adapter_type::discrete || adapter.dedicated_vram < (3ull << 30))
+                block = std::min<uint64_t>(block, 64ull << 20);
+            const conduit::memory_budget budget = dev.query_memory_budget();
+            if (budget.valid && budget.device_budget) {
+                const uint64_t free = budget.device_budget > budget.device_usage ? budget.device_budget - budget.device_usage : 0;
+                while (block > kMinBlockBytes && block * 3 > free)
+                    block /= 2;
+            }
+        }
         Page p;
         for (;;) {
             const uint64_t perVertex = sizeof(Vertex) + extBytes + sizeof(uint32_t) * 3 / 2;
