@@ -15,9 +15,9 @@ LAYOUT = {
 BUILD_ARTIFACTS = {"perlin_shaders.pack"}
 KNOWN_MISSING = {"spyglass_model.png", "spyglass_scope.png"}
 SEARCH = ["src", "server", "tools", "tests", "cmake", "CMakeLists.txt", "resources/ui"]
-SUFFIXES = {".cpp", ".hpp", ".h", ".py", ".cmake", ".txt", ".rml", ".rcss"}
+SUFFIXES = {".cpp", ".hpp", ".h", ".py", ".cmake", ".txt"}
 LITERAL = re.compile(r'"((?:ui/(?:screens|overlays|components|styles|defaults)|data|branding|control|localization)/[\w./-]+\.\w+)"')
-READ = re.compile(r'(?:resources::(?:Read|ReadText|ReadRequiredText)|ui::ReadMarkup)\(\s*"([^"]*)"')
+READ = re.compile(r'(?:resources::(?:Read|ReadText|ReadRequiredText))\(\s*"([^"]*)"')
 EMBED = re.compile(r'\{"([^"]+)",\s*perlin_res_\d+')
 
 

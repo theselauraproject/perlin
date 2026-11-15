@@ -108,17 +108,6 @@ namespace perlin::ui {
         return out;
     }
 
-    void EnsureSceneLists(SceneDoc& doc) {
-        constexpr std::string_view kToken = "{{scene:";
-        for (size_t at = doc.rml.find(kToken); at != std::string::npos; at = doc.rml.find(kToken, at)) {
-            const size_t end = doc.rml.find("}}", at);
-            if (end == std::string::npos)
-                break;
-            doc.scene.lists.try_emplace(doc.rml.substr(at + kToken.size(), end - at - kToken.size()));
-            at = end;
-        }
-    }
-
     namespace {
         template <class Fn>
         bool AnyNode(const std::vector<SceneNode>& nodes, const Fn& fn) {
@@ -193,15 +182,12 @@ namespace perlin::ui {
     }
 
     std::string DumpScene(const SceneDoc& doc) {
-        std::string out = doc.rml;
-        out += "\n<!-- scene -->\n";
+        std::string out = "scene\n";
         DumpNodes(doc.scene.nodes, 0, out);
         for (const auto& [name, list] : doc.scene.lists) {
             out += "list " + name + "\n";
             DumpNodes(list, 1, out);
         }
-        for (const auto& [name, value] : doc.scene.vars)
-            out += "var " + name + "=" + value + "\n";
         return out;
     }
 }

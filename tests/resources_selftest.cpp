@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     perlin::env::Unset("PERLIN_RESOURCES");
 
     std::string out;
-    Check(!perlin::resources::Read("ui/screens/pause_screen.rml", out), "no provider and no disk: nothing found");
+    Check(!perlin::resources::Read("ui/defaults/ui_screen_defaults.json", out), "no provider and no disk: nothing found");
 
     perlin::RegisterEmbeddedResources();
     for (const fs::path& f : files) {
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
         Check(perlin::resources::Read(rel, embedded) && embedded == Slurp(f), "embedded copy of " + rel + " matches the file");
     }
 
-    for (const char* legacy : {"pause_screen.rml", "block_states.json", "perlin_icon.png", "light.json"}) {
+    for (const char* legacy : {"ui_screen_defaults.json", "block_states.json", "perlin_icon.png", "light.json"}) {
         std::string flat;
         Check(!perlin::resources::Read(legacy, flat), std::string("flat legacy name is gone: ") + legacy);
     }
@@ -77,21 +77,21 @@ int main(int argc, char** argv) {
         Check(fs::is_regular_file(root / name), std::string("named resource is on disk: ") + name);
     }
 
-    fs::create_directories(work / "data" / "assets" / "ui" / "screens");
-    std::ofstream(work / "data" / "assets" / "ui" / "screens" / "pause_screen.rml") << "user override";
-    Check(perlin::resources::ReadText("ui/screens/pause_screen.rml") == "user override",
+    fs::create_directories(work / "data" / "assets" / "ui" / "defaults");
+    std::ofstream(work / "data" / "assets" / "ui" / "defaults" / "ui_screen_defaults.json") << "user override";
+    Check(perlin::resources::ReadText("ui/defaults/ui_screen_defaults.json") == "user override",
           "DataDir/assets overrides the embedded resource at the same relative path");
 
-    fs::create_directories(work / "other" / "ui" / "screens");
-    std::ofstream(work / "other" / "ui" / "screens" / "pause_screen.rml") << "env override";
+    fs::create_directories(work / "other" / "ui" / "defaults");
+    std::ofstream(work / "other" / "ui" / "defaults" / "ui_screen_defaults.json") << "env override";
     perlin::env::Set("PERLIN_RESOURCES", (work / "other").string().c_str());
-    Check(perlin::resources::ReadText("ui/screens/pause_screen.rml") == "env override",
+    Check(perlin::resources::ReadText("ui/defaults/ui_screen_defaults.json") == "env override",
           "PERLIN_RESOURCES wins over the data dir and the embedded copy");
-    Check(perlin::resources::ReadText("ui/screens/title_screen.rml") != "",
+    Check(perlin::resources::ReadText("ui/defaults/java_hud_overrides.json") != "",
           "files missing from PERLIN_RESOURCES fall through to the next source");
 
     std::string none;
-    Check(!perlin::resources::Read(std::string("ui/screens/") + "does_not_exist.rml", none), "unknown resource is reported missing");
+    Check(!perlin::resources::Read(std::string("ui/defaults/") + "does_not_exist.json", none), "unknown resource is reported missing");
 
     fs::remove_all(work);
     std::printf("%d checks, %d failures\n", checks, failures);

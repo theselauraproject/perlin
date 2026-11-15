@@ -14,7 +14,7 @@
 
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/ui/SceneEmit.hpp"
-#include "client/ui/UiTemplate.hpp"
+#include "client/ui/SceneKit.hpp"
 #include "util/Resources.hpp"
 
 #include <filesystem>
@@ -23,28 +23,20 @@
 namespace perlin::ui {
     namespace fs = std::filesystem;
 
-    std::string DefaultDeathScreenTemplate() {
-        return ui::ReadMarkup("ui/screens/death_screen.rml");
-    }
-
-    std::string LoadDeathScreenTemplate(const std::string& dataDir, uint64_t& version) {
-        return LoadUiTemplate(dataDir, "ui/screens/death_screen.rml", DefaultDeathScreenTemplate(), version);
-    }
-
-    SceneDoc BuildDeathScreen(const std::string& templateText, const DeathScreenText& t, int guiW, int guiH) {
+    SceneDoc BuildDeathScreen(const DeathScreenText& t, int guiW, int guiH) {
         SceneDoc doc;
-        doc.rml = templateText;
-        auto& vars = doc.scene.vars;
-        vars["w"] = std::to_string(guiW);
-        vars["h"] = std::to_string(guiH);
-        vars["btn_x"] = std::to_string(guiW / 2 - 100);
-        vars["btn1_y"] = std::to_string(guiH / 4 + 72);
-        vars["btn2_y"] = std::to_string(guiH / 4 + 96);
-        vars["respawn"] = t.respawn;
-        vars["title_screen"] = t.titleScreen;
-        doc.scene.flags["off"] = !t.buttonsEnabled;
-        doc.scene.texts["title_runs"] = ParseFormatRuns(t.title, "#ffffff");
-        doc.scene.texts["cause_runs"] = ParseFormatRuns(t.cause, "#ffffff");
+        doc.scene.theme = Theme::Death;
+        doc.scene.sprites = true;
+        SceneBuilder b(doc.scene.nodes);
+        const float w = static_cast<float>(guiW), h = static_cast<float>(guiH);
+        kit::Gradient(b, 0, 0, w, h, "vertical-gradient(#50000060 #803030a0)", "1");
+        kit::Label(b, 0, 60, w, "ctr big nowrap", ParseFormatRuns(t.title, "#ffffff"), "3", "heading");
+        kit::Label(b, 0, 85, w, "ctr nowrap", ParseFormatRuns(t.cause, "#ffffff"), "3", "cause");
+        const float bx = static_cast<float>(guiW / 2 - 100);
+        kit::Button(b, kDeathRespawnId, bx, static_cast<float>(guiH / 4 + 72), 200, kit::Plain(t.respawn),
+                    !t.buttonsEnabled);
+        kit::Button(b, kDeathTitleId, bx, static_cast<float>(guiH / 4 + 96), 200, kit::Plain(t.titleScreen),
+                    !t.buttonsEnabled);
         return doc;
     }
 }
@@ -107,21 +99,13 @@ namespace perlin::screen {
         t.titleScreen = i18n::Tr("perlin.death.title_screen");
         t.buttonsEnabled = buttons;
 
-        if (tmpl.Refresh("ui/screens/death_screen.rml", ui::DefaultDeathScreenTemplate(),
-                               std::chrono::milliseconds(400), now, "death screen"))
-            signature.clear();
-
         const ui::GuiViewport gui = ui::OverlayViewport(hud, fbW, fbH);
         const std::string signature =
             str::Key(t.title, t.cause, str::Cat(gui.w, "x", gui.h), buttons, t.respawn + t.titleScreen);
         if (signature != this->signature || !hud.Overlay().HasOverlay()) {
             this->signature = signature;
             std::string error;
-            if (!hud.Overlay().SetOverlay(ui::BuildDeathScreen(tmpl.text, t, gui.w, gui.h), error)) {
-                Log("ui", "death_screen.rml: {}", error);
-                tmpl.text = ui::DefaultDeathScreenTemplate();
-                hud.Overlay().SetOverlay(ui::BuildDeathScreen(tmpl.text, t, gui.w, gui.h), error);
-            }
+            hud.Overlay().SetOverlay(ui::BuildDeathScreen(t, gui.w, gui.h), error);
         }
         const glm::vec2 pointer = PointerOrPreview(host.input);
         hud.Overlay().MouseMove(gui.ToGui(pointer.x), gui.ToGui(pointer.y));

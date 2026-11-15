@@ -8,7 +8,6 @@
 #include "util/ResourcePaths.hpp"
 #include "util/Resources.hpp"
 #include "client/ui/SceneEmit.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/resources/TexturePack.hpp"
 #include "client/systems/resources/TextureLoader.hpp"
@@ -100,12 +99,6 @@ namespace perlin::ui {
         Log("ui", "font: {}", UiAssets::Instance().LoadFont(dataDir));
         std::error_code ec;
         fs::create_directories(fs::path(dataDir) / "ui", ec);
-        {
-            uint64_t version = 0;
-            LoadUiTemplate(dataDir, "ui/overlays/hud_screen.rml", DefaultHudTemplate(), version);
-            LoadUiTemplate(dataDir, "ui/overlays/chat_screen.rml", DefaultChatTemplate(), version);
-            ExportScreenTemplates();
-        }
 
         services.textWidth = [](const std::string& text, float s, bool ten) {
             return ten ? TenFont::Instance().Width(text, s) : McFont::Instance().Width(text, s);
@@ -245,20 +238,12 @@ namespace perlin::ui {
             cursorValid = false;
         }
         lastSignature = 0;
-        lastRcss.clear();
         animCache.clear();
         animHost.recs.clear();
         animHost.destroyed.clear();
         rebuilds++;
         Log("ui", "hud built: {} controls from {} files", report.nodes, library.FileCount());
         return true;
-    }
-
-    std::string Hud::ReadUserRcss() const {
-        std::string contents;
-        if (!file::Read(dataDir + "/ui/hud.rcss", contents))
-            return {};
-        return contents;
     }
 
     int Hud::Update(const HudState& incoming, int fbW, int fbH, int guiScaleOption) {
@@ -297,11 +282,6 @@ namespace perlin::ui {
         }
         if (reloadRequested || now - sinceCheck > 3.0) {
             sinceCheck = now;
-            std::string freshRcss = ReadUserRcss();
-            if (freshRcss != rcssCache) {
-                rcssCache = std::move(freshRcss);
-                lastSignature = 0;
-            }
             bool libraryChanged = false;
             if (reloadRequested) {
                 if (probeLaunched) {
@@ -328,48 +308,12 @@ namespace perlin::ui {
         }
         if (!tree)
             return scale;
-        const auto stampOf = [&] {
-            uint64_t stamp = 1469598103934665603ull;
-            for (const char* name : {"ui/overlays/hud_screen.rml", "ui/overlays/chat_screen.rml"}) {
-                std::error_code ec;
-                const std::filesystem::path file = std::filesystem::path(dataDir) / "ui" / name;
-                const auto when = std::filesystem::last_write_time(file, ec);
-                const uint64_t t = ec ? 0 : static_cast<uint64_t>(when.time_since_epoch().count());
-                const uint64_t size = ec ? 0 : static_cast<uint64_t>(std::filesystem::file_size(file, ec));
-                stamp = (stamp ^ t) * 1099511628211ull;
-                stamp = (stamp ^ size) * 1099511628211ull;
-            }
-            return stamp;
-        };
-        bool templatesDue = templatesStale;
-        if (!templatesDue && now - templateCheck > 2.0) {
-            templateCheck = now;
-            const uint64_t stamp = stampOf();
-            templatesDue = stamp != templateStamp;
-        }
-        if (templatesDue) {
-            templateCheck = now;
-            uint64_t vh = 0, vc = 0;
-            std::string hudT = LoadUiTemplate(dataDir, "ui/overlays/hud_screen.rml", DefaultHudTemplate(), vh);
-            std::string chatT = LoadUiTemplate(dataDir, "ui/overlays/chat_screen.rml", DefaultChatTemplate(), vc);
-            if (vh != hudTemplateVersion || vc != chatTemplateVersion || templatesStale) {
-                hudTemplateVersion = vh;
-                chatTemplateVersion = vc;
-                emitter.SetElements(ParseElementMap(hudT));
-                emitter.SetTemplates(std::move(hudT), std::move(chatT));
-                lastSignature = 0;
-                templatesStale = false;
-                Log("ui", "loaded {}/ui/hud_screen.rml and chat_screen.rml", dataDir);
-            }
-            templateStamp = stampOf();
-        }
-
         if (crosshairTree && (!cursorValid || resized || rebuilt)) {
             cursorValid = false;
             UiServices crossServices = services;
             crossServices.anim = nullptr;
             auto crossEvaluated = EvaluateTree(*crosshairTree, *data, crossServices, guiW, guiH);
-            cursorEmitter.Emit(*crossEvaluated, guiW, guiH, std::string());
+            cursorEmitter.Emit(*crossEvaluated, guiW, guiH);
         }
         if (!cursorValid) {
             cursorX = std::floor((guiW - 15.0f) * 0.5f);
@@ -379,37 +323,27 @@ namespace perlin::ui {
 
         animHost.now = now;
         const bool animTick = animHost.animating && now - lastAnimEval >= 1.0 / 60.0;
-        const std::string& rcss = rcssCache;
         const uint64_t signature = stateChanged || resized || rebuilt ? HudSignature(state) : lastSignature;
-        if (!rebuilt && !resized && !animTick && signature == lastSignature && rcss == lastRcss &&
+        if (!rebuilt && !resized && !animTick && signature == lastSignature &&
             fontVersion == McFont::Instance().Version() && filterVersion == HudFilterVersion()) {
             backend.Update();
             return scale;
         }
         lastSignature = signature;
         lastAnimEval = now;
-        lastRcss = rcss;
         fontVersion = McFont::Instance().Version();
         filterVersion = HudFilterVersion();
 
         auto evaluated = EvaluateTree(*tree, *data, services, guiW, guiH);
-        lastDoc = emitter.Emit(*evaluated, guiW, guiH, rcss);
+        lastDoc = emitter.Emit(*evaluated, guiW, guiH);
         backend.Resize(static_cast<int>(guiW), static_cast<int>(guiH), scale);
         std::string error;
-        if (!backend.SetDocument(lastDoc.rml, lastDoc.scene, error)) {
+        if (!backend.SetDocument(lastDoc, error)) {
             Log("ui", "{}", error);
-            if (!emitterDefault) {
-                emitterDefault = true;
-                emitter.SetTemplates(std::string(), std::string());
-                lastDoc = emitter.Emit(*evaluated, guiW, guiH, std::string());
-                backend.SetDocument(lastDoc.rml, lastDoc.scene, error);
-            }
-        } else {
-            emitterDefault = false;
         }
         if (!dumped || rebuilt) {
             dumped = true;
-            Write(fs::path(dataDir) / "ui_generated" / "hud.rml", DumpScene(lastDoc));
+            Write(fs::path(dataDir) / "ui_generated" / "hud.txt", DumpScene(lastDoc));
             for (const std::string& u : emitter.UnknownRenderers())
                 Log("ui", "custom renderer not implemented: {}", u);
         }

@@ -4,7 +4,7 @@
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/systems/text/McFont.hpp"
 #include "client/ui/TenFont.hpp"
-#include "client/ui/UiTemplate.hpp"
+#include "client/ui/SceneKit.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -762,50 +762,7 @@ namespace perlin::ui {
             out.EndBox();
     }
 
-    std::unordered_map<std::string, std::string> ParseElementMap(const std::string& templateText) {
-        std::unordered_map<std::string, std::string> map;
-        const size_t open = templateText.find("<!--elements");
-        if (open == std::string::npos)
-            return map;
-        const size_t close = templateText.find("-->", open);
-        const std::string block = templateText.substr(
-            open + 12, close == std::string::npos ? std::string::npos : close - open - 12);
-        size_t i = 0;
-        while (i < block.size()) {
-            while (i < block.size() && std::isspace(static_cast<unsigned char>(block[i])))
-                i++;
-            const size_t start = i;
-            while (i < block.size() && !std::isspace(static_cast<unsigned char>(block[i])))
-                i++;
-            const std::string token = block.substr(start, i - start);
-            if (const size_t eq = token.find('='); eq != std::string::npos && eq > 0 && eq + 1 < token.size())
-                map[token.substr(0, eq)] = token.substr(eq + 1);
-        }
-        return map;
-    }
-
-    std::string DefaultHudTemplate() {
-        return ui::ReadMarkup("ui/overlays/hud_screen.rml");
-    }
-
-    std::string DefaultChatTemplate() {
-        return ui::ReadMarkup("ui/overlays/chat_screen.rml");
-    }
-
-    namespace {
-        std::string Between(const std::string& doc, const std::string& tag) {
-            const size_t open = doc.find("<" + tag);
-            if (open == std::string::npos)
-                return {};
-            const size_t start = doc.find('>', open);
-            const size_t end = doc.find("</" + tag + ">", start == std::string::npos ? open : start);
-            if (start == std::string::npos || end == std::string::npos)
-                return {};
-            return doc.substr(start + 1, end - start - 1);
-        }
-    }
-
-    SceneDoc SceneEmitter::Emit(const LNode& root, float guiW, float guiH, const std::string& extraRcss) {
+    SceneDoc SceneEmitter::Emit(const LNode& root, float guiW, float guiH, EmitLayout layout) {
         sliderTracks.clear();
         SceneWriter writer;
         unknown.clear();
@@ -815,36 +772,27 @@ namespace perlin::ui {
         Visit(root, writer);
 
         SceneDoc result;
-        std::string chatStyle, chatBody;
+        result.scene.theme = layout == EmitLayout::Chest ? Theme::Chest : Theme::Hud;
         auto& sec = writer.Sections();
+        std::vector<SceneNode> chat;
         if (sec.contains("chat_lines")) {
-            std::string chat = chatTemplate.empty() ? DefaultChatTemplate() : chatTemplate;
-            chatStyle = Between(chat, "style");
-            chatBody = Between(chat, "body");
-            for (std::string* part : {&chatStyle, &chatBody}) {
-                ReplaceAll(*part, "w", Num(guiW));
-                ReplaceAll(*part, "h", Num(guiH));
-                ReplaceAll(*part, "chat_top", Num(guiH - 60.0f - 180.0f));
-                ReplaceAll(*part, "chat_w", Num(328.0f));
-                ReplaceAll(*part, "input_top", Num(guiH - 14.0f));
-                ReplaceAll(*part, "input_w", Num(guiW - 4.0f));
-            }
-            ReplaceAll(chatBody, "lines", "{{scene:chat_lines}}");
-            ReplaceAll(chatBody, "scrollbar", "{{scene:chat_scroll}}");
-            ReplaceAll(chatBody, "input", "{{scene:chat_input}}");
+            const float chatTop = guiH - 60.0f - 180.0f;
+            kit::Container(chat, "chat-lines", 0, chatTop, 328, 180, "30", std::move(sec["chat_lines"]));
+            kit::Container(chat, "chat-scroll", 0, chatTop, 2, 180, "31", std::move(sec["chat_scroll"]));
+            kit::Container(chat, "chat-input", 2, guiH - 14.0f, guiW - 4.0f, 12, "32", std::move(sec["chat_input"]));
         }
-        std::string doc = hudTemplate.empty() ? DefaultHudTemplate() : hudTemplate;
-        ReplaceAll(doc, "w", Num(guiW));
-        ReplaceAll(doc, "h", Num(guiH));
-        ReplaceAll(doc, "chat_style", chatStyle);
-        ReplaceAll(doc, "rcss", extraRcss);
-        ReplaceAll(doc, "chat", chatBody);
-        ReplaceAll(doc, "hud", "{{scene:hud}}");
-        ReplaceAll(doc, "engine_css", resources::ReadRequiredText("ui/styles/engine.rcss"));
-        result.rml = std::move(doc);
-        result.scene.lists = std::move(sec);
-        result.scene.lists["hud"] = std::move(writer.Nodes());
-        EnsureSceneLists(result);
+        std::vector<SceneNode> hud = std::move(writer.Nodes());
+        auto& out = result.scene.nodes;
+        if (layout == EmitLayout::Screen) {
+            kit::Append(out, chat);
+            kit::Append(out, hud);
+        } else {
+            kit::Append(out, hud);
+            kit::Append(out, chat);
+        }
+        for (auto& [name, list] : sec)
+            if (name != "chat_lines" && name != "chat_scroll" && name != "chat_input")
+                result.scene.lists[name] = std::move(list);
         return result;
     }
 }

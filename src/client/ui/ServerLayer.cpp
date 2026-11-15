@@ -1,5 +1,4 @@
 #include "client/ui/ServerLayer.hpp"
-#include "client/ui/UiTemplate.hpp"
 
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/systems/text/McFont.hpp"
@@ -24,16 +23,10 @@ namespace perlin::ui {
         }
     }
 
-    namespace {
-        const ScreenTemplateDefault kServerLayerDefault("ui/overlays/server_layer.rml");
-    }
-
     SceneDoc BuildServerLayer(const ServerLayerData& data, int guiW, int guiH) {
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/overlays/server_layer.rml");
-        doc.scene.vars["w"] = std::to_string(guiW);
-        doc.scene.vars["h"] = std::to_string(guiH);
-        SceneBuilder out(doc.scene.lists["body"]);
+        doc.scene.theme = Theme::Server;
+        SceneBuilder out(doc.scene.nodes);
         float y = 12.0f;
         for (const auto& bar : data.bars) {
             const float w = 182.0f, x = (guiW - w) / 2.0f;

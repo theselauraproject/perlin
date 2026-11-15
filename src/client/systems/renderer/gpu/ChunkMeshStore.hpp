@@ -88,7 +88,8 @@ namespace perlin::gpu {
 
         conduit::buffer_handle Vertices(uint32_t page) const { return pages[page].vb.Buffer(); }
         conduit::buffer_handle Indices(uint32_t page, RenderLayer layer) const {
-            return pages[page].ib[static_cast<size_t>(layer)].Buffer();
+            (void)layer;
+            return pages[page].ib.Buffer();
         }
         size_t Pages() const { return pages.size(); }
         size_t Chunks() const { return chunks.size(); }
@@ -123,30 +124,16 @@ namespace perlin::gpu {
         struct Page {
             Arena vb;
             Arena ext;
-            std::array<Arena, kRenderLayerCount> ib;
+            Arena ib;
             int emptyFrames = 0;
             bool live = false;
         };
         static int64_t Key(int cx, int cz) {
             return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
         }
-        int CreatePage(uint32_t vCap, const std::array<uint32_t, kRenderLayerCount>& iCap);
-        static bool BuildPage(conduit::device& dev, uint32_t vCap,
-                              const std::array<uint32_t, kRenderLayerCount>& iCap, uint32_t extBytes,
-                              Page& out);
+        int CreatePage(uint32_t minVerts, uint32_t minIndices);
+        static bool BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes, Page& out);
         static void DestroyPage(conduit::device& dev, Page& p);
-        void NextPageSize(uint32_t& verts, std::array<uint32_t, kRenderLayerCount>& caps) const;
-
-        struct Spare {
-            Page page;
-            uint32_t ext = 0;
-            bool ok = false;
-        };
-        std::shared_ptr<Spare> spare;
-        std::future<void> spareJob;
-        void PrepareSpare();
-        bool AdoptSpare(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need);
-        void DropSpare();
         bool Alloc(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need, Chunk& out);
         void Free(Chunk& c);
         void Upload(std::unordered_map<int64_t, Chunk>& target, bool lod, int cx, int cz, int size,

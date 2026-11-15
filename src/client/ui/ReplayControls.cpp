@@ -7,7 +7,6 @@
 
 #include "client/ui/SceneKit.hpp"
 #include "client/ui/TextEdit.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "util/TextMetrics.hpp"
 
 namespace perlin::ui {
@@ -20,7 +19,6 @@ namespace perlin::ui {
             std::snprintf(buf, sizeof buf, "#%06x", rgb & 0xFFFFFFu);
             return buf;
         }
-        const ScreenTemplateDefault kReplayDefault("ui/overlays/replay_screen.rml");
 
         void Button(SceneBuilder& d, const std::string& id, float x, float y, float w, const std::string& label,
                     bool on = false, bool off = false) {
@@ -43,13 +41,9 @@ namespace perlin::ui {
             kit::Label(d, x, y, w, classes, kit::Plain(text), "6");
         }
 
-        SceneDoc ReplayDoc(int guiW, int guiH) {
+        SceneDoc ReplayDoc(int, int) {
             SceneDoc doc;
-            doc.rml = ScreenTemplate("ui/overlays/replay_screen.rml");
-            doc.scene.vars["w"] = N(guiW);
-            doc.scene.vars["h"] = N(guiH);
-            doc.scene.flags["layer_export"] = false;
-            doc.scene.flags["layer_gui"] = false;
+            doc.scene.theme = Theme::Replay;
             return doc;
         }
     }
@@ -81,7 +75,7 @@ namespace perlin::ui {
 
     SceneDoc BuildReplayBar(const ReplayBarModel& m, int guiW, int guiH) {
         SceneDoc doc = ReplayDoc(guiW, guiH);
-        SceneBuilder d(doc.scene.lists["body"]);
+        SceneBuilder d(doc.scene.nodes);
         const ReplayBarLayout l = ComputeReplayBarLayout(guiW, guiH);
         const std::string shown =
             FormatReplayTime(m.scrubMs >= 0 ? m.scrubMs : m.timeMs) + " / " + FormatReplayTime(m.durationMs);
@@ -180,10 +174,14 @@ namespace perlin::ui {
 
     SceneDoc BuildPanel(const PanelModel& m, int guiW, int guiH) {
         SceneDoc doc = ReplayDoc(guiW, guiH);
-        SceneBuilder d(doc.scene.lists["body"]);
+        SceneBuilder d(doc.scene.nodes);
         const PanelLayout l = ComputePanelLayout(m, guiW, guiH);
-        doc.scene.flags["layer_export"] = m.exportLayer;
-        doc.scene.flags["layer_gui"] = m.exportLayer;
+        if (m.exportLayer) {
+            SceneNode marker;
+            marker.z = "-999";
+            marker.layer = "export";
+            doc.scene.nodes.push_back(std::move(marker));
+        }
         Rect(d, l.x, l.y, l.w, l.h, "#000000d0", 1);
         Rect(d, l.x, l.y, l.w, 1, "#ffffff66", 2);
         Rect(d, l.x, l.y + l.h - 1, l.w, 1, "#ffffff66", 2);
@@ -270,6 +268,12 @@ namespace perlin::ui {
                 Button(d, m.buttons[i].id, l.x + 6 + (bw + gap) * static_cast<float>(i), by, bw,
                             m.buttons[i].label, false, !m.buttons[i].enabled);
         }
+        if (m.exportLayer) {
+            SceneNode marker;
+            marker.z = "999";
+            marker.layer = "gui";
+            doc.scene.nodes.push_back(std::move(marker));
+        }
         return doc;
     }
 
@@ -307,7 +311,7 @@ namespace perlin::ui {
     EditorBuilt BuildEditor(const EditorModel& m, int guiW, int guiH) {
         EditorBuilt out;
         out.doc = ReplayDoc(guiW, guiH);
-        SceneBuilder d(out.doc.scene.lists["body"]);
+        SceneBuilder d(out.doc.scene.nodes);
         const EditorLayout l = ComputeEditorLayout(guiW, guiH);
         const auto hit = [&](const std::string& id, float x, float y, float w, float h) {
             out.hits.push_back({id, x, y, w, h});

@@ -182,18 +182,6 @@ set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
 CPMAddPackage(NAME SDL3 GITHUB_REPOSITORY libsdl-org/SDL GIT_TAG release-3.4.18)
 
-set(RMLUI_FONT_ENGINE none CACHE STRING "" FORCE)
-set(RMLUI_SAMPLES OFF CACHE BOOL "" FORCE)
-set(RMLUI_TESTS OFF CACHE BOOL "" FORCE)
-set(RMLUI_PRECOMPILED_HEADERS OFF CACHE BOOL "" FORCE)
-set(RMLUI_COMPILER_OPTIONS OFF CACHE BOOL "" FORCE)
-set(RMLUI_THIRDPARTY_CONTAINERS OFF CACHE BOOL "" FORCE)
-CPMAddPackage(
-    NAME RmlUi
-    GITHUB_REPOSITORY mikke89/RmlUi
-    GIT_TAG 6.1
-    GIT_SHALLOW YES
-)
 endif()
 
 CPMAddPackage(NAME glslang GITHUB_REPOSITORY KhronosGroup/glslang GIT_TAG e2bb10631198bc9d73daf752d9170608d5e2c8bd GIT_SHALLOW NO DOWNLOAD_ONLY YES)
@@ -367,7 +355,6 @@ target_link_libraries(Perlin PRIVATE
     OpenSSL::Crypto
     Threads::Threads
     SDL3::SDL3
-    rmlui_core
     perlin_gpu
 )
 add_dependencies(Perlin perlin_shader_pack)
@@ -669,7 +656,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME panorama_blur_selftest COMMAND panorama_blur_selftest)
     add_executable(format_codes_selftest tests/format_codes_selftest.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp
         src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp
-        src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp src/client/systems/model/EffectData.cpp
+        src/client/ui/SceneEmit.cpp src/client/ui/SceneKit.cpp src/client/ui/Scene.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp src/client/systems/model/EffectData.cpp
         src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp
         src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(format_codes_selftest PRIVATE src "${stb_SOURCE_DIR}")
@@ -681,38 +668,30 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(block_box_definition_selftest PRIVATE cxx_std_23)
     add_test(NAME block_box_definition_selftest COMMAND block_box_definition_selftest)
     add_executable(hud_dump tests/hud_dump.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
-        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp
+        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/SceneKit.cpp src/client/ui/Scene.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp
         src/client/ui/HudRenderers.cpp src/client/systems/model/EffectData.cpp src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(hud_dump PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(hud_dump PRIVATE cxx_std_23)
     add_test(NAME hud_boss_bindings COMMAND hud_dump --boss-selftest)
     add_executable(screen_dump tests/screen_dump.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
-        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp src/client/systems/model/EffectData.cpp
+        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/SceneKit.cpp src/client/ui/Scene.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp src/client/systems/model/EffectData.cpp
         src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(screen_dump PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(screen_dump PRIVATE cxx_std_23)
     foreach(size small normal large extra_large)
         add_test(NAME ui_font_${size} COMMAND screen_dump "font_sizes.${size}_screen" 320 240
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_font_sizes")
-        set_tests_properties(ui_font_${size} PROPERTIES ENVIRONMENT "SCREEN_TREE=1;SCREEN_RML=1")
+        set_tests_properties(ui_font_${size} PROPERTIES ENVIRONMENT "SCREEN_TREE=1")
     endforeach()
     set_tests_properties(ui_font_small PROPERTIES PASS_REGULAR_EXPRESSION "sample .*12.0x4.5")
     set_tests_properties(ui_font_normal PROPERTIES PASS_REGULAR_EXPRESSION "sample .*24.0x9.0")
     set_tests_properties(ui_font_large PROPERTIES PASS_REGULAR_EXPRESSION "sample .*48.0x18.0")
     set_tests_properties(ui_font_extra_large PROPERTIES PASS_REGULAR_EXPRESSION "sample .*96.0x36.0")
-    add_test(NAME ui_bound_alpha COMMAND screen_dump font_sizes.alpha_screen 320 240
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_font_sizes")
-    set_tests_properties(ui_bound_alpha PROPERTIES ENVIRONMENT "SCREEN_RML=1;SCREEN_VARS={\"#opacity\":0.3}"
-        PASS_REGULAR_EXPRESSION "alpha=0[.]30*")
     add_test(NAME ui_repeated_routes COMMAND screen_dump routes.routing_screen 320 240
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_routes")
     set_tests_properties(ui_repeated_routes PROPERTIES ENVIRONMENT "SCREEN_TREE=1;SCREEN_VARS={\"#title_text\":\"middle\"}"
         PASS_REGULAR_EXPRESSION "text=EXPECTED_MIDDLE_ROUTE"
         FAIL_REGULAR_EXPRESSION "text=WRONG_FIRST_ROUTE;text=WRONG_LAST_ROUTE")
-    add_test(NAME ui_fractional_font COMMAND screen_dump font_sizes.fractional_screen 320 240
-        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_font_sizes")
-    set_tests_properties(ui_fractional_font PROPERTIES ENVIRONMENT "SCREEN_RML=1"
-        PASS_REGULAR_EXPRESSION "font=minecraft-size-6[.]4")
     add_test(NAME ui_stack_vertical COMMAND screen_dump stack_regression.vertical_screen 320 240
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_stack")
     set_tests_properties(ui_stack_vertical PROPERTIES ENVIRONMENT "SCREEN_TREE=1"
@@ -871,7 +850,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(ui_library_selftest PRIVATE cxx_std_23)
     add_test(NAME ui_library_selftest COMMAND ui_library_selftest)
     add_executable(ui_conformance tests/ui_conformance.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
-        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp
+        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/SceneKit.cpp src/client/ui/Scene.cpp
         src/client/ui/HudData.cpp src/client/systems/text/FormatCodes.cpp src/client/systems/i18n/Lang.cpp
         src/client/systems/i18n/BuiltinEnglish.cpp src/client/systems/resources/ServerPackRegistry.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(ui_conformance PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}")
@@ -1089,8 +1068,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     add_test(NAME layering COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_layers.py ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME singleton_ratchet COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_singletons.py ${CMAKE_CURRENT_SOURCE_DIR})
-    add_test(NAME embedded_markup COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_markup.py)
-    add_test(NAME rml_format COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/format_rml.py --check)
     add_test(NAME resource_layout COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_resources.py "${PERLIN_EMBED_SOURCE}")
     add_executable(resources_selftest tests/resources_selftest.cpp src/util/Resources.cpp src/util/Paths.cpp
         src/client/platform/EmbeddedProvider.cpp ${PERLIN_EMBED_SOURCE} ${PERLIN_EMBED_NAMES_SOURCE})
@@ -1410,10 +1387,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(panorama_selftest PRIVATE cxx_std_23)
     add_test(NAME panorama_selftest COMMAND panorama_selftest)
 
-    add_executable(uitemplate_selftest tests/uitemplate_selftest.cpp src/client/ui/UiTemplate.cpp src/util/Resources.cpp src/util/Paths.cpp)
-    target_include_directories(uitemplate_selftest PRIVATE src)
-    target_compile_features(uitemplate_selftest PRIVATE cxx_std_23)
-    add_test(NAME uitemplate_selftest COMMAND uitemplate_selftest)
 
     add_executable(trace_diff
         tests/trace_diff.cpp

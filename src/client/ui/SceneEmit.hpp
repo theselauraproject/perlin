@@ -84,16 +84,14 @@ namespace perlin::ui {
 
     using CustomRenderer = std::function<void(const LNode&, SceneWriter&)>;
 
+    enum class EmitLayout { Hud, Screen, Chest };
+
     class SceneEmitter {
     public:
         void Register(const std::string& name, CustomRenderer renderer) {
             renderers[name] = std::move(renderer);
         }
-        SceneDoc Emit(const LNode& root, float guiW, float guiH, const std::string& extraRcss);
-        void SetTemplates(std::string hud, std::string chat) {
-            hudTemplate = std::move(hud);
-            chatTemplate = std::move(chat);
-        }
+        SceneDoc Emit(const LNode& root, float guiW, float guiH, EmitLayout layout = EmitLayout::Hud);
         const std::vector<std::string>& UnknownRenderers() const { return unknown; }
         void SetSlotNamer(std::function<std::string(const LNode&)> namer) { slotNamer = std::move(namer); }
         void SetElements(std::unordered_map<std::string, std::string> map) { elements = std::move(map); }
@@ -134,11 +132,7 @@ namespace perlin::ui {
         const LNode* grouped = nullptr;
 
         std::unordered_map<std::string, CustomRenderer> renderers;
-        std::string hudTemplate, chatTemplate;
         std::vector<std::string> unknown;
     };
 
-    std::string DefaultHudTemplate();
-    std::string DefaultChatTemplate();
-    std::unordered_map<std::string, std::string> ParseElementMap(const std::string& templateText);
 }

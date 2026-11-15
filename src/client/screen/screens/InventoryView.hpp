@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 #include "client/systems/multiplayer/BedrockSession.hpp"
-#include "client/ui/UiTemplate.hpp"
 
 namespace perlin::ui {
     struct RecipeCard {
@@ -56,8 +55,7 @@ namespace perlin::ui {
     int InventoryPanelX(const InventoryView& view, int guiW);
     inline constexpr int kBookCols = 5, kBookRows = 4;
 
-    std::string DefaultInventoryScreenTemplate();
-    SceneDoc BuildInventoryScreen(const std::string& templateText, const InventoryView& view, int guiW, int guiH);
+    SceneDoc BuildInventoryScreen(const InventoryView& view, int guiW, int guiH);
     void AddInventoryCursor(SceneBuilder& builder, const InventoryView& view);
     void AddInventoryTooltip(SceneBuilder& builder, const InventoryView& view, int guiW, int guiH);
     int InventoryAddrFromId(const std::string& id);

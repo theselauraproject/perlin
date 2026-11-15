@@ -28,4 +28,12 @@ namespace perlin::ui::kit {
     SceneNode& Slider(SceneBuilder& b, const std::string& id, float x, float y, float w,
                       std::vector<SceneRun> label, float fraction);
     std::string Px(float v);
+    void Backdrop(SceneBuilder& b, float w, float h, bool panorama);
+    SceneNode& Dim(SceneBuilder& b, float w, float h, int alpha);
+    void Append(std::vector<SceneNode>& dst, std::vector<SceneNode>& src);
+    SceneNode& Container(std::vector<SceneNode>& dst, const std::string& id, float x, float y, float w, float h,
+                         const std::string& z, std::vector<SceneNode> children = {});
+    void TopLayer(std::vector<SceneNode>& dst, float w, float h, const std::string& z, std::vector<SceneNode>& cursor,
+                  std::vector<SceneNode>& tooltip);
+    SceneNode& Heading(SceneBuilder& b, float guiW, float y, const std::string& title);
 }

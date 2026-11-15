@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include "client/ui/Scene.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include <string>
 #include <vector>
 
@@ -36,9 +35,7 @@ namespace perlin::ui {
     inline constexpr const char* kDownloadSkipId = "dl_skip";
     SceneDoc BuildDownloadScreen(const DownloadScreenText& text, int guiW, int guiH, double time);
 
-    std::string DefaultLoadingScreenTemplate();
-    SceneDoc BuildLoadingScreen(const std::string& templateText, const LoadingScreenText& text, int guiW,
-                                int guiH);
+    SceneDoc BuildLoadingScreen(const LoadingScreenText& text, int guiW, int guiH);
 }
 
 namespace perlin::screen {
@@ -47,6 +44,5 @@ namespace perlin::screen {
         bool textMode = false, done = false, readyArmed = false, modHidden = false;
         std::chrono::steady_clock::time_point readyAt, startAt;
         int chunkBase = 0;
-        ui::TemplateSlot tmpl;
     };
 }

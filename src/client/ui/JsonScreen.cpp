@@ -1,4 +1,3 @@
-#include "client/ui/UiTemplate.hpp"
 #include "client/ui/JsonScreen.hpp"
 #include "util/ResourcePaths.hpp"
 #include "util/Resources.hpp"
@@ -145,7 +144,6 @@ namespace perlin::ui {
             animCache[full] = props;
             return props;
         };
-        emitter.SetTemplates(BuiltinTemplate("ui/screens/json_screen.rml"), std::string());
         emitter.Register("inventory_item_renderer", [this](const LNode& n, SceneWriter& w) {
             const auto table = items.find(n.collection);
             if (table == items.end() || n.index < 0 || n.index >= static_cast<int>(table->second.size()))
@@ -346,7 +344,7 @@ namespace perlin::ui {
             std::ofstream out(treeDump, std::ios::binary);
             out << text;
         }
-        doc = emitter.Emit(*root, static_cast<float>(guiW), static_cast<float>(guiH), std::string());
+        doc = emitter.Emit(*root, static_cast<float>(guiW), static_cast<float>(guiH), EmitLayout::Screen);
         return true;
     }
 

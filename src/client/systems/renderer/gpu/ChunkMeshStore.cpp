@@ -10,19 +10,18 @@
 
 namespace perlin::gpu {
     namespace {
-        constexpr uint32_t kPageVerts = 1u << 20;
+        constexpr uint64_t kBlockBytes = 256ull << 20;
+        constexpr uint64_t kMinBlockBytes = 16ull << 20;
     }
 
     void ChunkMeshStore::Shutdown() {
         Clear();
-        DropSpare();
         if (!gpu)
             return;
         for (Page& p : pages) {
             p.vb.Destroy(gpu->Dev());
             p.ext.Destroy(gpu->Dev());
-            for (Arena& a : p.ib)
-                a.Destroy(gpu->Dev());
+            p.ib.Destroy(gpu->Dev());
         }
         pages.clear();
     }
@@ -39,7 +38,6 @@ namespace perlin::gpu {
         visible.clear();
         visibleSections.clear();
         NoteAll();
-        DropSpare();
         if (gpu) {
             gpu->Dev().wait_idle();
             for (Page& p : pages) {
@@ -47,8 +45,7 @@ namespace perlin::gpu {
                     continue;
                 p.vb.Destroy(gpu->Dev());
                 p.ext.Destroy(gpu->Dev());
-                for (Arena& a : p.ib)
-                    a.Destroy(gpu->Dev());
+                p.ib.Destroy(gpu->Dev());
                 p.live = false;
             }
         }
@@ -72,8 +69,7 @@ namespace perlin::gpu {
             if (!p.live)
                 continue;
             p.vb.Reset();
-            for (Arena& a : p.ib)
-                a.Reset();
+            p.ib.Reset();
         }
         generation++;
     }
@@ -86,8 +82,7 @@ namespace perlin::gpu {
             sources.push_back({p.vb.Buffer(), p.vb.BarrierState(), p.vb.Bytes()});
             if (extBytes)
                 sources.push_back({p.ext.Buffer(), p.ext.BarrierState(), p.ext.Bytes()});
-            for (Arena& a : p.ib)
-                sources.push_back({a.Buffer(), a.BarrierState(), a.Bytes()});
+            sources.push_back({p.ib.Buffer(), p.ib.BarrierState(), p.ib.Bytes()});
         }
         Backup out;
         out.blobs = gpu->ReadBuffers(sources);
@@ -109,8 +104,7 @@ namespace perlin::gpu {
             drop(p.vb);
             if (extBytes)
                 drop(p.ext);
-            for (Arena& a : p.ib)
-                drop(a);
+            drop(p.ib);
         }
     }
 
@@ -134,24 +128,21 @@ namespace perlin::gpu {
             restore(p.vb);
             if (extBytes)
                 restore(p.ext);
-            for (Arena& a : p.ib)
-                restore(a);
+            restore(p.ib);
         }
         return ok;
     }
 
-    bool ChunkMeshStore::BuildPage(conduit::device& dev, uint32_t vCap,
-                                   const std::array<uint32_t, kRenderLayerCount>& iCap, uint32_t extBytes,
+    bool ChunkMeshStore::BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes,
                                    Page& p) {
         bool ok =
             p.vb.Create(dev, vCap, sizeof(Vertex),
                         conduit::buffer_usage::vertex | conduit::buffer_usage::storage, "chunk vertices");
         if (ok && extBytes)
             ok = p.ext.Create(dev, vCap, extBytes, conduit::buffer_usage::vertex, "chunk vertex extras");
-        for (size_t l = 0; l < kRenderLayerCount && ok; l++)
-            ok = p.ib[l].Create(dev, std::max(1u, iCap[l]), sizeof(uint32_t),
-                                conduit::buffer_usage::index | conduit::buffer_usage::storage,
-                                "chunk indices");
+        if (ok)
+            ok = p.ib.Create(dev, std::max(1u, iCap), sizeof(uint32_t),
+                             conduit::buffer_usage::index | conduit::buffer_usage::storage, "chunk indices");
         if (!ok)
             DestroyPage(dev, p);
         return ok;
@@ -160,86 +151,26 @@ namespace perlin::gpu {
     void ChunkMeshStore::DestroyPage(conduit::device& dev, Page& p) {
         p.vb.Destroy(dev);
         p.ext.Destroy(dev);
-        for (Arena& a : p.ib)
-            a.Destroy(dev);
+        p.ib.Destroy(dev);
     }
 
-    void ChunkMeshStore::NextPageSize(uint32_t& verts, std::array<uint32_t, kRenderLayerCount>& caps) const {
-        size_t live = 0;
-        for (const Page& p : pages)
-            live += p.live ? 1 : 0;
-        verts = std::min<uint32_t>(kPageVerts, (1u << 18) << std::min<size_t>(live, 2));
-        const uint32_t base = (verts / 4) * 6;
-        caps = {base, base / 2, base / 2, base / 4, base / 8};
-    }
-
-    void ChunkMeshStore::PrepareSpare() {
-        if (!gpu || spare || spareJob.valid())
-            return;
-        const conduit::api api = gpu->Caps().adapter.api;
-        if (api != conduit::api::d3d12 && api != conduit::api::vulkan && api != conduit::api::none)
-            return;
-        uint64_t freeVerts = 0;
-        for (const Page& p : pages)
-            if (p.live)
-                freeVerts += p.vb.FreeTotal();
-        uint32_t verts = 0;
-        std::array<uint32_t, kRenderLayerCount> caps{};
-        NextPageSize(verts, caps);
-        if (freeVerts >= verts / 2)
-            return;
-        auto job = std::make_shared<Spare>();
-        job->ext = extBytes;
-        conduit::device* dev = &gpu->Dev();
-        const uint32_t ext = extBytes;
-        spare = job;
-        spareJob = std::async(std::launch::async, [job, dev, verts, caps, ext] {
-            job->ok = BuildPage(*dev, verts, caps, ext, job->page);
-        });
-    }
-
-    bool ChunkMeshStore::AdoptSpare(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need) {
-        if (!spare || !spareJob.valid() ||
-            spareJob.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-            return false;
-        spareJob.get();
-        std::shared_ptr<Spare> ready = std::move(spare);
-        spare.reset();
-        bool fits = ready->ok && ready->ext == extBytes && ready->page.vb.Capacity() >= v;
-        for (size_t l = 0; l < kRenderLayerCount && fits; l++)
-            fits = ready->page.ib[l].Capacity() >= need[l];
-        if (!fits) {
-            if (ready->ok)
-                DestroyPage(gpu->Dev(), ready->page);
-            return false;
+    int ChunkMeshStore::CreatePage(uint32_t minVerts, uint32_t minIndices) {
+        uint64_t block = kBlockBytes;
+        Page p;
+        for (;;) {
+            const uint64_t perVertex = sizeof(Vertex) + extBytes + sizeof(uint32_t) * 3 / 2;
+            const uint32_t verts = static_cast<uint32_t>(std::min<uint64_t>(block / perVertex, 0xffffffffu));
+            const uint32_t vCap = std::max(verts, minVerts);
+            const uint32_t iCap = std::max<uint32_t>(static_cast<uint32_t>(static_cast<uint64_t>(vCap) * 3 / 2), minIndices);
+            if (BuildPage(gpu->Dev(), vCap, iCap, extBytes, p))
+                break;
+            if (block <= kMinBlockBytes)
+                return -1;
+            block /= 2;
         }
-        Page p = std::move(ready->page);
         p.live = true;
         if (PERLIN_ENV("PERLIN_STATS"))
-            std::printf("[gpu] adopted a mesh page made ahead (%u vertices)\n", p.vb.Capacity());
-        for (size_t i = 0; i < pages.size(); i++)
-            if (!pages[i].live) {
-                pages[i] = std::move(p);
-                return true;
-            }
-        pages.push_back(std::move(p));
-        return true;
-    }
-
-    void ChunkMeshStore::DropSpare() {
-        if (spareJob.valid())
-            spareJob.wait();
-        if (spare && spare->ok && gpu)
-            DestroyPage(gpu->Dev(), spare->page);
-        spare.reset();
-        spareJob = {};
-    }
-
-    int ChunkMeshStore::CreatePage(uint32_t vCap, const std::array<uint32_t, kRenderLayerCount>& iCap) {
-        Page p;
-        if (!BuildPage(gpu->Dev(), vCap, iCap, extBytes, p))
-            return -1;
-        p.live = true;
+            std::printf("[gpu] chunk block: %u vertices, %u indices\n", p.vb.Capacity(), p.ib.Capacity());
         for (size_t i = 0; i < pages.size(); i++)
             if (!pages[i].live) {
                 pages[i] = std::move(p);
@@ -250,6 +181,9 @@ namespace perlin::gpu {
     }
 
     bool ChunkMeshStore::Alloc(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need, Chunk& out) {
+        uint32_t total = 0;
+        for (uint32_t n : need)
+            total += n;
         const auto tryPage = [&](Page& pg, int index) {
             if (!pg.live)
                 return false;
@@ -259,10 +193,10 @@ namespace perlin::gpu {
                 return false;
             std::array<uint32_t, kRenderLayerCount> io{};
             for (size_t l = 0; l < kRenderLayerCount; l++) {
-                if (need[l] && !pg.ib[l].Alloc(need[l], io[l])) {
+                if (need[l] && !pg.ib.Alloc(need[l], io[l])) {
                     for (size_t k = 0; k < l; k++)
                         if (need[k])
-                            pg.ib[k].Free(io[k], need[k]);
+                            pg.ib.Free(io[k], need[k]);
                     pg.vb.Free(vo, v);
                     return false;
                 }
@@ -273,33 +207,22 @@ namespace perlin::gpu {
             return true;
         };
         for (size_t pi = 0; pi < pages.size(); pi++)
-            if (tryPage(pages[pi], static_cast<int>(pi))) {
-                PrepareSpare();
+            if (tryPage(pages[pi], static_cast<int>(pi)))
                 return true;
-            }
-        if (AdoptSpare(v, need))
-            for (size_t pi = pages.size(); pi-- > 0;)
-                if (pages[pi].live && tryPage(pages[pi], static_cast<int>(pi))) {
-                    PrepareSpare();
-                    return true;
-                }
-        const uint32_t pageVerts =
-            std::min<uint32_t>(kPageVerts, (1u << 18) << std::min<size_t>(pages.size(), 2));
-        const uint32_t base = (pageVerts / 4) * 6;
-        std::array<uint32_t, kRenderLayerCount> caps = {base, base / 2, base / 2, base / 4, base / 8};
-        for (size_t l = 0; l < kRenderLayerCount; l++)
-            caps[l] = std::max(caps[l], need[l]);
-        const int created = CreatePage(std::max(pageVerts, v), caps);
+        const int created = CreatePage(v, total);
         return created >= 0 && tryPage(pages[static_cast<size_t>(created)], created);
     }
 
     void ChunkMeshStore::ReleaseEmptyPages() {
+        size_t liveCount = 0;
+        for (const Page& p : pages)
+            liveCount += p.live ? 1 : 0;
         for (Page& p : pages) {
             if (!p.live)
                 continue;
-            bool unused = p.vb.Unused();
-            for (size_t l = 0; l < kRenderLayerCount && unused; l++)
-                unused = p.ib[l].Unused();
+            bool unused = p.vb.Unused() && p.ib.Unused();
+            if (liveCount <= 1)
+                unused = false;
             if (!unused) {
                 p.emptyFrames = 0;
                 continue;
@@ -308,9 +231,9 @@ namespace perlin::gpu {
                 continue;
             p.vb.Destroy(gpu->Dev());
             p.ext.Destroy(gpu->Dev());
-            for (Arena& a : p.ib)
-                a.Destroy(gpu->Dev());
+            p.ib.Destroy(gpu->Dev());
             p.live = false;
+            liveCount--;
             meshEpoch++;
         }
     }
@@ -322,7 +245,7 @@ namespace perlin::gpu {
             pg.vb.Free(c.vOff, c.vCount);
             for (size_t l = 0; l < kRenderLayerCount; l++)
                 if (c.layerCount[l])
-                    pg.ib[l].Free(c.iOff[l], c.layerCount[l]);
+                    pg.ib.Free(c.iOff[l], c.layerCount[l]);
         }
         c.page = -1;
     }
@@ -450,7 +373,7 @@ namespace perlin::gpu {
             shifted.resize(list.size());
             for (size_t i = 0; i < list.size(); i++)
                 shifted[i] = list[i] + g.vOff;
-            gpu->WriteBuffer(pg.ib[l], static_cast<uint64_t>(g.iOff[l]) * sizeof(uint32_t), shifted.data(),
+            gpu->WriteBuffer(pg.ib, static_cast<uint64_t>(g.iOff[l]) * sizeof(uint32_t), shifted.data(),
                              shifted.size() * sizeof(uint32_t));
         }
 
@@ -518,8 +441,7 @@ namespace perlin::gpu {
         uint64_t total = 0;
         for (const Page& p : pages)
             if (p.live)
-                for (const Arena& a : p.ib)
-                    total += static_cast<uint64_t>(a.Capacity()) * sizeof(uint32_t);
+                total += static_cast<uint64_t>(p.ib.Capacity()) * sizeof(uint32_t);
         return total;
     }
 

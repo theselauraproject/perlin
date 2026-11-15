@@ -25,7 +25,7 @@ int main() {
         }
         const EditorBuilt b = BuildEditor(m, gw, gh);
         const EditorLayout l = ComputeEditorLayout(gw, gh);
-        assert(!b.doc.rml.empty() && !b.doc.scene.lists.at("body").empty());
+        assert(!b.doc.scene.nodes.empty());
         bool play = false, key = false, ruler = false;
         for (const EditorHit& h : b.hits) {
             play = play || h.id == "t_play";

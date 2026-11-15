@@ -168,9 +168,6 @@ namespace perlin::screen {
             t.reason = lastError.empty() ? i18n::Tr("perlin.disconnect.no_reason") : lastError;
         }
 
-        if (disconnect.tmpl.Refresh("ui/screens/disconnect_screen.rml", ui::DefaultDisconnectScreenTemplate(),
-                                    std::chrono::milliseconds(400), now, "disconnect screen"))
-            disconnect.signature.clear();
         const auto [scale, guiW, guiH] = ui::OverlayViewport(hud, fbW, fbH);
         t.panorama = panorama.Draw(fbW, fbH, true);
         const std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + t.title +
@@ -178,13 +175,7 @@ namespace perlin::screen {
         if (signature != disconnect.signature || !hud.Overlay().HasOverlay()) {
             disconnect.signature = signature;
             std::string error;
-            ui::SceneDoc doc = ui::BuildDisconnectScreen(disconnect.tmpl.text, t, guiW, guiH);
-            if (!hud.Overlay().SetOverlay(doc.rml, doc.scene, error)) {
-                Log("ui", "disconnect_screen.rml: {}", error);
-                disconnect.tmpl.text = ui::DefaultDisconnectScreenTemplate();
-                doc = ui::BuildDisconnectScreen(disconnect.tmpl.text, t, guiW, guiH);
-                hud.Overlay().SetOverlay(doc.rml, doc.scene, error);
-            }
+            hud.Overlay().SetOverlay(ui::BuildDisconnectScreen(t, guiW, guiH), error);
         }
         const glm::vec2 pointer = screen::PointerOrPreview(input);
         float mx = pointer.x, my = pointer.y;

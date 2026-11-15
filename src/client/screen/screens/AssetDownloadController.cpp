@@ -143,7 +143,7 @@ namespace perlin::screen {
             asset.signature = signature;
             std::string error;
             if (const ui::SceneDoc doc = ui::BuildDownloadScreen(t, guiW, guiH, time);
-                !hud.Overlay().SetOverlay(doc.rml, doc.scene, error))
+                !hud.Overlay().SetOverlay(doc, error))
                 Log("ui", "download screen: {}", error);
         }
         const glm::vec2 pointer = screen::PointerOrPreview(input);

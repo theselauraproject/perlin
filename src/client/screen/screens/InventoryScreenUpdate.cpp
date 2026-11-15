@@ -287,10 +287,6 @@ namespace perlin::screen {
             }
         }
 
-        if (this->tmpl.Refresh("ui/screens/inventory_screen.rml", ui::DefaultInventoryScreenTemplate(),
-                                   std::chrono::milliseconds(2000), now, "inventory screen"))
-            this->signature.clear();
-
         const auto [scale, guiW, guiH] = ui::OverlayViewport(hud, fbW, fbH);
         const glm::vec2 pointer = screen::PointerOrPreview(host.input);
         float mx = pointer.x, my = pointer.y;
@@ -366,14 +362,8 @@ namespace perlin::screen {
                 Log("chest", "{}, using the built-in layout", error);
                 this->jsonPanel = false;
             }
-            if (!this->jsonPanel &&
-                !hud.Overlay().SetOverlay(ui::BuildInventoryScreen(this->tmpl.text, v, guiW, guiH),
-                                          error)) {
-                Log("ui", "inventory_screen.rml: {}", error);
-                this->tmpl.text = ui::DefaultInventoryScreenTemplate();
-                hud.Overlay().SetOverlay(ui::BuildInventoryScreen(this->tmpl.text, v, guiW, guiH),
-                                         error);
-            }
+            if (!this->jsonPanel)
+                hud.Overlay().SetOverlay(ui::BuildInventoryScreen(v, guiW, guiH), error);
             hud.Overlay().MouseMove(gx, gy);
         }
         hud.Overlay().MoveOverlayElement("cursor", static_cast<int>(gx) - 8, static_cast<int>(gy) - 8);
@@ -626,10 +616,6 @@ namespace perlin::screen {
                 v.armor[static_cast<size_t>(i)] = host.hudState.armorItems[i];
         }
 
-        if (creative.tmpl.Refresh("ui/screens/creative_screen.rml", ui::DefaultCreativeScreenTemplate(),
-                                        std::chrono::milliseconds(2000), now))
-            creative.signature.clear();
-
         const auto [scale, guiW, guiH] = ui::OverlayViewport(hud, fbW, fbH);
         const glm::vec2 pointer = screen::PointerOrPreview(host.input);
         float mx = pointer.x, my = pointer.y;
@@ -777,13 +763,7 @@ namespace perlin::screen {
         if (signature != creative.signature || !hud.Overlay().HasOverlay()) {
             creative.signature = signature;
             std::string error;
-            if (!hud.Overlay().SetOverlay(ui::BuildCreativeScreen(creative.tmpl.text, v, guiW, guiH),
-                                          error)) {
-                Log("ui", "creative_screen.rml: {}", error);
-                creative.tmpl.text = ui::DefaultCreativeScreenTemplate();
-                hud.Overlay().SetOverlay(ui::BuildCreativeScreen(creative.tmpl.text, v, guiW, guiH),
-                                         error);
-            }
+            hud.Overlay().SetOverlay(ui::BuildCreativeScreen(v, guiW, guiH), error);
             hud.Overlay().MouseMove(gx, gy);
         }
         if (needRefresh)

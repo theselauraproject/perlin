@@ -14,7 +14,7 @@
 #include "client/systems/resources/ClientAssets.hpp"
 #include "util/JsonValue.hpp"
 #include "client/ui/SceneEmit.hpp"
-#include "client/ui/UiTemplate.hpp"
+#include "client/ui/SceneKit.hpp"
 #include "util/Paths.hpp"
 #include "util/FileIo.hpp"
 
@@ -136,9 +136,18 @@ namespace perlin::ui {
             return lines;
         }
 
-        const std::string& Template() {
-            static const std::string text = ui::ReadMarkup("ui/screens/credits_screen.rml");
-            return text;
+        const char* ColorFor(const std::string& cls) {
+            if (cls == "title" || cls == "head")
+                return "#ffff55";
+            if (cls == "sub")
+                return "#aaaaaa";
+            if (cls == "note" )
+                return "#555555";
+            if (cls == "poem3")
+                return "#00aaaa";
+            if (cls == "poem2")
+                return "#00aa00";
+            return "#ffffff";
         }
     }
 
@@ -152,27 +161,27 @@ namespace perlin::ui {
     SceneDoc BuildCreditsScreen(int guiW, int guiH, int scroll, const std::string& player) {
 
         const int top = guiH - scroll;
-        int y = 0, skipped = 0;
+        int y = 0;
         SceneDoc doc;
-        auto& rows = doc.scene.rows["lines"];
-        const std::string pad = std::to_string(std::max(0, (guiW - 274) / 2));
+        doc.scene.theme = Theme::Credits;
+        SceneBuilder b(doc.scene.nodes);
+        const float w = static_cast<float>(guiW), h = static_cast<float>(guiH);
+        kit::Rect(b, 0, 0, w, h, "#000000", "1");
+        const float left = static_cast<float>(std::max(0, (guiW - 274) / 2));
         for (const Line& l : Lines(player)) {
-            const int h = l.Height();
-            if (top + y + h < 0)
-                skipped += h;
-            else if (top + y <= guiH)
-                rows.push_back({{"cls", l.cls},
-                                {"text", l.text.empty() ? std::string("\xC2\xA0") : l.text},
-                                {"pad", l.cls.starts_with("poem") ? pad : std::string("0")}});
-            y += h;
+            const int lh = l.Height();
+            const bool poem = l.cls.starts_with("poem");
+            const int ly = top + y;
+            if (ly + lh >= 0 && ly <= guiH && !l.text.empty()) {
+                SceneNode& n = kit::Label(b, poem ? left : 0, static_cast<float>(ly), poem ? 274.0f : w,
+                                          std::string(poem ? "nowrap" : "ctr nowrap") + (l.cls == "title" ? " big" : ""),
+                                          kit::Plain(l.text, ColorFor(l.cls)), "3");
+                n.h = static_cast<float>(lh);
+            }
+            y += lh;
         }
-        doc.rml = Template();
-        auto& vars = doc.scene.vars;
-        vars["w"] = std::to_string(guiW);
-        vars["h"] = std::to_string(guiH);
-        vars["top"] = std::to_string(top + skipped);
-        vars["hint_y"] = std::to_string(guiH - 12);
-        vars["hint"] = "Press Escape to skip";
+        kit::Rect(b, 0, h - 12, w, 12, "#000000", "4");
+        kit::Label(b, 0, h - 12, w, "ctr nowrap", kit::Plain("Press Escape to skip", "#555555"), "5");
         return doc;
     }
 }
@@ -210,7 +219,7 @@ namespace perlin::screen {
             std::string error;
             const std::string& player = live ? live->PlayerName() : host.options.playerName;
             const ui::SceneDoc doc = ui::BuildCreditsScreen(gui.w, gui.h, static_cast<int>(scroll), player);
-            if (!hud.Overlay().SetOverlay(doc.rml, doc.scene, error))
+            if (!hud.Overlay().SetOverlay(doc, error))
                 Log("ui", "credits screen: {}", error);
         }
         hud.UpdateOverlay(fbW, fbH, host.options.guiScale);

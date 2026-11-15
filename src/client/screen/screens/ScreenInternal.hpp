@@ -115,7 +115,6 @@
 #include "client/screen/screens/InventoryScreen.hpp"
 #include "client/systems/multiplayer/PackDownloader.hpp"
 #include "client/screen/screens/TitleScreen.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "network/FriendWorld.hpp"
 #include "network/LanDiscovery.hpp"
 #include "util/ModSocket.hpp"

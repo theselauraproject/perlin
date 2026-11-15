@@ -1,5 +1,4 @@
 #include "client/ui/PluginLayer.hpp"
-#include "client/ui/UiTemplate.hpp"
 
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/ui/SceneKit.hpp"
@@ -116,16 +115,10 @@ namespace perlin::ui {
         }
     }
 
-    namespace {
-        const ScreenTemplateDefault kPluginLayerDefault("ui/overlays/plugin_layer.rml");
-    }
-
     SceneDoc BuildPluginLayer(const std::vector<mods::UiLayer>& layers, int guiW, int guiH) {
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/overlays/plugin_layer.rml");
-        doc.scene.vars["w"] = std::to_string(guiW);
-        doc.scene.vars["h"] = std::to_string(guiH);
-        SceneBuilder out(doc.scene.lists["body"]);
+        doc.scene.theme = Theme::Plugin;
+        SceneBuilder out(doc.scene.nodes);
         for (const mods::UiLayer& layer : layers)
             Emit(layer, out);
         return doc;

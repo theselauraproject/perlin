@@ -6,7 +6,6 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include "client/ui/UiTemplate.hpp"
 #include <cstdint>
 #include <string>
 
@@ -19,9 +18,7 @@ namespace perlin::ui {
     inline constexpr const char* kDeathRespawnId = "respawn";
     inline constexpr const char* kDeathTitleId = "title";
 
-    std::string DefaultDeathScreenTemplate();
-    std::string LoadDeathScreenTemplate(const std::string& dataDir, uint64_t& version);
-    SceneDoc BuildDeathScreen(const std::string& templateText, const DeathScreenText& text, int guiW, int guiH);
+    SceneDoc BuildDeathScreen(const DeathScreenText& text, int guiW, int guiH);
 }
 
 namespace perlin::screen {
@@ -31,7 +28,6 @@ namespace perlin::screen {
 
         bool respawnSent = false, textMode = false, hoverLogged = false;
         std::chrono::steady_clock::time_point sentAt;
-        ui::TemplateSlot tmpl;
 
     private:
         void UpdateDeath(ui::Hud& hud, BedrockSession* live, int fbW, int fbH);

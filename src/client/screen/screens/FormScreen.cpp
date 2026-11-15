@@ -21,7 +21,6 @@
 #include "client/ui/SceneKit.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
 #include "client/ui/TextEdit.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "client/ui/AssetServices.hpp"
 #include "util/Paths.hpp"
 
@@ -82,8 +81,6 @@ namespace perlin::ui {
             }
             return lines;
         }
-
-        const ScreenTemplateDefault kBuiltinFormDefault("ui/screens/server_form_builtin.rml");
 
         std::mutex gImageMutex;
         std::map<std::string, std::string> gImages;
@@ -457,10 +454,10 @@ namespace perlin::ui {
         const float visible = std::min(contentHeight, viewHeight);
 
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/screens/server_form_builtin.rml");
-        SceneBuilder top(doc.scene.lists["body"]);
-        kit::Box(top, 0, 0, static_cast<float>(guiW), static_cast<float>(guiH), {}, "bg", "1");
-        kit::Box(top, panelX, viewTop - 18, panelW, visible + 24, {}, "panel", "2");
+        doc.scene.theme = Theme::Form;
+        SceneBuilder top(doc.scene.nodes);
+        kit::Box(top, 0, 0, static_cast<float>(guiW), static_cast<float>(guiH), "bg", "bg", "1");
+        kit::Box(top, panelX, viewTop - 18, panelW, visible + 24, "panel", "panel", "2");
         SceneNode& title = kit::Label(top, panelX, viewTop - 13, panelW, "t c", ParseFormatLines(form.title, ""), "4");
         title.h = 9;
         Button(top, kFormCloseId, "x", panelX + panelW - 14, viewTop - 16, 12, 12);
@@ -835,7 +832,6 @@ namespace perlin::ui {
             const FormModel& form;
             std::vector<FormButton> items;
         };
-        const ScreenTemplateDefault kFormTemplateDefault("ui/screens/server_form_screen.rml");
     }
 
     FormUi::FormUi() {
@@ -856,7 +852,6 @@ namespace perlin::ui {
             animCache[full] = props;
             return props;
         };
-        emitter.SetTemplates(ui::BuiltinTemplate("ui/screens/server_form_screen.rml"), std::string());
     }
 
     FormUi::~FormUi() {
@@ -979,8 +974,7 @@ namespace perlin::ui {
                 return true;
             });
         emitter.SetScroll(scroll);
-        emitter.SetTemplates(ScreenTemplate("ui/screens/server_form_screen.rml"), std::string());
-        doc = emitter.Emit(*root, static_cast<float>(guiW), static_cast<float>(guiH), std::string());
+        doc = emitter.Emit(*root, static_cast<float>(guiW), static_cast<float>(guiH), EmitLayout::Screen);
         contentHeight = emitter.ContentHeight();
         viewHeight = emitter.ViewportHeight();
         for (size_t i = 0; i < form.elements.size(); i++)
@@ -1038,7 +1032,7 @@ namespace perlin::ui {
             {
                 std::error_code ec;
                 std::filesystem::create_directories(paths::DataDir() + "/ui_generated", ec);
-                std::ofstream(paths::DataDir() + "/ui_generated/last_form_json_failed.rml",
+                std::ofstream(paths::DataDir() + "/ui_generated/last_form_json_failed.txt",
                               std::ios::binary | std::ios::trunc)
                     << DumpScene(doc);
             }
@@ -1184,7 +1178,7 @@ namespace perlin::screen {
             this->contentH = contentH;
             this->viewH = viewH;
 
-            DumpGenerated("last_form.rml", ui::DumpScene(doc));
+            DumpGenerated("last_form.txt", ui::DumpScene(doc));
             if (!hud.Overlay().SetOverlay(doc, error)) {
                 Log("form", "{}", error);
                 if (!engine)

@@ -183,9 +183,6 @@ namespace perlin::screen {
             screens.Open(loading);
             ports.CloseGameplayScreens();
         }
-        if (loading.tmpl.Refresh("ui/screens/loading_screen.rml", ui::DefaultLoadingScreenTemplate(),
-                                 std::chrono::milliseconds(400), now))
-            loading.signature.clear();
         const auto [scale, guiW, guiH] = ui::OverlayViewport(hud, fbW, fbH);
         const bool modHidden = ports.ModHidesLoading();
         loading.modHidden = modHidden;
@@ -201,13 +198,7 @@ namespace perlin::screen {
         } else if (signature != loading.signature || !hud.Overlay().HasOverlay()) {
             loading.signature = signature;
             std::string error;
-            ui::SceneDoc doc = ui::BuildLoadingScreen(loading.tmpl.text, t, guiW, guiH);
-            if (!hud.Overlay().SetOverlay(doc.rml, doc.scene, error)) {
-                Log("ui", "loading_screen.rml: {}", error);
-                loading.tmpl.text = ui::DefaultLoadingScreenTemplate();
-                doc = ui::BuildLoadingScreen(loading.tmpl.text, t, guiW, guiH);
-                hud.Overlay().SetOverlay(doc.rml, doc.scene, error);
-            }
+            hud.Overlay().SetOverlay(ui::BuildLoadingScreen(t, guiW, guiH), error);
         }
         const glm::vec2 pointer = screen::PointerOrPreview(input);
         float mx = pointer.x, my = pointer.y;

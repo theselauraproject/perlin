@@ -128,8 +128,8 @@ int main(int argc, char** argv) {
         Tree(*eval, 0, std::atoi(std::getenv("HUD_TREE")) == 1);
     SceneEmitter emitter;
     RegisterHudRenderers(emitter, state, services);
-    const std::string rml = DumpScene(emitter.Emit(*eval, W, H, ""));
-    std::fputs(rml.c_str(), stdout);
+    const std::string scene = DumpScene(emitter.Emit(*eval, W, H));
+    std::fputs(scene.c_str(), stdout);
     for (auto& u : emitter.UnknownRenderers())
         std::fprintf(stderr, "  unknown renderer: %s\n", u.c_str());
     return 0;

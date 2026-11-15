@@ -2,7 +2,6 @@
 #include "client/systems/multiplayer/HudItemConvert.hpp"
 #include "client/systems/sprites/ItemData.hpp"
 #include "client/ui/HudFeed.hpp"
-#include "client/screen/screens/ScreenTemplates.hpp"
 #include "client/systems/resources/AssetJobs.hpp"
 #include "client/ui/GuiViewport.hpp"
 #include "util/Clock.hpp"
@@ -499,7 +498,6 @@ namespace perlin::screen {
                 auto candidate = std::make_unique<ui::Hud>();
                 candidate->SetJavaStyle(true);
                 if (candidate->Initialize(*renderer, vanillaRoot, paths::DataDir(), !vanillaUi)) {
-                    screen::PreloadScreenTemplates(paths::DataDir());
                     candidate->Overlay().SetImageSource(ui::FormImageBytes);
                     hudBootstrap = !candidate->HasLevelUi();
                     hud = std::move(candidate);

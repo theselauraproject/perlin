@@ -1,6 +1,9 @@
 #include "client/ui/SceneKit.hpp"
 
 #include <algorithm>
+#include <cstdio>
+
+#include <algorithm>
 #include <cmath>
 
 namespace perlin::ui::kit {
@@ -159,5 +162,68 @@ namespace perlin::ui::kit {
         n.knob = Round(1.0f + std::clamp(fraction, 0.0f, 1.0f) * (w - 10.0f));
         n.runs = std::move(label);
         return b.Add(std::move(n));
+    }
+
+    SceneNode& Dim(SceneBuilder& b, float w, float h, int alpha) {
+        char color[16];
+        std::snprintf(color, sizeof color, "#000000%02x", std::clamp(alpha, 0, 255));
+        return Rect(b, 0, 0, w, h, color, "auto", {}, "dim");
+    }
+
+    SceneNode& Heading(SceneBuilder& b, float guiW, float y, const std::string& title) {
+        SceneNode& n = Label(b, 0, y, guiW, "ctr", Plain(title), "3", "heading");
+        return n;
+    }
+
+    void Append(std::vector<SceneNode>& dst, std::vector<SceneNode>& src) {
+        for (SceneNode& n : src)
+            dst.push_back(std::move(n));
+        src.clear();
+    }
+
+    SceneNode& Container(std::vector<SceneNode>& dst, const std::string& id, float x, float y, float w, float h,
+                         const std::string& z, std::vector<SceneNode> children) {
+        SceneNode n;
+        n.id = id;
+        n.x = x;
+        n.y = y;
+        n.w = w;
+        n.h = h;
+        n.z = z;
+        n.children = std::move(children);
+        dst.push_back(std::move(n));
+        return dst.back();
+    }
+
+    void TopLayer(std::vector<SceneNode>& dst, float w, float h, const std::string& z, std::vector<SceneNode>& cursor,
+                  std::vector<SceneNode>& tooltip) {
+        std::vector<SceneNode> kids;
+        SceneNode top;
+        top.z = "-999";
+        top.layer = "top";
+        kids.push_back(std::move(top));
+        Append(kids, cursor);
+        Append(kids, tooltip);
+        SceneNode gui;
+        gui.z = "999";
+        gui.layer = "gui";
+        kids.push_back(std::move(gui));
+        Container(dst, "top", 0, 0, w, h, z, std::move(kids));
+    }
+
+    void Backdrop(SceneBuilder& b, float w, float h, bool panorama) {
+        if (!panorama) {
+            SceneNode n;
+            n.kind = SceneNode::Image;
+            n.w = w;
+            n.h = h;
+            n.z = "1";
+            n.src = "textures/blocks/dirt";
+            n.tiled = "1";
+            n.tileScale = "2";
+            n.tint = "0.25 0.25 0.25";
+            b.Add(std::move(n));
+        }
+        Rect(b, 0, 0, w, h, "#00000040", "1");
     }
 }

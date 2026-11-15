@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include "client/ui/Scene.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include <string>
 
 namespace perlin::ui {
@@ -21,8 +20,7 @@ namespace perlin::ui {
 
     bool LooksLikeBan(const std::string& text);
 
-    std::string DefaultDisconnectScreenTemplate();
-    SceneDoc BuildDisconnectScreen(const std::string& templateText, const DisconnectScreenText& text, int guiW,
+    SceneDoc BuildDisconnectScreen(const DisconnectScreenText& text, int guiW,
                                    int guiH);
 }
 
@@ -30,6 +28,5 @@ namespace perlin::screen {
     struct DisconnectScreen : OverlayScreen {
         using OverlayScreen::OverlayScreen;
         bool textMode = false;
-        ui::TemplateSlot tmpl;
     };
 }

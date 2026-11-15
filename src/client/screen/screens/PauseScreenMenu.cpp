@@ -127,9 +127,6 @@ namespace perlin::screen {
             return;
         }
 
-        if (this->tmpl.Refresh("ui/screens/pause_screen.rml", ui::DefaultPauseScreenTemplate(),
-                               std::chrono::milliseconds(400), now, "pause screen"))
-            this->signature.clear();
         const auto [scale, guiW, guiH] = ui::OverlayViewport(hud, fbW, fbH);
         const glm::vec2 pointer = screen::PointerOrPreview(host.input);
         float mx = pointer.x, my = pointer.y;
@@ -222,11 +219,7 @@ namespace perlin::screen {
         if (signature != this->signature || !hud.Overlay().HasOverlay()) {
             this->signature = signature;
             std::string error;
-            if (!hud.Overlay().SetOverlay(ui::BuildPauseScreen(this->tmpl.text, t, guiW, guiH), error)) {
-                Log("ui", "pause_screen.rml: {}", error);
-                this->tmpl.text = ui::DefaultPauseScreenTemplate();
-                hud.Overlay().SetOverlay(ui::BuildPauseScreen(this->tmpl.text, t, guiW, guiH), error);
-            }
+            hud.Overlay().SetOverlay(ui::BuildPauseScreen(t, guiW, guiH), error);
         }
         hud.Overlay().MouseMove(mx / static_cast<float>(scale), my / static_cast<float>(scale));
         hud.UpdateOverlay(fbW, fbH, services.options.guiScale);

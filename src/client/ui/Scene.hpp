@@ -6,6 +6,11 @@
 #include <vector>
 
 namespace perlin::ui {
+    enum class Theme {
+        None, Title, List, Options, Keybinds, Menu, Pause, Inventory, Creative, Chest, Death, Disconnect, Loading,
+        Download, Credits, Bed, Form, Hud, Replay, Plugin, Server
+    };
+
     struct SceneRun {
         std::string text;
         std::string colored;
@@ -44,6 +49,7 @@ namespace perlin::ui {
         std::string keep;
         std::string glint;
         std::string key;
+        std::string layer;
 
         std::string color = "#ffffffff";
         std::string decorator;
@@ -59,30 +65,20 @@ namespace perlin::ui {
         bool operator==(const SceneNode&) const = default;
     };
 
-    struct SceneRow {
-        std::map<std::string, std::string> v;
-        std::map<std::string, std::vector<SceneRun>> runs;
-        std::map<std::string, std::vector<SceneRow>> rows;
-
-        SceneRow() = default;
-        SceneRow(std::initializer_list<std::pair<const std::string, std::string>> values) : v(values) {}
-    };
-
     struct Scene {
+        Theme theme = Theme::None;
+        float panoSpan = 0;
+        bool sprites = false;
         std::vector<SceneNode> nodes;
         std::map<std::string, std::vector<SceneNode>> lists;
-        std::map<std::string, std::string> vars;
-        std::map<std::string, bool> flags;
-        std::map<std::string, std::vector<SceneRun>> texts;
-        std::map<std::string, std::vector<SceneRow>> rows;
+
+        bool operator==(const Scene&) const = default;
     };
 
     struct SceneDoc {
-        std::string rml;
         Scene scene;
     };
 
-    void EnsureSceneLists(SceneDoc& doc);
     bool SceneHasId(const SceneDoc& doc, const std::string& id, bool prefix = false);
     bool SceneHasText(const SceneDoc& doc, const std::string& needle);
     std::string DumpScene(const SceneDoc& doc);

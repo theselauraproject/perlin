@@ -6,7 +6,6 @@
 #include "client/ui/ItemTooltip.hpp"
 #include "client/ui/SceneKit.hpp"
 #include "client/ui/UiSprite.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "client/systems/i18n/Lang.hpp"
 
 #include <algorithm>
@@ -17,10 +16,6 @@
 #include <cstdio>
 
 namespace perlin::ui {
-    std::string DefaultInventoryScreenTemplate() {
-        return ui::ReadMarkup("ui/screens/inventory_screen.rml");
-    }
-
     int InventoryAddrFromId(const std::string& id) {
         if (id == "off")
             return kInvAddrOffhand;
@@ -211,7 +206,7 @@ namespace perlin::ui {
         }
     }
 
-    SceneDoc BuildInventoryScreen(const std::string& templateText, const InventoryView& v, int guiW, int guiH) {
+    SceneDoc BuildInventoryScreen(const InventoryView& v, int guiW, int guiH) {
         const int px = InventoryPanelX(v, guiW), py = (guiH - InventoryPanelH(v)) / 2;
         const bool wb = v.workbench;
         const int rows = v.chestRows;
@@ -331,12 +326,21 @@ namespace perlin::ui {
         SceneBuilder tooltip(doc.scene.lists["tooltip"]);
         AddInventoryTooltip(tooltip, v, guiW, guiH);
 
-        doc.rml = templateText;
-        ReplaceAll(doc.rml, "w", std::to_string(guiW));
-        ReplaceAll(doc.rml, "h", std::to_string(guiH));
-        ReplaceAll(doc.rml, "x", std::to_string(px));
-        ReplaceAll(doc.rml, "y", std::to_string(py));
-        EnsureSceneLists(doc);
+        doc.scene.theme = Theme::Inventory;
+        auto& L = doc.scene.lists;
+        auto& out = doc.scene.nodes;
+        {
+            SceneBuilder sb(out);
+            kit::Rect(sb, 0, 0, static_cast<float>(guiW), static_cast<float>(guiH), "#101010c8", "auto", {}, "dim");
+        }
+        kit::Append(out, L["book"]);
+        kit::Append(out, L["effects"]);
+        kit::Container(out, "panel", static_cast<float>(px), static_cast<float>(py), 176, 166, "auto",
+                       std::move(L["chrome"]));
+        kit::Append(out, L["bookbutton"]);
+        kit::Append(out, L["slots"]);
+        kit::TopLayer(out, static_cast<float>(guiW), static_cast<float>(guiH), "50", L["cursor"], L["tooltip"]);
+        L.clear();
         return doc;
     }
 

@@ -12,22 +12,16 @@
 #include "util/Strings.hpp"
 
 #include "client/ui/SceneEmit.hpp"
-#include "client/ui/UiTemplate.hpp"
+#include "client/ui/SceneKit.hpp"
 
 namespace perlin::ui {
-    namespace {
-        const ScreenTemplateDefault kBedDefault("ui/screens/bed_screen.rml");
-    }
-
     SceneDoc BuildBedScreen(const std::string& label, int guiW, int guiH) {
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/screens/bed_screen.rml");
-        auto& vars = doc.scene.vars;
-        vars["w"] = std::to_string(guiW);
-        vars["h"] = std::to_string(guiH);
-        vars["btn_x"] = std::to_string(guiW / 2 - 100);
-        vars["btn_y"] = std::to_string(guiH - 40);
-        vars["label"] = label;
+        doc.scene.theme = Theme::Bed;
+        doc.scene.sprites = true;
+        SceneBuilder b(doc.scene.nodes);
+        kit::Button(b, kBedLeaveId, static_cast<float>(guiW / 2 - 100), static_cast<float>(guiH - 40), 200,
+                    kit::Plain(label));
         return doc;
     }
 }

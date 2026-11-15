@@ -1,3 +1,4 @@
+#include "client/ui/SceneKit.hpp"
 #include "client/screen/screens/ChestScreen.hpp"
 #include "util/Resources.hpp"
 #include "client/ui/AssetServices.hpp"
@@ -10,7 +11,6 @@
 #include "client/systems/text/McFont.hpp"
 #include "client/ui/TenFont.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "util/Paths.hpp"
 
 #include <algorithm>
@@ -156,7 +156,6 @@ namespace perlin::ui {
                     return found;
             return nullptr;
         }
-        const ScreenTemplateDefault kChestDefault("ui/screens/chest_screen.rml");
     }
 
     std::string ChestScreenName(const std::string& titleKey, int rows) {
@@ -171,7 +170,6 @@ namespace perlin::ui {
 
     ChestUi::ChestUi() {
         BindAssetServices(services);
-        emitter.SetTemplates(ui::BuiltinTemplate("ui/screens/chest_screen.rml"), std::string());
         RegisterHudRenderers(emitter, hudState, services);
         emitter.Register("inventory_item_renderer", [this](const LNode& n, SceneWriter& w) {
             const HudItem* item = current ? SlotItem(*current, n.collection, n.index) : nullptr;
@@ -299,8 +297,7 @@ namespace perlin::ui {
         if (!root)
             return false;
         current = &view;
-        emitter.SetTemplates(ScreenTemplate("ui/screens/chest_screen.rml"), std::string());
-        doc = emitter.Emit(*root, static_cast<float>(guiW), static_cast<float>(guiH), std::string());
+        doc = emitter.Emit(*root, static_cast<float>(guiW), static_cast<float>(guiH), EmitLayout::Chest);
         current = nullptr;
         if (!SceneHasId(doc, "k0") || !SceneHasId(doc, "s0")) {
             problem = "the ui files produced no container slots";
@@ -310,6 +307,8 @@ namespace perlin::ui {
         AddInventoryCursor(cursor, view);
         SceneBuilder tooltip(doc.scene.lists["tooltip"]);
         AddInventoryTooltip(tooltip, view, guiW, guiH);
+        ui::kit::TopLayer(doc.scene.nodes, static_cast<float>(guiW), static_cast<float>(guiH), "1000",
+                      doc.scene.lists["cursor"], doc.scene.lists["tooltip"]);
 
         const float fallbackH = static_cast<float>(InventoryPanelH(view));
         panel[0] = static_cast<float>(guiW - kInvPanelW) * 0.5f;
@@ -325,7 +324,7 @@ namespace perlin::ui {
 
         if (dumped.insert(it->first).second) {
             const std::filesystem::path out =
-                std::filesystem::path(paths::DataDir()) / "ui_generated" / (it->first + ".rml");
+                std::filesystem::path(paths::DataDir()) / "ui_generated" / (it->first + ".txt");
             std::error_code ec;
             std::filesystem::create_directories(out.parent_path(), ec);
             std::ofstream f(out, std::ios::binary | std::ios::trunc);

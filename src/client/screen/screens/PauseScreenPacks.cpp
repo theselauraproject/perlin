@@ -12,9 +12,9 @@ namespace perlin::screen {
             return meta.hasIcon ? "mchead:pack:" + dir + "/" + name : std::string(fallback);
         }
 
-        void SubmitPackOverlay(ui::Hud& hud, const ui::SceneDoc& rml, const char* label) {
+        void SubmitPackOverlay(ui::Hud& hud, const ui::SceneDoc& doc, const char* label) {
             std::string error;
-            if (!hud.Overlay().SetOverlay(rml, error))
+            if (!hud.Overlay().SetOverlay(doc, error))
                 Log("ui", "{} screen: {}", label, error);
         }
     }

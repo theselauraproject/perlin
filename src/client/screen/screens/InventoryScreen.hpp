@@ -4,7 +4,6 @@
 #include "client/screen/Frame.hpp"
 #include "client/screen/screens/ChestScreen.hpp"
 #include "client/screen/screens/InventoryView.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "client/systems/multiplayer/BedrockSession.hpp"
 #include <chrono>
 #include <string>
@@ -18,7 +17,6 @@ namespace perlin::screen {
         float scroll = 0.0f;
         bool dragging = false;
         std::string search, signature;
-        ui::TemplateSlot tmpl;
     };
 
     struct InventoryScreen : OverlayScreen {
@@ -41,7 +39,6 @@ namespace perlin::screen {
         int bookPage = 0;
         std::vector<BedrockSession::RecipeEntry> recipeAll;
         std::chrono::steady_clock::time_point recipeAt;
-        ui::TemplateSlot tmpl;
         float panel[4] = {};
         bool jsonPanel = false, closeClicked = false;
         std::string chestScreen, chestProblem;

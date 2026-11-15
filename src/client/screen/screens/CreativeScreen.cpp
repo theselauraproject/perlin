@@ -7,16 +7,11 @@
 #include "client/ui/SceneKit.hpp"
 #include "client/ui/TextEdit.hpp"
 #include "client/ui/UiSprite.hpp"
-#include "client/ui/UiTemplate.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 
 namespace perlin::ui {
-    std::string DefaultCreativeScreenTemplate() {
-        return ui::ReadMarkup("ui/screens/creative_screen.rml");
-    }
-
     void CreativeTabPos(int tab, int& x, int& y, bool& top) {
         top = tab != kCreativeSurvivalTab;
         const int col = tab == kCreativeSearchTab || tab == kCreativeSurvivalTab ? 6 : tab;
@@ -74,7 +69,7 @@ namespace perlin::ui {
         }
     }
 
-    SceneDoc BuildCreativeScreen(const std::string& templateText, const CreativeView& v, int guiW, int guiH) {
+    SceneDoc BuildCreativeScreen(const CreativeView& v, int guiW, int guiH) {
         const int px = (guiW - kCreativeW) / 2, py = (guiH - kCreativeH) / 2;
         const bool survival = v.tab == kCreativeSurvivalTab;
         SceneDoc doc;
@@ -175,12 +170,24 @@ namespace perlin::ui {
         SceneBuilder effects(doc.scene.lists["effects"]);
         AddEffectsPanel(effects, v.effects, px + kCreativeW + 2, py, guiW);
 
-        doc.rml = templateText;
-        ReplaceAll(doc.rml, "w", std::to_string(guiW));
-        ReplaceAll(doc.rml, "h", std::to_string(guiH));
-        ReplaceAll(doc.rml, "x", std::to_string(px));
-        ReplaceAll(doc.rml, "y", std::to_string(py));
-        EnsureSceneLists(doc);
+        doc.scene.theme = Theme::Creative;
+        auto& L = doc.scene.lists;
+        auto& out = doc.scene.nodes;
+        {
+            SceneBuilder sb(out);
+            SceneNode& dim = kit::Gradient(sb, 0, 0, static_cast<float>(guiW), static_cast<float>(guiH),
+                                           "vertical-gradient(#101010c0 #101010d0)");
+            dim.id = "dim";
+        }
+        kit::Container(out, "panel", static_cast<float>(px), static_cast<float>(py), kCreativeW, kCreativeH, "2",
+                       std::move(L["chrome"]));
+        kit::Append(out, L["tabs"]);
+        kit::Append(out, L["effects"]);
+        kit::Append(out, L["search"]);
+        kit::Append(out, L["scrollbar"]);
+        kit::Append(out, L["slots"]);
+        kit::TopLayer(out, static_cast<float>(guiW), static_cast<float>(guiH), "50", L["cursor"], L["tooltip"]);
+        L.clear();
         return doc;
     }
 }

@@ -20,7 +20,6 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include "client/ui/UiTemplate.hpp"
 #include <string>
 #include <vector>
 
@@ -213,8 +212,7 @@ namespace perlin::ui {
                                   const std::string& open, const std::string& done, float scroll,
                                   float detailScroll, int guiW, int guiH);
 
-    std::string DefaultPauseScreenTemplate();
-    ui::SceneDoc BuildPauseScreen(const std::string& templateText, const PauseScreenText& text, int guiW,
+    ui::SceneDoc BuildPauseScreen(const PauseScreenText& text, int guiW,
                                     int guiH);
 
     struct WardrobeCard {
@@ -305,7 +303,6 @@ namespace perlin::screen {
 
         bool previewOpened = false, players = false;
         int view = 0;
-        ui::TemplateSlot tmpl;
         WardrobeState wardrobe;
 
     struct OptionsMenu {

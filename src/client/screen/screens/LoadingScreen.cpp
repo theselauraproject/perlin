@@ -3,18 +3,13 @@
 
 #include "client/ui/SceneEmit.hpp"
 #include "client/systems/text/FormatCodes.hpp"
-#include "client/ui/UiTemplate.hpp"
+#include "client/ui/SceneKit.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 namespace perlin::ui {
-    std::string DefaultLoadingScreenTemplate() {
-        return ui::ReadMarkup("ui/screens/loading_screen.rml");
-    }
-
-    SceneDoc BuildLoadingScreen(const std::string& templateText, const LoadingScreenText& t, int guiW,
-                                int guiH) {
+    SceneDoc BuildLoadingScreen(const LoadingScreenText& t, int guiW, int guiH) {
         const int msgY = guiH / 2 - 24;
         const bool bar = t.progress >= 0.0f;
         const int barW = std::min(182, guiW - 40);
@@ -23,39 +18,29 @@ namespace perlin::ui {
         const int btnY = std::min(guiH - 24, detailY + 36 + (t.warning.empty() ? 0 : 32));
         const int warnW = std::min(guiW - 20, 330);
         SceneDoc doc;
-        doc.rml = templateText;
-        auto& vars = doc.scene.vars;
-        vars["w"] = std::to_string(guiW);
-        vars["h"] = std::to_string(guiH);
-        vars["tile_scale"] = "2";
-        vars["msg_y"] = std::to_string(msgY);
-        vars["detail_x"] = std::to_string(std::max(10, (guiW - 300) / 2));
-        vars["detail_y"] = std::to_string(detailY);
-        vars["detail_w"] = std::to_string(std::min(300, guiW - 20));
-        vars["btn_x"] = std::to_string(guiW / 2 - 102);
-        vars["btn_y"] = std::to_string(btnY);
-        vars["title_y"] = std::to_string(msgY - 16);
-        vars["bar_x"] = std::to_string((guiW - barW) / 2);
-        vars["bar_y"] = std::to_string(barY);
-        vars["bar_w"] = std::to_string(barW);
-        vars["fill_w"] = std::to_string(
-            static_cast<int>(std::clamp(t.progress, 0.0f, 1.0f) * static_cast<float>(barW - 2)));
-        vars["cancel"] = t.cancel.empty() ? std::string("Cancel") : t.cancel;
-        vars["warning"] = t.warning;
-        vars["warn_x"] = std::to_string((guiW - warnW) / 2);
-        vars["warn_y"] = std::to_string(btnY - 30);
-        vars["warn_w"] = std::to_string(warnW);
-        doc.scene.flags["panorama"] = t.panorama;
-        doc.scene.flags["bar"] = bar;
-        doc.scene.flags["has_warning"] = !t.warning.empty();
-        doc.scene.texts["title_runs"] = ParseFormatRuns(t.title, "#ffffff");
-        doc.scene.texts["message_runs"] = ParseFormatRuns(t.message, "#c6c6c6");
-        doc.scene.texts["detail_runs"] = ParseFormatRuns(t.detail, "#8a8a8a");
+        doc.scene.theme = Theme::Loading;
+        doc.scene.sprites = true;
+        SceneBuilder b(doc.scene.nodes);
+        const float w = static_cast<float>(guiW), h = static_cast<float>(guiH);
+        kit::Backdrop(b, w, h, t.panorama);
+        kit::Label(b, 0, static_cast<float>(msgY - 16), w, "ctr nowrap", ParseFormatRuns(t.title, "#ffffff"), "3");
+        kit::Label(b, 0, static_cast<float>(msgY), w, "ctr nowrap", ParseFormatRuns(t.message, "#c6c6c6"), "3");
+        if (bar) {
+            const float bx = static_cast<float>((guiW - barW) / 2);
+            const float by = static_cast<float>(barY);
+            kit::Rect(b, bx, by, static_cast<float>(barW + 2), 6, "#000000", "3");
+            kit::Rect(b, bx + 1, by + 1, static_cast<float>(barW), 4, "#1e1e1e", "3");
+            const int fill = static_cast<int>(std::clamp(t.progress, 0.0f, 1.0f) * static_cast<float>(barW - 2));
+            kit::Rect(b, bx + 2, by + 2, static_cast<float>(fill), 2, "#5ed15e", "3");
+        }
+        kit::Label(b, static_cast<float>(std::max(10, (guiW - 300) / 2)), static_cast<float>(detailY),
+                   static_cast<float>(std::min(300, guiW - 20)), "ctr", ParseFormatRuns(t.detail, "#8a8a8a"), "3");
+        kit::Button(b, kLoadingCancelId, static_cast<float>(guiW / 2 - 102), static_cast<float>(btnY), 204,
+                    kit::Plain(t.cancel.empty() ? std::string("Cancel") : t.cancel));
+        if (!t.warning.empty())
+            kit::Label(b, static_cast<float>((guiW - warnW) / 2), static_cast<float>(btnY - 30),
+                       static_cast<float>(warnW), "ctr", kit::Plain(t.warning, "#ffff55"), "4");
         return doc;
-    }
-
-    namespace {
-        const ScreenTemplateDefault kDownloadDefault("ui/screens/download_screen.rml");
     }
 
     SceneDoc BuildDownloadScreen(const DownloadScreenText& t, int guiW, int guiH, double time) {
@@ -66,16 +51,13 @@ namespace perlin::ui {
         const int contentH = 28 + rowsH + (buttons ? 30 : 0);
         int y = std::max(10, (guiH - contentH) / 2);
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/screens/download_screen.rml");
-        auto& vars = doc.scene.vars;
-        vars["w"] = std::to_string(guiW);
-        vars["h"] = std::to_string(guiH);
-        vars["title"] = t.title;
-        vars["subtitle"] = t.subtitle;
-        vars["title_y"] = std::to_string(y);
-        vars["subtitle_y"] = std::to_string(y + 12);
+        doc.scene.theme = Theme::Download;
+        SceneBuilder b(doc.scene.nodes);
+        const float w = static_cast<float>(guiW), h = static_cast<float>(guiH);
+        kit::Gradient(b, 0, 0, w, h, "vertical-gradient(#1d2230ff #101116ff)", "1");
+        kit::Label(b, 0, static_cast<float>(y), w, "ctr", kit::Plain(t.title), "3");
+        kit::Label(b, 0, static_cast<float>(y + 12), w, "ctr dim", kit::Plain(t.subtitle), "3");
         y += 30;
-        auto& rows = doc.scene.rows["rows"];
         for (const DownloadRow& r : t.rows) {
             const int by = y + 12;
             int fillX = x + 1, fillW = 0;
@@ -87,20 +69,15 @@ namespace perlin::ui {
                 fillX = x + 1 + static_cast<int>(phase * static_cast<double>(barW - 2 - gw));
                 fillW = gw;
             }
-            rows.push_back({{"x", std::to_string(x)},
-                            {"w", std::to_string(barW)},
-                            {"label_y", std::to_string(y)},
-                            {"status_y", std::to_string(y + 20)},
-                            {"bar_y", std::to_string(by)},
-                            {"fill_x", std::to_string(fillX)},
-                            {"fill_y", std::to_string(by + 1)},
-                            {"fill_w", std::to_string(fillW)},
-                            {"label", r.label},
-                            {"status", r.status},
-                            {"failed", SceneFlag(r.failed)}});
+            const float fx = static_cast<float>(x), bw = static_cast<float>(barW);
+            kit::Label(b, fx, static_cast<float>(y), bw, "nowrap", kit::Plain(r.label), "3");
+            kit::Label(b, fx, static_cast<float>(y + 20), bw, r.failed ? "right bad nowrap" : "right dim nowrap",
+                       kit::Plain(r.status), "3");
+            kit::Rect(b, fx, static_cast<float>(by), bw, 5, "#05060a", "3", "track");
+            kit::Rect(b, static_cast<float>(fillX), static_cast<float>(by + 1), static_cast<float>(fillW), 3,
+                      r.failed ? "#c84a4a" : "#62d26a", "3", r.failed ? "fill bad" : "fill");
             y += 42;
         }
-        auto& buttonRows = doc.scene.rows["buttons"];
         if (buttons) {
             const bool both = !t.retry.empty() && !t.skip.empty();
             const int bw = both ? 98 : 150;
@@ -110,12 +87,8 @@ namespace perlin::ui {
                   {kDownloadSkipId, &t.skip}}) {
                 if (label->empty())
                     continue;
-                buttonRows.push_back({{"id", id},
-                                      {"x", std::to_string(bx)},
-                                      {"y", std::to_string(y + 4)},
-                                      {"w", std::to_string(bw)},
-                                      {"face_w", std::to_string(bw - 2)},
-                                      {"label", *label}});
+                kit::Button(b, id, static_cast<float>(bx), static_cast<float>(y + 4), static_cast<float>(bw),
+                            kit::Plain(*label));
                 bx += bw + 4;
             }
         }

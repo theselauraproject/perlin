@@ -1,5 +1,4 @@
 #include "client/ui/GuiViewport.hpp"
-#include "client/screen/screens/ScreenTemplates.hpp"
 #include "client/systems/sprites/ItemData.hpp"
 #include "client/application/PerlinFrame.hpp"
 #include "client/systems/renderer/CustomSky.hpp"

@@ -79,7 +79,6 @@
 #include "client/screen/screens/TitleController.hpp"
 #include "client/application/ConnectionPortsImpl.hpp"
 #include "client/application/TitlePortsImpl.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "network/FriendWorld.hpp"
 #include "network/LanDiscovery.hpp"
 #include "util/ModSocket.hpp"

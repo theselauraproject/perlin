@@ -5,7 +5,6 @@
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/ui/SceneKit.hpp"
 #include "client/ui/TextEdit.hpp"
-#include "client/ui/UiTemplate.hpp"
 
 #include <algorithm>
 #include "client/systems/resources/TexturePack.hpp"
@@ -22,7 +21,6 @@ namespace perlin::ui {
 
         constexpr int kRowW = 305;
         constexpr int kRowH = 36;
-        const ScreenTemplateDefault kTitleDefault("ui/screens/title_screen.rml");
 
         using Sb = SceneBuilder;
 
@@ -674,9 +672,9 @@ namespace perlin::ui {
 
     SceneDoc BuildTitleScene(const TitleModel& m, int guiW, int guiH) {
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/screens/title_screen.rml");
-        ReplaceAll(doc.rml, "span", std::to_string(std::max(guiH * 5 / 4, 64) * 4));
-        SceneBuilder b(doc.scene.lists["body"]);
+        doc.scene.theme = Theme::Title;
+        doc.scene.panoSpan = static_cast<float>(std::max(guiH * 5 / 4, 64) * 4);
+        SceneBuilder b(doc.scene.nodes);
         switch (m.page) {
         case TitlePage::Main:
             Main(b, m, guiW, guiH);

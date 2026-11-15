@@ -3,7 +3,7 @@
 #include "client/ui/HudData.hpp"
 #include "client/systems/model/HudState.hpp"
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/RmlBackend.hpp"
+#include "client/ui/UiBackend.hpp"
 #include "client/ui/SceneEmit.hpp"
 #include "client/ui/UiLayout.hpp"
 
@@ -44,7 +44,7 @@ namespace perlin::ui {
             return true;
         }
         bool Ready() const { return backend.Ready() && tree != nullptr; }
-        RmlBackend& Overlay() { return backend; }
+        UiBackend& Overlay() { return backend; }
         void UpdateOverlay(int framebufferW, int framebufferH, int guiScaleOption);
         void FireUiEvent(const std::string& name) {
             animHost.Fire(name);
@@ -65,9 +65,8 @@ namespace perlin::ui {
     private:
         bool Rebuild();
         void WriteDefaults();
-        std::string ReadUserRcss() const;
 
-        RmlBackend backend;
+        UiBackend backend;
         UiLibrary library;
         std::vector<std::string> builtPackDirs;
         bool builtPackDirsKnown = false;
@@ -85,10 +84,8 @@ namespace perlin::ui {
         double lastAnimEval = 0;
         std::string dataDir, vanillaRoot;
         SceneDoc lastDoc;
-        std::string lastRcss;
         uint64_t lastSignature = 0;
         uint64_t lastIncomingSignature = 0;
-        std::string rcssCache;
         int scale = 1;
         float guiW = 0, guiH = 0;
         int lastFbW = 0, lastFbH = 0;
@@ -100,10 +97,6 @@ namespace perlin::ui {
 
         uint32_t serverPackGeneration = 0;
         double serverPacksChangedAt = -1.0;
-        bool templatesStale = true, emitterDefault = false;
-        double templateCheck = 0;
-        uint64_t hudTemplateVersion = 0, chatTemplateVersion = 0;
-        uint64_t templateStamp = 0;
         bool dumped = false;
         bool javaStyle = false;
         uint64_t fontVersion = 0;

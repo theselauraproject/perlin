@@ -5,14 +5,9 @@
 
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/ui/SceneKit.hpp"
-#include "client/ui/UiTemplate.hpp"
 #include "client/ui/TextEdit.hpp"
 
 namespace perlin::ui {
-    std::string DefaultPauseScreenTemplate() {
-        return ui::ReadMarkup("ui/screens/pause_screen.rml");
-    }
-
     OptionsLayout ComputeOptionsLayout(const std::vector<OptionsRow>& rows, int guiW, int guiH,
                                        float scroll, int columns) {
         columns = std::clamp(columns, 1, 6);
@@ -98,18 +93,15 @@ namespace perlin::ui {
         return l;
     }
 
-    namespace {
-        const ScreenTemplateDefault kOptionsHeadDefault("ui/screens/options_screen.rml");
-    }
-
     SceneDoc BuildOptionsScreen(const std::vector<OptionsRow>& rows, const std::string& title,
                                 const std::string& done, float scroll, int guiW, int guiH, int hover,
                                 int columns) {
         const OptionsLayout l = ComputeOptionsLayout(rows, guiW, guiH, scroll, columns);
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/screens/options_screen.rml");
-        doc.scene.vars["title"] = title;
-        SceneBuilder b(doc.scene.lists["body"]);
+        doc.scene.theme = Theme::Options;
+        SceneBuilder b(doc.scene.nodes);
+        kit::Dim(b, static_cast<float>(guiW), static_cast<float>(guiH), 128);
+        kit::Heading(b, static_cast<float>(guiW), 15, title);
         for (int i = 0; i < l.count; i++) {
             const size_t k = static_cast<size_t>(i);
             const OptionsRow& row = rows[k];
@@ -215,19 +207,16 @@ namespace perlin::ui {
         return l;
     }
 
-    namespace {
-        const ScreenTemplateDefault kKeybindsHeadDefault("ui/screens/keybinds_screen.rml");
-    }
-
     SceneDoc BuildKeybindsScreen(const std::vector<KeybindRow>& rows, const std::string& title,
                                  const std::string& done, const std::string& reset, float scroll, int guiW,
                                  int guiH) {
         const KeybindLayout l = ComputeKeybindLayout(static_cast<int>(rows.size()), guiW, guiH);
         const float listH = l.listBottom - l.listTop;
         SceneDoc doc;
-        doc.rml = ScreenTemplate("ui/screens/keybinds_screen.rml");
-        doc.scene.vars["title"] = title;
-        SceneBuilder b(doc.scene.lists["body"]);
+        doc.scene.theme = Theme::Keybinds;
+        SceneBuilder b(doc.scene.nodes);
+        kit::Dim(b, static_cast<float>(guiW), static_cast<float>(guiH), 128);
+        kit::Heading(b, static_cast<float>(guiW), 12, title);
         SceneNode list;
         list.id = "list";
         list.x = std::round(0.0f);
@@ -273,15 +262,12 @@ namespace perlin::ui {
     }
 
     namespace {
-        const ScreenTemplateDefault kListHeadDefault("ui/screens/list_screen.rml");
-    }
-
-    namespace {
-        SceneDoc ListDoc(const std::string& title, const std::string& dimClass) {
+        SceneDoc ListDoc(const std::string& title, const std::string& dimClass, int guiW, int guiH) {
             SceneDoc doc;
-            doc.rml = ScreenTemplate("ui/screens/list_screen.rml");
-            doc.scene.vars["title"] = title;
-            doc.scene.vars["dim_cls"] = dimClass;
+            doc.scene.theme = Theme::List;
+            SceneBuilder b(doc.scene.nodes);
+            kit::Dim(b, static_cast<float>(guiW), static_cast<float>(guiH), dimClass == "heavy" ? 160 : 128);
+            kit::Heading(b, static_cast<float>(guiW), 12, title);
             return doc;
         }
     }
@@ -313,8 +299,8 @@ namespace perlin::ui {
         const ListLayout l = ComputeListLayout(static_cast<int>(rows.size()), guiW, guiH);
         const float listH = l.listBottom - l.listTop;
         const float gw = static_cast<float>(guiW);
-        SceneDoc doc = ListDoc(title, "");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = ListDoc(title, "", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         kit::Box(b, 0, l.listTop, gw, listH, "lpanel");
         for (int i = 0; i < static_cast<int>(rows.size()); i++) {
             const ListRow& r = rows[static_cast<size_t>(i)];
@@ -405,8 +391,8 @@ namespace perlin::ui {
     SceneDoc BuildWorldScreen(const std::vector<WorldRow>& rows, const std::string& title,
                               const std::string& done, float scroll, int guiW, int guiH) {
         const WorldLayout l = ComputeWorldLayout(rows, guiW, guiH, scroll);
-        SceneDoc doc = ListDoc(title, "heavy");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = ListDoc(title, "heavy", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         kit::Box(b, l.panelX, l.listTop, l.panelW, l.listBottom - l.listTop, "wpanel");
         const float px = l.panelX;
         for (size_t i = 0; i < rows.size(); i++) {
@@ -486,32 +472,36 @@ namespace perlin::ui {
         return doc;
     }
 
-    SceneDoc BuildPauseScreen(const std::string& templateText, const PauseScreenText& t, int guiW, int guiH) {
+    SceneDoc BuildPauseScreen(const PauseScreenText& t, int guiW, int guiH) {
         SceneDoc doc;
-        doc.rml = templateText;
+        doc.scene.theme = Theme::Pause;
+        doc.scene.sprites = true;
         const int top = (guiH - (t.showReplay ? 178 : 154)) / 4;
         const int quitY = t.showReplay ? top + 174 : top + 150;
         const int x1 = guiW / 2 - 102;
-        auto& v = doc.scene.vars;
-        v["x1"] = std::to_string(x1);
-        v["x2"] = std::to_string(x1 + 104);
-        v["y1"] = std::to_string(top + 54);
-        v["y2"] = std::to_string(top + 78);
-        v["y3"] = std::to_string(top + 102);
-        v["y4"] = std::to_string(top + 126);
-        v["y5"] = std::to_string(top + 150);
-        v["y6"] = std::to_string(quitY);
-        v["xw"] = std::to_string(x1 + 208);
-        v["xr"] = std::to_string(x1 + 104);
-        v["mods"] = t.mods;
-        v["title"] = t.title;
-        v["back"] = t.back;
-        v["feedback"] = t.feedback;
-        v["players"] = t.players;
-        v["options"] = t.options;
-        v["world"] = t.world;
-        v["quit"] = t.quit;
-        SceneBuilder b(doc.scene.lists["extra"]);
+        const float xs1 = static_cast<float>(x1), xs2 = static_cast<float>(x1 + 104);
+        SceneBuilder b(doc.scene.nodes);
+        kit::Dim(b, static_cast<float>(guiW), static_cast<float>(guiH), 64);
+        kit::Heading(b, static_cast<float>(guiW), 40, t.title);
+        kit::Button(b, "resume", xs1, static_cast<float>(top + 54), 204, kit::Plain(t.back));
+        kit::Button(b, "feedback", xs1, static_cast<float>(top + 78), 100, kit::Plain(t.feedback));
+        kit::Button(b, "players", xs2, static_cast<float>(top + 78), 100, kit::Plain(t.players));
+        kit::Button(b, "options", xs1, static_cast<float>(top + 102), 100, kit::Plain(t.options));
+        {
+            SceneNode& wardrobe = kit::Button(b, "wardrobe", static_cast<float>(x1 + 208), static_cast<float>(top + 102), 20, {});
+            SceneNode glyph;
+            glyph.kind = SceneNode::Image;
+            glyph.x = 4;
+            glyph.y = 4;
+            glyph.w = 12;
+            glyph.h = 12;
+            glyph.z = "3";
+            glyph.src = "textures/ui/glyph_skin_pack.png";
+            wardrobe.children.push_back(std::move(glyph));
+        }
+        kit::Button(b, "world", xs2, static_cast<float>(top + 102), 100, kit::Plain(t.world));
+        kit::Button(b, "mods", xs1, static_cast<float>(top + 126), 204, kit::Plain(t.mods));
+        kit::Button(b, "quit", xs1, static_cast<float>(quitY), 204, kit::Plain(t.quit));
         if (t.showReplay) {
             kit::Button(b, kPauseReplayStartId, static_cast<float>(x1), static_cast<float>(top + 150), 100.0f,
                         kit::Plain(t.replayStart), t.replayRecording);

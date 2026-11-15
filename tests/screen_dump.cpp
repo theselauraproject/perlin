@@ -217,10 +217,10 @@ int main(int argc, char** argv) {
     if (const char* t = std::getenv("SCREEN_TREE"))
         Tree(*eval, 0, std::atoi(t) == 2);
     SceneEmitter emitter;
-    const std::string rml = DumpScene(emitter.Emit(*eval, W, H, ""));
+    const std::string scene = DumpScene(emitter.Emit(*eval, W, H));
     phase("emit");
-    if (std::getenv("SCREEN_RML"))
-        std::fputs(rml.c_str(), stdout);
+    if (std::getenv("SCREEN_SCENE"))
+        std::fputs(scene.c_str(), stdout);
     for (auto& u : emitter.UnknownRenderers())
         std::fprintf(stderr, "  unknown renderer: %s\n", u.c_str());
     return 0;

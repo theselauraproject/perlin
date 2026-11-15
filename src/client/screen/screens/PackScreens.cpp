@@ -3,21 +3,20 @@
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/ui/SceneKit.hpp"
 #include "client/ui/TextEdit.hpp"
-#include "client/ui/UiTemplate.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 namespace perlin::ui {
     namespace {
-        const ScreenTemplateDefault kMenuHeadDefault("ui/screens/menu_screen.rml");
-    }
-
-    namespace {
-        SceneDoc MenuDoc(const std::string& dimClass) {
+        SceneDoc MenuDoc(const std::string& dimClass, int guiW, int guiH) {
             SceneDoc doc;
-            doc.rml = ScreenTemplate("ui/screens/menu_screen.rml");
-            doc.scene.vars["dim_cls"] = dimClass;
+            doc.scene.theme = Theme::Menu;
+            const int alpha = dimClass == "dim70" ? 70 : dimClass == "dim140" ? 140 : dimClass == "dim150" ? 150 : 0;
+            if (alpha > 0) {
+                SceneBuilder b(doc.scene.nodes);
+                kit::Dim(b, static_cast<float>(guiW), static_cast<float>(guiH), alpha);
+            }
             return doc;
         }
 
@@ -123,8 +122,8 @@ namespace perlin::ui {
         const PackScreenLayout l = ComputePackScreenLayout(static_cast<int>(available.size()),
                                                            static_cast<int>(selected.size()), guiW, guiH);
         const float h = l.bottom - l.top;
-        SceneDoc doc = MenuDoc("dim150");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = MenuDoc("dim150", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         Text(b, 0, 5, static_cast<float>(guiW), title, "", nullptr, true);
         Text(b, 0, 15, static_cast<float>(guiW), subtitle, "g", nullptr, true);
         const auto chevron = [&](char dir, float x, float y, const char* cls) {
@@ -228,8 +227,8 @@ namespace perlin::ui {
         const ShaderScreenLayout l = ComputeShaderScreenLayout(static_cast<int>(rows.size()) + 1, guiW, guiH);
         const float h = l.listBottom - l.listTop;
         const float gw = static_cast<float>(guiW);
-        SceneDoc doc = MenuDoc("dim140");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = MenuDoc("dim140", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         Text(b, 0, 8, gw, title, "", nullptr, true);
         Text(b, 0, 19, gw, subtitle, "g", nullptr, true);
         kit::Box(b, 0, l.listTop - 1.0f, gw, 1, "listline");
@@ -318,8 +317,8 @@ namespace perlin::ui {
                             const std::string& done, float scroll, float detailScroll, int guiW, int guiH) {
         const ModScreenLayout l = ComputeModScreenLayout(static_cast<int>(rows.size()), detail, guiW, guiH);
         const float listH = l.listBottom - l.listTop;
-        SceneDoc doc = MenuDoc("dim140");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = MenuDoc("dim140", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         Text(b, l.leftX, 6, l.leftW, title, "", nullptr, true);
         kit::Box(b, l.leftX, l.searchY, l.leftW, l.searchH, "searchedge", {}, "3");
         kit::Box(b, l.leftX + 1, l.searchY + 1, l.leftW - 2, l.searchH - 2, "searchfill", {}, "3");
@@ -445,8 +444,8 @@ namespace perlin::ui {
         const WardrobeLayout l =
             ComputeWardrobeLayout(static_cast<int>(skins.size()), static_cast<int>(capes.size()), skinOpen,
                                   capeOpen, firstLine, guiW, guiH);
-        SceneDoc doc = MenuDoc("dim70");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = MenuDoc("dim70", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         const float gw = static_cast<float>(guiW);
         Text(b, 0, 6, gw, t.title, "", nullptr, true);
         for (const WardrobeLine& line : l.lines) {
@@ -511,8 +510,8 @@ namespace perlin::ui {
         const ShaderScreenLayout l = ComputeShaderScreenLayout(static_cast<int>(rows.size()), guiW, guiH);
         const float h = l.listBottom - l.listTop;
         const float gw = static_cast<float>(guiW);
-        SceneDoc doc = MenuDoc("dim140");
-        SceneBuilder b(doc.scene.lists["body"]);
+        SceneDoc doc = MenuDoc("dim140", guiW, guiH);
+        SceneBuilder b(doc.scene.nodes);
         Text(b, 0, 8, gw, title, "", nullptr, true);
         Text(b, 0, 19, gw, subtitle, "g", nullptr, true);
         kit::Box(b, 0, l.listTop - 1.0f, gw, 1, "listline");

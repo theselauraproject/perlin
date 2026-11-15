@@ -4,7 +4,7 @@
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/screen/screens/LoadingScreen.hpp"
 #include "client/ui/UiLayout.hpp"
-#include "client/ui/UiTemplate.hpp"
+#include "client/ui/SceneKit.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -17,12 +17,7 @@ namespace perlin::ui {
         return lower.contains("ban");
     }
 
-    std::string DefaultDisconnectScreenTemplate() {
-        return ui::ReadMarkup("ui/screens/disconnect_screen.rml");
-    }
-
-    SceneDoc BuildDisconnectScreen(const std::string& templateText, const DisconnectScreenText& t, int guiW,
-                                   int guiH) {
+    SceneDoc BuildDisconnectScreen(const DisconnectScreenText& t, int guiW, int guiH) {
         const int textW = std::min(guiW - 40, 320);
         const int perLine = std::max(8, textW / 5);
         int lines = 0;
@@ -46,30 +41,21 @@ namespace perlin::ui {
         const int y1 = codeY + 22;
 
         SceneDoc doc;
-        doc.rml = templateText;
-        auto& vars = doc.scene.vars;
-        vars["w"] = std::to_string(guiW);
-        vars["h"] = std::to_string(guiH);
-        vars["tile_scale"] = "2";
-        vars["title_y"] = std::to_string(titleY);
-        vars["text_x"] = std::to_string((guiW - textW) / 2);
-        vars["text_y"] = std::to_string(textY);
-        vars["text_w"] = std::to_string(textW);
-        vars["text_h"] = std::to_string(textH);
-        vars["code_y"] = std::to_string(codeY);
-        vars["btn_x"] = std::to_string(guiW / 2 - 102);
-        vars["y1"] = std::to_string(y1);
-        vars["y2"] = std::to_string(y1 + 24);
-        vars["y3"] = std::to_string(y1 + 48);
-        vars["rejoin"] = t.rejoin;
-        vars["quit"] = t.quit;
-        vars["code"] = t.code;
-        vars["extra"] = t.extra;
-        doc.scene.flags["panorama"] = t.panorama;
-        doc.scene.flags["rejoin_off"] = !t.rejoinEnabled;
-        doc.scene.flags["has_extra"] = !t.extra.empty();
-        doc.scene.texts["title_runs"] = ParseFormatRuns(t.title, "#ffffff");
-        doc.scene.texts["reason_runs"] = ParseFormatLines(t.reason, "#ffffff");
+        doc.scene.theme = Theme::Disconnect;
+        doc.scene.sprites = true;
+        SceneBuilder b(doc.scene.nodes);
+        const float w = static_cast<float>(guiW), h = static_cast<float>(guiH);
+        kit::Backdrop(b, w, h, t.panorama);
+        kit::Label(b, 0, static_cast<float>(titleY), w, "ctr nowrap", ParseFormatRuns(t.title, "#ffffff"), "3");
+        kit::Label(b, static_cast<float>((guiW - textW) / 2), static_cast<float>(textY), static_cast<float>(textW),
+                   "ctr", ParseFormatLines(t.reason, "#ffffff"), "3").h = static_cast<float>(textH);
+        kit::Label(b, 0, static_cast<float>(codeY), w, "ctr nowrap", kit::Plain(t.code, "#8a8a8a"), "3");
+        const float bx = static_cast<float>(guiW / 2 - 102);
+        kit::Button(b, kDisconnectRejoinId, bx, static_cast<float>(y1), 204, kit::Plain(t.rejoin),
+                    !t.rejoinEnabled);
+        kit::Button(b, kDisconnectQuitId, bx, static_cast<float>(y1 + 24), 204, kit::Plain(t.quit));
+        if (!t.extra.empty())
+            kit::Button(b, kDisconnectExtraId, bx, static_cast<float>(y1 + 48), 204, kit::Plain(t.extra));
         return doc;
     }
 }
