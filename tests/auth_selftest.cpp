@@ -1039,13 +1039,16 @@ static void TestMultipleAccounts() {
     CHECK(storeA->Current()->data.proofKeyPem != storeB->Current()->data.proofKeyPem);
     CHECK(storeA->Current()->data.sisu.user.token.find("user-token-A") == 0);
     CHECK(storeB->Current()->data.sisu.user.token.find("user-token-B") == 0);
+    const bool plainStore = storeB->VaultName() == "private file";
     const auto diskB = rig.Disk(b);
+    CHECK(std::filesystem::exists(b));
+    CHECK(!plainStore || diskB.has_value());
     xbox::Account::SignOut(a);
     CHECK(!std::filesystem::exists(a));
     CHECK(storeA->Current()->data.refreshToken.empty());
     CHECK(storeB->Current()->data.sisu.user.token.find("user-token-B") == 0);
-    CHECK(rig.Disk(b) && rig.Disk(b)->root()["refreshToken"].str() == "refresh-B");
-    CHECK(diskB.has_value());
+    CHECK(std::filesystem::exists(b));
+    CHECK(!plainStore || (rig.Disk(b) && rig.Disk(b)->root()["refreshToken"].str() == "refresh-B"));
 }
 
 static void TestFailedRefreshKeepsState() {

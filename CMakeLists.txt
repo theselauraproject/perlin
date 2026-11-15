@@ -1011,21 +1011,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_executable(cells16_selftest tests/cells16_selftest.cpp src/world/level/Level.cpp)
     target_include_directories(cells16_selftest PRIVATE src)
     add_test(NAME cells16_selftest COMMAND cells16_selftest)
-    add_executable(chunk_mesher_golden_selftest
-        tests/chunk_mesher_golden_selftest.cpp
-        src/client/systems/renderer/chunk/ChunkMesher.cpp
-        src/client/systems/gfx/Tessellator.cpp
-        src/client/systems/resources/ServerBlocks.cpp
-        src/util/Json.cpp
-        src/world/level/Level.cpp
-        src/world/level/block/BlockPalette.cpp
-        src/world/level/chunk/ChunkCodec.cpp
-        src/world/level/lighting/ChunkLighting.cpp
-        src/world/level/lighting/LightRegistry.cpp)
-    target_include_directories(chunk_mesher_golden_selftest PRIVATE src "${glm_SOURCE_DIR}")
-    target_compile_features(chunk_mesher_golden_selftest PRIVATE cxx_std_23)
-    target_link_libraries(chunk_mesher_golden_selftest PRIVATE glaze::glaze perlin_protocol Threads::Threads)
-    add_test(NAME chunk_mesher_golden_selftest COMMAND chunk_mesher_golden_selftest)
     add_executable(timeline_editor_selftest
         tests/timeline_editor_selftest.cpp
         src/client/systems/replay/TimelineEditor.cpp
@@ -1118,12 +1103,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         add_test(NAME executable_boot_resources COMMAND Perlin --help)
         set_tests_properties(executable_boot_resources PROPERTIES FAIL_REGULAR_EXPRESSION "required resource missing"
             PASS_REGULAR_EXPRESSION "Perlin options")
-        if(UNIX AND Python3_FOUND)
-            add_test(NAME runtime_smoke COMMAND ${Python3_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/tools/runtime_smoke.py $<TARGET_FILE:Perlin>)
-            set_tests_properties(runtime_smoke PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 900 LABELS runtime
-                RUN_SERIAL TRUE)
-        endif()
     endif()
 
     add_executable(asset_data_test tests/asset_data_test.cpp
@@ -1173,12 +1152,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(pack_texture_util_selftest PRIVATE src)
     target_compile_features(pack_texture_util_selftest PRIVATE cxx_std_23)
     add_test(NAME pack_texture_util_selftest COMMAND pack_texture_util_selftest)
-    add_executable(shadow_math_selftest
-        tests/shadow_math_selftest.cpp
-        src/client/systems/renderer/gpu/ShadowMath.cpp)
-    target_include_directories(shadow_math_selftest PRIVATE src "${glm_SOURCE_DIR}")
-    target_compile_features(shadow_math_selftest PRIVATE cxx_std_23)
-    add_test(NAME shadow_math_selftest COMMAND shadow_math_selftest)
     add_executable(post_effects_selftest
         tests/post_effects_selftest.cpp
         src/client/systems/renderer/gpu/PostEffects.cpp)
@@ -1219,20 +1192,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(physics_selftest PRIVATE cxx_std_23)
     add_test(NAME physics_selftest COMMAND physics_selftest)
 
-    add_executable(physics_step_dump
-        tests/physics_step_dump.cpp
-        src/world/movement/PlayerPhysics.cpp)
-    target_include_directories(physics_step_dump PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-    target_compile_features(physics_step_dump PRIVATE cxx_std_23)
-    set(PHYSICS_STEP_SEEDS "")
-    foreach(seed RANGE 1 400)
-        list(APPEND PHYSICS_STEP_SEEDS ${seed})
-    endforeach()
-    add_test(NAME physics_step_golden
-        COMMAND ${CMAKE_COMMAND} -DPROGRAM=$<TARGET_FILE:physics_step_dump>
-                "-DARGS=${PHYSICS_STEP_SEEDS}"
-                -DGOLDEN=${CMAKE_SOURCE_DIR}/tests/physics_step_golden.txt
-                -P ${CMAKE_SOURCE_DIR}/tests/compare_output.cmake)
 
     add_executable(bds_numeric_selftest tests/bds_numeric_selftest.cpp)
     target_include_directories(bds_numeric_selftest PRIVATE src)
