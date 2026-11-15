@@ -1,5 +1,4 @@
 #include "util/TaskGroup.hpp"
-#include <condition_variable>
 #include "core/Auth.hpp"
 #include "util/JsonText.hpp"
 
@@ -625,17 +624,16 @@ namespace perlin::server::auth {
         static std::atomic<bool> started{false};
         if (started.exchange(true))
             return;
-        ProcessTasks().Run([](std::stop_token stop) {
-            std::mutex mutex;
-            std::condition_variable_any wake;
+        ProcessTasks().Run([](StopToken stop) {
             int failures = 0;
             while (!stop.stop_requested()) {
                 const bool ok = RefreshTokenKeys();
                 failures = ok ? 0 : failures + 1;
                 const auto delay = ok ? std::chrono::seconds(30 * 60)
                                       : std::chrono::seconds(std::min(300, 10 << std::min(failures, 5)));
-                std::unique_lock lock(mutex);
-                wake.wait_for(lock, stop, delay, [] { return false; });
+                const auto deadline = std::chrono::steady_clock::now() + delay;
+                while (!stop.stop_requested() && std::chrono::steady_clock::now() < deadline)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         });
     }

@@ -19,7 +19,7 @@ int main() {
         perlin::TaskGroup group;
         for (int i = 0; i < 64; i++)
             check(group.Run([&] { finished++; }), "tasks start while the group is open");
-        check(group.Run([&](std::stop_token stop) {
+        check(group.Run([&](perlin::StopToken stop) {
             while (!stop.stop_requested())
                 std::this_thread::sleep_for(1ms);
             stopped++;
@@ -34,7 +34,7 @@ int main() {
 
     {
         perlin::TaskGroup group;
-        group.Run([&](std::stop_token stop) {
+        group.Run([&](perlin::StopToken stop) {
             while (!stop.stop_requested())
                 std::this_thread::sleep_for(1ms);
             stopped++;

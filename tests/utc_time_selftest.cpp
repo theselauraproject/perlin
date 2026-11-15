@@ -1,7 +1,8 @@
 #include "util/UtcTime.hpp"
 
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
-#include <ctime>
 
 using namespace perlin;
 
@@ -17,14 +18,8 @@ int main() {
     int failures = 0;
     for (int year = 1971; year <= 2100; year += 3)
         for (int month = 1; month <= 12; month++) {
-            std::tm tm{};
-            tm.tm_year = year - 1900;
-            tm.tm_mon = month - 1;
-            tm.tm_mday = 17;
-            tm.tm_hour = 5;
-            tm.tm_min = 6;
-            tm.tm_sec = 7;
-            const int64_t want = static_cast<int64_t>(timegm(&tm));
+            const auto day = std::chrono::sys_days{std::chrono::year{year} / std::chrono::month{static_cast<unsigned>(month)} / 17};
+            const int64_t want = std::chrono::duration_cast<std::chrono::seconds>(day.time_since_epoch()).count() + 5 * 3600 + 6 * 60 + 7;
             if (utc::UnixSeconds(year, month, 17, 5, 6, 7) != want) {
                 std::printf("FAIL %d-%02d\n", year, month);
                 failures++;

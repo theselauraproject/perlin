@@ -4,12 +4,21 @@
 #include <list>
 #include <memory>
 #include <mutex>
-#include <stop_token>
 #include <thread>
 #include <type_traits>
 #include <utility>
 
 namespace perlin {
+    class StopToken {
+    public:
+        StopToken() = default;
+        explicit StopToken(std::shared_ptr<std::atomic<bool>> flag) : flag(std::move(flag)) {}
+        bool stop_requested() const noexcept { return flag && flag->load(std::memory_order_acquire); }
+
+    private:
+        std::shared_ptr<std::atomic<bool>> flag;
+    };
+
     class TaskGroup {
     public:
         TaskGroup() = default;
@@ -24,9 +33,10 @@ namespace perlin {
             Reap();
             auto& entry = entries.emplace_back();
             entry.done = std::make_shared<std::atomic<bool>>(false);
-            entry.thread = std::jthread([task = std::forward<Fn>(task), done = entry.done](std::stop_token stop) mutable {
-                if constexpr (std::is_invocable_v<Fn&, std::stop_token>)
-                    task(stop);
+            entry.stop = std::make_shared<std::atomic<bool>>(false);
+            entry.thread = std::thread([task = std::forward<Fn>(task), done = entry.done, token = StopToken(entry.stop)]() mutable {
+                if constexpr (std::is_invocable_v<Fn&, StopToken>)
+                    task(token);
                 else
                     task();
                 done->store(true, std::memory_order_release);
@@ -42,8 +52,10 @@ namespace perlin {
                 pending = std::move(entries);
             }
             for (Entry& e : pending)
-                e.thread.request_stop();
-            pending.clear();
+                e.stop->store(true, std::memory_order_release);
+            for (Entry& e : pending)
+                if (e.thread.joinable())
+                    e.thread.join();
         }
 
         size_t Active() {
@@ -54,12 +66,20 @@ namespace perlin {
 
     private:
         struct Entry {
-            std::jthread thread;
+            std::thread thread;
             std::shared_ptr<std::atomic<bool>> done;
+            std::shared_ptr<std::atomic<bool>> stop;
         };
 
         void Reap() {
-            std::erase_if(entries, [](const Entry& e) { return e.done->load(std::memory_order_acquire); });
+            for (auto it = entries.begin(); it != entries.end();) {
+                if (it->done->load(std::memory_order_acquire)) {
+                    if (it->thread.joinable())
+                        it->thread.join();
+                    it = entries.erase(it);
+                } else
+                    ++it;
+            }
         }
 
         std::mutex mutex;
