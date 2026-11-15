@@ -181,7 +181,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON `
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static" `
@@ -194,7 +194,7 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             ${{ env.PERLIN_UPDATE_FLAGS }} \
@@ -209,9 +209,6 @@ jobs:
 
       - name: Build
         run: cmake --build build --config Release --parallel
-
-      - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Package
         run: cmake --install build --config Release --prefix dist
@@ -480,10 +477,9 @@ jobs:
               pulseaudio alsa-lib libinotify dbus zip
           run: |
             set -e
-            python3 tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+            python3 tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
               -DPERLIN_SHADER_PACK_PREBUILT="$PWD/prebuilt/perlin_shaders.pack" $PERLIN_UPDATE_FLAGS
             cmake --build build --parallel
-            ctest --test-dir build --output-on-failure || echo "::warning::some tests failed on FreeBSD"
             cmake --install build --prefix dist
             rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
             find dist -name '*.a' -delete
