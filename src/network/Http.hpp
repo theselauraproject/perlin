@@ -9,7 +9,6 @@ namespace perlin::http {
         int status = 0;
         std::string body;
         std::map<std::string, std::string> headers;
-        // transport failure text when status is 0 (httplib error, plus ssl codes)
         std::string error;
     };
 
@@ -21,7 +20,6 @@ namespace perlin::http {
     bool SystemCaPaths(std::string& file, std::string& dir);
 
 #if defined(_WIN32)
-    // The Windows ROOT/CA stores plus the bundled Mozilla roots, as one PEM text.
     const std::string& CombinedCaPem();
 #endif
 

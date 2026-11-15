@@ -128,7 +128,7 @@ namespace perlin::server {
                 continue;
             const auto parseOut = [&](const std::string& o, std::string& name, int& count, int& data) {
                 const std::vector<std::string> p = Split(o, ':');
-                name = p.size() > 0 ? p[0] : "";
+                name = !p.empty() ? p[0] : "";
                 count = p.size() > 1 ? std::max(1, std::atoi(p[1].c_str())) : 1;
                 data = p.size() > 2 ? std::atoi(p[2].c_str()) : 0;
             };

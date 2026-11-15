@@ -1,4 +1,5 @@
-#include "client/entity/JavaAnimation.hpp"
+#include "client/systems/entity/JavaAnimation.hpp"
+#include "util/Angles.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <array>
@@ -192,7 +193,7 @@ float RunClock(int fps, double seconds, Pos pos, Head head, float& maxOffset, bo
         const auto [x, z] = pos(t);
         body = clock.Frame(x, z, head(t), frame == 0 ? 0.0 : 1.0 / fps, swinging, false, 0);
         if (frame > 0)
-            maxOffset = std::max(maxOffset, std::abs(Wrap(head(t) - body)));
+            maxOffset = std::max(maxOffset, std::abs(perlin::math::WrapDegrees(head(t) - body)));
     }
     return body;
 }
@@ -230,12 +231,11 @@ int main(int argc, char** argv) {
     b.MobTick(.1, 0, 90, 100);
     CHECK(Near(b.current, 90));
     {
-        // 1.7 backwards walk: clamped to 75 from the head then nudged back 20%, settling at a 60 degree twist
         BodyRotation classic;
         classic.Reset(0);
         for (int i = 0; i < 60; ++i)
             classic.ClassicPlayerTick(0, -0.2, 0, false);
-        CHECK(Near(std::abs(Wrap(classic.current)), 60.0f, .01f));
+        CHECK(Near(std::abs(perlin::math::WrapDegrees(classic.current)), 60.0f, .01f));
         classic.Reset(0);
         classic.ClassicPlayerTick(0, 0, 100, false);
         CHECK(Near(classic.current, 25 + 75 * 0.2f));
@@ -268,7 +268,7 @@ int main(int argc, char** argv) {
 
         const float back = RunClock(
             60, 3, [](double t) { return std::pair{0.0, -t * 4.3}; }, [](double) { return 0.0f; }, off);
-        CHECK(std::abs(Wrap(back)) < .01f);
+        CHECK(std::abs(perlin::math::WrapDegrees(back)) < .01f);
 
         const float strafe = RunClock(
             60, 3, [](double t) { return std::pair{t * 4.3, 0.0}; }, [](double) { return 0.0f; }, off);
@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
 
         const float swing = RunClock(
             60, 3, [](double t) { return std::pair{t * 4.3, 0.0}; }, [](double) { return 0.0f; }, off, true);
-        CHECK(std::abs(Wrap(swing)) < .01f);
+        CHECK(std::abs(perlin::math::WrapDegrees(swing)) < .01f);
 
         RunClock(144, 3, still, [](double t) { return float(170 + t * 20); }, off);
         CHECK(off <= 51.01f);
@@ -292,7 +292,7 @@ int main(int argc, char** argv) {
         const auto look = [](double t) { return float(t * 37.0); };
         const float ref = RunClock(20, 6, walk, look, off);
         for (int fps : {10, 15, 30, 60, 144, 240})
-            CHECK(Near(Wrap(RunClock(fps, 6, walk, look, off) - ref), 0, 1.0f));
+            CHECK(Near(perlin::math::WrapDegrees(RunClock(fps, 6, walk, look, off) - ref), 0, 1.0f));
 
         PlayerBodyClock c;
         c.Frame(0, 0, 0, 0, false, false, 0);

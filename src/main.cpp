@@ -1,15 +1,18 @@
-#include "client/SampleProfiler.hpp"
+#include "client/selftest/SelfTests.hpp"
+#include <string_view>
+#include "util/TaskGroup.hpp"
+#include "client/systems/diagnostics/SampleProfiler.hpp"
 #include "util/Relaunch.hpp"
-#include "client/EmbeddedProvider.hpp"
-#include "client/Perlin.hpp"
-#include "client/renderer/chunk/MeshBench.hpp"
-#include "client/platform/DiscordRpc.hpp"
+#include "client/platform/EmbeddedProvider.hpp"
+#include "client/application/Perlin.hpp"
+#include "client/systems/renderer/chunk/MeshBench.hpp"
+#include "client/services/discord/DiscordRpc.hpp"
 #include "client/platform/sdl/AppPlatform_SDL.hpp"
 #include "util/GraphicsDebugger.hpp"
 #include "util/Paths.hpp"
 
 #include <SDL3/SDL_main.h>
-#include "client/update/Updater.hpp"
+#include "client/services/update/Updater.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -19,7 +22,6 @@
 #include <malloc.h>
 #endif
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -44,6 +46,10 @@
 #include <thread>
 
 namespace {
+    std::unique_ptr<perlin::Application> MakeApplication(const perlin::LaunchArgs& args) {
+        return std::make_unique<perlin::Perlin>(args);
+    }
+
     void BootMark(const char* what) {
         const std::string dir = perlin::paths::DataDir();
         std::error_code ec;
@@ -292,6 +298,10 @@ namespace {
 }
 
 int main(int argc, char** argv) {
+    if (argc >= 3 && std::string_view(argv[1]) == "--selftest") {
+        perlin::RegisterEmbeddedResources();
+        return perlin::selftest::Run(argv[2]);
+    }
 #if defined(__GLIBC__)
     mallopt(M_ARENA_MAX, 2);
     mallopt(M_MMAP_THRESHOLD, 256 * 1024);
@@ -325,11 +335,11 @@ int main(int argc, char** argv) {
             return perlin::RunMeshBench(i + 1 < argc ? std::atoi(argv[i + 1]) : 6, i + 2 < argc ? std::atoi(argv[i + 2]) : 3);
 #ifndef __EMSCRIPTEN__
 
-    std::thread([] {
+    perlin::ProcessTasks().Run([] {
         const std::string exe = perlin::paths::ExePath();
         perlin::discord::RegisterUrlScheme("perlin", exe);
         perlin::discord::RegisterLaunch("1568359857915039784", exe);
-    }).detach();
+    });
 #endif
     std::printf("[boot] embedded resources registered\n");
     perlin::update::OnStartup();
@@ -344,12 +354,12 @@ int main(int argc, char** argv) {
     }
 
 #ifdef __EMSCRIPTEN__
-    auto* platform = new AppPlatform_SDL(ParseArgs(argc, argv));
+    auto* platform = new AppPlatform_SDL(ParseArgs(argc, argv), MakeApplication);
     if (!platform->Initialize())
         return 1;
     return 0;
 #else
-    AppPlatform_SDL platform(ParseArgs(argc, argv));
+    AppPlatform_SDL platform(ParseArgs(argc, argv), MakeApplication);
     std::printf("[boot] starting the window and renderer\n");
     BootMark("starting the window and renderer");
     if (!platform.Initialize()) {
@@ -361,6 +371,7 @@ int main(int argc, char** argv) {
 
     platform.Run();
     platform.Shutdown();
+    perlin::ProcessTasks().Shutdown();
     perlin::update::OnExit();
     return 0;
 #endif

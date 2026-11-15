@@ -1,4 +1,3 @@
-// Perlin --uibench <vanilla resource pack>: times the hud's json ui scan and build, as Hud::Rebuild does them
 #include "client/ui/HudData.hpp"
 #include "client/ui/JsonUi.hpp"
 

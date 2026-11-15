@@ -37,7 +37,7 @@ namespace perlin {
             wide[static_cast<size_t>(cell)] = value;
             return;
         }
-        const auto it = std::find(palette.begin(), palette.end(), value);
+        const auto it = std::ranges::find(palette, value);
         if (it != palette.end()) {
             narrow[static_cast<size_t>(cell)] = static_cast<uint8_t>(it - palette.begin());
             return;
@@ -52,7 +52,6 @@ namespace perlin {
     }
 
     void Cells16::Load(const uint16_t* cells) {
-        // ids map to palette slots through a 64k table; only the touched entries are cleared afterwards
         static thread_local std::vector<int16_t> slotOf(65536, -1);
         std::vector<uint16_t> pal;
         pal.reserve(16);

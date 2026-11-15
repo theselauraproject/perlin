@@ -1,4 +1,5 @@
 #include "network/NetherNet.hpp"
+#include "network/NetherNetSignal.hpp"
 
 #include "network/Http.hpp"
 #include "util/Json.hpp"
@@ -13,7 +14,6 @@
 #include <mutex>
 #include <iostream>
 #include <random>
-#include <sstream>
 #include <thread>
 #include "util/Log.hpp"
 
@@ -36,18 +36,7 @@ namespace perlin {
 
         enum JsState { kIdle = 0, kGathering = 1, kOfferReady = 2, kOpen = 3, kFailed = 4, kAnswered = 5 };
 
-        std::string StripIdentityLines(const std::string& sdp) {
-            std::istringstream in(sdp);
-            std::string line, out;
-            while (std::getline(in, line)) {
-                if (!line.empty() && line.back() == '\r')
-                    line.pop_back();
-                if (line.starts_with("a=identity"))
-                    continue;
-                out += line + "\r\n";
-            }
-            return out;
-        }
+        using nethernet::StripIdentityLines;
 
         std::string JsError() {
             std::string text(512, '\0');

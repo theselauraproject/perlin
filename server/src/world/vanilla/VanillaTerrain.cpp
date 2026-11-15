@@ -186,7 +186,7 @@ namespace perlin::server::vanilla {
             for (int z = 0; z < 16; z++) {
                 const int top = VanillaSurface::TopOf(density + static_cast<size_t>((x * 16 + z) * kHeight));
                 const BiomeSite site = SiteOf(chunkX * 16 + x, chunkZ * 16 + z, top);
-                const auto hit = std::find_if(seen.begin(), seen.end(), [&](const Seen& s) {
+                const auto hit = std::ranges::find_if(seen, [&](const Seen& s) {
                     return s.site.x == site.x && s.site.y == site.y && s.site.z == site.z;
                 });
                 if (hit != seen.end()) {

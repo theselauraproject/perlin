@@ -1,10 +1,6 @@
-// cpu cost of the terrain frame on the null backend: a generated world is meshed once, then the camera flies a loop
-// while a few chunks are remeshed every frame (streaming). the null device records but draws nothing, so the times
-// are what the renderer spends on the cpu: selection, culling setup, uploads and command recording.
-// usage: render_bench <pack> [radius] [frames] [remesh per frame]
-#include "client/renderer/Frustum.hpp"
-#include "client/renderer/Tessellator.hpp"
-#include "client/renderer/gpu/RenderContext_rhi.hpp"
+#include "client/systems/gfx/Frustum.hpp"
+#include "client/systems/gfx/Tessellator.hpp"
+#include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -20,7 +16,7 @@
 #include <numeric>
 #include <vector>
 
-#if __has_include("client/renderer/gpu/GpuTerrain.hpp")
+#if __has_include("client/systems/renderer/gpu/GpuTerrain.hpp")
 #define BENCH_HAS_TERRAIN 1
 #endif
 
@@ -49,7 +45,6 @@ namespace {
     bool Solid(int x, int y, int z, int h) {
         if (y < -64 || y >= h)
             return false;
-        // underground pockets: interior faces like caves and ravines give, below the surface sections
         const uint32_t cell = Hash(x >> 3, y >> 3, z >> 3);
         return y < -60 || (cell & 0xFF) > 22 || y > h - 4;
     }
@@ -95,7 +90,6 @@ namespace {
                         }
                     }
                     if (h - 1 >= sy * 16 && h - 1 < sy * 16 + 16 && (Hash(x, h, z) & 15) == 0) {
-                        // a plant: two crossed double-sided quads
                         const float c[4][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
                         const float uv[4][2] = {{0, 0}, {0.01f, 0}, {0.01f, 0.01f}, {0, 0.01f}};
                         const float fx = static_cast<float>(x), fy = static_cast<float>(h), fz = static_cast<float>(z);
@@ -191,7 +185,6 @@ int main(int argc, char** argv) {
     std::printf("world: %zu chunks, %.1fM quads, meshed in %.1f s\n", world.size(), quads / 1e6, meshSeconds);
 
     std::vector<double> frameMs, updateMs, drawMs, endMs, uiMs;
-    // BENCH_UI=n: n entity-part draws per frame (a handful of textures, like mobs sharing skins)
     const int uiDraws = std::getenv("BENCH_UI") ? std::atoi(std::getenv("BENCH_UI")) : 0;
     const UiVertex box[4] = {{0, 0, 0, 0xFFFFFFFFu, 0, 0}, {1, 0, 0, 0xFFFFFFFFu, 1, 0},
                              {1, 1, 0, 0xFFFFFFFFu, 1, 1}, {0, 1, 0, 0xFFFFFFFFu, 0, 1}};
@@ -257,8 +250,6 @@ int main(int argc, char** argv) {
 #endif
     }
     const Summary fs = Summarize(frameMs), us = Summarize(updateMs), ds = Summarize(drawMs), es = Summarize(endMs);
-    // DrawChunkMeshes: selection, culling setup, draw lists. EndFrame: command recording plus the null device's
-    // emulated copies (a real gpu does those with dma, not the cpu)
     std::printf("terrain cull+build ms: mean %.3f  p99 %.3f  worst %.3f\n", ds.mean, ds.p99, ds.worst);
     std::printf("record+submit ms: mean %.3f  p99 %.3f  worst %.3f\n", es.mean, es.p99, es.worst);
     if (uiDraws) {

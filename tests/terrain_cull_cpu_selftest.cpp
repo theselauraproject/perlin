@@ -1,12 +1,9 @@
-// runs the real terrain_cull.slang (compiled by slangc to c++) over GpuTerrain's records on the cpu: the draws it
-// writes must match the cpu reference, stay inside their buckets, and the occlusion passes must only drop sections
-// that are fully behind the depth pyramid
 #include "terrain_cull_cpu.cpp"
 
-#include "client/renderer/Frustum.hpp"
-#include "client/renderer/Tessellator.hpp"
-#include "client/renderer/gpu/ChunkMeshStore.hpp"
-#include "client/renderer/gpu/GpuTerrain.hpp"
+#include "client/systems/gfx/Frustum.hpp"
+#include "client/systems/gfx/Tessellator.hpp"
+#include "client/systems/renderer/gpu/ChunkMeshStore.hpp"
+#include "client/systems/renderer/gpu/GpuTerrain.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -201,7 +198,6 @@ int main(int argc, char** argv) {
     Check(match, "the shader draws exactly what the cpu reference draws");
     Check(inside, "draws stay inside their bucket and are single instance");
 
-    // occlusion: a wall at reversed depth 0.95 over the left half of a 256x256 target, sky (0) on the right
     {
         const glm::vec3 eye(0, 30, -100);
         const glm::mat4 proj = glm::perspectiveRH_ZO(glm::radians(80.0f), 1.0f, 0.05f, 500.0f);
@@ -222,7 +218,6 @@ int main(int argc, char** argv) {
         Check(terrain.Prepare(fi) && terrain.Occluding(), "prepare with occlusion");
         const gpu::GpuTerrain::DebugView d = terrain.Debug();
         Buffers b;
-        // pyramid like hiz_build.slang: level 0 is 128x128, each texel the farthest of its 2x2
         std::vector<float> depth(256 * 256);
         for (int y = 0; y < 256; y++)
             for (int x = 0; x < 256; x++)
@@ -253,7 +248,6 @@ int main(int argc, char** argv) {
         const Tally every = Count(terrain, all, false);
         std::printf("     frustum %u draws, after occlusion %u\n", every.commands, late.commands);
         Check(late.commands < every.commands && late.commands > 0, "the wall hides some sections, not all");
-        // a dropped section must project fully onto the wall and sit behind it
         bool sound = true;
         const auto* recs = terrain.RecordData();
         for (uint32_t i = 0; i < terrain.RecordCount(); i++) {
@@ -273,13 +267,11 @@ int main(int argc, char** argv) {
             }
         }
         Check(sound, "every occluded section is fully behind the wall");
-        // next frame, same view: the early pass now draws what the late pass found
         Run(terrain, b, 1, 0);
         const Tally early = Count(terrain, b, false);
         Check(early.commands == late.commands, "visible sections move to the early pass next frame");
     }
 
-    // shadow casters: a 40 block box around the origin, culled in two slices
     {
         Buffers b;
         const float box[6][4] = {{1, 0, 0, 40}, {-1, 0, 0, 40}, {0, 1, 0, 40}, {0, -1, 0, 40}, {0, 0, 1, 40}, {0, 0, -1, 40}};

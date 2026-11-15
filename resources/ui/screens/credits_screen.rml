@@ -1,0 +1,91 @@
+<rml>
+    <head>
+        <title>credits</title>
+        <style>
+            #scene {
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                margin: 0;
+                padding: 0;
+                background-color: #000000;
+            }
+
+            #text {
+                position: absolute;
+                left: 0px;
+            }
+
+            .l {
+                display: block;
+                height: 12px;
+                line-height: 12px;
+                text-align: center;
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                color: #ffffff;
+            }
+
+            .title {
+                color: #ffff55;
+                font-size: 16px;
+                height: 24px;
+                line-height: 24px;
+            }
+
+            .sub {
+                color: #aaaaaa;
+            }
+
+            .head {
+                color: #ffff55;
+            }
+
+            .note {
+                color: #555555;
+            }
+
+            .poem {
+                text-align: left;
+                width: 274px;
+            }
+
+            .poem3 {
+                text-align: left;
+                width: 274px;
+                color: #00aaaa;
+            }
+
+            .poem2 {
+                text-align: left;
+                width: 274px;
+                color: #00aa00;
+            }
+
+            .hint {
+                position: absolute;
+                left: 0px;
+                height: 12px;
+                line-height: 12px;
+                background-color: #000000;
+                text-align: center;
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                color: #555555;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="scene" data-model="overlay" data-style-width="w + 'px'" data-style-height="h + 'px'">
+            <div id="text" data-style-top="top + 'px'" data-style-width="w + 'px'">
+                <div
+                    data-for="l : lines"
+                    data-attr-class="'l ' + l.cls"
+                    data-style-padding-left="l.pad + 'px'">
+                    {{l.text}}
+                </div>
+            </div>
+            <div class="hint" data-style-top="hint_y + 'px'" data-style-width="w + 'px'">{{hint}}</div>
+        </div>
+    </body>
+</rml>

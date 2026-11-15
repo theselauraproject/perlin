@@ -1,4 +1,4 @@
-#include "client/player/PerlinSneak.hpp"
+#include "world/movement/PerlinSneak.hpp"
 #include <bit>
 #include <cstdio>
 #include <fstream>

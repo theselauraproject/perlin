@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iterator>
-#include "client/i18n/Lang.hpp"
+#include "client/systems/i18n/Lang.hpp"
 #include "util/Strings.hpp"
 
 namespace perlin::ui {

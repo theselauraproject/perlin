@@ -17,7 +17,7 @@ execute_process(
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_material_catalog.py"
             "${PERLIN_MCBE_SHADER_SOURCE_DIR}" "${PERLIN_MATERIAL_INCLUDE_DIR}/MaterialCatalog.hpp"
     COMMAND_ERROR_IS_FATAL ANY)
-set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/renderer/MaterialDb.cpp"
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/gfx/MaterialDb.cpp"
     APPEND PROPERTY INCLUDE_DIRECTORIES "${PERLIN_MATERIAL_INCLUDE_DIR}")
 
 set(PERLIN_RD_SHADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/renderdragon")

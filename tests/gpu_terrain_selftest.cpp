@@ -1,10 +1,7 @@
-// the gpu-driven terrain records against the meshes they describe, on the null device: facing groups add up,
-// every camera-facing quad stays inside an emitted draw, records match the cpu path's sections, and chunk
-// replacement / removal / clearing keeps the record heap consistent
-#include "client/renderer/Frustum.hpp"
-#include "client/renderer/Tessellator.hpp"
-#include "client/renderer/gpu/ChunkMeshStore.hpp"
-#include "client/renderer/gpu/GpuTerrain.hpp"
+#include "client/systems/gfx/Frustum.hpp"
+#include "client/systems/gfx/Tessellator.hpp"
+#include "client/systems/renderer/gpu/ChunkMeshStore.hpp"
+#include "client/systems/renderer/gpu/GpuTerrain.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -24,7 +21,6 @@ namespace {
             failures++;
     }
 
-    // a quad facing direction d (0..5 = +x -x +y -y +z -z) on the block at (x, y, z), or an odd slanted one
     void Quad(Tessellator& t, int d, float x, float y, float z, RenderLayer layer, std::vector<glm::vec4>& faces) {
         static const float axes[6][2][3] = {
             {{0, 0, 1}, {0, 1, 0}}, {{0, 1, 0}, {0, 0, 1}}, {{1, 0, 0}, {0, 0, 1}},
@@ -42,7 +38,6 @@ namespace {
         const float uv[4][2] = {{0, 0}, {0.01f, 0}, {0.01f, 0.01f}, {0, 0.01f}};
         t.SetLayer(layer);
         t.AddQuad(v, c, uv, false, 0.0f, 15.0f);
-        // plane: normal and offset, for the facing test below
         faces.push_back({normal[d][0], normal[d][1], normal[d][2],
                          -(normal[d][0] * p[0] + normal[d][1] * p[1] + normal[d][2] * p[2])});
     }
@@ -110,7 +105,6 @@ int main(int argc, char** argv) {
             }
         if (!sums)
             Check(false, "facing groups add up to the section counts");
-        // each grouped quad's stored normal must match the group it was put in
         static const int groupAxis[7] = {0, 1, 2, -1, 2, 1, 0};
         static const int groupSign[7] = {1, 1, 1, 0, -1, -1, -1};
         bool grouped = true;
@@ -178,7 +172,6 @@ int main(int argc, char** argv) {
         Check(ref.indices >= cpu, "gpu records cover everything the cpu path draws");
     }
 
-    // a facing group may only be dropped when the camera is behind every plane of it in the section
     bool covered = true;
     int cameras = 0, checkedQuads = 0;
     for (int trial = 0; trial < 40; trial++) {
@@ -187,7 +180,6 @@ int main(int argc, char** argv) {
                             static_cast<float>(static_cast<int>(rng() % 120) - 60));
         cameras++;
         const gpu::GpuTerrain::Record* records = terrain.RecordData();
-        // facing test on the records themselves: a group is dropped only when the camera is behind every plane
         for (uint32_t i = 0; i < terrain.RecordCount(); i++) {
             const auto& r = records[i];
             if (r.bucket == ~0u)
@@ -201,7 +193,6 @@ int main(int argc, char** argv) {
                 if (grp == 3 || !r.faces[grp])
                     continue;
                 const int ax = axisOf[grp];
-                // the most permissive plane of this facing inside the box
                 const float plane = signOf[grp] > 0 ? lo[ax] : hi[ax];
                 const bool someFront = signOf[grp] > 0 ? cam[ax] > plane : cam[ax] < plane;
                 checkedQuads++;
@@ -213,7 +204,6 @@ int main(int argc, char** argv) {
     std::printf("     %d cameras, %d facing groups checked\n", cameras, checkedQuads);
     Check(covered, "no camera-facing group is culled");
 
-    // churn: replace, remove and re-add chunks, the heap must stay consistent with the store
     for (int round = 0; round < 30; round++) {
         const int cx = static_cast<int>(rng() % 7) - 3, cz = static_cast<int>(rng() % 7) - 3;
         if (rng() % 3 == 0)

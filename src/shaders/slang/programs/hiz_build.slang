@@ -1,5 +1,3 @@
-// depth pyramid for occlusion culling, kept in a plain buffer (no per-mip views or layouts): level 0 is half the
-// depth target, each texel the farthest (reversed z: smallest) of the 2x2 it covers; edges clamp
 
 [[vk::binding(0, 0)]] Texture2D<float> depthTex : register(t0, space0);
 [[vk::binding(1, 0)]] RWStructuredBuffer<float> hiz : register(u1, space0);
@@ -15,7 +13,6 @@ struct PushData
     uint fromDepth;
     uint pad;
 };
-// conduit's d3d12 root constants sit at b0 in space 15
 [[vk::push_constant]] ConstantBuffer<PushData> push : register(b0, space15);
 
 float source(int x, int y)

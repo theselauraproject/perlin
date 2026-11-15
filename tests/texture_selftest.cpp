@@ -1,8 +1,8 @@
-#include "client/renderer/block/BlockLibrary.hpp"
-#include "client/resources/TextureLoader.hpp"
-#include "client/resources/TexturePack.hpp"
+#include "client/systems/blocks/BlockLibrary.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
+#include "client/systems/resources/TexturePack.hpp"
 
-#include "client/input/Keys.hpp"
+#include "client/systems/bindings/Keys.hpp"
 
 #include <miniz.h>
 
@@ -92,7 +92,6 @@ int main(int argc, char** argv) {
 
     BlockLibrary lib;
     lib.SetTexturePack(true);
-    // a library being staged must not change the size the live atlas is read with
     CHECK(lib.OwnTilePx() == 64);
     CHECK(BlockLibrary::TilePx() == 16);
     const std::string vanilla = argv[1];

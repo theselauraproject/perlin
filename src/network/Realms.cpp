@@ -11,16 +11,12 @@
 #include <iostream>
 #include <thread>
 #include "util/Log.hpp"
+#include "util/JsonText.hpp"
 
 namespace perlin::realms {
     namespace {
         constexpr const char* kRelyingParty = "https://pocket.realms.minecraft.net/";
         constexpr const char* kHost = "bedrock.frontendlegacy.realms.minecraft-services.net";
-
-        std::string Q(const std::string& s) {
-            return "\"" + s + "\"";
-        }
-
         http::Response Call(const std::string& method, const std::string& path, const std::string& body,
                             const std::string& authorization) {
             std::map<std::string, std::string> headers{
@@ -75,6 +71,8 @@ namespace perlin::realms {
         if (!account.AuthorizationHeader(kRelyingParty, authorization, xuid, error))
             return false;
         const http::Response r = Call("GET", "/worlds", {}, authorization);
+        if (r.status == 401)
+            account.Invalidate(kRelyingParty);
         auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
         if (!doc) {
             error = Failure(r, "Realms");
@@ -115,6 +113,8 @@ namespace perlin::realms {
         if (!account.AuthorizationHeader(kRelyingParty, authorization, xuid, error))
             return false;
         const http::Response r = Call("POST", "/invites/v1/link/accept/" + code, {}, authorization);
+        if (r.status == 401)
+            account.Invalidate(kRelyingParty);
         auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
         if (!doc) {
             error = r.status == 404 ? "that invite code was not found or has expired" : Failure(r, "Realms");
@@ -136,6 +136,8 @@ namespace perlin::realms {
         bool optedIn = false;
         while (true) {
             http::Response r = Call("POST", "/worlds/" + std::to_string(id) + "/join", body, authorization);
+            if (r.status == 401)
+                account.Invalidate(kRelyingParty);
             if ((r.status == 503 || r.status == 277) && std::chrono::steady_clock::now() < giveUp) {
                 int wait = 5;
                 const auto it = r.headers.find("Retry-After");

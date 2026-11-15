@@ -41,7 +41,6 @@ namespace perlin::server::json {
     };
 
     bool Parse(std::string_view text, Value& out, std::string* error = nullptr);
-    std::string Escape(std::string_view text);
 
     bool DecodeJwtPayload(std::string_view jwt, Value& out);
     std::string Base64UrlDecode(std::string_view text);

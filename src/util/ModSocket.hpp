@@ -53,6 +53,7 @@ namespace perlin::util {
 
     private:
         struct Socket;
+        class Session;
         void Reap();
         void Push(SocketEvent&& event);
         void Run(std::shared_ptr<Socket> socket);

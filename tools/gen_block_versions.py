@@ -36,7 +36,7 @@ def main():
     ap.add_argument("--current", required=True, help="tag that block_states.json was built from, e.g. v1.26.60.5")
     ap.add_argument("--current-protocol", type=int, required=True)
     ap.add_argument("--older", nargs="+", required=True, help="protocol=tag, newest first, e.g. 2193=v1.26.50.4")
-    ap.add_argument("--out", default="resources/block_versions.json")
+    ap.add_argument("--out", default="resources/data/blocks/block_versions.json")
     args = ap.parse_args()
     newer_tag, newer_protocol = args.current, args.current_protocol
     newer = load(args.samples, newer_tag)

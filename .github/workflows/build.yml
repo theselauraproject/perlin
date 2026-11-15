@@ -16,7 +16,6 @@ concurrency:
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
-  # bump to drop every dependency cache at once
   DEPS_CACHE_VERSION: v4
 
   PERLIN_UPDATE_FLAGS: ${{ github.ref == 'refs/heads/main' && format('-DPERLIN_BUILD_COMMIT={0} -DPERLIN_UPDATE_REPO={1} -DPERLIN_BUNDLE_VERSION=1.0.{2}', github.sha, github.repository, github.run_number) || '' }}
@@ -100,7 +99,6 @@ jobs:
       - name: Install macOS packages
         if: runner.os == 'macOS'
         run: |
-          # ninja from PyPI: homebrew bottles come from GitHub's package servers
           python -m pip install --upgrade ninja
 
           brew uninstall --ignore-dependencies fmt || true
@@ -179,8 +177,6 @@ jobs:
           key: ${{ matrix.name }}
           max-size: 500M
 
-      # configure downloads whatever the caches miss: retried, a github hiccup shouldn't fail the run, and
-      # retry_configure.py removes half-downloaded packages so a retry can't build with a missing tool
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -204,8 +200,6 @@ jobs:
             ${{ env.PERLIN_UPDATE_FLAGS }} \
             ${{ runner.os == 'macOS' && format('-DOPENSSL_ROOT_DIR={0}/ossl-mac -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON', github.workspace) || '' }}
 
-      # every download is done (and checked by retry_configure.py) once configure passes: save now, even if
-      # the build or tests fail later
       - name: Save dependency cache
         if: steps.cpm-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -283,7 +277,6 @@ jobs:
           esac
           ls -l pkg
 
-
       - name: Keep debug symbols (Windows)
         if: runner.os == 'Windows'
         shell: bash
@@ -313,7 +306,6 @@ jobs:
           path: |
             .tools/appimagetool
             .tools/runtime
-          # "continuous" has no version: bump the suffix to pick up a newer build
           key: appimagetool-${{ matrix.appimage }}-v2
 
       - name: AppImage
@@ -326,7 +318,6 @@ jobs:
             mv .tools/appimagetool.part .tools/appimagetool
             chmod +x .tools/appimagetool
           fi
-          # appimagetool would fetch this from github on every run otherwise
           if [ ! -s .tools/runtime ]; then
             curl -fsSL --retry 5 --retry-all-errors --retry-delay 20 -o .tools/runtime.part \
               "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${{ matrix.appimage }}"
@@ -625,7 +616,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # cache: gradle keeps ~/.gradle/caches and ~/.gradle/wrapper, so the wrapper's gradle download comes from cache
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

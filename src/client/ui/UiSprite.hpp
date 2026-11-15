@@ -1,5 +1,6 @@
 #pragma once
-#include "client/resources/TextureLoader.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
+#include "client/ui/Scene.hpp"
 
 #include <string>
 
@@ -9,6 +10,6 @@ namespace perlin::ui {
 
     bool PackSpriteNative(const std::string& resource, Texture& out);
 
-    std::string SpriteRml(const std::string& resource, int srcX, int srcY, int width, int height, int dstX,
-                          int dstY);
+    void AddSprite(SceneBuilder& builder, const std::string& resource, int srcX, int srcY, int width, int height,
+                   int dstX, int dstY);
 }

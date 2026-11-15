@@ -1,7 +1,6 @@
 #pragma once
 #include "rd_common.slang"
 
-// per-draw values arrive on the instance stream and reach the fragment stage as varyings
 #define u_uiParams v_uiParams
 #define u_uiOverlay v_uiOverlay
 

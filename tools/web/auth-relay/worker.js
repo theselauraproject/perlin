@@ -1,11 +1,3 @@
-// Perlin web sign-in relay: a Cloudflare Worker (free plan is plenty).
-//
-// Microsoft sign-in, Xbox Live, Realms and Minecraft services answer browsers without CORS headers, so a page on
-// GitHub Pages (or any other static host) cannot call them. The page sends those requests here instead, as
-//   https://<this worker>/<host>/<path>?<query>
-// and the worker forwards them to https://<host>/<path>?<query> and adds the CORS headers on the way back.
-// Only the hosts below are forwarded, and only for the origins in ALLOWED_ORIGINS (wrangler.toml), so this is not
-// an open proxy. Nothing is stored or logged.
 
 const HOSTS = ["login.live.com", "account.xbox.com", ".xboxlive.com", ".minecraft.net", ".minecraft-services.net",
                ".playfabapi.com"];
@@ -54,7 +46,6 @@ export default {
         for (const [k, v] of request.headers)
             if (!DROP.has(k.toLowerCase()))
                 headers.set(k, v);
-        // browsers cannot set a user agent; some endpoints want one
         if (!headers.has("User-Agent"))
             headers.set("User-Agent", "Perlin");
 

@@ -1,6 +1,10 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "windows-clang-cl",
@@ -8,24 +12,41 @@
       "description": "clang-cl + lld-link. Run from a Developer PowerShell / x64 Native Tools prompt, or open the folder in Visual Studio or VS Code, which set up the environment for you.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
-      "architecture": { "value": "x64", "strategy": "external" },
-      "toolset": { "value": "host=x64", "strategy": "external" },
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "toolset": {
+        "value": "host=x64",
+        "strategy": "external"
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "clang-cl",
         "CMAKE_CXX_COMPILER": "clang-cl",
         "CMAKE_LINKER": "lld-link"
       },
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
       "vendor": {
-        "microsoft.com/VisualStudioSettings/CMake/1.0": { "hostOS": [ "Windows" ], "intelliSenseMode": "windows-clang-x64" }
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "Windows"
+          ],
+          "intelliSenseMode": "windows-clang-x64"
+        }
       }
     },
     {
       "name": "windows-clang-cl-debug",
       "displayName": "Windows x64 (clang-cl, Ninja, Debug)",
       "inherits": "windows-clang-cl",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     },
     {
       "name": "windows-vs-clangcl",
@@ -35,12 +56,97 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "architecture": "x64",
       "toolset": "ClangCL",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "unix-ninja",
+      "displayName": "Linux / macOS (Ninja, Release)",
+      "description": "Release build with the self-tests enabled. Needs the system packages listed in README.md.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PERLIN_BUILD_TESTS": "ON"
+      },
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": [
+          "Linux",
+          "Darwin"
+        ]
+      }
+    },
+    {
+      "name": "unix-ninja-debug",
+      "displayName": "Linux / macOS (Ninja, Debug)",
+      "inherits": "unix-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "unix-ninja-asan",
+      "displayName": "Linux / macOS (Ninja, ASan + UBSan)",
+      "inherits": "unix-ninja-debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "windows-clang-cl", "configurePreset": "windows-clang-cl" },
-    { "name": "windows-clang-cl-debug", "configurePreset": "windows-clang-cl-debug" },
-    { "name": "windows-vs-clangcl", "configurePreset": "windows-vs-clangcl", "configuration": "Release" }
+    {
+      "name": "windows-clang-cl",
+      "configurePreset": "windows-clang-cl"
+    },
+    {
+      "name": "windows-clang-cl-debug",
+      "configurePreset": "windows-clang-cl-debug"
+    },
+    {
+      "name": "windows-vs-clangcl",
+      "configurePreset": "windows-vs-clangcl",
+      "configuration": "Release"
+    },
+    {
+      "name": "unix-ninja",
+      "configurePreset": "unix-ninja"
+    },
+    {
+      "name": "unix-ninja-debug",
+      "configurePreset": "unix-ninja-debug"
+    },
+    {
+      "name": "unix-ninja-asan",
+      "configurePreset": "unix-ninja-asan"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "unix-ninja",
+      "configurePreset": "unix-ninja",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "unix-ninja-debug",
+      "configurePreset": "unix-ninja-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "unix-ninja-asan",
+      "configurePreset": "unix-ninja-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
   ]
 }

@@ -3,12 +3,13 @@
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "util/Strings.hpp"
+#include "util/JsonText.hpp"
+#include "util/FileIo.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 
 namespace perlin::server {
 
@@ -16,14 +17,12 @@ namespace perlin::server {
         if (path.size() > 11 && path.compare(path.size() - 11, 11, ".properties") == 0)
             return LoadProperties(path, error);
         ServerConfig c;
-        std::ifstream in(path, std::ios::binary);
-        if (!in)
+        std::string contents;
+        if (!file::Read(path, contents))
             return c;
-        std::stringstream buf;
-        buf << in.rdbuf();
         json::Value root;
         std::string err;
-        if (!json::Parse(buf.str(), root, &err)) {
+        if (!json::Parse(contents, root, &err)) {
             if (error)
                 *error = path + ": " + err;
             return c;
@@ -81,9 +80,9 @@ namespace perlin::server {
         if (!out)
             return false;
         out << "{\n"
-            << "  \"name\": \"" << json::Escape(name) << "\",\n"
-            << "  \"motd\": \"" << json::Escape(motd) << "\",\n"
-            << "  \"level_name\": \"" << json::Escape(levelName) << "\",\n"
+            << "  \"name\": \"" << ::perlin::json::Escape(name) << "\",\n"
+            << "  \"motd\": \"" << ::perlin::json::Escape(motd) << "\",\n"
+            << "  \"level_name\": \"" << ::perlin::json::Escape(levelName) << "\",\n"
             << "  \"max_players\": " << maxPlayers << ",\n"
             << "  \"view_distance\": " << viewDistance << ",\n"
             << "  \"tick_rate\": " << tickRate << ",\n"
@@ -91,23 +90,23 @@ namespace perlin::server {
             << "  \"seed\": " << static_cast<int64_t>(seed) << ",\n"
             << "  \"nethernet\": " << (nethernet ? "true" : "false") << ",\n"
             << "  \"port\": " << port << ",\n"
-            << "  \"bind_address\": \"" << json::Escape(bindAddress) << "\",\n"
+            << "  \"bind_address\": \"" << ::perlin::json::Escape(bindAddress) << "\",\n"
             << "  \"ice_udp_mux\": " << (iceUdpMux ? "true" : "false") << ",\n"
-            << "  \"ice_bind_address\": \"" << json::Escape(iceBindAddress) << "\",\n"
-            << "  \"generator\": \"" << json::Escape(generator) << "\",\n"
-            << "  \"terrain_backend\": \"" << json::Escape(terrainBackend) << "\",\n"
+            << "  \"ice_bind_address\": \"" << ::perlin::json::Escape(iceBindAddress) << "\",\n"
+            << "  \"generator\": \"" << ::perlin::json::Escape(generator) << "\",\n"
+            << "  \"terrain_backend\": \"" << ::perlin::json::Escape(terrainBackend) << "\",\n"
             << "  \"operators\": [";
         for (size_t i = 0; i < operators.size(); i++)
-            out << (i ? ", " : "") << "\"" << json::Escape(operators[i]) << "\"";
+            out << (i ? ", " : "") << "\"" << ::perlin::json::Escape(operators[i]) << "\"";
         out << "],\n"
             << "  \"xbox_auth\": " << (xboxAuth ? "true" : "false") << ",\n"
             << "  \"whitelist\": " << (whitelist ? "true" : "false") << ",\n"
             << "  \"lan_discovery\": " << (lanDiscovery ? "true" : "false") << ",\n"
-            << "  \"plugin_dir\": \"" << json::Escape(pluginDir) << "\",\n"
-            << "  \"block_data_dir\": \"" << json::Escape(blockDataDir) << "\",\n"
+            << "  \"plugin_dir\": \"" << ::perlin::json::Escape(pluginDir) << "\",\n"
+            << "  \"block_data_dir\": \"" << ::perlin::json::Escape(blockDataDir) << "\",\n"
             << "  \"flat_layers\": [";
         for (size_t i = 0; i < flatLayers.size(); i++)
-            out << (i ? ", " : "") << "{\"block\": \"" << json::Escape(flatLayers[i].block)
+            out << (i ? ", " : "") << "{\"block\": \"" << ::perlin::json::Escape(flatLayers[i].block)
                 << "\", \"count\": " << flatLayers[i].count << "}";
         out << "]\n}\n";
         return out.good();
@@ -115,14 +114,8 @@ namespace perlin::server {
 
     namespace {
 
-        std::string LowerText(std::string s) {
-            for (char& c : s)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            return s;
-        }
-
         bool ParseBool(const std::string& v, bool& out) {
-            const std::string t = LowerText(v);
+            const std::string t = str::Lower(v);
             if (t == "true" || t == "1") {
                 out = true;
                 return true;
@@ -197,7 +190,7 @@ namespace perlin::server {
                 if (t.empty() || t[0] != ':')
                     return false;
                 t.erase(0, 1);
-            } else if (std::count(t.begin(), t.end(), ':') == 2) {
+            } else if (std::ranges::count(t, ':') == 2) {
                 const size_t colon = t.find(':');
                 c.udpPublicAddress = t.substr(0, colon);
                 t.erase(0, colon + 1);
@@ -363,7 +356,7 @@ namespace perlin::server {
     bool ServerConfig::SetProperty(const std::string& key, const std::string& rawValue,
                                    std::string* warning) {
         const std::string v = str::Trim(rawValue);
-        const std::string lower = LowerText(v);
+        const std::string lower = str::Lower(v);
         bool b = false;
         int64_t n = 0;
         const auto bad = [&](const char* expected) {
@@ -695,7 +688,7 @@ namespace perlin::server {
         out << "perlin-ice-bind-address=" << iceBindAddress << "\n";
         out << "perlin-auth-root-keys=" << JoinList(authRootKeys) << "\n";
         for (const auto& [ek, ev] : extraProperties)
-            if (std::find(written.begin(), written.end(), ek) == written.end())
+            if (std::ranges::find(written, ek) == written.end())
                 out << ek << "=" << ev << "\n";
         return out.good();
     }

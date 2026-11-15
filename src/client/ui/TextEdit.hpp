@@ -1,5 +1,6 @@
 #pragma once
-#include "client/input/InputManager.hpp"
+#include "client/systems/input/InputManager.hpp"
+#include "client/ui/Scene.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +12,7 @@ namespace perlin::ui {
     struct TextLimits {
         size_t maxBytes = 4096;
         size_t maxChars = static_cast<size_t>(-1);
-        std::function<bool(uint32_t)> accept;
+        std::function<bool(uint32_t)> accept{};
         bool multiline = false;
     };
 
@@ -45,6 +46,6 @@ namespace perlin::ui {
         bool typing = false;
     };
 
-    std::string TextFieldRml(const std::string& value, bool caretOn);
+    std::vector<SceneRun> TextFieldRuns(const std::string& value, bool caretOn);
     std::string TextFieldPlain(const std::string& value, bool caretOn);
 }

@@ -1,4 +1,3 @@
-# cmake -DINPUT=<file> -DOUTPUT=<cpp> -DSYMBOL=<name> -DNAMESPACE=<ns> -P EmbedBinary.cmake
 file(READ "${INPUT}" _hex HEX)
 string(LENGTH "${_hex}" _len)
 math(EXPR _bytes "${_len} / 2")

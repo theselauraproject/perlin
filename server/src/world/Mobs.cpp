@@ -212,7 +212,7 @@ namespace perlin::server {
     }
 
     bool MobWorld::Remove(uint64_t id) {
-        const auto it = std::find_if(mobs.begin(), mobs.end(), [id](const Mob& m) { return m.id == id; });
+        const auto it = std::ranges::find_if(mobs, [id](const Mob& m) { return m.id == id; });
         if (it == mobs.end())
             return false;
         for (Session* s : server.PlayersIn(kOverworld))
@@ -504,7 +504,7 @@ namespace perlin::server {
             if (v >= 0.0f)
                 return v;
             const std::string& n = BlockRegistry::Instance().Name(id);
-            const auto has = [&](const char* t) { return n.find(t) != std::string::npos; };
+            const auto has = [&](const char* t) { return n.contains(t); };
             if (has("bedrock") || has("barrier") || has("command_block") || has("end_portal") || has("end_gateway") ||
                 has("structure_block") || has("jigsaw") || has("reinforced_deepslate") || n == "minecraft:light_block" ||
                 has("border_block") || has("allow") || has("deny"))
@@ -522,7 +522,7 @@ namespace perlin::server {
                 v = 6.0f;
             else if (has("stone") || has("cobble") || has("brick") || has("andesite") || has("diorite") ||
                      has("granite") || has("tuff") || has("basalt") || has("blackstone") || has("prismarine") ||
-                     has("purpur") || has("calcite") || has("_ore") || has("concrete") && !has("powder") ||
+                     has("purpur") || has("calcite") || has("_ore") || (has("concrete") && !has("powder")) ||
                      has("terracotta") || has("quartz") || has("dripstone"))
                 v = 6.0f;
             else if (has("planks") || has("_log") || has("_wood") || has("stem") || has("hyphae") || has("fence") ||

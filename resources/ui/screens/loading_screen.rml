@@ -1,0 +1,235 @@
+<rml>
+    <head>
+        <title>loading</title>
+        <style>
+            body {
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                margin: 0;
+                padding: 0;
+                background: transparent;
+            }
+
+            div {
+                display: block;
+                position: absolute;
+            }
+
+            mcimg {
+                display: block;
+                position: absolute;
+            }
+
+            #title {
+                left: 0px;
+                height: 9px;
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                line-height: 9px;
+                text-align: center;
+                color: #ffffff;
+                white-space: nowrap;
+                z-index: 3;
+            }
+
+            #track {
+                height: 4px;
+                background-color: #1e1e1e;
+                border: 1px #000000;
+                z-index: 3;
+            }
+
+            #fill {
+                left: 1px;
+                top: 1px;
+                height: 2px;
+                background-color: #5ed15e;
+            }
+
+            #message {
+                left: 0px;
+                height: 9px;
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                line-height: 9px;
+                text-align: center;
+                color: #c6c6c6;
+                white-space: nowrap;
+                z-index: 3;
+            }
+
+            #detail {
+                height: 27px;
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                line-height: 9px;
+                text-align: center;
+                color: #8a8a8a;
+                z-index: 3;
+            }
+
+            .warning {
+                height: 27px;
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                line-height: 9px;
+                text-align: center;
+                color: #ffff55;
+                z-index: 4;
+            }
+
+            .btn {
+                width: 204px;
+                height: 20px;
+                background-color: #000000;
+                z-index: 5;
+            }
+
+            .btn div {
+                position: absolute;
+            }
+
+            .btn .rim {
+                left: 1px;
+                top: 1px;
+                width: 201px;
+                height: 16px;
+                background-color: #aaaaaa;
+            }
+
+            .btn .face {
+                left: 2px;
+                top: 2px;
+                width: 200px;
+                height: 15px;
+                background-color: #6f6f6f;
+            }
+
+            .btn .shade {
+                left: 1px;
+                top: 17px;
+                width: 202px;
+                height: 2px;
+                background-color: #565656;
+            }
+
+            .btn .edge {
+                left: 202px;
+                top: 1px;
+                width: 1px;
+                height: 16px;
+                background-color: #565656;
+            }
+
+            .btn .lbl {
+                font-family: minecraft-shadow;
+                left: 0px;
+                top: 6px;
+                width: 204px;
+                height: 9px;
+                font-size: 8px;
+                line-height: 9px;
+                text-align: center;
+                color: #ffffff;
+                white-space: nowrap;
+            }
+
+            .btn:hover {
+                background-color: #ffffff;
+            }
+
+            .btn:hover .rim {
+                background-color: #afafaf;
+            }
+
+            .btn:hover .face {
+                background-color: #757575;
+            }
+
+            .btn:hover .shade,
+            .btn:hover .edge {
+                background-color: #5c5c5c;
+            }
+
+            {{include:ui/styles/java_widget_style.rcss}}
+        </style>
+    </head>
+    <body>
+        <div data-model="overlay" data-style-width="w + 'px'" data-style-height="h + 'px'">
+            <div data-if="panorama">
+                {{include:ui/components/menu_backdrop_panorama.rml}}
+            </div>
+            <div data-if="!panorama">
+                {{include:ui/components/menu_backdrop_tiled.rml}}
+            </div>
+            <div id="title" data-style-top="title_y + 'px'" data-style-width="w + 'px'">
+                <span data-for="r : title_runs">
+                    <span
+                        data-style-color="r.color"
+                        data-style-font-weight="r.weight"
+                        data-style-font-style="r.style"
+                        data-style-background-color="r.background"
+                        data-style-display="r.display"
+                        data-style-width="r.width"
+                        data-style-overflow="r.overflow">
+                        {{r.text}}
+                    </span>
+                </span>
+            </div>
+            <div id="message" data-style-top="msg_y + 'px'" data-style-width="w + 'px'">
+                <span data-for="r : message_runs">
+                    <span
+                        data-style-color="r.color"
+                        data-style-font-weight="r.weight"
+                        data-style-font-style="r.style"
+                        data-style-background-color="r.background"
+                        data-style-display="r.display"
+                        data-style-width="r.width"
+                        data-style-overflow="r.overflow">
+                        {{r.text}}
+                    </span>
+                </span>
+            </div>
+            <div
+                id="track"
+                data-if="bar"
+                data-style-left="bar_x + 'px'"
+                data-style-top="bar_y + 'px'"
+                data-style-width="bar_w + 'px'">
+                <div id="fill" data-style-width="fill_w + 'px'"></div>
+            </div>
+            <div
+                id="detail"
+                data-style-left="detail_x + 'px'"
+                data-style-top="detail_y + 'px'"
+                data-style-width="detail_w + 'px'">
+                <span data-for="r : detail_runs">
+                    <span
+                        data-style-color="r.color"
+                        data-style-font-weight="r.weight"
+                        data-style-font-style="r.style"
+                        data-style-background-color="r.background"
+                        data-style-display="r.display"
+                        data-style-width="r.width"
+                        data-style-overflow="r.overflow">
+                        {{r.text}}
+                    </span>
+                </span>
+            </div>
+            <div id="cancel" class="btn" data-style-left="btn_x + 'px'" data-style-top="btn_y + 'px'">
+
+            {{include:ui/components/java_widget_sprites.rml}}
+            <div class="lbl">{{cancel}}</div>
+        </div>
+            <div
+                data-if="has_warning"
+                class="warning"
+                data-style-left="warn_x + 'px'"
+                data-style-top="warn_y + 'px'"
+                data-style-width="warn_w + 'px'">
+                {{warning}}
+            </div>
+        </div>
+    </body>
+</rml>

@@ -78,6 +78,7 @@ set(PS_SOURCES
     src/net/RakNetListener.cpp
     src/plugin/PluginHost.cpp
     "${PERLIN_ROOT}/src/util/ModSocket.cpp"
+    "${PERLIN_ROOT}/src/util/WebSocket.cpp"
     src/session/Session.cpp
     src/world/Backends.cpp
     src/world/BlockCatalog.cpp

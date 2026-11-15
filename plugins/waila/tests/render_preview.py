@@ -7,7 +7,7 @@ import sys, os, re, math
 from PIL import Image, ImageDraw
 
 args = sys.argv[1:]
-jar = '/home/claude/jar'
+jar = os.environ.get('JAR_DIR', '.')
 scale = 4
 files = []
 i = 0

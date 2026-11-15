@@ -26,7 +26,7 @@ namespace perlin::server::vanilla {
             Entry* Find(const DfNode* node, int x, int y, int z, bool& found) {
                 if (used * 2 >= table.size()) {
                     if (table.size() >= (size_t{1} << 20)) {
-                        std::fill(table.begin(), table.end(), Entry{});
+                        std::ranges::fill(table, Entry{});
                         used = 0;
                     } else {
                         Grow();
@@ -116,9 +116,23 @@ namespace perlin::server::vanilla {
     }
 
     namespace {
-        thread_local CornerMap* t_keptCorners = nullptr;
-        thread_local Memo* t_keptMemo = nullptr;
-        thread_local uint64_t t_keptEpoch = 0;
+        struct ThreadCaches {
+            std::unique_ptr<CornerMap> corners;
+            std::unique_ptr<Memo> memo;
+            uint64_t epoch = 0;
+
+            void Reset() {
+                corners = std::make_unique<CornerMap>();
+                memo = std::make_unique<Memo>();
+            }
+            void Release() {
+                corners.reset();
+                memo.reset();
+            }
+        };
+
+        thread_local ThreadCaches t_kept;
+        thread_local ThreadCaches t_scratch;
         std::atomic<uint64_t> g_graphEpoch{1};
     }
 
@@ -127,33 +141,24 @@ namespace perlin::server::vanilla {
             return;
         owner = true;
         kept = keep;
+        ThreadCaches& caches = keep ? t_kept : t_scratch;
         if (keep) {
             const uint64_t epoch = g_graphEpoch.load(std::memory_order_acquire);
-            if (t_keptCorners && t_keptEpoch != epoch) {
-                delete t_keptCorners;
-                delete t_keptMemo;
-                t_keptCorners = nullptr;
-                t_keptMemo = nullptr;
+            if (!caches.corners || caches.epoch != epoch) {
+                caches.Reset();
+                caches.epoch = epoch;
             }
-            if (!t_keptCorners) {
-                t_keptCorners = new CornerMap();
-                t_keptMemo = new Memo();
-                t_keptEpoch = epoch;
-            }
-            t_corners = t_keptCorners;
-            t_memo = t_keptMemo;
-            return;
+        } else {
+            caches.Reset();
         }
-        t_corners = new CornerMap();
-        t_memo = new Memo();
+        t_corners = caches.corners.get();
+        t_memo = caches.memo.get();
     }
     DfCacheScope::~DfCacheScope() {
         if (!owner)
             return;
-        if (!kept) {
-            delete t_corners;
-            delete t_memo;
-        }
+        if (!kept)
+            t_scratch.Release();
         t_corners = nullptr;
         t_memo = nullptr;
     }

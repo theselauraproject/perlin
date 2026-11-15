@@ -1,8 +1,8 @@
-#include "client/player/PlayerPhysics.hpp"
-#include "client/player/PerlinScaffolding.hpp"
-#include "client/player/PerlinPowderSnow.hpp"
-#include "client/player/PerlinFallDistance.hpp"
-#include "client/player/PerlinStatusEffect.hpp"
+#include "world/movement/PlayerPhysics.hpp"
+#include "world/movement/PerlinScaffolding.hpp"
+#include "world/movement/PerlinPowderSnow.hpp"
+#include "world/movement/PerlinFallDistance.hpp"
+#include "world/movement/PerlinStatusEffect.hpp"
 
 #include <cmath>
 #include <bit>

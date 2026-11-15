@@ -192,8 +192,7 @@ namespace perlin::render {
             candidates.push_back({key, u.hasMesh, std::max(dx, dz)});
         }
 
-        std::sort(candidates.begin(), candidates.end(), [](const Candidate& a, const Candidate& b) {
-
+        std::ranges::sort(candidates, [](const Candidate& a, const Candidate& b) {
             if (a.hadMesh != b.hadMesh)
                 return !a.hadMesh;
             if (a.distance != b.distance)
@@ -265,7 +264,7 @@ namespace perlin::render {
             }
         }
         if (retainedBytes > cfg.retainBudgetBytes) {
-            std::sort(retained.begin(), retained.end(), [](const Retained& a, const Retained& b) {
+            std::ranges::sort(retained, [](const Retained& a, const Retained& b) {
                 if (a.score != b.score)
                     return a.score > b.score;
                 if (a.key.x != b.key.x)
@@ -294,7 +293,7 @@ namespace perlin::render {
             if (u.hasMesh && (u.wanted || u.covering))
                 out.push_back({key});
 
-        std::sort(out.begin(), out.end(), [](const DrawItem& a, const DrawItem& b) {
+        std::ranges::sort(out, [](const DrawItem& a, const DrawItem& b) {
             if (a.unit.level != b.unit.level)
                 return a.unit.level < b.unit.level;
             if (a.unit.x != b.unit.x)

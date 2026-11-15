@@ -6,7 +6,7 @@
 #include <future>
 #include <thread>
 
-#include "client/multiplayer/SkinLoader.hpp"
+#include "client/systems/resources/SkinLoader.hpp"
 
 namespace perlin::ui {
     namespace {
@@ -288,7 +288,7 @@ namespace perlin::ui {
                     }
                     if (hits.empty())
                         continue;
-                    std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.t < b.t; });
+                    std::ranges::sort(hits, [](const Hit& a, const Hit& b) { return a.t < b.t; });
                     float r = 0, g = 0, bl = 0, a = 0;
                     for (const Hit& h : hits) {
                         const float ha = static_cast<float>(h.c[3]) / 255.0f;

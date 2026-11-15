@@ -1,5 +1,4 @@
-// Drives the render auto-tuner with simulated frame times and checks what it picks.
-#include "client/renderer/gpu/RenderTuner.hpp"
+#include "client/systems/renderer/gpu/RenderTuner.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -16,7 +15,6 @@ namespace {
             failures++;
     }
 
-    // a frame on a pretend machine: occlusion costs 1 ms, face culling saves 0.6 ms, the rest change nothing
     double FrameMs(const RenderTuner& t, std::mt19937& rng, double base) {
         std::normal_distribution<double> noise(0.0, 0.25);
         double ms = base + noise(rng);
@@ -24,7 +22,6 @@ namespace {
             ms += 1.0;
         if (t.On(RenderTuner::GpuCull) && !t.On(RenderTuner::FaceCull))
             ms += 0.6;
-        // an occasional hitch, which the medians must ignore
         if (std::uniform_int_distribution<int>(0, 99)(rng) == 0)
             ms += 40.0;
         return ms;
@@ -34,7 +31,7 @@ namespace {
         for (int i = 0; i < frames; i++)
             t.Advance(true, FrameMs(t, rng, 4.0));
     }
-} // namespace
+}
 
 int main() {
     const std::string save =
@@ -44,13 +41,11 @@ int main() {
     adapter.name = "Test GPU";
     adapter.type = conduit::adapter_type::discrete;
 
-    // first run: everything gets measured
     {
         RenderTuner t;
         t.Init(adapter, save);
         Check(t.On(RenderTuner::Occlusion), "occlusion starts on for a discrete gpu");
         std::mt19937 rng(7);
-        // leaving the world before settling starts nothing
         for (int i = 0; i < 300; i++)
             t.Advance(i % 2 == 0, 4.0);
         Check(!t.Testing(), "no trial until the world has settled");
@@ -63,7 +58,6 @@ int main() {
               "neutral features stay on");
         Check(std::filesystem::exists(save), "the result is saved");
     }
-    // second run: the saved result applies at once
     {
         RenderTuner t;
         t.Init(adapter, save);
@@ -72,7 +66,6 @@ int main() {
         Run(t, rng, 2000);
         Check(!t.Testing(), "no trials once saved");
     }
-    // another gpu gets its own trial
     {
         conduit::adapter_info other = adapter;
         other.name = "Other GPU";
@@ -84,7 +77,6 @@ int main() {
         Run(t, rng, 700);
         Check(t.Testing(), "a new gpu is measured");
     }
-    // frame time tied by vsync: gpu time decides
     {
         std::vector<RenderTuner::Sample> on, off;
         for (int i = 0; i < 200; i++) {

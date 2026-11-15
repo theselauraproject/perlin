@@ -1,9 +1,10 @@
+#include "util/TaskGroup.hpp"
 #include "util/Paths.hpp"
 #include "network/NetherNet.hpp"
+#include "network/NetherNetSignal.hpp"
 
 #include "network/FriendWorld.hpp"
 #include "network/Http.hpp"
-#include "client/Options.hpp"
 
 #include <rtc/rtc.hpp>
 
@@ -11,13 +12,15 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <expected>
+#include <functional>
 #include <cstring>
 #include <iostream>
 #include "util/Json.hpp"
 #include <random>
-#include <sstream>
 #include <thread>
 #include "util/Log.hpp"
+#include "util/Strings.hpp"
 
 namespace perlin {
 
@@ -32,29 +35,20 @@ namespace perlin {
                                              contentType, {}, timeoutSecs);
             return {r.status, std::move(r.body)};
         }
-
-        std::string StripIdentityLines(const std::string& sdp) {
-            std::istringstream in(sdp);
-            std::string line, out;
-            while (std::getline(in, line)) {
-                if (!line.empty() && line.back() == '\r')
-                    line.pop_back();
-                if (line.starts_with("a=identity"))
-                    continue;
-                out += line + "\r\n";
-            }
-            return out;
-        }
     }
 
-    struct NetherNet::Impl {
-        std::shared_ptr<rtc::PeerConnection> pc;
-        std::shared_ptr<rtc::DataChannel> reliable;
-        std::shared_ptr<rtc::DataChannel> unreliable;
+    struct NetherNet::Signals {
         std::atomic<bool> gatheringDone{false};
         std::atomic<bool> reliableOpen{false};
         std::atomic<bool> failed{false};
+    };
+
+    struct NetherNet::Impl {
+        std::shared_ptr<Signals> signals = std::make_shared<Signals>();
         std::string offerSdp;
+        std::shared_ptr<rtc::PeerConnection> pc;
+        std::shared_ptr<rtc::DataChannel> reliable;
+        std::shared_ptr<rtc::DataChannel> unreliable;
     };
 
     void NetherNet::SetSecureSignaling(bool secure) {
@@ -147,18 +141,18 @@ namespace perlin {
         }
 
         impl->pc->onGatheringStateChange(
-            [raw = impl.get(), w = std::weak_ptr<int>(life)](rtc::PeerConnection::GatheringState state) {
+            [sig = impl->signals, w = std::weak_ptr<int>(life)](rtc::PeerConnection::GatheringState state) {
                 const auto keep = w.lock();
                 if (keep && state == rtc::PeerConnection::GatheringState::Complete)
-                    raw->gatheringDone = true;
+                    sig->gatheringDone = true;
             });
-        impl->pc->onStateChange([raw = impl.get(),
+        impl->pc->onStateChange([sig = impl->signals,
                                  w = std::weak_ptr<int>(life)](rtc::PeerConnection::State state) {
             const auto keep = w.lock();
             if (!keep)
                 return;
             if (state == rtc::PeerConnection::State::Failed || state == rtc::PeerConnection::State::Closed)
-                raw->failed = true;
+                sig->failed = true;
         });
 
         try {
@@ -174,13 +168,13 @@ namespace perlin {
             return false;
         }
 
-        impl->reliable->onOpen([raw = impl.get(), w = std::weak_ptr<int>(life)]() {
+        impl->reliable->onOpen([sig = impl->signals, w = std::weak_ptr<int>(life)]() {
             if (const auto keep = w.lock())
-                raw->reliableOpen = true;
+                sig->reliableOpen = true;
         });
-        impl->reliable->onClosed([raw = impl.get(), w = std::weak_ptr<int>(life)]() {
+        impl->reliable->onClosed([sig = impl->signals, w = std::weak_ptr<int>(life)]() {
             if (const auto keep = w.lock())
-                raw->failed = true;
+                sig->failed = true;
         });
         impl->reliable->onMessage([this, w = std::weak_ptr<int>(life)](rtc::message_variant msg) {
             const auto keep = w.lock();
@@ -203,14 +197,14 @@ namespace perlin {
         bool gathered = false;
         {
             auto start = std::chrono::steady_clock::now();
-            while (!impl->gatheringDone.load()) {
-                if (impl->failed.load())
+            while (!impl->signals->gatheringDone.load()) {
+                if (impl->signals->failed.load())
                     break;
                 if (std::chrono::steady_clock::now() - start > std::chrono::seconds(15))
                     break;
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
             }
-            gathered = impl->gatheringDone.load();
+            gathered = impl->signals->gatheringDone.load();
         }
         if (!gathered) {
             lastError = "ICE gathering did not complete (no usable host candidates?)";
@@ -281,9 +275,9 @@ namespace perlin {
             for (size_t i = 0; i < answer.size() && i < 120; i++) {
                 unsigned char c = answer[i];
                 if (c >= 32 && c < 127)
-                    std::cout << (char)c;
+                    std::cout << static_cast<char>(c);
                 else
-                    std::cout << "\\x" << std::hex << (int)c << std::dec;
+                    std::cout << "\\x" << std::hex << static_cast<int>(c) << std::dec;
             }
             std::cout << std::endl;
         }
@@ -295,7 +289,7 @@ namespace perlin {
 
         try {
             impl->pc->setRemoteDescription(
-                rtc::Description(StripIdentityLines(answer), rtc::Description::Type::Answer));
+                rtc::Description(nethernet::StripIdentityLines(answer), rtc::Description::Type::Answer));
         } catch (const std::exception& e) {
             lastError = std::string("setRemoteDescription failed: ") + e.what();
             Disconnect();
@@ -306,15 +300,15 @@ namespace perlin {
         bool openFlag = false;
         {
             auto start = std::chrono::steady_clock::now();
-            while (!impl->reliableOpen.load()) {
-                if (impl->failed.load())
+            while (!impl->signals->reliableOpen.load()) {
+                if (impl->signals->failed.load())
                     break;
 
                 if (std::chrono::steady_clock::now() - start > std::chrono::seconds(8))
                     break;
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
             }
-            openFlag = impl->reliableOpen.load();
+            openFlag = impl->signals->reliableOpen.load();
         }
         if (!openFlag) {
             lastError = "ReliableDataChannel never opened (ICE/DTLS failed; "
@@ -329,22 +323,16 @@ namespace perlin {
     }
 
     namespace {
-        std::string LowerAscii(std::string s) {
-            for (char& c : s)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            return s;
-        }
-
         bool MakeIceServer(const friendworld::IceServerInfo& info, const std::string& url,
                            rtc::IceServer& out) {
             const size_t colon = url.find(':');
             if (colon == std::string::npos)
                 return false;
-            const std::string scheme = LowerAscii(url.substr(0, colon));
+            const std::string scheme = str::Lower(url.substr(0, colon));
             std::string rest = url.substr(colon + 1);
             std::string transport = "udp";
             if (const size_t q = rest.find('?'); q != std::string::npos) {
-                const std::string query = LowerAscii(rest.substr(q + 1));
+                const std::string query = str::Lower(rest.substr(q + 1));
                 if (query.contains("transport=tcp"))
                     transport = "tcp";
                 rest.resize(q);
@@ -371,27 +359,51 @@ namespace perlin {
         }
     }
 
-    bool NetherNet::ConnectFriend(friendworld::Lease& lease, const ClientIdentity& identity) {
+    namespace {
+        class HandlerScope {
+        public:
+            HandlerScope(friendworld::Signaling& s,
+                         std::function<void(const std::string&, const std::string&)> fn)
+                : signaling(&s) {
+                signaling->SetHandler(std::move(fn));
+            }
+            ~HandlerScope() { Detach(); }
+            HandlerScope(const HandlerScope&) = delete;
+            HandlerScope& operator=(const HandlerScope&) = delete;
+
+            void Detach() {
+                if (signaling)
+                    signaling->SetHandler(nullptr);
+                signaling = nullptr;
+            }
+
+        private:
+            friendworld::Signaling* signaling;
+        };
+
+        uint64_t NewConnectionId() {
+            std::random_device rd;
+            std::mt19937_64 rng((static_cast<uint64_t>(rd()) << 32) | rd());
+            const uint64_t id = rng();
+            return id == 0 ? 1 : id;
+        }
+
+        template <class Pred> bool WaitUntil(std::chrono::steady_clock::duration limit, Pred done) {
+            const auto start = std::chrono::steady_clock::now();
+            while (!done() && std::chrono::steady_clock::now() - start < limit)
+                std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            return done();
+        }
+    }
+
+    bool NetherNet::Fail(std::string why) {
+        lastError = std::move(why);
         Disconnect();
-        lastError.clear();
-        if (!lease.signaling || !lease.signaling->Alive()) {
-            lastError = "the signalling connection to Minecraft is closed";
-            return false;
-        }
-        if (!identity.Valid() || identity.MultiplayerToken().empty()) {
-            lastError = "no client identity for offer";
-            return false;
-        }
-        serverInfo = {};
-        serverInfo.name = lease.worldName.empty() ? lease.hostName : lease.worldName;
-        serverInfo.protocol = lease.protocol > 0 ? lease.protocol : kBedrockProtocol;
-        serverInfo.version = lease.version.empty() ? kBedrockVersion : lease.version;
+        return false;
+    }
 
-        std::vector<friendworld::IceServerInfo> relays;
-        std::string relayError;
-        if (!lease.signaling->Credentials(relays, relayError))
-            Log("nethernet", "no relay servers: {}", relayError);
-
+    std::expected<void, std::string>
+    NetherNet::BuildPeer(const std::vector<friendworld::IceServerInfo>& relays) {
         impl = std::make_unique<Impl>();
         try {
             rtc::Configuration config;
@@ -404,24 +416,24 @@ namespace perlin {
             Log("nethernet", "{} ICE servers", config.iceServers.size());
             impl->pc = std::make_shared<rtc::PeerConnection>(config);
         } catch (const std::exception& e) {
-            lastError = std::string("PeerConnection create failed: ") + e.what();
-            Disconnect();
-            return false;
+            return std::unexpected(std::string("PeerConnection create failed: ") + e.what());
         }
+        return {};
+    }
+
+    std::shared_ptr<nethernet::CandidateLog> NetherNet::WirePeerCallbacks() {
         impl->pc->onGatheringStateChange(
-            [raw = impl.get(), w = std::weak_ptr<int>(life)](rtc::PeerConnection::GatheringState state) {
+            [sig = impl->signals, w = std::weak_ptr<int>(life)](rtc::PeerConnection::GatheringState state) {
                 const auto keep = w.lock();
                 if (keep && state == rtc::PeerConnection::GatheringState::Complete)
-                    raw->gatheringDone = true;
+                    sig->gatheringDone = true;
             });
-        auto localCandidates = std::make_shared<std::vector<std::string>>();
-        auto localMutex = std::make_shared<std::mutex>();
-        impl->pc->onLocalCandidate([localCandidates, localMutex](rtc::Candidate c) {
+        auto candidates = std::make_shared<nethernet::CandidateLog>();
+        impl->pc->onLocalCandidate([candidates](rtc::Candidate c) {
             std::string text = std::string(c);
             if (text.starts_with("a="))
                 text.erase(0, 2);
-            std::lock_guard lock(*localMutex);
-            localCandidates->push_back(std::move(text));
+            candidates->Add(std::move(text));
         });
         impl->pc->onIceStateChange([](rtc::PeerConnection::IceState state) {
             Log("nethernet",
@@ -429,7 +441,7 @@ namespace perlin {
                 "closed)",
                 static_cast<int>(state));
         });
-        impl->pc->onStateChange([raw = impl.get(),
+        impl->pc->onStateChange([sig = impl->signals,
                                  w = std::weak_ptr<int>(life)](rtc::PeerConnection::State state) {
             const auto keep = w.lock();
             if (!keep)
@@ -438,8 +450,12 @@ namespace perlin {
                 "peer state {} (0 new, 1 connecting, 2 connected, 3 disconnected, 4 failed, 5 closed)",
                 static_cast<int>(state));
             if (state == rtc::PeerConnection::State::Failed || state == rtc::PeerConnection::State::Closed)
-                raw->failed = true;
+                sig->failed = true;
         });
+        return candidates;
+    }
+
+    std::expected<void, std::string> NetherNet::OpenChannels() {
         try {
             impl->reliable = impl->pc->createDataChannel("ReliableDataChannel");
             rtc::DataChannelInit unrel;
@@ -447,17 +463,15 @@ namespace perlin {
             unrel.reliability.maxRetransmits = 0u;
             impl->unreliable = impl->pc->createDataChannel("UnreliableDataChannel", unrel);
         } catch (const std::exception& e) {
-            lastError = std::string("DataChannel create failed: ") + e.what();
-            Disconnect();
-            return false;
+            return std::unexpected(std::string("DataChannel create failed: ") + e.what());
         }
-        impl->reliable->onOpen([raw = impl.get(), w = std::weak_ptr<int>(life)]() {
+        impl->reliable->onOpen([sig = impl->signals, w = std::weak_ptr<int>(life)]() {
             if (const auto keep = w.lock())
-                raw->reliableOpen = true;
+                sig->reliableOpen = true;
         });
-        impl->reliable->onClosed([raw = impl.get(), w = std::weak_ptr<int>(life)]() {
+        impl->reliable->onClosed([sig = impl->signals, w = std::weak_ptr<int>(life)]() {
             if (const auto keep = w.lock())
-                raw->failed = true;
+                sig->failed = true;
         });
         impl->reliable->onMessage([this, w = std::weak_ptr<int>(life)](rtc::message_variant msg) {
             const auto keep = w.lock();
@@ -473,173 +487,145 @@ namespace perlin {
             if (auto* b = std::get_if<rtc::binary>(&msg))
                 OnUnreliableMessage(reinterpret_cast<const uint8_t*>(b->data()), b->size());
         });
+        return {};
+    }
 
-        std::random_device rd;
-        std::mt19937_64 rng((static_cast<uint64_t>(rd()) << 32) | rd());
-        uint64_t connectionId = rng();
-        if (connectionId == 0)
-            connectionId = 1;
-        struct Inbox {
-            std::mutex m;
-            std::condition_variable cv;
-            std::deque<std::pair<std::string, std::string>> items;
-        };
-        auto inbox = std::make_shared<Inbox>();
-        const std::string hostId = LowerAscii(lease.hostNetworkId);
-        const std::string idText = std::to_string(connectionId);
-        lease.signaling->SetHandler(
-            [inbox, hostId, idText](const std::string& from, const std::string& text) {
-                if (LowerAscii(from) != hostId)
-                    return;
-                const size_t a = text.find(' ');
-                const size_t b = a == std::string::npos ? a : text.find(' ', a + 1);
-                if (b == std::string::npos || text.substr(a + 1, b - a - 1) != idText)
-                    return;
-                std::lock_guard lock(inbox->m);
-                inbox->items.emplace_back(text.substr(0, a), text.substr(b + 1));
-                inbox->cv.notify_all();
-            });
-        const auto detach = [&] { lease.signaling->SetHandler(nullptr); };
-
+    std::expected<std::string, std::string> NetherNet::BuildSignedOffer(const friendworld::Lease& lease,
+                                                                        const ClientIdentity& identity) {
         impl->pc->setLocalDescription();
-        {
-            const auto start = std::chrono::steady_clock::now();
-            while (!impl->gatheringDone.load() && !impl->failed.load() &&
-                   std::chrono::steady_clock::now() - start < std::chrono::seconds(15))
-                std::this_thread::sleep_for(std::chrono::milliseconds(25));
-        }
-        if (!impl->gatheringDone.load()) {
-            detach();
-            lastError = "ICE gathering did not complete (no usable candidates?)";
-            Disconnect();
-            return false;
-        }
+        if (!WaitUntil(std::chrono::seconds(15),
+                       [&] { return impl->signals->gatheringDone.load() || impl->signals->failed.load(); }) ||
+            !impl->signals->gatheringDone.load())
+            return std::unexpected("ICE gathering did not complete (no usable candidates?)");
         std::string offer;
         try {
             auto desc = impl->pc->localDescription();
-            if (!desc) {
-                detach();
-                lastError = "no local description after gathering";
-                Disconnect();
-                return false;
-            }
+            if (!desc)
+                return std::unexpected("no local description after gathering");
             offer = std::string(*desc);
         } catch (const std::exception& e) {
-            detach();
-            lastError = std::string("localDescription failed: ") + e.what();
-            Disconnect();
-            return false;
+            return std::unexpected(std::string("localDescription failed: ") + e.what());
         }
-        std::string clean;
-        clean.reserve(offer.size());
-        for (size_t i = 0; i < offer.size(); i++) {
-            if (offer[i] == '\r' && i + 1 < offer.size() && offer[i + 1] == '\r')
-                continue;
-            clean.push_back(offer[i]);
-        }
-        offer.swap(clean);
-        std::string identified = identity.AssertOffer(offer, lease.issuer);
-        if (identified.empty()) {
-            detach();
-            lastError = "failed to build offer identity assertion";
-            Disconnect();
-            return false;
-        }
+        std::string identified =
+            identity.AssertOffer(nethernet::CollapseDoubledCarriageReturns(std::move(offer)), lease.issuer);
+        if (identified.empty())
+            return std::unexpected("failed to build offer identity assertion");
+        return identified;
+    }
 
-        Log("nethernet", "sending the offer to {} (connection {})", lease.hostNetworkId, idText);
+    std::expected<void, std::string> NetherNet::SendOffer(friendworld::Lease& lease,
+                                                          const std::string& connectionId,
+                                                          const std::string& signedOffer,
+                                                          const nethernet::CandidateLog& candidates) {
+        Log("nethernet", "sending the offer to {} (connection {})", lease.hostNetworkId, connectionId);
         std::string sendError;
-        if (!lease.signaling->Send(lease.hostNetworkId, "CONNECTREQUEST " + idText + " " + identified, true,
-                                   sendError)) {
-            detach();
-            lastError = "could not reach the host: " + sendError;
-            Disconnect();
-            return false;
+        if (!lease.signaling->Send(lease.hostNetworkId, "CONNECTREQUEST " + connectionId + " " + signedOffer,
+                                   true, sendError))
+            return std::unexpected("could not reach the host: " + sendError);
+        const std::vector<std::string> mine = candidates.Snapshot();
+        Log("nethernet", "sending {} local candidates", mine.size());
+        for (const std::string& c : mine) {
+            std::string ignored;
+            lease.signaling->Send(lease.hostNetworkId, "CANDIDATEADD " + connectionId + " " + c, false,
+                                  ignored);
         }
+        return {};
+    }
 
-        {
-            std::vector<std::string> mine;
-            {
-                std::lock_guard lock(*localMutex);
-                mine = *localCandidates;
-            }
-            Log("nethernet", "sending {} local candidates", mine.size());
-            for (const std::string& c : mine) {
-                std::string ignored;
-                lease.signaling->Send(lease.hostNetworkId, "CANDIDATEADD " + idText + " " + c, false,
-                                      ignored);
-            }
+    void NetherNet::AddRemoteCandidate(const std::string& text) {
+        try {
+            std::string mid = "0";
+            if (auto remote = impl->pc->remoteDescription(); remote && remote->mediaCount() > 0)
+                mid = std::visit([](auto* m) { return m->mid(); }, remote->media(0));
+            Log("nethernet", "remote candidate: {}", text);
+            impl->pc->addRemoteCandidate(rtc::Candidate(text, mid));
+        } catch (const std::exception& e) {
+            Log("nethernet", "bad remote candidate: {}", e.what());
         }
+    }
 
+    std::expected<void, std::string> NetherNet::AwaitChannelOpen(const friendworld::Lease& lease,
+                                                                 nethernet::SignalInbox& inbox) {
         bool haveAnswer = false;
         std::vector<std::string> pendingCandidates;
-        const auto addCandidate = [&](const std::string& text) {
-            try {
-                std::string mid = "0";
-                if (auto remote = impl->pc->remoteDescription(); remote && remote->mediaCount() > 0)
-                    mid = std::visit([](auto* m) { return m->mid(); }, remote->media(0));
-                Log("nethernet", "remote candidate: {}", text);
-                impl->pc->addRemoteCandidate(rtc::Candidate(text, mid));
-            } catch (const std::exception& e) {
-                Log("nethernet", "bad remote candidate: {}", e.what());
-            }
-        };
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-        while (!impl->reliableOpen.load()) {
-            if (impl->failed.load())
-                break;
-            if (std::chrono::steady_clock::now() > deadline)
+        while (!impl->signals->reliableOpen.load()) {
+            if (impl->signals->failed.load() || std::chrono::steady_clock::now() > deadline)
                 break;
             if (!lease.signaling->Alive() && !haveAnswer)
                 break;
-            std::pair<std::string, std::string> item;
-            bool got = false;
-            {
-                std::unique_lock lock(inbox->m);
-                inbox->cv.wait_for(lock, std::chrono::milliseconds(50),
-                                   [&] { return !inbox->items.empty(); });
-                if (!inbox->items.empty()) {
-                    item = std::move(inbox->items.front());
-                    inbox->items.pop_front();
-                    got = true;
-                }
-            }
-            if (!got)
+            const auto signal = inbox.Next(std::chrono::milliseconds(50));
+            if (!signal)
                 continue;
-            if (item.first == "CONNECTRESPONSE" && !haveAnswer) {
+            if (signal->command == "CONNECTRESPONSE" && !haveAnswer) {
                 try {
-                    impl->pc->setRemoteDescription(
-                        rtc::Description(StripIdentityLines(item.second), rtc::Description::Type::Answer));
+                    impl->pc->setRemoteDescription(rtc::Description(
+                        nethernet::StripIdentityLines(signal->payload), rtc::Description::Type::Answer));
                     haveAnswer = true;
-                    Log("nethernet", "answer received:\n{}", StripIdentityLines(item.second));
+                    Log("nethernet", "answer received:\n{}", nethernet::StripIdentityLines(signal->payload));
                     for (const std::string& c : pendingCandidates)
-                        addCandidate(c);
+                        AddRemoteCandidate(c);
                     pendingCandidates.clear();
                 } catch (const std::exception& e) {
-                    detach();
-                    lastError = std::string("setRemoteDescription failed: ") + e.what();
-                    Disconnect();
-                    return false;
+                    return std::unexpected(std::string("setRemoteDescription failed: ") + e.what());
                 }
-            } else if (item.first == "CANDIDATEADD") {
+            } else if (signal->command == "CANDIDATEADD") {
                 if (haveAnswer)
-                    addCandidate(item.second);
+                    AddRemoteCandidate(signal->payload);
                 else
-                    pendingCandidates.push_back(item.second);
-            } else if (item.first == "CONNECTERROR") {
-                detach();
-                lastError = "the host refused the connection (error " + item.second + ")";
-                Disconnect();
-                return false;
+                    pendingCandidates.push_back(signal->payload);
+            } else if (signal->command == "CONNECTERROR") {
+                return std::unexpected("the host refused the connection (error " + signal->payload + ")");
             }
         }
-        detach();
-        if (!impl || !impl->reliableOpen.load()) {
-            lastError = haveAnswer ? "the connection to the host never opened (ICE/DTLS failed; the host's "
-                                     "network may block peer-to-peer)"
-                                   : "the host did not answer";
-            Disconnect();
-            return false;
-        }
+        if (!impl || !impl->signals->reliableOpen.load())
+            return std::unexpected(haveAnswer ? "the connection to the host never opened (ICE/DTLS failed; "
+                                                "the host's network may block peer-to-peer)"
+                                              : "the host did not answer");
+        return {};
+    }
+
+    std::expected<void, std::string> NetherNet::NegotiateWithHost(friendworld::Lease& lease,
+                                                                  const ClientIdentity& identity,
+                                                                  const nethernet::CandidateLog& candidates) {
+        const std::string connectionId = std::to_string(NewConnectionId());
+        auto inbox = std::make_shared<nethernet::SignalInbox>(lease.hostNetworkId, connectionId);
+        HandlerScope handler(*lease.signaling, [inbox](const std::string& from, const std::string& text) {
+            inbox->Receive(from, text);
+        });
+        const auto outcome = BuildSignedOffer(lease, identity)
+                                 .and_then([&](const std::string& signedOffer) {
+                                     return SendOffer(lease, connectionId, signedOffer, candidates);
+                                 })
+                                 .and_then([&] { return AwaitChannelOpen(lease, *inbox); });
+        handler.Detach();
+        return outcome;
+    }
+
+    bool NetherNet::ConnectFriend(friendworld::Lease& lease, const ClientIdentity& identity) {
+        Disconnect();
+        lastError.clear();
+        if (!lease.signaling || !lease.signaling->Alive())
+            return Fail("the signalling connection to Minecraft is closed");
+        if (!identity.Valid() || identity.MultiplayerToken().empty())
+            return Fail("no client identity for offer");
+        serverInfo = {};
+        serverInfo.name = lease.worldName.empty() ? lease.hostName : lease.worldName;
+        serverInfo.protocol = lease.protocol > 0 ? lease.protocol : kBedrockProtocol;
+        serverInfo.version = lease.version.empty() ? kBedrockVersion : lease.version;
+
+        std::vector<friendworld::IceServerInfo> relays;
+        std::string relayError;
+        if (!lease.signaling->Credentials(relays, relayError))
+            Log("nethernet", "no relay servers: {}", relayError);
+
+        if (auto built = BuildPeer(relays); !built)
+            return Fail(std::move(built.error()));
+        const std::shared_ptr<nethernet::CandidateLog> candidates = WirePeerCallbacks();
+        if (auto opened = OpenChannels(); !opened)
+            return Fail(std::move(opened.error()));
+        if (auto negotiated = NegotiateWithHost(lease, identity, *candidates); !negotiated)
+            return Fail(std::move(negotiated.error()));
         connected = true;
         Log("nethernet", "ReliableDataChannel open");
         return true;
@@ -660,12 +646,8 @@ namespace perlin {
                     impl->pc->onStateChange(nullptr);
                     impl->pc->onGatheringStateChange(nullptr);
                 }
-            } catch (...) {}
-            Impl* doomed = impl.release();
-            std::thread([doomed] {
-                std::this_thread::sleep_for(std::chrono::milliseconds(750));
-                delete doomed;
-            }).detach();
+            } catch (const std::exception&) {}
+            ProcessTasks().Run([owned = std::move(impl)]() mutable { owned.reset(); });
         }
         std::vector<uint8_t> tmp;
         while (inbound.try_dequeue(tmp)) {}
@@ -694,7 +676,7 @@ namespace perlin {
                 if (!dc->send(std::move(msg)))
                     return false;
             }
-        } catch (...) {
+        } catch (const std::exception&) {
             return false;
         }
         return true;

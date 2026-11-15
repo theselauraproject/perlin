@@ -154,7 +154,7 @@ namespace perlin::server {
             return false;
         }
         const char kind = static_cast<char>(std::tolower(static_cast<unsigned char>(text[1])));
-        if (std::string("spare").find(kind) == std::string::npos || (text.size() > 2 && text[2] != '[')) {
+        if (!std::string("spare").contains(kind) || (text.size() > 2 && text[2] != '[')) {
             error =
                 "Unknown selector type '" + text.substr(0, text.size() > 2 && text[2] != '[' ? 3 : 2) + "'";
             return false;
@@ -308,10 +308,10 @@ namespace perlin::server {
             kept.emplace_back(d, s);
         }
         if (sort == "nearest")
-            std::stable_sort(kept.begin(), kept.end(),
+            std::ranges::stable_sort(kept,
                              [](const auto& a, const auto& b) { return a.first < b.first; });
         else if (sort == "furthest")
-            std::stable_sort(kept.begin(), kept.end(),
+            std::ranges::stable_sort(kept,
                              [](const auto& a, const auto& b) { return a.first > b.first; });
         else if (sort == "random") {
             static std::mt19937 rng{std::random_device{}()};
@@ -545,7 +545,7 @@ namespace perlin::server {
             case ArgKind::Literal:
             case ArgKind::Enum: {
                 const std::string word = str::Lower(t.text);
-                if (std::find(p.values.begin(), p.values.end(), word) == p.values.end()) {
+                if (std::ranges::find(p.values, word) == p.values.end()) {
                     st.status = 1;
                     st.error = "Incorrect argument for command";
                     return st;

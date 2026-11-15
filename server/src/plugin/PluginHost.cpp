@@ -5,6 +5,7 @@
 #include "core/Log.hpp"
 #include "util/FileIo.hpp"
 #include "util/ModSocket.hpp"
+#include "util/JsonText.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -46,7 +47,7 @@ namespace perlin::server {
         }
 
         bool SafePath(const std::string& root, const std::string& rel, fs::path& out) {
-            if (rel.size() > 512 || rel.find('\0') != std::string::npos)
+            if (rel.size() > 512 || rel.contains('\0'))
                 return false;
             const fs::path p = fs::path(rel).lexically_normal();
             if (p.is_absolute() || p.has_root_name())
@@ -71,10 +72,6 @@ namespace perlin::server {
             }
             return std::unexpected(Status::Failed);
         }
-
-        std::string Escape(const std::string& s) {
-            return json::Escape(s);
-        }
     }
 
     PluginHost::PluginHost(PluginApi& api) : api(api) {
@@ -82,8 +79,7 @@ namespace perlin::server {
     }
     PluginHost::~PluginHost() {
         UnloadAll();
-        while (httpActive.load() > 0)
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        httpTasks.Shutdown();
     }
 
     PluginHost::Plugin* PluginHost::Find(const std::string& name) const {
@@ -283,7 +279,7 @@ namespace perlin::server {
             if (httpActive.load() >= 8)
                 return std::unexpected(Status::Unavailable);
             httpActive++;
-            std::thread([this, plugin = c.plugin, r] {
+            const bool started = httpTasks.Run([this, plugin = c.plugin, r] {
                 abi::EventHttp ev;
                 ev.id = r.id;
                 const size_t schemeEnd = r.url.find("://") + 3;
@@ -324,7 +320,11 @@ namespace perlin::server {
                     httpDone.push_back({plugin, std::move(ev)});
                 }
                 httpActive--;
-            }).detach();
+            });
+            if (!started) {
+                httpActive--;
+                return std::unexpected(Status::Unavailable);
+            }
             return {};
 #else
             (void)c;
@@ -366,7 +366,7 @@ namespace perlin::server {
         std::string text = "{";
         bool first = true;
         for (const auto& [k, v] : p.settings) {
-            text += (first ? "\n  \"" : ",\n  \"") + Escape(k) + "\": \"" + Escape(v) + "\"";
+            text += (first ? "\n  \"" : ",\n  \"") + ::perlin::json::Escape(k) + "\": \"" + ::perlin::json::Escape(v) + "\"";
             first = false;
         }
         text += "\n}\n";

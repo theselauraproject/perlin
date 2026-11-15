@@ -1,37 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    set(PERLIN_IOS ON)
-    set(PERLIN_IOS_DEPLOYMENT_TARGET "15.0" CACHE STRING "Oldest iOS / iPadOS version Perlin runs on")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "${PERLIN_IOS_DEPLOYMENT_TARGET}" CACHE STRING "" FORCE)
-    if(NOT CMAKE_OSX_ARCHITECTURES)
-        set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "" FORCE)
-    endif()
-    set(CMAKE_DISABLE_FIND_PACKAGE_fmt ON CACHE BOOL "" FORCE)
-elseif(APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "" FORCE)
-
-    set(CMAKE_DISABLE_FIND_PACKAGE_fmt ON CACHE BOOL "" FORCE)
-endif()
-
-option(PERLIN_USE_CLANG_CL "Build with clang-cl on Windows" ON)
-if(CMAKE_HOST_WIN32 AND PERLIN_USE_CLANG_CL AND NOT CMAKE_GENERATOR MATCHES "Visual Studio"
-   AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER AND NOT DEFINED ENV{CC} AND NOT DEFINED ENV{CXX})
-    set(_perlin_llvm_hints "$ENV{VCINSTALLDIR}/Tools/Llvm/x64/bin" "$ENV{ProgramFiles}/LLVM/bin" "C:/Program Files/LLVM/bin")
-    find_program(PERLIN_CLANG_CL clang-cl HINTS ${_perlin_llvm_hints})
-    find_program(PERLIN_LLD_LINK lld-link HINTS ${_perlin_llvm_hints})
-    if(PERLIN_CLANG_CL)
-        set(CMAKE_C_COMPILER "${PERLIN_CLANG_CL}" CACHE FILEPATH "C compiler" FORCE)
-        set(CMAKE_CXX_COMPILER "${PERLIN_CLANG_CL}" CACHE FILEPATH "C++ compiler" FORCE)
-        if(PERLIN_LLD_LINK)
-            set(CMAKE_LINKER "${PERLIN_LLD_LINK}" CACHE FILEPATH "Linker" FORCE)
-        endif()
-        message(STATUS "Perlin: using clang-cl (${PERLIN_CLANG_CL})")
-    else()
-        message(WARNING "Perlin: clang-cl not found, falling back to cl.exe. Install \"C++ Clang tools for Windows\" "
-                        "in the Visual Studio Installer, or LLVM, to build with clang-cl.")
-    endif()
-endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PerlinToolchain.cmake")
+option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 
 project(Perlin VERSION 1.0.0 LANGUAGES C CXX)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PerlinApiPackage.cmake")
@@ -104,7 +74,7 @@ if(ANDROID AND PERLIN_ANDROID_OPENSSL_BASE AND NOT OPENSSL_ROOT_DIR)
 endif()
 
 if(WIN32 AND NOT OPENSSL_ROOT_DIR)
-    foreach(root "$ENV{VCPKG_INSTALLATION_ROOT}" "$ENV{VCPKG_ROOT}" "C:/Users/judah/vcpkg")
+    foreach(root "$ENV{VCPKG_INSTALLATION_ROOT}" "$ENV{VCPKG_ROOT}")
         if(root AND EXISTS "${root}/installed/x64-windows-static/include/openssl")
             set(OPENSSL_ROOT_DIR "${root}/installed/x64-windows-static" CACHE PATH "OpenSSL root")
             break()
@@ -113,7 +83,6 @@ if(WIN32 AND NOT OPENSSL_ROOT_DIR)
 endif()
 
 if(APPLE AND NOT PERLIN_IOS AND NOT OPENSSL_ROOT_DIR)
-
     message(WARNING "OPENSSL_ROOT_DIR not set: falling back to Homebrew OpenSSL (built for a newer macOS than ${CMAKE_OSX_DEPLOYMENT_TARGET})")
     foreach(candidate /opt/homebrew/opt/openssl@3 /usr/local/opt/openssl@3)
         if(EXISTS "${candidate}")
@@ -150,83 +119,7 @@ CPMAddPackage("gh:stephenberry/glaze@7.1.1")
 CPMAddPackage("gh:cameron314/concurrentqueue@1.0.4")
 CPMAddPackage("gh:g-truc/glm#1.0.1")
 CPMAddPackage(NAME stb GITHUB_REPOSITORY nothings/stb GIT_TAG master DOWNLOAD_ONLY YES)
-if(PERLIN_WASM3)
-CPMAddPackage(NAME wasm3 GITHUB_REPOSITORY wasm3/wasm3 GIT_TAG 28ecb9af6d2040e474a70f7cb7f43666740141fb DOWNLOAD_ONLY YES)
-set(WASM3_CORE_SOURCES m3_bind.c m3_code.c m3_compile.c m3_core.c m3_env.c m3_exec.c m3_function.c m3_info.c m3_module.c m3_parse.c m3_validate.c)
-list(TRANSFORM WASM3_CORE_SOURCES PREPEND "${wasm3_SOURCE_DIR}/source/")
-add_library(wasm3_core STATIC ${WASM3_CORE_SOURCES})
-target_include_directories(wasm3_core PUBLIC "${wasm3_SOURCE_DIR}/source")
-target_compile_definitions(wasm3_core PRIVATE d_m3HasTracer=0)
-
-if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-    target_compile_definitions(wasm3_core PRIVATE MAP_NORESERVE=0)
-endif()
-if(EMSCRIPTEN)
-    target_compile_options(wasm3_core PRIVATE -w -mtail-call)
-elseif(NOT MSVC)
-    target_compile_options(wasm3_core PRIVATE -w)
-endif()
-set_target_properties(wasm3_core PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 11)
-set(PERLIN_WASM_ENGINE wasm3_core)
-else()
-CPMAddPackage(NAME wasmedge GITHUB_REPOSITORY WasmEdge/WasmEdge GIT_TAG 0.18.0 DOWNLOAD_ONLY YES)
-
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_BUILD_STATIC_LIB OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_BUILD_PLUGINS OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
-set(WASMEDGE_USE_LLVM OFF CACHE BOOL "" FORCE)
-if(ANDROID)
-    set(WASMEDGE_FORCE_DISABLE_LTO ON CACHE BOOL "" FORCE)
-else()
-    set(WASMEDGE_FORCE_DISABLE_LTO OFF CACHE BOOL "" FORCE)
-endif()
-set(WASMEDGE_PLUGIN_WASI_LOGGING OFF CACHE BOOL "" FORCE)
-get_property(perlin_job_pools GLOBAL PROPERTY JOB_POOLS)
-if(NOT perlin_job_pools MATCHES "(^|;)link=")
-    set_property(GLOBAL APPEND PROPERTY JOB_POOLS link=2)
-endif()
-add_subdirectory("${wasmedge_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/_deps/wasmedge-build" EXCLUDE_FROM_ALL)
-function(perlin_quiet_targets dir)
-    get_property(targets DIRECTORY "${dir}" PROPERTY BUILDSYSTEM_TARGETS)
-    foreach(t IN LISTS targets)
-        get_target_property(type ${t} TYPE)
-        if(NOT type STREQUAL "INTERFACE_LIBRARY" AND NOT type STREQUAL "UTILITY")
-            if(WIN32)
-                set_property(TARGET ${t} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-            endif()
-            if(MSVC)
-                target_compile_options(${t} PRIVATE /WX- /W0)
-            else()
-                target_compile_options(${t} PRIVATE -Wno-error -w)
-            endif()
-        endif()
-    endforeach()
-    get_property(subdirs DIRECTORY "${dir}" PROPERTY SUBDIRECTORIES)
-    foreach(d IN LISTS subdirs)
-        perlin_quiet_targets("${d}")
-    endforeach()
-endfunction()
-perlin_quiet_targets("${wasmedge_SOURCE_DIR}")
-add_library(perlin_wasmedge STATIC
-    "${wasmedge_SOURCE_DIR}/lib/api/wasmedge.cpp"
-    ${PERLIN_API_HOST_WASMEDGE_STOP_SOURCES})
-target_compile_definitions(perlin_wasmedge PUBLIC WASMEDGE_COMPILE_LIBRARY)
-target_include_directories(perlin_wasmedge PUBLIC
-    "${CMAKE_BINARY_DIR}/_deps/wasmedge-build/include/api"
-    "${wasmedge_SOURCE_DIR}/include/api")
-target_link_libraries(perlin_wasmedge PUBLIC wasmedgeVM wasmedgeDriver)
-set_target_properties(perlin_wasmedge PROPERTIES CXX_STANDARD 17 CXX_EXTENSIONS OFF POSITION_INDEPENDENT_CODE ON)
-if(MSVC)
-    target_compile_options(perlin_wasmedge PRIVATE /utf-8 /bigobj /W0)
-else()
-    target_compile_options(perlin_wasmedge PRIVATE -w)
-endif()
-set(PERLIN_WASM_ENGINE perlin_wasmedge)
-endif()
+include(cmake/PerlinWasm.cmake)
 if(NOT EMSCRIPTEN)
 CPMAddPackage(NAME httplib GITHUB_REPOSITORY yhirose/cpp-httplib GIT_TAG v0.60.1 DOWNLOAD_ONLY YES)
 endif()
@@ -297,202 +190,29 @@ if(PERLIN_SPIRV_OPT)
     CPMAddPackage(NAME SPIRV-Headers GITHUB_REPOSITORY KhronosGroup/SPIRV-Headers GIT_TAG 496543121ce6419f23d6fa5d7194ba66c36212d2 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
     CPMAddPackage(NAME SPIRV-Tools GITHUB_REPOSITORY KhronosGroup/SPIRV-Tools GIT_TAG ef96ed763b43b59b33b31b362f09a02b729fa1c9 GIT_SHALLOW NO DOWNLOAD_ONLY YES)
 endif()
-option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 include(cmake/PerlinJavaShaders.cmake)
 
-function(perlin_default_api name value)
-    if(NOT DEFINED ${name})
-        set(${name} ${value} CACHE BOOL "Build this conduit backend")
-    endif()
-endfunction()
-if(EMSCRIPTEN)
-    perlin_default_api(CONDUIT_VULKAN OFF)
-    perlin_default_api(CONDUIT_D3D12 OFF)
-    perlin_default_api(CONDUIT_D3D11 OFF)
-    perlin_default_api(CONDUIT_METAL OFF)
-    perlin_default_api(CONDUIT_WEBGPU ON)
-elseif(ANDROID)
-    perlin_default_api(CONDUIT_VULKAN ON)
-    perlin_default_api(CONDUIT_D3D12 OFF)
-    perlin_default_api(CONDUIT_D3D11 OFF)
-    perlin_default_api(CONDUIT_METAL OFF)
-    perlin_default_api(CONDUIT_WEBGPU OFF)
-elseif(WIN32)
-    perlin_default_api(CONDUIT_VULKAN ON)
-    perlin_default_api(CONDUIT_D3D12 ON)
-    perlin_default_api(CONDUIT_D3D11 ON)
-    perlin_default_api(CONDUIT_METAL OFF)
-    perlin_default_api(CONDUIT_WEBGPU OFF)
-elseif(APPLE)
-    perlin_default_api(CONDUIT_VULKAN OFF)
-    perlin_default_api(CONDUIT_D3D12 OFF)
-    perlin_default_api(CONDUIT_D3D11 OFF)
-    perlin_default_api(CONDUIT_METAL ON)
-    perlin_default_api(CONDUIT_WEBGPU OFF)
-else()
-    perlin_default_api(CONDUIT_VULKAN ON)
-    perlin_default_api(CONDUIT_D3D12 OFF)
-    perlin_default_api(CONDUIT_D3D11 OFF)
-    perlin_default_api(CONDUIT_METAL OFF)
-    perlin_default_api(CONDUIT_WEBGPU OFF)
-endif()
-
-# OpenGL ES / WebGL 2 is the last-resort renderer: phones without Vulkan 1.1 and Firefox. It is never chosen over another API.
-if(APPLE)
-    perlin_default_api(CONDUIT_GLES OFF)
-else()
-    perlin_default_api(CONDUIT_GLES ON)
-endif()
+include(cmake/PerlinGraphicsBackends.cmake)
 
 include(cmake/PerlinConduit.cmake)
 include(cmake/PerlinShaders.cmake)
 
 set(PERLIN_GLM_DIR "${glm_SOURCE_DIR}" CACHE PATH "" FORCE)
 add_subdirectory(src/render)
-add_subdirectory(src/client/renderer/gpu)
+add_subdirectory(src/client/systems/renderer/gpu)
 
-set(PERLIN_PROTOCOL_OUT "${CMAKE_CURRENT_BINARY_DIR}/generated/protocol")
-set(PERLIN_PROTOCOL_VERSION 2225)
-set(PERLIN_PROTOCOL_CODEC_COUNT 6)
-set(PERLIN_PROTOCOL_LEGACY_PARTS 2)
-set(PERLIN_PROTOCOL_LEGACY 944=1.26.10 975=1.26.20 1001=1.26.30 2168=1.26.40 2193=1.26.51)
-set(PERLIN_PROTOCOL_SOURCES)
-foreach(i RANGE 0 5)
-    list(APPEND PERLIN_PROTOCOL_SOURCES "${PERLIN_PROTOCOL_OUT}/Codec${i}.cpp")
-endforeach()
-set(PERLIN_PROTOCOL_HEADERS "${PERLIN_PROTOCOL_OUT}/Types.hpp" "${PERLIN_PROTOCOL_OUT}/Packets.hpp" "${PERLIN_PROTOCOL_OUT}/Bridges.hpp")
-list(APPEND PERLIN_PROTOCOL_SOURCES "${PERLIN_PROTOCOL_OUT}/Bridge.cpp")
-set(PERLIN_PROTOCOL_LEGACY_ARGS)
-set(PERLIN_PROTOCOL_LEGACY_SPECS)
-foreach(entry IN LISTS PERLIN_PROTOCOL_LEGACY)
-    string(REPLACE "=" ";" pair "${entry}")
-    list(GET pair 0 legacy_protocol)
-    list(GET pair 1 legacy_version)
-    set(legacy_spec "${CMAKE_CURRENT_SOURCE_DIR}/protocol/legacy/bedrock-${legacy_version}.json")
-    list(APPEND PERLIN_PROTOCOL_LEGACY_SPECS "${legacy_spec}")
-    list(APPEND PERLIN_PROTOCOL_LEGACY_ARGS --legacy "${legacy_protocol}=${legacy_spec}")
-    list(APPEND PERLIN_PROTOCOL_SOURCES "${PERLIN_PROTOCOL_OUT}/Bridge${legacy_protocol}.cpp")
-    math(EXPR last_part "${PERLIN_PROTOCOL_LEGACY_PARTS} - 1")
-    foreach(i RANGE 0 ${last_part})
-        list(APPEND PERLIN_PROTOCOL_SOURCES "${PERLIN_PROTOCOL_OUT}/v${legacy_protocol}/Codec${i}.cpp")
-    endforeach()
-    list(APPEND PERLIN_PROTOCOL_HEADERS "${PERLIN_PROTOCOL_OUT}/v${legacy_protocol}/Types.hpp" "${PERLIN_PROTOCOL_OUT}/v${legacy_protocol}/Packets.hpp")
-endforeach()
-set(PERLIN_PROTOCOL_ROUNDTRIP "${PERLIN_PROTOCOL_OUT}/RoundTrip.cpp")
-set(PERLIN_PROTOCOL_JSON "${PERLIN_PROTOCOL_OUT}/PacketJson.cpp")
+include(cmake/PerlinProtocol.cmake)
 
-add_custom_command(
-    OUTPUT ${PERLIN_PROTOCOL_HEADERS} ${PERLIN_PROTOCOL_SOURCES} ${PERLIN_PROTOCOL_ROUNDTRIP} ${PERLIN_PROTOCOL_JSON}
-    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/protogen/protogen.py"
-            --spec "${CMAKE_CURRENT_SOURCE_DIR}/protocol/bedrock-1.26.60.json"
-            --overrides "${CMAKE_CURRENT_SOURCE_DIR}/protocol/overrides.json"
-            --out "${PERLIN_PROTOCOL_OUT}"
-            --parts ${PERLIN_PROTOCOL_CODEC_COUNT}
-            --legacy-parts ${PERLIN_PROTOCOL_LEGACY_PARTS}
-            --namespace proto${PERLIN_PROTOCOL_VERSION}
-            --version ${PERLIN_PROTOCOL_VERSION}
-            ${PERLIN_PROTOCOL_LEGACY_ARGS}
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/protogen/protogen.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/protocol/bedrock-1.26.60.json"
-            "${CMAKE_CURRENT_SOURCE_DIR}/protocol/overrides.json"
-            ${PERLIN_PROTOCOL_LEGACY_SPECS}
-    COMMENT "Generating protocol codecs"
-    VERBATIM)
-
-add_library(perlin_protocol STATIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/network/Nbt.cpp"
-    ${PERLIN_PROTOCOL_SOURCES}
-    ${PERLIN_PROTOCOL_HEADERS})
-target_include_directories(perlin_protocol PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_compile_features(perlin_protocol PUBLIC cxx_std_23)
-set_target_properties(perlin_protocol PROPERTIES ARCHIVE_OUTPUT_NAME perlin_protocol_gen)
-if(MSVC)
-    set_source_files_properties(${PERLIN_PROTOCOL_SOURCES} PROPERTIES COMPILE_OPTIONS "/w;/bigobj;$<$<CONFIG:Debug>:/O1>")
-else()
-    set_source_files_properties(${PERLIN_PROTOCOL_SOURCES} PROPERTIES COMPILE_OPTIONS "-w;$<$<CONFIG:Debug>:-O1>")
-endif()
-
-set(PERLIN_CURRENT_SINE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/data/perlin_sine_1_26_52.bin")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PERLIN_CURRENT_SINE}")
-file(READ "${PERLIN_CURRENT_SINE}" PERLIN_CURRENT_SINE_HEX HEX)
-string(LENGTH "${PERLIN_CURRENT_SINE_HEX}" PERLIN_CURRENT_SINE_LENGTH)
-if(NOT PERLIN_CURRENT_SINE_LENGTH EQUAL 524288)
-    message(FATAL_ERROR "Current sine table must contain 65,536 binary32 words")
-endif()
-string(REGEX REPLACE "(..)(..)(..)(..)" "0x\\4\\3\\2\\1u," PERLIN_CURRENT_SINE_WORDS "${PERLIN_CURRENT_SINE_HEX}")
-file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/PerlinCurrentSineTable.inc"
-    CONTENT "${PERLIN_CURRENT_SINE_WORDS}\n")
-
-file(GLOB PERLIN_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/*")
-list(APPEND PERLIN_RESOURCE_FILES "${PERLIN_SHADER_PACK}")
-set(PERLIN_EMBED_DIR "${CMAKE_CURRENT_BINARY_DIR}/embedded")
-file(MAKE_DIRECTORY "${PERLIN_EMBED_DIR}")
-set(PERLIN_EMBED_NAMES_SOURCE "")
-if(MSVC)
-    enable_language(RC)
-    set(PERLIN_EMBED_SOURCE "${PERLIN_EMBED_DIR}/embedded_resources.rc")
-    set(PERLIN_EMBED_NAMES_SOURCE "${PERLIN_EMBED_DIR}/embedded_names.cpp")
-    set(text "")
-    set(names "// Generated by CMake: names of the RCDATA resources (resource id = index + 1).\n#include <cstddef>\n")
-    string(APPEND names "extern \"C\" {\nextern const char* const perlin_embedded_names[] = {\n")
-    set(i 0)
-    foreach(f IN LISTS PERLIN_RESOURCE_FILES)
-        get_filename_component(n "${f}" NAME)
-        math(EXPR id "${i}+1")
-        string(APPEND text "${id} RCDATA \"${f}\"\n")
-        string(APPEND names "    \"${n}\",\n")
-        math(EXPR i "${i}+1")
-    endforeach()
-    string(APPEND names "    nullptr};\nextern const size_t perlin_embedded_count = ${i};\n}\n")
-    file(GENERATE OUTPUT "${PERLIN_EMBED_NAMES_SOURCE}" CONTENT "${names}")
-else()
-    set(PERLIN_EMBED_SOURCE "${PERLIN_EMBED_DIR}/embedded_resources.cpp")
-    set(endsection ".previous")
-    if(EMSCRIPTEN)
-        set(sym "")
-        set(section ".section .rodata.perlin,\\\"\\\",@")
-        set(endsection ".text")
-    elseif(APPLE)
-        set(sym "_")
-        set(section ".section __DATA,__const")
-    elseif(WIN32)
-        set(sym "")
-        set(section ".section .rdata,\\\"dr\\\"")
-    else()
-        set(sym "")
-        set(section ".section .rodata")
-    endif()
-    set(text "// Generated by CMake: resources/ linked into the executable.\n#include <cstddef>\n#include <cstdint>\n")
-    string(APPEND text "asm(\n\"${section}\\n\"\n\".balign 16\\n\"\n")
-    set(table "")
-    set(decls "")
-    set(i 0)
-    foreach(f IN LISTS PERLIN_RESOURCE_FILES)
-        get_filename_component(n "${f}" NAME)
-        string(APPEND text "\".globl ${sym}perlin_res_${i}\\n${sym}perlin_res_${i}:\\n.incbin \\\"${f}\\\"\\n.globl ${sym}perlin_res_${i}_end\\n${sym}perlin_res_${i}_end:\\n.balign 16\\n\"\n")
-        string(APPEND decls "extern const uint8_t perlin_res_${i}[]; extern const uint8_t perlin_res_${i}_end[];\n")
-        string(APPEND table "    {\"${n}\", perlin_res_${i}, perlin_res_${i}_end},\n")
-        math(EXPR i "${i}+1")
-    endforeach()
-    string(APPEND text "\"${endsection}\\n\"\n);\nextern \"C\" {\n${decls}")
-    string(APPEND text "struct PerlinEmbeddedFile { const char* name; const uint8_t* begin; const uint8_t* end; };\n")
-    string(APPEND text "extern const PerlinEmbeddedFile perlin_embedded_files[] = {\n${table}    {nullptr, nullptr, nullptr}};\n")
-    string(APPEND text "extern const size_t perlin_embedded_count = ${i};\n}\n")
-endif()
-file(GENERATE OUTPUT "${PERLIN_EMBED_SOURCE}" CONTENT "${text}")
-set_source_files_properties("${PERLIN_EMBED_SOURCE}" PROPERTIES GENERATED TRUE OBJECT_DEPENDS "${PERLIN_RESOURCE_FILES}")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PERLIN_RESOURCE_FILES})
+include(cmake/PerlinEmbed.cmake)
 
 file(GLOB_RECURSE PERLIN_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/network/Nbt\\.cpp")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/rhi/")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/(bgfx|shader)/")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/renderer/gpu/")
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/systems/renderer/(bgfx|shader)/")
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/systems/renderer/gpu/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/util/GraphicsDebugger\\.cpp$")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/render/")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/javashaders/")
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/systems/javashaders/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/mods/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/(src|tests)/")
 if(PERLIN_WASM3)
@@ -588,7 +308,7 @@ else()
     set(_perlin_asset "Perlin-linux-x64.zip")
 endif()
 set(PERLIN_UPDATE_ASSET "${_perlin_asset}" CACHE STRING "release asset this platform installs")
-set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/update/Updater.cpp" APPEND PROPERTY COMPILE_DEFINITIONS
+set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/client/services/update/Updater.cpp" APPEND PROPERTY COMPILE_DEFINITIONS
     "PERLIN_BUILD_COMMIT=\"${PERLIN_BUILD_COMMIT}\"" "PERLIN_UPDATE_REPO=\"${PERLIN_UPDATE_REPO}\""
     "PERLIN_UPDATE_ASSET=\"${PERLIN_UPDATE_ASSET}\"")
 
@@ -704,12 +424,12 @@ if(PERLIN_DEBUG_OPT)
 endif()
 
 foreach(PERLIN_PHYSICS_SOURCE IN ITEMS
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/PlayerPhysics.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/VehiclePhysics.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/LocalPlayer.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/player/PlayerFov.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/resources/BlockOffsetDefinition.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/resources/BlockBoxDefinition.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/world/movement/PlayerPhysics.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/world/movement/VehiclePhysics.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/player/LocalPlayer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/player/PlayerFov.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/resources/BlockOffsetDefinition.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/resources/BlockBoxDefinition.cpp")
     if(MSVC)
         set_property(SOURCE "${PERLIN_PHYSICS_SOURCE}" APPEND PROPERTY COMPILE_OPTIONS /fp:strict)
     else()
@@ -729,8 +449,8 @@ if(MSVC)
     string(REGEX REPLACE "[/-]RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
     set_property(TARGET Perlin PROPERTY MSVC_RUNTIME_CHECKS "")
     file(GLOB_RECURSE PERLIN_HOT_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/renderer/chunk/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/multiplayer/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/renderer/chunk/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/multiplayer/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/network/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/world/*.cpp")
     set_source_files_properties(${PERLIN_HOT_SOURCES} PROPERTIES COMPILE_OPTIONS "/O2;/Ob2")
@@ -760,9 +480,9 @@ if(PERLIN_FAST_MATH)
 endif()
 
 if(MSVC AND NOT PERLIN_CLANG_CL_BUILD)
-    set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
+    set_source_files_properties(src/client/systems/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
 else()
-    set_source_files_properties(src/client/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
+    set_source_files_properties(src/client/systems/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
 endif()
 
 include(CheckIPOSupported)
@@ -774,9 +494,9 @@ endif()
 if(PERLIN_IPO)
     set_property(TARGET Perlin PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set_source_files_properties(src/client/entity/EntityRenderer.cpp PROPERTIES COMPILE_OPTIONS "-fno-lto")
+        set_source_files_properties(src/client/systems/entity/EntityRenderer.cpp PROPERTIES COMPILE_OPTIONS "-fno-lto")
     elseif(MSVC)
-        set_source_files_properties(src/client/entity/EntityRenderer.cpp PROPERTIES COMPILE_OPTIONS "/GL-")
+        set_source_files_properties(src/client/systems/entity/EntityRenderer.cpp PROPERTIES COMPILE_OPTIONS "/GL-")
     endif()
 endif()
 
@@ -863,14 +583,48 @@ if(WIN32 AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_LIBAV_FOUND)
         endif()
     endif()
 endif()
-option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     enable_testing()
-    add_executable(skin_lifetime_selftest tests/skin_lifetime_selftest.cpp src/client/entity/EntityTracker.cpp)
+    add_executable(skin_lifetime_selftest tests/skin_lifetime_selftest.cpp src/client/systems/model/EntityTracker.cpp)
     target_include_directories(skin_lifetime_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(skin_lifetime_selftest PRIVATE cxx_std_23)
     add_test(NAME skin_lifetime_selftest COMMAND skin_lifetime_selftest)
-    add_executable(actor_lerp_selftest tests/actor_lerp_selftest.cpp src/client/entity/EntityTracker.cpp)
+    add_executable(strings_selftest tests/strings_selftest.cpp)
+    target_include_directories(strings_selftest PRIVATE src)
+    target_compile_features(strings_selftest PRIVATE cxx_std_23)
+    add_test(NAME strings_selftest COMMAND strings_selftest)
+    add_executable(util_selftest tests/util_selftest.cpp src/util/JsonValue.cpp)
+    target_include_directories(util_selftest PRIVATE src)
+    target_compile_features(util_selftest PRIVATE cxx_std_23)
+    add_test(NAME util_selftest COMMAND util_selftest)
+    add_executable(task_group_selftest tests/task_group_selftest.cpp)
+    target_include_directories(task_group_selftest PRIVATE src)
+    target_compile_features(task_group_selftest PRIVATE cxx_std_23)
+    target_link_libraries(task_group_selftest PRIVATE Threads::Threads)
+    add_test(NAME task_group_selftest COMMAND task_group_selftest)
+    add_executable(java_program_cache_selftest tests/java_program_cache_selftest.cpp
+        src/client/systems/renderer/gpu/JavaProgramCache.cpp)
+    target_include_directories(java_program_cache_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(java_program_cache_selftest PRIVATE cxx_std_23)
+    add_test(NAME java_program_cache_selftest COMMAND java_program_cache_selftest)
+    add_executable(websocket_selftest tests/websocket_selftest.cpp src/util/WebSocket.cpp src/util/ModSocket.cpp)
+    target_include_directories(websocket_selftest PRIVATE src)
+    target_compile_features(websocket_selftest PRIVATE cxx_std_23)
+    target_link_libraries(websocket_selftest PRIVATE Threads::Threads)
+    if(WIN32)
+        target_link_libraries(websocket_selftest PRIVATE ws2_32)
+    endif()
+    add_test(NAME websocket_selftest COMMAND websocket_selftest)
+    set_tests_properties(websocket_selftest PROPERTIES TIMEOUT 120)
+    add_executable(utc_time_selftest tests/utc_time_selftest.cpp)
+    target_include_directories(utc_time_selftest PRIVATE src)
+    target_compile_features(utc_time_selftest PRIVATE cxx_std_23)
+    add_test(NAME utc_time_selftest COMMAND utc_time_selftest)
+    add_executable(mod_support_selftest tests/mod_support_selftest.cpp src/client/systems/mods/ModSupport.cpp)
+    target_include_directories(mod_support_selftest PRIVATE src ${PERLIN_API_INCLUDE_DIRS})
+    target_compile_features(mod_support_selftest PRIVATE cxx_std_23)
+    add_test(NAME mod_support_selftest COMMAND mod_support_selftest)
+    add_executable(actor_lerp_selftest tests/actor_lerp_selftest.cpp src/client/systems/model/EntityTracker.cpp)
     target_include_directories(actor_lerp_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(actor_lerp_selftest PRIVATE cxx_std_23)
     add_test(NAME actor_lerp_selftest COMMAND actor_lerp_selftest)
@@ -879,17 +633,17 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(block_palette_selftest PRIVATE src)
     target_link_libraries(block_palette_selftest PRIVATE glaze::glaze)
     target_compile_features(block_palette_selftest PRIVATE cxx_std_23)
-    add_test(NAME block_palette_selftest COMMAND block_palette_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_states.json" "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_versions.json")
+    add_test(NAME block_palette_selftest COMMAND block_palette_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources/data/blocks/block_states.json" "${CMAKE_CURRENT_SOURCE_DIR}/resources/data/blocks/block_versions.json")
     add_executable(entity_render_selftest tests/entity_render_selftest.cpp
-        src/client/entity/EntityQuery.cpp src/client/entity/EntityTracker.cpp src/client/entity/BlockEntityView.cpp
-        src/client/multiplayer/BlockEntities.cpp src/client/attachable/Geometry.cpp
-        src/client/attachable/Animation.cpp src/client/attachable/Molang.cpp src/client/ui/Json.cpp
+        src/client/systems/entity/EntityQuery.cpp src/client/systems/model/EntityTracker.cpp src/client/systems/entity/BlockEntityView.cpp
+        src/client/systems/model/BlockEntities.cpp src/client/systems/attachable/Geometry.cpp
+        src/client/systems/attachable/Animation.cpp src/client/systems/attachable/Molang.cpp src/util/JsonValue.cpp
         src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
     target_include_directories(entity_render_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_link_libraries(entity_render_selftest PRIVATE glaze::glaze)
     target_compile_features(entity_render_selftest PRIVATE cxx_std_23)
     add_test(NAME entity_render_selftest COMMAND entity_render_selftest)
-    add_executable(player_fov_selftest tests/player_fov_selftest.cpp src/client/player/PlayerFov.cpp)
+    add_executable(player_fov_selftest tests/player_fov_selftest.cpp src/client/systems/player/PlayerFov.cpp)
     target_include_directories(player_fov_selftest PRIVATE src)
     target_compile_features(player_fov_selftest PRIVATE cxx_std_23)
     add_test(NAME player_fov_selftest COMMAND player_fov_selftest)
@@ -897,28 +651,28 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(panorama_blur_selftest PRIVATE src)
     target_compile_features(panorama_blur_selftest PRIVATE cxx_std_23)
     add_test(NAME panorama_blur_selftest COMMAND panorama_blur_selftest)
-    add_executable(format_codes_selftest tests/format_codes_selftest.cpp src/client/ui/Json.cpp src/client/ui/UiExpr.cpp
-        src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/ui/McFont.cpp src/client/ui/TenFont.cpp
-        src/client/ui/RmlEmit.cpp src/client/ui/FormatCodes.cpp src/client/ui/HudData.cpp src/client/ui/EffectData.cpp
-        src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp
+    add_executable(format_codes_selftest tests/format_codes_selftest.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp
+        src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp
+        src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp src/client/systems/model/EffectData.cpp
+        src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp
         src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(format_codes_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(format_codes_selftest PRIVATE cxx_std_23)
     add_test(NAME format_codes_selftest COMMAND format_codes_selftest)
     add_executable(block_box_definition_selftest tests/block_box_definition_selftest.cpp
-        src/client/resources/BlockBoxDefinition.cpp src/client/ui/Json.cpp)
+        src/client/systems/resources/BlockBoxDefinition.cpp src/util/JsonValue.cpp)
     target_include_directories(block_box_definition_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(block_box_definition_selftest PRIVATE cxx_std_23)
     add_test(NAME block_box_definition_selftest COMMAND block_box_definition_selftest)
-    add_executable(hud_dump tests/hud_dump.cpp src/client/ui/Json.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
-        src/client/ui/UiLayout.cpp src/client/ui/McFont.cpp src/client/ui/TenFont.cpp src/client/ui/RmlEmit.cpp src/client/ui/FormatCodes.cpp src/client/ui/HudData.cpp
-        src/client/ui/HudRenderers.cpp src/client/ui/EffectData.cpp src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    add_executable(hud_dump tests/hud_dump.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
+        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp
+        src/client/ui/HudRenderers.cpp src/client/systems/model/EffectData.cpp src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(hud_dump PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(hud_dump PRIVATE cxx_std_23)
     add_test(NAME hud_boss_bindings COMMAND hud_dump --boss-selftest)
-    add_executable(screen_dump tests/screen_dump.cpp src/client/ui/Json.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
-        src/client/ui/UiLayout.cpp src/client/ui/McFont.cpp src/client/ui/TenFont.cpp src/client/ui/RmlEmit.cpp src/client/ui/FormatCodes.cpp src/client/ui/HudData.cpp src/client/ui/EffectData.cpp
-        src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    add_executable(screen_dump tests/screen_dump.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
+        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp src/client/systems/text/FormatCodes.cpp src/client/ui/HudData.cpp src/client/systems/model/EffectData.cpp
+        src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(screen_dump PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(screen_dump PRIVATE cxx_std_23)
     foreach(size small normal large extra_large)
@@ -933,7 +687,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME ui_bound_alpha COMMAND screen_dump font_sizes.alpha_screen 320 240
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_font_sizes")
     set_tests_properties(ui_bound_alpha PROPERTIES ENVIRONMENT "SCREEN_RML=1;SCREEN_VARS={\"#opacity\":0.3}"
-        PASS_REGULAR_EXPRESSION "alpha=\"0[.]30*\"")
+        PASS_REGULAR_EXPRESSION "alpha=0[.]30*")
     add_test(NAME ui_repeated_routes COMMAND screen_dump routes.routing_screen 320 240
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_routes")
     set_tests_properties(ui_repeated_routes PROPERTIES ENVIRONMENT "SCREEN_TREE=1;SCREEN_VARS={\"#title_text\":\"middle\"}"
@@ -942,7 +696,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME ui_fractional_font COMMAND screen_dump font_sizes.fractional_screen 320 240
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_font_sizes")
     set_tests_properties(ui_fractional_font PROPERTIES ENVIRONMENT "SCREEN_RML=1"
-        PASS_REGULAR_EXPRESSION "font-family:minecraft-size-6[.]4")
+        PASS_REGULAR_EXPRESSION "font=minecraft-size-6[.]4")
     add_test(NAME ui_stack_vertical COMMAND screen_dump stack_regression.vertical_screen 320 240
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_stack")
     set_tests_properties(ui_stack_vertical PROPERTIES ENVIRONMENT "SCREEN_TREE=1"
@@ -956,41 +710,39 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     set_tests_properties(ui_deferred_text PROPERTIES ENVIRONMENT "SCREEN_TREE=1"
         PASS_REGULAR_EXPRESSION "text=deferred-label-correct")
     add_executable(gpu_level_unload_selftest tests/gpu_context_test.cpp tests/gpu_context_stubs.cpp
-        src/client/renderer/Tessellator.cpp src/client/renderer/SkyGeometry.cpp src/client/renderer/MaterialDb.cpp
-        src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp)
+        src/client/systems/gfx/Tessellator.cpp src/client/systems/gfx/SkyGeometry.cpp src/client/systems/gfx/MaterialDb.cpp
+        src/util/JsonValue.cpp src/util/Paths.cpp src/util/Resources.cpp)
     target_sources(gpu_level_unload_selftest PRIVATE
-        src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
-        src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
-        src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+        src/client/systems/javashaders/PackSource.cpp src/client/systems/javashaders/PackSourceZip.cpp
+        src/client/systems/javashaders/Properties.cpp src/client/systems/javashaders/Cond.cpp
+        src/client/systems/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
     target_include_directories(gpu_level_unload_selftest PRIVATE "${stb_SOURCE_DIR}")
     target_link_libraries(gpu_level_unload_selftest PRIVATE glaze::glaze miniz)
     target_include_directories(gpu_level_unload_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
     target_link_libraries(gpu_level_unload_selftest PRIVATE perlin_gpu)
     add_test(NAME gpu_level_unload_selftest COMMAND gpu_level_unload_selftest "${PERLIN_SHADER_PACK}")
     add_executable(ui_batch_selftest tests/ui_batch_selftest.cpp tests/gpu_context_stubs.cpp
-        src/client/renderer/Tessellator.cpp src/client/renderer/SkyGeometry.cpp src/client/renderer/MaterialDb.cpp
-        src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp
-        src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
-        src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
-        src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+        src/client/systems/gfx/Tessellator.cpp src/client/systems/gfx/SkyGeometry.cpp src/client/systems/gfx/MaterialDb.cpp
+        src/util/JsonValue.cpp src/util/Paths.cpp src/util/Resources.cpp
+        src/client/systems/javashaders/PackSource.cpp src/client/systems/javashaders/PackSourceZip.cpp
+        src/client/systems/javashaders/Properties.cpp src/client/systems/javashaders/Cond.cpp
+        src/client/systems/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
     target_include_directories(ui_batch_selftest PRIVATE "${stb_SOURCE_DIR}")
     target_link_libraries(ui_batch_selftest PRIVATE glaze::glaze miniz perlin_gpu)
     target_include_directories(ui_batch_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
     add_test(NAME ui_batch_selftest COMMAND ui_batch_selftest "${PERLIN_SHADER_PACK}")
-    add_executable(render_tuner_selftest tests/render_tuner_selftest.cpp src/client/renderer/gpu/RenderTuner.cpp)
+    add_executable(render_tuner_selftest tests/render_tuner_selftest.cpp src/client/systems/renderer/gpu/RenderTuner.cpp)
     target_link_libraries(render_tuner_selftest PRIVATE perlin_gpu)
     target_include_directories(render_tuner_selftest BEFORE PRIVATE src)
     add_test(NAME render_tuner_selftest COMMAND render_tuner_selftest)
     add_test(NAME ui_batch_fallback_selftest COMMAND ui_batch_selftest "${PERLIN_SHADER_PACK}")
     set_tests_properties(ui_batch_fallback_selftest PROPERTIES ENVIRONMENT "PERLIN_NO_GPU_UI=1")
     set_tests_properties(ui_batch_selftest ui_batch_fallback_selftest PROPERTIES SKIP_RETURN_CODE 77)
-    add_executable(gpu_terrain_selftest tests/gpu_terrain_selftest.cpp src/client/renderer/Tessellator.cpp)
+    add_executable(gpu_terrain_selftest tests/gpu_terrain_selftest.cpp src/client/systems/gfx/Tessellator.cpp)
     target_include_directories(gpu_terrain_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
     target_link_libraries(gpu_terrain_selftest PRIVATE perlin_gpu)
     add_test(NAME gpu_terrain_selftest COMMAND gpu_terrain_selftest "${PERLIN_SHADER_PACK}")
     set_tests_properties(gpu_terrain_selftest PROPERTIES SKIP_RETURN_CODE 77)
-    # the terrain cull shader itself, compiled to c++ by slang and run on the cpu
-    # slang's c++ target includes <stdfloat>, which apple's libc++ and older standard libraries lack
     include(CheckCXXSourceCompiles)
     set(_perlin_saved_flags "${CMAKE_REQUIRED_FLAGS}")
     if(MSVC)
@@ -1007,7 +759,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
                     -target cpp -entry csMain -stage compute -o "${_cull_cpu}"
             DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/slang/programs/terrain_cull.slang"
             COMMENT "Compiling terrain_cull.slang for the cpu" VERBATIM)
-        add_executable(terrain_cull_cpu_selftest tests/terrain_cull_cpu_selftest.cpp src/client/renderer/Tessellator.cpp
+        add_executable(terrain_cull_cpu_selftest tests/terrain_cull_cpu_selftest.cpp src/client/systems/gfx/Tessellator.cpp
             "${_cull_cpu}")
         set_source_files_properties("${_cull_cpu}" PROPERTIES HEADER_FILE_ONLY ON)
         target_include_directories(terrain_cull_cpu_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}"
@@ -1018,11 +770,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         set_tests_properties(terrain_cull_cpu_selftest PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     add_executable(render_bench tools/render_bench.cpp tests/gpu_context_stubs.cpp
-        src/client/renderer/Tessellator.cpp src/client/renderer/SkyGeometry.cpp src/client/renderer/MaterialDb.cpp
-        src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp
-        src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
-        src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
-        src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+        src/client/systems/gfx/Tessellator.cpp src/client/systems/gfx/SkyGeometry.cpp src/client/systems/gfx/MaterialDb.cpp
+        src/util/JsonValue.cpp src/util/Paths.cpp src/util/Resources.cpp
+        src/client/systems/javashaders/PackSource.cpp src/client/systems/javashaders/PackSourceZip.cpp
+        src/client/systems/javashaders/Properties.cpp src/client/systems/javashaders/Cond.cpp
+        src/client/systems/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
     target_include_directories(render_bench PRIVATE "${stb_SOURCE_DIR}")
     target_link_libraries(render_bench PRIVATE glaze::glaze miniz perlin_gpu)
     target_include_directories(render_bench BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
@@ -1032,21 +784,21 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME mod_gpu_selftest COMMAND mod_gpu_selftest)
     set_tests_properties(gpu_level_unload_selftest PROPERTIES SKIP_RETURN_CODE 77)
     add_test(NAME java_to_slang_selftest COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/java_to_slang_selftest.py")
-    add_executable(block_states_selftest tests/block_states_selftest.cpp src/client/javashaders/BlockStates.cpp)
+    add_executable(block_states_selftest tests/block_states_selftest.cpp src/client/systems/javashaders/BlockStates.cpp)
     target_include_directories(block_states_selftest PRIVATE src)
     add_test(NAME block_states_selftest COMMAND block_states_selftest)
-    add_executable(benchmark_selftest tests/benchmark_selftest.cpp src/client/Benchmark.cpp)
+    add_executable(benchmark_selftest tests/benchmark_selftest.cpp src/client/systems/diagnostics/Benchmark.cpp)
     target_include_directories(benchmark_selftest PRIVATE src)
     add_test(NAME benchmark_selftest COMMAND benchmark_selftest)
 
     target_link_libraries(gpu_level_unload_selftest PRIVATE Threads::Threads)
     option(PERLIN_BUILD_PACK_BENCH "Build tools/java_pack_bench: times a java shader pack headless" OFF)
     if(PERLIN_BUILD_PACK_BENCH)
-        add_executable(java_pack_bench tools/java_pack_bench.cpp src/client/renderer/Tessellator.cpp
-            tests/gpu_context_stubs.cpp src/client/ui/Json.cpp src/util/Paths.cpp src/util/Resources.cpp
-            src/client/javashaders/PackSource.cpp src/client/javashaders/PackSourceZip.cpp
-            src/client/javashaders/Properties.cpp src/client/javashaders/Cond.cpp
-            src/client/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
+        add_executable(java_pack_bench tools/java_pack_bench.cpp src/client/systems/gfx/Tessellator.cpp
+            tests/gpu_context_stubs.cpp src/util/JsonValue.cpp src/util/Paths.cpp src/util/Resources.cpp
+            src/client/systems/javashaders/PackSource.cpp src/client/systems/javashaders/PackSourceZip.cpp
+            src/client/systems/javashaders/Properties.cpp src/client/systems/javashaders/Cond.cpp
+            src/client/systems/resources/TextureLoader.cpp src/world/level/block/BlockPalette.cpp src/util/Json.cpp)
         target_include_directories(java_pack_bench PRIVATE "${stb_SOURCE_DIR}")
         target_include_directories(java_pack_bench BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
         target_link_libraries(java_pack_bench PRIVATE perlin_gpu glaze::glaze miniz)
@@ -1057,30 +809,90 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_link_libraries(jshader_check PRIVATE perlin_gpu)
 
     add_executable(ten_font_metrics_selftest tests/ten_font_metrics_selftest.cpp
-        src/client/ui/TenFont.cpp src/client/ui/McFont.cpp)
+        src/client/ui/TenFont.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/util/JsonValue.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(ten_font_metrics_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(ten_font_metrics_selftest PRIVATE cxx_std_23)
     add_test(NAME ten_font_metrics_selftest COMMAND ten_font_metrics_selftest)
     set_tests_properties(ten_font_metrics_selftest PROPERTIES SKIP_RETURN_CODE 77)
-    add_executable(font_cache_selftest tests/font_cache_selftest.cpp src/client/ui/McFont.cpp)
+    add_executable(discord_service_difftest tests/discord_service_difftest.cpp
+        src/client/services/discord/DiscordService.cpp src/client/services/discord/DiscordRpc.cpp
+        src/util/UrlHandlerRegistration.cpp src/util/Paths.cpp src/util/Json.cpp src/util/JsonValue.cpp)
+    target_include_directories(discord_service_difftest PRIVATE src)
+    target_compile_features(discord_service_difftest PRIVATE cxx_std_23)
+    find_package(Threads REQUIRED)
+    target_link_libraries(discord_service_difftest PRIVATE Threads::Threads glaze::glaze)
+    add_test(NAME discord_service_difftest COMMAND discord_service_difftest)
+    add_executable(benchmark_driver_difftest tests/benchmark_driver_difftest.cpp
+        src/client/systems/diagnostics/BenchmarkDriver.cpp src/client/systems/diagnostics/Benchmark.cpp)
+    target_include_directories(benchmark_driver_difftest PRIVATE src)
+    target_compile_features(benchmark_driver_difftest PRIVATE cxx_std_23)
+    add_test(NAME benchmark_driver_difftest COMMAND benchmark_driver_difftest)
+    add_executable(movement_sounds_difftest tests/movement_sounds_difftest.cpp
+        src/client/systems/audio/MovementSounds.cpp)
+    target_include_directories(movement_sounds_difftest PRIVATE src "${glm_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_compile_features(movement_sounds_difftest PRIVATE cxx_std_23)
+    add_test(NAME movement_sounds_difftest COMMAND movement_sounds_difftest)
+    add_executable(account_service_test tests/account_service_test.cpp
+        src/client/services/account/AccountService.cpp src/client/services/account/AccountStore.cpp
+        src/util/Json.cpp src/util/JsonValue.cpp)
+    target_include_directories(account_service_test PRIVATE src)
+    target_compile_features(account_service_test PRIVATE cxx_std_23)
+    target_link_libraries(account_service_test PRIVATE Threads::Threads glaze::glaze)
+    add_test(NAME account_service_test COMMAND account_service_test)
+    add_executable(block_entity_meshes_difftest tests/block_entity_meshes_difftest.cpp
+        src/client/systems/entity/BlockEntityMeshes.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/util/JsonValue.cpp src/util/Resources.cpp src/util/Paths.cpp src/client/systems/text/FormatCodes.cpp)
+    target_include_directories(block_entity_meshes_difftest PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}")
+    target_link_libraries(block_entity_meshes_difftest PRIVATE glm::glm)
+    target_compile_features(block_entity_meshes_difftest PRIVATE cxx_std_23)
+    add_test(NAME block_entity_meshes_difftest COMMAND block_entity_meshes_difftest)
+    add_executable(font_cache_selftest tests/font_cache_selftest.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/util/JsonValue.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(font_cache_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_compile_features(font_cache_selftest PRIVATE cxx_std_23)
     add_test(NAME font_cache_selftest COMMAND font_cache_selftest)
-    add_executable(ui_library_selftest tests/ui_library_selftest.cpp src/client/ui/Json.cpp
+    add_executable(ui_library_selftest tests/ui_library_selftest.cpp src/util/JsonValue.cpp
         src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp)
     target_include_directories(ui_library_selftest PRIVATE src)
     target_compile_features(ui_library_selftest PRIVATE cxx_std_23)
     add_test(NAME ui_library_selftest COMMAND ui_library_selftest)
-    add_executable(ui_conformance tests/ui_conformance.cpp src/client/ui/Json.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
-        src/client/ui/UiLayout.cpp src/client/ui/McFont.cpp src/client/ui/TenFont.cpp src/client/ui/RmlEmit.cpp
-        src/client/ui/HudData.cpp src/client/ui/FormatCodes.cpp src/client/i18n/Lang.cpp
-        src/client/i18n/BuiltinEnglish.cpp src/client/resources/ServerPackRegistry.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    add_executable(ui_conformance tests/ui_conformance.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
+        src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/Scene.cpp src/client/ui/UiTemplate.cpp
+        src/client/ui/HudData.cpp src/client/systems/text/FormatCodes.cpp src/client/systems/i18n/Lang.cpp
+        src/client/systems/i18n/BuiltinEnglish.cpp src/client/systems/resources/ServerPackRegistry.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(ui_conformance PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}")
     target_compile_features(ui_conformance PRIVATE cxx_std_23)
     add_test(NAME ui_screen_discovery COMMAND ui_conformance
         "regression:${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ui_deferred")
     set_tests_properties(ui_screen_discovery PROPERTIES
         PASS_REGULAR_EXPRESSION "screens=2 +built=2 +failed=0 +missing=0")
+    add_executable(block_classify_dump
+        tests/block_classify_dump.cpp
+        src/client/systems/player/BlockCollision.cpp
+        src/world/level/block/BlockPalette.cpp
+        src/util/Json.cpp
+        src/util/Resources.cpp
+        src/util/Paths.cpp
+        src/world/movement/VoxelShapes.cpp
+        src/world/movement/PlayerPhysics.cpp
+        src/client/systems/resources/ServerBlocks.cpp
+        src/client/systems/resources/BlockBoxDefinition.cpp
+        src/client/systems/resources/BlockOffsetDefinition.cpp
+        src/util/JsonValue.cpp
+        src/world/level/Level.cpp
+        src/world/level/chunk/ChunkCodec.cpp
+        src/world/level/lighting/LightRegistry.cpp
+        src/client/systems/blocks/BlockGeometry.cpp)
+    target_include_directories(block_classify_dump PRIVATE src "${glm_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(block_classify_dump PRIVATE glaze::glaze Threads::Threads)
+    target_compile_features(block_classify_dump PRIVATE cxx_std_23)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/block_classify_empty")
+    add_test(NAME block_classify_registry
+        COMMAND block_classify_dump "${CMAKE_SOURCE_DIR}/resources/data/blocks/block_states.json" "${CMAKE_SOURCE_DIR}/resources"
+                "${CMAKE_BINARY_DIR}/block_classify_empty" "${CMAKE_SOURCE_DIR}/tests/block_classify_registry_golden.txt")
+    add_test(NAME block_classify_fallback
+        COMMAND block_classify_dump "${CMAKE_SOURCE_DIR}/resources/data/blocks/block_states.json" "${CMAKE_BINARY_DIR}/block_classify_empty"
+                "${CMAKE_BINARY_DIR}/block_classify_empty" "${CMAKE_SOURCE_DIR}/tests/block_classify_fallback_golden.txt"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/block_classify_empty")
+
     add_executable(targeting_selftest tests/targeting_selftest.cpp)
     target_include_directories(targeting_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(targeting_selftest PRIVATE cxx_std_23)
@@ -1089,22 +901,22 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(hand_anim_selftest PRIVATE src)
     target_compile_features(hand_anim_selftest PRIVATE cxx_std_23)
     add_test(NAME hand_anim_selftest COMMAND hand_anim_selftest)
-    add_executable(custom_sky_selftest tests/custom_sky_selftest.cpp src/client/renderer/CustomSky.cpp
-        src/client/renderer/SkyGeometry.cpp)
+    add_executable(custom_sky_selftest tests/custom_sky_selftest.cpp src/client/systems/renderer/CustomSky.cpp
+        src/client/systems/gfx/SkyGeometry.cpp)
     target_include_directories(custom_sky_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(custom_sky_selftest PRIVATE cxx_std_23)
     add_test(NAME custom_sky_selftest COMMAND custom_sky_selftest)
     add_executable(heldbuild_selftest
         tests/heldbuild_selftest.cpp
-        src/client/player/HeldBuild.cpp
-        src/client/player/PlayerPhysics.cpp
-        src/client/player/BlockUse.cpp)
+        src/client/systems/player/HeldBuild.cpp
+        src/world/movement/PlayerPhysics.cpp
+        src/client/systems/blocks/BlockUse.cpp)
     target_include_directories(heldbuild_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(heldbuild_selftest PRIVATE cxx_std_23)
     add_test(NAME heldbuild_selftest COMMAND heldbuild_selftest)
     add_executable(entity_animation_selftest tests/entity_animation_selftest.cpp
-        src/client/entity/JavaAnimation.cpp src/client/attachable/Geometry.cpp
-        src/client/attachable/Animation.cpp src/client/attachable/Molang.cpp src/client/ui/Json.cpp)
+        src/client/systems/entity/JavaAnimation.cpp src/client/systems/attachable/Geometry.cpp
+        src/client/systems/attachable/Animation.cpp src/client/systems/attachable/Molang.cpp src/util/JsonValue.cpp)
     target_include_directories(entity_animation_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(entity_animation_selftest PRIVATE cxx_std_23)
     add_test(NAME entity_animation_selftest COMMAND entity_animation_selftest
@@ -1112,41 +924,52 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/java_animation_root_reference.txt"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/java17_animation_reference.txt")
     add_executable(attachable_selftest tests/attachable_selftest.cpp
-        src/client/attachable/Molang.cpp src/client/attachable/Animation.cpp src/client/attachable/Geometry.cpp
-        src/client/ui/Json.cpp)
+        src/client/systems/attachable/Molang.cpp src/client/systems/attachable/Animation.cpp src/client/systems/attachable/Geometry.cpp
+        src/util/JsonValue.cpp)
     target_include_directories(attachable_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(attachable_selftest PRIVATE cxx_std_23)
     add_test(NAME attachable_selftest COMMAND attachable_selftest)
 
-    add_executable(particle_selftest tests/particle_selftest.cpp src/client/particle/DataParticles.cpp
-        src/client/attachable/Molang.cpp src/client/ui/Json.cpp)
+    add_executable(particle_selftest tests/particle_selftest.cpp src/client/systems/particle/DataParticles.cpp
+        src/client/systems/attachable/Molang.cpp src/util/JsonValue.cpp)
     target_include_directories(particle_selftest PRIVATE src "${glm_SOURCE_DIR}")
     target_compile_features(particle_selftest PRIVATE cxx_std_23)
     add_test(NAME particle_selftest COMMAND particle_selftest)
 
-    add_executable(audio_selftest tests/audio_selftest.cpp src/client/audio/AudioEngine.cpp src/client/audio/Decode.cpp
-        src/client/audio/SoundSystem.cpp src/client/audio/Subtitles.cpp src/client/ui/Json.cpp
-        src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
-    target_compile_definitions(audio_selftest PRIVATE PERLIN_LANG_FILE="${CMAKE_SOURCE_DIR}/resources/perlin_en_US.lang")
+    add_executable(audio_selftest tests/audio_selftest.cpp src/client/systems/audio/AudioEngine.cpp src/client/systems/audio/Decode.cpp
+        src/client/systems/audio/SoundSystem.cpp src/client/systems/audio/Subtitles.cpp src/util/JsonValue.cpp
+        src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    target_compile_definitions(audio_selftest PRIVATE PERLIN_LANG_FILE="${CMAKE_SOURCE_DIR}/resources/localization/perlin_en_US.lang")
     target_include_directories(audio_selftest PRIVATE src "${glm_SOURCE_DIR}" "${stb_SOURCE_DIR}")
     target_link_libraries(audio_selftest PRIVATE SDL3::SDL3)
     target_compile_features(audio_selftest PRIVATE cxx_std_23)
     add_test(NAME audio_selftest COMMAND audio_selftest)
 
-    add_executable(lang_selftest tests/lang_selftest.cpp src/client/i18n/Lang.cpp src/client/resources/ServerPackRegistry.cpp src/client/i18n/BuiltinEnglish.cpp src/client/ui/Json.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    add_executable(lang_selftest tests/lang_selftest.cpp src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/i18n/BuiltinEnglish.cpp src/util/JsonValue.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(lang_selftest PRIVATE src)
     target_compile_features(lang_selftest PRIVATE cxx_std_23)
     add_test(NAME lang_selftest COMMAND lang_selftest "${CMAKE_SOURCE_DIR}/resources")
 
-    add_executable(material_selftest tests/material_selftest.cpp src/client/renderer/MaterialDb.cpp src/client/entity/Materials.cpp src/client/ui/Json.cpp)
+    add_executable(material_selftest tests/material_selftest.cpp src/client/systems/gfx/MaterialDb.cpp src/client/systems/entity/Materials.cpp src/util/JsonValue.cpp)
     target_include_directories(material_selftest PRIVATE src)
     target_compile_features(material_selftest PRIVATE cxx_std_23)
     add_test(NAME material_selftest COMMAND material_selftest)
+    add_executable(replay_library_test
+        tests/replay_library_test.cpp
+        src/client/screen/screens/ReplayLibrary.cpp
+        src/client/systems/replay/ReplayFormat.cpp
+        src/client/systems/replay/ReplayController.cpp
+        src/util/JsonValue.cpp
+        src/util/Paths.cpp)
+    target_include_directories(replay_library_test PRIVATE src "${glm_SOURCE_DIR}" "${concurrentqueue_SOURCE_DIR}")
+    target_link_libraries(replay_library_test PRIVATE miniz Threads::Threads)
+    target_compile_features(replay_library_test PRIVATE cxx_std_23)
+    add_test(NAME replay_library_test COMMAND replay_library_test)
     add_executable(replay_selftest
         tests/replay_selftest.cpp
-        src/client/replay/ReplayFormat.cpp
-        src/client/replay/ReplayController.cpp
-        src/client/ui/Json.cpp
+        src/client/systems/replay/ReplayFormat.cpp
+        src/client/systems/replay/ReplayController.cpp
+        src/util/JsonValue.cpp
         src/util/Paths.cpp)
     target_include_directories(replay_selftest PRIVATE src)
     target_link_libraries(replay_selftest PRIVATE miniz Threads::Threads)
@@ -1156,10 +979,10 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_executable(ffmpeg_selftest
         tests/ffmpeg_selftest.cpp
         tests/stb_write_impl.cpp
-        src/client/replay/AviWriter.cpp
-        src/client/replay/Ffmpeg.cpp
-        src/client/replay/LibavEncoder.cpp
-        src/client/replay/Process.cpp
+        src/client/systems/replay/AviWriter.cpp
+        src/client/systems/replay/Ffmpeg.cpp
+        src/client/systems/replay/LibavEncoder.cpp
+        src/client/systems/replay/Process.cpp
         src/util/Paths.cpp)
     target_include_directories(ffmpeg_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_link_libraries(ffmpeg_selftest PRIVATE miniz Threads::Threads)
@@ -1167,8 +990,8 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     add_executable(timeline_selftest
         tests/timeline_selftest.cpp
-        src/client/replay/Timeline.cpp
-        src/client/ui/Json.cpp)
+        src/client/systems/replay/Timeline.cpp
+        src/util/JsonValue.cpp)
     target_include_directories(timeline_selftest PRIVATE src)
     target_compile_features(timeline_selftest PRIVATE cxx_std_23)
     add_test(NAME timeline_selftest COMMAND timeline_selftest)
@@ -1183,6 +1006,180 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_executable(cells16_selftest tests/cells16_selftest.cpp src/world/level/Level.cpp)
     target_include_directories(cells16_selftest PRIVATE src)
     add_test(NAME cells16_selftest COMMAND cells16_selftest)
+    add_executable(chunk_mesher_golden_selftest
+        tests/chunk_mesher_golden_selftest.cpp
+        src/client/systems/renderer/chunk/ChunkMesher.cpp
+        src/client/systems/gfx/Tessellator.cpp
+        src/client/systems/resources/ServerBlocks.cpp
+        src/util/Json.cpp
+        src/world/level/Level.cpp
+        src/world/level/block/BlockPalette.cpp
+        src/world/level/chunk/ChunkCodec.cpp
+        src/world/level/lighting/ChunkLighting.cpp
+        src/world/level/lighting/LightRegistry.cpp)
+    target_include_directories(chunk_mesher_golden_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(chunk_mesher_golden_selftest PRIVATE cxx_std_23)
+    target_link_libraries(chunk_mesher_golden_selftest PRIVATE glaze::glaze perlin_protocol Threads::Threads)
+    add_test(NAME chunk_mesher_golden_selftest COMMAND chunk_mesher_golden_selftest)
+    add_executable(timeline_editor_selftest
+        tests/timeline_editor_selftest.cpp
+        src/client/systems/replay/TimelineEditor.cpp
+        src/client/systems/replay/Timeline.cpp
+        src/util/JsonValue.cpp)
+    target_include_directories(timeline_editor_selftest PRIVATE src)
+    target_compile_features(timeline_editor_selftest PRIVATE cxx_std_23)
+    add_test(NAME timeline_editor_selftest COMMAND timeline_editor_selftest)
+    add_executable(export_form_selftest
+        tests/export_form_selftest.cpp
+        tests/stb_write_impl.cpp
+        src/client/systems/replay/ExportForm.cpp
+        src/client/systems/replay/ExportConfig.cpp
+        src/client/systems/replay/AviWriter.cpp
+        src/client/systems/replay/Ffmpeg.cpp
+        src/client/systems/replay/LibavEncoder.cpp
+        src/client/systems/replay/Process.cpp
+        src/client/systems/replay/ReplayFormat.cpp
+        src/util/JsonValue.cpp
+        src/util/Paths.cpp)
+    target_include_directories(export_form_selftest PRIVATE src "${stb_SOURCE_DIR}")
+    target_link_libraries(export_form_selftest PRIVATE miniz Threads::Threads)
+    target_compile_features(export_form_selftest PRIVATE cxx_std_23)
+    add_test(NAME export_form_selftest COMMAND export_form_selftest)
+    add_executable(hud_feed_selftest
+        tests/hud_feed_selftest.cpp
+        src/client/ui/HudFeed.cpp)
+    target_include_directories(hud_feed_selftest PRIVATE src "${glm_SOURCE_DIR}" "${concurrentqueue_SOURCE_DIR}")
+    target_compile_features(hud_feed_selftest PRIVATE cxx_std_23)
+    add_test(NAME hud_feed_selftest COMMAND hud_feed_selftest)
+    add_executable(sampler_rename_selftest
+        tests/sampler_rename_selftest.cpp
+        src/client/systems/javashaders/SamplerRename.cpp
+        src/client/systems/javashaders/GlslTokens.cpp)
+    target_include_directories(sampler_rename_selftest PRIVATE src)
+    target_compile_features(sampler_rename_selftest PRIVATE cxx_std_23)
+    add_test(NAME sampler_rename_selftest COMMAND sampler_rename_selftest)
+    add_executable(nethernet_signal_selftest
+        tests/nethernet_signal_selftest.cpp
+        src/network/NetherNetSignal.cpp)
+    target_include_directories(nethernet_signal_selftest PRIVATE src)
+    target_compile_features(nethernet_signal_selftest PRIVATE cxx_std_23)
+    add_test(NAME nethernet_signal_selftest COMMAND nethernet_signal_selftest)
+    add_executable(url_handler_selftest
+        tests/url_handler_selftest.cpp
+        src/util/UrlHandlerRegistration.cpp)
+    target_include_directories(url_handler_selftest PRIVATE src)
+    target_compile_features(url_handler_selftest PRIVATE cxx_std_23)
+    add_test(NAME url_handler_selftest COMMAND url_handler_selftest)
+    add_executable(screen_manager_selftest
+        tests/screen_manager_selftest.cpp
+        src/client/screen/ScreenManager.cpp)
+    target_include_directories(screen_manager_selftest PRIVATE src)
+    target_compile_features(screen_manager_selftest PRIVATE cxx_std_23)
+    add_test(NAME screen_manager_selftest COMMAND screen_manager_selftest)
+
+    add_executable(launch_overrides_selftest
+        tests/launch_overrides_selftest.cpp
+        src/client/application/LaunchOverrides.cpp
+        src/client/systems/bindings/KeyMapping.cpp
+        src/client/systems/bindings/Keys.cpp)
+    target_include_directories(launch_overrides_selftest PRIVATE src)
+    target_compile_features(launch_overrides_selftest PRIVATE cxx_std_23)
+    add_test(NAME launch_overrides_selftest COMMAND launch_overrides_selftest)
+
+    add_test(NAME layering COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_layers.py ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME singleton_ratchet COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_singletons.py ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME embedded_markup COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_markup.py)
+    add_test(NAME rml_format COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/format_rml.py --check)
+    add_test(NAME resource_layout COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_resources.py "${PERLIN_EMBED_SOURCE}")
+    add_executable(resources_selftest tests/resources_selftest.cpp src/util/Resources.cpp src/util/Paths.cpp
+        src/client/platform/EmbeddedProvider.cpp ${PERLIN_EMBED_SOURCE} ${PERLIN_EMBED_NAMES_SOURCE})
+    target_include_directories(resources_selftest PRIVATE src)
+    target_compile_features(resources_selftest PRIVATE cxx_std_23)
+    add_test(NAME resources_selftest COMMAND resources_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+    if(TARGET Perlin AND NOT CMAKE_CROSSCOMPILING AND NOT APPLE)
+        set(PERLIN_BEHAVIOR_SELFTESTS handler_dispatch title_controller pack_manager server_browser audio_director light_band_cache debug_overlay player_interaction hud_screen hud_screen_preview studio worldview worldview_preview connection_controllers connection_controllers_preview title_ports)
+        foreach(selftest IN LISTS PERLIN_BEHAVIOR_SELFTESTS)
+            add_test(NAME ${selftest}_selftest COMMAND Perlin --selftest ${selftest})
+            set(selftest_env "PERLIN_DATA_DIR=${CMAKE_BINARY_DIR}/selftest_data")
+            if(selftest MATCHES "_preview$")
+                list(APPEND selftest_env "PERLIN_PREVIEW=1")
+            endif()
+            if(selftest STREQUAL "connection_controllers_preview")
+                list(APPEND selftest_env "PERLIN_PREVIEW_DISCONNECT=b" "PERLIN_PREVIEW_LOADING=1")
+            endif()
+            set_tests_properties(${selftest}_selftest PROPERTIES PASS_REGULAR_EXPRESSION "${selftest}_test: ok"
+                                 ENVIRONMENT "${selftest_env}")
+        endforeach()
+        add_test(NAME executable_boot_resources COMMAND Perlin --help)
+        set_tests_properties(executable_boot_resources PROPERTIES FAIL_REGULAR_EXPRESSION "required resource missing"
+            PASS_REGULAR_EXPRESSION "Perlin options")
+        if(UNIX AND Python3_FOUND)
+            add_test(NAME runtime_smoke COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tools/runtime_smoke.py $<TARGET_FILE:Perlin>)
+            set_tests_properties(runtime_smoke PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 900 LABELS runtime
+                RUN_SERIAL TRUE)
+        endif()
+    endif()
+
+    add_executable(asset_data_test tests/asset_data_test.cpp
+        src/client/systems/entity/CapeGeometry.cpp
+        src/client/systems/text/FontProviderTables.cpp
+        src/client/systems/attachable/Geometry.cpp
+        src/util/JsonValue.cpp src/util/Resources.cpp src/util/Paths.cpp
+        src/client/platform/EmbeddedProvider.cpp ${PERLIN_EMBED_SOURCE} ${PERLIN_EMBED_NAMES_SOURCE})
+    target_include_directories(asset_data_test PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(asset_data_test PRIVATE cxx_std_23)
+    add_test(NAME asset_data_test COMMAND asset_data_test "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/legacy")
+    add_executable(session_policy_selftest
+        tests/session_policy_selftest.cpp
+        src/client/systems/multiplayer/SessionPolicy.cpp)
+    target_include_directories(session_policy_selftest PRIVATE src)
+    target_compile_features(session_policy_selftest PRIVATE cxx_std_23)
+    add_test(NAME session_policy_selftest COMMAND session_policy_selftest)
+    add_executable(frame_tracker_selftest
+        tests/frame_tracker_selftest.cpp
+        src/client/systems/javashaders/FrameTracker.cpp
+        src/client/systems/javashaders/Biomes.cpp)
+    target_include_directories(frame_tracker_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(frame_tracker_selftest PRIVATE cxx_std_23)
+    add_test(NAME frame_tracker_selftest COMMAND frame_tracker_selftest)
+    add_executable(pack_sky_mesh_selftest
+        tests/pack_sky_mesh_selftest.cpp
+        src/client/systems/renderer/gpu/PackSkyMesh.cpp)
+    target_include_directories(pack_sky_mesh_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(pack_sky_mesh_selftest PRIVATE cxx_std_23)
+    add_test(NAME pack_sky_mesh_selftest COMMAND pack_sky_mesh_selftest)
+    add_executable(shader_usage_selftest
+        tests/shader_usage_selftest.cpp
+        src/client/systems/javashaders/ShaderUsage.cpp)
+    target_include_directories(shader_usage_selftest PRIVATE src)
+    target_compile_features(shader_usage_selftest PRIVATE cxx_std_23)
+    add_test(NAME shader_usage_selftest COMMAND shader_usage_selftest)
+    add_executable(pack_convert_selftest
+        tests/pack_convert_selftest.cpp
+        src/client/systems/renderer/gpu/PackConvert.cpp)
+    target_include_directories(pack_convert_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(pack_convert_selftest PRIVATE cxx_std_23)
+    add_test(NAME pack_convert_selftest COMMAND pack_convert_selftest)
+    add_executable(pack_texture_util_selftest
+        tests/pack_texture_util_selftest.cpp
+        src/client/systems/javashaders/PackTextureUtil.cpp)
+    target_include_directories(pack_texture_util_selftest PRIVATE src)
+    target_compile_features(pack_texture_util_selftest PRIVATE cxx_std_23)
+    add_test(NAME pack_texture_util_selftest COMMAND pack_texture_util_selftest)
+    add_executable(shadow_math_selftest
+        tests/shadow_math_selftest.cpp
+        src/client/systems/renderer/gpu/ShadowMath.cpp)
+    target_include_directories(shadow_math_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(shadow_math_selftest PRIVATE cxx_std_23)
+    add_test(NAME shadow_math_selftest COMMAND shadow_math_selftest)
+    add_executable(post_effects_selftest
+        tests/post_effects_selftest.cpp
+        src/client/systems/renderer/gpu/PostEffects.cpp)
+    target_include_directories(post_effects_selftest PRIVATE src)
+    target_compile_features(post_effects_selftest PRIVATE cxx_std_23)
+    add_test(NAME post_effects_selftest COMMAND post_effects_selftest)
     add_executable(chunk_selftest
         tests/chunk_selftest.cpp
         src/world/level/chunk/ChunkCodec.cpp)
@@ -1194,28 +1191,43 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME packet_selftest COMMAND packet_selftest)
 
     add_executable(touch_input_selftest tests/touch_input_selftest.cpp
-        src/client/input/TouchControls.cpp src/client/input/Input.cpp
-        src/client/input/Keys.cpp src/client/input/KeyMapping.cpp)
+        src/client/systems/input/TouchControls.cpp src/client/systems/input/Input.cpp
+        src/client/systems/bindings/Keys.cpp src/client/systems/bindings/KeyMapping.cpp)
     target_include_directories(touch_input_selftest PRIVATE src "${concurrentqueue_SOURCE_DIR}")
     target_compile_features(touch_input_selftest PRIVATE cxx_std_23)
     add_test(NAME touch_input_selftest COMMAND touch_input_selftest)
     add_executable(input_selftest
         tests/input_selftest.cpp
-        src/client/input/Keys.cpp
-        src/client/input/KeyMapping.cpp
-        src/client/renderer/Environment.cpp
-        src/client/renderer/Fog.cpp
-        src/client/renderer/Lightmap.cpp
-        src/client/renderer/SkyGeometry.cpp)
+        src/client/systems/bindings/Keys.cpp
+        src/client/systems/bindings/KeyMapping.cpp
+        src/client/systems/renderer/Environment.cpp
+        src/client/systems/renderer/Fog.cpp
+        src/client/systems/gfx/Lightmap.cpp
+        src/client/systems/gfx/SkyGeometry.cpp)
     target_include_directories(input_selftest PRIVATE src "${glm_SOURCE_DIR}")
     add_test(NAME input_selftest COMMAND input_selftest)
 
     add_executable(physics_selftest
         tests/physics_selftest.cpp
-        src/client/player/PlayerPhysics.cpp)
+        src/world/movement/PlayerPhysics.cpp)
     target_include_directories(physics_selftest PRIVATE src)
     target_compile_features(physics_selftest PRIVATE cxx_std_23)
     add_test(NAME physics_selftest COMMAND physics_selftest)
+
+    add_executable(physics_step_dump
+        tests/physics_step_dump.cpp
+        src/world/movement/PlayerPhysics.cpp)
+    target_include_directories(physics_step_dump PRIVATE src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_compile_features(physics_step_dump PRIVATE cxx_std_23)
+    set(PHYSICS_STEP_SEEDS "")
+    foreach(seed RANGE 1 400)
+        list(APPEND PHYSICS_STEP_SEEDS ${seed})
+    endforeach()
+    add_test(NAME physics_step_golden
+        COMMAND ${CMAKE_COMMAND} -DPROGRAM=$<TARGET_FILE:physics_step_dump>
+                "-DARGS=${PHYSICS_STEP_SEEDS}"
+                -DGOLDEN=${CMAKE_SOURCE_DIR}/tests/physics_step_golden.txt
+                -P ${CMAKE_SOURCE_DIR}/tests/compare_output.cmake)
 
     add_executable(bds_numeric_selftest tests/bds_numeric_selftest.cpp)
     target_include_directories(bds_numeric_selftest PRIVATE src)
@@ -1259,7 +1271,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/bds_gliding.txt")
 
     add_executable(bds_gliding_trace_selftest tests/bds_gliding_trace_selftest.cpp
-        src/client/player/PlayerPhysics.cpp)
+        src/world/movement/PlayerPhysics.cpp)
     target_include_directories(bds_gliding_trace_selftest PRIVATE src)
     target_compile_features(bds_gliding_trace_selftest PRIVATE cxx_std_23)
     add_test(NAME bds_gliding_trace_selftest COMMAND bds_gliding_trace_selftest
@@ -1308,7 +1320,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_test(NAME bds_block_geometry_selftest COMMAND bds_block_geometry_selftest
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/bds_block_geometry.txt")
 
-    add_executable(voxel_shapes_selftest tests/voxel_shapes_selftest.cpp src/client/player/VoxelShapes.cpp)
+    add_executable(voxel_shapes_selftest tests/voxel_shapes_selftest.cpp src/world/movement/VoxelShapes.cpp)
     target_include_directories(voxel_shapes_selftest PRIVATE src)
     target_link_libraries(voxel_shapes_selftest PRIVATE perlin_protocol)
     add_test(NAME voxel_shapes_selftest COMMAND voxel_shapes_selftest)
@@ -1320,8 +1332,8 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/bds_block_offset.txt")
 
     add_executable(block_offset_definition_selftest tests/block_offset_definition_selftest.cpp
-        src/client/resources/BlockOffsetDefinition.cpp src/client/resources/ServerBlocks.cpp
-        src/client/ui/Json.cpp)
+        src/client/systems/resources/BlockOffsetDefinition.cpp src/client/systems/resources/ServerBlocks.cpp
+        src/util/JsonValue.cpp)
     target_include_directories(block_offset_definition_selftest PRIVATE src)
     target_compile_features(block_offset_definition_selftest PRIVATE cxx_std_23)
     add_test(NAME block_offset_definition_selftest COMMAND block_offset_definition_selftest
@@ -1413,7 +1425,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     add_executable(bedsim_trace_selftest
         tests/bedsim_trace_selftest.cpp
-        src/client/player/PlayerPhysics.cpp)
+        src/world/movement/PlayerPhysics.cpp)
     target_include_directories(bedsim_trace_selftest PRIVATE src)
     target_compile_features(bedsim_trace_selftest PRIVATE cxx_std_23)
     add_test(NAME bedsim_trace_selftest COMMAND bedsim_trace_selftest "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/bedsim_traces.txt")
@@ -1423,14 +1435,14 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(panorama_selftest PRIVATE cxx_std_23)
     add_test(NAME panorama_selftest COMMAND panorama_selftest)
 
-    add_executable(uitemplate_selftest tests/uitemplate_selftest.cpp src/client/ui/UiTemplate.cpp src/util/Paths.cpp)
+    add_executable(uitemplate_selftest tests/uitemplate_selftest.cpp src/client/ui/UiTemplate.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(uitemplate_selftest PRIVATE src)
     target_compile_features(uitemplate_selftest PRIVATE cxx_std_23)
     add_test(NAME uitemplate_selftest COMMAND uitemplate_selftest)
 
     add_executable(trace_diff
         tests/trace_diff.cpp
-        src/client/player/PlayerPhysics.cpp)
+        src/world/movement/PlayerPhysics.cpp)
     target_include_directories(trace_diff PRIVATE src)
     target_compile_features(trace_diff PRIVATE cxx_std_23)
 
@@ -1439,20 +1451,20 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(damage_selftest PRIVATE cxx_std_23)
     add_test(NAME damage_selftest COMMAND damage_selftest)
 
-    add_executable(models_selftest tests/models_selftest.cpp src/client/renderer/block/BlockModels.cpp)
+    add_executable(models_selftest tests/models_selftest.cpp src/client/systems/blocks/BlockModels.cpp)
     target_include_directories(models_selftest PRIVATE src)
     target_compile_features(models_selftest PRIVATE cxx_std_23)
-    add_test(NAME models_selftest COMMAND models_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_models.bin")
+    add_test(NAME models_selftest COMMAND models_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources/data/blocks/block_models.bin")
 
     file(GLOB TEXTURE_TEST_SOURCES CONFIGURE_DEPENDS
-        src/client/renderer/block/*.cpp src/client/resources/TextureLoader.cpp src/client/resources/TexturePack.cpp
-        src/client/resources/JavaPack.cpp)
+        src/client/systems/blocks/*.cpp src/client/systems/resources/TextureLoader.cpp src/client/systems/resources/TexturePack.cpp
+        src/client/systems/resources/JavaPack.cpp)
     add_executable(texture_selftest
         tests/texture_selftest.cpp ${TEXTURE_TEST_SOURCES}
-        src/client/Options.cpp src/client/input/KeyMapping.cpp
+        src/client/systems/config/Options.cpp src/client/systems/bindings/KeyMapping.cpp
         src/util/Json.cpp src/util/Paths.cpp
         src/world/level/block/BlockPalette.cpp src/util/Resources.cpp
-        src/client/resources/ServerPackRegistry.cpp src/client/resources/ServerBlocks.cpp src/client/ui/Json.cpp)
+        src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/resources/ServerBlocks.cpp src/util/JsonValue.cpp)
     target_include_directories(texture_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_link_libraries(texture_selftest PRIVATE glaze::glaze miniz Threads::Threads)
     target_compile_features(texture_selftest PRIVATE cxx_std_23)
@@ -1460,9 +1472,25 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         add_test(NAME texture_selftest COMMAND texture_selftest "${PERLIN_TEXTURE_TEST_ASSETS}")
     endif()
 
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    add_executable(block_library_dump
+        tests/block_library_dump.cpp ${TEXTURE_TEST_SOURCES}
+        src/client/systems/config/Options.cpp src/client/systems/bindings/KeyMapping.cpp
+        src/util/Json.cpp src/util/Paths.cpp
+        src/world/level/block/BlockPalette.cpp src/util/Resources.cpp
+        src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/resources/ServerBlocks.cpp src/util/JsonValue.cpp)
+    target_include_directories(block_library_dump PRIVATE src "${stb_SOURCE_DIR}")
+    target_link_libraries(block_library_dump PRIVATE glaze::glaze miniz Threads::Threads)
+    target_compile_features(block_library_dump PRIVATE cxx_std_23)
+    if(Python3_FOUND)
+        add_test(NAME block_library_golden
+            COMMAND ${Python3_EXECUTABLE} -I "${CMAKE_SOURCE_DIR}/tests/block_library_golden.py"
+                    $<TARGET_FILE:block_library_dump> "${CMAKE_SOURCE_DIR}/tests/block_library_golden.json")
+    endif()
+
     add_executable(javapack_selftest
-        tests/javapack_selftest.cpp src/client/resources/JavaPack.cpp src/client/resources/TexturePack.cpp
-        src/client/resources/TextureLoader.cpp src/util/Json.cpp)
+        tests/javapack_selftest.cpp src/client/systems/resources/JavaPack.cpp src/client/systems/resources/TexturePack.cpp
+        src/client/systems/resources/TextureLoader.cpp src/util/Json.cpp)
     target_include_directories(javapack_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_link_libraries(javapack_selftest PRIVATE glaze::glaze miniz Threads::Threads)
     target_compile_features(javapack_selftest PRIVATE cxx_std_23)
@@ -1470,11 +1498,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     add_executable(auth_selftest
         tests/auth_selftest.cpp
-        src/network/XboxAuth.cpp src/network/LoginBuilder.cpp src/network/ClientIdentity.cpp src/network/Http.cpp src/network/CaBundle.cpp src/network/PacketCipher.cpp
-        src/client/multiplayer/SkinLoader.cpp src/client/resources/TextureLoader.cpp src/util/Json.cpp)
+        src/network/XboxAuth.cpp src/network/XboxRelyingParties.cpp src/network/TokenStore.cpp src/network/AtomicFile.cpp src/network/SecretVault.cpp src/network/vault/DpapiVault.cpp src/network/vault/KeychainVault.cpp src/network/vault/LibsecretVault.cpp src/network/vault/KeystoreVault.cpp src/network/LoginBuilder.cpp src/network/ClientIdentity.cpp src/network/Http.cpp src/network/CaBundle.cpp src/network/PacketCipher.cpp
+        src/client/systems/resources/SkinLoader.cpp src/client/systems/resources/TextureLoader.cpp src/util/Json.cpp)
     target_include_directories(auth_selftest PRIVATE src "${stb_SOURCE_DIR}" "${httplib_SOURCE_DIR}")
     target_compile_definitions(auth_selftest PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT OPENSSL_SUPPRESS_DEPRECATED)
-    target_link_libraries(auth_selftest PRIVATE glaze::glaze miniz OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
+    target_link_libraries(auth_selftest PRIVATE glaze::glaze miniz OpenSSL::SSL OpenSSL::Crypto Threads::Threads ${CMAKE_DL_LIBS})
     if(WIN32)
         target_link_libraries(auth_selftest PRIVATE ws2_32 crypt32 winhttp)
     elseif(APPLE)
@@ -1484,10 +1512,22 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(auth_selftest PRIVATE cxx_std_23)
     add_test(NAME auth_selftest COMMAND auth_selftest)
 
+    add_executable(token_store_selftest
+        tests/token_store_selftest.cpp src/network/TokenStore.cpp src/network/AtomicFile.cpp src/network/SecretVault.cpp src/network/vault/DpapiVault.cpp src/network/vault/KeychainVault.cpp src/network/vault/LibsecretVault.cpp src/network/vault/KeystoreVault.cpp src/util/Json.cpp)
+    target_include_directories(token_store_selftest PRIVATE src)
+    target_link_libraries(token_store_selftest PRIVATE glaze::glaze OpenSSL::Crypto Threads::Threads ${CMAKE_DL_LIBS})
+    if(WIN32)
+        target_link_libraries(token_store_selftest PRIVATE crypt32)
+    elseif(APPLE)
+        target_link_libraries(token_store_selftest PRIVATE "-framework Security" "-framework CoreFoundation")
+    endif()
+    target_compile_features(token_store_selftest PRIVATE cxx_std_23)
+    add_test(NAME token_store_selftest COMMAND token_store_selftest)
+
     add_executable(rak_selftest tests/rak_selftest.cpp src/network/RakNet.cpp)
     add_executable(client_control_selftest tests/client_control_selftest.cpp
-        src/client/ClientControl.cpp src/client/input/Input.cpp src/client/input/InputManager.cpp
-        src/client/input/KeyMapping.cpp src/client/input/Keys.cpp src/client/Options.cpp src/util/Json.cpp src/util/Paths.cpp)
+        src/client/services/control/ClientControl.cpp src/client/systems/input/Input.cpp src/client/systems/input/InputManager.cpp
+        src/client/systems/bindings/KeyMapping.cpp src/client/systems/bindings/Keys.cpp src/client/systems/config/Options.cpp src/util/Json.cpp src/util/Resources.cpp src/util/Paths.cpp)
     target_include_directories(client_control_selftest PRIVATE src "${httplib_SOURCE_DIR}" "${stb_SOURCE_DIR}"
         "${concurrentqueue_SOURCE_DIR}" "${glm_SOURCE_DIR}")
     target_link_libraries(client_control_selftest PRIVATE glaze::glaze Threads::Threads)
@@ -1503,12 +1543,12 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     endif()
     target_compile_features(rak_selftest PRIVATE cxx_std_23)
 
-    add_executable(clientassets_selftest tests/clientassets_selftest.cpp src/client/resources/ClientAssets.cpp src/client/resources/TextureLoader.cpp src/util/Json.cpp)
+    add_executable(clientassets_selftest tests/clientassets_selftest.cpp src/client/systems/resources/ClientAssets.cpp src/client/systems/resources/TextureLoader.cpp src/util/Json.cpp)
     target_include_directories(clientassets_selftest PRIVATE src "${stb_SOURCE_DIR}")
     target_link_libraries(clientassets_selftest PRIVATE glaze::glaze miniz)
     target_compile_features(clientassets_selftest PRIVATE cxx_std_23)
 
-    add_executable(shaderpack_selftest tests/shaderpack_selftest.cpp src/client/resources/ShaderPack.cpp src/client/ui/Json.cpp tests/BundledShaderStub.cpp)
+    add_executable(shaderpack_selftest tests/shaderpack_selftest.cpp src/client/systems/resources/ShaderPack.cpp src/util/JsonValue.cpp tests/BundledShaderStub.cpp)
     target_include_directories(shaderpack_selftest PRIVATE src)
     target_link_libraries(shaderpack_selftest PRIVATE miniz)
     target_compile_features(shaderpack_selftest PRIVATE cxx_std_23)
@@ -1531,21 +1571,27 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     else()
         set(PERLIN_MOD_RUNTIME_SOURCE ${PERLIN_API_HOST_WASMEDGE_SOURCES})
     endif()
-    add_executable(mod_selftest tests/mod_selftest.cpp src/client/mods/ModManager.cpp ${PERLIN_MOD_RUNTIME_SOURCE}
-        ${PERLIN_API_HOST_CORE_SOURCES} src/client/ui/Json.cpp)
+    file(GLOB PERLIN_MOD_MANAGER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/mods/*.cpp")
+    add_executable(mod_selftest tests/mod_selftest.cpp ${PERLIN_MOD_MANAGER_SOURCES} ${PERLIN_MOD_RUNTIME_SOURCE}
+        ${PERLIN_API_HOST_CORE_SOURCES} src/util/JsonValue.cpp)
     target_include_directories(mod_selftest PRIVATE src ${PERLIN_API_INCLUDE_DIRS})
     target_link_libraries(mod_selftest PRIVATE ${PERLIN_WASM_ENGINE} Threads::Threads)
     target_compile_features(mod_selftest PRIVATE cxx_std_23)
+    add_executable(mod_scope_test tests/mod_scope_test.cpp ${PERLIN_MOD_MANAGER_SOURCES} ${PERLIN_MOD_RUNTIME_SOURCE}
+        ${PERLIN_API_HOST_CORE_SOURCES} src/util/JsonValue.cpp)
+    target_include_directories(mod_scope_test PRIVATE src ${PERLIN_API_INCLUDE_DIRS})
+    target_link_libraries(mod_scope_test PRIVATE ${PERLIN_WASM_ENGINE} Threads::Threads)
+    target_compile_features(mod_scope_test PRIVATE cxx_std_23)
+    add_test(NAME mod_scope_test COMMAND mod_scope_test)
     set(PERLIN_TEST_PLUGINS "${CMAKE_CURRENT_SOURCE_DIR}/tests/data/plugins")
     if(PERLIN_WASM3)
-
         add_test(NAME mod_selftest COMMAND mod_selftest
             "${PERLIN_TEST_PLUGINS}/hello32.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm")
     else()
-    add_test(NAME mod_selftest COMMAND mod_selftest
-        "${PERLIN_TEST_PLUGINS}/hello64.wasm" "${PERLIN_TEST_PLUGINS}/hello32.wasm"
-        "${PERLIN_TEST_PLUGINS}/loop_64.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm"
-        "${CMAKE_CURRENT_SOURCE_DIR}/plugins/prebuilt/waila.wasm")
+        add_test(NAME mod_selftest COMMAND mod_selftest
+            "${PERLIN_TEST_PLUGINS}/hello64.wasm" "${PERLIN_TEST_PLUGINS}/hello32.wasm"
+            "${PERLIN_TEST_PLUGINS}/loop_64.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm"
+            "${CMAKE_CURRENT_SOURCE_DIR}/plugins/prebuilt/waila.wasm")
     endif()
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
@@ -1568,6 +1614,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
             endif()
         endif()
     endif()
+
+    get_property(perlin_all_tests DIRECTORY PROPERTY TESTS)
+    foreach(perlin_test IN LISTS perlin_all_tests)
+        set_property(TEST ${perlin_test} APPEND PROPERTY ENVIRONMENT_MODIFICATION "PERLIN_RESOURCES=set:${CMAKE_CURRENT_SOURCE_DIR}/resources")
+    endforeach()
 endif()
 
 get_property(PERLIN_LOCAL_TARGETS DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
@@ -1600,6 +1651,7 @@ if(PERLIN_BUILD_SERVER)
 
     if(TARGET perlin-server)
         install(TARGETS perlin-server RUNTIME DESTINATION .)
-        install(FILES resources/block_states.json resources/block_destroy.tsv resources/extra_items.txt DESTINATION resources)
+        install(FILES resources/data/blocks/block_states.json resources/data/blocks/block_destroy.tsv DESTINATION resources/data/blocks)
+        install(FILES resources/data/items/extra_items.txt DESTINATION resources/data/items)
     endif()
 endif()

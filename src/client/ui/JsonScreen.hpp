@@ -1,8 +1,8 @@
 #pragma once
-#include "client/ui/HudState.hpp"
-#include "client/ui/Json.hpp"
+#include "client/systems/model/HudState.hpp"
+#include "util/JsonValue.hpp"
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/UiLayout.hpp"
 
 #include <atomic>
@@ -27,28 +27,28 @@ namespace perlin::ui {
 
     class ScreenData : public UiData {
     public:
-        using Row = std::unordered_map<std::string, Json>;
+        using Row = std::unordered_map<std::string, json::Value>;
 
-        void Set(const std::string& name, Json value) { globals[name] = std::move(value); }
-        void Set(const std::string& name, bool value) { globals[name] = Json(value); }
-        void Set(const std::string& name, const char* value) { globals[name] = Json(std::string(value)); }
-        void Set(const std::string& name, const std::string& value) { globals[name] = Json(value); }
-        void Set(const std::string& name, double value) { globals[name] = Json(value); }
+        void Set(const std::string& name, json::Value value) { globals[name] = std::move(value); }
+        void Set(const std::string& name, bool value) { globals[name] = json::Value(value); }
+        void Set(const std::string& name, const char* value) { globals[name] = json::Value(std::string(value)); }
+        void Set(const std::string& name, const std::string& value) { globals[name] = json::Value(value); }
+        void Set(const std::string& name, double value) { globals[name] = json::Value(value); }
         std::vector<Row>& Collection(const std::string& name) { return collections[name]; }
         std::vector<FactoryItem>& FactoryItems(const std::string& name) { return factories[name]; }
 
-        std::function<bool(const std::string& name, Json& out)> fallback;
+        std::function<bool(const std::string& name, json::Value& out)> fallback;
 
-        bool Global(const std::string& name, Json& out) const override;
+        bool Global(const std::string& name, json::Value& out) const override;
         int CollectionSize(const std::string& collection) const override;
         bool CollectionValue(const std::string& collection, int index, const std::string& binding,
-                             Json& out) const override;
+                             json::Value& out) const override;
         std::vector<FactoryItem> Factory(const std::string& name) const override;
 
         std::string Signature() const;
 
     private:
-        std::unordered_map<std::string, Json> globals;
+        std::unordered_map<std::string, json::Value> globals;
         std::unordered_map<std::string, std::vector<Row>> collections;
         std::unordered_map<std::string, std::vector<FactoryItem>> factories;
     };
@@ -66,7 +66,7 @@ namespace perlin::ui {
         uint64_t Generation() const;
 
         bool Build(const std::string& reference, const ScreenData& data, int guiW, int guiH, float scroll,
-                   std::string& rml, const Vars* rootVars = nullptr);
+                   SceneDoc& doc, const Vars* rootVars = nullptr);
 
         void SetItems(std::unordered_map<std::string, std::vector<HudItem>> table) {
             items = std::move(table);
@@ -77,7 +77,7 @@ namespace perlin::ui {
         float ViewportHeight() const { return emitter.ViewportHeight(); }
 
         bool Animating() const { return anim.animating; }
-        RmlEmitter& Emitter() { return emitter; }
+        SceneEmitter& Emitter() { return emitter; }
 
         void SetPaperDoll(std::string key) { paperDoll = std::move(key); }
 
@@ -98,10 +98,10 @@ namespace perlin::ui {
         std::unordered_map<std::string, std::unique_ptr<Node>> trees;
         std::unordered_set<std::string> failed;
         std::unordered_set<std::string> overriddenNs;
-        RmlEmitter emitter;
+        SceneEmitter emitter;
         UiServices services;
         AnimHost anim;
-        std::unordered_map<std::string, Json> animCache;
+        std::unordered_map<std::string, json::Value> animCache;
         std::thread worker;
         std::atomic<int> state{0};
         std::atomic<uint64_t> generation{0};

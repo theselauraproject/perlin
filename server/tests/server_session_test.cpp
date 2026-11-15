@@ -16,7 +16,6 @@
 
 #include <cmath>
 #include <filesystem>
-#include <fstream>
 
 using namespace perlin::server;
 namespace proto = perlin::proto2225;
@@ -621,7 +620,7 @@ int main(int argc, char** argv) {
             run("/fill 0 70 0 3 72 3 air hollow");
             CHECK(texts().contains("blocks filled"));
             run("/fill 0 70 0 100 100 100 stone");
-            CHECK(texts().find("Too many blocks in the specified area (maximum 32768") != std::string::npos);
+            CHECK(texts().contains("Too many blocks in the specified area (maximum 32768"));
             run("/setblock 100000 60 5 stone");
             CHECK(texts().contains("That position is not loaded"));
             run("/title @s actionbar \"hello there\"");
@@ -665,7 +664,7 @@ int main(int argc, char** argv) {
                     removed = removed || r.entityIdSelf == static_cast<int64_t>(pig);
                 CHECK(removed);
                 run("/summon nothing_at_all");
-                CHECK(texts().find("nothing_at_all") != std::string::npos || alice.Take<proto::AddEntityPacket>().empty());
+                CHECK(texts().contains("nothing_at_all") || alice.Take<proto::AddEntityPacket>().empty());
                 alice.inbox.clear();
                 run("/summon zombie ~1.5 ~ ~");
                 CHECK(alice.Take<proto::AddEntityPacket>().size() == 1);

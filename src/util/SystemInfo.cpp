@@ -1,11 +1,11 @@
 #include "util/SystemInfo.hpp"
+#include "util/Strings.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <sstream>
 #include <thread>
 
 #if defined(_WIN32)
@@ -25,10 +25,8 @@
 
 namespace perlin::sysinfo {
     namespace {
-        std::string Trim(std::string s) {
-            const auto notSpace = [](unsigned char c) { return !std::isspace(c); };
-            s.erase(s.begin(), std::find_if(s.begin(), s.end(), notSpace));
-            s.erase(std::find_if(s.rbegin(), s.rend(), notSpace).base(), s.end());
+        std::string CollapseSpaces(std::string_view text) {
+            const std::string s = str::Trim(text);
             std::string out;
             for (char c : s) {
                 if (c == ' ' && !out.empty() && out.back() == ' ')
@@ -44,7 +42,7 @@ namespace perlin::sysinfo {
             std::string line;
             const std::string k = std::string(key) + ":";
             while (std::getline(f, line))
-                if (line.compare(0, k.size(), k) == 0)
+                if (line.starts_with(k))
                     return std::strtoull(line.c_str() + k.size(), nullptr, 10);
             return 0;
         }
@@ -60,10 +58,10 @@ namespace perlin::sysinfo {
         std::ifstream f("/proc/cpuinfo");
         std::string line;
         while (std::getline(f, line)) {
-            if (line.compare(0, 10, "model name") == 0 || line.compare(0, 8, "Hardware") == 0) {
+            if (line.starts_with("model name") || line.starts_with("Hardware")) {
                 const size_t colon = line.find(':');
                 if (colon != std::string::npos)
-                    return Trim(line.substr(colon + 1));
+                    return CollapseSpaces(line.substr(colon + 1));
             }
         }
         return {};
@@ -72,19 +70,19 @@ namespace perlin::sysinfo {
         DWORD size = sizeof(buffer);
         if (RegGetValueA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
                          "ProcessorNameString", RRF_RT_REG_SZ, nullptr, buffer, &size) == ERROR_SUCCESS)
-            return Trim(buffer);
+            return CollapseSpaces(buffer);
         return {};
 #elif defined(__APPLE__)
         char buffer[256] = {};
         size_t size = sizeof(buffer);
         if (sysctlbyname("machdep.cpu.brand_string", buffer, &size, nullptr, 0) == 0)
-            return Trim(buffer);
+            return CollapseSpaces(buffer);
         return {};
 #elif defined(__FreeBSD__)
         char buffer[256] = {};
         size_t size = sizeof(buffer);
         if (sysctlbyname("hw.model", buffer, &size, nullptr, 0) == 0)
-            return Trim(buffer);
+            return CollapseSpaces(buffer);
         return {};
 #else
         return {};
@@ -225,7 +223,7 @@ namespace perlin::sysinfo {
             size = sizeof(desc);
             if (RegGetValueA(key, sub.c_str(), "DriverDesc", RRF_RT_REG_SZ, nullptr, desc, &size) ==
                 ERROR_SUCCESS)
-                found = Trim(desc);
+                found = CollapseSpaces(desc);
         }
         RegCloseKey(key);
         return found;
@@ -248,7 +246,7 @@ namespace perlin::sysinfo {
                     continue;
                 }
                 if (inVendor && line.size() > 6 && line[1] != '\t' && line.compare(1, 4, device) == 0) {
-                    std::string name = Trim(line.substr(5));
+                    std::string name = CollapseSpaces(line.substr(5));
                     const size_t open = name.find('[');
                     const size_t close = name.rfind(']');
                     if (open != std::string::npos && close != std::string::npos && close > open)
@@ -261,7 +259,7 @@ namespace perlin::sysinfo {
 #elif defined(__APPLE__)
         if (vendorId == 0x106B) {
             std::string cpu = CpuName();
-            if (cpu.compare(0, 5, "Apple") == 0)
+            if (cpu.starts_with("Apple"))
                 return cpu;
         }
         return {};

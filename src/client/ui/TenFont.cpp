@@ -1,6 +1,6 @@
 #include "client/ui/TenFont.hpp"
 
-#include "client/ui/McFont.hpp"
+#include "client/systems/text/McFont.hpp"
 
 #include <stb_truetype.h>
 
@@ -11,8 +11,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include "util/Log.hpp"
+#include "util/FileIo.hpp"
 
 namespace perlin::ui {
     namespace fs = std::filesystem;
@@ -55,8 +55,8 @@ namespace perlin::ui {
             Collect(h / ".local/share/mcpelauncher/versions", 3, found);
             Collect(h / ".var/app/io.mrarm.mcpelauncher/data/mcpelauncher/versions", 3, found);
 
-            std::sort(found.begin(), found.end(),
-                      [](const fs::path& a, const fs::path& b) { return a.string() > b.string(); });
+            std::ranges::sort(found,
+                              [](const fs::path& a, const fs::path& b) { return a.string() > b.string(); });
             out.insert(out.end(), found.begin(), found.end());
             return out;
         }
@@ -106,7 +106,7 @@ namespace perlin::ui {
             if (!in)
                 continue;
             auto loaded = std::make_shared<Impl>();
-            loaded->data.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            file::ReadRest(in, loaded->data);
             const int offset = stbtt_GetFontOffsetForIndex(loaded->data.data(), 0);
             if (offset < 0 || !stbtt_InitFont(&loaded->info, loaded->data.data(), offset))
                 continue;

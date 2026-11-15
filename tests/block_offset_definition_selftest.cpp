@@ -1,5 +1,5 @@
-#include "client/resources/BlockOffsetDefinition.hpp"
-#include "client/resources/ServerBlocks.hpp"
+#include "client/systems/resources/BlockOffsetDefinition.hpp"
+#include "client/systems/resources/ServerBlocks.hpp"
 
 #include <bit>
 #include <cmath>
@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
         for (auto& word : words)
             if (!(row >> word))
                 return 1;
-        ui::Json definition = ui::Json::MakeObject();
+        json::Value definition = json::Value::MakeObject();
         constexpr const char* names[] = {"x", "y", "z"};
         bool representable = true;
         for (int axis = 0; axis < 3; ++axis) {
@@ -41,12 +41,12 @@ int main(int argc, char** argv) {
             const double descriptionHigh = static_cast<double>(high) * 16.0;
             representable &= low <= high && std::abs(descriptionLow) <= std::numeric_limits<float>::max() &&
                              std::abs(descriptionHigh) <= std::numeric_limits<float>::max();
-            auto range = ui::Json::MakeObject();
-            range.Set("min", ui::Json(descriptionLow));
-            range.Set("max", ui::Json(descriptionHigh));
-            auto value = ui::Json::MakeObject();
+            auto range = json::Value::MakeObject();
+            range.Set("min", json::Value(descriptionLow));
+            range.Set("max", json::Value(descriptionHigh));
+            auto value = json::Value::MakeObject();
             value.Set("range", std::move(range));
-            value.Set("steps", ui::Json(static_cast<double>(words[5 + axis * 3])));
+            value.Set("steps", json::Value(static_cast<double>(words[5 + axis * 3])));
             definition.Set(names[axis], std::move(value));
         }
         if (!representable)
@@ -75,12 +75,12 @@ int main(int argc, char** argv) {
     for (const char* text : {"false", "{\"x\":3}", "{\"x\":{\"steps\":-1}}", "{\"x\":{\"steps\":0.5}}",
                              "{\"x\":{\"steps\":4294967296}}", "{\"z\":{\"range\":{\"min\":2,\"max\":1}}}",
                              "{\"x\":{\"range\":{\"min\":-1e99,\"max\":0}}}"}) {
-        ui::Json value;
+        json::Value value;
         std::string error;
-        if (!ui::Json::Parse(text, value, error) || ParseBlockOffsetDefinition(&value))
+        if (!json::Value::Parse(text, value, error) || ParseBlockOffsetDefinition(&value))
             return 1;
     }
-    ui::Json defaults = ui::Json::MakeObject();
+    json::Value defaults = json::Value::MakeObject();
     if (!ParseBlockOffsetDefinition(&defaults))
         return 1;
     registry.Reset();

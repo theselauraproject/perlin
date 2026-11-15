@@ -1,5 +1,5 @@
 #pragma once
-#include "client/ui/Json.hpp"
+#include "util/JsonValue.hpp"
 #include "client/ui/JsonUi.hpp"
 
 #include <functional>
@@ -20,10 +20,10 @@ namespace perlin::ui {
     class UiData {
     public:
         virtual ~UiData() = default;
-        virtual bool Global(const std::string& name, Json& out) const = 0;
+        virtual bool Global(const std::string& name, json::Value& out) const = 0;
         virtual int CollectionSize(const std::string& collection) const { return 0; }
         virtual bool CollectionValue(const std::string& collection, int index, const std::string& binding,
-                                     Json& out) const {
+                                     json::Value& out) const {
             return false;
         }
         virtual std::vector<FactoryItem> Factory(const std::string& name) const { return {}; }
@@ -46,7 +46,7 @@ namespace perlin::ui {
     };
 
     struct UiServices {
-        std::function<Json(const std::string& ref, const std::string& ns)> animDef;
+        std::function<json::Value(const std::string& ref, const std::string& ns)> animDef;
         AnimHost* anim = nullptr;
         std::function<float(const std::string& text, float scale, bool ten)> textWidth;
         std::function<float(float scale, bool ten)> lineHeight;
@@ -59,8 +59,8 @@ namespace perlin::ui {
         std::string type;
         std::string id;
         bool visible = true;
-        Json bag = Json::MakeObject();
-        Json p = Json::MakeObject();
+        json::Value bag = json::Value::MakeObject();
+        json::Value p = json::Value::MakeObject();
         float x = 0, y = 0, w = 0, h = 0;
         float ax = 0, ay = 0;
         int layer = 0;
@@ -78,15 +78,15 @@ namespace perlin::ui {
         std::vector<std::string> lines;
 
         std::string Str(const char* key, const std::string& fallback = {}) const {
-            const Json* v = p.Find(key);
+            const json::Value* v = p.Find(key);
             return v && v->IsString() ? v->string : fallback;
         }
         double Num(const char* key, double fallback) const {
-            const Json* v = p.Find(key);
+            const json::Value* v = p.Find(key);
             return v && v->IsNumber() ? v->number : fallback;
         }
         bool Bool(const char* key, bool fallback) const {
-            const Json* v = p.Find(key);
+            const json::Value* v = p.Find(key);
             if (!v)
                 return fallback;
             if (v->IsBool())
@@ -95,11 +95,9 @@ namespace perlin::ui {
                 return v->number != 0;
             return fallback;
         }
-        const Json* Get(const char* key) const { return p.Find(key); }
+        const json::Value* Get(const char* key) const { return p.Find(key); }
     };
 
     std::unique_ptr<LNode> EvaluateTree(const Node& root, const UiData& data, const UiServices& services,
                                         float guiW, float guiH);
-
-    std::string StripFormatting(const std::string& text);
 }

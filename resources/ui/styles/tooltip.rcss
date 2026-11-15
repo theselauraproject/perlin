@@ -1,0 +1,31 @@
+mcimg {
+    display: block;
+    position: absolute;
+}
+
+#tip {
+    z-index: 40;
+    pointer-events: none;
+}
+
+#tip .tipb {
+    left: 0px;
+    top: 0px;
+    z-index: 1;
+}
+
+#tip .txt {
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    display: block;
+    font-family: minecraft-shadow;
+    font-size: 8px;
+    line-height: 10px;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+#tip .ln {
+    white-space: nowrap;
+}

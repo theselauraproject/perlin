@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds resources/block_models.bin: per-Bedrock-block-state baked Java models.
+"""Builds resources/data/blocks/block_models.bin: per-Bedrock-block-state baked Java models.
 
 Inputs (not shipped in the repo; see README):
   JAVA_ASSETS   extracted assets/minecraft of the Java client jar (models/block, blockstates)
@@ -22,8 +22,8 @@ from javamodels import Models, DIRS, block_rotation
 from blockstates import load_all
 from translate import translate
 
-JAVA_ASSETS = os.environ.get("JAVA_ASSETS", "/tmp/claude-0/jm/assets/minecraft")
-OUT = os.environ.get("OUT", os.path.join(HERE, "..", "..", "resources", "block_models.bin"))
+JAVA_ASSETS = os.environ["JAVA_ASSETS"]
+OUT = os.environ.get("OUT", os.path.join(HERE, "..", "..", "resources", "data", "blocks", "block_models.bin"))
 
 KEEP_LEGACY = {
     "grass_block", "mycelium", "podzol", "water", "lava", "bubble_column", "fire", "soul_fire", "redstone_wire",

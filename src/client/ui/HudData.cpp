@@ -1,5 +1,5 @@
 #include "client/ui/HudData.hpp"
-#include "client/i18n/Lang.hpp"
+#include "client/systems/i18n/Lang.hpp"
 
 #include <algorithm>
 #include <initializer_list>
@@ -7,35 +7,35 @@
 
 namespace perlin::ui {
     namespace {
-        Json B(bool v) {
-            return Json(v);
+        json::Value B(bool v) {
+            return json::Value(v);
         }
-        Json N(double v) {
-            return Json(v);
+        json::Value N(double v) {
+            return json::Value(v);
         }
     }
 
     Vars EngineRootVariables() {
         Vars v;
-        Json xp = Json::MakeArray();
-        xp.Push(Json(0.5019608));
-        xp.Push(Json(1.0));
-        xp.Push(Json(0.1254902));
+        json::Value xp = json::Value::MakeArray();
+        xp.Push(json::Value(0.5019608));
+        xp.Push(json::Value(1.0));
+        xp.Push(json::Value(0.1254902));
         v["$experience_text_color"] = xp;
-        v["$desktop_screen"] = Json(true);
-        v["$pocket_screen"] = Json(false);
-        v["$console_screen"] = Json(false);
-        v["$gamepad_screen"] = Json(false);
-        v["$touch"] = Json(false);
-        v["$education_edition"] = Json(false);
-        v["$compress_hud_width"] = Json(false);
-        v["$is_editor_mode_enabled"] = Json(false);
-        v["$is_holographic"] = Json(false);
-        v["$is_vr"] = Json(false);
-        v["$splitscreen"] = Json(false);
-        v["$ps4"] = Json(false);
-        v["$xbox"] = Json(false);
-        v["$switch"] = Json(false);
+        v["$desktop_screen"] = json::Value(true);
+        v["$pocket_screen"] = json::Value(false);
+        v["$console_screen"] = json::Value(false);
+        v["$gamepad_screen"] = json::Value(false);
+        v["$touch"] = json::Value(false);
+        v["$education_edition"] = json::Value(false);
+        v["$compress_hud_width"] = json::Value(false);
+        v["$is_editor_mode_enabled"] = json::Value(false);
+        v["$is_holographic"] = json::Value(false);
+        v["$is_vr"] = json::Value(false);
+        v["$splitscreen"] = json::Value(false);
+        v["$ps4"] = json::Value(false);
+        v["$xbox"] = json::Value(false);
+        v["$switch"] = json::Value(false);
 
         for (const char* on : {"$win10_edition",
                                "$microsoft_os",
@@ -59,7 +59,7 @@ namespace perlin::ui {
                                "$edu_feedback_ignored",
                                "$edu_ignore_cloud_storage",
                                "$supports_user_configured_safezone"})
-            v[on] = Json(true);
+            v[on] = json::Value(true);
         for (const char* off : {"$is_console",
                                 "$console_edition",
                                 "$pocket_edition",
@@ -120,20 +120,20 @@ namespace perlin::ui {
                                 "$destructive_three_buttons_visible",
                                 "$single_button_checkbox_visible",
                                 "$two_buttons_checkbox_visible"})
-            v[off] = Json(false);
+            v[off] = json::Value(false);
         for (const char* zero : {"$top_vertical_safezone_size", "$bottom_vertical_safezone_size",
                                  "$left_horizontal_safezone_size", "$right_horizontal_safezone_size"})
-            v[zero] = Json(0.0);
-        v["$version"] = Json(std::string("1.26.60"));
-        v["$store_button_text"] = Json(std::string("menu.store"));
+            v[zero] = json::Value(0.0);
+        v["$version"] = json::Value(std::string("1.26.60"));
+        v["$store_button_text"] = json::Value(std::string("menu.store"));
         return v;
     }
 
-    bool HudData::Global(const std::string& name, Json& out) const {
+    bool HudData::Global(const std::string& name, json::Value& out) const {
         const bool survival = s.Survival();
         const bool spectator = s.mode == GameMode::Spectator;
         const bool hud = s.visible;
-        const auto set = [&](Json v) {
+        const auto set = [&](json::Value v) {
             out = std::move(v);
             return true;
         };
@@ -145,14 +145,13 @@ namespace perlin::ui {
         if (name == "#hud_visible_centered_touch" || name == "#hud_visible_not_centered" ||
             name == "#hotbar_visible_not_centered" || name == "#hotbar_visible_not_centered_resizable")
             return set(B(false));
-        // 1.26.60 ui gates chat_panel's #visible on these editor bindings; unknown left the chat hidden
         if (name == "#editor_chat_visible")
             return set(B(true));
         if (name == "#editor_chat_layout_active")
             return set(B(false));
         if (name == "#editor_chat_offset") {
-            Json zero = Json::MakeArray();
-            zero.array = {Json(0), Json(0)};
+            json::Value zero = json::Value::MakeArray();
+            zero.array = {json::Value(0), json::Value(0)};
             return set(std::move(zero));
         }
         if (name == "#hud_alpha")
@@ -183,25 +182,25 @@ namespace perlin::ui {
         if (name == "#exp_progress")
             return set(N(std::clamp(s.xpProgress, 0.0f, 1.0f)));
         if (name == "#level_number")
-            return set(Json(std::to_string(s.xpLevel)));
+            return set(json::Value(std::to_string(s.xpLevel)));
         if (name == "#level_number_visible")
             return set(B(survival && s.xpLevel > 0));
         if (name == "#boss_hud_padding" || name == "#boss_hud_touch_padding")
             return set(B(false));
         if (name == "#boss_grid_dimension") {
-            Json a = Json::MakeArray();
+            json::Value a = json::Value::MakeArray();
             a.Push(N(1));
             a.Push(N(static_cast<double>(s.bossBars.size())));
             return set(std::move(a));
         }
         if (name == "#hotbar_grid_dimensions") {
-            Json a = Json::MakeArray();
+            json::Value a = json::Value::MakeArray();
             a.Push(N(9));
             a.Push(N(1));
             return set(std::move(a));
         }
         if (name == "#item_text")
-            return set(Json(s.itemName));
+            return set(json::Value(s.itemName));
         if (name == "#item_name_alpha")
             return set(N(s.itemNameAlpha));
         if (name == "#actionbar_alpha")
@@ -209,9 +208,9 @@ namespace perlin::ui {
         if (name == "#title_alpha")
             return set(N(s.titleAlpha));
         if (name == "#hud_title_text_string")
-            return set(Json(s.title));
+            return set(json::Value(s.title));
         if (name == "#hud_subtitle_text_string")
-            return set(Json(s.subtitle));
+            return set(json::Value(s.subtitle));
         if (name == "#tooltip_visible")
             return set(B(!s.itemName.empty()));
         if (name == "#status_effects_visible")
@@ -219,7 +218,7 @@ namespace perlin::ui {
         if (name == "#scoreboard_sidebar_visible")
             return set(B(hud && s.sidebarVisible));
         if (name == "#objective_sidebar_name")
-            return set(Json(s.sidebarTitle));
+            return set(json::Value(s.sidebarTitle));
         if (name == "#scoreboard_sidebar_size")
             return set(N(static_cast<double>(s.sidebar.size())));
         if (name == "#objective_background_opacity")
@@ -242,8 +241,8 @@ namespace perlin::ui {
     }
 
     bool HudData::CollectionValue(const std::string& collection, int index, const std::string& binding,
-                                  Json& out) const {
-        const auto set = [&](Json v) {
+                                  json::Value& out) const {
+        const auto set = [&](json::Value v) {
             out = std::move(v);
             return true;
         };
@@ -254,7 +253,7 @@ namespace perlin::ui {
                 return false;
             const auto& bar = s.bossBars[static_cast<size_t>(index)];
             if (binding == "#bossName")
-                return set(Json(bar.title));
+                return set(json::Value(bar.title));
             if (binding == "#progress_percentage")
                 return set(N(std::clamp(bar.progress, 0.0f, 1.0f)));
             return false;
@@ -264,9 +263,9 @@ namespace perlin::ui {
                 return false;
             const HudSidebarRow& row = s.sidebar[static_cast<size_t>(index)];
             if (binding == "#player_name_sidebar" || binding == "#player_name")
-                return set(Json(row.name));
+                return set(json::Value(row.name));
             if (binding == "#player_score_sidebar" || binding == "#player_score")
-                return set(Json(std::to_string(row.score)));
+                return set(json::Value(std::to_string(row.score)));
             return false;
         }
         if (collection != "hotbar_items" || index < 0 || index >= 9)
@@ -279,7 +278,7 @@ namespace perlin::ui {
         if (binding == "#item_id_aux")
             return set(N(item.Empty() ? 0 : 1));
         if (binding == "#inventory_stack_count")
-            return set(Json(!item.Empty() && item.count > 1 ? std::to_string(item.count) : std::string()));
+            return set(json::Value(!item.Empty() && item.count > 1 ? std::to_string(item.count) : std::string()));
         if (binding == "#stack_count_visible")
             return set(B(!item.Empty() && item.count > 1));
         if (binding == "#item_durability_visible")
@@ -314,13 +313,13 @@ namespace perlin::ui {
         } else if (name == "hud_actionbar_text_factory") {
             if (s.visible && !s.actionBar.empty() && s.actionBarAlpha > 0.0f) {
                 FactoryItem f{"hud_actionbar_text", {}};
-                f.vars["$actionbar_text"] = Json(s.actionBar);
+                f.vars["$actionbar_text"] = json::Value(s.actionBar);
                 items.push_back(std::move(f));
             }
         } else if (name == "hud_title_text_factory") {
             if (s.visible && !s.title.empty() && s.titleAlpha > 0.0f) {
                 FactoryItem f{"hud_title_text", {}};
-                f.vars["$title_alpha"] = Json(0.6);
+                f.vars["$title_alpha"] = json::Value(0.6);
                 items.push_back(std::move(f));
             }
         }
@@ -434,6 +433,11 @@ namespace perlin::ui {
             for (const std::string& l : s.debugRight)
                 mixs(l);
         }
+        mixf(s.chatScale);
+        mix(static_cast<uint64_t>(s.chatWrapWidth) | (static_cast<uint64_t>(s.chatLineHeight) << 20) |
+            (static_cast<uint64_t>(s.chatPageLines) << 40));
+        mixq(s.chatTextAlpha);
+        mixq(s.chatBackgroundAlpha);
         for (const auto& l : s.chatLines) {
             mixs(l.text);
             mixq(l.alpha);

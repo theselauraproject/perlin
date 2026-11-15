@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <functional>
 #include <string_view>
-#include "client/ui/HudState.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/systems/model/HudState.hpp"
+#include "client/ui/SceneEmit.hpp"
 
 namespace perlin::ui {
     class JavaRandom {
@@ -20,7 +20,7 @@ namespace perlin::ui {
     };
 
     uint32_t LocatorColorFor(const std::array<uint8_t, 16>& id);
-    void RegisterHudRenderers(RmlEmitter& emitter, const HudState& state, const UiServices& services);
+    void RegisterHudRenderers(SceneEmitter& emitter, const HudState& state, const UiServices& services);
 
     using HudElementFilter = std::function<bool(std::string_view renderer, float& dx, float& dy)>;
     void SetHudElementFilter(HudElementFilter filter);

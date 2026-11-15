@@ -2,12 +2,12 @@
 
 #include "core/Json.hpp"
 #include "core/Log.hpp"
+#include "util/FileIo.hpp"
 
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <set>
-#include <sstream>
 
 #ifndef PERLIN_SERVER_RESOURCE_DIR
 #define PERLIN_SERVER_RESOURCE_DIR ""
@@ -28,9 +28,11 @@ namespace perlin::server {
               std::string(PERLIN_SERVER_RESOURCE_DIR), std::string("../resources")}) {
             if (base.empty())
                 continue;
-            const fs::path p = fs::path(base) / name;
-            if (fs::is_regular_file(p, ec))
-                return p.string();
+            for (const char* sub : {"", "data/blocks", "data/items"}) {
+                const fs::path p = fs::path(base) / sub / name;
+                if (fs::is_regular_file(p, ec))
+                    return p.string();
+            }
         }
         return {};
     }
@@ -200,7 +202,7 @@ namespace perlin::server {
         byHash.clear();
         byName.clear();
         std::vector<std::string> sorted = names;
-        std::sort(sorted.begin(), sorted.end());
+        std::ranges::sort(sorted);
         sorted.erase(std::unique(sorted.begin(), sorted.end()), sorted.end());
         for (const std::string& name : sorted) {
             const auto it = defaultHash.find("minecraft:" + name);
@@ -219,16 +221,14 @@ namespace perlin::server {
 
     bool BlockCatalog::Load(const std::string& blockStatesPath, const std::string& itemNamesPath,
                             std::string& error, const std::string& extraItemsPath) {
-        std::ifstream states_in(blockStatesPath, std::ios::binary);
-        if (!states_in) {
+        std::string statesText;
+        if (!::perlin::file::Read(blockStatesPath, statesText)) {
             error = "cannot read " + blockStatesPath;
             return false;
         }
-        std::stringstream text;
-        text << states_in.rdbuf();
         json::Value root;
         std::string parseError;
-        if (!json::Parse(text.str(), root, &parseError) || !root.IsArray()) {
+        if (!json::Parse(statesText, root, &parseError) || !root.IsArray()) {
             error = blockStatesPath + ": " + (parseError.empty() ? "not an array" : parseError);
             return false;
         }

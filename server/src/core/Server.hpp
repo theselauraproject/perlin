@@ -243,7 +243,13 @@ namespace perlin::server {
         std::string Describe() const;
 
     private:
+        struct CommandRegistrar;
         void RegisterBuiltins();
+        void RegisterInfoCommands(const CommandRegistrar& r);
+        void RegisterPlayerCommands(const CommandRegistrar& r);
+        void RegisterAccessCommands(const CommandRegistrar& r);
+        void RegisterWorldCommands(const CommandRegistrar& r);
+        void RegisterServerCommands(const CommandRegistrar& r);
         void BuildItemPackets();
         void ApplyBlock(int x, int y, int z, uint16_t block) { ApplyBlock(kOverworld, x, y, z, block); }
         void ApplyBlock(int dimension, int x, int y, int z, uint16_t block);

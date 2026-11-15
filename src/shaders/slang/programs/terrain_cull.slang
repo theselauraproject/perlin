@@ -1,7 +1,3 @@
-// gpu-driven terrain: one thread per section record, writes compacted indexed indirect draws per (page, layer)
-// bucket and counts them for draw_indexed_indirect_count. mode 0 draws everything that survives frustum, radius
-// and cave tests; modes 1 and 2 are the two halves of occlusion culling: 1 draws what was visible last frame,
-// 2 tests the rest against the depth pyramid built from 1 and keeps the visibility bits for the next frame
 
 struct SectionRecord
 {
@@ -13,8 +9,6 @@ struct SectionRecord
     float maxY;
     float maxZ;
     uint bucket;
-    // index counts of the facing groups (+x +y +z other -z -y -x), stored back to back from first; unsplit
-    // layers keep everything in faces[3]
     uint faces[7];
     uint flags;
     int chunkX;
@@ -39,7 +33,6 @@ struct CullParams
     uint4 hizOffsets[4];
 };
 
-// bucket: x = first command, y = capacity
 [[vk::binding(0, 0)]] StructuredBuffer<SectionRecord> records : register(t0, space0);
 [[vk::binding(1, 0)]] StructuredBuffer<uint2> buckets : register(t1, space0);
 [[vk::binding(2, 0)]] StructuredBuffer<uint> caveBits : register(t2, space0);
@@ -51,7 +44,6 @@ struct CullParams
 [[vk::binding(8, 0)]] ConstantBuffer<CullParams> params : register(b8, space0);
 [[vk::binding(10, 0)]] RWStructuredBuffer<uint> commandsShadow : register(u10, space0);
 
-// mode 3 culls shadow casters: the light's box as six planes, over one slice of the records
 struct PushData
 {
     uint mode;
@@ -64,7 +56,6 @@ struct PushData
     uint pad1;
     float4 shadowPlanes[6];
 };
-// conduit's d3d12 root constants sit at b0 in space 15
 [[vk::push_constant]] ConstantBuffer<PushData> push : register(b0, space15);
 
 static const uint kFlagLod = 1u;
@@ -118,7 +109,6 @@ float hizAt(uint level, uint w, int x, int y)
     return hiz[params.hizOffsets[level >> 2][level & 3u] + uint(y) * w + uint(x)];
 }
 
-// reversed z: 1 near, 0 far; the pyramid keeps the farthest depth of each block
 bool occluded(SectionRecord r)
 {
     float3 c = params.camera.xyz;
@@ -135,7 +125,6 @@ bool occluded(SectionRecord r)
         if (clip.w <= 1e-3f)
             return false;
         float3 ndc = clip.xyz / clip.w;
-        // clip space is y-up on every backend: row 0 of the depth target is ndc y = +1
         float2 uv = float2(ndc.x * 0.5f + 0.5f, 0.5f - ndc.y * 0.5f);
         lo = min(lo, uv);
         hi = max(hi, uv);
@@ -146,7 +135,6 @@ bool occluded(SectionRecord r)
     lo = saturate(lo);
     hi = saturate(hi);
     float2 size = float2(float(params.depthWidth), float(params.depthHeight));
-    // one pixel of slack each side: the depth was drawn with the temporal jitter, the test uses the plain matrix
     int2 p0 = max(int2(lo * size) - 1, int2(0, 0));
     int2 p1 = min(int2(hi * size) + 1, int2(params.depthWidth, params.depthHeight) - 1);
     int extent = max(p1.x - p0.x, p1.y - p0.y) + 1;
@@ -292,7 +280,6 @@ void csMain(uint3 id : SV_DispatchThreadID)
         if (i >= push.sliceEnd || i >= params.recordCount)
             return;
         SectionRecord sr = records[i];
-        // shadows are drawn without culling: every facing casts
         if (sr.bucket != 0xFFFFFFFFu && insideShadow(sr))
             emitShadow(sr);
         return;

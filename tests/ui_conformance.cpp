@@ -10,8 +10,8 @@
 
 #include "client/ui/HudData.hpp"
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/McFont.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/systems/text/McFont.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/TenFont.hpp"
 #include "client/ui/UiLayout.hpp"
 #include "util/Paths.hpp"
@@ -34,11 +34,11 @@ namespace {
              !ec && it != end; it.increment(ec)) {
             if (!it->is_regular_file(ec) || it->path().extension() != ".json")
                 continue;
-            Json document;
+            json::Value document;
             std::string error;
-            if (!Json::Parse(ReadAll(it->path()), document, error) || !document.IsObject())
+            if (!json::Value::Parse(ReadAll(it->path()), document, error) || !document.IsObject())
                 continue;
-            const Json* ns = document.Find("namespace");
+            const json::Value* ns = document.Find("namespace");
             if (!ns || !ns->IsString())
                 continue;
             for (const auto& [key, value] : document.object) {
@@ -57,9 +57,9 @@ namespace {
 
     class Globals : public UiData {
     public:
-        bool Global(const std::string&, Json&) const override { return false; }
+        bool Global(const std::string&, json::Value&) const override { return false; }
         int CollectionSize(const std::string&) const override { return 0; }
-        bool CollectionValue(const std::string&, int, const std::string&, Json&) const override {
+        bool CollectionValue(const std::string&, int, const std::string&, json::Value&) const override {
             return false;
         }
         std::vector<FactoryItem> Factory(const std::string&) const override { return {}; }

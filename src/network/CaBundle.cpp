@@ -1,5 +1,3 @@
-// Generated: Mozilla root certificates (120). Used on Windows next to the system store, because a fresh
-// or offline Windows install often lacks the roots that Xbox / Minecraft services chain to.
 #include <cstddef>
 
 namespace perlin::http {

@@ -1,10 +1,10 @@
-#include "client/renderer/block/BlockModels.hpp"
+#include "client/systems/blocks/BlockModels.hpp"
 
 #include <cmath>
 #include <cstdio>
 
 int main(int argc, char** argv) {
-    const char* path = argc > 1 ? argv[1] : "resources/block_models.bin";
+    const char* path = argc > 1 ? argv[1] : "resources/data/blocks/block_models.bin";
     perlin::BlockModels m;
     if (!m.Loaded() && !m.Load(path)) {
         std::printf("FAIL: cannot load %s\n", path);

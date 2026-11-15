@@ -1,0 +1,107 @@
+<rml>
+    <head>
+        <title>bed</title>
+        <style>
+            body {
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                margin: 0;
+                padding: 0;
+                background: transparent;
+            }
+
+            .btn {
+                display: block;
+                position: absolute;
+                width: 200px;
+                height: 20px;
+                background-color: #000000;
+                z-index: 5;
+            }
+
+            .btn div {
+                display: block;
+                position: absolute;
+            }
+
+            .btn .rim {
+                left: 1px;
+                top: 1px;
+                width: 197px;
+                height: 16px;
+                background-color: #aaaaaa;
+            }
+
+            .btn .face {
+                left: 2px;
+                top: 2px;
+                width: 196px;
+                height: 15px;
+                background-color: #6f6f6f;
+            }
+
+            .btn .shade {
+                left: 1px;
+                top: 17px;
+                width: 198px;
+                height: 2px;
+                background-color: #565656;
+            }
+
+            .btn .edge {
+                left: 198px;
+                top: 1px;
+                width: 1px;
+                height: 16px;
+                background-color: #565656;
+            }
+
+            .btn .lbl {
+                font-family: minecraft-shadow;
+                left: 0px;
+                top: 6px;
+                width: 200px;
+                height: 9px;
+                font-size: 8px;
+                line-height: 9px;
+                text-align: center;
+                color: #ffffff;
+            }
+
+            .btn:hover {
+                background-color: #ffffff;
+            }
+
+            .btn:hover .rim {
+                background-color: #afafaf;
+            }
+
+            .btn:hover .face {
+                background-color: #757575;
+            }
+
+            .btn:hover .shade,
+            .btn:hover .edge {
+                background-color: #5c5c5c;
+            }
+
+            #scene {
+                position: absolute;
+                left: 0px;
+                top: 0px;
+            }
+
+            {{include:ui/styles/java_widget_style.rcss}}
+        </style>
+    </head>
+    <body>
+        <div id="scene" data-model="overlay" data-style-width="w + 'px'" data-style-height="h + 'px'">
+            <div id="leave" class="btn" data-style-left="btn_x + 'px'" data-style-top="btn_y + 'px'">
+
+            {{include:ui/components/java_widget_sprites.rml}}
+            <div class="lbl">{{label}}</div>
+        </div>
+        </div>
+    </body>
+</rml>

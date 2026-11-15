@@ -137,10 +137,10 @@ namespace perlin::server {
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++) {
                     const ChunkPos q{p.x + dx, p.z + dz};
-                    if (std::find(wanted.begin(), wanted.end(), q) == wanted.end())
+                    if (std::ranges::find(wanted, q) == wanted.end())
                         wanted.push_back(q);
                 }
-        std::sort(wanted.begin(), wanted.end(), [&](const ChunkPos& a, const ChunkPos& b) {
+        std::ranges::sort(wanted, [&](const ChunkPos& a, const ChunkPos& b) {
             const bool ia = std::find(batch.begin(), batch.end(), a) != batch.end();
             const bool ib = std::find(batch.begin(), batch.end(), b) != batch.end();
             return ia > ib;
@@ -151,7 +151,7 @@ namespace perlin::server {
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++) {
                     const ChunkPos q{batch[i].x + dx, batch[i].z + dz};
-                    const size_t at = static_cast<size_t>(std::find(wanted.begin(), wanted.end(), q) - wanted.begin());
+                    const size_t at = static_cast<size_t>(std::ranges::find(wanted, q) - wanted.begin());
                     region[(dz + 1) * 3 + dx + 1] = raws[at].get();
                 }
             if (!region[4])

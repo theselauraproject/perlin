@@ -1,4 +1,6 @@
 #pragma once
+#include "client/ui/Scene.hpp"
+
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -21,6 +23,6 @@ namespace perlin::ui {
         bool Empty() const { return bars.empty() && !scoreboard && !toast; }
     };
 
-    std::string BuildServerLayerRml(const ServerLayerData& data, int guiW, int guiH);
+    SceneDoc BuildServerLayer(const ServerLayerData& data, int guiW, int guiH);
     std::string ServerLayerSignature(const ServerLayerData& data, int guiW, int guiH);
 }

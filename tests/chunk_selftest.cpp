@@ -1,5 +1,5 @@
 #include "protocol/Packets.hpp"
-#include "network/VarInt.hpp"
+#include "util/VarInt.hpp"
 #include "world/level/chunk/ChunkCodec.hpp"
 
 #include <cstdio>

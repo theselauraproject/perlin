@@ -1,5 +1,5 @@
-#include "client/ClientControl.hpp"
-#include "client/input/InputManager.hpp"
+#include "client/services/control/ClientControl.hpp"
+#include "client/systems/input/InputManager.hpp"
 #include "util/Json.hpp"
 #include <httplib.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION

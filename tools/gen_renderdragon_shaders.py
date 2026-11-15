@@ -58,8 +58,6 @@ TERRAIN_VERTEX = '''void main()
     v_fog = vec4(u_fogColor.rgb, max(rdFog(relative), 1.0 - visibility));
 }
 '''
-# i_data: one instance per draw carries what used to be per-draw uniforms (rows of the model matrix, ui params,
-# overlay, glint, material), so ui, entity and particle draws share one uniform block and batch into multi draws
 UI_VARYING = '''vec3 a_position : POSITION;
 vec4 a_color0 : COLOR0;
 vec2 a_texcoord0 : TEXCOORD0;
@@ -172,8 +170,6 @@ void main()
     v_fog = vec4(u_fogColor.rgb, rdFog(world - u_camera.xyz) * i_data7.x);
     v_uiParams = i_data4;
     v_uiOverlay = i_data5;
-    // Bedrock foil: two layers rotated -20 and 80 degrees about the texture centre, scaled by
-    // glint zw and scrolled along U by glint xy.
     vec4 glintA = i_data6;
     vec2 glintC = a_texcoord0 - vec2(0.5, 0.5);
     vec2 glint0 = vec2(dot(glintC, vec2(0.9396926, -0.3420201)), dot(glintC, vec2(0.3420201, 0.9396926))) + vec2(0.5, 0.5);

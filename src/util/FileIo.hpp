@@ -8,8 +8,6 @@
 #include <vector>
 
 namespace perlin::file {
-    // the rest of a stream in one read: sized from the end position when the stream can seek, char by char
-    // (istreambuf_iterator, an order of magnitude slower) only when it cannot
     template <class Container> inline void ReadRest(std::istream& in, Container& out) {
         const std::istream::pos_type start = in.tellg();
         if (start != std::istream::pos_type(-1) && in.seekg(0, std::ios::end)) {
@@ -19,7 +17,7 @@ namespace perlin::file {
                 out.resize(n);
                 if (n) {
                     in.read(reinterpret_cast<char*>(out.data()), static_cast<std::streamsize>(n));
-                    out.resize(static_cast<size_t>(in.gcount())); // shorter if the file shrank meanwhile
+                    out.resize(static_cast<size_t>(in.gcount()));
                 }
                 return;
             }
@@ -29,6 +27,9 @@ namespace perlin::file {
     }
 
     inline bool Read(const std::filesystem::path& path, std::string& out) {
+        std::error_code ec;
+        if (std::filesystem::is_directory(path, ec))
+            return false;
         std::ifstream in(path, std::ios::binary);
         if (!in)
             return false;
@@ -43,6 +44,9 @@ namespace perlin::file {
     }
 
     inline bool ReadBytes(const std::filesystem::path& path, std::vector<uint8_t>& out) {
+        std::error_code ec;
+        if (std::filesystem::is_directory(path, ec))
+            return false;
         std::ifstream in(path, std::ios::binary);
         if (!in)
             return false;

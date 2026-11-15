@@ -62,7 +62,7 @@ def main():
     mono = Image.new('RGBA', bleed.size, (255, 255, 255, 0))
     mono.putalpha(bleed.convert('L').point(lambda v: 0 if v < 64 else min(255, (v - 64) * 255 // 191)))
 
-    save(resized(master, 256), 'resources', 'perlin_icon.png')
+    save(resized(master, 256), 'resources', 'branding', 'perlin_icon.png')
 
     os.makedirs(os.path.join(ROOT, 'packaging', 'windows'), exist_ok=True)
     master.save(os.path.join(ROOT, 'packaging', 'windows', 'perlin.ico'),

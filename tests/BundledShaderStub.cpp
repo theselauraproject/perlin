@@ -1,4 +1,4 @@
-#include "client/resources/BundledShaderPack.hpp"
+#include "client/systems/resources/BundledShaderPack.hpp"
 
 namespace perlin {
     const char* BundledShaderMeta() {

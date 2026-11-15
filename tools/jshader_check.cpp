@@ -1,13 +1,13 @@
-#include "client/javashaders/BlockStates.hpp"
-#include "client/javashaders/GlslangBridge.hpp"
-#include "client/javashaders/PackSource.hpp"
-#include "client/javashaders/PipelineConfig.hpp"
-#include "client/javashaders/ProgramSet.hpp"
-#include "client/javashaders/RhiBackend.hpp"
-#include "client/javashaders/ShaderScreens.hpp"
-#include "client/javashaders/Biomes.hpp"
-#include "client/javashaders/UniformTable.hpp"
-#include "client/javashaders/Transform.hpp"
+#include "client/systems/javashaders/BlockStates.hpp"
+#include "client/systems/javashaders/GlslangBridge.hpp"
+#include "client/systems/javashaders/PackSource.hpp"
+#include "client/systems/javashaders/PipelineConfig.hpp"
+#include "client/systems/javashaders/ProgramSet.hpp"
+#include "client/systems/javashaders/RhiBackend.hpp"
+#include "client/systems/javashaders/ShaderScreens.hpp"
+#include "client/systems/javashaders/Biomes.hpp"
+#include "client/systems/javashaders/UniformTable.hpp"
+#include "client/systems/javashaders/Transform.hpp"
 
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>

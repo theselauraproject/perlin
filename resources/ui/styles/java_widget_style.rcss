@@ -1,0 +1,59 @@
+.btn,
+.btn:hover,
+.btn.off,
+.btn.off:hover,
+.btn.track,
+.btn.track:hover {
+    background-color: transparent;
+}
+
+.jw {
+    display: block;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.jw-h,
+.jw-d {
+    display: none;
+}
+
+.btn:hover .jw-h {
+    display: block;
+}
+
+.btn:hover .jw-n {
+    display: none;
+}
+
+.btn.off .jw-d,
+.btn.track .jw-d {
+    display: block;
+}
+
+.btn.off .jw-n,
+.btn.off .jw-h,
+.btn.track .jw-n,
+.btn.track .jw-h {
+    display: none;
+}
+
+.btn.track .knob .jw-n {
+    display: block;
+}
+
+.btn.track .knob .jw-d,
+.btn.track .knob .jw-h {
+    display: none;
+}
+
+.btn.track:hover .knob .jw-h {
+    display: block;
+}
+
+.btn.track:hover .knob .jw-n {
+    display: none;
+}

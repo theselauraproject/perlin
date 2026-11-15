@@ -189,7 +189,7 @@ namespace perlin::server {
         if (!item)
             return -1;
         std::string n = item->name;
-        if (n.compare(0, 10, "minecraft:") == 0)
+        if (n.starts_with("minecraft:"))
             n.erase(0, 10);
         const auto ends = [&](const char* s) {
             const size_t l = std::char_traits<char>::length(s);
@@ -379,7 +379,7 @@ namespace perlin::server {
         const auto note = [&](const proto::StackRequestSlotInfo& info) {
             const auto key = std::make_pair(info.slotType.containerId, static_cast<int>(info.slot));
             if (info.slotType.containerId != Container::CreativeOutput &&
-                std::find(touched.begin(), touched.end(), key) == touched.end())
+                std::ranges::find(touched, key) == touched.end())
                 touched.push_back(key);
         };
 
@@ -518,7 +518,7 @@ namespace perlin::server {
             const ItemStack* s = inv.Resolve(type, slot);
             if (!s)
                 continue;
-            auto it = std::find_if(containers.begin(), containers.end(),
+            auto it = std::ranges::find_if(containers,
                                    [&](const auto& c) { return c.slotType.containerId == type; });
             if (it == containers.end()) {
                 proto::ItemStackResponsesEntryContainersEntry c;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reads the Java client jar and writes resources/item_display.json: for every item the display transforms (first/third person
+"""Reads the Java client jar and writes resources/data/items/item_display.json: for every item the display transforms (first/third person
 hands, ground, fixed, head, gui) of the model it shows in the hand and on the ground, plus the model kind
 (flat sprite / block model / special renderer). Reference data only - the transforms are numbers, no assets are copied.
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "util/TaskGroup.hpp"
 #include "plugin/PluginApi.hpp"
 
 #include "perlin/host.hpp"
@@ -78,5 +79,6 @@ namespace perlin::server {
         std::vector<HttpDone> httpDone;
         std::atomic<int> httpActive{0};
         std::vector<std::pair<std::string, abi::ModMessageData>> mail;
+        TaskGroup httpTasks;
     };
 }

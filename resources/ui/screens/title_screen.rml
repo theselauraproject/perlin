@@ -1,0 +1,170 @@
+<rml>
+    <head>
+        <title>title</title>
+        <style>
+            body {
+                position: absolute;
+                left: 0px;
+                top: 0px;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                background: transparent;
+            }
+
+            #scene {
+                left: 0px;
+                top: 0px;
+                width: 100%;
+                height: 100%;
+            }
+
+            div {
+                display: block;
+                position: absolute;
+            }
+
+            mcimg,
+            mcitem {
+                display: block;
+                position: absolute;
+            }
+
+            .btn {
+                position: absolute;
+            }
+
+            .btn .h {
+                display: none;
+            }
+
+            .btn .tip {
+                display: none;
+            }
+
+            .btn:hover .tip {
+                display: block;
+            }
+
+            .btn:hover .h {
+                display: block;
+            }
+
+            .blab {
+                color: #ffffff;
+            }
+
+            .btn.off .blab {
+                color: #a0a0a0;
+            }
+
+            .sbtn .blab {
+                color: #ffffff;
+            }
+
+            .panoclip {
+                background-color: #000000;
+            }
+
+            #pano {
+                animation: 240s linear infinite pano;
+            }
+
+            .right {
+                text-align: right;
+            }
+
+            .txt {
+                font-family: minecraft-shadow;
+                font-size: 8px;
+                line-height: 9px;
+                color: #ffffff;
+                white-space: nowrap;
+            }
+
+            .gray {
+                color: #808080;
+            }
+
+            .dim {
+                color: #a0a0a0;
+            }
+
+            .ctr {
+                text-align: center;
+            }
+
+            .pg .pt {
+                display: none;
+            }
+
+            .pg:hover .pt {
+                display: block;
+            }
+
+            .row .go {
+                display: none;
+            }
+
+            .row:hover .go {
+                display: block;
+            }
+
+            .field {
+                position: absolute;
+            }
+
+            .green {
+                color: #55ff55;
+            }
+
+            .yellow {
+                color: #ffff55;
+            }
+
+            .red {
+                color: #ff5555;
+            }
+
+            .dark {
+                color: #606060;
+            }
+
+            .acc .hl {
+                display: none;
+            }
+
+            .acc:hover .hl {
+                display: block;
+            }
+
+            .sbtn {
+                position: absolute;
+            }
+
+            .sbtn .h {
+                display: none;
+            }
+
+            .sbtn:hover .h {
+                display: block;
+            }
+
+            @keyframes pano {
+                from {
+                    left: 0px;
+                }
+
+                to {
+                    left: -{{span}}px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div id="scene" data-model="overlay">
+            {{scene:body}}
+        </div>
+    </body>
+</rml>

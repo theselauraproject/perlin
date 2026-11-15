@@ -1,5 +1,5 @@
 #pragma once
-#include "client/ui/Json.hpp"
+#include "util/JsonValue.hpp"
 
 #include <deque>
 #include <memory>
@@ -9,12 +9,12 @@
 #include <vector>
 
 namespace perlin::ui {
-    using Vars = std::unordered_map<std::string, Json>;
+    using Vars = std::unordered_map<std::string, json::Value>;
 
     class UiLibrary {
     public:
         struct Def {
-            const Json* json = nullptr;
+            const json::Value* json = nullptr;
             std::string key;
             std::string ns;
         };
@@ -25,7 +25,7 @@ namespace perlin::ui {
 
         const Def* Find(const std::string& ns, const std::string& name);
 
-        const std::unordered_map<std::string, std::vector<std::pair<std::string, const Json*>>>*
+        const std::unordered_map<std::string, std::vector<std::pair<std::string, const json::Value*>>>*
         Nested(const std::string& ns);
         const Vars& GlobalVariables();
         const std::vector<std::string>& Problems() const { return problems; }
@@ -49,7 +49,7 @@ namespace perlin::ui {
             bool loaded = false;
             std::unordered_map<std::string, Def> defs;
 
-            std::unordered_map<std::string, std::vector<std::pair<std::string, const Json*>>> nested;
+            std::unordered_map<std::string, std::vector<std::pair<std::string, const json::Value*>>> nested;
         };
 
         void LoadNamespace(const std::string& name, Namespace& ns);
@@ -58,7 +58,7 @@ namespace perlin::ui {
         std::vector<std::string> roots;
         std::vector<File> files;
         std::unordered_map<std::string, Namespace> namespaces;
-        std::deque<Json> documents;
+        std::deque<json::Value> documents;
         Vars globals;
         bool globalsLoaded = false;
         std::string globalsPath;
@@ -70,8 +70,8 @@ namespace perlin::ui {
     struct Node {
         std::string name;
         std::string path;
-        Json props = Json::MakeObject();
-        std::vector<Json> bindings;
+        json::Value props = json::Value::MakeObject();
+        std::vector<json::Value> bindings;
         std::vector<std::unique_ptr<Node>> children;
         std::unique_ptr<Node> gridTemplate;
         std::vector<std::pair<std::string, std::unique_ptr<Node>>> factoryControls;
@@ -88,6 +88,6 @@ namespace perlin::ui {
     std::unique_ptr<Node> BuildTree(UiLibrary& library, const std::string& reference, const Vars& rootVars,
                                     BuildReport& report);
 
-    Json Substitute(const Json& value, const Vars& vars,
+    json::Value Substitute(const json::Value& value, const Vars& vars,
                     std::unordered_set<std::string>* unresolved = nullptr);
 }

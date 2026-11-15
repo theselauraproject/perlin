@@ -1,6 +1,6 @@
 #pragma once
-#include "client/Perlin.hpp"
-#include "client/input/TouchControls.hpp"
+#include "client/platform/Application.hpp"
+#include "client/systems/input/TouchControls.hpp"
 #include "client/platform/AppPlatform.hpp"
 
 #include <atomic>
@@ -11,24 +11,25 @@
 
 struct SDL_Window;
 union SDL_Event;
+struct SDL_KeyboardEvent;
+struct SDL_TextInputEvent;
+struct SDL_MouseMotionEvent;
+struct SDL_MouseButtonEvent;
 
 class AppPlatform_SDL : public AppPlatform {
 public:
-    explicit AppPlatform_SDL(perlin::LaunchArgs args) : args(std::move(args)) {}
+    AppPlatform_SDL(perlin::LaunchArgs args, perlin::ApplicationFactory factory)
+        : createApplication(std::move(factory)), args(std::move(args)) {}
 
     bool Initialize() override;
     void Run() override;
     void Shutdown() override;
     void PumpFrame() override;
 
-    NativeWindowInfo GetNativeWindowInfo() override;
+    perlin::NativeWindowInfo GetNativeWindowInfo() override;
     void GetFramebufferSize(int& width, int& height) override;
     void RenewRenderSurface() override;
     void SetTitle(const std::string& title) override;
-    bool HasProgressWindow() const override { return !progFailed; }
-    void SetProgressWindow(bool visible, const std::string& title, const std::string& line1,
-                           const std::string& line2, float fraction) override;
-    bool TakeProgressCancel() override { return progCancel.exchange(false); }
     void ShowSignInCode(const std::string& url, const std::string& code) override;
     bool ConfirmDialog(const std::string& title, const std::string& message) override;
     std::unique_ptr<perlin::RenderContext> CreateRenderContext() override;
@@ -39,6 +40,20 @@ public:
 
 private:
     void HandleEvent(const SDL_Event& event);
+    float PointerStep() const;
+    bool LeaveTouchModeForMouse();
+    bool IsTvPointerKey(const SDL_KeyboardEvent& key, perlin::Input* input) const;
+    void OnFocusLost(const SDL_Event& event, perlin::Input* input);
+    void OnGamepadAdded(const SDL_Event& event, perlin::Input* input);
+    void OnGamepadRemoved(const SDL_Event& event, perlin::Input* input);
+    void OnGamepadButton(const SDL_Event& event, perlin::Input* input);
+    void OnKeyDown(const SDL_KeyboardEvent& key, perlin::Input* input);
+    void OnKeyUp(const SDL_KeyboardEvent& key, perlin::Input* input);
+    void OnTextInput(const SDL_TextInputEvent& text, perlin::Input* input);
+    void OnMouseMotion(const SDL_MouseMotionEvent& motion, perlin::Input* input);
+    void OnMouseButtonDown(const SDL_MouseButtonEvent& button, perlin::Input* input);
+    void OnMouseButtonUp(const SDL_MouseButtonEvent& button, perlin::Input* input);
+    void OnFinger(const SDL_Event& event, perlin::Input* input);
     void SetTouchMode(bool on);
     void PumpGamepad();
     struct SDL_Gamepad* gamepad = nullptr;
@@ -85,22 +100,13 @@ private:
     void* renderSurface =
         nullptr;
     void ResizeRenderSurface();
-    NativeWindowInfo native;
-    std::unique_ptr<perlin::Perlin> game;
+    perlin::NativeWindowInfo native;
+    perlin::ApplicationFactory createApplication;
+    std::unique_ptr<perlin::Application> game;
     std::atomic<int> framebufferWidth{1280};
     std::atomic<int> framebufferHeight{720};
     std::mutex titleMutex;
     std::string pendingTitle;
     bool titleDirty = false;
-    std::mutex progMutex;
-    bool progWant = false, progDirty = false;
-    std::string progTitle, progLine1, progLine2;
-    float progFraction = 0.0f;
-    struct SDL_Window* progWindow = nullptr;
-    struct SDL_Renderer* progRenderer = nullptr;
-    unsigned progWindowId = 0;
-    std::atomic<bool> progFailed{false};
-    std::atomic<bool> progCancel{false};
-    void UpdateProgressWindow();
     perlin::LaunchArgs args;
 };

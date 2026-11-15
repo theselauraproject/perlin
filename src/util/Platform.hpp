@@ -12,26 +12,47 @@
 #endif
 
 namespace perlin::platform {
-#if defined(PERLIN_MOBILE)
-    inline constexpr bool kMobile = true;
+    enum class Os { Windows, MacOs, Linux, FreeBsd, Android, Ios, Web };
+
+    inline constexpr Os kOs =
+#if defined(__EMSCRIPTEN__)
+        Os::Web;
+#elif defined(__ANDROID__)
+        Os::Android;
+#elif defined(PERLIN_IOS)
+        Os::Ios;
+#elif defined(_WIN32)
+        Os::Windows;
+#elif defined(__APPLE__)
+        Os::MacOs;
+#elif defined(__FreeBSD__)
+        Os::FreeBsd;
 #else
-    inline constexpr bool kMobile = false;
+        Os::Linux;
 #endif
 
-    inline constexpr const char* kName =
-#if defined(__EMSCRIPTEN__)
-        "web";
-#elif defined(__ANDROID__)
-        "android";
-#elif defined(PERLIN_IOS)
-        "ios";
-#elif defined(_WIN32)
-        "windows";
-#elif defined(__APPLE__)
-        "macos";
-#elif defined(__FreeBSD__)
-        "freebsd";
-#else
-        "linux";
-#endif
+    inline constexpr bool kMobile = kOs == Os::Android || kOs == Os::Ios;
+    inline constexpr bool kDesktop = !kMobile && kOs != Os::Web;
+
+    constexpr const char* Name(Os os) {
+        switch (os) {
+        case Os::Web:
+            return "web";
+        case Os::Android:
+            return "android";
+        case Os::Ios:
+            return "ios";
+        case Os::Windows:
+            return "windows";
+        case Os::MacOs:
+            return "macos";
+        case Os::FreeBsd:
+            return "freebsd";
+        case Os::Linux:
+            return "linux";
+        }
+        return "unknown";
+    }
+
+    inline constexpr const char* kName = Name(kOs);
 }

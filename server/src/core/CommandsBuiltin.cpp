@@ -14,7 +14,6 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
-#include <sstream>
 #include <system_error>
 
 namespace perlin::server {
@@ -94,17 +93,25 @@ namespace perlin::server {
         }
     }
 
+    struct Server::CommandRegistrar {
+        std::function<void(Session*, const std::string&)> say;
+        std::function<void(Session*, const std::string&)> fail;
+        std::function<void(std::vector<const char*>, const char*, bool, std::vector<std::string>,
+                           std::function<void(CommandCtx&)>)>
+            add;
+    };
+
     void Server::RegisterBuiltins() {
-        const auto say = [](Session* to, const std::string& text) {
+        CommandRegistrar r;
+        r.say = [](Session* to, const std::string& text) {
             if (to)
                 to->SendRaw(text);
             else
                 LogInfo(text);
         };
-        const auto fail = [say](Session* to, const std::string& text) { say(to, "§c" + text); };
-
-        const auto add = [this](std::vector<const char*> names, const char* description, bool op,
-                                std::vector<std::string> notations, std::function<void(CommandCtx&)> fn) {
+        r.fail = [say = r.say](Session* to, const std::string& text) { say(to, "§c" + text); };
+        r.add = [this](std::vector<const char*> names, const char* description, bool op,
+                       std::vector<std::string> notations, std::function<void(CommandCtx&)> fn) {
             std::vector<OverloadSpec> specs;
             for (const std::string& n : notations) {
                 OverloadSpec spec;
@@ -126,7 +133,18 @@ namespace perlin::server {
                 commands[name] = std::move(d);
             }
         };
+        RegisterInfoCommands(r);
+        RegisterPlayerCommands(r);
+        RegisterAccessCommands(r);
+        RegisterWorldCommands(r);
+        RegisterServerCommands(r);
+    }
 
+
+    void Server::RegisterInfoCommands(const CommandRegistrar& r) {
+        const auto& say = r.say;
+        [[maybe_unused]] const auto& fail = r.fail;
+        const auto& add = r.add;
         add({"help", "?"}, "List the commands you can use, or how to use one", false,
             {"", "<command:string>"}, [this, say, fail](CommandCtx& c) {
                 Session* from = c.source;
@@ -224,7 +242,12 @@ namespace perlin::server {
                                                      : "Showed the " + kind + " to ") +
                                                     std::to_string(n) + " player(s)");
             });
+    }
 
+    void Server::RegisterPlayerCommands(const CommandRegistrar& r) {
+        const auto& say = r.say;
+        [[maybe_unused]] const auto& fail = r.fail;
+        const auto& add = r.add;
         add({"teleport", "tp"}, "Teleport entities", true,
             {"<destination:target>", "<location:pos>", "<targets:targets> <destination:target>",
              "<targets:targets> <location:pos> [yaw:float] [pitch:float]"},
@@ -555,7 +578,12 @@ namespace perlin::server {
                             "Removed " + std::to_string(removed) + " item(s) from player " + s->Name());
                 }
             });
+    }
 
+    void Server::RegisterAccessCommands(const CommandRegistrar& r) {
+        const auto& say = r.say;
+        [[maybe_unused]] const auto& fail = r.fail;
+        const auto& add = r.add;
         const auto allowlistCommand = [this, say](CommandCtx& c) {
             const std::string action = str::Lower(c.raw.substr(0, c.raw.find(' ')));
             const auto persist = [this] {
@@ -647,7 +675,12 @@ namespace perlin::server {
                 out += "\n" + (e.name.empty() ? e.xuid : e.name);
             say(c.source, out);
         });
+    }
 
+    void Server::RegisterWorldCommands(const CommandRegistrar& r) {
+        const auto& say = r.say;
+        [[maybe_unused]] const auto& fail = r.fail;
+        const auto& add = r.add;
         add({"difficulty"}, "Show or set the difficulty", true,
             {"", "<difficulty:enum(peaceful|easy|normal|hard)>"}, [this, say](CommandCtx& c) {
                 if (!c.Has("difficulty")) {
@@ -936,6 +969,12 @@ namespace perlin::server {
             {"query", "rate <rate:float>", "freeze", "unfreeze", "step", "step <time:string>", "sprint stop",
              "sprint <time:string>"},
             [this](CommandCtx& c) { RunTickCommand(c.source, c.raw); });
+    }
+
+    void Server::RegisterServerCommands(const CommandRegistrar& r) {
+        const auto& say = r.say;
+        [[maybe_unused]] const auto& fail = r.fail;
+        const auto& add = r.add;
         add({"stop"}, "Stop the server", true, {""}, [this, say](CommandCtx& c) {
             say(c.source, "Stopping the server");
             RequestStop();
@@ -948,4 +987,5 @@ namespace perlin::server {
         add({"save-off"}, "Turn automatic saving off", true, {""},
             [say](CommandCtx& c) { say(c.source, "Automatic saving is already turned off"); });
     }
+
 }

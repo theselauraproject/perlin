@@ -7,6 +7,7 @@
 #include "world/Blocks.hpp"
 #include "world/Loot.hpp"
 #include "util/Strings.hpp"
+#include "util/JsonText.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -33,7 +34,7 @@ namespace perlin::server {
         }
 
         std::string Str(const std::string& s) {
-            return "\"" + json::Escape(s) + "\"";
+            return "\"" + ::perlin::json::Escape(s) + "\"";
         }
 
         std::string StateText(const StateValue& v) {
@@ -122,7 +123,7 @@ namespace perlin::server {
         std::string FormJson(const abi::Form& f) {
             std::string j;
             if (f.kind == abi::FormKind::Message) {
-                const std::string b1 = f.buttons.size() > 0 ? f.buttons[0].text : "gui.yes";
+                const std::string b1 = !f.buttons.empty() ? f.buttons[0].text : "gui.yes";
                 const std::string b2 = f.buttons.size() > 1 ? f.buttons[1].text : "gui.no";
                 return "{\"type\":\"modal\",\"title\":" + Str(f.title) + ",\"content\":" + Str(f.body) +
                        ",\"button1\":" + Str(b1) + ",\"button2\":" + Str(b2) + "}";

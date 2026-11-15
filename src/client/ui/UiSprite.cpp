@@ -1,8 +1,8 @@
 #include "client/ui/UiSprite.hpp"
 
-#include "client/resources/TextureLoader.hpp"
-#include "client/resources/TexturePack.hpp"
-#include "client/ui/UiAssets.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
+#include "client/systems/resources/TexturePack.hpp"
+#include "client/systems/sprites/UiAssets.hpp"
 #include "util/Resources.hpp"
 
 #include <algorithm>
@@ -97,22 +97,30 @@ namespace perlin::ui {
         }
     }
 
-    std::string SpriteRml(const std::string& resource, int srcX, int srcY, int width, int height, int dstX,
-                          int dstY) {
-        static std::map<std::string, std::string> cache;
+    void AddSprite(SceneBuilder& builder, const std::string& resource, int srcX, int srcY, int width, int height,
+                   int dstX, int dstY) {
+        static std::map<std::string, std::vector<SceneNode>> cache;
         static std::mutex mutex;
         const std::string key = std::to_string(TexturePack::Instance().Generation()) + "/" + resource + ":" +
                                 std::to_string(srcX) + "," + std::to_string(srcY) + "," +
-                                std::to_string(width) + "," + std::to_string(height) + "@" +
-                                std::to_string(dstX) + "," + std::to_string(dstY);
+                                std::to_string(width) + "," + std::to_string(height);
+        const auto emit = [&](const std::vector<SceneNode>& nodes) {
+            for (SceneNode node : nodes) {
+                node.x += static_cast<float>(dstX);
+                node.y += static_cast<float>(dstY);
+                builder.Add(std::move(node));
+            }
+        };
         {
             std::lock_guard lock(mutex);
             const auto it = cache.find(key);
-            if (it != cache.end())
-                return it->second;
+            if (it != cache.end()) {
+                emit(it->second);
+                return;
+            }
         }
         const Decoded& img = Load(resource);
-        std::string out;
+        std::vector<SceneNode> out;
         if (img.ok) {
             const auto pixel = [&](int x, int y) -> uint32_t {
                 const int sx = srcX + x, sy = srcY + y;
@@ -155,9 +163,15 @@ namespace perlin::ui {
                             used[static_cast<size_t>(y + yy) * static_cast<size_t>(width) +
                                  static_cast<size_t>(x + xx)] = 1;
                     std::snprintf(color, sizeof(color), "#%08x", v);
-                    out += "<div class=\"r\" style=\"left:" + std::to_string(dstX + x) +
-                           "px;top:" + std::to_string(dstY + y) + "px;width:" + std::to_string(w) +
-                           "px;height:" + std::to_string(h) + "px;background-color:" + color + ";\"></div>";
+                    SceneNode node;
+                    node.kind = SceneNode::Rect;
+                    node.cls = "r";
+                    node.x = static_cast<float>(x);
+                    node.y = static_cast<float>(y);
+                    node.w = static_cast<float>(w);
+                    node.h = static_cast<float>(h);
+                    node.color = color;
+                    out.push_back(std::move(node));
                     rects++;
                 }
 
@@ -182,13 +196,19 @@ namespace perlin::ui {
                     }
                 const std::string head = "sprite:" + key;
                 UiAssets::Instance().SetHead(head, std::move(crop));
-                out = "<mcimg src=\"mchead:" + head +
-                      "\" style=\"display:block;position:absolute;left:" + std::to_string(dstX) +
-                      "px;top:" + std::to_string(dstY) + "px;width:" + std::to_string(width) +
-                      "px;height:" + std::to_string(height) + "px;\"/>";
+                out.clear();
+                SceneNode node;
+                node.kind = SceneNode::Image;
+                node.src = "mchead:" + head;
+                node.w = static_cast<float>(width);
+                node.h = static_cast<float>(height);
+                out.push_back(std::move(node));
             }
         }
-        std::lock_guard lock(mutex);
-        return cache.emplace(key, std::move(out)).first->second;
+        {
+            std::lock_guard lock(mutex);
+            cache.emplace(key, out);
+        }
+        emit(out);
     }
 }

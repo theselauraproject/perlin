@@ -2,7 +2,9 @@
 #include <cctype>
 #include <charconv>
 #include <concepts>
+#include <cstdlib>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -63,6 +65,60 @@ namespace perlin::str {
     }
     constexpr std::string_view StripNamespace(std::string_view id) noexcept {
         return StripPrefix(id, "minecraft:");
+    }
+
+    constexpr std::string_view StripAnyNamespace(std::string_view id) noexcept {
+        const size_t colon = id.find(':');
+        return colon == std::string_view::npos ? id : id.substr(colon + 1);
+    }
+
+    enum class SectionEncoding { Utf8, Utf8OrLatin1 };
+
+    inline std::string StripFormatting(std::string_view text, SectionEncoding encoding = SectionEncoding::Utf8) {
+        std::string out;
+        out.reserve(text.size());
+        for (size_t i = 0; i < text.size(); i++) {
+            const auto byte = static_cast<unsigned char>(text[i]);
+            if (byte == 0xC2 && i + 1 < text.size() && static_cast<unsigned char>(text[i + 1]) == 0xA7) {
+                i += 2;
+                continue;
+            }
+            if (encoding == SectionEncoding::Utf8OrLatin1 && byte == 0xA7) {
+                i += 1;
+                continue;
+            }
+            out += text[i];
+        }
+        return out;
+    }
+
+    inline std::string ReplaceAll(std::string_view s, std::string_view from, std::string_view to) {
+        std::string out;
+        if (from.empty()) {
+            out.assign(s);
+            return out;
+        }
+        out.reserve(s.size());
+        for (size_t at = 0;;) {
+            const size_t next = s.find(from, at);
+            if (next == std::string_view::npos) {
+                out.append(s.substr(at));
+                return out;
+            }
+            out.append(s.substr(at, next - at));
+            out.append(to);
+            at = next + from.size();
+        }
+    }
+
+    inline std::string ReplaceFirst(std::string_view s, std::string_view from, std::string_view to) {
+        const size_t at = s.find(from);
+        if (at == std::string_view::npos)
+            return std::string(s);
+        std::string out;
+        out.reserve(s.size() - from.size() + to.size());
+        out.append(s.substr(0, at)).append(to).append(s.substr(at + from.size()));
+        return out;
     }
 
     inline std::vector<std::string> Split(std::string_view s, char sep, bool skipEmpty = false) {
@@ -146,9 +202,18 @@ namespace perlin::str {
 
     template <class T>
         requires std::integral<T>
-    bool Parse(std::string_view s, T& out) {
+    bool Parse(std::string_view s, T& out, int base = 10) {
         s = TrimView(s);
-        const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), out);
+        const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), out, base);
         return ec == std::errc() && ptr == s.data() + s.size();
+    }
+
+    inline std::optional<double> ParseDouble(std::string_view s, bool wholeString = true) {
+        const std::string text(s);
+        char* end = nullptr;
+        const double v = std::strtod(text.c_str(), &end);
+        if (end == text.c_str() || (wholeString && end != text.c_str() + text.size()))
+            return std::nullopt;
+        return v;
     }
 }

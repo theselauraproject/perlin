@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "client/resources/TextureLoader.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
 
 namespace perlin::ui {
     struct SkinView {

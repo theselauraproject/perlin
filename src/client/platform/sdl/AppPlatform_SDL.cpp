@@ -1,8 +1,10 @@
 #include <algorithm>
 #include "client/platform/sdl/AppPlatform_SDL.hpp"
-#include "client/renderer/gpu/RenderContext_rhi.hpp"
-#include "client/input/Keys.hpp"
-#include "client/input/KeyMapping.hpp"
+#include "client/platform/sdl/DesktopEntry.hpp"
+#include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
+#include "client/systems/input/Input.hpp"
+#include "client/systems/bindings/Keys.hpp"
+#include "client/systems/bindings/KeyMapping.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -14,7 +16,8 @@
 #include <filesystem>
 #include "util/Paths.hpp"
 #include "util/Resources.hpp"
-#include "client/resources/TextureLoader.hpp"
+#include "util/ResourcePaths.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
 #include <fstream>
 #include <iterator>
 #include <cstdlib>
@@ -23,6 +26,7 @@
 #include <thread>
 #include "util/Log.hpp"
 #include "util/Platform.hpp"
+#include "util/FileIo.hpp"
 #ifdef PERLIN_IOS
 #include "client/platform/ios/DocumentPicker.hpp"
 #endif
@@ -168,7 +172,7 @@ namespace {
 #if !defined(PERLIN_MOBILE) && !defined(__EMSCRIPTEN__)
         std::string png;
         perlin::Texture icon;
-        if (!window || !perlin::resources::Read("perlin_icon.png", png) ||
+        if (!window || !perlin::resources::Read(perlin::resources::path::kAppIcon, png) ||
             !perlin::LoadTextureMemory(reinterpret_cast<const unsigned char*>(png.data()), png.size(),
                                        icon) ||
             icon.width <= 0 || icon.height <= 0)
@@ -183,53 +187,6 @@ namespace {
 #endif
     }
 
-#if defined(SDL_PLATFORM_LINUX) && !defined(SDL_PLATFORM_ANDROID)
-    void RegisterDesktopEntry() {
-
-        if (std::getenv("FLATPAK_ID"))
-            return;
-        std::error_code ec;
-        std::filesystem::path exe;
-        if (const char* image = std::getenv("APPIMAGE"); image && *image)
-            exe = image;
-        else
-            exe = std::filesystem::read_symlink("/proc/self/exe", ec);
-        if (ec || exe.empty())
-            return;
-        std::filesystem::path data;
-        if (const char* xdg = std::getenv("XDG_DATA_HOME"); xdg && *xdg)
-            data = xdg;
-        else if (const char* home = std::getenv("HOME"); home && *home)
-            data = std::filesystem::path(home) / ".local" / "share";
-        else
-            return;
-        const auto writeIfChanged = [&](const std::filesystem::path& path, const std::string& content) {
-            std::string current;
-            if (std::ifstream in(path, std::ios::binary); in)
-                current.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-            if (current == content)
-                return;
-            std::filesystem::create_directories(path.parent_path(), ec);
-            std::ofstream(path, std::ios::binary | std::ios::trunc) << content;
-        };
-        std::string png;
-        if (perlin::resources::Read("perlin_icon.png", png))
-            writeIfChanged(data / "icons" / "hicolor" / "256x256" / "apps" / "io.perlin.client.png", png);
-        std::string command = "\"";
-        for (const char c : exe.string()) {
-            if (c == '"' || c == '`' || c == '$' || c == '\\')
-                command += "\\\\";
-            if (c == '%')
-                command += '%';
-            command += c;
-        }
-        command += "\"";
-        writeIfChanged(data / "applications" / "io.perlin.client.desktop",
-                       "[Desktop Entry]\nType=Application\nName=Perlin\nExec=" + command +
-                           "\nIcon=io.perlin.client\nTerminal=false\nCategories=Game;\nStartupWMClass=io."
-                           "perlin.client\n");
-    }
-#endif
 }
 
 #ifdef __EMSCRIPTEN__
@@ -244,113 +201,9 @@ std::unique_ptr<perlin::RenderContext> AppPlatform_SDL::CreateRenderContext() {
     return std::make_unique<perlin::RenderContext_rhi>();
 }
 
-NativeWindowInfo AppPlatform_SDL::GetNativeWindowInfo() {
+perlin::NativeWindowInfo AppPlatform_SDL::GetNativeWindowInfo() {
     return native;
 }
-
-#if defined(SDL_PLATFORM_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-
-namespace {
-    LRESULT CALLBACK RenderSurfaceProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-        HWND parent = GetParent(hwnd);
-        switch (message) {
-        case WM_NCHITTEST:
-
-            return HTTRANSPARENT;
-        case WM_ERASEBKGND:
-            return 1;
-        case WM_MOUSEACTIVATE:
-            return MA_NOACTIVATE;
-        case WM_SETFOCUS:
-            if (parent)
-                SetFocus(parent);
-            return 0;
-        case WM_SETCURSOR:
-            if (parent)
-                return SendMessageW(parent, message, reinterpret_cast<WPARAM>(parent), lParam);
-            break;
-        default:
-
-            if (parent && ((message >= WM_MOUSEFIRST && message <= WM_MOUSELAST) ||
-                           (message >= WM_KEYFIRST && message <= WM_KEYLAST) || message == WM_MOUSEHWHEEL))
-                return SendMessageW(parent, message, wParam, lParam);
-            break;
-        }
-        return DefWindowProcW(hwnd, message, wParam, lParam);
-    }
-}
-
-void AppPlatform_SDL::RenewRenderSurface() {
-    if (!window)
-        return;
-    HWND parent = static_cast<HWND>(
-        SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-    if (!parent)
-        return;
-    const HINSTANCE instance = GetModuleHandleW(nullptr);
-    static ATOM surfaceClass = 0;
-    if (!surfaceClass) {
-        WNDCLASSEXW wc{};
-        wc.cbSize = sizeof(wc);
-        wc.lpfnWndProc = RenderSurfaceProc;
-        wc.hInstance = instance;
-        wc.lpszClassName = L"PerlinRenderSurface";
-        surfaceClass = RegisterClassExW(&wc);
-    }
-    if (renderSurface) {
-        DestroyWindow(static_cast<HWND>(renderSurface));
-        renderSurface = nullptr;
-    }
-    RECT rect{};
-    GetClientRect(parent, &rect);
-    HWND child = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_NOPARENTNOTIFY, L"PerlinRenderSurface", L"",
-                                 WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS, 0, 0, std::max<LONG>(1, rect.right),
-                                 std::max<LONG>(1, rect.bottom), parent, nullptr, instance, nullptr);
-    if (!child) {
-        perlin::Log("sdl", "could not create a render surface ({}); keeping the game window", GetLastError());
-        return;
-    }
-    SetWindowPos(child, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    renderSurface = child;
-    native.window = child;
-
-    if (GetFocus() != parent && GetForegroundWindow() == parent)
-        SetFocus(parent);
-    perlin::Log("sdl", "new render surface for the next backend");
-}
-
-void AppPlatform_SDL::ResizeRenderSurface() {
-    if (!renderSurface || !window)
-        return;
-    HWND parent = static_cast<HWND>(
-        SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-    RECT rect{};
-    if (parent && GetClientRect(parent, &rect))
-        SetWindowPos(static_cast<HWND>(renderSurface), nullptr, 0, 0, std::max<LONG>(1, rect.right),
-                     std::max<LONG>(1, rect.bottom), SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
-}
-#elif defined(SDL_PLATFORM_APPLE)
-void AppPlatform_SDL::RenewRenderSurface() {
-    if (!window)
-        return;
-    if (metalView)
-        SDL_Metal_DestroyView(static_cast<SDL_MetalView>(metalView));
-    metalView = SDL_Metal_CreateView(window);
-    native.window = metalView ? SDL_Metal_GetLayer(static_cast<SDL_MetalView>(metalView)) : nullptr;
-}
-
-void AppPlatform_SDL::ResizeRenderSurface() {}
-#else
-void AppPlatform_SDL::RenewRenderSurface() {}
-void AppPlatform_SDL::ResizeRenderSurface() {}
-#endif
 
 void AppPlatform_SDL::GetFramebufferSize(int& width, int& height) {
     width = framebufferWidth;
@@ -361,90 +214,6 @@ void AppPlatform_SDL::SetTitle(const std::string& title) {
     std::lock_guard lock(titleMutex);
     pendingTitle = title;
     titleDirty = true;
-}
-
-void AppPlatform_SDL::SetProgressWindow(bool visible, const std::string& title, const std::string& line1,
-                                        const std::string& line2, float fraction) {
-    std::lock_guard lock(progMutex);
-    progWant = visible;
-    progTitle = title;
-    progLine1 = line1;
-    progLine2 = line2;
-    progFraction = fraction;
-    progDirty = true;
-}
-
-void AppPlatform_SDL::UpdateProgressWindow() {
-#if !defined(__EMSCRIPTEN__) && !defined(PERLIN_MOBILE)
-    bool want, dirty;
-    std::string title, l1, l2;
-    float frac;
-    {
-        std::lock_guard lock(progMutex);
-        want = progWant;
-        dirty = progDirty;
-        title = progTitle;
-        l1 = progLine1;
-        l2 = progLine2;
-        frac = progFraction;
-        progDirty = false;
-    }
-    if (!want) {
-        if (progRenderer) {
-            SDL_DestroyRenderer(progRenderer);
-            progRenderer = nullptr;
-        }
-        if (progWindow) {
-            SDL_DestroyWindow(progWindow);
-            progWindow = nullptr;
-            progWindowId = 0;
-        }
-        progCancel = false;
-        return;
-    }
-    if (!dirty && progWindow)
-        return;
-    if (!progWindow) {
-        progWindow = SDL_CreateWindow(title.c_str(), 380, 118, SDL_WINDOW_ALWAYS_ON_TOP);
-        if (progWindow)
-            progRenderer = SDL_CreateRenderer(progWindow, "software");
-        if (!progWindow || !progRenderer) {
-            perlin::Log("sdl", "could not create the export progress window: {}", SDL_GetError());
-            if (progRenderer)
-                SDL_DestroyRenderer(progRenderer);
-            if (progWindow)
-                SDL_DestroyWindow(progWindow);
-            progRenderer = nullptr;
-            progWindow = nullptr;
-            progFailed = true;
-            return;
-        }
-        progWindowId = SDL_GetWindowID(progWindow);
-    }
-    SDL_SetWindowTitle(progWindow, title.c_str());
-    SDL_Renderer* r = progRenderer;
-    const auto fill = [&](float x, float y, float w, float h, Uint8 cr, Uint8 cg, Uint8 cb) {
-        SDL_SetRenderDrawColor(r, cr, cg, cb, 255);
-        SDL_FRect rect{x, y, w, h};
-        SDL_RenderFillRect(r, &rect);
-    };
-    SDL_SetRenderDrawColor(r, 28, 28, 28, 255);
-    SDL_RenderClear(r);
-    SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-    SDL_RenderDebugText(r, 14, 12, l1.c_str());
-    fill(14, 34, 352, 20, 0, 0, 0);
-    fill(15, 35, 350, 18, 85, 85, 85);
-    fill(15, 35, 350.0f * std::clamp(frac, 0.0f, 1.0f), 18, 198, 198, 198);
-    SDL_SetRenderDrawColor(r, 170, 170, 170, 255);
-    SDL_RenderDebugText(r, 14, 62, l2.c_str());
-    fill(250, 84, 116, 24, 0, 0, 0);
-    fill(251, 85, 114, 20, 170, 170, 170);
-    fill(252, 86, 112, 19, 111, 111, 111);
-    fill(251, 103, 114, 4, 86, 86, 86);
-    SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-    SDL_RenderDebugText(r, 280, 92, "Cancel");
-    SDL_RenderPresent(r);
-#endif
 }
 
 void AppPlatform_SDL::ShowSignInCode(const std::string& url, const std::string& code) {
@@ -544,7 +313,8 @@ namespace {
             return false;
         if (fs::is_regular_file(path, ec)) {
             std::ifstream in(path, std::ios::binary);
-            const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            std::string bytes;
+            perlin::file::ReadRest(in, bytes);
             OfferDownload(fs::path(path).filename().string(), bytes.data(), bytes.size());
             return true;
         }
@@ -557,7 +327,8 @@ namespace {
                 continue;
             const std::string rel = fs::relative(e.path(), path, ec).generic_string();
             std::ifstream in(e.path(), std::ios::binary);
-            const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            std::string bytes;
+            perlin::file::ReadRest(in, bytes);
             if (mz_zip_writer_add_mem(&zip, rel.c_str(), bytes.data(), bytes.size(), MZ_DEFAULT_COMPRESSION))
                 files++;
         }
@@ -921,9 +692,7 @@ bool AppPlatform_SDL::Initialize() {
         }
     }
 #endif
-#if defined(SDL_PLATFORM_LINUX) && !defined(SDL_PLATFORM_ANDROID)
-    RegisterDesktopEntry();
-#endif
+    perlin::platform::RegisterDesktopEntry();
 
 #ifdef __EMSCRIPTEN__
     SDL_SetWindowFillDocument(window, true);
@@ -965,7 +734,7 @@ bool AppPlatform_SDL::Initialize() {
     framebufferWidth = w > 0 ? w : 1280;
     framebufferHeight = h > 0 ? h : 720;
 
-    game = std::make_unique<perlin::Perlin>(args);
+    game = createApplication(args);
     if (!game->Initialize(this))
         return false;
     if (touchMode)
@@ -1020,30 +789,236 @@ void AppPlatform_SDL::SetCursorCaptured(bool captured) {
     }
 }
 
-void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
-    if (progWindowId != 0) {
-        Uint32 wid = 0;
-        if (e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP)
-            wid = e.key.windowID;
-        else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN || e.type == SDL_EVENT_MOUSE_BUTTON_UP)
-            wid = e.button.windowID;
-        else if (e.type == SDL_EVENT_MOUSE_MOTION)
-            wid = e.motion.windowID;
-        else if (e.type == SDL_EVENT_MOUSE_WHEEL)
-            wid = e.wheel.windowID;
-        else if (e.type >= SDL_EVENT_WINDOW_FIRST && e.type <= SDL_EVENT_WINDOW_LAST)
-            wid = e.window.windowID;
-        if (wid == progWindowId) {
-            if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE)
-                progCancel = true;
-            else if (e.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
-                progCancel = true;
-            else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.x >= 250 && e.button.x <= 366 &&
-                     e.button.y >= 84 && e.button.y <= 108)
-                progCancel = true;
+float AppPlatform_SDL::PointerStep() const {
+    return static_cast<float>(std::min(framebufferWidth.load(), framebufferHeight.load())) / 18.0f;
+}
+
+void AppPlatform_SDL::OnFocusLost(const SDL_Event& e, perlin::Input* input) {
+    if (args.hidden)
+        return;
+    if (input && (input->pauseOnLostFocus || e.type != SDL_EVENT_WINDOW_FOCUS_LOST))
+        input->ReleaseAll();
+    SetCursorCaptured(false);
+}
+
+void AppPlatform_SDL::OnGamepadAdded(const SDL_Event& e, perlin::Input* input) {
+    if (!gamepad && (gamepad = SDL_OpenGamepad(e.gdevice.which)) && input)
+        input->SetPadConnected(true);
+}
+
+void AppPlatform_SDL::OnGamepadRemoved(const SDL_Event& e, perlin::Input* input) {
+    if (!gamepad || SDL_GetGamepadID(gamepad) != e.gdevice.which)
+        return;
+    SDL_CloseGamepad(gamepad);
+    gamepad = nullptr;
+    if (!input)
+        return;
+    input->SetPadConnected(false);
+    input->SetPadLook(0, 0);
+    for (int c = 0; c < 64; c++)
+        if (padState[c]) {
+            padState[c] = false;
+            input->OnPadUp(c);
+        }
+}
+
+void AppPlatform_SDL::OnGamepadButton(const SDL_Event& e, perlin::Input* input) {
+    if (!input || !gamepad)
+        return;
+    const bool pressed = e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+    const int code = e.gbutton.button;
+    if (code < 0 || code >= 15)
+        return;
+    if (pressed && touchMode)
+        SetTouchMode(false);
+    if (input->TextMode() && !input->PadCapture()) {
+        if (virtualPointer && pressed && code >= perlin::Pad::DpadUp && code <= perlin::Pad::DpadRight) {
+            const float step = PointerStep();
+            MovePointer(code == perlin::Pad::DpadLeft    ? -step
+                        : code == perlin::Pad::DpadRight ? step
+                                                         : 0.0f,
+                        code == perlin::Pad::DpadUp     ? -step
+                        : code == perlin::Pad::DpadDown ? step
+                                                        : 0.0f);
             return;
         }
+        if (code == perlin::Pad::A) {
+            if (pressed)
+                input->OnMouseDown(0);
+            else
+                input->OnMouseUp(0);
+        } else if ((code == perlin::Pad::B || code == perlin::Pad::Start) && pressed) {
+            input->OnKeyDown(perlin::Key::Escape);
+            input->OnKeyUp(perlin::Key::Escape);
+        }
+        return;
     }
+    if (code == perlin::Pad::LeftShoulder && pressed)
+        input->OnMouseWheel(1.0f);
+    else if (code == perlin::Pad::RightShoulder && pressed)
+        input->OnMouseWheel(-1.0f);
+    if (padState[code] != pressed) {
+        padState[code] = pressed;
+        if (pressed)
+            input->OnPadDown(code);
+        else
+            input->OnPadUp(code);
+    }
+}
+
+bool AppPlatform_SDL::IsTvPointerKey(const SDL_KeyboardEvent& k, perlin::Input* input) const {
+    return input && tvMode && input->TextMode() && !textActive &&
+           (k.scancode == SDL_SCANCODE_UP || k.scancode == SDL_SCANCODE_DOWN ||
+            k.scancode == SDL_SCANCODE_LEFT || k.scancode == SDL_SCANCODE_RIGHT ||
+            k.scancode == SDL_SCANCODE_SELECT || k.scancode == SDL_SCANCODE_RETURN);
+}
+
+void AppPlatform_SDL::OnKeyDown(const SDL_KeyboardEvent& k, perlin::Input* input) {
+    if (IsTvPointerKey(k, input)) {
+        const float step = PointerStep();
+        switch (k.scancode) {
+        case SDL_SCANCODE_UP:
+            MovePointer(0, -step);
+            break;
+        case SDL_SCANCODE_DOWN:
+            MovePointer(0, step);
+            break;
+        case SDL_SCANCODE_LEFT:
+            MovePointer(-step, 0);
+            break;
+        case SDL_SCANCODE_RIGHT:
+            MovePointer(step, 0);
+            break;
+        default:
+            if (!k.repeat)
+                input->OnMouseDown(0);
+        }
+        return;
+    }
+    if (!input)
+        return;
+    const int key = KeyFromScancode(k.scancode);
+    if (key && !k.repeat)
+        input->OnKeyDown(key);
+    else if (key && k.repeat && input->TextMode())
+        input->OnKeyRepeat(key);
+}
+
+void AppPlatform_SDL::OnKeyUp(const SDL_KeyboardEvent& k, perlin::Input* input) {
+    if (input && tvMode && input->TextMode() && !textActive &&
+        (k.scancode == SDL_SCANCODE_SELECT || k.scancode == SDL_SCANCODE_RETURN)) {
+        input->OnMouseUp(0);
+        return;
+    }
+    if (input)
+        if (int key = KeyFromScancode(k.scancode))
+            input->OnKeyUp(key);
+}
+
+void AppPlatform_SDL::OnTextInput(const SDL_TextInputEvent& t, perlin::Input* input) {
+    if (!input || !input->TextMode())
+        return;
+    const char* p = t.text;
+    while (p && *p) {
+        Uint32 cp = SDL_StepUTF8(&p, nullptr);
+        if (cp == 0)
+            break;
+        input->OnChar(static_cast<int>(cp));
+    }
+}
+
+bool AppPlatform_SDL::LeaveTouchModeForMouse() {
+    if (!touchMode)
+        return true;
+    if (!adaptiveInput)
+        return false;
+    SetTouchMode(false);
+    return true;
+}
+
+void AppPlatform_SDL::OnMouseMotion(const SDL_MouseMotionEvent& m, perlin::Input* input) {
+    if (m.which == SDL_TOUCH_MOUSEID)
+        return;
+    if (!touchMode && touch.Editing() && input) {
+        if (editMouseDown) {
+            const float d = SDL_GetWindowPixelDensity(window);
+            touch.FingerMove(*input, 9999, m.x * d, m.y * d, m.xrel * d, m.yrel * d);
+        }
+        return;
+    }
+    if (!LeaveTouchModeForMouse())
+        return;
+    pointerShown = false;
+    if (input) {
+        if (cursorCaptured)
+            input->OnMouseDelta(m.xrel, m.yrel);
+        input->OnMouseMove(m.x * SDL_GetWindowPixelDensity(window), m.y * SDL_GetWindowPixelDensity(window));
+    }
+}
+
+void AppPlatform_SDL::OnMouseButtonDown(const SDL_MouseButtonEvent& b, perlin::Input* input) {
+    if (b.which == SDL_TOUCH_MOUSEID)
+        return;
+    if (!touchMode && touch.Editing() && input) {
+        const float d = SDL_GetWindowPixelDensity(window);
+        touch.SetViewport(framebufferWidth, framebufferHeight);
+        editMouseDown = true;
+        touch.FingerDown(*input, 9999, b.x * d, b.y * d);
+        return;
+    }
+    if (!LeaveTouchModeForMouse())
+        return;
+    pointerShown = false;
+    if (!cursorCaptured && !(input && (input->TextMode() || input->FreeCursor()))) {
+        SetCursorCaptured(true);
+        return;
+    }
+    if (input)
+        if (int idx = ButtonIndex(b.button); idx >= 0)
+            input->OnMouseDown(idx);
+}
+
+void AppPlatform_SDL::OnMouseButtonUp(const SDL_MouseButtonEvent& b, perlin::Input* input) {
+    if (editMouseDown && input) {
+        const float d = SDL_GetWindowPixelDensity(window);
+        editMouseDown = false;
+        touch.FingerUp(*input, 9999, b.x * d, b.y * d);
+        return;
+    }
+    if (input)
+        if (int idx = ButtonIndex(b.button); idx >= 0)
+            input->OnMouseUp(idx);
+}
+
+void AppPlatform_SDL::OnFinger(const SDL_Event& e, perlin::Input* input) {
+    if (e.tfinger.touchID == SDL_MOUSE_TOUCHID || e.tfinger.touchID == SDL_PEN_TOUCHID)
+        return;
+    if (input && !touchMode && e.type == SDL_EVENT_FINGER_DOWN)
+        SetTouchMode(true);
+    if (!input || !touchMode)
+        return;
+    touch.SetViewport(framebufferWidth, framebufferHeight);
+    const float w = static_cast<float>(framebufferWidth), h = static_cast<float>(framebufferHeight);
+    const int64_t id = static_cast<int64_t>(e.tfinger.fingerID);
+    const float x = e.tfinger.x * w, y = e.tfinger.y * h;
+    switch (e.type) {
+    case SDL_EVENT_FINGER_DOWN:
+        if (input->Keyboard())
+            keyboardPending = 4;
+        touch.FingerDown(*input, id, x, y);
+        break;
+    case SDL_EVENT_FINGER_MOTION:
+        touch.FingerMove(*input, id, x, y, e.tfinger.dx * w, e.tfinger.dy * h);
+        break;
+    case SDL_EVENT_FINGER_UP:
+        touch.FingerUp(*input, id, x, y);
+        break;
+    default:
+        touch.Cancel(*input);
+    }
+}
+
+void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
     perlin::Input* input = game ? &game->GetInput() : nullptr;
     switch (e.type) {
     case SDL_EVENT_QUIT:
@@ -1064,11 +1039,7 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
     case SDL_EVENT_WINDOW_FOCUS_LOST:
     case SDL_EVENT_WINDOW_MINIMIZED:
     case SDL_EVENT_WINDOW_HIDDEN:
-        if (args.hidden)
-            break;
-        if (input && (input->pauseOnLostFocus || e.type != SDL_EVENT_WINDOW_FOCUS_LOST))
-            input->ReleaseAll();
-        SetCursorCaptured(false);
+        OnFocusLost(e, input);
         break;
     case SDL_EVENT_SCREEN_KEYBOARD_HIDDEN:
         keyboardShown = false;
@@ -1086,173 +1057,32 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         break;
 #endif
     case SDL_EVENT_GAMEPAD_ADDED:
-        if (!gamepad && (gamepad = SDL_OpenGamepad(e.gdevice.which)) && input)
-            input->SetPadConnected(true);
+        OnGamepadAdded(e, input);
         break;
     case SDL_EVENT_GAMEPAD_REMOVED:
-        if (gamepad && SDL_GetGamepadID(gamepad) == e.gdevice.which) {
-            SDL_CloseGamepad(gamepad);
-            gamepad = nullptr;
-            if (input) {
-                input->SetPadConnected(false);
-                input->SetPadLook(0, 0);
-                for (int c = 0; c < 64; c++)
-                    if (padState[c]) {
-                        padState[c] = false;
-                        input->OnPadUp(c);
-                    }
-            }
-        }
+        OnGamepadRemoved(e, input);
         break;
     case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-    case SDL_EVENT_GAMEPAD_BUTTON_UP: {
-        if (!input || !gamepad)
-            break;
-        const bool pressed = e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
-        const int code = e.gbutton.button;
-        if (code < 0 || code >= 15)
-            break;
-        if (pressed && touchMode)
-            SetTouchMode(false);
-        if (input->TextMode() && !input->PadCapture()) {
-            if (virtualPointer && pressed && code >= perlin::Pad::DpadUp && code <= perlin::Pad::DpadRight) {
-                const float step =
-                    static_cast<float>(std::min(framebufferWidth.load(), framebufferHeight.load())) / 18.0f;
-                MovePointer(code == perlin::Pad::DpadLeft    ? -step
-                            : code == perlin::Pad::DpadRight ? step
-                                                             : 0.0f,
-                            code == perlin::Pad::DpadUp     ? -step
-                            : code == perlin::Pad::DpadDown ? step
-                                                            : 0.0f);
-                break;
-            }
-            if (code == perlin::Pad::A) {
-                if (pressed)
-                    input->OnMouseDown(0);
-                else
-                    input->OnMouseUp(0);
-            } else if ((code == perlin::Pad::B || code == perlin::Pad::Start) && pressed) {
-                input->OnKeyDown(perlin::Key::Escape);
-                input->OnKeyUp(perlin::Key::Escape);
-            }
-            break;
-        }
-        if (code == perlin::Pad::LeftShoulder && pressed)
-            input->OnMouseWheel(1.0f);
-        else if (code == perlin::Pad::RightShoulder && pressed)
-            input->OnMouseWheel(-1.0f);
-        if (padState[code] != pressed) {
-            padState[code] = pressed;
-            if (pressed)
-                input->OnPadDown(code);
-            else
-                input->OnPadUp(code);
-        }
+    case SDL_EVENT_GAMEPAD_BUTTON_UP:
+        OnGamepadButton(e, input);
         break;
-    }
     case SDL_EVENT_KEY_DOWN:
-
-        if (input && tvMode && input->TextMode() && !textActive &&
-            (e.key.scancode == SDL_SCANCODE_UP || e.key.scancode == SDL_SCANCODE_DOWN ||
-             e.key.scancode == SDL_SCANCODE_LEFT || e.key.scancode == SDL_SCANCODE_RIGHT ||
-             e.key.scancode == SDL_SCANCODE_SELECT || e.key.scancode == SDL_SCANCODE_RETURN)) {
-            const float step =
-                static_cast<float>(std::min(framebufferWidth.load(), framebufferHeight.load())) / 18.0f;
-            switch (e.key.scancode) {
-            case SDL_SCANCODE_UP:
-                MovePointer(0, -step);
-                break;
-            case SDL_SCANCODE_DOWN:
-                MovePointer(0, step);
-                break;
-            case SDL_SCANCODE_LEFT:
-                MovePointer(-step, 0);
-                break;
-            case SDL_SCANCODE_RIGHT:
-                MovePointer(step, 0);
-                break;
-            default:
-                if (!e.key.repeat)
-                    input->OnMouseDown(0);
-            }
-            break;
-        }
-        if (input) {
-            const int k = KeyFromScancode(e.key.scancode);
-            if (k && !e.key.repeat)
-                input->OnKeyDown(k);
-            else if (k && e.key.repeat && input->TextMode())
-                input->OnKeyRepeat(k);
-        }
-        break;
-    case SDL_EVENT_TEXT_INPUT:
-        if (input && input->TextMode()) {
-            const char* p = e.text.text;
-            while (p && *p) {
-                Uint32 cp = SDL_StepUTF8(&p, nullptr);
-                if (cp == 0)
-                    break;
-                input->OnChar(static_cast<int>(cp));
-            }
-        }
+        OnKeyDown(e.key, input);
         break;
     case SDL_EVENT_KEY_UP:
-        if (input && tvMode && input->TextMode() && !textActive &&
-            (e.key.scancode == SDL_SCANCODE_SELECT || e.key.scancode == SDL_SCANCODE_RETURN)) {
-            input->OnMouseUp(0);
-            break;
-        }
-        if (input)
-            if (int k = KeyFromScancode(e.key.scancode))
-                input->OnKeyUp(k);
+        OnKeyUp(e.key, input);
+        break;
+    case SDL_EVENT_TEXT_INPUT:
+        OnTextInput(e.text, input);
         break;
     case SDL_EVENT_MOUSE_MOTION:
-        if (e.motion.which == SDL_TOUCH_MOUSEID)
-            break;
-        if (!touchMode && touch.Editing() && input) {
-            if (editMouseDown) {
-                const float d = SDL_GetWindowPixelDensity(window);
-                touch.FingerMove(*input, 9999, e.motion.x * d, e.motion.y * d, e.motion.xrel * d,
-                                 e.motion.yrel * d);
-            }
-            break;
-        }
-        if (touchMode) {
-            if (!adaptiveInput)
-                break;
-            SetTouchMode(false);
-        }
-        pointerShown = false;
-        if (input) {
-            if (cursorCaptured)
-                input->OnMouseDelta(e.motion.xrel, e.motion.yrel);
-            input->OnMouseMove(e.motion.x * SDL_GetWindowPixelDensity(window),
-                               e.motion.y * SDL_GetWindowPixelDensity(window));
-        }
+        OnMouseMotion(e.motion, input);
         break;
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        if (e.button.which == SDL_TOUCH_MOUSEID)
-            break;
-        if (!touchMode && touch.Editing() && input) {
-            const float d = SDL_GetWindowPixelDensity(window);
-            touch.SetViewport(framebufferWidth, framebufferHeight);
-            editMouseDown = true;
-            touch.FingerDown(*input, 9999, e.button.x * d, e.button.y * d);
-            break;
-        }
-        if (touchMode) {
-            if (!adaptiveInput)
-                break;
-            SetTouchMode(false);
-        }
-        pointerShown = false;
-        if (!cursorCaptured && !(input && (input->TextMode() || input->FreeCursor()))) {
-            SetCursorCaptured(true);
-            break;
-        }
-        if (input)
-            if (int b = ButtonIndex(e.button.button); b >= 0)
-                input->OnMouseDown(b);
+        OnMouseButtonDown(e.button, input);
+        break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        OnMouseButtonUp(e.button, input);
         break;
     case SDL_EVENT_MOUSE_WHEEL:
         if (input)
@@ -1262,37 +1092,7 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
     case SDL_EVENT_FINGER_MOTION:
     case SDL_EVENT_FINGER_UP:
     case SDL_EVENT_FINGER_CANCELED:
-        if (e.tfinger.touchID == SDL_MOUSE_TOUCHID || e.tfinger.touchID == SDL_PEN_TOUCHID)
-            break;
-        if (input && !touchMode && e.type == SDL_EVENT_FINGER_DOWN)
-            SetTouchMode(true);
-        if (input && touchMode) {
-            touch.SetViewport(framebufferWidth, framebufferHeight);
-            const float w = static_cast<float>(framebufferWidth), h = static_cast<float>(framebufferHeight);
-            const int64_t id = static_cast<int64_t>(e.tfinger.fingerID);
-            const float x = e.tfinger.x * w, y = e.tfinger.y * h;
-            if (e.type == SDL_EVENT_FINGER_DOWN) {
-                if (input->Keyboard())
-                    keyboardPending = 4;
-                touch.FingerDown(*input, id, x, y);
-            } else if (e.type == SDL_EVENT_FINGER_MOTION)
-                touch.FingerMove(*input, id, x, y, e.tfinger.dx * w, e.tfinger.dy * h);
-            else if (e.type == SDL_EVENT_FINGER_UP)
-                touch.FingerUp(*input, id, x, y);
-            else
-                touch.Cancel(*input);
-        }
-        break;
-    case SDL_EVENT_MOUSE_BUTTON_UP:
-        if (editMouseDown && input) {
-            const float d = SDL_GetWindowPixelDensity(window);
-            editMouseDown = false;
-            touch.FingerUp(*input, 9999, e.button.x * d, e.button.y * d);
-            break;
-        }
-        if (input)
-            if (int b = ButtonIndex(e.button.button); b >= 0)
-                input->OnMouseUp(b);
+        OnFinger(e, input);
         break;
     default:
         break;
@@ -1426,8 +1226,6 @@ void AppPlatform_SDL::PumpFrame() {
             titleDirty = false;
         }
     }
-
-    UpdateProgressWindow();
 
     if (game)
         touch.Update(game->GetInput());

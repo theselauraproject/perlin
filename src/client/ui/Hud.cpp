@@ -2,21 +2,16 @@
 #include "client/ui/GuiScale.hpp"
 #include "client/ui/TenFont.hpp"
 
-#include "client/ui/CreativeScreen.hpp"
-#include "client/ui/DeathScreen.hpp"
-#include "client/ui/DisconnectScreen.hpp"
 #include "client/ui/HudRenderers.hpp"
-#include "client/ui/InventoryScreen.hpp"
-#include "client/ui/LoadingScreen.hpp"
-#include "client/ui/PauseScreen.hpp"
-#include "client/ui/McFont.hpp"
-#include "client/ui/UiAssets.hpp"
-#include "client/ui/JavaDefaults.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/systems/text/McFont.hpp"
+#include "client/systems/sprites/UiAssets.hpp"
+#include "util/ResourcePaths.hpp"
+#include "util/Resources.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/UiTemplate.hpp"
-#include "client/resources/ServerPacks.hpp"
-#include "client/resources/TexturePack.hpp"
-#include "client/resources/TextureLoader.hpp"
+#include "client/systems/resources/ServerPacks.hpp"
+#include "client/systems/resources/TexturePack.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -25,8 +20,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include "util/Log.hpp"
+#include "util/FileIo.hpp"
 
 namespace fs = std::filesystem;
 
@@ -80,7 +75,7 @@ namespace perlin::ui {
         const fs::path file = fs::path(dataDir) / "ui_defaults" / "_perlin_java.json";
         std::error_code ec;
         if (javaStyle)
-            Write(file, kJavaHudOverrides);
+            Write(file, resources::ReadRequiredText(resources::path::kJavaHudOverrides));
         else
             fs::remove(file, ec);
     }
@@ -107,14 +102,8 @@ namespace perlin::ui {
         fs::create_directories(fs::path(dataDir) / "ui", ec);
         {
             uint64_t version = 0;
-            LoadUiTemplate(dataDir, "hud_screen.rml", DefaultHudTemplate(), version);
-            LoadUiTemplate(dataDir, "chat_screen.rml", DefaultChatTemplate(), version);
-            LoadUiTemplate(dataDir, "inventory_screen.rml", DefaultInventoryScreenTemplate(), version);
-            LoadUiTemplate(dataDir, "pause_screen.rml", DefaultPauseScreenTemplate(), version);
-            LoadUiTemplate(dataDir, "loading_screen.rml", DefaultLoadingScreenTemplate(), version);
-            LoadUiTemplate(dataDir, "disconnect_screen.rml", DefaultDisconnectScreenTemplate(), version);
-            LoadUiTemplate(dataDir, "creative_screen.rml", DefaultCreativeScreenTemplate(), version);
-            LoadDeathScreenTemplate(dataDir, version);
+            LoadUiTemplate(dataDir, "ui/overlays/hud_screen.rml", DefaultHudTemplate(), version);
+            LoadUiTemplate(dataDir, "ui/overlays/chat_screen.rml", DefaultChatTemplate(), version);
             ExportScreenTemplates();
         }
 
@@ -130,7 +119,7 @@ namespace perlin::ui {
         services.localize = [](const std::string& key) { return UiAssets::Instance().Localize(key); };
 
         services.anim = &animHost;
-        services.animDef = [this](const std::string& ref, const std::string& ns) -> Json {
+        services.animDef = [this](const std::string& ref, const std::string& ns) -> json::Value {
             std::string full = ref;
             if (!full.empty() && full[0] == '@')
                 full.erase(0, 1);
@@ -140,7 +129,7 @@ namespace perlin::ui {
             if (cached != animCache.end())
                 return cached->second;
             BuildReport report;
-            Json props = Json::MakeObject();
+            json::Value props = json::Value::MakeObject();
             if (auto node = BuildTree(library, full, EngineRootVariables(), report))
                 props = node->props;
             animCache[full] = props;
@@ -164,7 +153,7 @@ namespace perlin::ui {
         animHost = AnimHost{};
         animCache.clear();
         state = HudState{};
-        lastRml.clear();
+        lastDoc = SceneDoc{};
         lastSignature = lastIncomingSignature = 0;
         cursorValid = false;
         reloadRequested = true;
@@ -245,7 +234,7 @@ namespace perlin::ui {
             BuildReport crossReport;
             crosshairTree =
                 BuildTree(library, "hud_crosshair.hud_crosshair_screen", EngineRootVariables(), crossReport);
-            cursorEmitter.Register("cursor_renderer", [this](const LNode& n, RmlWriter&) {
+            cursorEmitter.Register("cursor_renderer", [this](const LNode& n, SceneWriter&) {
                 float dx = 0, dy = 0;
                 if (!FilterHudElement("cursor_renderer", dx, dy))
                     return;
@@ -266,12 +255,10 @@ namespace perlin::ui {
     }
 
     std::string Hud::ReadUserRcss() const {
-        std::ifstream f(dataDir + "/ui/hud.rcss", std::ios::binary);
-        if (!f)
+        std::string contents;
+        if (!file::Read(dataDir + "/ui/hud.rcss", contents))
             return {};
-        std::stringstream ss;
-        ss << f.rdbuf();
-        return ss.str();
+        return contents;
     }
 
     int Hud::Update(const HudState& incoming, int fbW, int fbH, int guiScaleOption) {
@@ -341,11 +328,9 @@ namespace perlin::ui {
         }
         if (!tree)
             return scale;
-        // a stamp of both files (write time and size): unchanged, nothing to read; the check runs every 2 s on the
-        // render thread, and reading and hashing two files each time showed up as hud spikes
         const auto stampOf = [&] {
             uint64_t stamp = 1469598103934665603ull;
-            for (const char* name : {"hud_screen.rml", "chat_screen.rml"}) {
+            for (const char* name : {"ui/overlays/hud_screen.rml", "ui/overlays/chat_screen.rml"}) {
                 std::error_code ec;
                 const std::filesystem::path file = std::filesystem::path(dataDir) / "ui" / name;
                 const auto when = std::filesystem::last_write_time(file, ec);
@@ -365,8 +350,8 @@ namespace perlin::ui {
         if (templatesDue) {
             templateCheck = now;
             uint64_t vh = 0, vc = 0;
-            std::string hudT = LoadUiTemplate(dataDir, "hud_screen.rml", DefaultHudTemplate(), vh);
-            std::string chatT = LoadUiTemplate(dataDir, "chat_screen.rml", DefaultChatTemplate(), vc);
+            std::string hudT = LoadUiTemplate(dataDir, "ui/overlays/hud_screen.rml", DefaultHudTemplate(), vh);
+            std::string chatT = LoadUiTemplate(dataDir, "ui/overlays/chat_screen.rml", DefaultChatTemplate(), vc);
             if (vh != hudTemplateVersion || vc != chatTemplateVersion || templatesStale) {
                 hudTemplateVersion = vh;
                 chatTemplateVersion = vc;
@@ -376,7 +361,7 @@ namespace perlin::ui {
                 templatesStale = false;
                 Log("ui", "loaded {}/ui/hud_screen.rml and chat_screen.rml", dataDir);
             }
-            templateStamp = stampOf(); // after LoadUiTemplate, which may have written the files
+            templateStamp = stampOf();
         }
 
         if (crosshairTree && (!cursorValid || resized || rebuilt)) {
@@ -384,7 +369,7 @@ namespace perlin::ui {
             UiServices crossServices = services;
             crossServices.anim = nullptr;
             auto crossEvaluated = EvaluateTree(*crosshairTree, *data, crossServices, guiW, guiH);
-            cursorEmitter.Emit(*crossEvaluated, guiW, guiH, std::string(), false);
+            cursorEmitter.Emit(*crossEvaluated, guiW, guiH, std::string());
         }
         if (!cursorValid) {
             cursorX = std::floor((guiW - 15.0f) * 0.5f);
@@ -408,23 +393,23 @@ namespace perlin::ui {
         filterVersion = HudFilterVersion();
 
         auto evaluated = EvaluateTree(*tree, *data, services, guiW, guiH);
-        lastRml = emitter.Emit(*evaluated, guiW, guiH, rcss, false);
+        lastDoc = emitter.Emit(*evaluated, guiW, guiH, rcss);
         backend.Resize(static_cast<int>(guiW), static_cast<int>(guiH), scale);
         std::string error;
-        if (!backend.SetDocument(lastRml, error)) {
+        if (!backend.SetDocument(lastDoc.rml, lastDoc.scene, error)) {
             Log("ui", "{}", error);
             if (!emitterDefault) {
                 emitterDefault = true;
                 emitter.SetTemplates(std::string(), std::string());
-                lastRml = emitter.Emit(*evaluated, guiW, guiH, std::string(), false);
-                backend.SetDocument(lastRml, error);
+                lastDoc = emitter.Emit(*evaluated, guiW, guiH, std::string());
+                backend.SetDocument(lastDoc.rml, lastDoc.scene, error);
             }
         } else {
             emitterDefault = false;
         }
         if (!dumped || rebuilt) {
             dumped = true;
-            Write(fs::path(dataDir) / "ui_generated" / "hud.rml", lastRml);
+            Write(fs::path(dataDir) / "ui_generated" / "hud.rml", DumpScene(lastDoc));
             for (const std::string& u : emitter.UnknownRenderers())
                 Log("ui", "custom renderer not implemented: {}", u);
         }

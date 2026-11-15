@@ -1,4 +1,3 @@
-// the paletted section storage against a plain array: byte mode, the switch to two bytes past 256 ids, copies
 #include "world/level/Level.hpp"
 
 #include <cstdio>

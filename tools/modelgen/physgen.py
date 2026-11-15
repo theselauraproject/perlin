@@ -1,4 +1,4 @@
-"""Packs the Bedrock block physics registry (collision boxes, friction, flags) into resources/block_physics.bin.
+"""Packs the Bedrock block physics registry (collision boxes, friction, flags) into resources/data/blocks/block_physics.bin.
 
 Input: physics.json, extracted from cinnabar's block-physics-seed-v2193.bin
        (record = [seq, hash, flags, surface, friction, hspeed, vspeed, fluid_height, boxes]; 1e8 units).
@@ -10,7 +10,7 @@ import os
 import struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "..", "..", "resources", "block_physics.bin")
+OUT = os.path.join(HERE, "..", "..", "resources", "data", "blocks", "block_physics.bin")
 S = 1e8
 
 recs = json.load(open(os.path.join(HERE, "physics.json")))

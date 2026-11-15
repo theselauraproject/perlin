@@ -1,4 +1,4 @@
-#include "client/Benchmark.hpp"
+#include "client/systems/diagnostics/Benchmark.hpp"
 
 #include <cmath>
 #include <cstdio>

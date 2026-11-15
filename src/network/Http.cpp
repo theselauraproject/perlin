@@ -11,6 +11,7 @@
 #include "util/Log.hpp"
 #include "util/Paths.hpp"
 #include "util/Platform.hpp"
+#include "util/FileIo.hpp"
 #if !defined(_WIN32)
 #include <sys/stat.h>
 #else
@@ -95,8 +96,8 @@ namespace perlin::http {
                     std::ifstream in(entry.path(), std::ios::binary);
                     if (!in)
                         continue;
-                    const std::string text((std::istreambuf_iterator<char>(in)),
-                                           std::istreambuf_iterator<char>());
+                    std::string text;
+                    file::ReadRest(in, text);
                     const size_t begin = text.find("-----BEGIN CERTIFICATE-----");
                     const size_t end = text.find("-----END CERTIFICATE-----");
                     if (begin == std::string::npos || end == std::string::npos || end < begin)
@@ -194,7 +195,6 @@ namespace perlin::http {
             }
         };
 
-        // schannel path for machines where openssl https dies after the handshake (https-scanning antivirus)
         Response WinHttpRequest(const std::string& host, uint16_t port, bool tls, const std::string& method,
                                 const std::string& path, const std::string& body,
                                 const std::string& contentType,
@@ -257,7 +257,7 @@ namespace perlin::http {
                 if (WinHttpQueryHeaders(req.h, WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX,
                                         raw.data(), &len, WINHTTP_NO_HEADER_INDEX)) {
                     raw.resize(len / sizeof(wchar_t));
-                    size_t at = raw.find(L"\r\n"); // skip the status line
+                    size_t at = raw.find(L"\r\n");
                     while (at != std::wstring::npos) {
                         const size_t start = at + 2;
                         at = raw.find(L"\r\n", start);
@@ -295,7 +295,6 @@ namespace perlin::http {
             return out;
         }
 
-        // openssl failed once and schannel worked: go straight to schannel, no timeout per call
         std::atomic<bool> g_preferWinHttp{false};
     }
 #endif
@@ -367,7 +366,7 @@ namespace perlin::http {
     Response GetUrl(const std::string& url, const std::map<std::string, std::string>& headers,
                     int timeoutSecs) {
         size_t start = url.find("://");
-        const bool tls = url.compare(0, 5, "https") == 0;
+        const bool tls = url.starts_with("https");
         start = start == std::string::npos ? 0 : start + 3;
         const size_t slash = url.find('/', start);
         std::string host = url.substr(start, slash == std::string::npos ? std::string::npos : slash - start);

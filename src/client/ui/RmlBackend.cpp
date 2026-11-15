@@ -1,20 +1,19 @@
-#include "client/ui/PerlinBadge.hpp"
+#include "client/systems/sprites/PerlinBadge.hpp"
 #include <atomic>
-#include "client/resources/AssetJobs.hpp"
-#include "client/resources/TexturePack.hpp"
+#include "client/systems/resources/AssetJobs.hpp"
+#include "client/systems/resources/TexturePack.hpp"
 #include "util/Resources.hpp"
-#include "client/resources/TextureLoader.hpp"
-#include "client/ui/Glint.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
+#include "client/systems/sprites/Glint.hpp"
 #include <chrono>
 #include <algorithm>
 #include "client/ui/RmlBackend.hpp"
-#include "client/ui/JavaWidgets.hpp"
-#include "client/ui/FormScreen.hpp"
+#include "client/ui/UiTemplate.hpp"
 
-#include "client/renderer/RenderContext.hpp"
-#include "client/ui/McFont.hpp"
+#include "client/systems/gfx/RenderContext.hpp"
+#include "client/systems/text/McFont.hpp"
 #include "client/ui/TenFont.hpp"
-#include "client/ui/UiAssets.hpp"
+#include "client/systems/sprites/UiAssets.hpp"
 #include "client/ui/UiSprite.hpp"
 
 #include <RmlUi/Core.h>
@@ -36,6 +35,11 @@
 #include "util/Log.hpp"
 
 namespace perlin::ui {
+    namespace {
+        RmlBackend::ImageSource gImageSource;
+    }
+
+    void RmlBackend::SetImageSource(ImageSource source) { gImageSource = std::move(source); }
     namespace {
         RenderContext* gRenderer = nullptr;
         int gScale = 1;
@@ -64,7 +68,6 @@ namespace perlin::ui {
         }
     }
 
-    // Placeholders handed out since the last reload; RmlUi caches them for good unless textures are released.
     static std::atomic<int> gMissingTextures{0};
 
     class BgfxRenderInterface final : public Rml::RenderInterface {
@@ -127,8 +130,6 @@ namespace perlin::ui {
         }
 
         Rml::TextureHandle LoadTexture(Rml::Vector2i& dimensions, const Rml::String& source) override {
-            // the Perlin logo: shown at 8 gui px, so it needs trilinear filtering; nearest at the exact size
-            // turns its thin lines into noise
             if (source == "mchead:perlin:badge") {
                 std::vector<Texture> chain;
                 for (int size = 256; size >= 1; size /= 2) {
@@ -192,7 +193,7 @@ namespace perlin::ui {
                     return 0;
             } else if (source.starts_with("mcurl:")) {
                 std::string bytes;
-                if (!FormImageBytes(source.substr(6), bytes) ||
+                if (!gImageSource || !gImageSource(source.substr(6), bytes) ||
                     !LoadTextureMemory(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), t))
                     return 0;
             } else if (source.starts_with("mchead:")) {
@@ -566,6 +567,10 @@ namespace perlin::ui {
             return out;
         }
 
+        bool Present(const Rml::Element& e, const char* name) {
+            return e.HasAttribute(name) && !e.GetAttribute<Rml::String>(name, "").empty();
+        }
+
         class ElementMcLayer : public Rml::Element {
         public:
             explicit ElementMcLayer(const Rml::String& tag) : Rml::Element(tag) {}
@@ -622,7 +627,7 @@ namespace perlin::ui {
                 const float tw = static_cast<float>(dims.x), th = static_cast<float>(dims.y);
 
                 float cr = 1, cg = 1, cb = 1, ca = 1;
-                if (HasAttribute("color")) {
+                if (Present(*this, "color")) {
                     const auto c = Floats(GetAttribute<Rml::String>("color", ""));
                     if (c.size() >= 3) {
                         cr = c[0];
@@ -630,12 +635,12 @@ namespace perlin::ui {
                         cb = c[2];
                     }
                 }
-                if (HasAttribute("alpha"))
+                if (Present(*this, "alpha"))
                     ca = GetAttribute<float>("alpha", 1.0f);
                 const Rml::ColourbPremultiplied colour = Colour(cr, cg, cb, ca);
 
                 float su = 0, sv = 0, sw = tw, sh = th;
-                if (HasAttribute("uv")) {
+                if (Present(*this, "uv")) {
                     const auto uv = Floats(GetAttribute<Rml::String>("uv", ""));
                     if (uv.size() >= 2) {
                         su = uv[0];
@@ -652,7 +657,7 @@ namespace perlin::ui {
                 }
 
                 float dx = 0, dy = 0, dw = size.x, dh = size.y;
-                if (GetAttribute<int>("keep", 0) && !HasAttribute("nine") &&
+                if (GetAttribute<int>("keep", 0) && !Present(*this, "nine") &&
                     !UiAssets::Instance().Sidecar(source).nine) {
                     const float ratio = sw / std::max(sh, 1.0f);
                     if (dw / dh > ratio) {
@@ -667,7 +672,7 @@ namespace perlin::ui {
                 }
 
                 float cu0 = 0, cu1 = 1, cv0 = 0, cv1 = 1;
-                if (HasAttribute("clip")) {
+                if (Present(*this, "clip")) {
                     std::istringstream in(GetAttribute<Rml::String>("clip", ""));
                     std::string dir;
                     float ratio = 1;
@@ -706,7 +711,7 @@ namespace perlin::ui {
                 bool nine = false;
                 float slice[4] = {0, 0, 0, 0};
                 float sliceScale = 1.0f;
-                if (HasAttribute("nine")) {
+                if (Present(*this, "nine")) {
                     const auto n = Floats(GetAttribute<Rml::String>("nine", ""));
                     if (n.size() >= 4) {
                         nine = true;
@@ -725,7 +730,7 @@ namespace perlin::ui {
                 }
                 const int tiled = GetAttribute<int>("tiled", 0);
                 const float tileScale =
-                    HasAttribute("tilescale") ? GetAttribute<float>("tilescale", 1.0f) : 1.0f;
+                    Present(*this, "tilescale") ? GetAttribute<float>("tilescale", 1.0f) : 1.0f;
 
                 if (nine && !tiled) {
                     const float l = slice[0] * sliceScale, t = slice[1] * sliceScale,
@@ -788,14 +793,14 @@ namespace perlin::ui {
                     mesh.vertices.clear();
                     mesh.indices.clear();
                     const Rml::Vector2f size = GetBox().GetSize(Rml::BoxArea::Border);
-                    const float alpha = HasAttribute("alpha") ? GetAttribute<float>("alpha", 1.0f) : 1.0f;
+                    const float alpha = Present(*this, "alpha") ? GetAttribute<float>("alpha", 1.0f) : 1.0f;
                     Rml::MeshUtilities::GenerateQuad(mesh, {0, 0}, size, Colour(1, 1, 1, alpha), {0, 0},
                                                      {1, 1});
                     geometry = manager->MakeGeometry(std::move(mesh));
                 }
                 if (geometry) {
                     geometry.Render(GetAbsoluteOffset(Rml::BoxArea::Border), texture);
-                    if (HasAttribute("glint")) {
+                    if (Present(*this, "glint")) {
                         gGlintPass = true;
                         geometry.Render(GetAbsoluteOffset(Rml::BoxArea::Border), texture);
                         gGlintPass = false;
@@ -854,6 +859,7 @@ namespace perlin::ui {
         overlay = nullptr;
         plugin = nullptr;
         serverLayer = nullptr;
+        sceneModels.Forget();
         Rml::Shutdown();
         context = nullptr;
         ready = false;
@@ -867,6 +873,61 @@ namespace perlin::ui {
         gScale = scale;
         if (context)
             context->SetDimensions({w, h});
+    }
+
+    bool RmlBackend::LoadScene(Rml::ElementDocument*& slot, const char* model, const Scene& scene,
+                               const std::string& rml, const char* what, std::string& error) {
+        if (!context)
+            return false;
+        if (slot) {
+            context->UnloadDocument(slot);
+            slot = nullptr;
+        }
+        if (!sceneModels.Attach(*context, model, scene)) {
+            error = std::string("RmlUi could not create the data model for the ") + what;
+            return false;
+        }
+        Rml::ElementDocument* next = context->LoadDocumentFromMemory(ExpandSceneTokens(rml));
+        if (!next) {
+            sceneModels.Detach(*context, model);
+            error = std::string("RmlUi could not parse the ") + what;
+            return false;
+        }
+        slot = next;
+        slot->Show();
+        return true;
+    }
+
+    bool RmlBackend::SetDocument(const std::string& rml, const Scene& scene, std::string& error) {
+        if (!LoadScene(document, "document", scene, rml, "generated document", error))
+            return false;
+        if (plugin)
+            plugin->PullToFront();
+        if (overlay)
+            overlay->PullToFront();
+        return true;
+    }
+
+    bool RmlBackend::SetPluginLayer(const std::string& rml, const Scene& scene, std::string& error) {
+        if (!LoadScene(plugin, "plugin", scene, rml, "plugin layer", error))
+            return false;
+        if (overlay)
+            overlay->PullToFront();
+        return true;
+    }
+
+    bool RmlBackend::SetServerLayer(const std::string& rml, const Scene& scene, std::string& error) {
+        if (!LoadScene(serverLayer, "server", scene, rml, "server layer", error))
+            return false;
+        if (plugin)
+            plugin->PullToFront();
+        if (overlay)
+            overlay->PullToFront();
+        return true;
+    }
+
+    bool RmlBackend::SetOverlay(const std::string& rml, const Scene& scene, std::string& error) {
+        return LoadScene(overlay, "overlay", scene, rml, "overlay document", error);
     }
 
     bool RmlBackend::SetDocument(const std::string& rml, std::string& error) {
@@ -927,19 +988,23 @@ namespace perlin::ui {
     void RmlBackend::ClearServerLayer() {
         if (context && serverLayer)
             context->UnloadDocument(serverLayer);
+        if (context)
+            sceneModels.Detach(*context, "server");
         serverLayer = nullptr;
     }
 
     void RmlBackend::ClearPluginLayer() {
         if (context && plugin)
             context->UnloadDocument(plugin);
+        if (context)
+            sceneModels.Detach(*context, "plugin");
         plugin = nullptr;
     }
 
     bool RmlBackend::SetOverlay(const std::string& rml, std::string& error) {
         if (!context)
             return false;
-        Rml::ElementDocument* next = context->LoadDocumentFromMemory(WithJavaWidgets(rml));
+        Rml::ElementDocument* next = context->LoadDocumentFromMemory(rml);
         if (!next) {
             error = "RmlUi could not parse the overlay document";
             return false;
@@ -954,6 +1019,8 @@ namespace perlin::ui {
     void RmlBackend::ClearOverlay() {
         if (context && overlay)
             context->UnloadDocument(overlay);
+        if (context)
+            sceneModels.Detach(*context, "overlay");
         overlay = nullptr;
     }
 
@@ -996,7 +1063,7 @@ namespace perlin::ui {
              e = e->GetParentNode()) {
             if (e->IsClassSet("off"))
                 return false;
-            if (e->HasAttribute("snd")) {
+            if (Present(*e, "snd")) {
                 name = e->GetAttribute<Rml::String>("snd", "");
                 volume = e->GetAttribute<float>("vol", 1.0f);
                 pitch = e->GetAttribute<float>("pit", 1.0f);
@@ -1047,8 +1114,6 @@ namespace perlin::ui {
         } else {
             ++frameCounter;
         }
-        // A texture asked for before the downloaded assets were in place stays a magenta placeholder in
-        // RmlUi's cache. Once the downloads settle (or a little later), drop the cache so it is read again.
         {
             static bool wasBusy = true;
             static int retries = 0, sinceRetry = 0;
@@ -1072,6 +1137,8 @@ namespace perlin::ui {
         if (!context)
             return;
         context->UnloadAllDocuments();
+        for (const char* model : {"document", "overlay", "plugin", "server"})
+            sceneModels.Detach(*context, model);
         document = overlay = plugin = serverLayer = nullptr;
         context->Update();
         ReloadTextures();

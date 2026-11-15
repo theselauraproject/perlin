@@ -1,13 +1,14 @@
 #include "client/ui/UiTemplate.hpp"
+#include "util/FileIo.hpp"
 
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <string>
 
 namespace fs = std::filesystem;
 using perlin::ui::LoadUiTemplate;
+using perlin::ui::ReadMarkup;
 
 static int failures = 0;
 #define CHECK(c)                                                                                             \
@@ -19,10 +20,8 @@ static int failures = 0;
     } while (0)
 
 static std::string Slurp(const fs::path& p) {
-    std::ifstream in(p, std::ios::binary);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return ss.str();
+    const std::string contents = perlin::file::Read(p);
+    return contents;
 }
 
 static void Spit(const fs::path& p, const std::string& s) {
@@ -30,7 +29,27 @@ static void Spit(const fs::path& p, const std::string& s) {
     out << s;
 }
 
+static void Write(const fs::path& p, const std::string& text) {
+    fs::create_directories(p.parent_path());
+    std::ofstream out(p, std::ios::binary);
+    out << text;
+}
+
+static void IncludeExpansion() {
+    const fs::path res = fs::temp_directory_path() / "perlin_uitemplate_includes";
+    fs::remove_all(res);
+    Write(res / "a.rml", "<style>\n    .x {\n    }\n    {{include:b.rcss}}\n    .z {\n    }\n</style>\n");
+    Write(res / "b.rcss", ".y {\n    top: 1px;\n}\n\n.w {\n    left: 2px;\n}\n");
+    Write(res / "c.rml", "<p>{{include:missing_nothing}}</p>");
+    setenv("PERLIN_RESOURCES", res.string().c_str(), 1);
+    const std::string out = ReadMarkup("a.rml");
+    CHECK(out == "<style>\n    .x {\n    }\n    .y {\n        top: 1px;\n    }\n\n    .w {\n        left: 2px;\n    }\n    .z {\n    }\n</style>\n");
+    CHECK(out.find("{{include") == std::string::npos);
+    fs::remove_all(res);
+}
+
 int main() {
+    IncludeExpansion();
     const fs::path dir = fs::temp_directory_path() / "perlin_uitemplate_selftest";
     fs::remove_all(dir);
     const fs::path file = dir / "ui" / "x.rml";

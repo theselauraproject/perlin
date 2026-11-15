@@ -2,9 +2,9 @@
 
 #include "client/ui/HudData.hpp"
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/McFont.hpp"
+#include "client/systems/text/McFont.hpp"
 #include "client/ui/TenFont.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/UiLayout.hpp"
 
 #include <cstdio>
@@ -13,6 +13,7 @@
 #include <string>
 
 using namespace perlin::ui;
+namespace json = perlin::json;
 
 namespace {
     bool PngSize(const std::string& path, int& w, int& h) {
@@ -31,11 +32,11 @@ namespace {
         std::string extra;
         if (!n.text.empty())
             extra += " text=" + n.text;
-        if (const Json* t = n.Get("texture"); t && t->IsString())
+        if (const json::Value* t = n.Get("texture"); t && t->IsString())
             extra += " tex=" + t->string;
-        if (const Json* maps = n.Get("button_mappings"); maps && maps->IsArray())
-            for (const Json& m : maps->array)
-                if (const Json* to = m.IsObject() ? m.Find("to_button_id") : nullptr; to && to->IsString())
+        if (const json::Value* maps = n.Get("button_mappings"); maps && maps->IsArray())
+            for (const json::Value& m : maps->array)
+                if (const json::Value* to = m.IsObject() ? m.Find("to_button_id") : nullptr; to && to->IsString())
                     extra += " btn=" + to->string;
         if (n.index >= 0)
             extra += " idx=" + std::to_string(n.index);
@@ -49,7 +50,7 @@ namespace {
     void Props(const Node& n, const std::string& name) {
         if (n.name == name) {
             std::fprintf(stderr, "PROPS %s: %s\n", n.path.c_str(), n.props.Dump().c_str());
-            for (const Json& b : n.bindings)
+            for (const json::Value& b : n.bindings)
                 std::fprintf(stderr, "  BINDING %s\n", b.Dump().c_str());
         }
         for (auto& k : n.children)
@@ -62,24 +63,24 @@ namespace {
 
     class Globals : public UiData {
     public:
-        Json vars = Json::MakeObject(), collections = Json::MakeObject(), factories = Json::MakeObject();
-        bool Global(const std::string& name, Json& out) const override {
-            const Json* v = vars.Find(name);
+        json::Value vars = json::Value::MakeObject(), collections = json::Value::MakeObject(), factories = json::Value::MakeObject();
+        bool Global(const std::string& name, json::Value& out) const override {
+            const json::Value* v = vars.Find(name);
             if (!v)
                 return false;
             out = *v;
             return true;
         }
         int CollectionSize(const std::string& c) const override {
-            const Json* rows = collections.Find(c);
+            const json::Value* rows = collections.Find(c);
             return rows && rows->IsArray() ? static_cast<int>(rows->array.size()) : 0;
         }
         bool CollectionValue(const std::string& c, int index, const std::string& binding,
-                             Json& out) const override {
-            const Json* rows = collections.Find(c);
+                             json::Value& out) const override {
+            const json::Value* rows = collections.Find(c);
             if (!rows || !rows->IsArray() || index < 0 || index >= static_cast<int>(rows->array.size()))
                 return false;
-            const Json* v = rows->array[static_cast<size_t>(index)].Find(binding);
+            const json::Value* v = rows->array[static_cast<size_t>(index)].Find(binding);
             if (!v)
                 return false;
             out = *v;
@@ -87,8 +88,8 @@ namespace {
         }
         std::vector<FactoryItem> Factory(const std::string& name) const override {
             std::vector<FactoryItem> items;
-            if (const Json* list = factories.Find(name); list && list->IsArray())
-                for (const Json& e : list->array) {
+            if (const json::Value* list = factories.Find(name); list && list->IsArray())
+                for (const json::Value& e : list->array) {
                     if (!e.IsArray() || e.array.empty())
                         continue;
                     FactoryItem item;
@@ -180,9 +181,9 @@ int main(int argc, char** argv) {
          {std::pair{"SCREEN_VARS", &data.vars}, std::pair{"SCREEN_COLLECTIONS", &data.collections},
           std::pair{"SCREEN_FACTORY", &data.factories}})
         if (const char* v = std::getenv(env)) {
-            Json parsed;
+            json::Value parsed;
             std::string err;
-            if (Json::Parse(v, parsed, err) && parsed.IsObject())
+            if (json::Value::Parse(v, parsed, err) && parsed.IsObject())
                 *target = parsed;
             else
                 std::fprintf(stderr, "%s: %s\n", env, err.c_str());
@@ -215,8 +216,8 @@ int main(int argc, char** argv) {
     }
     if (const char* t = std::getenv("SCREEN_TREE"))
         Tree(*eval, 0, std::atoi(t) == 2);
-    RmlEmitter emitter;
-    const std::string rml = emitter.Emit(*eval, W, H, "", true);
+    SceneEmitter emitter;
+    const std::string rml = DumpScene(emitter.Emit(*eval, W, H, ""));
     phase("emit");
     if (std::getenv("SCREEN_RML"))
         std::fputs(rml.c_str(), stdout);

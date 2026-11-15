@@ -1,6 +1,8 @@
+#include "util/TaskGroup.hpp"
 #include "core/Config.hpp"
 #include "core/Log.hpp"
 #include "core/Server.hpp"
+#include "world/BlockCatalog.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -69,9 +71,8 @@ int main(int argc, char** argv) {
     config.dataDir = dir;
 
     if (config.blockDataDir.empty() && argc > 0) {
-        std::error_code ec;
         const std::filesystem::path beside = std::filesystem::path(argv[0]).parent_path() / "resources";
-        if (std::filesystem::exists(beside / "block_states.json", ec))
+        if (!BlockCatalog::FindFile(beside.string(), "block_states.json").empty())
             config.blockDataDir = beside.string();
     }
     if (config.pluginDir.empty())
@@ -89,19 +90,18 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, OnSignal);
     std::signal(SIGTERM, OnSignal);
 
-    std::thread console;
-    std::mutex lineMutex;
-    std::vector<std::string> lines;
-    std::atomic<bool> consoleDone{false};
-    console = std::thread([&] {
+    struct ConsoleInput {
+        std::mutex mutex;
+        std::vector<std::string> lines;
+    };
+    const auto input = std::make_shared<ConsoleInput>();
+    std::thread([input] {
         std::string line;
         while (std::getline(std::cin, line)) {
-            std::lock_guard lock(lineMutex);
-            lines.push_back(line);
+            std::lock_guard lock(input->mutex);
+            input->lines.push_back(line);
         }
-        consoleDone = true;
-    });
-    console.detach();
+    }).detach();
 
     using clock = std::chrono::steady_clock;
     auto next = clock::now();
@@ -109,8 +109,8 @@ int main(int argc, char** argv) {
         {
             std::vector<std::string> pending;
             {
-                std::lock_guard lock(lineMutex);
-                pending.swap(lines);
+                std::lock_guard lock(input->mutex);
+                pending.swap(input->lines);
             }
             for (const std::string& l : pending)
                 server.RunConsoleCommand(l);
@@ -126,5 +126,6 @@ int main(int argc, char** argv) {
     LogInfo("stopping");
     g_server = nullptr;
     server.Stop();
+    perlin::ProcessTasks().Shutdown();
     return 0;
 }

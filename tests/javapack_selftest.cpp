@@ -1,6 +1,6 @@
-#include "client/resources/JavaPack.hpp"
-#include "client/resources/TextureLoader.hpp"
-#include "client/resources/TexturePack.hpp"
+#include "client/systems/resources/JavaPack.hpp"
+#include "client/systems/resources/TextureLoader.hpp"
+#include "client/systems/resources/TexturePack.hpp"
 
 #include <miniz.h>
 

@@ -25,7 +25,7 @@ int main() {
     BuildReport report;
     const bool scanned = library.Scan();
     auto tree = BuildTree(library, "hud.hud_screen", {}, report);
-    const Json* marker = tree ? tree->props.Find("marker") : nullptr;
+    const perlin::json::Value* marker = tree ? tree->props.Find("marker") : nullptr;
     const auto* nested = library.Nested("hud");
     const bool ok = scanned && tree && marker && marker->StringOr("") == "pack-loaded" &&
                     tree->type == "panel" && tree->children.size() == 1 && nested &&

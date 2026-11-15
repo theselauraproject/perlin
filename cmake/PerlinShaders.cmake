@@ -41,7 +41,6 @@ if(NOT PERLIN_SLANGC)
 endif()
 
 set(PERLIN_SHADER_TARGETS)
-# the OpenGL ES backend translates the same SPIR-V, so it needs the spirv shaders even when Vulkan is off (the web build)
 if(CONDUIT_VULKAN OR CONDUIT_GLES)
     list(APPEND PERLIN_SHADER_TARGETS spirv)
 endif()

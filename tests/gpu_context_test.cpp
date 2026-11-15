@@ -1,6 +1,6 @@
-#include "client/renderer/Frustum.hpp"
-#include "client/renderer/Tessellator.hpp"
-#include "client/renderer/gpu/RenderContext_rhi.hpp"
+#include "client/systems/gfx/Frustum.hpp"
+#include "client/systems/gfx/Tessellator.hpp"
+#include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

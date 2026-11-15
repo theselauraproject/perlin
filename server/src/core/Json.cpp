@@ -236,40 +236,6 @@ namespace perlin::server::json {
         }
         return true;
     }
-
-    std::string Escape(std::string_view text) {
-        std::string out;
-        out.reserve(text.size() + 2);
-        for (const unsigned char c : text) {
-            switch (c) {
-            case '"':
-                out += "\\\"";
-                break;
-            case '\\':
-                out += "\\\\";
-                break;
-            case '\n':
-                out += "\\n";
-                break;
-            case '\r':
-                out += "\\r";
-                break;
-            case '\t':
-                out += "\\t";
-                break;
-            default:
-                if (c < 0x20) {
-                    char buf[8];
-                    std::snprintf(buf, sizeof buf, "\\u%04x", c);
-                    out += buf;
-                } else {
-                    out.push_back(static_cast<char>(c));
-                }
-            }
-        }
-        return out;
-    }
-
     std::string Base64UrlDecode(std::string_view text) {
         std::string out;
         uint32_t acc = 0;

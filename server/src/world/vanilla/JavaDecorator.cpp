@@ -230,15 +230,15 @@ namespace perlin::server::vanilla {
                 const bool plant = in("minecraft:replaceable") || in("minecraft:flowers") || in("minecraft:saplings") ||
                                    in("minecraft:small_flowers") || in("minecraft:crops") ||
                                    in("minecraft:replaceable_by_trees") || name.contains("sapling") ||
-                                   name.contains("mushroom") && !name.contains("block") && !name.contains("stem") ||
-                                   name.contains("vine") || name.contains("bush") || name.contains("grass") &&
-                                   !name.contains("block") || name.contains("fern") || name.contains("torch") ||
+                                   (name.contains("mushroom") && !name.contains("block") && !name.contains("stem")) ||
+                                   name.contains("vine") || name.contains("bush") || (name.contains("grass") &&
+                                    !name.contains("block")) || name.contains("fern") || name.contains("torch") ||
                                    name.contains("snow_layer") || name.contains("seagrass") || name.contains("kelp") ||
                                    name.contains("reeds") || name.contains("waterlily") || name.contains("leaf_litter") ||
                                    name.contains("petals") || name.contains("wildflowers") || name.contains("cocoa") ||
                                    name.contains("dead_bush") || name.contains("deadbush") || name.contains("coral_fan") ||
-                                   name.contains("lichen") || name.contains("dripleaf") || name.contains("roots") &&
-                                   !name.contains("mangrove_roots");
+                                   name.contains("lichen") || name.contains("dripleaf") || (name.contains("roots") &&
+                                    !name.contains("mangrove_roots"));
                 if (in("minecraft:replaceable") || name == "minecraft:snow_layer")
                     f |= kReplaceable;
                 if (!plant)
@@ -248,8 +248,6 @@ namespace perlin::server::vanilla {
             return f;
         }
 
-        // per tag and block id: 0 not looked up yet, 1 outside, 2 inside. the tag sets hold names, and naming an
-        // id locks the registry and copies a string: ore and tree placement asked that for every block they touched
         struct TagMask {
             std::array<std::atomic<uint8_t>, 65536> state{};
             const std::unordered_set<std::string>* names = nullptr;
@@ -432,7 +430,7 @@ namespace perlin::server::vanilla {
                     return static_cast<int>(v.Int());
                 if (Is(vType, "constant"))
                     return static_cast<int>(v["value"].Int());
-                if (Is(vType, "uniform") || !v.members.contains("type") && v.members.contains("min_inclusive"))
+                if (Is(vType, "uniform") || (!v.members.contains("type") && v.members.contains("min_inclusive")))
                     return r.Between(static_cast<int>(v["min_inclusive"].Int()), static_cast<int>(v["max_inclusive"].Int()));
                 if (Is(vType, "biased_to_bottom")) {
                     const int lo = static_cast<int>(v["min_inclusive"].Int()), hi = static_cast<int>(v["max_inclusive"].Int());
@@ -548,7 +546,7 @@ namespace perlin::server::vanilla {
                     return e.text == name;
                 };
                 if (list.IsArray())
-                    return std::any_of(list.items.begin(), list.items.end(), one);
+                    return std::ranges::any_of(list.items, one);
                 return one(list);
             }
 
@@ -593,7 +591,7 @@ namespace perlin::server::vanilla {
                     return (bf & kSolid) != 0;
                 if (name == "minecraft:bamboo" || name == "minecraft:bamboo_sapling")
                     return belowIn("minecraft:supports_bamboo");
-                if (name.contains("sapling") || name.contains("flower") || name.contains("grass") && !name.contains("block") ||
+                if (name.contains("sapling") || name.contains("flower") || (name.contains("grass") && !name.contains("block")) ||
                     name.contains("fern") || name.contains("bush") || name.contains("petals") || name.contains("wildflowers") ||
                     name.contains("tulip") || name.contains("orchid") || name.contains("allium") || name.contains("bluet") ||
                     name.contains("daisy") || name.contains("dandelion") || name.contains("poppy") || name.contains("lily") ||
@@ -643,7 +641,7 @@ namespace perlin::server::vanilla {
                         return false;
                     };
                     if (fl.IsArray())
-                        return std::any_of(fl.items.begin(), fl.items.end(), one);
+                        return std::ranges::any_of(fl.items, one);
                     return one(fl);
                 }
                 if (Is(vType, "solid") || Is(vType, "has_sturdy_face"))
@@ -733,7 +731,7 @@ namespace perlin::server::vanilla {
             bool ValidTree(const Pos& p) {
                 const uint16_t id = w.Get(p);
                 const uint8_t f = d.Flags(id);
-                return (f & kAir) || d.InTag("minecraft:replaceable_by_trees", id) || (f & kReplaceable) && !(f & kWater);
+                return (f & kAir) || d.InTag("minecraft:replaceable_by_trees", id) || ((f & kReplaceable) && !(f & kWater));
             }
             bool FreeTree(const Pos& p) { return ValidTree(p) || (w.F(p) & kLog); }
 

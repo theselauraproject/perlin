@@ -9,4 +9,5 @@ namespace perlin::resources {
 
     bool Read(const std::string& name, std::string& out);
     std::string ReadText(const std::string& name);
+    std::string ReadRequiredText(const std::string& name);
 }

@@ -1,5 +1,5 @@
-#include "client/player/HeldBuild.hpp"
-#include "client/player/BlockUse.hpp"
+#include "client/systems/player/HeldBuild.hpp"
+#include "client/systems/blocks/BlockUse.hpp"
 
 #include <array>
 #include <cmath>

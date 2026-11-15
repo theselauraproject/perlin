@@ -21,8 +21,6 @@ namespace perlin {
         }
     };
 
-    // 4096 block or liquid ids of one section: one byte per cell plus a palette while the section holds at most
-    // 256 distinct ids (nearly every section), two bytes per cell past that. halves the resident chunk memory
     class Cells16 {
     public:
         bool Empty() const { return !narrow && !wide; }
@@ -32,7 +30,6 @@ namespace perlin {
         void Reset();
         void Fill(uint16_t value);
         void Set(int cell, uint16_t value);
-        // cells in section order ((y * 16 + z) * 16 + x)
         void Load(const uint16_t* cells);
         void CopyOut(int cell, int n, uint16_t* out) const;
         bool AllZero(int cell, int n) const;

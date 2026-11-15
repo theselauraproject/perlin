@@ -1,9 +1,9 @@
-#include "client/audio/SoundSystem.hpp"
-#include "client/audio/Subtitles.hpp"
-#include "client/i18n/Lang.hpp"
+#include "client/systems/audio/SoundSystem.hpp"
+#include "client/systems/audio/Subtitles.hpp"
+#include "client/systems/i18n/Lang.hpp"
+#include "util/FileIo.hpp"
 
 #include <fstream>
-#include <sstream>
 
 #include <cmath>
 #include <cstdio>
@@ -353,14 +353,12 @@ static void TestSubtitles() {
 }
 
 static void LoadLanguage() {
-    std::ifstream f(PERLIN_LANG_FILE, std::ios::binary);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    ss << "\nsubtitles.block.generic.footsteps=Footsteps\nsubtitles.block.generic.break=Block broken\n"
+    std::string contents = perlin::file::Read(PERLIN_LANG_FILE);
+    contents += "\nsubtitles.block.generic.footsteps=Footsteps\nsubtitles.block.generic.break=Block broken\n"
           "subtitles.entity.cow.ambient=Cow moos\nsubtitles.entity.zombie.ambient=Zombie groans\n"
           "subtitles.entity.polar_bear.hurt=Polar Bear hurts\nsubtitles.entity.pig.death=Pig dies\n"
           "subtitles.entity.generic.explode=Explosion\nentity.polar_bear.name=Polar Bear\n";
-    perlin::i18n::Lang::Get().LoadFromText(ss.str());
+    perlin::i18n::Lang::Get().LoadFromText(contents);
 }
 
 int main() {

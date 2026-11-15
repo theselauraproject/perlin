@@ -3,7 +3,7 @@ import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "..", "..", "resources", "block_selection.bin")
+OUT = os.path.join(HERE, "..", "..", "resources", "data", "blocks", "block_selection.bin")
 SRC = sys.argv[1]
 S = 1e8
 data = open(SRC, "rb").read()

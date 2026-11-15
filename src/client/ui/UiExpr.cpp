@@ -22,11 +22,11 @@ namespace perlin::ui {
         public:
             Evaluator(std::string_view text, const ExprEnv& env) : lex{text, 0}, env(env) {}
 
-            bool Run(Json& out) {
-                Json v = Or();
+            bool Run(json::Value& out) {
+                json::Value v = Or();
                 lex.Skip();
                 if (failed || lex.pos < lex.s.size()) {
-                    out = Json();
+                    out = json::Value();
                     return false;
                 }
                 out = std::move(v);
@@ -59,7 +59,7 @@ namespace perlin::ui {
                 return true;
             }
 
-            static std::string Format(const std::string& fmt, const Json& value) {
+            static std::string Format(const std::string& fmt, const json::Value& value) {
                 std::string out;
                 for (size_t i = 0; i < fmt.size(); i++) {
                     if (fmt[i] != '%' || i + 1 >= fmt.size()) {
@@ -98,7 +98,7 @@ namespace perlin::ui {
                 return out;
             }
 
-            static bool Equal(const Json& a, const Json& b) {
+            static bool Equal(const json::Value& a, const json::Value& b) {
                 if (a.IsNumber() && b.IsNumber())
                     return a.number == b.number;
                 if (a.IsBool() && b.IsBool())
@@ -112,7 +112,7 @@ namespace perlin::ui {
                 return a.Dump() == b.Dump();
             }
 
-            static double AsNumber(const Json& v) {
+            static double AsNumber(const json::Value& v) {
                 if (v.IsNumber())
                     return v.number;
                 if (v.IsBool())
@@ -122,64 +122,64 @@ namespace perlin::ui {
                 return 0.0;
             }
 
-            Json Or() {
-                Json left = And();
+            json::Value Or() {
+                json::Value left = And();
                 while (MatchWord("or") || Match("||")) {
-                    Json right = And();
-                    left = Json(Truthy(left) || Truthy(right));
+                    json::Value right = And();
+                    left = json::Value(Truthy(left) || Truthy(right));
                 }
                 return left;
             }
 
-            Json And() {
-                Json left = Compare();
+            json::Value And() {
+                json::Value left = Compare();
                 while (MatchWord("and") || Match("&&")) {
-                    Json right = Compare();
-                    left = Json(Truthy(left) && Truthy(right));
+                    json::Value right = Compare();
+                    left = json::Value(Truthy(left) && Truthy(right));
                 }
                 return left;
             }
 
-            Json Compare() {
-                Json left = Sum();
+            json::Value Compare() {
+                json::Value left = Sum();
                 for (;;) {
                     if (Match("=="))
-                        left = Json(Equal(left, Sum()));
+                        left = json::Value(Equal(left, Sum()));
                     else if (Match("!="))
-                        left = Json(!Equal(left, Sum()));
+                        left = json::Value(!Equal(left, Sum()));
                     else if (Match(">="))
-                        left = Json(AsNumber(left) >= AsNumber(Sum()));
+                        left = json::Value(AsNumber(left) >= AsNumber(Sum()));
                     else if (Match("<="))
-                        left = Json(AsNumber(left) <= AsNumber(Sum()));
+                        left = json::Value(AsNumber(left) <= AsNumber(Sum()));
                     else if (Match(">"))
-                        left = Json(AsNumber(left) > AsNumber(Sum()));
+                        left = json::Value(AsNumber(left) > AsNumber(Sum()));
                     else if (Match("<"))
-                        left = Json(AsNumber(left) < AsNumber(Sum()));
+                        left = json::Value(AsNumber(left) < AsNumber(Sum()));
                     else if (lex.Skip(), lex.pos < lex.s.size() && lex.s[lex.pos] == '=' &&
                                              !(lex.pos + 1 < lex.s.size() && lex.s[lex.pos + 1] == '=')) {
                         lex.pos++;
-                        left = Json(Equal(left, Sum()));
+                        left = json::Value(Equal(left, Sum()));
                     } else {
                         return left;
                     }
                 }
             }
 
-            Json Sum() {
-                Json left = Product();
+            json::Value Sum() {
+                json::Value left = Product();
                 for (;;) {
                     lex.Skip();
                     if (lex.pos < lex.s.size() && lex.s[lex.pos] == '+') {
                         lex.pos++;
-                        Json right = Product();
+                        json::Value right = Product();
                         if (left.IsString() || right.IsString())
-                            left = Json((left.IsString() ? left.string : left.Dump()) +
+                            left = json::Value((left.IsString() ? left.string : left.Dump()) +
                                         (right.IsString() ? right.string : right.Dump()));
                         else
-                            left = Json(AsNumber(left) + AsNumber(right));
+                            left = json::Value(AsNumber(left) + AsNumber(right));
                     } else if (lex.pos < lex.s.size() && lex.s[lex.pos] == '-') {
                         lex.pos++;
-                        Json right = Product();
+                        json::Value right = Product();
                         if (left.IsString()) {
 
                             const std::string cut = right.IsString() ? right.string : right.Dump();
@@ -187,9 +187,9 @@ namespace perlin::ui {
                             if (!cut.empty())
                                 for (size_t at; (at = out.find(cut)) != std::string::npos;)
                                     out.erase(at, cut.size());
-                            left = Json(std::move(out));
+                            left = json::Value(std::move(out));
                         } else {
-                            left = Json(AsNumber(left) - AsNumber(right));
+                            left = json::Value(AsNumber(left) - AsNumber(right));
                         }
                     } else {
                         return left;
@@ -197,46 +197,46 @@ namespace perlin::ui {
                 }
             }
 
-            Json Product() {
-                Json left = Unary();
+            json::Value Product() {
+                json::Value left = Unary();
                 for (;;) {
                     lex.Skip();
                     if (lex.pos < lex.s.size() && lex.s[lex.pos] == '*') {
                         lex.pos++;
-                        Json right = Unary();
+                        json::Value right = Unary();
                         if (left.IsString() && left.string.contains('%'))
-                            left = Json(Format(left.string, right));
+                            left = json::Value(Format(left.string, right));
                         else
-                            left = Json(AsNumber(left) * AsNumber(right));
+                            left = json::Value(AsNumber(left) * AsNumber(right));
                     } else if (lex.pos < lex.s.size() && lex.s[lex.pos] == '/') {
                         lex.pos++;
                         const double d = AsNumber(Unary());
-                        left = Json(d == 0 ? 0.0 : AsNumber(left) / d);
+                        left = json::Value(d == 0 ? 0.0 : AsNumber(left) / d);
                     } else if (lex.pos < lex.s.size() && lex.s[lex.pos] == '%') {
                         lex.pos++;
                         const double d = AsNumber(Unary());
-                        left = Json(d == 0 ? 0.0 : std::fmod(AsNumber(left), d));
+                        left = json::Value(d == 0 ? 0.0 : std::fmod(AsNumber(left), d));
                     } else {
                         return left;
                     }
                 }
             }
 
-            Json Unary() {
+            json::Value Unary() {
                 if (MatchWord("not") ||
                     (lex.Skip(), lex.pos < lex.s.size() && lex.s[lex.pos] == '!' &&
                                      !(lex.pos + 1 < lex.s.size() && lex.s[lex.pos + 1] == '=') &&
                                      (lex.pos++, true)))
-                    return Json(!Truthy(Unary()));
+                    return json::Value(!Truthy(Unary()));
                 lex.Skip();
                 if (lex.pos < lex.s.size() && lex.s[lex.pos] == '-') {
                     lex.pos++;
-                    return Json(-AsNumber(Unary()));
+                    return json::Value(-AsNumber(Unary()));
                 }
                 return Primary();
             }
 
-            Json Primary() {
+            json::Value Primary() {
                 lex.Skip();
                 if (lex.pos >= lex.s.size()) {
                     failed = true;
@@ -245,7 +245,7 @@ namespace perlin::ui {
                 const char c = lex.s[lex.pos];
                 if (c == '(') {
                     lex.pos++;
-                    Json v = Or();
+                    json::Value v = Or();
                     lex.Skip();
                     if (lex.pos < lex.s.size() && lex.s[lex.pos] == ')')
                         lex.pos++;
@@ -263,7 +263,7 @@ namespace perlin::ui {
                         lex.pos++;
                     else
                         failed = true;
-                    return Json(std::move(text));
+                    return json::Value(std::move(text));
                 }
                 if (std::isdigit(static_cast<unsigned char>(c)) || c == '.') {
                     const size_t start = lex.pos;
@@ -271,7 +271,7 @@ namespace perlin::ui {
                         lex.pos < lex.s.size() &&
                         (std::isdigit(static_cast<unsigned char>(lex.s[lex.pos])) || lex.s[lex.pos] == '.'))
                         lex.pos++;
-                    return Json(std::atof(std::string(lex.s.substr(start, lex.pos - start)).c_str()));
+                    return json::Value(std::atof(std::string(lex.s.substr(start, lex.pos - start)).c_str()));
                 }
                 if (c == '#' || c == '$') {
                     const size_t start = lex.pos++;
@@ -280,7 +280,7 @@ namespace perlin::ui {
                             lex.s[lex.pos] == '_' || lex.s[lex.pos] == '.'))
                         lex.pos++;
                     const std::string name(lex.s.substr(start, lex.pos - start));
-                    Json value;
+                    json::Value value;
                     if (c == '#' && env.binding && env.binding(name, value))
                         return value;
                     if (c == '$' && env.variable && env.variable(name, value))
@@ -288,18 +288,18 @@ namespace perlin::ui {
                     return {};
                 }
                 if (MatchWord("true"))
-                    return Json(true);
+                    return json::Value(true);
                 if (MatchWord("false"))
-                    return Json(false);
+                    return json::Value(false);
                 if (MatchWord("null"))
-                    return Json();
+                    return json::Value();
                 if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
                     const size_t start = lex.pos;
                     while (lex.pos < lex.s.size() &&
                            (std::isalnum(static_cast<unsigned char>(lex.s[lex.pos])) ||
                             lex.s[lex.pos] == '_' || lex.s[lex.pos] == '.'))
                         lex.pos++;
-                    return Json(std::string(lex.s.substr(start, lex.pos - start)));
+                    return json::Value(std::string(lex.s.substr(start, lex.pos - start)));
                 }
                 failed = true;
                 return {};
@@ -320,25 +320,25 @@ namespace perlin::ui {
         return text.contains('#');
     }
 
-    bool Truthy(const Json& v) {
+    bool Truthy(const json::Value& v) {
         switch (v.type) {
-        case Json::Type::Bool:
+        case json::Value::Type::Bool:
             return v.boolean;
-        case Json::Type::Number:
+        case json::Value::Type::Number:
             return v.number != 0.0;
 
-        case Json::Type::String:
+        case json::Value::Type::String:
             return !v.string.empty() && v.string != "false" && v.string != "0" && v.string[0] != '$';
-        case Json::Type::Array:
+        case json::Value::Type::Array:
             return !v.array.empty();
-        case Json::Type::Object:
+        case json::Value::Type::Object:
             return !v.object.empty();
         default:
             return false;
         }
     }
 
-    bool EvalExpression(std::string_view text, const ExprEnv& env, Json& out) {
+    bool EvalExpression(std::string_view text, const ExprEnv& env, json::Value& out) {
 
         std::string balanced;
         balanced.reserve(text.size());

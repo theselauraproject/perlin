@@ -1,10 +1,10 @@
 #pragma once
 #include "client/ui/HudRenderers.hpp"
 #include "client/ui/HudData.hpp"
-#include "client/ui/HudState.hpp"
+#include "client/systems/model/HudState.hpp"
 #include "client/ui/JsonUi.hpp"
 #include "client/ui/RmlBackend.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/UiLayout.hpp"
 
 #include <future>
@@ -54,7 +54,7 @@ namespace perlin::ui {
         float GuiWidth() const { return guiW; }
         float GuiHeight() const { return guiH; }
         int Scale() const { return scale; }
-        const std::string& LastDocument() const { return lastRml; }
+        const SceneDoc& LastDocument() const { return lastDoc; }
         size_t Rebuilds() const { return rebuilds; }
         void Reload() { reloadRequested = true; }
         void SetJavaStyle(bool java);
@@ -69,24 +69,22 @@ namespace perlin::ui {
 
         RmlBackend backend;
         UiLibrary library;
-        // the server pack folders the current tree was built from: a pack change that leaves them as they were
-        // (joining a server that sends none) needs no reload of fonts, textures and the whole hud
         std::vector<std::string> builtPackDirs;
         bool builtPackDirsKnown = false;
         std::unique_ptr<Node> tree;
-        RmlEmitter emitter;
+        SceneEmitter emitter;
         std::unique_ptr<Node> crosshairTree;
-        RmlEmitter cursorEmitter;
+        SceneEmitter cursorEmitter;
         bool cursorValid = false;
         float cursorX = 0, cursorY = 0;
         HudState state;
         std::unique_ptr<HudData> data;
         UiServices services;
         AnimHost animHost;
-        std::unordered_map<std::string, Json> animCache;
+        std::unordered_map<std::string, json::Value> animCache;
         double lastAnimEval = 0;
         std::string dataDir, vanillaRoot;
-        std::string lastRml;
+        SceneDoc lastDoc;
         std::string lastRcss;
         uint64_t lastSignature = 0;
         uint64_t lastIncomingSignature = 0;
@@ -105,7 +103,6 @@ namespace perlin::ui {
         bool templatesStale = true, emitterDefault = false;
         double templateCheck = 0;
         uint64_t hudTemplateVersion = 0, chatTemplateVersion = 0;
-        // the templates' modification stamps: the 2 s check reads and hashes them only when one changed
         uint64_t templateStamp = 0;
         bool dumped = false;
         bool javaStyle = false;

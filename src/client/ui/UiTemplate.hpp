@@ -6,11 +6,14 @@
 namespace perlin::ui {
     std::string LoadUiTemplate(const std::string& dataDir, const std::string& fileName,
                                const std::string& defaultText, uint64_t& version);
+    std::string ReadMarkup(const std::string& resourceName);
+    std::string ExpandSceneTokens(std::string text);
     void ReplaceAll(std::string& text, const std::string& key, const std::string& value);
-    std::string ScreenTemplate(const std::string& fileName, const std::string& defaultText);
+    const std::string& BuiltinTemplate(const std::string& resourceName);
+    std::string ScreenTemplate(const std::string& fileName);
 
     struct ScreenTemplateDefault {
-        ScreenTemplateDefault(const char* fileName, std::string defaultText);
+        explicit ScreenTemplateDefault(const char* fileName);
     };
     void ExportScreenTemplates();
 

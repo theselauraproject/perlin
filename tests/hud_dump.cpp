@@ -1,8 +1,8 @@
 #include "client/ui/HudData.hpp"
 #include "client/ui/HudRenderers.hpp"
-#include "client/ui/McFont.hpp"
+#include "client/systems/text/McFont.hpp"
 #include "client/ui/TenFont.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/ui/SceneEmit.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -10,6 +10,7 @@
 #include <iostream>
 
 using namespace perlin::ui;
+namespace json = perlin::json;
 
 static bool PngSize(const std::string& path, int& w, int& h) {
     std::ifstream f(path, std::ios::binary);
@@ -42,7 +43,7 @@ int main(int argc, char** argv) {
     if (argc == 2 && std::string(argv[1]) == "--boss-selftest") {
         HudState state;
         HudData data(state);
-        Json value;
+        json::Value value;
         const auto initial = HudSignature(state);
         if (data.CollectionSize("boss_bars") != 0 || !data.Global("#boss_grid_dimension", value) ||
             value.array.size() != 2 || value.array[1].number != 0)
@@ -125,9 +126,9 @@ int main(int argc, char** argv) {
     auto eval = EvaluateTree(*tree, data, services, W, H);
     if (std::getenv("HUD_TREE"))
         Tree(*eval, 0, std::atoi(std::getenv("HUD_TREE")) == 1);
-    RmlEmitter emitter;
+    SceneEmitter emitter;
     RegisterHudRenderers(emitter, state, services);
-    std::string rml = emitter.Emit(*eval, W, H, "", true);
+    const std::string rml = DumpScene(emitter.Emit(*eval, W, H, ""));
     std::fputs(rml.c_str(), stdout);
     for (auto& u : emitter.UnknownRenderers())
         std::fprintf(stderr, "  unknown renderer: %s\n", u.c_str());

@@ -51,8 +51,6 @@ namespace perlin::server {
             ChunkPos center;
             int radius = 0;
         };
-        // drops unedited chunks more than `margin` chunks outside every viewer (they regenerate the same from
-        // the seed) and the cached network payload of edited ones; returns how many were dropped
         size_t UnloadFar(const std::vector<Viewer>& viewers, int margin);
         size_t Pending() const;
 
@@ -64,9 +62,7 @@ namespace perlin::server {
         std::unique_ptr<TerrainBackend> backend;
         int dimension = kOverworld;
         std::unordered_map<ChunkPos, std::shared_ptr<ChunkEntry>, ChunkPosHash> chunks;
-        // changed after generation: no world saving, so these are the only copy and are never unloaded
         std::unordered_set<ChunkPos, ChunkPosHash> edited;
-        // generated at least once: a regenerated chunk must not run the spawn-on-generate pass again
         std::unordered_set<ChunkPos, ChunkPosHash> everReady;
         std::unordered_set<ChunkPos, ChunkPosHash> requested;
         std::vector<ChunkPos> ready;
@@ -80,7 +76,6 @@ namespace perlin::server {
         std::unordered_set<ChunkPos, ChunkPosHash> rawPending;
         std::deque<ChunkPos> rawOrder;
         std::condition_variable rawReady;
-        // undecorated neighbours kept for decoration; a generation frontier at radius 32 needs well under this
         size_t rawCap = 192;
 
         std::vector<std::thread> workers;

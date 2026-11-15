@@ -1,6 +1,6 @@
-#include "client/renderer/gpu/GpuCore.hpp"
-#include "client/renderer/gpu/ModGpu.hpp"
-#include "client/renderer/gpu/ModGpuHub.hpp"
+#include "client/systems/renderer/gpu/GpuCore.hpp"
+#include "client/systems/renderer/gpu/ModGpu.hpp"
+#include "client/systems/renderer/gpu/ModGpuHub.hpp"
 
 #include <perlin/gpu.hpp>
 
@@ -332,7 +332,6 @@ int main() {
     }
     CHECK(hub.ReadBuffer(plugin, storage, 128, 20, 77) == HubStatus::Ok);
 
-    // MSAA + resolve, depth, indirect draws and storage textures.
     {
         uint32_t msaa = 0, resolve = 0, depthTex = 0, indirectBuf = 0, storageTex = 0, msaaPipe = 0, texComputePipe = 0;
         ModTextureDesc m;

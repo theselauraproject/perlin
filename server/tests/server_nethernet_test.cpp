@@ -13,7 +13,6 @@
 #include <atomic>
 #include <chrono>
 #include <mutex>
-#include <sstream>
 #include <thread>
 
 using namespace perlin::server;

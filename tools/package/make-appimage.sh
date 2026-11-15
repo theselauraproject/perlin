@@ -19,7 +19,6 @@ cp "$root/packaging/appimage/io.perlin.client.desktop" "$app/usr/share/applicati
 cp "$root/packaging/appimage/AppRun" "$app/AppRun"
 chmod +x "$app/AppRun" "$app/usr/lib/perlin/Perlin"
 
-# a runtime file given here saves appimagetool downloading it from github on every run
 runtime_args=""
 [ -n "${APPIMAGE_RUNTIME_FILE:-}" ] && [ -s "$APPIMAGE_RUNTIME_FILE" ] && runtime_args="--runtime-file $APPIMAGE_RUNTIME_FILE"
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$arch" appimagetool --no-appstream $runtime_args "$app" "$out"

@@ -1,5 +1,3 @@
-// world-space ui, entity and particle multi draws: each draw's bounding sphere against the frustum; a draw
-// outside it keeps its slot with no instances, so the multi draw keeps its order and size
 
 struct Entry
 {
@@ -19,7 +17,6 @@ struct PushData
     uint pad1;
     uint pad2;
 };
-// conduit's d3d12 root constants sit at b0 in space 15
 [[vk::push_constant]] ConstantBuffer<PushData> push : register(b0, space15);
 
 [numthreads(64, 1, 1)]

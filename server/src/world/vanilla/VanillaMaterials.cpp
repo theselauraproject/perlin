@@ -339,7 +339,7 @@ namespace perlin::server::vanilla {
             const VanillaMaterials::Cond& c = m.conds[static_cast<size_t>(index)];
             switch (c.kind) {
             case K::Biome:
-                return std::find(c.biomes.begin(), c.biomes.end(), static_cast<uint8_t>(Biome())) != c.biomes.end();
+                return std::ranges::find(c.biomes, static_cast<uint8_t>(Biome())) != c.biomes.end();
             case K::Noise: {
                 const double v = static_cast<double>(c.is3d ? c.noise->Get(x, y, z) : c.noise->Get(x, 0.0, z));
                 return v >= c.lo && v <= c.hi;

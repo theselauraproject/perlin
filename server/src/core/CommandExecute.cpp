@@ -83,7 +83,7 @@ namespace perlin::server {
                     error = "Expected a coordinate, found '" + s + "'";
                     return false;
                 }
-                if (!relative[k] && center && k != 1 && body.find('.') == std::string::npos)
+                if (!relative[k] && center && k != 1 && !body.contains('.'))
                     v[k] += 0.5;
             }
             const double baseY = o.y + (o.eyes ? kEye : 0.0);

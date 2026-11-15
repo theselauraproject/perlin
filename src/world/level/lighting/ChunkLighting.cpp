@@ -76,9 +76,6 @@ namespace perlin {
         grid.sky.assign(cells, 0);
         grid.block.assign(cells, 0);
 
-        // colTop: highest row whose sky light is below full. colLit: lowest row still above 1. Sky light only
-        // falls going down a column and 0 stays 0, so a column stops at its first dark cell (the grid is zeroed)
-        // and the lit cells, the only ones that can seed the flood, are the run from the top down to colLit
         static thread_local std::vector<int16_t> colTop;
         static thread_local std::vector<int16_t> colLit;
         colTop.assign(kLayer, -1);
@@ -206,8 +203,6 @@ namespace perlin {
                         hi = std::max(hi, chi);
                     }
                 }
-            // band wholly above the build limit (camera or entity high in the sky): open sky, and the grid
-            // below would get a negative row count
             if (hi < lo || yLo >= Chunk::MIN_Y + Chunk::HEIGHT) {
                 out.yBase = yLo;
                 out.rows = yHi - yLo + 1;
@@ -243,8 +238,6 @@ namespace perlin {
         grid.opacity.resize(cells);
         grid.shaped.resize(cells);
         scratch.emitters.clear();
-        // each distinct id is resolved once per call (the registry can change between calls): opacity in the
-        // low byte, emission in bits 8-11, bit 12 for a shaped (partly occluding) block, bit 15 for resolved
         static thread_local std::vector<uint16_t> props(65536, 0);
         static thread_local std::vector<uint16_t> seenIds;
         constexpr uint16_t kResolved = 0x8000, kShaped = 0x1000;

@@ -1,4 +1,4 @@
-#include "client/hand/HandAnim.hpp"
+#include "client/systems/hand/HandAnim.hpp"
 
 #include <cstdio>
 
@@ -33,7 +33,6 @@ int main() {
         }
         CHECK(swing.Progress(1.0f) == 5.0f / 6.0f);
         swing.Tick(6);
-        // the last tick runs on to 1 (Java interpolates 5/6 -> 6/6 here), then the arm is at rest
         CHECK(!swing.swinging && swing.Progress(0.5f) == 5.0f / 6.0f + 0.5f / 6.0f);
         swing.Tick(6);
         CHECK(!swing.swinging && swing.Progress(0.5f) == 0.0f);

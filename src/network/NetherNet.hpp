@@ -4,6 +4,7 @@
 #include <atomic>
 #include <concurrentqueue.h>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -14,6 +15,12 @@ namespace perlin {
 
     namespace friendworld {
         struct Lease;
+        struct IceServerInfo;
+    }
+
+    namespace nethernet {
+        class SignalInbox;
+        class CandidateLog;
     }
 
     class NetherNet : public Transport {
@@ -58,11 +65,28 @@ namespace perlin {
         void OnReliableMessage(const uint8_t* data, size_t size);
         void OnUnreliableMessage(const uint8_t* data, size_t size);
 
+        bool Fail(std::string why);
+        std::expected<void, std::string> BuildPeer(const std::vector<friendworld::IceServerInfo>& relays);
+        std::shared_ptr<nethernet::CandidateLog> WirePeerCallbacks();
+        std::expected<void, std::string> OpenChannels();
+        std::expected<std::string, std::string> BuildSignedOffer(const friendworld::Lease& lease,
+                                                                 const ClientIdentity& identity);
+        std::expected<void, std::string> SendOffer(friendworld::Lease& lease, const std::string& connectionId,
+                                                   const std::string& signedOffer,
+                                                   const nethernet::CandidateLog& candidates);
+        void AddRemoteCandidate(const std::string& text);
+        std::expected<void, std::string> AwaitChannelOpen(const friendworld::Lease& lease,
+                                                          nethernet::SignalInbox& inbox);
+        std::expected<void, std::string> NegotiateWithHost(friendworld::Lease& lease,
+                                                           const ClientIdentity& identity,
+                                                           const nethernet::CandidateLog& candidates);
+
         std::shared_ptr<int> life = std::make_shared<int>(0);
         std::atomic<bool> connected{false};
         std::string lastError;
         NetherNetServerInfo serverInfo;
 
+        struct Signals;
         struct Impl;
         std::unique_ptr<Impl> impl;
 

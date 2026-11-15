@@ -1,0 +1,77 @@
+.btn {
+    height: 20px;
+    background-color: #000000;
+    z-index: 5;
+}
+
+.btn div {
+    position: absolute;
+}
+
+.btn .rim {
+    left: 1px;
+    top: 1px;
+    height: 16px;
+    background-color: #aaaaaa;
+}
+
+.btn .face {
+    left: 2px;
+    top: 2px;
+    height: 15px;
+    background-color: #6f6f6f;
+}
+
+.btn .shade {
+    left: 1px;
+    top: 17px;
+    height: 2px;
+    background-color: #565656;
+}
+
+.btn .edge {
+    top: 1px;
+    width: 1px;
+    height: 16px;
+    background-color: #565656;
+}
+
+.btn .lbl {
+    font-family: minecraft-shadow;
+    left: 0px;
+    top: 6px;
+    height: 9px;
+    font-size: 8px;
+    line-height: 9px;
+    text-align: center;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.btn:hover {
+    background-color: #ffffff;
+}
+
+.btn:hover .rim {
+    background-color: #afafaf;
+}
+
+.btn:hover .face {
+    background-color: #757575;
+}
+
+.btn:hover .edge {
+    background-color: #5c5c5c;
+}
+
+.btn.off:hover {
+    background-color: #000000;
+}
+
+.btn.off .edge {
+    background-color: #2c2c2c;
+}
+
+.btn.off .lbl {
+    color: #a0a0a0;
+}

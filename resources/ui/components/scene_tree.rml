@@ -1,0 +1,1126 @@
+<div
+    data-for="n : {{list}}"
+    data-attr-id="n.id"
+    data-attr-class="'n ' + n.cls"
+    data-style-left="n.x + 'px'"
+    data-style-top="n.y + 'px'"
+    data-style-width="n.w > 0 ? n.w + 'px' : 'auto'"
+    data-style-height="n.h > 0 ? n.h + 'px' : 'auto'"
+    data-style-z-index="n.z"
+    data-attr-snd="n.snd"
+    data-attr-vol="n.vol"
+    data-attr-pit="n.pit">
+    <mcimg
+        data-if="n.kind == 1"
+        data-attr-src="n.src"
+        data-attr-uv="n.uv"
+        data-attr-nine="n.nine"
+        data-attr-tiled="n.tiled"
+        data-attr-tilescale="n.tileScale"
+        data-attr-clip="n.clipDirection"
+        data-attr-color="n.tint"
+        data-attr-alpha="n.alpha"
+        data-attr-keep="n.keep"></mcimg>
+    <mcitem data-if="n.kind == 2" data-attr-key="n.key" data-attr-alpha="n.alpha" data-attr-glint="n.glint"></mcitem>
+    <div
+        data-if="n.kind == 3"
+        class="tx"
+        data-style-font-family="n.family"
+        data-style-font-size="n.size + 'px'"
+        data-style-line-height="n.lineHeight + 'px'"
+        data-style-text-align="n.align"
+        data-style-color="n.color">
+        <span data-for="nr : n.runs">
+            <span data-if="nr.colored == '1'">
+                <span
+                    data-style-color="nr.color"
+                    data-style-font-weight="nr.weight"
+                    data-style-font-style="nr.style"
+                    data-style-background-color="nr.background"
+                    data-style-display="nr.display"
+                    data-style-width="nr.width"
+                    data-style-overflow="nr.overflow">
+                    {{nr.text}}
+                </span>
+            </span>
+            <span data-if="nr.colored != '1'">
+                <span
+                    data-style-font-weight="nr.weight"
+                    data-style-font-style="nr.style"
+                    data-style-background-color="nr.background"
+                    data-style-display="nr.display"
+                    data-style-width="nr.width"
+                    data-style-overflow="nr.overflow">
+                    {{nr.text}}
+                </span>
+            </span>
+        </span>
+    </div>
+    <div data-if="n.kind == 7" class="lab">
+        <span data-for="nl : n.runs">
+            <span data-if="nl.colored == '1'">
+                <span
+                    data-style-color="nl.color"
+                    data-style-font-weight="nl.weight"
+                    data-style-font-style="nl.style"
+                    data-style-background-color="nl.background"
+                    data-style-display="nl.display"
+                    data-style-width="nl.width"
+                    data-style-overflow="nl.overflow">
+                    {{nl.text}}
+                </span>
+            </span>
+            <span data-if="nl.colored != '1'">
+                <span
+                    data-style-font-weight="nl.weight"
+                    data-style-font-style="nl.style"
+                    data-style-background-color="nl.background"
+                    data-style-display="nl.display"
+                    data-style-width="nl.width"
+                    data-style-overflow="nl.overflow">
+                    {{nl.text}}
+                </span>
+            </span>
+        </span>
+    </div>
+    <div data-if="n.kind == 4" class="fill" data-style-background-color="n.color"></div>
+    <div data-if="n.kind == 5" class="fill" data-style-decorator="n.decorator"></div>
+    <div data-if="n.kind == 6" class="ul"></div>
+    <div data-if="n.kind == 8" class="rim" data-style-width="(n.w - 3) + 'px'"></div>
+    <div data-if="n.kind == 8" class="face" data-style-width="(n.w - 4) + 'px'"></div>
+    <div data-if="n.kind == 8" class="shade" data-style-width="(n.w - 2) + 'px'"></div>
+    <div data-if="n.kind == 8" class="edge" data-style-left="(n.w - 2) + 'px'"></div>
+    <div data-if="n.kind == 8" class="lbl" data-style-width="n.w + 'px'">
+        <span data-for="nb : n.runs">
+            <span data-if="nb.colored == '1'">
+                <span
+                    data-style-color="nb.color"
+                    data-style-font-weight="nb.weight"
+                    data-style-font-style="nb.style"
+                    data-style-background-color="nb.background"
+                    data-style-display="nb.display"
+                    data-style-width="nb.width"
+                    data-style-overflow="nb.overflow">
+                    {{nb.text}}
+                </span>
+            </span>
+            <span data-if="nb.colored != '1'">
+                <span
+                    data-style-font-weight="nb.weight"
+                    data-style-font-style="nb.style"
+                    data-style-background-color="nb.background"
+                    data-style-display="nb.display"
+                    data-style-width="nb.width"
+                    data-style-overflow="nb.overflow">
+                    {{nb.text}}
+                </span>
+            </span>
+        </span>
+    </div>
+    <div data-if="n.kind == 9" class="rim" data-style-width="(n.w - 3) + 'px'"></div>
+    <div data-if="n.kind == 9" class="face" data-style-width="(n.w - 4) + 'px'"></div>
+    <div data-if="n.kind == 9" class="lbl" data-style-width="n.w + 'px'" style="z-index: 2;">
+        <span data-for="ns : n.runs">
+            <span data-if="ns.colored == '1'">
+                <span
+                    data-style-color="ns.color"
+                    data-style-font-weight="ns.weight"
+                    data-style-font-style="ns.style"
+                    data-style-background-color="ns.background"
+                    data-style-display="ns.display"
+                    data-style-width="ns.width"
+                    data-style-overflow="ns.overflow">
+                    {{ns.text}}
+                </span>
+            </span>
+            <span data-if="ns.colored != '1'">
+                <span
+                    data-style-font-weight="ns.weight"
+                    data-style-font-style="ns.style"
+                    data-style-background-color="ns.background"
+                    data-style-display="ns.display"
+                    data-style-width="ns.width"
+                    data-style-overflow="ns.overflow">
+                    {{ns.text}}
+                </span>
+            </span>
+        </span>
+    </div>
+    <div data-if="n.kind == 9" class="knob" data-style-left="n.knob + 'px'" style="top: 0px;">
+        <div class="krim"></div>
+        <div class="kface"></div>
+        <div class="kshade"></div>
+    </div>
+    <div
+        data-for="n1 : n.children"
+        data-attr-id="n1.id"
+        data-attr-class="'n ' + n1.cls"
+        data-style-left="n1.x + 'px'"
+        data-style-top="n1.y + 'px'"
+        data-style-width="n1.w > 0 ? n1.w + 'px' : 'auto'"
+        data-style-height="n1.h > 0 ? n1.h + 'px' : 'auto'"
+        data-style-z-index="n1.z"
+        data-attr-snd="n1.snd"
+        data-attr-vol="n1.vol"
+        data-attr-pit="n1.pit">
+        <mcimg
+            data-if="n1.kind == 1"
+            data-attr-src="n1.src"
+            data-attr-uv="n1.uv"
+            data-attr-nine="n1.nine"
+            data-attr-tiled="n1.tiled"
+            data-attr-tilescale="n1.tileScale"
+            data-attr-clip="n1.clipDirection"
+            data-attr-color="n1.tint"
+            data-attr-alpha="n1.alpha"
+            data-attr-keep="n1.keep"></mcimg>
+        <mcitem
+            data-if="n1.kind == 2"
+            data-attr-key="n1.key"
+            data-attr-alpha="n1.alpha"
+            data-attr-glint="n1.glint"></mcitem>
+        <div
+            data-if="n1.kind == 3"
+            class="tx"
+            data-style-font-family="n1.family"
+            data-style-font-size="n1.size + 'px'"
+            data-style-line-height="n1.lineHeight + 'px'"
+            data-style-text-align="n1.align"
+            data-style-color="n1.color">
+            <span data-for="n1r : n1.runs">
+                <span data-if="n1r.colored == '1'">
+                    <span
+                        data-style-color="n1r.color"
+                        data-style-font-weight="n1r.weight"
+                        data-style-font-style="n1r.style"
+                        data-style-background-color="n1r.background"
+                        data-style-display="n1r.display"
+                        data-style-width="n1r.width"
+                        data-style-overflow="n1r.overflow">
+                        {{n1r.text}}
+                    </span>
+                </span>
+                <span data-if="n1r.colored != '1'">
+                    <span
+                        data-style-font-weight="n1r.weight"
+                        data-style-font-style="n1r.style"
+                        data-style-background-color="n1r.background"
+                        data-style-display="n1r.display"
+                        data-style-width="n1r.width"
+                        data-style-overflow="n1r.overflow">
+                        {{n1r.text}}
+                    </span>
+                </span>
+            </span>
+        </div>
+        <div data-if="n1.kind == 7" class="lab">
+            <span data-for="n1l : n1.runs">
+                <span data-if="n1l.colored == '1'">
+                    <span
+                        data-style-color="n1l.color"
+                        data-style-font-weight="n1l.weight"
+                        data-style-font-style="n1l.style"
+                        data-style-background-color="n1l.background"
+                        data-style-display="n1l.display"
+                        data-style-width="n1l.width"
+                        data-style-overflow="n1l.overflow">
+                        {{n1l.text}}
+                    </span>
+                </span>
+                <span data-if="n1l.colored != '1'">
+                    <span
+                        data-style-font-weight="n1l.weight"
+                        data-style-font-style="n1l.style"
+                        data-style-background-color="n1l.background"
+                        data-style-display="n1l.display"
+                        data-style-width="n1l.width"
+                        data-style-overflow="n1l.overflow">
+                        {{n1l.text}}
+                    </span>
+                </span>
+            </span>
+        </div>
+        <div data-if="n1.kind == 4" class="fill" data-style-background-color="n1.color"></div>
+        <div data-if="n1.kind == 5" class="fill" data-style-decorator="n1.decorator"></div>
+        <div data-if="n1.kind == 6" class="ul"></div>
+        <div data-if="n1.kind == 8" class="rim" data-style-width="(n1.w - 3) + 'px'"></div>
+        <div data-if="n1.kind == 8" class="face" data-style-width="(n1.w - 4) + 'px'"></div>
+        <div data-if="n1.kind == 8" class="shade" data-style-width="(n1.w - 2) + 'px'"></div>
+        <div data-if="n1.kind == 8" class="edge" data-style-left="(n1.w - 2) + 'px'"></div>
+        <div data-if="n1.kind == 8" class="lbl" data-style-width="n1.w + 'px'">
+            <span data-for="n1b : n1.runs">
+                <span data-if="n1b.colored == '1'">
+                    <span
+                        data-style-color="n1b.color"
+                        data-style-font-weight="n1b.weight"
+                        data-style-font-style="n1b.style"
+                        data-style-background-color="n1b.background"
+                        data-style-display="n1b.display"
+                        data-style-width="n1b.width"
+                        data-style-overflow="n1b.overflow">
+                        {{n1b.text}}
+                    </span>
+                </span>
+                <span data-if="n1b.colored != '1'">
+                    <span
+                        data-style-font-weight="n1b.weight"
+                        data-style-font-style="n1b.style"
+                        data-style-background-color="n1b.background"
+                        data-style-display="n1b.display"
+                        data-style-width="n1b.width"
+                        data-style-overflow="n1b.overflow">
+                        {{n1b.text}}
+                    </span>
+                </span>
+            </span>
+        </div>
+        <div data-if="n1.kind == 9" class="rim" data-style-width="(n1.w - 3) + 'px'"></div>
+        <div data-if="n1.kind == 9" class="face" data-style-width="(n1.w - 4) + 'px'"></div>
+        <div data-if="n1.kind == 9" class="lbl" data-style-width="n1.w + 'px'" style="z-index: 2;">
+            <span data-for="n1s : n1.runs">
+                <span data-if="n1s.colored == '1'">
+                    <span
+                        data-style-color="n1s.color"
+                        data-style-font-weight="n1s.weight"
+                        data-style-font-style="n1s.style"
+                        data-style-background-color="n1s.background"
+                        data-style-display="n1s.display"
+                        data-style-width="n1s.width"
+                        data-style-overflow="n1s.overflow">
+                        {{n1s.text}}
+                    </span>
+                </span>
+                <span data-if="n1s.colored != '1'">
+                    <span
+                        data-style-font-weight="n1s.weight"
+                        data-style-font-style="n1s.style"
+                        data-style-background-color="n1s.background"
+                        data-style-display="n1s.display"
+                        data-style-width="n1s.width"
+                        data-style-overflow="n1s.overflow">
+                        {{n1s.text}}
+                    </span>
+                </span>
+            </span>
+        </div>
+        <div data-if="n1.kind == 9" class="knob" data-style-left="n1.knob + 'px'" style="top: 0px;">
+            <div class="krim"></div>
+            <div class="kface"></div>
+            <div class="kshade"></div>
+        </div>
+        <div
+            data-for="n2 : n1.children"
+            data-attr-id="n2.id"
+            data-attr-class="'n ' + n2.cls"
+            data-style-left="n2.x + 'px'"
+            data-style-top="n2.y + 'px'"
+            data-style-width="n2.w > 0 ? n2.w + 'px' : 'auto'"
+            data-style-height="n2.h > 0 ? n2.h + 'px' : 'auto'"
+            data-style-z-index="n2.z"
+            data-attr-snd="n2.snd"
+            data-attr-vol="n2.vol"
+            data-attr-pit="n2.pit">
+            <mcimg
+                data-if="n2.kind == 1"
+                data-attr-src="n2.src"
+                data-attr-uv="n2.uv"
+                data-attr-nine="n2.nine"
+                data-attr-tiled="n2.tiled"
+                data-attr-tilescale="n2.tileScale"
+                data-attr-clip="n2.clipDirection"
+                data-attr-color="n2.tint"
+                data-attr-alpha="n2.alpha"
+                data-attr-keep="n2.keep"></mcimg>
+            <mcitem
+                data-if="n2.kind == 2"
+                data-attr-key="n2.key"
+                data-attr-alpha="n2.alpha"
+                data-attr-glint="n2.glint"></mcitem>
+            <div
+                data-if="n2.kind == 3"
+                class="tx"
+                data-style-font-family="n2.family"
+                data-style-font-size="n2.size + 'px'"
+                data-style-line-height="n2.lineHeight + 'px'"
+                data-style-text-align="n2.align"
+                data-style-color="n2.color">
+                <span data-for="n2r : n2.runs">
+                    <span data-if="n2r.colored == '1'">
+                        <span
+                            data-style-color="n2r.color"
+                            data-style-font-weight="n2r.weight"
+                            data-style-font-style="n2r.style"
+                            data-style-background-color="n2r.background"
+                            data-style-display="n2r.display"
+                            data-style-width="n2r.width"
+                            data-style-overflow="n2r.overflow">
+                            {{n2r.text}}
+                        </span>
+                    </span>
+                    <span data-if="n2r.colored != '1'">
+                        <span
+                            data-style-font-weight="n2r.weight"
+                            data-style-font-style="n2r.style"
+                            data-style-background-color="n2r.background"
+                            data-style-display="n2r.display"
+                            data-style-width="n2r.width"
+                            data-style-overflow="n2r.overflow">
+                            {{n2r.text}}
+                        </span>
+                    </span>
+                </span>
+            </div>
+            <div data-if="n2.kind == 7" class="lab">
+                <span data-for="n2l : n2.runs">
+                    <span data-if="n2l.colored == '1'">
+                        <span
+                            data-style-color="n2l.color"
+                            data-style-font-weight="n2l.weight"
+                            data-style-font-style="n2l.style"
+                            data-style-background-color="n2l.background"
+                            data-style-display="n2l.display"
+                            data-style-width="n2l.width"
+                            data-style-overflow="n2l.overflow">
+                            {{n2l.text}}
+                        </span>
+                    </span>
+                    <span data-if="n2l.colored != '1'">
+                        <span
+                            data-style-font-weight="n2l.weight"
+                            data-style-font-style="n2l.style"
+                            data-style-background-color="n2l.background"
+                            data-style-display="n2l.display"
+                            data-style-width="n2l.width"
+                            data-style-overflow="n2l.overflow">
+                            {{n2l.text}}
+                        </span>
+                    </span>
+                </span>
+            </div>
+            <div data-if="n2.kind == 4" class="fill" data-style-background-color="n2.color"></div>
+            <div data-if="n2.kind == 5" class="fill" data-style-decorator="n2.decorator"></div>
+            <div data-if="n2.kind == 6" class="ul"></div>
+            <div data-if="n2.kind == 8" class="rim" data-style-width="(n2.w - 3) + 'px'"></div>
+            <div data-if="n2.kind == 8" class="face" data-style-width="(n2.w - 4) + 'px'"></div>
+            <div data-if="n2.kind == 8" class="shade" data-style-width="(n2.w - 2) + 'px'"></div>
+            <div data-if="n2.kind == 8" class="edge" data-style-left="(n2.w - 2) + 'px'"></div>
+            <div data-if="n2.kind == 8" class="lbl" data-style-width="n2.w + 'px'">
+                <span data-for="n2b : n2.runs">
+                    <span data-if="n2b.colored == '1'">
+                        <span
+                            data-style-color="n2b.color"
+                            data-style-font-weight="n2b.weight"
+                            data-style-font-style="n2b.style"
+                            data-style-background-color="n2b.background"
+                            data-style-display="n2b.display"
+                            data-style-width="n2b.width"
+                            data-style-overflow="n2b.overflow">
+                            {{n2b.text}}
+                        </span>
+                    </span>
+                    <span data-if="n2b.colored != '1'">
+                        <span
+                            data-style-font-weight="n2b.weight"
+                            data-style-font-style="n2b.style"
+                            data-style-background-color="n2b.background"
+                            data-style-display="n2b.display"
+                            data-style-width="n2b.width"
+                            data-style-overflow="n2b.overflow">
+                            {{n2b.text}}
+                        </span>
+                    </span>
+                </span>
+            </div>
+            <div data-if="n2.kind == 9" class="rim" data-style-width="(n2.w - 3) + 'px'"></div>
+            <div data-if="n2.kind == 9" class="face" data-style-width="(n2.w - 4) + 'px'"></div>
+            <div data-if="n2.kind == 9" class="lbl" data-style-width="n2.w + 'px'" style="z-index: 2;">
+                <span data-for="n2s : n2.runs">
+                    <span data-if="n2s.colored == '1'">
+                        <span
+                            data-style-color="n2s.color"
+                            data-style-font-weight="n2s.weight"
+                            data-style-font-style="n2s.style"
+                            data-style-background-color="n2s.background"
+                            data-style-display="n2s.display"
+                            data-style-width="n2s.width"
+                            data-style-overflow="n2s.overflow">
+                            {{n2s.text}}
+                        </span>
+                    </span>
+                    <span data-if="n2s.colored != '1'">
+                        <span
+                            data-style-font-weight="n2s.weight"
+                            data-style-font-style="n2s.style"
+                            data-style-background-color="n2s.background"
+                            data-style-display="n2s.display"
+                            data-style-width="n2s.width"
+                            data-style-overflow="n2s.overflow">
+                            {{n2s.text}}
+                        </span>
+                    </span>
+                </span>
+            </div>
+            <div data-if="n2.kind == 9" class="knob" data-style-left="n2.knob + 'px'" style="top: 0px;">
+                <div class="krim"></div>
+                <div class="kface"></div>
+                <div class="kshade"></div>
+            </div>
+            <div
+                data-for="n3 : n2.children"
+                data-attr-id="n3.id"
+                data-attr-class="'n ' + n3.cls"
+                data-style-left="n3.x + 'px'"
+                data-style-top="n3.y + 'px'"
+                data-style-width="n3.w > 0 ? n3.w + 'px' : 'auto'"
+                data-style-height="n3.h > 0 ? n3.h + 'px' : 'auto'"
+                data-style-z-index="n3.z"
+                data-attr-snd="n3.snd"
+                data-attr-vol="n3.vol"
+                data-attr-pit="n3.pit">
+                <mcimg
+                    data-if="n3.kind == 1"
+                    data-attr-src="n3.src"
+                    data-attr-uv="n3.uv"
+                    data-attr-nine="n3.nine"
+                    data-attr-tiled="n3.tiled"
+                    data-attr-tilescale="n3.tileScale"
+                    data-attr-clip="n3.clipDirection"
+                    data-attr-color="n3.tint"
+                    data-attr-alpha="n3.alpha"
+                    data-attr-keep="n3.keep"></mcimg>
+                <mcitem
+                    data-if="n3.kind == 2"
+                    data-attr-key="n3.key"
+                    data-attr-alpha="n3.alpha"
+                    data-attr-glint="n3.glint"></mcitem>
+                <div
+                    data-if="n3.kind == 3"
+                    class="tx"
+                    data-style-font-family="n3.family"
+                    data-style-font-size="n3.size + 'px'"
+                    data-style-line-height="n3.lineHeight + 'px'"
+                    data-style-text-align="n3.align"
+                    data-style-color="n3.color">
+                    <span data-for="n3r : n3.runs">
+                        <span data-if="n3r.colored == '1'">
+                            <span
+                                data-style-color="n3r.color"
+                                data-style-font-weight="n3r.weight"
+                                data-style-font-style="n3r.style"
+                                data-style-background-color="n3r.background"
+                                data-style-display="n3r.display"
+                                data-style-width="n3r.width"
+                                data-style-overflow="n3r.overflow">
+                                {{n3r.text}}
+                            </span>
+                        </span>
+                        <span data-if="n3r.colored != '1'">
+                            <span
+                                data-style-font-weight="n3r.weight"
+                                data-style-font-style="n3r.style"
+                                data-style-background-color="n3r.background"
+                                data-style-display="n3r.display"
+                                data-style-width="n3r.width"
+                                data-style-overflow="n3r.overflow">
+                                {{n3r.text}}
+                            </span>
+                        </span>
+                    </span>
+                </div>
+                <div data-if="n3.kind == 7" class="lab">
+                    <span data-for="n3l : n3.runs">
+                        <span data-if="n3l.colored == '1'">
+                            <span
+                                data-style-color="n3l.color"
+                                data-style-font-weight="n3l.weight"
+                                data-style-font-style="n3l.style"
+                                data-style-background-color="n3l.background"
+                                data-style-display="n3l.display"
+                                data-style-width="n3l.width"
+                                data-style-overflow="n3l.overflow">
+                                {{n3l.text}}
+                            </span>
+                        </span>
+                        <span data-if="n3l.colored != '1'">
+                            <span
+                                data-style-font-weight="n3l.weight"
+                                data-style-font-style="n3l.style"
+                                data-style-background-color="n3l.background"
+                                data-style-display="n3l.display"
+                                data-style-width="n3l.width"
+                                data-style-overflow="n3l.overflow">
+                                {{n3l.text}}
+                            </span>
+                        </span>
+                    </span>
+                </div>
+                <div data-if="n3.kind == 4" class="fill" data-style-background-color="n3.color"></div>
+                <div data-if="n3.kind == 5" class="fill" data-style-decorator="n3.decorator"></div>
+                <div data-if="n3.kind == 6" class="ul"></div>
+                <div data-if="n3.kind == 8" class="rim" data-style-width="(n3.w - 3) + 'px'"></div>
+                <div data-if="n3.kind == 8" class="face" data-style-width="(n3.w - 4) + 'px'"></div>
+                <div data-if="n3.kind == 8" class="shade" data-style-width="(n3.w - 2) + 'px'"></div>
+                <div data-if="n3.kind == 8" class="edge" data-style-left="(n3.w - 2) + 'px'"></div>
+                <div data-if="n3.kind == 8" class="lbl" data-style-width="n3.w + 'px'">
+                    <span data-for="n3b : n3.runs">
+                        <span data-if="n3b.colored == '1'">
+                            <span
+                                data-style-color="n3b.color"
+                                data-style-font-weight="n3b.weight"
+                                data-style-font-style="n3b.style"
+                                data-style-background-color="n3b.background"
+                                data-style-display="n3b.display"
+                                data-style-width="n3b.width"
+                                data-style-overflow="n3b.overflow">
+                                {{n3b.text}}
+                            </span>
+                        </span>
+                        <span data-if="n3b.colored != '1'">
+                            <span
+                                data-style-font-weight="n3b.weight"
+                                data-style-font-style="n3b.style"
+                                data-style-background-color="n3b.background"
+                                data-style-display="n3b.display"
+                                data-style-width="n3b.width"
+                                data-style-overflow="n3b.overflow">
+                                {{n3b.text}}
+                            </span>
+                        </span>
+                    </span>
+                </div>
+                <div data-if="n3.kind == 9" class="rim" data-style-width="(n3.w - 3) + 'px'"></div>
+                <div data-if="n3.kind == 9" class="face" data-style-width="(n3.w - 4) + 'px'"></div>
+                <div data-if="n3.kind == 9" class="lbl" data-style-width="n3.w + 'px'" style="z-index: 2;">
+                    <span data-for="n3s : n3.runs">
+                        <span data-if="n3s.colored == '1'">
+                            <span
+                                data-style-color="n3s.color"
+                                data-style-font-weight="n3s.weight"
+                                data-style-font-style="n3s.style"
+                                data-style-background-color="n3s.background"
+                                data-style-display="n3s.display"
+                                data-style-width="n3s.width"
+                                data-style-overflow="n3s.overflow">
+                                {{n3s.text}}
+                            </span>
+                        </span>
+                        <span data-if="n3s.colored != '1'">
+                            <span
+                                data-style-font-weight="n3s.weight"
+                                data-style-font-style="n3s.style"
+                                data-style-background-color="n3s.background"
+                                data-style-display="n3s.display"
+                                data-style-width="n3s.width"
+                                data-style-overflow="n3s.overflow">
+                                {{n3s.text}}
+                            </span>
+                        </span>
+                    </span>
+                </div>
+                <div data-if="n3.kind == 9" class="knob" data-style-left="n3.knob + 'px'" style="top: 0px;">
+                    <div class="krim"></div>
+                    <div class="kface"></div>
+                    <div class="kshade"></div>
+                </div>
+                <div
+                    data-for="n4 : n3.children"
+                    data-attr-id="n4.id"
+                    data-attr-class="'n ' + n4.cls"
+                    data-style-left="n4.x + 'px'"
+                    data-style-top="n4.y + 'px'"
+                    data-style-width="n4.w > 0 ? n4.w + 'px' : 'auto'"
+                    data-style-height="n4.h > 0 ? n4.h + 'px' : 'auto'"
+                    data-style-z-index="n4.z"
+                    data-attr-snd="n4.snd"
+                    data-attr-vol="n4.vol"
+                    data-attr-pit="n4.pit">
+                    <mcimg
+                        data-if="n4.kind == 1"
+                        data-attr-src="n4.src"
+                        data-attr-uv="n4.uv"
+                        data-attr-nine="n4.nine"
+                        data-attr-tiled="n4.tiled"
+                        data-attr-tilescale="n4.tileScale"
+                        data-attr-clip="n4.clipDirection"
+                        data-attr-color="n4.tint"
+                        data-attr-alpha="n4.alpha"
+                        data-attr-keep="n4.keep"></mcimg>
+                    <mcitem
+                        data-if="n4.kind == 2"
+                        data-attr-key="n4.key"
+                        data-attr-alpha="n4.alpha"
+                        data-attr-glint="n4.glint"></mcitem>
+                    <div
+                        data-if="n4.kind == 3"
+                        class="tx"
+                        data-style-font-family="n4.family"
+                        data-style-font-size="n4.size + 'px'"
+                        data-style-line-height="n4.lineHeight + 'px'"
+                        data-style-text-align="n4.align"
+                        data-style-color="n4.color">
+                        <span data-for="n4r : n4.runs">
+                            <span data-if="n4r.colored == '1'">
+                                <span
+                                    data-style-color="n4r.color"
+                                    data-style-font-weight="n4r.weight"
+                                    data-style-font-style="n4r.style"
+                                    data-style-background-color="n4r.background"
+                                    data-style-display="n4r.display"
+                                    data-style-width="n4r.width"
+                                    data-style-overflow="n4r.overflow">
+                                    {{n4r.text}}
+                                </span>
+                            </span>
+                            <span data-if="n4r.colored != '1'">
+                                <span
+                                    data-style-font-weight="n4r.weight"
+                                    data-style-font-style="n4r.style"
+                                    data-style-background-color="n4r.background"
+                                    data-style-display="n4r.display"
+                                    data-style-width="n4r.width"
+                                    data-style-overflow="n4r.overflow">
+                                    {{n4r.text}}
+                                </span>
+                            </span>
+                        </span>
+                    </div>
+                    <div data-if="n4.kind == 7" class="lab">
+                        <span data-for="n4l : n4.runs">
+                            <span data-if="n4l.colored == '1'">
+                                <span
+                                    data-style-color="n4l.color"
+                                    data-style-font-weight="n4l.weight"
+                                    data-style-font-style="n4l.style"
+                                    data-style-background-color="n4l.background"
+                                    data-style-display="n4l.display"
+                                    data-style-width="n4l.width"
+                                    data-style-overflow="n4l.overflow">
+                                    {{n4l.text}}
+                                </span>
+                            </span>
+                            <span data-if="n4l.colored != '1'">
+                                <span
+                                    data-style-font-weight="n4l.weight"
+                                    data-style-font-style="n4l.style"
+                                    data-style-background-color="n4l.background"
+                                    data-style-display="n4l.display"
+                                    data-style-width="n4l.width"
+                                    data-style-overflow="n4l.overflow">
+                                    {{n4l.text}}
+                                </span>
+                            </span>
+                        </span>
+                    </div>
+                    <div data-if="n4.kind == 4" class="fill" data-style-background-color="n4.color"></div>
+                    <div data-if="n4.kind == 5" class="fill" data-style-decorator="n4.decorator"></div>
+                    <div data-if="n4.kind == 6" class="ul"></div>
+                    <div data-if="n4.kind == 8" class="rim" data-style-width="(n4.w - 3) + 'px'"></div>
+                    <div data-if="n4.kind == 8" class="face" data-style-width="(n4.w - 4) + 'px'"></div>
+                    <div data-if="n4.kind == 8" class="shade" data-style-width="(n4.w - 2) + 'px'"></div>
+                    <div data-if="n4.kind == 8" class="edge" data-style-left="(n4.w - 2) + 'px'"></div>
+                    <div data-if="n4.kind == 8" class="lbl" data-style-width="n4.w + 'px'">
+                        <span data-for="n4b : n4.runs">
+                            <span data-if="n4b.colored == '1'">
+                                <span
+                                    data-style-color="n4b.color"
+                                    data-style-font-weight="n4b.weight"
+                                    data-style-font-style="n4b.style"
+                                    data-style-background-color="n4b.background"
+                                    data-style-display="n4b.display"
+                                    data-style-width="n4b.width"
+                                    data-style-overflow="n4b.overflow">
+                                    {{n4b.text}}
+                                </span>
+                            </span>
+                            <span data-if="n4b.colored != '1'">
+                                <span
+                                    data-style-font-weight="n4b.weight"
+                                    data-style-font-style="n4b.style"
+                                    data-style-background-color="n4b.background"
+                                    data-style-display="n4b.display"
+                                    data-style-width="n4b.width"
+                                    data-style-overflow="n4b.overflow">
+                                    {{n4b.text}}
+                                </span>
+                            </span>
+                        </span>
+                    </div>
+                    <div data-if="n4.kind == 9" class="rim" data-style-width="(n4.w - 3) + 'px'"></div>
+                    <div data-if="n4.kind == 9" class="face" data-style-width="(n4.w - 4) + 'px'"></div>
+                    <div
+                        data-if="n4.kind == 9"
+                        class="lbl"
+                        data-style-width="n4.w + 'px'"
+                        style="z-index: 2;">
+                        <span data-for="n4s : n4.runs">
+                            <span data-if="n4s.colored == '1'">
+                                <span
+                                    data-style-color="n4s.color"
+                                    data-style-font-weight="n4s.weight"
+                                    data-style-font-style="n4s.style"
+                                    data-style-background-color="n4s.background"
+                                    data-style-display="n4s.display"
+                                    data-style-width="n4s.width"
+                                    data-style-overflow="n4s.overflow">
+                                    {{n4s.text}}
+                                </span>
+                            </span>
+                            <span data-if="n4s.colored != '1'">
+                                <span
+                                    data-style-font-weight="n4s.weight"
+                                    data-style-font-style="n4s.style"
+                                    data-style-background-color="n4s.background"
+                                    data-style-display="n4s.display"
+                                    data-style-width="n4s.width"
+                                    data-style-overflow="n4s.overflow">
+                                    {{n4s.text}}
+                                </span>
+                            </span>
+                        </span>
+                    </div>
+                    <div
+                        data-if="n4.kind == 9"
+                        class="knob"
+                        data-style-left="n4.knob + 'px'"
+                        style="top: 0px;">
+                        <div class="krim"></div>
+                        <div class="kface"></div>
+                        <div class="kshade"></div>
+                    </div>
+                    <div
+                        data-for="n5 : n4.children"
+                        data-attr-id="n5.id"
+                        data-attr-class="'n ' + n5.cls"
+                        data-style-left="n5.x + 'px'"
+                        data-style-top="n5.y + 'px'"
+                        data-style-width="n5.w > 0 ? n5.w + 'px' : 'auto'"
+                        data-style-height="n5.h > 0 ? n5.h + 'px' : 'auto'"
+                        data-style-z-index="n5.z"
+                        data-attr-snd="n5.snd"
+                        data-attr-vol="n5.vol"
+                        data-attr-pit="n5.pit">
+                        <mcimg
+                            data-if="n5.kind == 1"
+                            data-attr-src="n5.src"
+                            data-attr-uv="n5.uv"
+                            data-attr-nine="n5.nine"
+                            data-attr-tiled="n5.tiled"
+                            data-attr-tilescale="n5.tileScale"
+                            data-attr-clip="n5.clipDirection"
+                            data-attr-color="n5.tint"
+                            data-attr-alpha="n5.alpha"
+                            data-attr-keep="n5.keep"></mcimg>
+                        <mcitem
+                            data-if="n5.kind == 2"
+                            data-attr-key="n5.key"
+                            data-attr-alpha="n5.alpha"
+                            data-attr-glint="n5.glint"></mcitem>
+                        <div
+                            data-if="n5.kind == 3"
+                            class="tx"
+                            data-style-font-family="n5.family"
+                            data-style-font-size="n5.size + 'px'"
+                            data-style-line-height="n5.lineHeight + 'px'"
+                            data-style-text-align="n5.align"
+                            data-style-color="n5.color">
+                            <span data-for="n5r : n5.runs">
+                                <span data-if="n5r.colored == '1'">
+                                    <span
+                                        data-style-color="n5r.color"
+                                        data-style-font-weight="n5r.weight"
+                                        data-style-font-style="n5r.style"
+                                        data-style-background-color="n5r.background"
+                                        data-style-display="n5r.display"
+                                        data-style-width="n5r.width"
+                                        data-style-overflow="n5r.overflow">
+                                        {{n5r.text}}
+                                    </span>
+                                </span>
+                                <span data-if="n5r.colored != '1'">
+                                    <span
+                                        data-style-font-weight="n5r.weight"
+                                        data-style-font-style="n5r.style"
+                                        data-style-background-color="n5r.background"
+                                        data-style-display="n5r.display"
+                                        data-style-width="n5r.width"
+                                        data-style-overflow="n5r.overflow">
+                                        {{n5r.text}}
+                                    </span>
+                                </span>
+                            </span>
+                        </div>
+                        <div data-if="n5.kind == 7" class="lab">
+                            <span data-for="n5l : n5.runs">
+                                <span data-if="n5l.colored == '1'">
+                                    <span
+                                        data-style-color="n5l.color"
+                                        data-style-font-weight="n5l.weight"
+                                        data-style-font-style="n5l.style"
+                                        data-style-background-color="n5l.background"
+                                        data-style-display="n5l.display"
+                                        data-style-width="n5l.width"
+                                        data-style-overflow="n5l.overflow">
+                                        {{n5l.text}}
+                                    </span>
+                                </span>
+                                <span data-if="n5l.colored != '1'">
+                                    <span
+                                        data-style-font-weight="n5l.weight"
+                                        data-style-font-style="n5l.style"
+                                        data-style-background-color="n5l.background"
+                                        data-style-display="n5l.display"
+                                        data-style-width="n5l.width"
+                                        data-style-overflow="n5l.overflow">
+                                        {{n5l.text}}
+                                    </span>
+                                </span>
+                            </span>
+                        </div>
+                        <div data-if="n5.kind == 4" class="fill" data-style-background-color="n5.color"></div>
+                        <div data-if="n5.kind == 5" class="fill" data-style-decorator="n5.decorator"></div>
+                        <div data-if="n5.kind == 6" class="ul"></div>
+                        <div data-if="n5.kind == 8" class="rim" data-style-width="(n5.w - 3) + 'px'"></div>
+                        <div data-if="n5.kind == 8" class="face" data-style-width="(n5.w - 4) + 'px'"></div>
+                        <div data-if="n5.kind == 8" class="shade" data-style-width="(n5.w - 2) + 'px'"></div>
+                        <div data-if="n5.kind == 8" class="edge" data-style-left="(n5.w - 2) + 'px'"></div>
+                        <div data-if="n5.kind == 8" class="lbl" data-style-width="n5.w + 'px'">
+                            <span data-for="n5b : n5.runs">
+                                <span data-if="n5b.colored == '1'">
+                                    <span
+                                        data-style-color="n5b.color"
+                                        data-style-font-weight="n5b.weight"
+                                        data-style-font-style="n5b.style"
+                                        data-style-background-color="n5b.background"
+                                        data-style-display="n5b.display"
+                                        data-style-width="n5b.width"
+                                        data-style-overflow="n5b.overflow">
+                                        {{n5b.text}}
+                                    </span>
+                                </span>
+                                <span data-if="n5b.colored != '1'">
+                                    <span
+                                        data-style-font-weight="n5b.weight"
+                                        data-style-font-style="n5b.style"
+                                        data-style-background-color="n5b.background"
+                                        data-style-display="n5b.display"
+                                        data-style-width="n5b.width"
+                                        data-style-overflow="n5b.overflow">
+                                        {{n5b.text}}
+                                    </span>
+                                </span>
+                            </span>
+                        </div>
+                        <div data-if="n5.kind == 9" class="rim" data-style-width="(n5.w - 3) + 'px'"></div>
+                        <div data-if="n5.kind == 9" class="face" data-style-width="(n5.w - 4) + 'px'"></div>
+                        <div
+                            data-if="n5.kind == 9"
+                            class="lbl"
+                            data-style-width="n5.w + 'px'"
+                            style="z-index: 2;">
+                            <span data-for="n5s : n5.runs">
+                                <span data-if="n5s.colored == '1'">
+                                    <span
+                                        data-style-color="n5s.color"
+                                        data-style-font-weight="n5s.weight"
+                                        data-style-font-style="n5s.style"
+                                        data-style-background-color="n5s.background"
+                                        data-style-display="n5s.display"
+                                        data-style-width="n5s.width"
+                                        data-style-overflow="n5s.overflow">
+                                        {{n5s.text}}
+                                    </span>
+                                </span>
+                                <span data-if="n5s.colored != '1'">
+                                    <span
+                                        data-style-font-weight="n5s.weight"
+                                        data-style-font-style="n5s.style"
+                                        data-style-background-color="n5s.background"
+                                        data-style-display="n5s.display"
+                                        data-style-width="n5s.width"
+                                        data-style-overflow="n5s.overflow">
+                                        {{n5s.text}}
+                                    </span>
+                                </span>
+                            </span>
+                        </div>
+                        <div
+                            data-if="n5.kind == 9"
+                            class="knob"
+                            data-style-left="n5.knob + 'px'"
+                            style="top: 0px;">
+                            <div class="krim"></div>
+                            <div class="kface"></div>
+                            <div class="kshade"></div>
+                        </div>
+                        <div
+                            data-for="n6 : n5.children"
+                            data-attr-id="n6.id"
+                            data-attr-class="'n ' + n6.cls"
+                            data-style-left="n6.x + 'px'"
+                            data-style-top="n6.y + 'px'"
+                            data-style-width="n6.w > 0 ? n6.w + 'px' : 'auto'"
+                            data-style-height="n6.h > 0 ? n6.h + 'px' : 'auto'"
+                            data-style-z-index="n6.z"
+                            data-attr-snd="n6.snd"
+                            data-attr-vol="n6.vol"
+                            data-attr-pit="n6.pit">
+                            <mcimg
+                                data-if="n6.kind == 1"
+                                data-attr-src="n6.src"
+                                data-attr-uv="n6.uv"
+                                data-attr-nine="n6.nine"
+                                data-attr-tiled="n6.tiled"
+                                data-attr-tilescale="n6.tileScale"
+                                data-attr-clip="n6.clipDirection"
+                                data-attr-color="n6.tint"
+                                data-attr-alpha="n6.alpha"
+                                data-attr-keep="n6.keep"></mcimg>
+                            <mcitem
+                                data-if="n6.kind == 2"
+                                data-attr-key="n6.key"
+                                data-attr-alpha="n6.alpha"
+                                data-attr-glint="n6.glint"></mcitem>
+                            <div
+                                data-if="n6.kind == 3"
+                                class="tx"
+                                data-style-font-family="n6.family"
+                                data-style-font-size="n6.size + 'px'"
+                                data-style-line-height="n6.lineHeight + 'px'"
+                                data-style-text-align="n6.align"
+                                data-style-color="n6.color">
+                                <span data-for="n6r : n6.runs">
+                                    <span data-if="n6r.colored == '1'">
+                                        <span
+                                            data-style-color="n6r.color"
+                                            data-style-font-weight="n6r.weight"
+                                            data-style-font-style="n6r.style"
+                                            data-style-background-color="n6r.background"
+                                            data-style-display="n6r.display"
+                                            data-style-width="n6r.width"
+                                            data-style-overflow="n6r.overflow">
+                                            {{n6r.text}}
+                                        </span>
+                                    </span>
+                                    <span data-if="n6r.colored != '1'">
+                                        <span
+                                            data-style-font-weight="n6r.weight"
+                                            data-style-font-style="n6r.style"
+                                            data-style-background-color="n6r.background"
+                                            data-style-display="n6r.display"
+                                            data-style-width="n6r.width"
+                                            data-style-overflow="n6r.overflow">
+                                            {{n6r.text}}
+                                        </span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div data-if="n6.kind == 7" class="lab">
+                                <span data-for="n6l : n6.runs">
+                                    <span data-if="n6l.colored == '1'">
+                                        <span
+                                            data-style-color="n6l.color"
+                                            data-style-font-weight="n6l.weight"
+                                            data-style-font-style="n6l.style"
+                                            data-style-background-color="n6l.background"
+                                            data-style-display="n6l.display"
+                                            data-style-width="n6l.width"
+                                            data-style-overflow="n6l.overflow">
+                                            {{n6l.text}}
+                                        </span>
+                                    </span>
+                                    <span data-if="n6l.colored != '1'">
+                                        <span
+                                            data-style-font-weight="n6l.weight"
+                                            data-style-font-style="n6l.style"
+                                            data-style-background-color="n6l.background"
+                                            data-style-display="n6l.display"
+                                            data-style-width="n6l.width"
+                                            data-style-overflow="n6l.overflow">
+                                            {{n6l.text}}
+                                        </span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div data-if="n6.kind == 4" class="fill" data-style-background-color="n6.color"></div>
+                            <div data-if="n6.kind == 5" class="fill" data-style-decorator="n6.decorator"></div>
+                            <div data-if="n6.kind == 6" class="ul"></div>
+                            <div data-if="n6.kind == 8" class="rim" data-style-width="(n6.w - 3) + 'px'"></div>
+                            <div data-if="n6.kind == 8" class="face" data-style-width="(n6.w - 4) + 'px'"></div>
+                            <div data-if="n6.kind == 8" class="shade" data-style-width="(n6.w - 2) + 'px'"></div>
+                            <div data-if="n6.kind == 8" class="edge" data-style-left="(n6.w - 2) + 'px'"></div>
+                            <div data-if="n6.kind == 8" class="lbl" data-style-width="n6.w + 'px'">
+                                <span data-for="n6b : n6.runs">
+                                    <span data-if="n6b.colored == '1'">
+                                        <span
+                                            data-style-color="n6b.color"
+                                            data-style-font-weight="n6b.weight"
+                                            data-style-font-style="n6b.style"
+                                            data-style-background-color="n6b.background"
+                                            data-style-display="n6b.display"
+                                            data-style-width="n6b.width"
+                                            data-style-overflow="n6b.overflow">
+                                            {{n6b.text}}
+                                        </span>
+                                    </span>
+                                    <span data-if="n6b.colored != '1'">
+                                        <span
+                                            data-style-font-weight="n6b.weight"
+                                            data-style-font-style="n6b.style"
+                                            data-style-background-color="n6b.background"
+                                            data-style-display="n6b.display"
+                                            data-style-width="n6b.width"
+                                            data-style-overflow="n6b.overflow">
+                                            {{n6b.text}}
+                                        </span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div data-if="n6.kind == 9" class="rim" data-style-width="(n6.w - 3) + 'px'"></div>
+                            <div data-if="n6.kind == 9" class="face" data-style-width="(n6.w - 4) + 'px'"></div>
+                            <div
+                                data-if="n6.kind == 9"
+                                class="lbl"
+                                data-style-width="n6.w + 'px'"
+                                style="z-index: 2;">
+                                <span data-for="n6s : n6.runs">
+                                    <span data-if="n6s.colored == '1'">
+                                        <span
+                                            data-style-color="n6s.color"
+                                            data-style-font-weight="n6s.weight"
+                                            data-style-font-style="n6s.style"
+                                            data-style-background-color="n6s.background"
+                                            data-style-display="n6s.display"
+                                            data-style-width="n6s.width"
+                                            data-style-overflow="n6s.overflow">
+                                            {{n6s.text}}
+                                        </span>
+                                    </span>
+                                    <span data-if="n6s.colored != '1'">
+                                        <span
+                                            data-style-font-weight="n6s.weight"
+                                            data-style-font-style="n6s.style"
+                                            data-style-background-color="n6s.background"
+                                            data-style-display="n6s.display"
+                                            data-style-width="n6s.width"
+                                            data-style-overflow="n6s.overflow">
+                                            {{n6s.text}}
+                                        </span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div
+                                data-if="n6.kind == 9"
+                                class="knob"
+                                data-style-left="n6.knob + 'px'"
+                                style="top: 0px;">
+                                <div class="krim"></div>
+                                <div class="kface"></div>
+                                <div class="kshade"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

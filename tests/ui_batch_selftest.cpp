@@ -1,7 +1,5 @@
-// ui, entity and particle draws through the instanced path on the null device: neighbours with the same state
-// become multi draws, world draws go through the gpu cull pass, and the PERLIN_NO_GPU_UI fallback still draws
-#include "client/renderer/Frustum.hpp"
-#include "client/renderer/gpu/RenderContext_rhi.hpp"
+#include "client/systems/gfx/Frustum.hpp"
+#include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -57,7 +55,6 @@ int main(int argc, char** argv) {
             d.mesh = mesh;
             d.texture = tex;
             d.depth = true;
-            // half in front of the camera, half far behind it: the cull pass drops those
             const glm::mat4 m = glm::translate(glm::mat4(1.0f), glm::vec3((i % 20) - 10.0f, 0.0f, i < 100 ? 5.0f : -60.0f));
             std::memcpy(d.model, glm::value_ptr(m), 64);
             ctx.UiSubmit(UiLayer::World, d);

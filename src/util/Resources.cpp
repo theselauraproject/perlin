@@ -2,6 +2,7 @@
 #include "util/FileIo.hpp"
 #include "util/Paths.hpp"
 
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
@@ -41,6 +42,13 @@ namespace perlin::resources {
     std::string ReadText(const std::string& name) {
         std::string out;
         Read(name, out);
+        return out;
+    }
+
+    std::string ReadRequiredText(const std::string& name) {
+        std::string out;
+        if (!Read(name, out) || out.empty())
+            std::fprintf(stderr, "[resources] required resource missing: %s\n", name.c_str());
         return out;
     }
 }

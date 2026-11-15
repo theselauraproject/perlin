@@ -1,6 +1,9 @@
 #pragma once
+#include <functional>
 #include <memory>
 #include <string>
+
+#include "client/ui/RmlScene.hpp"
 
 namespace Rml {
     class Context;
@@ -24,14 +27,23 @@ namespace perlin::ui {
         bool Initialize(RenderContext& renderer);
         void Shutdown();
         bool Ready() const { return ready; }
+        using ImageSource = std::function<bool(const std::string& url, std::string& bytes)>;
+        void SetImageSource(ImageSource source);
 
         void Resize(int guiW, int guiH, int scale);
         bool SetDocument(const std::string& rml, std::string& error);
+        bool SetDocument(const std::string& rml, const Scene& scene, std::string& error);
         bool SetOverlay(const std::string& rml, std::string& error);
+        bool SetOverlay(const std::string& rml, const Scene& scene, std::string& error);
+        bool SetOverlay(const SceneDoc& doc, std::string& error) { return SetOverlay(doc.rml, doc.scene, error); }
         void ClearOverlay();
         bool SetPluginLayer(const std::string& rml, std::string& error);
+        bool SetPluginLayer(const std::string& rml, const Scene& scene, std::string& error);
+        bool SetPluginLayer(const SceneDoc& doc, std::string& error) { return SetPluginLayer(doc.rml, doc.scene, error); }
         void ClearPluginLayer();
         bool SetServerLayer(const std::string& rml, std::string& error);
+        bool SetServerLayer(const std::string& rml, const Scene& scene, std::string& error);
+        bool SetServerLayer(const SceneDoc& doc, std::string& error) { return SetServerLayer(doc.rml, doc.scene, error); }
         void ClearServerLayer();
         bool HasPluginLayer() const { return plugin != nullptr; }
         void MoveOverlayElement(const char* id, int guiX, int guiY);
@@ -59,5 +71,9 @@ namespace perlin::ui {
         Rml::ElementDocument* overlay = nullptr;
         Rml::ElementDocument* plugin = nullptr;
         Rml::ElementDocument* serverLayer = nullptr;
+        SceneModels sceneModels;
+
+        bool LoadScene(Rml::ElementDocument*& slot, const char* model, const Scene& scene, const std::string& rml,
+                       const char* what, std::string& error);
     };
 }

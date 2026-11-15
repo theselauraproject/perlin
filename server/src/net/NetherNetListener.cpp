@@ -53,7 +53,7 @@ namespace perlin::server {
                         if (!dc->send(std::move(msg)))
                             return false;
                     }
-                } catch (...) {
+                } catch (const std::exception&) {
                     return false;
                 }
                 return true;
@@ -67,7 +67,9 @@ namespace perlin::server {
                         reliable->close();
                     if (pc)
                         pc->close();
-                } catch (...) {}
+                } catch (const std::exception& e) {
+                    LogWarn(std::string("nethernet: close failed: ") + e.what());
+                }
             }
 
             bool Alive() const override { return !closed && reliable && reliable->isOpen(); }
@@ -302,7 +304,9 @@ namespace perlin::server {
                     const auto desc = peer->pc->localDescription();
                     if (desc)
                         answer = std::string(*desc);
-                } catch (...) {}
+                } catch (const std::exception& e) {
+                    LogWarn(std::string("nethernet: no local description: ") + e.what());
+                }
                 if (answer.empty()) {
                     peer->Close();
                     res.status = 500;
