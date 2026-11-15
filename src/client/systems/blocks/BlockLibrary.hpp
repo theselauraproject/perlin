@@ -126,7 +126,12 @@ namespace perlin {
         std::unordered_map<std::string, BlockAppearance> appearances;
         std::vector<uint8_t> atlas;
         std::unordered_map<std::string, int> tileByPng;
-        std::unordered_map<int, TileAlpha> alphaByTile;
+        std::vector<TileAlpha> alphaByTile;
+        std::atomic<uint64_t> alphaVersion{1};
+        void SetAlpha(int tile, const TileAlpha& alpha);
+        void ClearAlpha();
+        void EraseAlpha(int tile);
+        std::vector<uint8_t> alphaPresent;
         std::unordered_set<int> overlayMaskTiles;
         std::unordered_map<int, std::string> pathByTile;
         struct AnimSrc {

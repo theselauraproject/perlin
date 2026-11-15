@@ -1,5 +1,6 @@
 #include <cstdio>
 #include "util/Env.hpp"
+#include "util/ThreadPool.hpp"
 #include "client/systems/renderer/LevelRenderer.hpp"
 #include "client/systems/resources/BedrockSamples.hpp"
 #include "util/Resources.hpp"
@@ -303,6 +304,7 @@ namespace perlin {
             }
 
             assetJob = std::async(std::launch::async, [lib = stagedBlocks, tints = stagedTints, packDir, vanillaDir] {
+                LowerThreadPriority();
                 AssetLoad r;
                 const auto t0 = std::chrono::steady_clock::now();
                 r.blocksOk = lib->EnsureLoaded(packDir, vanillaDir);

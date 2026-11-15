@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import select
 import shutil
 import signal
 import socket
@@ -30,19 +31,26 @@ def start_display():
     xvfb = shutil.which("Xvfb")
     if not xvfb:
         return None, None
-    for number in range(90, 120):
-        if os.path.exists(f"/tmp/.X11-unix/X{number}"):
-            continue
-        proc = subprocess.Popen([xvfb, f":{number}", "-screen", "0", "1280x720x24", "-nolisten", "tcp"],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(50):
-            if os.path.exists(f"/tmp/.X11-unix/X{number}"):
-                return proc, f":{number}"
-            if proc.poll() is not None:
+    read_end, write_end = os.pipe()
+    proc = subprocess.Popen([xvfb, "-displayfd", str(write_end), "-screen", "0", "1280x720x24", "-nolisten", "tcp"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, pass_fds=(write_end,))
+    os.close(write_end)
+    deadline = time.time() + 10
+    number = b""
+    while time.time() < deadline and not number.endswith(b"\n"):
+        if proc.poll() is not None:
+            break
+        ready, _, _ = select.select([read_end], [], [], 0.2)
+        if ready:
+            chunk = os.read(read_end, 32)
+            if not chunk:
                 break
-            time.sleep(0.1)
+            number += chunk
+    os.close(read_end)
+    if not number.endswith(b"\n"):
         proc.kill()
-    return None, None
+        return None, None
+    return proc, ":" + number.decode().strip()
 
 
 def request(port, token, path, body=None, timeout=5):

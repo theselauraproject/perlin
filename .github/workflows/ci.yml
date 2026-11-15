@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+  DEPS_CACHE_VERSION: v4
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_COMPRESS: "true"
+  CCACHE_COMPRESSLEVEL: "6"
+
+jobs:
+  linux-tests:
+    name: linux-x64-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache dependencies
+        id: cpm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cpm-cache
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-
+
+      - name: Install packages
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
+            libxtst-dev libxrender-dev libwayland-dev wayland-protocols libxkbcommon-dev libasound2-dev \
+            libpulse-dev libudev-dev libdbus-1-dev mesa-vulkan-drivers xvfb
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux-x64-tests
+          max-size: 1G
+
+      - name: Configure
+        run: |
+          python tools/ci/retry_configure.py -- cmake --preset unix-ninja-fast -B build \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Save dependency cache
+        if: steps.cpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cpm-cache
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: env -u DISPLAY ctest --test-dir build --output-on-failure --parallel 4
+
+      - name: Runtime smoke
+        run: python tools/runtime_smoke.py build/Perlin

@@ -215,7 +215,7 @@ namespace perlin {
                             px[3] = 0;
                         }
                     }
-                alphaByTile[t] = baseAlpha;
+                SetAlpha(t, baseAlpha);
                 pathByTile[t] = "__glass_variant";
                 return t;
             };
@@ -293,7 +293,7 @@ namespace perlin {
             paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
             std::vector<Texture> decoded(paths.size());
             std::vector<char> ok(paths.size(), 0);
-            ThreadPool pool(HardwareThreads());
+            ThreadPool pool(BackgroundThreads(), true);
             pool.ParallelFor(paths.size(),
                              [&](size_t i) { ok[i] = LoadTexture(paths[i], decoded[i]) ? 1 : 0; });
             auto& cache = PrefetchCache();
@@ -333,7 +333,7 @@ namespace perlin {
             }
             std::vector<Texture> decoded(paths.size());
             std::vector<char> ok(paths.size(), 0);
-            ThreadPool pool(HardwareThreads());
+            ThreadPool pool(BackgroundThreads(), true);
             pool.ParallelFor(paths.size(),
                              [&](size_t i) { ok[i] = LoadTexture(paths[i], decoded[i]) ? 1 : 0; });
             auto& cache = ServerPrefetchCache();
@@ -501,10 +501,7 @@ namespace perlin {
             alpha.saturation = static_cast<float>(satSum / satN);
         alpha.frame = static_cast<float>(frameOpaque) / static_cast<float>(4 * (kTilePx - 1));
         alpha.holeFrac = 1.0f - static_cast<float>(opaqueAll) / static_cast<float>(kTilePx * kTilePx);
-        {
-            std::unique_lock alphaLock(alphaMutex);
-            alphaByTile[tile] = alpha;
-        }
+        SetAlpha(tile, alpha);
         if (frames == 1) {
             uint64_t hash = 1469598103934665603ull;
             const uint64_t* words = reinterpret_cast<const uint64_t*>(tilePixels);
@@ -515,10 +512,7 @@ namespace perlin {
             if (same != tileByHash.end() &&
                 std::memcmp(atlas.data() + static_cast<size_t>(same->second) * kTilePx * kTilePx * 4,
                             tilePixels, static_cast<size_t>(kTilePx) * kTilePx * 4) == 0) {
-                {
-                    std::unique_lock alphaLock(alphaMutex);
-                    alphaByTile.erase(tile);
-                }
+                EraseAlpha(tile);
                 nextTile--;
                 atlas.resize(static_cast<size_t>(nextTile) * kTilePx * kTilePx * 4);
                 tileByPng[pngRelPath] = same->second;
@@ -569,10 +563,7 @@ namespace perlin {
                     p[c] = static_cast<uint8_t>(std::min(255.0f, base[c] * shade));
                 p[3] = 255;
             }
-        {
-            std::unique_lock alphaLock(alphaMutex);
-            alphaByTile[tile] = TileAlpha{};
-        }
+        SetAlpha(tile, TileAlpha{});
         pathByTile[tile] = "synthetic/" + label;
         synthTiles.push_back(tile);
         return tile;
@@ -606,21 +597,63 @@ namespace perlin {
         return tile;
     }
 
+    static uint64_t NextAlphaStamp() {
+        static std::atomic<uint64_t> counter{1};
+        return counter.fetch_add(1, std::memory_order_relaxed) + 1;
+    }
+
+    void BlockLibrary::SetAlpha(int tile, const TileAlpha& alpha) {
+        if (tile <= 0)
+            return;
+        std::unique_lock alphaLock(alphaMutex);
+        if (static_cast<size_t>(tile) >= alphaByTile.size()) {
+            alphaByTile.resize(static_cast<size_t>(tile) + 1);
+            alphaPresent.resize(static_cast<size_t>(tile) + 1, 0);
+        }
+        alphaByTile[static_cast<size_t>(tile)] = alpha;
+        alphaPresent[static_cast<size_t>(tile)] = 1;
+        alphaVersion.store(NextAlphaStamp(), std::memory_order_release);
+    }
+
+    void BlockLibrary::EraseAlpha(int tile) {
+        if (tile <= 0)
+            return;
+        std::unique_lock alphaLock(alphaMutex);
+        if (static_cast<size_t>(tile) < alphaByTile.size()) {
+            alphaByTile[static_cast<size_t>(tile)] = TileAlpha{};
+            alphaPresent[static_cast<size_t>(tile)] = 0;
+        }
+        alphaVersion.store(NextAlphaStamp(), std::memory_order_release);
+    }
+
+    void BlockLibrary::ClearAlpha() {
+        std::unique_lock alphaLock(alphaMutex);
+        alphaByTile.clear();
+        alphaPresent.clear();
+        alphaVersion.store(NextAlphaStamp(), std::memory_order_release);
+    }
+
     BlockLibrary::TileAlpha BlockLibrary::AlphaOf(int tile) const {
         if (tile <= 0)
             return {};
-
-        std::shared_lock alphaLock(alphaMutex);
-        auto it = alphaByTile.find(tile);
-        return it == alphaByTile.end() ? TileAlpha{} : it->second;
+        struct Snapshot {
+            const BlockLibrary* owner = nullptr;
+            uint64_t version = 0;
+            std::vector<TileAlpha> data;
+        };
+        thread_local Snapshot snap;
+        const uint64_t current = alphaVersion.load(std::memory_order_acquire);
+        if (snap.owner != this || snap.version != current) {
+            std::shared_lock alphaLock(alphaMutex);
+            snap.data = alphaByTile;
+            snap.version = alphaVersion.load(std::memory_order_relaxed);
+            snap.owner = this;
+        }
+        return static_cast<size_t>(tile) < snap.data.size() ? snap.data[static_cast<size_t>(tile)] : TileAlpha{};
     }
 
     float BlockLibrary::SaturationOf(int tile) const {
-        if (tile <= 0)
-            return 0;
-        std::shared_lock alphaLock(alphaMutex);
-        auto it = alphaByTile.find(tile);
-        return it == alphaByTile.end() ? 0 : it->second.saturation;
+        return AlphaOf(tile).saturation;
     }
 
     std::string BlockLibrary::TilePathOf(int tile) const {
@@ -657,7 +690,7 @@ namespace perlin {
         baseTints.clear();
         geometry.Clear();
         geometryTried = false;
-        alphaByTile.clear();
+        ClearAlpha();
         overlayMaskTiles.clear();
         pathByTile.clear();
         glassTiles.clear();
@@ -1088,9 +1121,9 @@ namespace perlin {
         }
         TileAlpha overlayAlpha;
         overlayAlpha.holes = true;
-        alphaByTile[maskTile] = overlayAlpha;
+        SetAlpha(maskTile, overlayAlpha);
         pathByTile[maskTile] = std::string("__grass_overlay_") + std::to_string(src);
-        alphaByTile[baseTile] = TileAlpha{};
+        SetAlpha(baseTile, TileAlpha{});
         pathByTile[baseTile] = std::string("__grass_base_") + std::to_string(src);
         app.overlayTile = maskTile;
         app.overlayFrac = 1.0f;

@@ -82,6 +82,14 @@
       }
     },
     {
+      "name": "unix-ninja-fast",
+      "displayName": "Linux / macOS (Ninja, Release without LTO, self-tests)",
+      "inherits": "unix-ninja",
+      "cacheVariables": {
+        "PERLIN_LTO": "OFF"
+      }
+    },
+    {
       "name": "unix-ninja-debug",
       "displayName": "Linux / macOS (Ninja, Debug)",
       "inherits": "unix-ninja",
@@ -124,6 +132,10 @@
     {
       "name": "unix-ninja-asan",
       "configurePreset": "unix-ninja-asan"
+    },
+    {
+      "name": "unix-ninja-fast",
+      "configurePreset": "unix-ninja-fast"
     }
   ],
   "testPresets": [
@@ -144,6 +156,13 @@
     {
       "name": "unix-ninja-asan",
       "configurePreset": "unix-ninja-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "unix-ninja-fast",
+      "configurePreset": "unix-ninja-fast",
       "output": {
         "outputOnFailure": true
       }

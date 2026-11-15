@@ -79,10 +79,13 @@ void perlin::MesherTestAccess::Dump(BlockLibrary& lib, int attempts) {
         std::printf("P %s %d\n", k.c_str(), v);
     for (const auto& [k, v] : std::map<int, std::string>(lib.pathByTile.begin(), lib.pathByTile.end()))
         std::printf("T %d %s\n", k, v.c_str());
-    for (const auto& [k, v] :
-         std::map<int, BlockLibrary::TileAlpha>(lib.alphaByTile.begin(), lib.alphaByTile.end()))
+    for (int k = 1; k < static_cast<int>(lib.alphaByTile.size()); k++) {
+        const BlockLibrary::TileAlpha& v = lib.alphaByTile[static_cast<size_t>(k)];
+        if (!lib.alphaPresent[static_cast<size_t>(k)])
+            continue;
         std::printf("L %d %d%d%d %a %a %a\n", k, v.holes, v.translucent, v.centerHollow, v.saturation,
                     v.frame, v.holeFrac);
+    }
     for (int t : std::set<int>(lib.overlayMaskTiles.begin(), lib.overlayMaskTiles.end()))
         std::printf("O %d\n", t);
     for (const auto& [k, v] :

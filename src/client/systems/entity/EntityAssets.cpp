@@ -414,7 +414,7 @@ namespace perlin::entity {
         for (const fs::path& p : JsonFiles(fs::path(root) / "animation_controllers"))
             if (file::Read(p, text))
                 animations.LoadControllers(text);
-        ThreadPool pool(HardwareThreads());
+        ThreadPool pool(BackgroundThreads(), true);
         const auto parseAll = [&pool](const std::vector<fs::path>& files, std::vector<Json>& docs,
                                       std::vector<char>& ok) {
             docs.assign(files.size(), Json());

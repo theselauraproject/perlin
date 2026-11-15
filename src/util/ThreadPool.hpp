@@ -41,6 +41,10 @@ namespace perlin {
 #endif
     }
 
+    inline unsigned BackgroundThreads() {
+        return std::max(1u, HardwareThreads() > 2 ? HardwareThreads() - 2 : 1u);
+    }
+
     class ThreadPool {
     public:
         explicit ThreadPool(size_t count, bool background = false) : background(background) {
