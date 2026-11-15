@@ -996,7 +996,7 @@ namespace perlin::gpu {
     }
 
     void JavaPack::SetDimension(const std::string& folder) {
-        if (instance && instance->Dimension() != folder)
+        if (instance && instance->DimensionToken() != folder)
             instance->SetDimension(folder);
         noSkyLight = folder != "world0";
     }
@@ -2400,7 +2400,7 @@ namespace perlin::gpu {
 
     void JavaPack::BuildFrame(const FrameParams& params, const Output& out) {
         (void)out;
-        const std::string dimension = instance ? std::string(instance->Dimension()) : std::string();
+        const std::string dimension = instance ? std::string(instance->DimensionToken()) : std::string();
         jshader::FrameTracker::Scene scene;
         scene.nether = dimension == "world-1";
         scene.end = dimension == "world1";
@@ -2467,7 +2467,8 @@ namespace perlin::gpu {
 
         bool haveShadowCull = false;
         glm::mat4 shadowCull(1.0f);
-        if (shadowDrawView[15] != 0.0f && shadowProjection[15] != 0.0f) {
+        if (config.shadowCulling != "false" && config.shadowCulling != "reversed" && shadowDrawView[15] != 0.0f &&
+            shadowProjection[15] != 0.0f) {
             glm::mat4 proj = ToMat(shadowProjection);
             proj[0] *= 0.9f;
             proj[1] *= 0.9f;
@@ -2479,7 +2480,7 @@ namespace perlin::gpu {
         if (!config.shadowEnabled)
             return;
         const float lightLen = glm::length(tracker.ShadowLightWorld());
-        const bool viewCull = haveViewFrustum && shadowSkipState == 1 && lightLen > 0.5f &&
+        const bool viewCull = config.shadowCulling == "true" && haveViewFrustum && shadowSkipState == 1 && lightLen > 0.5f &&
                               !std::getenv("PERLIN_PACK_NO_SHADOW_CULL");
         const float sweepLen = std::clamp(config.shadowFarPlane - config.shadowNearPlane, 64.0f, 512.0f);
         const glm::vec3 sweep = viewCull ? -tracker.ShadowLightWorld() / lightLen * sweepLen : glm::vec3(0.0f);
@@ -2773,8 +2774,9 @@ namespace perlin::gpu {
             if (runList.empty())
                 continue;
             PipeState ls = st;
-            ls.cull = !shadow && (layer == RenderLayer::Solid || layer == RenderLayer::CutoutCull ||
-                                  layer == RenderLayer::TranslucentCull);
+            ls.cull = !shadow && ((layer == RenderLayer::Solid && config.backFaceSolid) ||
+                                  (layer == RenderLayer::CutoutCull && config.backFaceCutout) ||
+                                  (layer == RenderLayer::TranslucentCull && config.backFaceTranslucent));
             const bool blendLayer = !shadow && translucent;
             ls.blend = blendLayer;
             ls.depthWrite = !prepassed;
@@ -2829,6 +2831,8 @@ namespace perlin::gpu {
                 list.set_index_buffer(ib, conduit::index_type::u32);
                 boundIb = ib;
             }
+            const uint32_t instanceCount =
+                static_cast<uint32_t>(std::clamp(static_cast<int>(instance->GetDirectives().Number("countInstances", 1)), 1, 64));
             const size_t n = j - i;
             RingSlice slice;
             if (multi && n > 1)
@@ -2836,12 +2840,12 @@ namespace perlin::gpu {
             if (slice.data) {
                 auto* cmds = reinterpret_cast<conduit::draw_indexed_indirect_command*>(slice.data);
                 for (size_t k = 0; k < n; k++)
-                    cmds[k] = {runList[i + k].count, 1, runList[i + k].first, 0, 0};
+                    cmds[k] = {runList[i + k].count, instanceCount, runList[i + k].first, 0, 0};
                 list.draw_indexed_indirect(slice.buffer, slice.offset, static_cast<uint32_t>(n),
                                          sizeof(conduit::draw_indexed_indirect_command));
             } else {
                 for (size_t k = i; k < j; k++)
-                    list.draw_indexed(runList[k].count, 1, runList[k].first, 0, 0);
+                    list.draw_indexed(runList[k].count, instanceCount, runList[k].first, 0, 0);
             }
             i = j;
         }
@@ -3522,7 +3526,7 @@ namespace perlin::gpu {
         float rotation[16] = {};
         std::memcpy(rotation, frameState.modelView, sizeof(float) * 12);
         rotation[15] = 1.0f;
-        const std::string_view dimension = instance->Dimension();
+        const std::string_view dimension = instance->DimensionToken();
         if (dimension == "world-1")
             return;
         if (dimension == "world1")

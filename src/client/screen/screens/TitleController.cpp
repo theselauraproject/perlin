@@ -111,6 +111,7 @@ namespace perlin::screen {
             title.page = page == "servers" ? ui::TitlePage::Servers
                          : page == "edit"  ? ui::TitlePage::Edit
                                            : ui::TitlePage::Direct;
+            title.tab = ui::ServerTab::Saved;
             title.selected = 0;
             title.name = title.servers[0].name;
             title.address = title.servers[0].address;

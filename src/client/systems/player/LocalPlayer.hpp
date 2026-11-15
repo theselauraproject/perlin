@@ -40,6 +40,7 @@ namespace perlin {
         void SetSwimming(bool value) { swimming = value; }
         bool InWater() const { return state.inWater; }
         bool Swimming() const { return swimming; }
+        bool Riding() const { return rideLock; }
 
         void SetCameraControl(int scheme, float cameraYaw) {
             cameraScheme = scheme;

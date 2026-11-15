@@ -4,14 +4,14 @@ Upstream pixel programs are read verbatim, with interface declarations removed,
 texture/uniform bindings renamed, and scalar constructors made portable. The
 small vertex bridges unpack Perlin's meshes, which use different vertex formats
 and CPU skinning from Bedrock. Each vertex/fragment pair is then turned into one
-slang program by bgfx_to_slang. All output lives in the build directory.
+slang program by renderdragon_to_slang. All output lives in the build directory.
 """
 import argparse
 import json
 import re
 from pathlib import Path
 
-import bgfx_to_slang
+import renderdragon_to_slang
 
 DEFINES = '''#define INSTANCING__OFF 1
 #define RENDER_AS_BILLBOARDS__OFF 1
@@ -245,7 +245,7 @@ vec2 v_texcoord0 : TEXCOORD0;
         fragment('fs_' + base, 'Sky', 'Opaque', sky_io, sky_args, sky_uniforms, sky_io)
     programs = {}
     for program, (vs, fs, varying) in PROGRAMS.items():
-        text = bgfx_to_slang.convert(sources[vs + '.sc'], sources[fs + '.sc'], sources[varying + '.def.sc'], [],
+        text = renderdragon_to_slang.convert(sources[vs + '.sc'], sources[fs + '.sc'], sources[varying + '.def.sc'], [],
                                      header='// Generated RenderDragon adapter; do not edit.\n',
                                      resources='rd_resources.slang', inline=False, shared=set())
         target = out / (program + '.slang')

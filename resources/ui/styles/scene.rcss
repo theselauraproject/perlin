@@ -30,6 +30,10 @@
     clip: always;
 }
 
+.n.clip > .lab {
+    position: static;
+}
+
 .n > .lab {
     display: block;
     position: absolute;

@@ -233,13 +233,18 @@ namespace perlin::jshader {
                     k = comma + 1;
                 }
             }
-            cfg.shadowColorLinear[i] = !d.Bool(n + "Nearest", false);
+            const std::string cap = "shadowColor" + std::to_string(i);
+            cfg.shadowColorLinear[i] = !(d.Bool(n + "Nearest", false) || d.Bool(cap + "Nearest", false) ||
+                                         d.Bool(cap + "MinMagNearest", false));
             const std::string t = "shadowtex" + std::to_string(i);
             cfg.shadowHardwareFiltering[i] = d.Bool(t + "HardwareFiltering", false) ||
                                              d.Bool("shadowHardwareFiltering", false) ||
                                              d.Bool("shadowHardwareFiltering" + std::to_string(i), false);
-            cfg.shadowFilterLinear[i] = !d.Bool(t + "Nearest", false);
-            cfg.shadowMipmap[i] = d.Bool(t + "Mipmap", false);
+            cfg.shadowFilterLinear[i] =
+                !(d.Bool(t + "Nearest", false) || d.Bool("shadow" + std::to_string(i) + "MinMagNearest", false) ||
+                  (i == 0 && d.Bool("shadowtexNearest", false)));
+            cfg.shadowMipmap[i] = d.Bool(t + "Mipmap", false) || d.Bool("generateShadowMipmap", false) ||
+                                  (i == 0 && d.Bool("shadowtexMipmap", false));
         }
 
         cfg.shadowMapResolution = static_cast<int>(d.Number("shadowMapResolution", 1024));
@@ -269,6 +274,12 @@ namespace perlin::jshader {
         cfg.beaconBeamDepth = p.Bool("beacon.beam.depth", false);
         cfg.dynamicHandLight = p.Bool("dynamicHandLight", true);
         cfg.frustumCulling = p.Bool("frustum.culling", true);
+        cfg.backFaceSolid = p.Bool("backFace.solid", true);
+        cfg.backFaceCutout = p.Bool("backFace.cutout", true);
+        cfg.backFaceCutoutMipped = p.Bool("backFace.cutoutMipped", true);
+        cfg.backFaceTranslucent = p.Bool("backFace.translucent", true);
+        cfg.occlusionCulling = p.Bool("occlusion.culling", true);
+        cfg.shadowCulling = str::Lower(p.Get("shadow.culling", "true"));
         cfg.shadowTranslucent = p.Bool("shadowTranslucent", true);
         cfg.shadowTerrain = p.Bool("shadowTerrain", true);
         cfg.shadowEntities = p.Bool("shadowEntities", true);

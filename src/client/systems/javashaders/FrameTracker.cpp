@@ -210,6 +210,24 @@ namespace perlin::jshader {
         s.viewWidth = scene.viewWidth;
         s.viewHeight = scene.viewHeight;
         s.dimensionId = scene.nether ? -1 : (scene.end ? 1 : 0);
+        s.playerHealth = params.playerHealth;
+        s.maxPlayerHealth = params.playerMaxHealth;
+        s.playerHunger = params.playerFood;
+        s.playerAir = params.playerAir;
+        s.maxPlayerAir = params.playerMaxAir;
+        s.armor = static_cast<float>(params.playerArmor);
+        s.isSpectator = params.playerSpectator;
+        s.isBurning = params.playerBurning;
+        s.isSneaking = params.playerSneaking;
+        s.isSprinting = params.playerSprinting;
+        s.isOnGround = params.playerOnGround;
+        s.isElytraFlying = params.playerElytra;
+        s.isRiding = params.playerRiding;
+        s.feetInWater = params.playerFeetInWater;
+        s.inSwimmingAnimation = params.playerSwimming;
+        s.firstPersonCamera = params.firstPerson;
+        for (int i = 0; i < 3; i++)
+            s.playerLookVector[i] = params.playerLook[i];
     }
 
     FrameTracker::ShadowFrame FrameTracker::UpdateShadows(const FrameParams& params,

@@ -48,6 +48,7 @@ float4 mod(float4 x, float y) { return x - y * floor(x / y); }
 #define texture2DArray(tex, uvl) tex.Sample(tex##_s, uvl)
 #define texture2DArrayLod(tex, uvl, lod) tex.SampleLevel(tex##_s, uvl, lod)
 
+#define VV_HLSL 1
 #define BGFX_SHADER_LANGUAGE_HLSL 1
 #define BGFX_SHADER_LANGUAGE_GLSL 0
 #define BGFX_SHADER_LANGUAGE_METAL 0

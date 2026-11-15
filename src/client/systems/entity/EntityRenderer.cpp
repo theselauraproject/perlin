@@ -2088,7 +2088,7 @@ namespace perlin::entity {
                 draw.emissive = 2;
                 draw.shadowOnly = shadowOnlyPass;
                 draw.vertexLight = b.light.data();
-                renderer->UiSubmit(UiLayer::World, draw);
+                renderer->UiSubmit(keyPair.second == 3 ? UiLayer::WorldLate : UiLayer::World, draw);
             }
         }
         for (auto& [tile, b] : batches) {

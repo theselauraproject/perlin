@@ -42,9 +42,11 @@ namespace perlin::ui {
 
         void Txt(Sb& b, int x, int y, int w, std::vector<SceneRun> runs, const std::string& cls = {}, int z = 4,
                  bool clip = false) {
-            kit::Label(b, static_cast<float>(x), static_cast<float>(y), static_cast<float>(w),
-                       std::string("txt") + (cls.empty() ? "" : " " + cls) + (clip ? " clip" : ""), std::move(runs),
-                       N(z));
+            SceneNode& node = kit::Label(b, static_cast<float>(x), static_cast<float>(y), static_cast<float>(w),
+                                         std::string("txt") + (cls.empty() ? "" : " " + cls) + (clip ? " clip" : ""),
+                                         std::move(runs), N(z));
+            if (clip)
+                node.h = 10;
         }
 
         void Tip(Sb& b, int buttonW, const std::string& text) {
@@ -168,8 +170,9 @@ namespace perlin::ui {
         }
 
         std::string Fit(const std::string& text, int widthPx) {
-            const size_t maxChars = static_cast<size_t>(std::max(4, widthPx / 5));
-            size_t chars = 0, cut = std::string::npos;
+            int width = 0;
+            const int limit = std::max(12, widthPx - 2);
+            size_t cut = std::string::npos;
             for (size_t i = 0; i < text.size(); i++) {
                 if (IsFormatCode(text, i)) {
                     i += 2;
@@ -177,10 +180,16 @@ namespace perlin::ui {
                 }
                 if ((static_cast<unsigned char>(text[i]) & 0xC0) == 0x80)
                     continue;
-                if (chars == maxChars - 3)
-                    cut = i;
-                if (++chars > maxChars)
-                    return text.substr(0, cut) + "\xC2\xA7r...";
+                const int glyph = perlin::text::DefaultGlyphWidth(text[i]) + 1;
+                if (width + glyph + 6 <= limit)
+                    cut = i + 1;
+                width += glyph;
+                if (width > limit) {
+                    size_t end = cut == std::string::npos ? 0 : cut;
+                    while (end < text.size() && (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80)
+                        end++;
+                    return text.substr(0, end) + "\xC2\xA7r...";
+                }
             }
             return text;
         }

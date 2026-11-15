@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <ctime>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -818,7 +820,7 @@ namespace perlin::jshader {
         Add("currentPlayerAir", 1,
             [=](C c, float* o) { o[0] = F(c).playerAir / std::max(1.0f, F(c).maxPlayerAir); });
         Add("maxPlayerAir", 1, [=](C c, float* o) { o[0] = 1.0f; });
-        Add("currentPlayerArmor", 1, [=](C c, float* o) { o[0] = 0.0f; });
+        Add("currentPlayerArmor", 1, [=](C c, float* o) { o[0] = std::clamp(F(c).armor / 20.0f, 0.0f, 1.0f); });
         Add("maxPlayerArmor", 1, [=](C c, float* o) { o[0] = 1.0f; });
         Add("is_sneaking", 1, [=](C c, float* o) { o[0] = F(c).isSneaking; });
         Add("is_sprinting", 1, [=](C c, float* o) { o[0] = F(c).isSprinting; });
@@ -832,6 +834,78 @@ namespace perlin::jshader {
         Add("is_right_handed", 1, [=](C c, float* o) { o[0] = F(c).isRightHanded; });
         Add("cameraYaw", 1, [=](C c, float* o) { o[0] = F(c).cameraYaw; });
         Add("cameraPitch", 1, [=](C c, float* o) { o[0] = F(c).cameraPitch; });
+        Add("isRiding", 1, [=](C c, float* o) { o[0] = F(c).isRiding ? 1.0f : 0.0f; });
+        Add("feetInWater", 1, [=](C c, float* o) { o[0] = F(c).feetInWater ? 1.0f : 0.0f; });
+        Add("inSwimmingAnimation", 1, [=](C c, float* o) { o[0] = F(c).inSwimmingAnimation ? 1.0f : 0.0f; });
+        Add("firstPersonCamera", 1, [=](C c, float* o) { o[0] = F(c).firstPersonCamera ? 1.0f : 0.0f; });
+        Add("vehicleInWater", 1, [=](C c, float* o) { o[0] = F(c).isRiding && F(c).feetInWater ? 1.0f : 0.0f; });
+        Add("vehicleId", 1, [=](C, float* o) { o[0] = 0.0f; });
+        Add("vehicleLookVector", 3, [=](C c, float* o) { std::memcpy(o, F(c).playerLookVector, 12); });
+        Add("relativeVehiclePosition", 3, [=](C, float* o) { o[0] = o[1] = o[2] = 0.0f; });
+        Add("previousEndFlashIntensity", 1, [=](C, float* o) { o[0] = 0.0f; });
+        Add("textureFilteringMode", 1, [=](C, float* o) { o[0] = 0.0f; });
+        Add("currentDate", 3, [=](C, float* o) {
+            const std::time_t t = std::time(nullptr);
+            std::tm tm{};
+#ifdef _WIN32
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            o[0] = static_cast<float>(tm.tm_year + 1900);
+            o[1] = static_cast<float>(tm.tm_mon + 1);
+            o[2] = static_cast<float>(tm.tm_mday);
+        });
+        Add("currentTime", 3, [=](C, float* o) {
+            const std::time_t t = std::time(nullptr);
+            std::tm tm{};
+#ifdef _WIN32
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            o[0] = static_cast<float>(tm.tm_hour);
+            o[1] = static_cast<float>(tm.tm_min);
+            o[2] = static_cast<float>(tm.tm_sec);
+        });
+        Add("currentYearTime", 2, [=](C, float* o) {
+            const std::time_t t = std::time(nullptr);
+            std::tm tm{};
+#ifdef _WIN32
+            localtime_s(&tm, &t);
+#else
+            localtime_r(&t, &tm);
+#endif
+            const int year = tm.tm_year + 1900;
+            const bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+            const int total = (leap ? 366 : 365) * 86400;
+            const int elapsed = tm.tm_yday * 86400 + tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
+            o[0] = static_cast<float>(elapsed);
+            o[1] = static_cast<float>(total - elapsed);
+        });
+        Add("dhProjection", 16, [=](C c, float* o) { CopyMat(F(c).projection, o); });
+        Add("dhProjectionInverse", 16, [=](C c, float* o) { Invert(F(c).projection, o); });
+        Add("dhPreviousProjection", 16, [=](C c, float* o) { CopyMat(F(c).prevProjection, o); });
+        Add("modelOffset", 3, [=](C, float* o) { o[0] = o[1] = o[2] = 0.0f; });
+        Add("terrainTextureSize", 2, [=](C c, float* o) {
+            o[0] = static_cast<float>(F(c).atlasSize[0]);
+            o[1] = static_cast<float>(F(c).atlasSize[1]);
+        });
+        Add("bossBattle", 1, [=](C, float* o) { o[0] = 0.0f; });
+        Add("instanceId", 1, [=](C, float* o) { o[0] = 0.0f; });
+        Add("spriteBounds", 4, [=](C, float* o) {
+            o[0] = o[1] = 0.0f;
+            o[2] = o[3] = 1.0f;
+        });
+        Add("vivecraftIsVR", 1, [=](C, float* o) { o[0] = 0.0f; });
+        Add("vivecraftRenderpass", 1, [=](C, float* o) { o[0] = 0.0f; });
+        for (const char* name : {"vivecraftRelativeMainHandPos", "vivecraftRelativeOffHandPos"})
+            Add(name, 3, [=](C, float* o) { o[0] = o[1] = o[2] = 0.0f; });
+        for (const char* name : {"vivecraftRelativeMainHandRot", "vivecraftRelativeOffHandRot"})
+            Add(name, 9, [=](C, float* o) {
+                for (int i = 0; i < 9; i++)
+                    o[i] = i % 4 == 0 ? 1.0f : 0.0f;
+            });
         Add("inSwamp", 1, [=](C c, float* o) { o[0] = F(c).inSwamp; });
 
         Add("darknessFactor", 1, [=](C c, float* o) { o[0] = F(c).darknessFactor; });

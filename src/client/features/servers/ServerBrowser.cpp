@@ -521,6 +521,7 @@ namespace perlin::servers {
                 std::lock_guard lock(tabMutex);
                 tabFeatured = FeaturedRows(uiAssets, cached);
                 featuredPing = true;
+                tabDirty = true;
             }
         }
         if (featuredBusy.exchange(true))
@@ -546,6 +547,7 @@ namespace perlin::servers {
                 tabFeatured = FeaturedRows(uiAssets, list);
                 featuredPing = true;
             }
+            tabDirty = true;
 
             std::vector<std::future<bool>> downloads;
             for (const featured::Server* f : missing)
@@ -560,6 +562,7 @@ namespace perlin::servers {
                     for (const ui::ServerEntry& fresh : rows)
                         if (fresh.address == row.address)
                             row.icon = fresh.icon;
+                tabDirty = true;
             }
             featuredBusy = false;
         });

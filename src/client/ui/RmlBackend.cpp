@@ -70,7 +70,7 @@ namespace perlin::ui {
 
     static std::atomic<int> gMissingTextures{0};
 
-    class BgfxRenderInterface final : public Rml::RenderInterface {
+    class RmlRenderInterface final : public Rml::RenderInterface {
     public:
         static constexpr Rml::CompiledGeometryHandle kEmptyGeometry =
             ~static_cast<Rml::CompiledGeometryHandle>(0);
@@ -827,7 +827,7 @@ namespace perlin::ui {
         if (ready)
             return true;
         gRenderer = &renderer;
-        renderInterface = std::make_unique<BgfxRenderInterface>();
+        renderInterface = std::make_unique<RmlRenderInterface>();
         systemInterface = std::make_unique<GameSystemInterface>();
         fontEngine = std::make_unique<McFontEngine>();
         Rml::SetSystemInterface(systemInterface.get());
@@ -859,6 +859,7 @@ namespace perlin::ui {
         overlay = nullptr;
         plugin = nullptr;
         serverLayer = nullptr;
+        documentCache.clear();
         sceneModels.Forget();
         Rml::Shutdown();
         context = nullptr;
@@ -875,26 +876,108 @@ namespace perlin::ui {
             context->SetDimensions({w, h});
     }
 
-    bool RmlBackend::LoadScene(Rml::ElementDocument*& slot, const char* model, const Scene& scene,
+    void RmlBackend::ReleaseSlot(Rml::ElementDocument*& slot) {
+        if (!slot || !context)
+            return;
+        for (auto& [base, list] : documentCache) {
+            const auto it = std::find_if(list.begin(), list.end(),
+                                         [&](const CachedDocument& c) { return c.doc == slot; });
+            if (it != list.end()) {
+                sceneModels.Detach(*context, it->model);
+                list.erase(it);
+                break;
+            }
+        }
+        context->UnloadDocument(slot);
+        slot = nullptr;
+    }
+
+    void RmlBackend::HideSlot(Rml::ElementDocument*& slot) {
+        if (slot)
+            slot->Hide();
+        slot = nullptr;
+    }
+
+    void RmlBackend::DropCachedDocuments() {
+        if (context)
+            for (const auto& [base, list] : documentCache)
+                for (const CachedDocument& c : list)
+                    sceneModels.Detach(*context, c.model);
+        documentCache.clear();
+    }
+
+    bool RmlBackend::LoadScene(Rml::ElementDocument*& slot, const char* base, const Scene& scene,
                                const std::string& rml, const char* what, std::string& error) {
         if (!context)
             return false;
-        if (slot && sceneModels.Refresh(model, scene, rml))
+        std::vector<CachedDocument>& list = documentCache[base];
+        const auto build = [&](const std::string& model, Rml::ElementDocument*& out) {
+            if (!sceneModels.Attach(*context, model, scene, rml)) {
+                error = std::string("RmlUi could not create the data model for the ") + what;
+                return false;
+            }
+            std::string text = ExpandSceneTokens(rml);
+            const std::string from = std::string("data-model=\"") + base + "\"";
+            const std::string to = std::string("data-model=\"") + model + "\"";
+            for (size_t at = text.find(from); at != std::string::npos; at = text.find(from, at + to.size()))
+                text.replace(at, from.size(), to);
+            out = context->LoadDocumentFromMemory(text);
+            if (!out) {
+                sceneModels.Detach(*context, model);
+                error = std::string("RmlUi could not parse the ") + what;
+                return false;
+            }
             return true;
-        if (slot) {
-            context->UnloadDocument(slot);
-            slot = nullptr;
+        };
+        CachedDocument* hit = nullptr;
+        for (CachedDocument& c : list)
+            if (sceneModels.Matches(c.model, rml)) {
+                hit = &c;
+                break;
+            }
+        if (hit) {
+            if (!sceneModels.Refresh(hit->model, scene, rml)) {
+                const bool shown = slot == hit->doc;
+                context->UnloadDocument(hit->doc);
+                if (shown)
+                    slot = nullptr;
+                const std::string model = hit->model;
+                Rml::ElementDocument* next = nullptr;
+                if (!build(model, next)) {
+                    list.erase(list.begin() + (hit - list.data()));
+                    return false;
+                }
+                hit->doc = next;
+                if (shown) {
+                    slot = next;
+                    slot->Show();
+                } else {
+                    next->Hide();
+                }
+            }
+            if (slot != hit->doc) {
+                HideSlot(slot);
+                slot = hit->doc;
+                slot->Show();
+            }
+            hit->used = ++cacheClock;
+            return true;
         }
-        if (!sceneModels.Attach(*context, model, scene, rml)) {
-            error = std::string("RmlUi could not create the data model for the ") + what;
+        HideSlot(slot);
+        constexpr size_t kMaxCached = 6;
+        while (list.size() >= kMaxCached) {
+            const auto oldest = std::min_element(list.begin(), list.end(), [](const CachedDocument& a, const CachedDocument& b) {
+                return a.used < b.used;
+            });
+            context->UnloadDocument(oldest->doc);
+            sceneModels.Detach(*context, oldest->model);
+            list.erase(oldest);
+        }
+        const std::string model = std::string(base) + "#" + std::to_string(++cacheSerial);
+        Rml::ElementDocument* next = nullptr;
+        if (!build(model, next))
             return false;
-        }
-        Rml::ElementDocument* next = context->LoadDocumentFromMemory(ExpandSceneTokens(rml));
-        if (!next) {
-            sceneModels.Detach(*context, model);
-            error = std::string("RmlUi could not parse the ") + what;
-            return false;
-        }
+        list.push_back({model, next, ++cacheClock});
         slot = next;
         slot->Show();
         return true;
@@ -940,8 +1023,7 @@ namespace perlin::ui {
             error = "RmlUi could not parse the generated document";
             return false;
         }
-        if (document)
-            context->UnloadDocument(document);
+        ReleaseSlot(document);
         document = next;
         document->Show();
         if (plugin)
@@ -959,8 +1041,7 @@ namespace perlin::ui {
             error = "RmlUi could not parse the plugin layer";
             return false;
         }
-        if (plugin)
-            context->UnloadDocument(plugin);
+        ReleaseSlot(plugin);
         plugin = next;
         plugin->Show();
         if (overlay)
@@ -976,8 +1057,7 @@ namespace perlin::ui {
             error = "RmlUi could not parse the server layer";
             return false;
         }
-        if (serverLayer)
-            context->UnloadDocument(serverLayer);
+        ReleaseSlot(serverLayer);
         serverLayer = next;
         serverLayer->Show();
         if (plugin)
@@ -988,19 +1068,11 @@ namespace perlin::ui {
     }
 
     void RmlBackend::ClearServerLayer() {
-        if (context && serverLayer)
-            context->UnloadDocument(serverLayer);
-        if (context)
-            sceneModels.Detach(*context, "server");
-        serverLayer = nullptr;
+        HideSlot(serverLayer);
     }
 
     void RmlBackend::ClearPluginLayer() {
-        if (context && plugin)
-            context->UnloadDocument(plugin);
-        if (context)
-            sceneModels.Detach(*context, "plugin");
-        plugin = nullptr;
+        HideSlot(plugin);
     }
 
     bool RmlBackend::SetOverlay(const std::string& rml, std::string& error) {
@@ -1011,19 +1083,14 @@ namespace perlin::ui {
             error = "RmlUi could not parse the overlay document";
             return false;
         }
-        if (overlay)
-            context->UnloadDocument(overlay);
+        ReleaseSlot(overlay);
         overlay = next;
         overlay->Show();
         return true;
     }
 
     void RmlBackend::ClearOverlay() {
-        if (context && overlay)
-            context->UnloadDocument(overlay);
-        if (context)
-            sceneModels.Detach(*context, "overlay");
-        overlay = nullptr;
+        HideSlot(overlay);
     }
 
     void RmlBackend::MoveOverlayElement(const char* id, int guiX, int guiY) {
@@ -1148,6 +1215,7 @@ namespace perlin::ui {
         if (!context)
             return;
         context->UnloadAllDocuments();
+        DropCachedDocuments();
         for (const char* model : {"document", "overlay", "plugin", "server"})
             sceneModels.Detach(*context, model);
         document = overlay = plugin = serverLayer = nullptr;

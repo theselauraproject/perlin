@@ -66,6 +66,8 @@ namespace perlin::jshader {
         bool isElytraFlying = false;
         float relativeEyePosition[3] = {0, 0, 0};
         float playerBodyVector[3] = {0, 0, -1};
+        bool isRiding = false, feetInWater = false, inSwimmingAnimation = false, firstPersonCamera = true;
+        float armor = 0.0f;
     };
 
     struct PackDrawState {

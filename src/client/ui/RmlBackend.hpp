@@ -1,4 +1,6 @@
 #pragma once
+#include <map>
+#include <vector>
 #include <functional>
 #include <memory>
 #include <string>
@@ -15,7 +17,7 @@ namespace perlin {
 }
 
 namespace perlin::ui {
-    class BgfxRenderInterface;
+    class RmlRenderInterface;
     class GameSystemInterface;
     class McFontEngine;
 
@@ -63,7 +65,7 @@ namespace perlin::ui {
     private:
         bool ready = false;
         int guiW = 0, guiH = 0, scale = 1;
-        std::unique_ptr<BgfxRenderInterface> renderInterface;
+        std::unique_ptr<RmlRenderInterface> renderInterface;
         std::unique_ptr<GameSystemInterface> systemInterface;
         std::unique_ptr<McFontEngine> fontEngine;
         Rml::Context* context = nullptr;
@@ -72,6 +74,16 @@ namespace perlin::ui {
         Rml::ElementDocument* plugin = nullptr;
         Rml::ElementDocument* serverLayer = nullptr;
         SceneModels sceneModels;
+        struct CachedDocument {
+            std::string model;
+            Rml::ElementDocument* doc = nullptr;
+            uint64_t used = 0;
+        };
+        std::map<std::string, std::vector<CachedDocument>> documentCache;
+        uint64_t cacheClock = 0, cacheSerial = 0;
+        void ReleaseSlot(Rml::ElementDocument*& slot);
+        void HideSlot(Rml::ElementDocument*& slot);
+        void DropCachedDocuments();
 
         bool LoadScene(Rml::ElementDocument*& slot, const char* model, const Scene& scene, const std::string& rml,
                        const char* what, std::string& error);

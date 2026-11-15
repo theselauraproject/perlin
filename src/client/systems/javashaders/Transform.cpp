@@ -1559,7 +1559,11 @@ namespace perlin::jshader {
         static const char* kDefaultFragment =
             "#version 120\nuniform sampler2D iris_texture_default;\nvarying vec4 color;\nvarying vec2 "
             "texcoord;\nvoid main(){ gl_FragData[0] = texture2D(iris_texture_default, texcoord) * color; }\n";
-        const std::string vs = vertexSource.text.empty() ? kDefaultVertex : vertexSource.text;
+        std::string vs = vertexSource.text.empty() ? kDefaultVertex : vertexSource.text;
+        {
+            static const std::regex instanceUniform(R"(uniform\s+(?:highp\s+|mediump\s+|lowp\s+)?int\s+instanceId\s*;)");
+            vs = std::regex_replace(vs, instanceUniform, "#define instanceId gl_InstanceID\n");
+        }
         const std::string fs = fragmentSource.text.empty() ? kDefaultFragment : fragmentSource.text;
         program.vertex = TransformStage(Stage::Vertex, vs, options);
         program.fragment = TransformStage(Stage::Fragment, fs, options);

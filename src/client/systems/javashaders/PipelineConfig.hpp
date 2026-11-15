@@ -119,6 +119,9 @@ namespace perlin::jshader {
              shadowTranslucent = true, shadowTerrain = true;
 
         bool shadowEntities = true, shadowPlayer = true, shadowBlockEntities = true;
+        bool backFaceSolid = true, backFaceCutout = true, backFaceCutoutMipped = true, backFaceTranslucent = true;
+        bool occlusionCulling = true;
+        std::string shadowCulling = "true";
         std::string clouds = "default";
         std::string cloudShadow;
         std::string particlesBeforeDeferred;

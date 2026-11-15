@@ -25,7 +25,7 @@ __declspec(dllimport) int __stdcall SetThreadPriority(void*, int);
 namespace perlin {
     inline void LowerThreadPriority() {
 #if defined(_WIN32)
-        SetThreadPriority(GetCurrentThread(), -1);
+        SetThreadPriority(GetCurrentThread(), -2);
 #elif defined(__linux__) || defined(__ANDROID__)
         setpriority(PRIO_PROCESS, static_cast<id_t>(syscall(SYS_gettid)), 5);
 #elif defined(__APPLE__)

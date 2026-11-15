@@ -56,6 +56,7 @@ namespace perlin::jshader {
 
         void SetDimension(const std::string& folder);
         const std::string& Dimension() const { return dimension; }
+        const std::string& DimensionToken() const { return dimensionToken; }
 
         std::shared_ptr<ProgramSource> Program(const std::string& name);
         std::vector<std::string> PassChain(const std::string& base) const;
@@ -94,6 +95,9 @@ namespace perlin::jshader {
         std::vector<std::string> missingFeatures;
         std::vector<ShaderOption> options;
         std::string dimension;
+        std::string dimensionToken;
+        Properties dimensionProps;
+        std::string ResolveDimensionFolder(const std::string& token) const;
         std::string packName;
         bool ProgramEnabledUncached(const std::string& name) const;
         std::map<std::string, std::shared_ptr<ProgramSource>> cache;

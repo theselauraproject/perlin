@@ -791,7 +791,13 @@ namespace perlin {
         state.dstColor = conduit::blend_factor::inv_src_alpha;
         state.srcAlpha = conduit::blend_factor::one;
         state.dstAlpha = conduit::blend_factor::inv_src_alpha;
+        ViewData& vd = views[static_cast<size_t>(View::Late)];
+        const glm::mat4 savedView = vd.view, savedProj = vd.proj;
+        vd.view = glm::mat4(1.0f);
+        vd.proj = glm::mat4(1.0f);
         Submit(View::Late, state, {screenTri, 0}, nullptr, conduit::index_type::u32, 0, 3);
+        vd.view = savedView;
+        vd.proj = savedProj;
     }
 
     uint64_t RenderContext_rhi::CpuOpaqueIndices() {

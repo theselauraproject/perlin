@@ -233,6 +233,26 @@ namespace perlin::worldview {
         if (const char* mb = PERLIN_ENV("PERLIN_MOTION_BLUR"))
             params.motionBlur = std::clamp(static_cast<float>(std::atof(mb)), 0.0f, 1.0f);
         params.dynMode = dynMode;
+        params.playerHealth = hudState.health;
+        params.playerMaxHealth = hudState.maxHealth;
+        params.playerFood = static_cast<float>(hudState.food);
+        params.playerAir = static_cast<float>(hudState.air);
+        params.playerMaxAir = static_cast<float>(hudState.maxAir);
+        params.playerArmor = hudState.armor;
+        params.playerSpectator = hudState.mode == ui::GameMode::Spectator;
+        params.playerBurning = hudState.burning;
+        params.playerSneaking = player.Sneaking();
+        params.playerSprinting = player.Sprinting();
+        params.playerOnGround = player.State().onGround;
+        params.playerElytra = player.Gliding();
+        params.playerRiding = player.Riding();
+        params.playerFeetInWater = player.InWater();
+        params.playerSwimming = player.Swimming();
+        params.firstPerson = camera.mode == PerspectiveMode::FirstPerson;
+        const glm::vec3 look = camera.ViewDirection();
+        params.playerLook[0] = look.x;
+        params.playerLook[1] = look.y;
+        params.playerLook[2] = look.z;
     }
 
     void FrameParamsBuilder::FillPackAndLightParams(FrameContext& f) {

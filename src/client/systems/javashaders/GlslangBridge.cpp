@@ -213,6 +213,7 @@ namespace perlin::jshader {
         m["MC_OS_LINUX"] = "";
 #else
         m["MC_OS_UNKNOWN"] = "";
+        m["MC_OS_OTHER"] = "";
 #endif
         std::string vendor = env.vendor, renderer = env.renderer;
         for (char& c : vendor)
@@ -228,6 +229,10 @@ namespace perlin::jshader {
             m["MC_GL_VENDOR_INTEL"] = "";
         else if (has(vendor, "nvidia"))
             m["MC_GL_VENDOR_NVIDIA"] = "";
+        else if (has(vendor, "mesa"))
+            m["MC_GL_VENDOR_MESA"] = "";
+        else if (has(vendor, "x.org") || has(vendor, "xorg"))
+            m["MC_GL_VENDOR_XORG"] = "";
         else
             m["MC_GL_VENDOR_OTHER"] = "";
         const std::string& r = renderer.empty() ? vendor : renderer;
@@ -239,6 +244,8 @@ namespace perlin::jshader {
             m["MC_GL_RENDERER_QUADRO"] = "";
         else if (has(r, "geforce") || has(r, "nvidia") || has(r, "rtx") || has(r, "gtx"))
             m["MC_GL_RENDERER_GEFORCE"] = "";
+        else if (has(r, "gallium"))
+            m["MC_GL_RENDERER_GALLIUM"] = "";
         else if (has(r, "mesa") || has(r, "llvmpipe"))
             m["MC_GL_RENDERER_MESA"] = "";
         else

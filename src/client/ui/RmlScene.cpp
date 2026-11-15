@@ -28,6 +28,32 @@ namespace perlin::ui {
     }
 
     namespace {
+        bool SameShape(const std::vector<SceneNode>& a, const std::vector<SceneNode>& b) {
+            if (a.size() != b.size())
+                return false;
+            for (size_t i = 0; i < a.size(); i++)
+                if (a[i].kind != b[i].kind || a[i].runs.size() != b[i].runs.size() ||
+                    !SameShape(a[i].children, b[i].children))
+                    return false;
+            return true;
+        }
+
+        bool SameRowShape(const std::vector<SceneRow>& a, const std::vector<SceneRow>& b) {
+            if (a.size() != b.size())
+                return false;
+            for (size_t i = 0; i < a.size(); i++) {
+                if (!SameKeys(a[i].v, b[i].v) || !SameKeys(a[i].runs, b[i].runs) || !SameKeys(a[i].rows, b[i].rows))
+                    return false;
+                for (const auto& [name, runs] : a[i].runs)
+                    if (runs.size() != b[i].runs.at(name).size())
+                        return false;
+                for (const auto& [name, rows] : a[i].rows)
+                    if (!SameRowShape(rows, b[i].rows.at(name)))
+                        return false;
+            }
+            return true;
+        }
+
         class RowDefinition final : public Rml::VariableDefinition {
         public:
             RowDefinition(Rml::VariableDefinition* text, Rml::VariableDefinition* runs)
@@ -150,6 +176,11 @@ namespace perlin::ui {
         return true;
     }
 
+    bool SceneModels::Matches(const std::string& slot, const std::string& rml) const {
+        const auto it = entries.find(slot);
+        return it != entries.end() && it->second->rml == rml;
+    }
+
     bool SceneModels::Refresh(const std::string& slot, const Scene& scene, const std::string& rml) {
         const auto it = entries.find(slot);
         if (it == entries.end())
@@ -160,6 +191,17 @@ namespace perlin::ui {
             !SameKeys(data.texts, scene.texts) || !SameKeys(data.rows, scene.rows) ||
             !SameKeys(data.lists, scene.lists))
             return false;
+        if (!SameShape(data.nodes, scene.nodes))
+            return false;
+        for (const auto& [name, list] : data.lists)
+            if (!SameShape(list, scene.lists.at(name)))
+                return false;
+        for (const auto& [name, runs] : data.texts)
+            if (runs.size() != scene.texts.at(name).size())
+                return false;
+        for (const auto& [name, rows] : data.rows)
+            if (!SameRowShape(rows, scene.rows.at(name)))
+                return false;
         if (data.nodes != scene.nodes) {
             data.nodes = scene.nodes;
             e.handle.DirtyVariable("nodes");

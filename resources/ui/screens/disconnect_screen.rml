@@ -157,7 +157,7 @@
             <div id="heading" data-style-top="title_y + 'px'" data-style-width="w + 'px'">
                 <span data-for="r : title_runs">
                     <span
-                        data-style-color="r.color == '' ? 'inherit' : r.color"
+                        data-style-color="r.color == '' ? '#ffffff' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"
@@ -176,7 +176,7 @@
                 data-style-height="text_h + 'px'">
                 <span data-for="r : reason_runs">
                     <span
-                        data-style-color="r.color == '' ? 'inherit' : r.color"
+                        data-style-color="r.color == '' ? '#ffffff' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"

@@ -153,6 +153,13 @@ namespace perlin {
         float dynLights[8][4] = {};
         float packSettings[32] = {};
         float heldLight = 0.0f;
+        float playerHealth = 20.0f, playerMaxHealth = 20.0f, playerFood = 20.0f, playerAir = 300.0f,
+              playerMaxAir = 300.0f;
+        int playerArmor = 0;
+        bool playerSpectator = false, playerBurning = false, playerSneaking = false, playerSprinting = false,
+             playerOnGround = true, playerElytra = false, playerRiding = false, playerFeetInWater = false,
+             playerSwimming = false, firstPerson = true;
+        float playerLook[3] = {0, 0, -1};
         float waterTile = -1.0f;
         float lavaTile = -1.0f;
         float waterFlowTile = -1.0f;

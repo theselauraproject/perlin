@@ -1,6 +1,6 @@
 #pragma once
 #include "vv_resources.slang"
-#if BGFX_SHADER_LANGUAGE_HLSL
+#if VV_HLSL
 #define VV_LOOP [loop]
 #define VV_BRANCH [branch]
 #else

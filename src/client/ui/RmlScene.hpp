@@ -19,6 +19,7 @@ namespace perlin::ui {
 
         bool Attach(Rml::Context& context, const std::string& slot, const Scene& scene, const std::string& rml);
         bool Refresh(const std::string& slot, const Scene& scene, const std::string& rml);
+        bool Matches(const std::string& slot, const std::string& rml) const;
         void Detach(Rml::Context& context, const std::string& slot);
         void Forget();
 

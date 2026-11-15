@@ -299,9 +299,38 @@ namespace perlin::jshader {
         LoadLang();
     }
 
-    void ShaderPackInstance::SetDimension(const std::string& folder) {
-        if (folder == dimension)
+    std::string ShaderPackInstance::ResolveDimensionFolder(const std::string& token) const {
+        if (dimensionProps.entries.empty())
+            return token;
+        const std::string name = token == "world-1" ? "the_nether" : token == "world1" ? "the_end" : "overworld";
+        std::string wildcard;
+        for (const auto& [key, value] : dimensionProps.entries) {
+            if (!key.starts_with("dimension."))
+                continue;
+            const std::string folder = key.substr(10);
+            for (const std::string& word : SplitWords(value)) {
+                if (word == "*") {
+                    if (wildcard.empty())
+                        wildcard = folder;
+                    continue;
+                }
+                const size_t colon = word.find(':');
+                const std::string space = colon == std::string::npos ? "minecraft" : word.substr(0, colon);
+                std::string id = colon == std::string::npos ? word : word.substr(colon + 1);
+                if (id == "overworld" || id == "the_overworld")
+                    id = "overworld";
+                if (space == "minecraft" && (id == name || (name == "overworld" && id == "the_overworld")))
+                    return folder;
+            }
+        }
+        return wildcard;
+    }
+
+    void ShaderPackInstance::SetDimension(const std::string& token) {
+        const std::string folder = ResolveDimensionFolder(token);
+        if (token == dimensionToken && folder == dimension)
             return;
+        dimensionToken = token;
         dimension = folder;
         cache.clear();
         existsCache.clear();
@@ -353,6 +382,12 @@ namespace perlin::jshader {
         rawProps = {};
         activeFeatures.clear();
         missingFeatures.clear();
+        dimensionProps = {};
+        {
+            std::string dimText;
+            if (pack->Read("dimension.properties", dimText))
+                dimensionProps = ParseProperties(dimText, {}, false);
+        }
         if (pack->Read("shaders.properties", text)) {
             props = ParseProperties(text, macros);
             rawProps = ParseProperties(text, {}, false);
