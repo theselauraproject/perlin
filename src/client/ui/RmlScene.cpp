@@ -9,7 +9,23 @@
 namespace perlin::ui {
     struct SceneModels::Entry {
         Scene scene;
+        Rml::DataModelHandle handle;
+        std::string rml;
     };
+
+    namespace {
+        template <class V>
+        bool SameKeys(const std::map<std::string, V>& a, const std::map<std::string, V>& b) {
+            if (a.size() != b.size())
+                return false;
+            auto i = a.begin();
+            auto j = b.begin();
+            for (; i != a.end(); ++i, ++j)
+                if (i->first != j->first)
+                    return false;
+            return true;
+        }
+    }
 
     namespace {
         class RowDefinition final : public Rml::VariableDefinition {
@@ -100,7 +116,8 @@ namespace perlin::ui {
     SceneModels::SceneModels() = default;
     SceneModels::~SceneModels() = default;
 
-    bool SceneModels::Attach(Rml::Context& context, const std::string& slot, const Scene& scene) {
+    bool SceneModels::Attach(Rml::Context& context, const std::string& slot, const Scene& scene,
+                             const std::string& rml) {
         Detach(context, slot);
         const bool firstUse = !types;
         if (firstUse)
@@ -115,6 +132,7 @@ namespace perlin::ui {
             RegisterTypes(constructor);
         auto entry = std::make_unique<Entry>();
         entry->scene = scene;
+        entry->rml = rml;
         Scene& data = entry->scene;
         constructor.Bind("nodes", &data.nodes);
         for (auto& [name, value] : data.vars)
@@ -127,7 +145,47 @@ namespace perlin::ui {
             constructor.Bind(name, &value);
         for (auto& [name, value] : data.lists)
             constructor.Bind(name, &value);
+        entry->handle = constructor.GetModelHandle();
         entries[slot] = std::move(entry);
+        return true;
+    }
+
+    bool SceneModels::Refresh(const std::string& slot, const Scene& scene, const std::string& rml) {
+        const auto it = entries.find(slot);
+        if (it == entries.end())
+            return false;
+        Entry& e = *it->second;
+        Scene& data = e.scene;
+        if (e.rml != rml || !e.handle || !SameKeys(data.vars, scene.vars) || !SameKeys(data.flags, scene.flags) ||
+            !SameKeys(data.texts, scene.texts) || !SameKeys(data.rows, scene.rows) ||
+            !SameKeys(data.lists, scene.lists))
+            return false;
+        if (data.nodes != scene.nodes) {
+            data.nodes = scene.nodes;
+            e.handle.DirtyVariable("nodes");
+        }
+        for (auto& [name, value] : data.vars)
+            if (value != scene.vars.at(name)) {
+                value = scene.vars.at(name);
+                e.handle.DirtyVariable(name);
+            }
+        for (auto& [name, value] : data.flags)
+            if (value != scene.flags.at(name)) {
+                value = scene.flags.at(name);
+                e.handle.DirtyVariable(name);
+            }
+        for (auto& [name, value] : data.texts) {
+            value = scene.texts.at(name);
+            e.handle.DirtyVariable(name);
+        }
+        for (auto& [name, value] : data.rows) {
+            value = scene.rows.at(name);
+            e.handle.DirtyVariable(name);
+        }
+        for (auto& [name, value] : data.lists) {
+            value = scene.lists.at(name);
+            e.handle.DirtyVariable(name);
+        }
         return true;
     }
 

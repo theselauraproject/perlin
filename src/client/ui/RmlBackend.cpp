@@ -879,11 +879,13 @@ namespace perlin::ui {
                                const std::string& rml, const char* what, std::string& error) {
         if (!context)
             return false;
+        if (slot && sceneModels.Refresh(model, scene, rml))
+            return true;
         if (slot) {
             context->UnloadDocument(slot);
             slot = nullptr;
         }
-        if (!sceneModels.Attach(*context, model, scene)) {
+        if (!sceneModels.Attach(*context, model, scene, rml)) {
             error = std::string("RmlUi could not create the data model for the ") + what;
             return false;
         }
@@ -1115,18 +1117,27 @@ namespace perlin::ui {
             ++frameCounter;
         }
         {
-            static bool wasBusy = true;
-            static int retries = 0, sinceRetry = 0;
-            const bool busy = assets::Busy(assets::Samples());
+            static uint64_t lastSignature = ~0ull;
+            static int sinceRetry = 0, retries = 0;
+            const assets::Job& samples = assets::Samples();
+            const assets::Job& client = assets::Client();
+            const bool busy = assets::Busy(samples) || assets::Busy(client);
+            const uint64_t signature = (static_cast<uint64_t>(samples.stage.load()) << 56) ^
+                                       (static_cast<uint64_t>(client.stage.load()) << 48) ^
+                                       (samples.filesDone.load() << 16) ^ client.filesDone.load();
             sinceRetry++;
-            const bool settled = wasBusy && !busy;
-            wasBusy = busy;
-            if (gMissingTextures.load() > 0 && !busy && retries < 3 &&
-                (settled || sinceRetry > (retries == 0 ? 600 : 1800))) {
-                retries++;
-                sinceRetry = 0;
-                gMissingTextures = 0;
-                ReloadTextures();
+            if (gMissingTextures.load() > 0 && !busy) {
+                const bool changed = signature != lastSignature;
+                const int interval = retries < 2 ? 300 : 3600;
+                if (changed || sinceRetry > interval) {
+                    retries = changed ? 0 : retries + 1;
+                    lastSignature = signature;
+                    sinceRetry = 0;
+                    gMissingTextures = 0;
+                    ReloadTextures();
+                }
+            } else if (gMissingTextures.load() == 0) {
+                lastSignature = signature;
             }
         }
         context->Render();

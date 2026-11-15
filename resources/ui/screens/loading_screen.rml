@@ -166,7 +166,7 @@
             <div id="title" data-style-top="title_y + 'px'" data-style-width="w + 'px'">
                 <span data-for="r : title_runs">
                     <span
-                        data-style-color="r.color"
+                        data-style-color="r.color == '' ? 'inherit' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"
@@ -180,7 +180,7 @@
             <div id="message" data-style-top="msg_y + 'px'" data-style-width="w + 'px'">
                 <span data-for="r : message_runs">
                     <span
-                        data-style-color="r.color"
+                        data-style-color="r.color == '' ? 'inherit' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"
@@ -206,7 +206,7 @@
                 data-style-width="detail_w + 'px'">
                 <span data-for="r : detail_runs">
                     <span
-                        data-style-color="r.color"
+                        data-style-color="r.color == '' ? 'inherit' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"

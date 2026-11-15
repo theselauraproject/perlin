@@ -17,7 +17,8 @@ namespace perlin::ui {
         SceneModels();
         ~SceneModels();
 
-        bool Attach(Rml::Context& context, const std::string& slot, const Scene& scene);
+        bool Attach(Rml::Context& context, const std::string& slot, const Scene& scene, const std::string& rml);
+        bool Refresh(const std::string& slot, const Scene& scene, const std::string& rml);
         void Detach(Rml::Context& context, const std::string& slot);
         void Forget();
 

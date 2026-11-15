@@ -155,7 +155,7 @@
             <div id="heading" class="t">
                 <span data-for="r : title_runs">
                     <span
-                        data-style-color="r.color"
+                        data-style-color="r.color == '' ? 'inherit' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"
@@ -169,7 +169,7 @@
             <div id="cause" class="t">
                 <span data-for="r : cause_runs">
                     <span
-                        data-style-color="r.color"
+                        data-style-color="r.color == '' ? 'inherit' : r.color"
                         data-style-font-weight="r.weight"
                         data-style-font-style="r.style"
                         data-style-background-color="r.background"

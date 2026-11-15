@@ -16,6 +16,8 @@ namespace perlin::ui {
         std::string display = "inline";
         std::string width = "auto";
         std::string overflow = "visible";
+
+        bool operator==(const SceneRun&) const = default;
     };
 
     struct SceneNode {
@@ -53,6 +55,8 @@ namespace perlin::ui {
         std::vector<SceneRun> runs;
 
         std::vector<SceneNode> children;
+
+        bool operator==(const SceneNode&) const = default;
     };
 
     struct SceneRow {

@@ -29,11 +29,11 @@
         data-style-font-size="n.size + 'px'"
         data-style-line-height="n.lineHeight + 'px'"
         data-style-text-align="n.align"
-        data-style-color="n.color">
+        data-style-color="n.color == '' ? 'inherit' : n.color">
         <span data-for="nr : n.runs">
             <span data-if="nr.colored == '1'">
                 <span
-                    data-style-color="nr.color"
+                    data-style-color="nr.color == '' ? 'inherit' : nr.color"
                     data-style-font-weight="nr.weight"
                     data-style-font-style="nr.style"
                     data-style-background-color="nr.background"
@@ -60,7 +60,7 @@
         <span data-for="nl : n.runs">
             <span data-if="nl.colored == '1'">
                 <span
-                    data-style-color="nl.color"
+                    data-style-color="nl.color == '' ? 'inherit' : nl.color"
                     data-style-font-weight="nl.weight"
                     data-style-font-style="nl.style"
                     data-style-background-color="nl.background"
@@ -84,7 +84,7 @@
         </span>
     </div>
     <div data-if="n.kind == 4" class="fill" data-style-background-color="n.color"></div>
-    <div data-if="n.kind == 5" class="fill" data-style-decorator="n.decorator"></div>
+    <div data-if="n.kind == 5" class="fill" data-style-decorator="n.decorator == '' ? 'none' : n.decorator"></div>
     <div data-if="n.kind == 6" class="ul"></div>
     <div data-if="n.kind == 8" class="rim" data-style-width="(n.w - 3) + 'px'"></div>
     <div data-if="n.kind == 8" class="face" data-style-width="(n.w - 4) + 'px'"></div>
@@ -94,7 +94,7 @@
         <span data-for="nb : n.runs">
             <span data-if="nb.colored == '1'">
                 <span
-                    data-style-color="nb.color"
+                    data-style-color="nb.color == '' ? 'inherit' : nb.color"
                     data-style-font-weight="nb.weight"
                     data-style-font-style="nb.style"
                     data-style-background-color="nb.background"
@@ -123,7 +123,7 @@
         <span data-for="ns : n.runs">
             <span data-if="ns.colored == '1'">
                 <span
-                    data-style-color="ns.color"
+                    data-style-color="ns.color == '' ? 'inherit' : ns.color"
                     data-style-font-weight="ns.weight"
                     data-style-font-style="ns.style"
                     data-style-background-color="ns.background"
@@ -186,11 +186,11 @@
             data-style-font-size="n1.size + 'px'"
             data-style-line-height="n1.lineHeight + 'px'"
             data-style-text-align="n1.align"
-            data-style-color="n1.color">
+            data-style-color="n1.color == '' ? 'inherit' : n1.color">
             <span data-for="n1r : n1.runs">
                 <span data-if="n1r.colored == '1'">
                     <span
-                        data-style-color="n1r.color"
+                        data-style-color="n1r.color == '' ? 'inherit' : n1r.color"
                         data-style-font-weight="n1r.weight"
                         data-style-font-style="n1r.style"
                         data-style-background-color="n1r.background"
@@ -217,7 +217,7 @@
             <span data-for="n1l : n1.runs">
                 <span data-if="n1l.colored == '1'">
                     <span
-                        data-style-color="n1l.color"
+                        data-style-color="n1l.color == '' ? 'inherit' : n1l.color"
                         data-style-font-weight="n1l.weight"
                         data-style-font-style="n1l.style"
                         data-style-background-color="n1l.background"
@@ -241,7 +241,10 @@
             </span>
         </div>
         <div data-if="n1.kind == 4" class="fill" data-style-background-color="n1.color"></div>
-        <div data-if="n1.kind == 5" class="fill" data-style-decorator="n1.decorator"></div>
+        <div
+            data-if="n1.kind == 5"
+            class="fill"
+            data-style-decorator="n1.decorator == '' ? 'none' : n1.decorator"></div>
         <div data-if="n1.kind == 6" class="ul"></div>
         <div data-if="n1.kind == 8" class="rim" data-style-width="(n1.w - 3) + 'px'"></div>
         <div data-if="n1.kind == 8" class="face" data-style-width="(n1.w - 4) + 'px'"></div>
@@ -251,7 +254,7 @@
             <span data-for="n1b : n1.runs">
                 <span data-if="n1b.colored == '1'">
                     <span
-                        data-style-color="n1b.color"
+                        data-style-color="n1b.color == '' ? 'inherit' : n1b.color"
                         data-style-font-weight="n1b.weight"
                         data-style-font-style="n1b.style"
                         data-style-background-color="n1b.background"
@@ -280,7 +283,7 @@
             <span data-for="n1s : n1.runs">
                 <span data-if="n1s.colored == '1'">
                     <span
-                        data-style-color="n1s.color"
+                        data-style-color="n1s.color == '' ? 'inherit' : n1s.color"
                         data-style-font-weight="n1s.weight"
                         data-style-font-style="n1s.style"
                         data-style-background-color="n1s.background"
@@ -343,11 +346,11 @@
                 data-style-font-size="n2.size + 'px'"
                 data-style-line-height="n2.lineHeight + 'px'"
                 data-style-text-align="n2.align"
-                data-style-color="n2.color">
+                data-style-color="n2.color == '' ? 'inherit' : n2.color">
                 <span data-for="n2r : n2.runs">
                     <span data-if="n2r.colored == '1'">
                         <span
-                            data-style-color="n2r.color"
+                            data-style-color="n2r.color == '' ? 'inherit' : n2r.color"
                             data-style-font-weight="n2r.weight"
                             data-style-font-style="n2r.style"
                             data-style-background-color="n2r.background"
@@ -374,7 +377,7 @@
                 <span data-for="n2l : n2.runs">
                     <span data-if="n2l.colored == '1'">
                         <span
-                            data-style-color="n2l.color"
+                            data-style-color="n2l.color == '' ? 'inherit' : n2l.color"
                             data-style-font-weight="n2l.weight"
                             data-style-font-style="n2l.style"
                             data-style-background-color="n2l.background"
@@ -398,7 +401,10 @@
                 </span>
             </div>
             <div data-if="n2.kind == 4" class="fill" data-style-background-color="n2.color"></div>
-            <div data-if="n2.kind == 5" class="fill" data-style-decorator="n2.decorator"></div>
+            <div
+                data-if="n2.kind == 5"
+                class="fill"
+                data-style-decorator="n2.decorator == '' ? 'none' : n2.decorator"></div>
             <div data-if="n2.kind == 6" class="ul"></div>
             <div data-if="n2.kind == 8" class="rim" data-style-width="(n2.w - 3) + 'px'"></div>
             <div data-if="n2.kind == 8" class="face" data-style-width="(n2.w - 4) + 'px'"></div>
@@ -408,7 +414,7 @@
                 <span data-for="n2b : n2.runs">
                     <span data-if="n2b.colored == '1'">
                         <span
-                            data-style-color="n2b.color"
+                            data-style-color="n2b.color == '' ? 'inherit' : n2b.color"
                             data-style-font-weight="n2b.weight"
                             data-style-font-style="n2b.style"
                             data-style-background-color="n2b.background"
@@ -437,7 +443,7 @@
                 <span data-for="n2s : n2.runs">
                     <span data-if="n2s.colored == '1'">
                         <span
-                            data-style-color="n2s.color"
+                            data-style-color="n2s.color == '' ? 'inherit' : n2s.color"
                             data-style-font-weight="n2s.weight"
                             data-style-font-style="n2s.style"
                             data-style-background-color="n2s.background"
@@ -500,11 +506,11 @@
                     data-style-font-size="n3.size + 'px'"
                     data-style-line-height="n3.lineHeight + 'px'"
                     data-style-text-align="n3.align"
-                    data-style-color="n3.color">
+                    data-style-color="n3.color == '' ? 'inherit' : n3.color">
                     <span data-for="n3r : n3.runs">
                         <span data-if="n3r.colored == '1'">
                             <span
-                                data-style-color="n3r.color"
+                                data-style-color="n3r.color == '' ? 'inherit' : n3r.color"
                                 data-style-font-weight="n3r.weight"
                                 data-style-font-style="n3r.style"
                                 data-style-background-color="n3r.background"
@@ -531,7 +537,7 @@
                     <span data-for="n3l : n3.runs">
                         <span data-if="n3l.colored == '1'">
                             <span
-                                data-style-color="n3l.color"
+                                data-style-color="n3l.color == '' ? 'inherit' : n3l.color"
                                 data-style-font-weight="n3l.weight"
                                 data-style-font-style="n3l.style"
                                 data-style-background-color="n3l.background"
@@ -555,7 +561,10 @@
                     </span>
                 </div>
                 <div data-if="n3.kind == 4" class="fill" data-style-background-color="n3.color"></div>
-                <div data-if="n3.kind == 5" class="fill" data-style-decorator="n3.decorator"></div>
+                <div
+                    data-if="n3.kind == 5"
+                    class="fill"
+                    data-style-decorator="n3.decorator == '' ? 'none' : n3.decorator"></div>
                 <div data-if="n3.kind == 6" class="ul"></div>
                 <div data-if="n3.kind == 8" class="rim" data-style-width="(n3.w - 3) + 'px'"></div>
                 <div data-if="n3.kind == 8" class="face" data-style-width="(n3.w - 4) + 'px'"></div>
@@ -565,7 +574,7 @@
                     <span data-for="n3b : n3.runs">
                         <span data-if="n3b.colored == '1'">
                             <span
-                                data-style-color="n3b.color"
+                                data-style-color="n3b.color == '' ? 'inherit' : n3b.color"
                                 data-style-font-weight="n3b.weight"
                                 data-style-font-style="n3b.style"
                                 data-style-background-color="n3b.background"
@@ -594,7 +603,7 @@
                     <span data-for="n3s : n3.runs">
                         <span data-if="n3s.colored == '1'">
                             <span
-                                data-style-color="n3s.color"
+                                data-style-color="n3s.color == '' ? 'inherit' : n3s.color"
                                 data-style-font-weight="n3s.weight"
                                 data-style-font-style="n3s.style"
                                 data-style-background-color="n3s.background"
@@ -657,11 +666,11 @@
                         data-style-font-size="n4.size + 'px'"
                         data-style-line-height="n4.lineHeight + 'px'"
                         data-style-text-align="n4.align"
-                        data-style-color="n4.color">
+                        data-style-color="n4.color == '' ? 'inherit' : n4.color">
                         <span data-for="n4r : n4.runs">
                             <span data-if="n4r.colored == '1'">
                                 <span
-                                    data-style-color="n4r.color"
+                                    data-style-color="n4r.color == '' ? 'inherit' : n4r.color"
                                     data-style-font-weight="n4r.weight"
                                     data-style-font-style="n4r.style"
                                     data-style-background-color="n4r.background"
@@ -688,7 +697,7 @@
                         <span data-for="n4l : n4.runs">
                             <span data-if="n4l.colored == '1'">
                                 <span
-                                    data-style-color="n4l.color"
+                                    data-style-color="n4l.color == '' ? 'inherit' : n4l.color"
                                     data-style-font-weight="n4l.weight"
                                     data-style-font-style="n4l.style"
                                     data-style-background-color="n4l.background"
@@ -712,7 +721,10 @@
                         </span>
                     </div>
                     <div data-if="n4.kind == 4" class="fill" data-style-background-color="n4.color"></div>
-                    <div data-if="n4.kind == 5" class="fill" data-style-decorator="n4.decorator"></div>
+                    <div
+                        data-if="n4.kind == 5"
+                        class="fill"
+                        data-style-decorator="n4.decorator == '' ? 'none' : n4.decorator"></div>
                     <div data-if="n4.kind == 6" class="ul"></div>
                     <div data-if="n4.kind == 8" class="rim" data-style-width="(n4.w - 3) + 'px'"></div>
                     <div data-if="n4.kind == 8" class="face" data-style-width="(n4.w - 4) + 'px'"></div>
@@ -722,7 +734,7 @@
                         <span data-for="n4b : n4.runs">
                             <span data-if="n4b.colored == '1'">
                                 <span
-                                    data-style-color="n4b.color"
+                                    data-style-color="n4b.color == '' ? 'inherit' : n4b.color"
                                     data-style-font-weight="n4b.weight"
                                     data-style-font-style="n4b.style"
                                     data-style-background-color="n4b.background"
@@ -755,7 +767,7 @@
                         <span data-for="n4s : n4.runs">
                             <span data-if="n4s.colored == '1'">
                                 <span
-                                    data-style-color="n4s.color"
+                                    data-style-color="n4s.color == '' ? 'inherit' : n4s.color"
                                     data-style-font-weight="n4s.weight"
                                     data-style-font-style="n4s.style"
                                     data-style-background-color="n4s.background"
@@ -822,11 +834,11 @@
                             data-style-font-size="n5.size + 'px'"
                             data-style-line-height="n5.lineHeight + 'px'"
                             data-style-text-align="n5.align"
-                            data-style-color="n5.color">
+                            data-style-color="n5.color == '' ? 'inherit' : n5.color">
                             <span data-for="n5r : n5.runs">
                                 <span data-if="n5r.colored == '1'">
                                     <span
-                                        data-style-color="n5r.color"
+                                        data-style-color="n5r.color == '' ? 'inherit' : n5r.color"
                                         data-style-font-weight="n5r.weight"
                                         data-style-font-style="n5r.style"
                                         data-style-background-color="n5r.background"
@@ -853,7 +865,7 @@
                             <span data-for="n5l : n5.runs">
                                 <span data-if="n5l.colored == '1'">
                                     <span
-                                        data-style-color="n5l.color"
+                                        data-style-color="n5l.color == '' ? 'inherit' : n5l.color"
                                         data-style-font-weight="n5l.weight"
                                         data-style-font-style="n5l.style"
                                         data-style-background-color="n5l.background"
@@ -877,7 +889,10 @@
                             </span>
                         </div>
                         <div data-if="n5.kind == 4" class="fill" data-style-background-color="n5.color"></div>
-                        <div data-if="n5.kind == 5" class="fill" data-style-decorator="n5.decorator"></div>
+                        <div
+                            data-if="n5.kind == 5"
+                            class="fill"
+                            data-style-decorator="n5.decorator == '' ? 'none' : n5.decorator"></div>
                         <div data-if="n5.kind == 6" class="ul"></div>
                         <div data-if="n5.kind == 8" class="rim" data-style-width="(n5.w - 3) + 'px'"></div>
                         <div data-if="n5.kind == 8" class="face" data-style-width="(n5.w - 4) + 'px'"></div>
@@ -887,7 +902,7 @@
                             <span data-for="n5b : n5.runs">
                                 <span data-if="n5b.colored == '1'">
                                     <span
-                                        data-style-color="n5b.color"
+                                        data-style-color="n5b.color == '' ? 'inherit' : n5b.color"
                                         data-style-font-weight="n5b.weight"
                                         data-style-font-style="n5b.style"
                                         data-style-background-color="n5b.background"
@@ -920,7 +935,7 @@
                             <span data-for="n5s : n5.runs">
                                 <span data-if="n5s.colored == '1'">
                                     <span
-                                        data-style-color="n5s.color"
+                                        data-style-color="n5s.color == '' ? 'inherit' : n5s.color"
                                         data-style-font-weight="n5s.weight"
                                         data-style-font-style="n5s.style"
                                         data-style-background-color="n5s.background"
@@ -987,11 +1002,11 @@
                                 data-style-font-size="n6.size + 'px'"
                                 data-style-line-height="n6.lineHeight + 'px'"
                                 data-style-text-align="n6.align"
-                                data-style-color="n6.color">
+                                data-style-color="n6.color == '' ? 'inherit' : n6.color">
                                 <span data-for="n6r : n6.runs">
                                     <span data-if="n6r.colored == '1'">
                                         <span
-                                            data-style-color="n6r.color"
+                                            data-style-color="n6r.color == '' ? 'inherit' : n6r.color"
                                             data-style-font-weight="n6r.weight"
                                             data-style-font-style="n6r.style"
                                             data-style-background-color="n6r.background"
@@ -1018,7 +1033,7 @@
                                 <span data-for="n6l : n6.runs">
                                     <span data-if="n6l.colored == '1'">
                                         <span
-                                            data-style-color="n6l.color"
+                                            data-style-color="n6l.color == '' ? 'inherit' : n6l.color"
                                             data-style-font-weight="n6l.weight"
                                             data-style-font-style="n6l.style"
                                             data-style-background-color="n6l.background"
@@ -1042,7 +1057,10 @@
                                 </span>
                             </div>
                             <div data-if="n6.kind == 4" class="fill" data-style-background-color="n6.color"></div>
-                            <div data-if="n6.kind == 5" class="fill" data-style-decorator="n6.decorator"></div>
+                            <div
+                                data-if="n6.kind == 5"
+                                class="fill"
+                                data-style-decorator="n6.decorator == '' ? 'none' : n6.decorator"></div>
                             <div data-if="n6.kind == 6" class="ul"></div>
                             <div data-if="n6.kind == 8" class="rim" data-style-width="(n6.w - 3) + 'px'"></div>
                             <div data-if="n6.kind == 8" class="face" data-style-width="(n6.w - 4) + 'px'"></div>
@@ -1052,7 +1070,7 @@
                                 <span data-for="n6b : n6.runs">
                                     <span data-if="n6b.colored == '1'">
                                         <span
-                                            data-style-color="n6b.color"
+                                            data-style-color="n6b.color == '' ? 'inherit' : n6b.color"
                                             data-style-font-weight="n6b.weight"
                                             data-style-font-style="n6b.style"
                                             data-style-background-color="n6b.background"
@@ -1085,7 +1103,7 @@
                                 <span data-for="n6s : n6.runs">
                                     <span data-if="n6s.colored == '1'">
                                         <span
-                                            data-style-color="n6s.color"
+                                            data-style-color="n6s.color == '' ? 'inherit' : n6s.color"
                                             data-style-font-weight="n6s.weight"
                                             data-style-font-style="n6s.style"
                                             data-style-background-color="n6s.background"
