@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "client/systems/blocks/BlockLibrary.hpp"
 #include "client/systems/player/BlockCollision.hpp"
 #include "world/level/block/BlockPalette.hpp"
@@ -66,8 +67,8 @@ int main(int argc, char** argv) {
         return 2;
     const std::filesystem::path states = argv[1];
     const std::filesystem::path resources = argv[2];
-    setenv("PERLIN_RESOURCES", resources.string().c_str(), 1);
-    setenv("PERLIN_DATA_DIR", argv[3], 1);
+    perlin::env::Set("PERLIN_RESOURCES", resources.string().c_str());
+    perlin::env::Set("PERLIN_DATA_DIR", argv[3]);
     std::ifstream file(states);
     const std::string text((std::istreambuf_iterator<char>(file)), {});
     auto& palette = BlockPalette::Instance();

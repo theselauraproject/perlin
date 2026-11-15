@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "util/UrlHandlerRegistration.hpp"
 #include "util/FileIo.hpp"
 
@@ -64,9 +65,9 @@ int main() {
         script << "#!/bin/sh\necho \"$@\" >> '" << log.string() << "'\n";
     }
     fs::permissions(root / "bin" / "xdg-mime", fs::perms::owner_all);
-    setenv("PATH", (root / "bin").c_str(), 1);
-    unsetenv("APPIMAGE");
-    setenv("XDG_DATA_HOME", (root / "data").c_str(), 1);
+    perlin::env::Set("PATH", (root / "bin").c_str());
+    perlin::env::Unset("APPIMAGE");
+    perlin::env::Set("XDG_DATA_HOME", (root / "data").c_str());
 
     CHECK(perlin::platform::RegisterXdgHandler("perlin-url-perlin.desktop", "Game;",
                                                "x-scheme-handler/perlin", "/opt/Perlin App/perlin"));
@@ -84,19 +85,19 @@ int main() {
     CHECK(Slurp(log).size() ==
           2 * std::string("default perlin-url-perlin.desktop x-scheme-handler/perlin\n").size());
 
-    setenv("APPIMAGE", "/tmp/Perlin.AppImage", 1);
+    perlin::env::Set("APPIMAGE", "/tmp/Perlin.AppImage");
     CHECK(perlin::platform::RegisterXdgHandler("discord-1.desktop", "Discord;Games;",
                                                "x-scheme-handler/discord-1", "/ignored"));
     CHECK(Slurp(root / "data" / "applications" / "discord-1.desktop") ==
           ReferenceEntry("/tmp/Perlin.AppImage", "Discord;Games;", "x-scheme-handler/discord-1"));
-    unsetenv("APPIMAGE");
+    perlin::env::Unset("APPIMAGE");
 
-    unsetenv("XDG_DATA_HOME");
-    setenv("HOME", (root / "home").c_str(), 1);
+    perlin::env::Unset("XDG_DATA_HOME");
+    perlin::env::Set("HOME", (root / "home").c_str());
     CHECK(perlin::platform::RegisterXdgHandler("a.desktop", "Game;", "x-scheme-handler/a", "/x"));
     CHECK(fs::exists(root / "home" / ".local/share/applications" / "a.desktop"));
 
-    unsetenv("HOME");
+    perlin::env::Unset("HOME");
     CHECK(!perlin::platform::RegisterXdgHandler("b.desktop", "Game;", "x-scheme-handler/b", "/x"));
 
     fs::remove_all(root);

@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "util/Relaunch.hpp"
 #include "util/Paths.hpp"
 
@@ -53,7 +54,7 @@ namespace perlin {
         CloseHandle(pi.hProcess);
         return true;
 #else
-        setenv("PERLIN_RELAUNCH", next.c_str(), 1);
+        perlin::env::Set("PERLIN_RELAUNCH", next.c_str());
         std::vector<char*> argv;
         for (std::string& a : Args())
             argv.push_back(a.data());

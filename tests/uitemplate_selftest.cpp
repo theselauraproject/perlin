@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "client/ui/UiTemplate.hpp"
 #include "util/FileIo.hpp"
 
@@ -41,7 +42,7 @@ static void IncludeExpansion() {
     Write(res / "a.rml", "<style>\n    .x {\n    }\n    {{include:b.rcss}}\n    .z {\n    }\n</style>\n");
     Write(res / "b.rcss", ".y {\n    top: 1px;\n}\n\n.w {\n    left: 2px;\n}\n");
     Write(res / "c.rml", "<p>{{include:missing_nothing}}</p>");
-    setenv("PERLIN_RESOURCES", res.string().c_str(), 1);
+    perlin::env::Set("PERLIN_RESOURCES", res.string().c_str());
     const std::string out = ReadMarkup("a.rml");
     CHECK(out == "<style>\n    .x {\n    }\n    .y {\n        top: 1px;\n    }\n\n    .w {\n        left: 2px;\n    }\n    .z {\n    }\n</style>\n");
     CHECK(out.find("{{include") == std::string::npos);

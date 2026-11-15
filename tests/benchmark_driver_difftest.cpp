@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "client/systems/diagnostics/BenchmarkDriver.hpp"
 
 #include <algorithm>
@@ -168,15 +169,15 @@ int main() {
     for (int scenario = 0; scenario < 400; scenario++) {
         const int envMode = rng() % 3;
         if (envMode == 0) {
-            unsetenv("PERLIN_BENCHMARK_WORLD");
+            perlin::env::Unset("PERLIN_BENCHMARK_WORLD");
         } else {
-            setenv("PERLIN_BENCHMARK_WORLD", envMode == 1 ? "3" : "12", 1);
+            perlin::env::Set("PERLIN_BENCHMARK_WORLD", envMode == 1 ? "3" : "12");
         }
         const int cmdMode = rng() % 6;
         if (cmdMode == 5)
-            unsetenv("PERLIN_BENCHMARK_CMDS");
+            perlin::env::Unset("PERLIN_BENCHMARK_CMDS");
         else
-            setenv("PERLIN_BENCHMARK_CMDS", cmdChoices[cmdMode], 1);
+            perlin::env::Set("PERLIN_BENCHMARK_CMDS", cmdChoices[cmdMode]);
         bench::Settings s;
         s.seconds = 0.5 + (rng() % 40) / 10.0;
         s.warmupSeconds = (rng() % 30) / 10.0;

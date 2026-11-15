@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "client/screen/screens/ReplayLibrary.hpp"
 #include "client/systems/replay/ReplayFormat.hpp"
 #include "client/ui/ReplayControls.hpp"
@@ -45,11 +46,7 @@ int main() {
     std::error_code ec;
     fs::remove_all(root, ec);
     fs::create_directories(root, ec);
-#ifdef _WIN32
-    _putenv_s("PERLIN_DATA_DIR", root.string().c_str());
-#else
-    setenv("PERLIN_DATA_DIR", root.string().c_str(), 1);
-#endif
+    perlin::env::Set("PERLIN_DATA_DIR", root.string().c_str());
 
     ui::TitleModel title;
     int invalidations = 0;

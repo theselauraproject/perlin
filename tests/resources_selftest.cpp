@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "client/platform/EmbeddedProvider.hpp"
 #include "util/ResourcePaths.hpp"
 #include "util/Resources.hpp"
@@ -45,8 +46,8 @@ int main(int argc, char** argv) {
     fs::create_directories(work / "data");
     fs::create_directories(work / "cwd");
     fs::current_path(work / "cwd");
-    setenv("PERLIN_DATA_DIR", (work / "data").string().c_str(), 1);
-    unsetenv("PERLIN_RESOURCES");
+    perlin::env::Set("PERLIN_DATA_DIR", (work / "data").string().c_str());
+    perlin::env::Unset("PERLIN_RESOURCES");
 
     std::string out;
     Check(!perlin::resources::Read("ui/screens/pause_screen.rml", out), "no provider and no disk: nothing found");
@@ -83,7 +84,7 @@ int main(int argc, char** argv) {
 
     fs::create_directories(work / "other" / "ui" / "screens");
     std::ofstream(work / "other" / "ui" / "screens" / "pause_screen.rml") << "env override";
-    setenv("PERLIN_RESOURCES", (work / "other").string().c_str(), 1);
+    perlin::env::Set("PERLIN_RESOURCES", (work / "other").string().c_str());
     Check(perlin::resources::ReadText("ui/screens/pause_screen.rml") == "env override",
           "PERLIN_RESOURCES wins over the data dir and the embedded copy");
     Check(perlin::resources::ReadText("ui/screens/title_screen.rml") != "",
