@@ -4,6 +4,11 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PerlinToolchain.cmake")
 option(PERLIN_BUILD_TESTS "Build unit tests" OFF)
 
 project(Perlin VERSION 1.0.0 LANGUAGES C CXX)
+
+if(WIN32)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+endif()
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PerlinApiPackage.cmake")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -339,7 +344,7 @@ if(NOT EMSCRIPTEN)
 endif()
 
 if(WIN32)
-    target_compile_definitions(Perlin PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+    target_compile_definitions(Perlin PRIVATE _WIN32_WINNT=0x0A00)
 endif()
 
 target_link_libraries(Perlin PRIVATE
