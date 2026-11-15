@@ -66,18 +66,6 @@ namespace perlin::ui {
             Text(b, x + 3, y, w, text, "", BadgeColor(color));
         }
 
-        void Rule(SceneBuilder& b, float x, float y, float w, float h, const char* cls) {
-            kit::Box(b, x, y, w, h, cls);
-        }
-
-        void SelectionFrame(SceneBuilder& b, float x, float y, float w, float h, const char* cls) {
-            kit::Box(b, x, y, w, h, cls);
-            kit::Box(b, x, y, w, 1, "frame");
-            kit::Box(b, x, y + h - 1.0f, w, 1, "frame");
-            kit::Box(b, x, y, 1, h, "frame");
-            kit::Box(b, x + w - 1.0f, y, 1, h, "frame");
-        }
-
         float EstimateWrapHeight(const std::string& text, float width) {
             const int perLine = std::max(1, static_cast<int>(width / 6.0f));
             int lines = 0;

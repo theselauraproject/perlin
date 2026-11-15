@@ -62,12 +62,6 @@ namespace perlin::ui {
             return j.Dump();
         }
 
-        std::string F(float v) {
-            char buf[32];
-            std::snprintf(buf, sizeof(buf), "%.1f", static_cast<double>(v));
-            return buf;
-        }
-
         int LineCount(const std::string& text, int perLine) {
             int lines = 0;
             size_t start = 0;

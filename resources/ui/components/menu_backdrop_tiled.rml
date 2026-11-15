@@ -1,8 +1,0 @@
-<mcimg
-    src="textures/blocks/dirt"
-    tiled="1"
-    color="0.25 0.25 0.25"
-    style="left: 0px; top: 0px;"
-    data-attr-tilescale="tile_scale"
-    data-style-width="w + 'px'"
-    data-style-height="h + 'px'"></mcimg>
