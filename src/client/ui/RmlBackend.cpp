@@ -77,57 +77,96 @@ namespace perlin::ui {
 
         Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> vertices,
                                                     Rml::Span<const int> indices) override {
-            std::vector<UiVertex> v(vertices.size());
-            for (size_t i = 0; i < vertices.size(); i++) {
-                v[i] = {vertices[i].position.x,   vertices[i].position.y,  0.0f,
-                        Pack(vertices[i].colour), vertices[i].tex_coord.x, vertices[i].tex_coord.y};
-            }
-            std::vector<uint32_t> idx(indices.size());
+            if (vertices.empty() || indices.empty())
+                return kEmptyGeometry;
+            Geometry g;
+            g.vertices.resize(vertices.size());
+            for (size_t i = 0; i < vertices.size(); i++)
+                g.vertices[i] = {vertices[i].position.x,   vertices[i].position.y,  0.0f,
+                                 Pack(vertices[i].colour), vertices[i].tex_coord.x, vertices[i].tex_coord.y};
+            g.indices.resize(indices.size());
             for (size_t i = 0; i < indices.size(); i++)
-                idx[i] = static_cast<uint32_t>(indices[i]);
-            const uint32_t mesh = gRenderer->UiCreateMesh(v.data(), static_cast<uint32_t>(v.size()),
-                                                          idx.data(), static_cast<uint32_t>(idx.size()));
-            if (!mesh && !v.empty() && !idx.empty())
-                gMeshStarved = true;
-            return mesh ? static_cast<Rml::CompiledGeometryHandle>(mesh) : kEmptyGeometry;
+                g.indices[i] = static_cast<uint32_t>(indices[i]);
+            const Rml::CompiledGeometryHandle handle = ++nextGeometry;
+            geometries.emplace(handle, std::move(g));
+            return handle;
         }
 
         void RenderGeometry(Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation,
                             Rml::TextureHandle texture) override {
             if (geometry == kEmptyGeometry)
                 return;
-            UiDraw draw;
-            draw.mesh = static_cast<uint32_t>(geometry);
-            draw.texture = static_cast<uint32_t>(texture);
-            const float s = static_cast<float>(gScale);
-            draw.model[0] = s;
-            draw.model[5] = s;
-            draw.model[10] = 1.0f;
-            draw.model[12] = std::round(translation.x * s);
-            draw.model[13] = std::round(translation.y * s);
-            draw.scissor = scissorOn;
-            for (int i = 0; i < 4; i++)
-                draw.scissorRect[i] = scissor[i];
-            draw.premultiplied = true;
-            if (gGlintPass) {
-                draw.glintTexture = GlintTexture();
-                if (draw.glintTexture == 0)
-                    return;
-                const auto ms = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                          std::chrono::steady_clock::now().time_since_epoch())
-                                                          .count());
-                const GlintTransform g = MakeGlintTransform(ms);
-                std::copy(g.matrix, g.matrix + 4, draw.glintMatrix);
-                std::copy(g.offset, g.offset + 2, draw.glintOffset);
+            const auto it = geometries.find(geometry);
+            if (it == geometries.end())
+                return;
+            const Geometry& g = it->second;
+            const bool glint = gGlintPass;
+            const uint32_t tex = static_cast<uint32_t>(texture);
+            if (!batchVertices.empty() &&
+                (batchTexture != tex || batchScissorOn != scissorOn || batchGlint != glint || batchLayer != gLayer ||
+                 batchScale != gScale || batchVertices.size() + g.vertices.size() > 24000 ||
+                 (scissorOn && std::memcmp(batchScissor, scissor, sizeof(scissor)) != 0)))
+                Flush();
+            if (batchVertices.empty()) {
+                batchTexture = tex;
+                batchScissorOn = scissorOn;
+                batchGlint = glint;
+                batchLayer = gLayer;
+                batchScale = gScale;
+                std::memcpy(batchScissor, scissor, sizeof(scissor));
             }
-            gRenderer->UiSubmit(gLayer, draw);
+            const float s = static_cast<float>(gScale);
+            const float tx = std::round(translation.x * s), ty = std::round(translation.y * s);
+            const uint32_t base = static_cast<uint32_t>(batchVertices.size());
+            for (const UiVertex& v : g.vertices) {
+                UiVertex out = v;
+                out.x = v.x * s + tx;
+                out.y = v.y * s + ty;
+                batchVertices.push_back(out);
+            }
+            for (uint32_t i : g.indices)
+                batchIndices.push_back(base + i);
         }
 
-        void ReleaseGeometry(Rml::CompiledGeometryHandle geometry) override {
-            if (geometry == kEmptyGeometry)
+        void Flush() {
+            if (batchVertices.empty())
                 return;
-            gRenderer->UiDestroyMesh(static_cast<uint32_t>(geometry));
+            const uint32_t mesh = gRenderer->UiCreateFrameMesh(batchVertices.data(),
+                                                               static_cast<uint32_t>(batchVertices.size()),
+                                                               batchIndices.data(),
+                                                               static_cast<uint32_t>(batchIndices.size()));
+            if (mesh) {
+                UiDraw draw;
+                draw.mesh = mesh;
+                draw.texture = batchTexture;
+                draw.scissor = batchScissorOn;
+                for (int i = 0; i < 4; i++)
+                    draw.scissorRect[i] = batchScissor[i];
+                draw.premultiplied = true;
+                bool ok = true;
+                if (batchGlint) {
+                    draw.glintTexture = GlintTexture();
+                    ok = draw.glintTexture != 0;
+                    if (ok) {
+                        const auto ms = static_cast<uint64_t>(
+                            std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now().time_since_epoch())
+                                .count());
+                        const GlintTransform g = MakeGlintTransform(ms);
+                        std::copy(g.matrix, g.matrix + 4, draw.glintMatrix);
+                        std::copy(g.offset, g.offset + 2, draw.glintOffset);
+                    }
+                }
+                if (ok)
+                    gRenderer->UiSubmit(batchLayer, draw);
+            } else {
+                gMeshStarved = true;
+            }
+            batchVertices.clear();
+            batchIndices.clear();
         }
+
+        void ReleaseGeometry(Rml::CompiledGeometryHandle geometry) override { geometries.erase(geometry); }
 
         Rml::TextureHandle LoadTexture(Rml::Vector2i& dimensions, const Rml::String& source) override {
             if (source == "mchead:perlin:badge") {
@@ -262,6 +301,20 @@ namespace perlin::ui {
 
         bool scissorOn = false;
         int scissor[4] = {0, 0, 0, 0};
+
+        struct Geometry {
+            std::vector<UiVertex> vertices;
+            std::vector<uint32_t> indices;
+        };
+        std::unordered_map<Rml::CompiledGeometryHandle, Geometry> geometries;
+        Rml::CompiledGeometryHandle nextGeometry = 0;
+        std::vector<UiVertex> batchVertices;
+        std::vector<uint32_t> batchIndices;
+        uint32_t batchTexture = 0;
+        bool batchScissorOn = false, batchGlint = false;
+        UiLayer batchLayer = UiLayer::Gui;
+        int batchScale = 1;
+        int batchScissor[4] = {0, 0, 0, 0};
     };
 
     class GameSystemInterface final : public Rml::SystemInterface {
@@ -1208,6 +1261,8 @@ namespace perlin::ui {
             }
         }
         context->Render();
+        if (renderInterface)
+            renderInterface->Flush();
         gLayer = UiLayer::Gui;
     }
 
