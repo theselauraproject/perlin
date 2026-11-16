@@ -269,8 +269,6 @@ namespace perlin {
         virtual void UpdateChunkMesh(int cx, int cz, const Tessellator& tess, uint64_t version) = 0;
         virtual void PrepareChunkMesh(Tessellator&) {}
         virtual void RemoveChunkMesh(int cx, int cz) = 0;
-        virtual void UpdateLodTile(int tx, int tz, int size, const Tessellator& tess, uint64_t version) = 0;
-        virtual void RemoveLodTile(int tx, int tz) = 0;
         virtual void ClearChunkMeshes() = 0;
         virtual void UnloadLevelResources() { ClearChunkMeshes(); }
         virtual void DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) = 0;

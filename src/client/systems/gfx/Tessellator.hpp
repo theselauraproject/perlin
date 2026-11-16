@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -99,6 +100,22 @@ namespace perlin {
         const std::vector<Vertex>& Vertices() const { return vertices; }
 
         std::vector<uint8_t> packVertices;
+        float boundsLo = 0.0f, boundsHi = 0.0f;
+        bool boundsKnown = false;
+        void ComputeBounds() {
+            if (vertices.empty()) {
+                boundsKnown = false;
+                return;
+            }
+            float lo = vertices[0].y, hi = lo;
+            for (const Vertex& v : vertices) {
+                lo = std::min(lo, v.y);
+                hi = std::max(hi, v.y);
+            }
+            boundsLo = lo;
+            boundsHi = hi;
+            boundsKnown = true;
+        }
         uint64_t packStamp = 0;
         const std::vector<uint32_t>& Indices(RenderLayer value) const {
             return indices[static_cast<size_t>(value)];

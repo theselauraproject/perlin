@@ -7,7 +7,6 @@
 #include "client/systems/replay/ReplayController.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
-#include "client/systems/renderer/chunk/LodStore.hpp"
 #include "client/ui/ReplayControls.hpp"
 #include "client/ui/TextEdit.hpp"
 #include "util/Paths.hpp"
@@ -65,9 +64,6 @@ namespace perlin::replay {
                                  meta.localRuntimeId, meta.protocol);
         session->SetChunkRadius(options.renderDistance);
         session->SetMaxViewDistance(std::max(32, options.renderDistance));
-        session->SetNearRadius(options.enableLods && options.renderDistance > LodStore::kRealChunks
-                                   ? LodStore::kRealChunks
-                                   : 1 << 20);
         session->SetPackDirectory(paths::DataDir() + "/server_packs");
         sessionReady = true;
     }

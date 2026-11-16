@@ -142,15 +142,18 @@ namespace perlin::jshader {
             s.fogEnd = 1.0f;
             s.fogDensity = 0.0f;
             s.fogMode = kFogLinear;
-        } else if (scene.nether) {
-            const float distance = static_cast<float>(std::clamp(params.renderDistance, 2, 64) * 16);
-            s.fogStart = distance * 0.05f;
-            s.fogEnd = std::min(distance, 192.0f) * 0.5f;
-            s.fogDensity = 0.0f;
-            s.fogMode = kFogLinear;
         } else {
-            s.fogStart = -160.0f * rain;
-            s.fogEnd = std::max(96.0f, 1024.0f - 256.0f * rain);
+            const float envEnd = params.environmentalFogEnd, rdEnd = params.renderDistanceFogEnd;
+            if (rdEnd <= 0.0f) {
+                s.fogStart = -160.0f * rain;
+                s.fogEnd = 1024.0f - 256.0f * rain;
+            } else if (envEnd > 0.0f && envEnd <= rdEnd) {
+                s.fogStart = params.environmentalFogStart;
+                s.fogEnd = envEnd;
+            } else {
+                s.fogStart = params.renderDistanceFogStart;
+                s.fogEnd = rdEnd;
+            }
             s.fogDensity = 0.0f;
             s.fogMode = kFogLinear;
         }
@@ -195,7 +198,7 @@ namespace perlin::jshader {
         const float c = s.projection[10], d = s.projection[14];
         if (std::fabs(c - 1.0f) > 1e-6f && std::fabs(c + 1.0f) > 1e-6f)
             s.nearPlane = d / (c - 1.0f);
-        s.farPlane = static_cast<float>(std::clamp(params.renderDistance, 2, 64) * 16);
+        s.farPlane = static_cast<float>(std::clamp(params.renderDistance, 2, 256) * 16);
         s.isEyeInWater = params.cameraMedium == 1 ? 1 : (params.cameraMedium == 2 ? 2 : 0);
         s.eyeAltitude = params.cameraPosition[1];
         s.heldBlockLightValue = static_cast<int>(params.heldLight);

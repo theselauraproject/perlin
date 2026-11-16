@@ -604,55 +604,26 @@ namespace perlin::screen {
 
         void AddVideoWorld(OptionsModel& m, Options& options, BedrockSession* live) {
         m.Header("World");
-        const int maxDistance = 256;
+        const int maxDistance = 1024;
         const auto distanceToSlider = [maxDistance](int d) {
-            if (maxDistance <= LodStore::kRealChunks)
-                return static_cast<float>(d - 2) / static_cast<float>(maxDistance - 2);
-            return d <= LodStore::kRealChunks
-                       ? 0.5f * static_cast<float>(d - 2) / static_cast<float>(LodStore::kRealChunks - 2)
-                       : 0.5f + 0.5f * static_cast<float>(d - LodStore::kRealChunks) /
-                                    static_cast<float>(maxDistance - LodStore::kRealChunks);
+            const float t = static_cast<float>(d - 2) / static_cast<float>(maxDistance - 2);
+            return std::sqrt(std::clamp(t, 0.0f, 1.0f));
         };
         m.Slider(
             i18n::TrOr("options.renderDistance", "Render Distance"),
             std::to_string(options.renderDistance) + " " + i18n::TrOr("options.chunks", "chunks"),
             distanceToSlider(options.renderDistance), [&options, live, maxDistance](float f) {
                 f = std::clamp(f, 0.0f, 1.0f);
-                int distance;
-                if (maxDistance <= LodStore::kRealChunks)
-                    distance = 2 + static_cast<int>(std::lround(f * static_cast<float>(maxDistance - 2)));
-                else if (f <= 0.5f)
-                    distance = 2 + static_cast<int>(
-                                       std::lround(f * 2.0f * static_cast<float>(LodStore::kRealChunks - 2)));
-                else
-                    distance =
-                        LodStore::kRealChunks +
-                        static_cast<int>(std::lround(
-                            (f - 0.5f) * 2.0f * static_cast<float>(maxDistance - LodStore::kRealChunks)));
+                const int distance = 2 + static_cast<int>(std::lround(f * f * static_cast<float>(maxDistance - 2)));
                 if (distance != options.renderDistance) {
                     options.renderDistance = distance;
                     if (live) {
                         live->SetChunkRadius(options.renderDistance);
                         live->SetMaxViewDistance(std::max(32, options.renderDistance));
-                        live->SetNearRadius(options.enableLods &&
-                                                    options.renderDistance > LodStore::kRealChunks
-                                                ? LodStore::kRealChunks
-                                                : 1 << 20);
                         live->RequestChunkRadiusNow();
                     }
                 }
             });
-        m.Toggle("Enable LODs", options.enableLods);
-        if (live) {
-            const int wantNear = options.enableLods && options.renderDistance > LodStore::kRealChunks
-                                     ? LodStore::kRealChunks
-                                     : 1 << 20;
-            if (live->NearRadius() != wantNear) {
-                live->SetNearRadius(wantNear);
-                live->SetMaxViewDistance(std::max(32, options.renderDistance));
-                live->RequestChunkRadiusNow();
-            }
-        }
         m.Toggle(i18n::TrOr("options.graphics.fancy", "Fancy Graphics"), options.fancyGraphics);
         m.Toggle("Better Grass", options.betterGrass);
         m.Toggle(i18n::TrOr("perlin.options.customSkies", "Custom Skies"), options.customSkies);

@@ -1102,7 +1102,7 @@ namespace perlin {
             std::vector<uint8_t> biomes;
         };
         std::unordered_map<ChunkPos, ColumnInfo, ChunkPosHash> columns;
-        int nearRadius = 32;
+        int nearRadius = 1 << 20;
         int lodScanCentre[2] = {INT32_MIN, INT32_MIN};
         int lodScanRadius = -1;
         std::map<std::tuple<int, int, int, int>, std::chrono::steady_clock::time_point> inflight;

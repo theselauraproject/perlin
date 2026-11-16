@@ -389,10 +389,13 @@ namespace perlin::gpu {
                              shifted.size() * sizeof(uint32_t));
         }
 
-        float lo = verts[0].y, hi = verts[0].y;
-        for (const Vertex& v : verts) {
-            lo = std::min(lo, v.y);
-            hi = std::max(hi, v.y);
+        float lo = tess.boundsLo, hi = tess.boundsHi;
+        if (!tess.boundsKnown) {
+            lo = hi = verts[0].y;
+            for (const Vertex& v : verts) {
+                lo = std::min(lo, v.y);
+                hi = std::max(hi, v.y);
+            }
         }
         g.minY = lo;
         g.maxY = hi;

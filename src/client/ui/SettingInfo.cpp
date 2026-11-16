@@ -58,9 +58,6 @@ namespace perlin::ui {
              "Contrast-adaptive sharpening after the upscale. Brings back some of the detail the lower "
              "resolution loses.",
              3},
-            {"Enable LODs", "", "",
-             "Distant terrain as simplified tiles, so the render distance can go far past the loaded chunks.",
-             3},
             {"Background FPS", "", "",
              "Frame cap while another window is focused. Lower values free the CPU and GPU for other "
              "windows, such as several Perlin instances side by side. Minimized windows always drop to 5 fps.",

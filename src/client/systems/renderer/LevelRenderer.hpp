@@ -5,7 +5,6 @@
 #include "client/systems/renderer/CustomSky.hpp"
 #include "client/systems/gfx/Tessellator.hpp"
 #include "client/systems/renderer/chunk/ChunkMesher.hpp"
-#include "client/systems/renderer/chunk/LodStore.hpp"
 #include "client/systems/blocks/BiomeTints.hpp"
 #include "client/systems/blocks/BlockLibrary.hpp"
 #include "util/ThreadPool.hpp"
@@ -76,11 +75,12 @@ namespace perlin {
 
         const BlockLibrary& Blocks() const { return *blocks; }
         const BiomeTints& Tints() const { return *biomeTints; }
-        size_t PendingMeshes() const { return pending.size(); }
+        size_t PendingMeshes() const { return queue.size() - std::min(queueHead, queue.size()); }
         size_t MeshesInFlight() const { return inFlight.size(); }
         size_t MaxMeshesInFlight() const { return maxInFlight; }
         size_t MeshedChunks() const { return meshKey.size(); }
         void BenchmarkMeshing(Level& level, int rounds);
+        void PrintLoadProfile() const;
         bool TexturesLoaded() const { return atlasUploaded; }
         void CollectSpecials(float camX, float camZ, float range, std::vector<SpecialBlock>& out) const;
 
@@ -116,6 +116,7 @@ namespace perlin {
 
         struct Pending {
             float distance;
+            float raw;
             ChunkPos pos;
             uint64_t key;
         };
@@ -135,21 +136,9 @@ namespace perlin {
         PosSet remeshOutstanding;
         std::chrono::steady_clock::time_point lastCustomBuild{};
         std::chrono::steady_clock::time_point firstWaitAt;
-        size_t captured = 0;
-        double captureMs = 0;
-        void ProcessLod(Level& level, float camX, float camZ);
-        void MarkLodTile(const ChunkPos& chunk);
-        void ResetLod();
-        bool LodEnabled() const {
-            return options.enableLods && options.renderDistance > LodStore::kRealChunks;
-        }
-        static int64_t TileKey(int tx, int tz) {
-            return (static_cast<int64_t>(tx) << 32) | static_cast<uint32_t>(tz);
-        }
         void ConfigureLighting(const std::string& packDir);
         void LoadSkyTextures();
 
-        bool lodWasEnabled = false;
         uint32_t urgentTick = 0;
         RenderContext& context;
         const Options& options;
@@ -203,18 +192,17 @@ namespace perlin {
         PosMap<std::vector<SpecialBlock>> specials;
         PosMap<uint64_t> wantKey;
         std::vector<DirtyChunk> drained;
-        std::vector<Pending> pending;
+        std::vector<Pending> queue;
+        size_t queueHead = 0;
+        std::chrono::steady_clock::time_point queueBuilt{};
+        int queueCamX = 0x7fffffff, queueCamZ = 0;
+        bool queueForce = true;
+        void RebuildQueue(float camX, float camZ, const Frustum& frustum);
+        struct LoadProfile {
+            size_t rebuilds = 0, submitted = 0, uploaded = 0;
+            double rebuildMs = 0, uploadMs = 0;
+        } loadProfile;
 
-        LodStore lod;
-        PosSet shown;
-        std::unordered_map<int64_t, int> lodTiles;
-        std::unordered_set<int64_t> lodDirty;
-        std::vector<ChunkPos> capQueue;
-        PosSet capSet;
-        int lodScanX = 0x7fffffff, lodScanZ = 0;
-        bool lodScanForced = true;
-        uint64_t lodVersion = 0;
-        Tessellator lodScratch;
 
         const Level* lastLevel = nullptr;
         uint64_t lastClear = 0;

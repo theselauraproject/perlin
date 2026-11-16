@@ -1,3 +1,4 @@
+#include <vector>
 #include "client/systems/javashaders/ProgramSet.hpp"
 #include "util/Strings.hpp"
 
@@ -339,8 +340,81 @@ namespace perlin::jshader {
         directivesLoaded = false;
     }
 
+    namespace {
+        bool EngineOnlyCondition(const std::string& expr, const MacroMap& engine) {
+            size_t i = 0;
+            while (i < expr.size()) {
+                if (std::isalpha(static_cast<unsigned char>(expr[i])) || expr[i] == '_') {
+                    size_t j = i;
+                    while (j < expr.size() && (std::isalnum(static_cast<unsigned char>(expr[j])) || expr[j] == '_'))
+                        j++;
+                    const std::string id = expr.substr(i, j - i);
+                    if (id != "defined" && !engine.contains(id) && !id.starts_with("MC_") && !id.starts_with("IS_"))
+                        return false;
+                    i = j;
+                } else {
+                    i++;
+                }
+            }
+            return true;
+        }
+
+        void CollectEngineGuardedDefines(const std::string& text, const MacroMap& engine, MacroMap& out) {
+            struct Frame {
+                bool evaluable;
+                bool value;
+            };
+            std::vector<Frame> stack;
+            std::istringstream in(text);
+            std::string raw;
+            while (std::getline(in, raw)) {
+                const std::string line = str::Trim(raw);
+                if (line.empty() || line[0] != '#')
+                    continue;
+                const std::string body = str::Trim(line.substr(1));
+                size_t k = 0;
+                while (k < body.size() && std::isalpha(static_cast<unsigned char>(body[k])))
+                    k++;
+                const std::string dir = body.substr(0, k);
+                std::string rest = str::Trim(body.substr(k));
+                if (const size_t c = rest.find("//"); c != std::string::npos)
+                    rest = str::Trim(rest.substr(0, c));
+                if (dir == "if" || dir == "ifdef" || dir == "ifndef") {
+                    std::string expr = rest;
+                    if (dir == "ifdef")
+                        expr = "defined " + rest;
+                    else if (dir == "ifndef")
+                        expr = "!defined " + rest;
+                    const bool ok = EngineOnlyCondition(expr, engine);
+                    stack.push_back({ok, ok && EvalCondition(expr, engine) != 0});
+                } else if (dir == "elif") {
+                    if (!stack.empty()) {
+                        const bool ok = EngineOnlyCondition(rest, engine);
+                        stack.back() = {ok, ok && EvalCondition(rest, engine) != 0};
+                    }
+                } else if (dir == "else") {
+                    if (!stack.empty())
+                        stack.back().value = !stack.back().value;
+                } else if (dir == "endif") {
+                    if (!stack.empty())
+                        stack.pop_back();
+                } else if (dir == "define" && !stack.empty()) {
+                    bool all = true;
+                    for (const Frame& f : stack)
+                        all = all && f.evaluable && f.value;
+                    size_t e = 0;
+                    while (e < rest.size() && (std::isalnum(static_cast<unsigned char>(rest[e])) || rest[e] == '_'))
+                        e++;
+                    if (all && e > 0 && str::Trim(rest.substr(e)).empty())
+                        out[rest.substr(0, e)] = "";
+                }
+            }
+        }
+    }
+
     void ShaderPackInstance::ScanOptions() {
         options.clear();
+        MacroMap guardedDefines;
         IncludeContext ctx;
         ctx.pack = pack.get();
         ctx.options = &options;
@@ -353,11 +427,15 @@ namespace perlin::jshader {
                 ext != ".settings" && ext != ".h" && ext != ".inc" && ext != ".sh")
                 continue;
             std::string text;
-            if (pack->Read(file, text))
+            if (pack->Read(file, text)) {
                 ScanOptionsInText(ctx, file, text);
+                CollectEngineGuardedDefines(text, engineAll, guardedDefines);
+            }
         }
         engineMacros = engineAll;
         macros = engineAll;
+        for (const auto& [name, value] : guardedDefines)
+            macros.emplace(name, value);
         for (const ShaderOption& o : options) {
             const auto ov = overrides.find(o.name);
             switch (o.kind) {

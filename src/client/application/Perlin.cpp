@@ -255,9 +255,6 @@ namespace perlin {
         session->SetFriendLease(friendLease);
         session->SetChunkRadius(options.renderDistance);
         session->SetMaxViewDistance(std::max(32, options.renderDistance));
-        session->SetNearRadius(options.enableLods && options.renderDistance > LodStore::kRealChunks
-                                   ? LodStore::kRealChunks
-                                   : 1 << 20);
 
     }
 
@@ -468,7 +465,7 @@ namespace perlin {
             if (gameMode >= 0)
                 extra += ",\"gamemode\":" + std::to_string(gameMode);
             const std::string config =
-                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 32)) + threads + extra +
+                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 1024)) + threads + extra +
                 ",\"block_data_dir\":\"" + dir + "\"}";
             std::string error;
             if (!singleplayerServer->Start(dir, config, error)) {

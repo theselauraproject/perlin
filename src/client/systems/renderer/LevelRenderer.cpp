@@ -41,7 +41,7 @@ namespace perlin {
         const unsigned cores = HardwareThreads();
         const unsigned threads = std::clamp(cores > 3 ? cores - 2 : 2u, 2u, 16u);
         meshPool = std::make_unique<ThreadPool>(threads, true);
-        maxInFlight = threads * 2;
+        maxInFlight = threads * 6;
     }
 
     LevelRenderer::~LevelRenderer() {
@@ -153,14 +153,6 @@ namespace perlin {
             done.clear();
         }
         context.ClearChunkMeshes();
-        shown.clear();
-        lod.InvalidateColours();
-        lodTiles.clear();
-        lodDirty.clear();
-        lodScanForced = true;
-        for (const auto& entry : info)
-            if (LodEnabled() && !entry.second.streaming && capSet.insert(entry.first).second)
-                capQueue.push_back(entry.first);
         wantKey.clear();
         for (const auto& entry : info)
             Recompute(entry.first);
@@ -346,22 +338,28 @@ namespace perlin {
         const uint32_t current = generation.load();
         const auto uploadStart = std::chrono::steady_clock::now();
         size_t consumed = 0;
+        double budgetMs = uploadBudgetMs;
+        if (finished.size() > 6)
+            budgetMs = std::max(budgetMs, std::min(frameEma * 0.45, 7.0));
         for (MeshResult& r : finished) {
             if (consumed > 0 && std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - uploadStart)
-                                        .count() > uploadBudgetMs)
+                                        .count() > budgetMs)
                 break;
             consumed++;
             inFlight.erase(r.pos);
             if (!meshKey.contains(r.pos))
                 continue;
             if (r.generation == current) {
+                const auto u0 = std::chrono::steady_clock::now();
                 context.UpdateChunkMesh(r.pos.x, r.pos.z, *r.mesh, r.key);
+                loadProfile.uploaded++;
+                loadProfile.uploadMs +=
+                    std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
                 if (r.mesh->Specials().empty())
                     specials.erase(r.pos);
                 else
                     specials[r.pos] = r.mesh->Specials();
-                if (shown.insert(r.pos).second)
-                    MarkLodTile(r.pos);
+
             }
         }
         if (consumed < finished.size()) {
@@ -385,7 +383,6 @@ namespace perlin {
         meshKey.clear();
         wantKey.clear();
         inFlight.clear();
-        ResetLod();
         level.MarkAllDirty();
     }
 
@@ -462,8 +459,10 @@ namespace perlin {
         const auto built = meshKey.find(pos);
         if (built != meshKey.end() && built->second == key)
             wantKey.erase(pos);
-        else
+        else {
             wantKey[pos] = key;
+            queueForce = true;
+        }
     }
 
     void LevelRenderer::ApplyDirty(Level& level) {
@@ -474,15 +473,8 @@ namespace perlin {
         PosSet touched;
         touched.reserve(drained.size() * 3);
         for (const DirtyChunk& d : drained) {
-            if (d.exists && d.lodOnly) {
-                if (LodEnabled() && !d.streaming && capSet.insert(d.pos).second)
-                    capQueue.push_back(d.pos);
-                continue;
-            }
             if (d.exists) {
                 info[d.pos] = {d.version, d.borderVersion, d.streaming, d.firstSeen, d.readyAt};
-                if (LodEnabled() && !d.streaming && capSet.insert(d.pos).second)
-                    capQueue.push_back(d.pos);
             } else {
                 info.erase(d.pos);
                 specials.erase(d.pos);
@@ -490,8 +482,6 @@ namespace perlin {
                     context.RemoveChunkMesh(d.pos.x, d.pos.z);
                 DropReuse(&d.pos);
                 wantKey.erase(d.pos);
-                if (shown.erase(d.pos))
-                    MarkLodTile(d.pos);
             }
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++)
@@ -511,18 +501,68 @@ namespace perlin {
                     continue;
                 const auto n = info.find(ChunkPos{pos.x + dx, pos.z + dz});
                 if (n == info.end()) {
-                    if (now - self.readyAt < 200)
+                    if (now - self.readyAt < 80)
                         return false;
-                } else if (n->second.streaming && now - n->second.firstSeen < 900) {
+                } else if (n->second.streaming && now - n->second.firstSeen < 400) {
                     return false;
                 }
             }
         return true;
     }
 
+    void LevelRenderer::RebuildQueue(float camX, float camZ, const Frustum& frustum) {
+        const auto t0 = std::chrono::steady_clock::now();
+        const uint64_t now = Level::NowMs();
+        queue.clear();
+        queueHead = 0;
+        const int meshRadius = std::max(3, options.renderDistance) + 3;
+        const int camChunkX = static_cast<int>(std::floor(camX / 16.0f)),
+                  camChunkZ = static_cast<int>(std::floor(camZ / 16.0f));
+        queueCamX = camChunkX;
+        queueCamZ = camChunkZ;
+        for (const auto& [pos, key] : wantKey) {
+            const int ax = std::abs(pos.x - camChunkX), az = std::abs(pos.z - camChunkZ);
+            if (std::max(ax, az) > meshRadius)
+                continue;
+            if (inFlight.contains(pos))
+                continue;
+            const float dx = pos.x * 16.0f + 8.0f - camX;
+            const float dz = pos.z * 16.0f + 8.0f - camZ;
+            const float d = dx * dx + dz * dz;
+            queue.push_back({d, d, pos, key});
+        }
+        constexpr size_t kQueueLimit = 6144;
+        if (queue.size() > kQueueLimit) {
+            std::nth_element(queue.begin(), queue.begin() + kQueueLimit, queue.end(),
+                             [](const Pending& a, const Pending& b) { return a.distance < b.distance; });
+            queue.resize(kQueueLimit);
+        }
+        size_t kept = 0;
+        for (size_t i = 0; i < queue.size(); i++) {
+            Pending job = queue[i];
+            if (!Ready(job.pos, now))
+                continue;
+            const float x0 = job.pos.x * 16.0f, z0 = job.pos.z * 16.0f;
+            if (!frustum.Visible(x0, static_cast<float>(Chunk::MIN_Y), z0, x0 + 16.0f,
+                                 static_cast<float>(Chunk::MIN_Y + Chunk::HEIGHT), z0 + 16.0f))
+                job.distance += 1e9f;
+            queue[kept++] = job;
+        }
+        queue.resize(kept);
+        std::sort(queue.begin(), queue.end(),
+                  [](const Pending& a, const Pending& b) { return a.distance < b.distance; });
+        queueBuilt = t0;
+        queueForce = false;
+        loadProfile.rebuilds++;
+        loadProfile.rebuildMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    }
+
     void LevelRenderer::Schedule(Level& level, float camX, float camZ, const Frustum& frustum) {
-        if (wantKey.empty() || !AssetsCurrent())
+        if (wantKey.empty() || !AssetsCurrent()) {
+            queue.clear();
+            queueHead = 0;
             return;
+        }
         const bool async = atlasUploaded && blocks->Complete() && biomeTints->Ready();
         size_t freeSlots = async ? (maxInFlight > inFlight.size() ? maxInFlight - inFlight.size() : 0) : 64;
         bool urgentOnly = false;
@@ -536,39 +576,18 @@ namespace perlin {
             urgentOnly = true;
         }
 
-        const uint64_t now = Level::NowMs();
-        pending.clear();
-        pending.reserve(wantKey.size());
-        static const int debugNear =
-            PERLIN_ENV("PERLIN_LOD_NEAR") ? std::atoi(PERLIN_ENV("PERLIN_LOD_NEAR")) : -1;
-        const int meshRadius =
-            std::max(3, LodEnabled() ? std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks)) : options.renderDistance) + 3;
+        const auto tnow = std::chrono::steady_clock::now();
+        const double sinceBuild = std::chrono::duration<double, std::milli>(tnow - queueBuilt).count();
+        const bool drained = queueHead >= queue.size();
         const int camChunkX = static_cast<int>(std::floor(camX / 16.0f)),
                   camChunkZ = static_cast<int>(std::floor(camZ / 16.0f));
-        for (const auto& [pos, key] : wantKey) {
-            if (debugNear >= 0 &&
-                std::max(std::abs(pos.x - camChunkX), std::abs(pos.z - camChunkZ)) > debugNear)
-                continue;
-            if (std::max(std::abs(pos.x - camChunkX), std::abs(pos.z - camChunkZ)) > meshRadius)
-                continue;
-            if (inFlight.contains(pos) || !Ready(pos, now))
-                continue;
-            const float dx = pos.x * 16.0f + 8.0f - camX;
-            const float dz = pos.z * 16.0f + 8.0f - camZ;
-            float distance = dx * dx + dz * dz;
-            if (urgentOnly && distance > 1600.0f)
-                continue;
-            const float x0 = pos.x * 16.0f, z0 = pos.z * 16.0f;
-            if (!frustum.Visible(x0, static_cast<float>(Chunk::MIN_Y), z0, x0 + 16.0f,
-                                 static_cast<float>(Chunk::MIN_Y + Chunk::HEIGHT), z0 + 16.0f))
-                distance += 1e9f;
-            pending.push_back({distance, pos, key});
-        }
-        if (pending.empty())
+        const bool moved = camChunkX != queueCamX || camChunkZ != queueCamZ;
+        const bool small = wantKey.size() < 4096;
+        if (queueForce && (small || sinceBuild > 40.0) || (drained && sinceBuild > (small ? 0.0 : 25.0)) ||
+            (moved && sinceBuild > (small ? 0.0 : 120.0)) || sinceBuild > (small ? 60.0 : 250.0))
+            RebuildQueue(camX, camZ, frustum);
+        if (queueHead >= queue.size())
             return;
-        const size_t take = std::min(freeSlots, pending.size());
-        std::partial_sort(pending.begin(), pending.begin() + take, pending.end(),
-                          [](const Pending& a, const Pending& b) { return a.distance < b.distance; });
 
         if (!async) {
             const auto waitNow = std::chrono::steady_clock::now();
@@ -577,10 +596,15 @@ namespace perlin {
             if (waitNow - firstWaitAt < std::chrono::seconds(20))
                 return;
             const auto start = std::chrono::steady_clock::now();
-            for (size_t i = 0; i < take; i++) {
+            size_t taken = 0;
+            while (queueHead < queue.size() && taken < freeSlots) {
                 if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(6))
                     break;
-                const Pending& job = pending[i];
+                const Pending job = queue[queueHead++];
+                const auto w = wantKey.find(job.pos);
+                if (w == wantKey.end() || w->second != job.key)
+                    continue;
+                taken++;
                 meshKey[job.pos] = job.key;
                 wantKey.erase(job.pos);
                 Tessellator mesh;
@@ -592,12 +616,21 @@ namespace perlin {
             return;
         }
 
-        for (size_t i = 0; i < take; i++) {
-            const Pending job = pending[i];
+        while (freeSlots > 0 && queueHead < queue.size()) {
+            const Pending job = queue[queueHead];
+            if (urgentOnly && job.raw > 1600.0f) {
+                break;
+            }
+            queueHead++;
+            const auto w = wantKey.find(job.pos);
+            if (w == wantKey.end() || w->second != job.key || inFlight.contains(job.pos))
+                continue;
+            freeSlots--;
             const bool remesh = meshKey.contains(job.pos);
             meshKey[job.pos] = job.key;
-            wantKey.erase(job.pos);
+            wantKey.erase(w);
             inFlight.insert(job.pos);
+            loadProfile.submitted++;
 
             const uint32_t gen = generation.load();
             Level* target = &level;
@@ -613,6 +646,7 @@ namespace perlin {
                 mesh->Begin();
                 BuildChunkMesh(*target, job.pos, *mesh, lib.get(), tints.get(), reuse.get());
                 mesh->End();
+                mesh->ComputeBounds();
                 context.PrepareChunkMesh(*mesh);
                 if (reuse && generation.load() == gen) {
                     reuse->mesh = mesh;
@@ -630,154 +664,11 @@ namespace perlin {
         }
     }
 
-    namespace {
-        int LodStride(int tx, int tz, int ccx, int ccz) {
-            const int d = std::max(std::abs(tx * LodStore::kTileChunks + 2 - ccx),
-                                   std::abs(tz * LodStore::kTileChunks + 2 - ccz));
-
-            return d > 256 ? 8 : d > 128 ? 4 : d > 64 ? 2 : 1;
-        }
-    }
-
-    void LevelRenderer::ResetLod() {
-        lod.Clear();
-        shown.clear();
-        lodTiles.clear();
-        lodDirty.clear();
-        capQueue.clear();
-        capSet.clear();
-        lodScanForced = true;
-    }
-
-    void LevelRenderer::MarkLodTile(const ChunkPos& chunk) {
-        if (lod.Find(chunk))
-            lodDirty.insert(TileKey(LodStore::TileOf(chunk.x), LodStore::TileOf(chunk.z)));
-    }
-
-    void LevelRenderer::ProcessLod(Level& level, float camX, float camZ) {
-        if (!LodEnabled())
-            return;
-        const bool assets = AssetsCurrent() && atlasUploaded && blocks->Complete() && biomeTints->Ready();
-        if (!assets)
-            return;
-        using Clock = std::chrono::steady_clock;
-        const auto start = Clock::now();
-        auto elapsed = [&] {
-            return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
-        };
-
-        size_t taken = 0;
-        const double captureBudget = std::max(capQueue.size() > 200 ? 0.5 : 0.25, RemainingMs() * 0.5);
-        while (taken < capQueue.size() && elapsed() < captureBudget) {
-            const ChunkPos pos = capQueue[taken++];
-            capSet.erase(pos);
-            captured++;
-            if (lod.Capture(level, pos, *blocks, *biomeTints))
-                MarkLodTile(pos);
-            level.RemoveLodOnly(pos.x, pos.z);
-        }
-        capQueue.erase(capQueue.begin(), capQueue.begin() + static_cast<std::ptrdiff_t>(taken));
-        if (taken && PERLIN_ENV("PERLIN_STATS")) {
-            captureMs += elapsed();
-            if (captured >= 100) {
-                std::printf("[lod] %zu captures, %.3f ms each\n", captured,
-                            captureMs / static_cast<double>(captured));
-                captured = 0;
-                captureMs = 0;
-            }
-        }
-
-        const int radius = std::max(2, options.renderDistance);
-        const int ccx = static_cast<int>(std::floor(camX / 16.0f)),
-                  ccz = static_cast<int>(std::floor(camZ / 16.0f));
-        const int scanStep = radius > 128 ? 4 : 2;
-        if (lodScanForced || std::abs(ccx - lodScanX) >= scanStep || std::abs(ccz - lodScanZ) >= scanStep) {
-            lodScanForced = false;
-            lodScanX = ccx;
-            lodScanZ = ccz;
-            std::vector<ChunkPos> evicted;
-            lod.Evict(ccx, ccz, radius + 6, evicted);
-            for (const ChunkPos& p : evicted)
-                lodDirty.insert(TileKey(LodStore::TileOf(p.x), LodStore::TileOf(p.z)));
-            std::unordered_map<int64_t, int> wanted;
-
-            for (const auto& [key, count] : lod.Tiles()) {
-                const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
-                const int a = tx * LodStore::kTileChunks, b = a + LodStore::kTileChunks - 1;
-                const int c0 = tz * LodStore::kTileChunks, c1 = c0 + LodStore::kTileChunks - 1;
-                const int nearest = std::max(a > ccx ? a - ccx : (b < ccx ? ccx - b : 0),
-                                             c0 > ccz ? c0 - ccz : (c1 < ccz ? ccz - c1 : 0));
-                const int farthest = std::max(std::max(std::abs(a - ccx), std::abs(b - ccx)),
-                                              std::max(std::abs(c0 - ccz), std::abs(c1 - ccz)));
-                if (nearest > radius + 2 || farthest <= LodStore::kRealChunks)
-                    continue;
-                wanted[key] = LodStride(tx, tz, ccx, ccz);
-            }
-            for (const auto& [key, stride] : wanted) {
-                const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
-                auto span = [](int tile, int centre, int& lo, int& hi) {
-                    const int a = tile * LodStore::kTileChunks, b = a + LodStore::kTileChunks - 1;
-                    lo = (centre < a) ? a - centre : (centre > b ? centre - b : 0);
-                    hi = std::max(std::abs(a - centre), std::abs(b - centre));
-                };
-                int xl, xh, zl, zh;
-                span(tx, ccx, xl, xh);
-                span(tz, ccz, zl, zh);
-                if (std::max(xl, zl) <= LodStore::kRealChunks + 3 &&
-                    std::max(xh, zh) >= LodStore::kRealChunks - 3 && lodTiles.contains(key) &&
-                    lodTiles[key] != 0)
-                    lodDirty.insert(key);
-            }
-            for (auto it = lodTiles.begin(); it != lodTiles.end();) {
-                if (!wanted.contains(it->first)) {
-                    context.RemoveLodTile(static_cast<int>(it->first >> 32),
-                                          static_cast<int>(static_cast<uint32_t>(it->first)));
-                    lodDirty.erase(it->first);
-                    it = lodTiles.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-            for (const auto& [key, stride] : wanted) {
-                const auto built = lodTiles.find(key);
-                if (built == lodTiles.end()) {
-                    lodTiles[key] = 0;
-                    lodDirty.insert(key);
-                } else if (built->second != 0 && built->second != stride) {
-                    lodDirty.insert(key);
-                }
-            }
-        }
-
-        if (lodDirty.empty())
-            return;
-        std::vector<std::pair<float, int64_t>> order;
-        order.reserve(lodDirty.size());
-        for (int64_t key : lodDirty) {
-            const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
-            const float dx = tx * 64.0f + 32.0f - camX, dz = tz * 64.0f + 32.0f - camZ;
-            order.emplace_back(dx * dx + dz * dz, key);
-        }
-        const size_t budget = std::min<size_t>(order.size(), 192);
-        std::partial_sort(order.begin(), order.begin() + static_cast<std::ptrdiff_t>(budget), order.end());
-        for (size_t i = 0; i < budget && (i == 0 || RemainingMs() > 0.0); i++) {
-            const int64_t key = order[i].second;
-            lodDirty.erase(key);
-            const int tx = static_cast<int>(key >> 32), tz = static_cast<int>(static_cast<uint32_t>(key));
-            const int stride = LodStride(tx, tz, lodScanX, lodScanZ);
-            lodTiles[key] = stride;
-            const bool drawn = lod.BuildTile(
-                tx, tz, stride,
-                [&](const ChunkPos& p) {
-                    return shown.contains(p) || std::max(std::abs(p.x - lodScanX),
-                                                         std::abs(p.z - lodScanZ)) <= LodStore::kRealChunks;
-                },
-                lodScratch);
-            if (drawn)
-                context.UpdateLodTile(tx, tz, LodStore::kTileChunks * 16, lodScratch, ++lodVersion);
-            else
-                context.RemoveLodTile(tx, tz);
-        }
+    void LevelRenderer::PrintLoadProfile() const {
+        std::printf("[loadprof] submitted %zu, uploaded %zu (%.3f ms each), queue rebuilds %zu (%.3f ms each)\n",
+                    loadProfile.submitted, loadProfile.uploaded,
+                    loadProfile.uploadMs / std::max<size_t>(1, loadProfile.uploaded), loadProfile.rebuilds,
+                    loadProfile.rebuildMs / std::max<size_t>(1, loadProfile.rebuilds));
     }
 
     double LevelRenderer::RemainingMs() const {
@@ -795,7 +686,7 @@ namespace perlin {
                     frameEma = frameEma * 0.9 + dt * 0.1;
             }
             lastUpdate = now;
-            static const bool adaptive = PERLIN_ENV("PERLIN_NO_ADAPTIVE_DISTANCE") == nullptr;
+            static const bool adaptive = PERLIN_ENV("PERLIN_ADAPTIVE_DISTANCE") != nullptr;
             if (adaptive && options.renderDistance > 8) {
                 const double since = lastScaleStep.time_since_epoch().count() == 0
                                          ? 1e9
@@ -828,29 +719,7 @@ namespace perlin {
             context.ClearChunkMeshes();
         }
         ApplyDirty(*level);
-        {
-            const bool lodNow = LodEnabled();
-            if (lodNow != lodWasEnabled) {
-                lodWasEnabled = lodNow;
-                if (lodNow) {
-                    for (const auto& entry : info)
-                        if (!entry.second.streaming && capSet.insert(entry.first).second)
-                            capQueue.push_back(entry.first);
-                    lodScanForced = true;
-                } else {
-                    for (const auto& tile : lodTiles)
-                        context.RemoveLodTile(static_cast<int>(tile.first >> 32),
-                                              static_cast<int>(static_cast<uint32_t>(tile.first)));
-                    lodTiles.clear();
-                    lodDirty.clear();
-                    lod.Clear();
-                    capQueue.clear();
-                    capSet.clear();
-                }
-            }
-        }
         Schedule(*level, camX, camZ, frustum);
-        ProcessLod(*level, camX, camZ);
     }
 
     void LevelRenderer::CollectSpecials(float camX, float camZ, float range,
@@ -868,7 +737,7 @@ namespace perlin {
 
     void LevelRenderer::Render(const Frustum& frustum, float camX, float camZ) {
         context.SetChunkCullRadius(
-            std::max(3, LodEnabled() ? std::min(EffectiveDistance(), static_cast<int>(LodStore::kRealChunks)) : EffectiveDistance()) + 2);
+            std::max(3, EffectiveDistance()) + 2);
         context.DrawChunkMeshes(frustum, camX, camZ);
     }
 

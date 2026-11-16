@@ -459,8 +459,9 @@ namespace perlin::jshader {
                             k == argStart + 1) {
                             Tok& a = t[argStart];
                             if (a.kind == Tok::Ident &&
-                                (globals.contains(a.text) || paramNames.contains(a.text)))
-                                a.text = a.text + "_iris_t, " + a.text + "_iris_s";
+                                (globals.contains(a.text) || paramNames.contains(a.text) || a.text == "iris_texture" || a.text == "texture"))
+                                a.text = (a.text == "texture" ? std::string("iris_texture") : a.text) + "_iris_t, " +
+                                         (a.text == "texture" ? std::string("iris_texture") : a.text) + "_iris_s";
                         }
                         break;
                     }
@@ -469,8 +470,9 @@ namespace perlin::jshader {
                             k == argStart + 1) {
                             Tok& a = t[argStart];
                             if (a.kind == Tok::Ident &&
-                                (globals.contains(a.text) || paramNames.contains(a.text)))
-                                a.text = a.text + "_iris_t, " + a.text + "_iris_s";
+                                (globals.contains(a.text) || paramNames.contains(a.text) || a.text == "iris_texture" || a.text == "texture"))
+                                a.text = (a.text == "texture" ? std::string("iris_texture") : a.text) + "_iris_t, " +
+                                         (a.text == "texture" ? std::string("iris_texture") : a.text) + "_iris_s";
                         }
                         index++;
                         argStart = k + 1;
@@ -1924,6 +1926,28 @@ namespace perlin::jshader {
                             *copy += "    " + name + pieces[i].access + " = " + piece + ";\n";
                     }
                 }
+                return s;
+            }
+            if (l.arrayCount > 0 && l.type.starts_with("mat") && l.type.size() >= 4) {
+                const int cols = l.type[3] - '0';
+                const int rows = l.type.size() == 6 && l.type[4] == 'x' ? l.type[5] - '0' : cols;
+                const std::string colType = "vec" + std::to_string(rows);
+                std::string s = l.type + " " + name + "[" + std::to_string(l.arrayCount) + "];\n";
+                for (int i = 0; i < l.arrayCount; i++)
+                    for (int j = 0; j < cols; j++) {
+                        const std::string piece = name + "__m" + std::to_string(i) + "_" + std::to_string(j);
+                        const std::string access = "[" + std::to_string(i) + "][" + std::to_string(j) + "]";
+                        s += "layout(location = " + std::to_string(l.location + i * cols + j) + ") ";
+                        if (!l.interp.empty())
+                            s += l.interp + " ";
+                        s += std::string(out ? "out " : "in ") + colType + " " + piece + ";\n";
+                        if (copy) {
+                            if (out)
+                                *copy += "    " + piece + " = " + (zero ? colType + "(0.0)" : name + access) + ";\n";
+                            else
+                                *copy += "    " + name + access + " = " + piece + ";\n";
+                        }
+                    }
                 return s;
             }
             std::string s = "layout(location = " + std::to_string(l.location) + ") ";

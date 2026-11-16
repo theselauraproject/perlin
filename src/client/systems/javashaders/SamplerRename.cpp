@@ -115,7 +115,11 @@ namespace perlin::jshader {
             if (j == 0 || t[j - 1].text != ",")
                 return false;
             const size_t b = DeclarationStart(t, j, headerStart);
-            return b < j && types.IsTypeAt(b);
+            if (b >= j || !types.IsTypeAt(b))
+                return false;
+            if (b > 0 && t[b - 1].text == "(")
+                return false;
+            return !(b + 1 < t.size() && t[b + 1].text == "(");
         }
 
         std::vector<Scope> FindShadowingScopes(const std::vector<Tok>& t, const SamplerUniforms& samplers,

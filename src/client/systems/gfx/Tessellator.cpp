@@ -11,6 +11,7 @@
 namespace perlin {
     void Tessellator::Begin() {
         vertices.clear();
+        boundsKnown = false;
         for (auto& list : indices)
             list.clear();
         sections.clear();

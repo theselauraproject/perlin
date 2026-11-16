@@ -15,7 +15,7 @@
   "client/systems/particle": 1,
   "client/systems/player": 25,
   "client/systems/preview": 9,
-  "client/systems/renderer": 58,
+  "client/systems/renderer": 57,
   "client/systems/resources": 6,
   "client/systems/sprites": 19,
   "client/systems/text": 1,

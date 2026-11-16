@@ -618,20 +618,9 @@ namespace perlin {
             meshes.Update(false, cx, cz, 16, tess, version);
     }
 
-    void RenderContext_rhi::UpdateLodTile(int tx, int tz, int size, const Tessellator& tess,
-                                          uint64_t version) {
-        if (initialized)
-            meshes.Update(true, tx, tz, size, tess, version);
-    }
-
     void RenderContext_rhi::RemoveChunkMesh(int cx, int cz) {
         if (initialized)
             meshes.Remove(false, cx, cz);
-    }
-
-    void RenderContext_rhi::RemoveLodTile(int tx, int tz) {
-        if (initialized)
-            meshes.Remove(true, tx, tz);
     }
 
     void RenderContext_rhi::UnloadLevelResources() {

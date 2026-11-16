@@ -21,7 +21,7 @@
 #include "client/systems/renderer/DynamicLights.hpp"
 #include "client/systems/renderer/Environment.hpp"
 #include "client/systems/renderer/chunk/ChunkMesher.hpp"
-#include "client/systems/renderer/chunk/LodStore.hpp"
+#include "client/systems/renderer/chunk/BlockColours.hpp"
 #include "client/systems/resources/AssetJobs.hpp"
 #include "client/systems/resources/BedrockSamples.hpp"
 #include "client/systems/resources/BundledShaderPack.hpp"

@@ -1,5 +1,5 @@
 #include "client/features/mods/ModsInternal.hpp"
-#include "client/systems/renderer/chunk/LodStore.hpp"
+#include "client/systems/renderer/chunk/BlockColours.hpp"
 #include "client/systems/renderer/LevelRenderer.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include <filesystem>
@@ -551,7 +551,7 @@ namespace perlin {
                 return Status::BadArguments;
             if (!modLevel || !deps.levelRenderer)
                 return Status::Unavailable;
-            static LodStore colours;
+            static BlockColours colours;
             static const void* atlasSeen = nullptr;
             static size_t atlasSize = 0;
             static std::vector<uint8_t> traits;
@@ -569,7 +569,7 @@ namespace perlin {
             if (blocks.AtlasPixels().data() != atlasSeen || blocks.AtlasPixels().size() != atlasSize) {
                 atlasSeen = blocks.AtlasPixels().data();
                 atlasSize = blocks.AtlasPixels().size();
-                colours.InvalidateColours();
+                colours.Invalidate();
                 traits.clear();
                 colourEpoch++;
                 mapCache.clear();
@@ -626,7 +626,7 @@ namespace perlin {
             const size_t replyStart = w.data.size();
             w.boolean(true).put<uint64_t>(chunk.version * 31 +
                                           static_cast<uint64_t>(caveY == INT32_MIN ? 0 : caveY + 1000));
-            const auto rgb = [](const LodStore::Rgb& c) {
+            const auto rgb = [](const BlockColours::Rgb& c) {
                 return static_cast<uint32_t>(c.r) << 16 | static_cast<uint32_t>(c.g) << 8 | c.b;
             };
             for (int z = 0; z < 16; z++)
@@ -702,13 +702,13 @@ namespace perlin {
                     uint8_t depth = 0;
                     if (waterTop >= Chunk::MIN_Y) {
                         flags |= kMapWaterFlag;
-                        const LodStore::Rgb wc = colours.ColourOf(waterId, biome, true, blocks, tints);
-                        const LodStore::Rgb fc =
+                        const BlockColours::Rgb wc = colours.ColourOf(waterId, biome, true, blocks, tints);
+                        const BlockColours::Rgb fc =
                             floorId ? colours.ColourOf(floorId, biome, true, blocks, tints) : wc;
                         const int d = floorId ? std::max(1, waterTop - floorY) : 32;
                         depth = static_cast<uint8_t>(std::min(d, 255));
                         const float a = std::min(0.92f, 0.55f + d * 0.05f);
-                        const LodStore::Rgb mix{static_cast<uint8_t>(wc.r * a + fc.r * (1 - a)),
+                        const BlockColours::Rgb mix{static_cast<uint8_t>(wc.r * a + fc.r * (1 - a)),
                                                 static_cast<uint8_t>(wc.g * a + fc.g * (1 - a)),
                                                 static_cast<uint8_t>(wc.b * a + fc.b * (1 - a))};
                         colour = rgb(mix);

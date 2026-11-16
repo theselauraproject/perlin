@@ -61,6 +61,7 @@ namespace perlin::worldview {
             } else if (previewShotFrames >= 0 && ++previewShotFrames > 6) {
                 Log("preview", "screenshot saved, meshed chunks {}", levelRenderer->MeshedChunks());
                 MeshProfilePrint();
+                levelRenderer->PrintLoadProfile();
                 if (const char* bench = PERLIN_ENV("PERLIN_MESHBENCH"))
                     levelRenderer->BenchmarkMeshing(*previewLevel, std::atoi(bench));
                 requestQuit();

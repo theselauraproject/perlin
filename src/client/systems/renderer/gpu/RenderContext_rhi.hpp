@@ -212,8 +212,6 @@ namespace perlin {
 
         void UpdateChunkMesh(int cx, int cz, const Tessellator& tess, uint64_t version) override;
         void RemoveChunkMesh(int cx, int cz) override;
-        void UpdateLodTile(int tx, int tz, int size, const Tessellator& tess, uint64_t version) override;
-        void RemoveLodTile(int tx, int tz) override;
         void ClearChunkMeshes() override;
         void UnloadLevelResources() override;
         void DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) override;

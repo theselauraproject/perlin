@@ -139,7 +139,6 @@ namespace perlin {
         int upscaleTargetFps = 0;
         std::string frameGen = "off";
         bool skins3d = false;
-        bool enableLods = false;
         std::string renderer = "auto";
         std::string capePhysics = "off";
         SkinParts skinParts;
