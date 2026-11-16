@@ -85,7 +85,7 @@ namespace perlin::worldview {
         auto& preview = loop->preview;
         auto& waterVisionTime = loop->waterVisionTime;
         FogInput fogInput;
-        fogInput.renderDistanceChunks = options.renderDistance;
+        fogInput.renderDistanceChunks = levelRenderer ? levelRenderer->EffectiveDistance() : options.renderDistance;
         fogInput.cloudRangeChunks = graphics.cloudRange;
         fogInput.forward = camera.Direction();
         fogInput.cameraY = eye.y;

@@ -773,6 +773,21 @@ namespace perlin {
                     frameEma = frameEma * 0.9 + dt * 0.1;
             }
             lastUpdate = now;
+            static const bool adaptive = PERLIN_ENV("PERLIN_NO_ADAPTIVE_DISTANCE") == nullptr;
+            if (adaptive && options.renderDistance > 8) {
+                const double since = lastScaleStep.time_since_epoch().count() == 0
+                                         ? 1e9
+                                         : std::chrono::duration<double, std::milli>(now - lastScaleStep).count();
+                if (frameEma > 22.0 && since > 700.0) {
+                    distanceScale = std::max(0.4, distanceScale - 0.05);
+                    lastScaleStep = now;
+                } else if (frameEma < 17.5 && distanceScale < 1.0 && since > 5000.0) {
+                    distanceScale = std::min(1.0, distanceScale + 0.03);
+                    lastScaleStep = now;
+                }
+            } else {
+                distanceScale = 1.0;
+            }
             static const double scale = [] {
                 const char* v = PERLIN_ENV("PERLIN_WORLD_BUDGET");
                 return v ? std::max(0.02, std::atof(v)) : 0.16;
@@ -831,7 +846,7 @@ namespace perlin {
 
     void LevelRenderer::Render(const Frustum& frustum, float camX, float camZ) {
         context.SetChunkCullRadius(
-            std::max(3, std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks))) + 2);
+            std::max(3, std::min(EffectiveDistance(), static_cast<int>(LodStore::kRealChunks))) + 2);
         context.DrawChunkMeshes(frustum, camX, camZ);
     }
 

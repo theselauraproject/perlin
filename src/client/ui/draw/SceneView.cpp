@@ -160,7 +160,7 @@ namespace perlin::ui::draw {
         class Drawer {
         public:
             Drawer(const Scene& scene, const HoverSet& hover, TextureSource& tex, int guiW, int guiH, Rendered& out)
-                : scene(scene), hover(hover), canvas(tex, out.batches), out(out), guiW(guiW), guiH(guiH),
+                : scene(scene), hover(hover), tex(tex), canvas(tex, out.batches), out(out), guiW(guiW), guiH(guiH),
                   device(std::max(1, tex.Device())) {}
 
             void Run() {
@@ -193,6 +193,7 @@ namespace perlin::ui::draw {
 
             const Scene& scene;
             const HoverSet& hover;
+            TextureSource& tex;
             Canvas canvas;
             Rendered& out;
             int guiW, guiH, device;
@@ -516,7 +517,8 @@ namespace perlin::ui::draw {
                 label.align = 1;
                 label.nowrap = true;
                 label.color = off ? Rgb(0xa0a0a0) : Rgb(0xffffff);
-                if (scene.sprites) {
+                const bool useSprites = scene.sprites || tex.Get("mcres:ui_menu_btn.png").handle != 0;
+                if (useSprites) {
                     ImageSpec spec;
                     spec.src = off || slider ? "mcres:ui_menu_btn_off.png" : hot ? "mcres:ui_menu_btn_hi.png" : "mcres:ui_menu_btn.png";
                     spec.x = x;
@@ -564,7 +566,7 @@ namespace perlin::ui::draw {
                 Ctx lc = c;
                 lc.ay = y + 6;
                 PaintText(lc, label, 0, 0, w, n.runs);
-                if (slider && !scene.sprites) {
+                if (slider && !useSprites) {
                     const float kx = x + n.knob;
                     canvas.Solid(kx, y, 8, 20, Rgb(0x000000));
                     canvas.Solid(kx + 1, y + 1, 6, 16, Rgb(hot ? 0xbdbdbd : 0xaaaaaa));

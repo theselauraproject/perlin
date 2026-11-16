@@ -329,6 +329,19 @@ namespace perlin {
             for (int x = -3; x <= 1; x++)
                 set(x, padY + 5, -6, glass);
         }
+        if (std::getenv("PERLIN_PREVIEW_GLASSSTACK")) {
+            Log("preview", "glass stack pad y={}", padY);
+            const uint16_t blue = ids.Get("blue_stained_glass"), red = ids.Get("red_stained_glass"),
+                           ice = ids.Get("ice");
+            for (int layer = 0; layer < 4; layer++)
+                for (int x = 6; x <= 14; x++)
+                    for (int z = -4; z <= 4; z++)
+                        set(x, padY + 1 + layer * 2, z, layer % 3 == 0 ? glass : layer % 3 == 1 ? blue : red);
+            for (int x = 8; x <= 12; x++)
+                for (int z = -2; z <= 2; z++)
+                    for (int y = padY + 10; y <= padY + 12; y++)
+                        set(x, y, z, (x + y + z) % 2 ? glass : ice);
+        }
         return true;
     }
 }

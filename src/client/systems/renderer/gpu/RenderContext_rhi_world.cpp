@@ -597,7 +597,18 @@ namespace perlin {
         iconSource = image;
         if (MakeTexture(crosshair, static_cast<uint32_t>(image.width), static_cast<uint32_t>(image.height), 1, 1,
                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointClamp, "crosshair")) {
-            gpu.WriteTexture(crosshair.handle, 0, 0, 0, crosshair.w, crosshair.h, image.pixels.data());
+            std::vector<unsigned char> px(image.pixels.begin(),
+                                          image.pixels.begin() + static_cast<size_t>(image.width) * image.height * 4);
+            for (size_t i = 0; i + 3 < px.size(); i += 4) {
+                if (px[i + 3] < 26) {
+                    px[i] = px[i + 1] = px[i + 2] = 0;
+                    px[i + 3] = 0;
+                } else if (px[i + 3] < 255) {
+                    for (int c = 0; c < 3; c++)
+                        px[i + c] = static_cast<unsigned char>(px[i + c] * px[i + 3] / 255);
+                }
+            }
+            gpu.WriteTexture(crosshair.handle, 0, 0, 0, crosshair.w, crosshair.h, px.data());
             crosshairPx = image.width;
         }
     }

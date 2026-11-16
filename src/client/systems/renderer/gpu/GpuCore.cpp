@@ -265,6 +265,9 @@ namespace perlin::gpu {
         for (auto& [set, group] : textureGroups)
             device->destroy(group);
         textureGroups.clear();
+        for (const bind_group_handle& g : retiredGroups)
+            device->destroy(g);
+        retiredGroups.clear();
         ReleaseRings();
         for (sampler_handle& s : samplers)
             if (s)
@@ -528,6 +531,9 @@ namespace perlin::gpu {
 
     void Gpu::BeginFrame() {
         device->begin_frame();
+        for (const bind_group_handle& g : retiredGroups)
+            device->destroy(g);
+        retiredGroups.clear();
         const uint32_t slot = FrameSlot();
         auto& chunks = rings[slot];
         auto& groups = ringGroups[slot];
@@ -668,7 +674,7 @@ namespace perlin::gpu {
             for (const texture_handle& t : it->first.texture)
                 uses |= t == texture;
             if (uses) {
-                device->destroy(it->second);
+                retiredGroups.push_back(it->second);
                 it = textureGroups.erase(it);
             } else {
                 ++it;

@@ -282,6 +282,7 @@ namespace perlin::gpu {
 
         std::unordered_map<PipelineKey, conduit::pipeline_handle, PipelineKeyHash> pipelines;
         std::unordered_map<TextureSet, conduit::bind_group_handle, TextureSetHash> textureGroups;
+        std::vector<conduit::bind_group_handle> retiredGroups;
 
         std::vector<std::vector<RingChunk>> rings;
         std::vector<std::vector<conduit::bind_group_handle>> ringGroups;

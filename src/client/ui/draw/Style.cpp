@@ -75,12 +75,15 @@ namespace perlin::ui::draw {
         }
 
         void Title(Ctx& c) {
-            c.OnlyOnHover("h", "btn");
+            if (c.Has("h")) {
+                c.s.hoverDependent = true;
+                if (!c.Hot(c.Ancestor("btn")) && !c.Hot(c.Ancestor("sbtn")))
+                    c.s.hidden = true;
+            }
             c.OnlyOnHover("tip", "btn");
             c.OnlyOnHover("pt", "pg");
             c.OnlyOnHover("go", "row");
             c.OnlyOnHover("hl", "acc");
-            c.OnlyOnHover("h", "sbtn");
             if (c.Has("panoclip"))
                 c.Bg(0x000000);
             if (c.Has("blab")) {

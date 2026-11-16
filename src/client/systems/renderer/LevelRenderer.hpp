@@ -11,6 +11,7 @@
 #include "util/ThreadPool.hpp"
 #include "world/level/Level.hpp"
 
+#include <cmath>
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -77,11 +78,20 @@ namespace perlin {
         bool TexturesLoaded() const { return atlasUploaded; }
         void CollectSpecials(float camX, float camZ, float range, std::vector<SpecialBlock>& out) const;
 
+        int EffectiveDistance() const {
+            const int base = options.renderDistance;
+            if (base <= 8)
+                return base;
+            return std::max(8, static_cast<int>(std::lround(static_cast<double>(base) * distanceScale)));
+        }
+
     private:
         double RemainingMs() const;
         std::chrono::steady_clock::time_point lastUpdate{};
         std::chrono::steady_clock::time_point maintenanceDeadline{};
         double frameEma = 16.0;
+        double distanceScale = 1.0;
+        std::chrono::steady_clock::time_point lastScaleStep{};
         double uploadBudgetMs = 1.5;
         struct ChunkInfo {
             uint64_t version = 0;
