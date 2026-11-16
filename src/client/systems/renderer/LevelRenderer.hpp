@@ -99,6 +99,14 @@ namespace perlin {
         double distanceScale = 1.0;
         std::chrono::steady_clock::time_point lastScaleStep{};
         double uploadBudgetMs = 1.5;
+        struct FillProbeState {
+            std::chrono::steady_clock::time_point start{};
+            int cx = 0, cz = 0;
+            double visibleMs = 0, settledMs = 0, lastLogMs = 0;
+            bool remesh = false;
+        } probe;
+        void FillProbe(int radius, float camX, float camZ);
+        std::atomic<uint64_t> probeJobs{0}, probeJobUs{0}, probeRemesh{0};
         struct ChunkInfo {
             uint64_t version = 0;
             uint64_t borderVersion = 0;
@@ -187,6 +195,8 @@ namespace perlin {
         void KeepReuse(const ChunkPos& pos, std::shared_ptr<MeshReuse> reuse);
         void DropReuse(const ChunkPos* pos);
         PosSet inFlight;
+        // columns with a mesh on the gpu, for the fill probe
+        PosSet shown;
         PosMap<ChunkInfo> info;
         PosMap<uint64_t> meshKey;
         PosMap<std::vector<SpecialBlock>> specials;

@@ -154,6 +154,7 @@ namespace perlin {
             done.clear();
         }
         context.ClearChunkMeshes();
+        shown.clear();
         wantKey.clear();
         for (const auto& entry : info)
             Recompute(entry.first);
@@ -357,6 +358,7 @@ namespace perlin {
             if (r.generation == current) {
                 const auto u0 = std::chrono::steady_clock::now();
                 context.UpdateChunkMesh(r.pos.x, r.pos.z, *r.mesh, r.key);
+                shown.insert(r.pos);
                 loadProfile.uploaded++;
                 loadProfile.uploadMs +=
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - u0).count();
@@ -385,6 +387,7 @@ namespace perlin {
         }
         info.clear();
         specials.clear();
+        shown.clear();
         meshKey.clear();
         wantKey.clear();
         inFlight.clear();
@@ -487,6 +490,7 @@ namespace perlin {
                     context.RemoveChunkMesh(d.pos.x, d.pos.z);
                 DropReuse(&d.pos);
                 wantKey.erase(d.pos);
+                shown.erase(d.pos);
             }
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++)
@@ -617,6 +621,7 @@ namespace perlin {
                 BuildChunkMesh(level, job.pos, mesh, blocks.get(), biomeTints.get());
                 mesh.End();
                 context.UpdateChunkMesh(job.pos.x, job.pos.z, mesh, job.key);
+                shown.insert(job.pos);
             }
             return;
         }
@@ -657,12 +662,17 @@ namespace perlin {
                     reuse->mesh = mesh;
                     KeepReuse(job.pos, std::move(reuse));
                 }
-                const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                const auto us = std::chrono::duration_cast<std::chrono::microseconds>(
                                     std::chrono::steady_clock::now() - t0)
                                     .count();
+                const long long ms = us / 1000;
+                probeJobs++;
+                probeJobUs += static_cast<uint64_t>(us);
+                if (remesh)
+                    probeRemesh++;
                 if (ms > 60)
                     std::printf("[perf] slow chunk mesh (%d,%d): %lld ms, %zu vertices\n", job.pos.x,
-                                job.pos.z, static_cast<long long>(ms), mesh->Vertices().size());
+                                job.pos.z, ms, mesh->Vertices().size());
                 std::lock_guard lock(doneMutex);
                 done.push_back({job.pos, job.key, gen, std::move(mesh)});
             });
@@ -678,6 +688,96 @@ namespace perlin {
 
     double LevelRenderer::RemainingMs() const {
         return std::chrono::duration<double, std::milli>(maintenanceDeadline - std::chrono::steady_clock::now()).count();
+    }
+
+    void LevelRenderer::FillProbe(int radius, float camX, float camZ) {
+        const auto now = std::chrono::steady_clock::now();
+        const int ccx = static_cast<int>(std::floor(camX / 16.0f)), ccz = static_cast<int>(std::floor(camZ / 16.0f));
+        // clock starts at the first column known: asset downloads and the login handshake stay out
+        if (info.empty() || probe.start.time_since_epoch().count() == 0 ||
+            std::max(std::abs(ccx - probe.cx), std::abs(ccz - probe.cz)) > radius) {
+            probe = {};
+            probe.start = now;
+            probe.cx = ccx;
+            probe.cz = ccz;
+        }
+        int total = 0, visible = 0, settled = 0;
+        for (int dz = -radius; dz <= radius; dz++)
+            for (int dx = -radius; dx <= radius; dx++) {
+                if (dx * dx + dz * dz > radius * radius)
+                    continue;
+                const ChunkPos p{ccx + dx, ccz + dz};
+                total++;
+                if (!shown.contains(p))
+                    continue;
+                visible++;
+                if (!wantKey.contains(p) && !inFlight.contains(p))
+                    settled++;
+            }
+        const double ms = std::chrono::duration<double, std::milli>(now - probe.start).count();
+        if (!probe.visibleMs && visible == total)
+            probe.visibleMs = ms;
+        if (!probe.settledMs && settled == total) {
+            probe.settledMs = ms;
+            std::printf("[fill] r=%d %d columns: all visible %.0f ms, all settled %.0f ms%s\n", radius, total,
+                        probe.visibleMs, probe.settledMs, probe.remesh ? " (remesh)" : "");
+            std::fflush(stdout);
+            // PERLIN_FILL_REMESH: once loaded, mesh it all again with every column already here (client floor)
+            static int rounds = PERLIN_ENV("PERLIN_FILL_REMESH") ? std::atoi(PERLIN_ENV("PERLIN_FILL_REMESH")) : 0;
+            if (rounds > 0) {
+                rounds--;
+                InvalidateMeshes();
+                probe.start = std::chrono::steady_clock::now();
+                probe.visibleMs = probe.settledMs = probe.lastLogMs = 0;
+                probe.remesh = true;
+            }
+        }
+        if (!probe.settledMs && ms - probe.lastLogMs >= 500.0) {
+            probe.lastLogMs = ms;
+            size_t finished = 0;
+            {
+                std::lock_guard lock(doneMutex);
+                finished = done.size();
+            }
+            const uint64_t jobs = probeJobs.load();
+            // why the hidden columns inside the radius are not meshing yet
+            int unknown = 0, streaming = 0, gapWait = 0, nbrStreaming = 0;
+            const uint64_t nowMs = Level::NowMs();
+            for (int dz = -radius; dz <= radius; dz++)
+                for (int dx = -radius; dx <= radius; dx++) {
+                    const ChunkPos p{ccx + dx, ccz + dz};
+                    if (dx * dx + dz * dz > radius * radius || shown.contains(p) || inFlight.contains(p))
+                        continue;
+                    const auto self = info.find(p);
+                    if (self == info.end()) {
+                        unknown++;
+                        continue;
+                    }
+                    if (self->second.streaming) {
+                        streaming++;
+                        continue;
+                    }
+                    for (int ny = -1; ny <= 1; ny++)
+                        for (int nx = -1; nx <= 1; nx++) {
+                            const auto n = info.find(ChunkPos{p.x + nx, p.z + ny});
+                            if (n == info.end() && nowMs - self->second.readyAt < 200) {
+                                gapWait++;
+                                nx = ny = 2;
+                            } else if (n != info.end() && n->second.streaming && nowMs - n->second.firstSeen < 900) {
+                                nbrStreaming++;
+                                nx = ny = 2;
+                            }
+                        }
+                }
+            std::printf("[fill] %.0f ms: visible %d/%d settled %d known %zu want %zu inflight %zu done %zu scale %.2f "
+                        "jobs %llu remesh %llu avg %.1f ms | hidden: unknown %d streaming %d gap %d nbr %d\n",
+                        ms, visible, total, settled, info.size(), wantKey.size(), inFlight.size(), finished,
+                        distanceScale, static_cast<unsigned long long>(jobs),
+                        static_cast<unsigned long long>(probeRemesh.load()),
+                        jobs ? static_cast<double>(probeJobUs.load()) / 1000.0 / static_cast<double>(jobs) : 0.0,
+                        unknown, streaming, gapWait, nbrStreaming);
+            std::fflush(stdout);
+        }
     }
 
     void LevelRenderer::Update(Level* level, float camX, float camZ, const Frustum& frustum) {
@@ -724,6 +824,10 @@ namespace perlin {
             context.ClearChunkMeshes();
         }
         ApplyDirty(*level);
+        // PERLIN_FILL_PROBE=R: time until every column within R chunks has a settled mesh; restarts on a jump past R
+        if (static const int probeRadius = PERLIN_ENV("PERLIN_FILL_PROBE") ? std::atoi(PERLIN_ENV("PERLIN_FILL_PROBE")) : 0;
+            probeRadius > 0)
+            FillProbe(probeRadius, camX, camZ);
         Schedule(*level, camX, camZ, frustum);
     }
 
