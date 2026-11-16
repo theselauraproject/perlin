@@ -1,3 +1,5 @@
+#include <cstdio>
+#include <cstdlib>
 #include "client/systems/javashaders/Transform.hpp"
 #include "client/systems/javashaders/GlslTokens.hpp"
 #include "client/systems/javashaders/SamplerRename.hpp"
@@ -5,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <cstdlib>
 #include <map>
 #include <regex>
@@ -808,6 +811,167 @@ namespace perlin::jshader {
     }
 
     namespace {
+        std::string AllowRedefinition(const std::string& text) {
+            std::string out;
+            out.reserve(text.size() + 4096);
+            size_t pos = 0;
+            while (pos < text.size()) {
+                size_t end = text.find('\n', pos);
+                if (end == std::string::npos)
+                    end = text.size();
+                const std::string line = text.substr(pos, end - pos);
+                size_t a = line.find_first_not_of(" \t");
+                if (a != std::string::npos && line[a] == '#') {
+                    size_t b = line.find_first_not_of(" \t", a + 1);
+                    if (b != std::string::npos && line.compare(b, 6, "define") == 0) {
+                        size_t c = line.find_first_not_of(" \t", b + 6);
+                        if (c != std::string::npos) {
+                            size_t d = c;
+                            while (d < line.size() && (std::isalnum(static_cast<unsigned char>(line[d])) || line[d] == '_'))
+                                d++;
+                            if (d > c)
+                                out += "#undef " + line.substr(c, d - c) + "\n";
+                        }
+                    }
+                }
+                out += line;
+                out += '\n';
+                pos = end + 1;
+            }
+            return out;
+        }
+    }
+
+    namespace {
+        std::string RepairConditionals(const std::string& text) {
+            std::string out;
+            out.reserve(text.size());
+            size_t pos = 0;
+            while (pos < text.size()) {
+                size_t end = text.find('\n', pos);
+                if (end == std::string::npos)
+                    end = text.size();
+                std::string line = text.substr(pos, end - pos);
+                size_t a = line.find_first_not_of(" \t");
+                if (a != std::string::npos && line[a] == '#') {
+                    size_t b = line.find_first_not_of(" \t", a + 1);
+                    const bool isIf = b != std::string::npos && line.compare(b, 2, "if") == 0 &&
+                                      (b + 2 >= line.size() || !std::isalpha(static_cast<unsigned char>(line[b + 2])) ||
+                                       line.compare(b, 5, "ifdef") == 0 || line.compare(b, 6, "ifndef") == 0);
+                    const bool isElif = b != std::string::npos && line.compare(b, 4, "elif") == 0;
+                    if ((isIf && line.compare(b, 5, "ifdef") != 0 && line.compare(b, 6, "ifndef") != 0) || isElif) {
+                        int depth = 0;
+                        bool bad = false;
+                        for (char c : line.substr(b)) {
+                            if (c == '(')
+                                depth++;
+                            else if (c == ')' && --depth < 0)
+                                bad = true;
+                        }
+                        if (depth != 0 || bad)
+                            line = line.substr(0, b) + (isElif ? "elif 0" : "if 0");
+                    }
+                }
+                out += line;
+                out += '\n';
+                pos = end + 1;
+            }
+            return out;
+        }
+    }
+
+    namespace {
+        bool IsIrisVertexAttribute(const std::string& name) {
+            return name == "vaPosition" || name == "vaColor" || name == "vaUV0" || name == "vaUV2" ||
+                   name == "vaNormal";
+        }
+    }
+
+    namespace {
+        std::string RenameGlMacros(const std::string& text) {
+            static const std::regex define(R"(#\s*define\s+(GL_[A-Za-z0-9_]*))");
+            std::set<std::string> names;
+            for (auto it = std::sregex_iterator(text.begin(), text.end(), define); it != std::sregex_iterator(); ++it)
+                names.insert((*it)[1].str());
+            std::string out = text;
+            for (const std::string& name : names) {
+                std::string result;
+                size_t pos = 0;
+                while (true) {
+                    const size_t at = out.find(name, pos);
+                    if (at == std::string::npos) {
+                        result += out.substr(pos);
+                        break;
+                    }
+                    const bool before = at > 0 && (std::isalnum(static_cast<unsigned char>(out[at - 1])) || out[at - 1] == '_');
+                    const size_t endAt = at + name.size();
+                    const bool after = endAt < out.size() && (std::isalnum(static_cast<unsigned char>(out[endAt])) || out[endAt] == '_');
+                    result += out.substr(pos, at - pos);
+                    result += before || after ? name : "P" + name;
+                    pos = endAt;
+                }
+                out = std::move(result);
+            }
+            return out;
+        }
+    }
+
+    namespace {
+        std::string StripFunctionSemicolons(const std::string& text) {
+            std::string out;
+            out.reserve(text.size());
+            std::vector<bool> functionBody;
+            int depth = 0;
+            bool afterFunctionClose = false;
+            for (size_t i = 0; i < text.size(); i++) {
+                const char c = text[i];
+                if (afterFunctionClose) {
+                    if (c == ';') {
+                        afterFunctionClose = false;
+                        continue;
+                    }
+                    if (!std::isspace(static_cast<unsigned char>(c)))
+                        afterFunctionClose = false;
+                }
+                if (c == '{') {
+                    size_t j = out.size();
+                    while (j > 0 && std::isspace(static_cast<unsigned char>(out[j - 1])))
+                        j--;
+                    functionBody.push_back(depth == 0 && j > 0 && out[j - 1] == ')');
+                    depth++;
+                } else if (c == '}' && depth > 0) {
+                    depth--;
+                    const bool wasFunction = functionBody.back();
+                    functionBody.pop_back();
+                    if (wasFunction)
+                        afterFunctionClose = true;
+                }
+                out += c;
+            }
+            return out;
+        }
+    }
+
+    namespace {
+        std::string AttributesToUniforms(const std::string& text) {
+            std::string out = text;
+            for (const char* name : {"blockEntityId", "entityId", "currentRenderedItemId"}) {
+                for (const char* kw : {"attribute", "in"}) {
+                    const std::string needle = std::string(kw) + " int " + name + ";";
+                    size_t at = 0;
+                    while ((at = out.find(needle, at)) != std::string::npos) {
+                        const bool startOk = at == 0 || !(std::isalnum(static_cast<unsigned char>(out[at - 1])) || out[at - 1] == '_');
+                        if (startOk)
+                            out.replace(at, std::strlen(kw), "uniform");
+                        at += 7;
+                    }
+                }
+            }
+            return out;
+        }
+    }
+
+    namespace {
         StageResult TransformStage(Stage stage, const std::string& rawSource,
                                    const TransformOptions& options) {
             StageResult result;
@@ -823,13 +987,24 @@ namespace perlin::jshader {
             ExtractVersion(rawSource, version, compat, body);
 
             std::string error;
-            const std::string pre = options.preprocess(BuildPrefix(options) + body, stage, error);
+            std::string pre = options.preprocess(BuildPrefix(options) + body, stage, error);
+            if (pre.empty() && error.find("Macro redefined") != std::string::npos) {
+                pre = options.preprocess(AllowRedefinition(BuildPrefix(options) + body), stage, error);
+            }
+            if (pre.empty() && error.find("names beginning with \"GL_\"") != std::string::npos) {
+                pre = options.preprocess(RenameGlMacros(BuildPrefix(options) + body), stage, error);
+            }
+            if (pre.empty() && error.find("preprocessor evaluation") != std::string::npos) {
+                pre = options.preprocess(RepairConditionals(BuildPrefix(options) + body), stage, error);
+            }
             if (pre.empty() && !error.empty()) {
                 result.ok = false;
                 result.error = "preprocess: " + error;
                 return result;
             }
 
+            pre = AttributesToUniforms(pre);
+            pre = StripFunctionSemicolons(pre);
             std::vector<Tok> tokens = Lex(pre);
             for (Tok& tk : tokens) {
                 if (tk.kind == Tok::Directive) {
@@ -879,8 +1054,12 @@ namespace perlin::jshader {
             std::set<std::string> declaredNames;
             for (size_t i = 1; i < tokens.size(); i++)
                 if (tokens[i].kind == Tok::Ident && tokens[i - 1].kind == Tok::Ident &&
-                    (IsType(tokens[i - 1].text) || IsQualifier(tokens[i - 1].text)))
+                    (IsType(tokens[i - 1].text) || IsQualifier(tokens[i - 1].text))) {
+                    if (IsIrisVertexAttribute(tokens[i].text) && i >= 2 &&
+                        (tokens[i - 2].text == "in" || tokens[i - 2].text == "attribute"))
+                        continue;
                     declaredNames.insert(tokens[i].text);
+                }
 
             std::map<std::string, std::string> constInts;
             std::vector<std::string> out(tokens.size());
@@ -1046,6 +1225,8 @@ namespace perlin::jshader {
                     tokens[i + 2].text.clear();
                     i += 2;
                     continue;
+                } else if (id == "gl_FrontColor" && stage == Stage::Vertex) {
+                    rep = "iris_FrontColorSink";
                 } else if (id == "gl_FogFragCoord") {
                     ctx.use.fogCoord = true;
                     rep = "iris_FogFragCoord";
@@ -1232,6 +1413,8 @@ namespace perlin::jshader {
                     int loc = -1;
                     layoutRest = LayoutWithout(d.layout, "location", &loc);
                     for (const auto& n : d.names) {
+                        if (IsIrisVertexAttribute(n.name))
+                            continue;
                         InterfaceVar v;
                         v.name = n.name;
                         v.type = d.type;
@@ -1363,6 +1546,31 @@ namespace perlin::jshader {
     }
 
     namespace {
+        bool RedeclaredAsGlobal(const std::string& glsl, const std::string& name) {
+            const std::regex pattern("^[ \\t]*(const[ \\t]+)?(float|int|uint|bool|[iub]?vec[234]|mat[234])[ \\t]+" +
+                                     name + "[ \\t]*(=|;)");
+            int depth = 0;
+            size_t pos = 0;
+            while (pos < glsl.size()) {
+                size_t end = glsl.find('\n', pos);
+                if (end == std::string::npos)
+                    end = glsl.size();
+                const std::string line = glsl.substr(pos, end - pos);
+                if (depth == 0 && std::regex_search(line, pattern))
+                    return true;
+                for (char c : line) {
+                    if (c == '{')
+                        depth++;
+                    else if (c == '}' && depth > 0)
+                        depth--;
+                }
+                pos = end + 1;
+            }
+            return false;
+        }
+    }
+
+    namespace {
 
         std::string AssignBufferSets(const std::string& glsl) {
             static const std::regex re(
@@ -1454,7 +1662,7 @@ namespace perlin::jshader {
                             globals += unpack(member + "[" + std::to_string(i) + "]");
                         }
                         globals += ");\n";
-                    } else {
+                    } else if (!RedeclaredAsGlobal(glsl, u.name)) {
                         globals += u.type + " " + u.name + " = " + unpack(member) + ";\n";
                     }
                 }
@@ -1815,7 +2023,15 @@ namespace perlin::jshader {
             body = str::ReplaceAll(body, "/*VARYING_OUT*/", "");
             std::string prelude;
             prelude += "#define PERLIN_VULKAN_GLSL 1\n";
+            if (HasFlag(r.glsl, "SHADOW2D"))
+                prelude += "#define iris_shadow2D(s, c) vec4(textureLod(s, c, 0.0))\n";
+            if (HasFlag(r.glsl, "SHADOW2DLOD"))
+                prelude += "#define iris_shadow2DLod(s, c, l) vec4(textureLod(s, c, l))\n";
+            if (HasFlag(r.glsl, "SHADOW2DPROJ"))
+                prelude += "#define iris_shadow2DProj(s, c) vec4(textureProj(s, c))\n";
 
+            if (body.contains("iris_FrontColorSink"))
+                prelude += "vec4 iris_FrontColorSink;\n";
             if (body.contains("mc_chunkFade") && !attrs.contains("mc_chunkFade"))
                 prelude += "const float mc_chunkFade = 1.0;\n";
             std::string footer = "\nvoid main() {\n" + zeroFill + "    iris_user_main();\n" + flatCopy;
@@ -1974,7 +2190,14 @@ namespace perlin::jshader {
         const size_t sep = prelude.find('\x01');
         std::string samplerText = prelude.substr(0, sep), body = prelude.substr(sep + 1);
         const std::string structs = HoistStructs(body);
-        r.glsl = "#version 450\n#define PERLIN_VULKAN_GLSL 1\n" + structs + samplerText + body +
+        std::string shadowPrelude;
+        if (HasFlag(text, "SHADOW2D"))
+            shadowPrelude += "#define iris_shadow2D(s, c) vec4(textureLod(s, c, 0.0))\n";
+        if (HasFlag(text, "SHADOW2DLOD"))
+            shadowPrelude += "#define iris_shadow2DLod(s, c, l) vec4(textureLod(s, c, l))\n";
+        if (HasFlag(text, "SHADOW2DPROJ"))
+            shadowPrelude += "#define iris_shadow2DProj(s, c) vec4(textureProj(s, c))\n";
+        r.glsl = "#version 450\n#define PERLIN_VULKAN_GLSL 1\n" + structs + samplerText + shadowPrelude + body +
                  "\nvoid main() {\n    iris_user_main();\n}\n";
         return out;
     }

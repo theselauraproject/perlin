@@ -604,7 +604,7 @@ namespace perlin::screen {
 
         void AddVideoWorld(OptionsModel& m, Options& options, BedrockSession* live) {
         m.Header("World");
-        const int maxDistance = options.enableLods ? 256 : LodStore::kRealChunks;
+        const int maxDistance = 256;
         const auto distanceToSlider = [maxDistance](int d) {
             if (maxDistance <= LodStore::kRealChunks)
                 return static_cast<float>(d - 2) / static_cast<float>(maxDistance - 2);
@@ -819,14 +819,6 @@ namespace perlin::screen {
         [[maybe_unused]] auto& [hud, live, fbW, fbH, now, preview, scale, guiW, guiH, mx, my, down,
                                 clickReady] = f;
         m.title = i18n::TrOr("options.videoTitle", "Video Settings");
-        if (!services.options.enableLods && services.options.renderDistance > LodStore::kRealChunks) {
-            services.options.renderDistance = LodStore::kRealChunks;
-            if (live) {
-                live->SetChunkRadius(services.options.renderDistance);
-                live->SetNearRadius(1 << 20);
-                live->RequestChunkRadiusNow();
-            }
-        }
         AddVideoDisplay(m, services.options);
         AddVideoWorld(m, services.options, live);
         AddVideoLighting(m, services.options);

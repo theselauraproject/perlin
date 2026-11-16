@@ -5,6 +5,7 @@
 #include "util/Log.hpp"
 
 #include <algorithm>
+#include <array>
 #include <iterator>
 
 namespace perlin::ui {
@@ -32,7 +33,7 @@ namespace perlin::ui {
             blurRetryAt = {};
         }
         if (!ready && now >= retryAt) {
-            retryAt = now + std::chrono::seconds(2);
+            retryAt = now + std::chrono::milliseconds(150);
             int loaded = 0;
             for (int i = 0; i < 6; i++) {
                 if (textures[i])
@@ -90,7 +91,7 @@ namespace perlin::ui {
         const auto take = [&] {
             std::vector<ui::PanoramaImage> faces = blurJob.get();
             if (faces.size() != 6) {
-                blurRetryAt = now + std::chrono::seconds(2);
+                blurRetryAt = now + std::chrono::milliseconds(150);
                 return;
             }
             for (int i = 0; i < 6; i++) {
@@ -113,21 +114,30 @@ namespace perlin::ui {
             blurJobKey = radius;
             blurJobStamp = packStamp;
 
-            blurJob = std::async(std::launch::async, [radius, &assets = assets] {
-                ui::PanoramaImage in[6];
-                int size = 512;
-                for (int i = 0; i < 6; i++) {
-                    Texture t;
-                    if (!assets.Image("textures/ui/panorama_" + std::to_string(i), t) ||
-                        t.width <= 0)
-                        return std::vector<ui::PanoramaImage>{};
-                    size = std::min(size, std::max(t.width, t.height));
-                    in[i].width = t.width;
-                    in[i].height = t.height;
-                    in[i].rgba = std::move(t.pixels);
+            std::array<ui::PanoramaImage, 6> in;
+            int size = 512;
+            bool complete = true;
+            for (int i = 0; i < 6 && complete; i++) {
+                Texture t;
+                if (!assets.Image("textures/ui/panorama_" + std::to_string(i), t) || t.width <= 0) {
+                    complete = false;
+                    break;
                 }
+                size = std::min(size, std::max(t.width, t.height));
+                in[static_cast<size_t>(i)].width = t.width;
+                in[static_cast<size_t>(i)].height = t.height;
+                in[static_cast<size_t>(i)].rgba = std::move(t.pixels);
+            }
+            if (!complete) {
+                blurRetryAt = now + std::chrono::milliseconds(150);
+                return blurTextures[0] != 0;
+            }
+            blurJob = std::async(std::launch::async, [radius, size, in = std::move(in)]() mutable {
+                ui::PanoramaImage src[6];
+                for (size_t i = 0; i < 6; i++)
+                    src[i] = std::move(in[i]);
                 ui::PanoramaImage out[6];
-                if (!ui::BlurPanorama(in, size, std::max(1, radius * size / 512), out))
+                if (!ui::BlurPanorama(src, size, std::max(1, radius * size / 512), out))
                     return std::vector<ui::PanoramaImage>{};
                 return std::vector<ui::PanoramaImage>(std::make_move_iterator(std::begin(out)),
                                                       std::make_move_iterator(std::end(out)));

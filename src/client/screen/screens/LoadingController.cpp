@@ -105,7 +105,8 @@ namespace perlin::screen {
             levelRenderer->SetFastBuild(true);
         const bool assets =
             levelRenderer && levelRenderer->Blocks().Complete() && levelRenderer->TexturesLoaded() &&
-            (levelRenderer->ServerBlocksSettled() || now - loading.startAt > std::chrono::seconds(30));
+            !levelRenderer->AssetsBusy() &&
+            (levelRenderer->ServerBlocksSettled() || now - loading.startAt > std::chrono::seconds(90));
         const bool placed = session->Initialized();
         const size_t meshed =
             levelRenderer ? levelRenderer->MeshedChunks() -
@@ -132,6 +133,13 @@ namespace perlin::screen {
             show = false;
         } else if (!assets) {
             t.message = tr("perlin.loading.textures", "Loading block textures");
+            if (levelRenderer) {
+                const LevelRenderer::LoadStatus status = levelRenderer->AssetStatus();
+                if (!status.message.empty())
+                    t.message = status.message;
+                t.detail = status.detail;
+                t.progress = status.progress;
+            }
         } else if (!placed || freshChunks == 0) {
             t.message = tr("perlin.loading.world", "Waiting for the world");
             if (waited > std::chrono::seconds(20))

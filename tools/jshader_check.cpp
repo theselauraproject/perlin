@@ -334,6 +334,13 @@ int main(int argc, char** argv) {
                 baseOpts.imageFormats[pipeline.images[i].name] =
                     ImageFormatQualifier(pipeline.images[i].internalFormat);
             }
+            for (int i = 0; i < 16; i++) {
+                const std::string imageName = "colorimg" + std::to_string(i);
+                if (baseOpts.imageSlots.contains(imageName))
+                    continue;
+                baseOpts.imageSlots[imageName] = static_cast<int>(baseOpts.imageSlots.size());
+                baseOpts.imageFormats[imageName] = "rgba16f";
+            }
             std::vector<std::string> names;
             std::set<std::string> seen;
             const auto add = [&](const std::string& n) {

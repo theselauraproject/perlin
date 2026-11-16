@@ -67,6 +67,8 @@ namespace perlin {
         bool Complete() const { return complete; }
 
         bool ApplyCustom(const std::string& vanillaRpRoot, double budgetMs = 0);
+        static int CustomBuildDone() { return customBuildDone.load(std::memory_order_relaxed); }
+        static int CustomBuildTotal() { return customBuildTotal.load(std::memory_order_relaxed); }
 
         enum TechnicalBits { kBarrier = 1, kLightBlock = 2, kStructureVoid = 4 };
         void SetTechnicalVisible(int mask) const;
@@ -105,6 +107,9 @@ namespace perlin {
         void PollAnimation(uint64_t step, const std::function<void(int tile, const uint8_t* rgba)>& emit);
 
     private:
+        static inline std::atomic<int> customBuildDone{0};
+        static inline std::atomic<int> customBuildTotal{0};
+    public:
         int FetchTile(const std::string& pngRelPath, const std::string& vanillaRpRoot);
         int FetchOrSynth(const std::string& pngRelPath, const std::string& vanillaRpRoot,
                          const std::string& label, const std::unordered_map<std::string, std::string>& stems);

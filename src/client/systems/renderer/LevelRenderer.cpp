@@ -410,6 +410,28 @@ namespace perlin {
         }
     }
 
+    bool LevelRenderer::AssetsBusy() const {
+        return assetsStale || assetJob.valid() || serverPackReloadPending || BlockLibrary::CustomBuildTotal() > 0;
+    }
+
+    LevelRenderer::LoadStatus LevelRenderer::AssetStatus() const {
+        LoadStatus s;
+        const int total = BlockLibrary::CustomBuildTotal();
+        if (total > 0) {
+            const int done = std::min(BlockLibrary::CustomBuildDone(), total);
+            s.message = "Building the server's custom blocks";
+            s.detail = std::to_string(done) + " / " + std::to_string(total);
+            s.progress = static_cast<float>(done) / static_cast<float>(total);
+        } else if (serverPackReloadPending) {
+            s.message = "Loading the server's resource packs";
+        } else if (assetJob.valid() || assetsStale) {
+            s.message = "Preparing block textures and models";
+        } else if (!atlasUploaded) {
+            s.message = "Uploading textures";
+        }
+        return s;
+    }
+
     bool LevelRenderer::ServerBlocksSettled() {
         if (ServerBlocks::Instance().Pending() || ServerBlocks::Instance().HasWaiting())
             return false;
@@ -520,7 +542,7 @@ namespace perlin {
         static const int debugNear =
             PERLIN_ENV("PERLIN_LOD_NEAR") ? std::atoi(PERLIN_ENV("PERLIN_LOD_NEAR")) : -1;
         const int meshRadius =
-            std::max(3, std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks))) + 3;
+            std::max(3, LodEnabled() ? std::min(options.renderDistance, static_cast<int>(LodStore::kRealChunks)) : options.renderDistance) + 3;
         const int camChunkX = static_cast<int>(std::floor(camX / 16.0f)),
                   camChunkZ = static_cast<int>(std::floor(camZ / 16.0f));
         for (const auto& [pos, key] : wantKey) {
@@ -846,7 +868,7 @@ namespace perlin {
 
     void LevelRenderer::Render(const Frustum& frustum, float camX, float camZ) {
         context.SetChunkCullRadius(
-            std::max(3, std::min(EffectiveDistance(), static_cast<int>(LodStore::kRealChunks))) + 2);
+            std::max(3, LodEnabled() ? std::min(EffectiveDistance(), static_cast<int>(LodStore::kRealChunks)) : EffectiveDistance()) + 2);
         context.DrawChunkMeshes(frustum, camX, camZ);
     }
 

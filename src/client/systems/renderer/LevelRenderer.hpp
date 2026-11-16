@@ -42,6 +42,12 @@ namespace perlin {
 
         void SetFastBuild(bool fast) { fastBuild = fast; }
         bool ServerBlocksSettled();
+        bool AssetsBusy() const;
+        struct LoadStatus {
+            std::string message, detail;
+            float progress = -1.0f;
+        };
+        LoadStatus AssetStatus() const;
         void SetGlassMode(int mode) {
             if (blocks->GlassMode() != mode) {
                 const bool rebuild = blocks->NeedsGlassRebuild(mode);

@@ -522,6 +522,7 @@ namespace perlin::gpu {
         std::map<std::string, int> customSamplers;
         int noiseSampler = 2;
         std::string resolvingStage;
+        bool resolvingChain = false;
         std::vector<conduit::texture_handle> owned;
         uint32_t width = 0, height = 0;
         int frameStamp = 0;

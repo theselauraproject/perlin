@@ -1,3 +1,4 @@
+#include "client/ui/draw/Text.hpp"
 #include "client/screen/screens/PauseScreen.hpp"
 #include "util/Resources.hpp"
 #include <cmath>
@@ -133,27 +134,27 @@ namespace perlin::ui {
             const OptionsRow& row = rows[static_cast<size_t>(hover)];
             if (!row.tip.empty() || row.impact > 0) {
                 const float tw = 190.0f;
-                const int perLine = static_cast<int>((tw - 8.0f) / 5.0f);
                 int lines = 0;
-                {
-                    int col = 0;
+                if (!row.tip.empty()) {
+                    const ui::draw::Face face = ui::draw::FaceFromFamily("minecraft", 8.0f, false, false);
+                    const int space = ui::draw::StringWidth(face, " ");
+                    const int maxW = static_cast<int>(tw - 8.0f);
+                    int used = 0;
                     lines = 1;
                     size_t p = 0;
                     while (p < row.tip.size()) {
                         size_t e = row.tip.find(' ', p);
                         if (e == std::string::npos)
                             e = row.tip.size();
-                        const int len = static_cast<int>(e - p);
-                        if (col > 0 && col + 1 + len > perLine) {
+                        const int w = ui::draw::StringWidth(face, row.tip.substr(p, e - p));
+                        if (used > 0 && used + space + w > maxW) {
                             lines++;
-                            col = len;
+                            used = w;
                         } else {
-                            col += (col > 0 ? 1 : 0) + len;
+                            used += (used > 0 ? space : 0) + w;
                         }
                         p = e + 1;
                     }
-                    if (row.tip.empty())
-                        lines = 0;
                 }
                 const float th = static_cast<float>(lines) * 10.0f + (row.impact > 0 ? 12.0f : 0.0f) + 8.0f;
                 float tx = std::min(l.x[static_cast<size_t>(hover)] +

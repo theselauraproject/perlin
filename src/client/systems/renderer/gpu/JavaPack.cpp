@@ -1265,7 +1265,7 @@ namespace perlin::gpu {
         int idx = 0;
 
         if (const std::string key = resolvingStage + ":" + CanonicalSamplerName(n);
-            customTextures.contains(key)) {
+            customTextures.contains(key) && !(resolvingChain && CanonicalSamplerName(n) == "colortex0")) {
             b.kind = Kind::Custom;
             b.customKey = key;
             return b;
@@ -1336,6 +1336,7 @@ namespace perlin::gpu {
                                                             const std::vector<jshader::RhiSampler>& samplerList) {
         resolvingWaterShadow = false;
         resolvingStage = TextureStageOf(progName);
+        resolvingChain = resolvingStage == "composite" && progName != "composite";
         resolvingFullscreen = IsFullscreenPass(progName);
         for (const jshader::RhiSampler& s : samplerList)
             resolvingWaterShadow = resolvingWaterShadow || s.name == "watershadow";
@@ -1352,6 +1353,7 @@ namespace perlin::gpu {
         p.regs = regs;
         resolvingWaterShadow = false;
         resolvingStage = TextureStageOf(progName);
+        resolvingChain = resolvingStage == "composite" && progName != "composite";
         resolvingFullscreen = IsFullscreenPass(progName);
         for (const jshader::RhiSampler& s : samplerList)
             resolvingWaterShadow = resolvingWaterShadow || s.name == "watershadow";

@@ -1600,7 +1600,8 @@ namespace perlin {
             ServerPrefetchCache().clear();
             return false;
         }
-        std::vector<CustomBlockDef> defs = ServerBlocks::Instance().Take();
+        ServerBlocks& serverBlocks = ServerBlocks::Instance();
+        std::vector<CustomBlockDef> defs = serverBlocks.Take();
 
         const std::vector<std::string> serverDirs = ServerPacks::Instance().Directories();
         std::string ctxKey = vanillaRpRoot;
@@ -1633,7 +1634,10 @@ namespace perlin {
         const auto buildStart = std::chrono::steady_clock::now();
         const size_t slabCount =
             static_cast<size_t>(std::stable_partition(defs.begin(), defs.end(), isSlabSheet) - defs.begin());
+        customBuildTotal.store(static_cast<int>(defs.size()));
+        customBuildDone.store(0);
         for (size_t defIndex = 0; defIndex < defs.size(); defIndex++) {
+            customBuildDone.store(static_cast<int>(defIndex), std::memory_order_relaxed);
 
             if (budgetMs > 0 && defIndex > 0 &&
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - buildStart).count() >
@@ -1653,6 +1657,8 @@ namespace perlin {
         }
         for (const CustomBlockDef& def : defs)
             ServerBlocks::Instance().MarkBuilt(def.name);
+        customBuildTotal.store(0);
+        customBuildDone.store(0);
         if (!ServerBlocks::Instance().Pending())
             std::unordered_map<std::string, Texture>().swap(ServerPrefetchCache());
 
