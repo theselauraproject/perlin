@@ -1151,6 +1151,13 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/world/level/chunk/ChunkCodec.cpp)
     target_link_libraries(chunk_selftest PRIVATE perlin_protocol)
     add_test(NAME chunk_selftest COMMAND chunk_selftest)
+    add_executable(blob_cache_selftest
+        tests/blob_cache_selftest.cpp
+        src/client/systems/multiplayer/BlobCache.cpp
+        src/util/Paths.cpp)
+    target_include_directories(blob_cache_selftest PRIVATE src)
+    target_compile_features(blob_cache_selftest PRIVATE cxx_std_23)
+    add_test(NAME blob_cache_selftest COMMAND blob_cache_selftest)
 
     add_executable(packet_selftest tests/packet_selftest.cpp ${PERLIN_PROTOCOL_ROUNDTRIP})
     target_link_libraries(packet_selftest PRIVATE perlin_protocol)

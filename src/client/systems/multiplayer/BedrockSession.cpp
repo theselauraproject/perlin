@@ -8,6 +8,7 @@
 #include "util/SystemInfo.hpp"
 #include "client/systems/multiplayer/NbtJson.hpp"
 #include "client/systems/multiplayer/PacketLog.hpp"
+#include "client/systems/multiplayer/BlobCache.hpp"
 #include "client/systems/multiplayer/DeviceProfile.hpp"
 #include "client/systems/multiplayer/DefaultSkinGeometry.hpp"
 
@@ -93,6 +94,9 @@ namespace perlin {
     using proto::SubChunkEntryEntry;
     using proto::SubChunkEntryEntryResult;
     using proto::SubchunkPacket;
+    using proto::Blob;
+    using proto::ClientCacheBlobStatusPacket;
+    using proto::ClientCacheMissResponsePacket;
     using proto::SubchunkRequestPacket;
 
     namespace {
@@ -980,6 +984,7 @@ namespace perlin {
             decrypted.empty() && !(cipher && cipher->Active()) ? received : decrypted;
         const uint8_t* data = msg.data();
         size_t size = msg.size();
+        rxWireBytes += size;
         std::vector<uint8_t> decompressed;
         if (compressEnabled) {
             if (size < 1) {
@@ -1081,7 +1086,7 @@ namespace perlin {
         }
 
         packetlog::Record(false, id, body.data(), body.size());
-        if (id == LevelChunkPacket::kId || id == SubchunkPacket::kId) {
+        if (id == LevelChunkPacket::kId || id == SubchunkPacket::kId || id == ClientCacheMissResponsePacket::kId) {
             {
                 std::lock_guard<std::mutex> lk(chunkMutex);
                 chunkIn.emplace_back(id, body);
@@ -1156,7 +1161,7 @@ namespace perlin {
     }
 
     bool BedrockSession::SendClientCacheStatus() {
-        return Send(proto::ClientCacheStatusPacket{.enabled = false});
+        return Send(proto::ClientCacheStatusPacket{.enabled = BlobCache::Instance().Usable()});
     }
 
     bool BedrockSession::SendRequestChunkRadius() {
@@ -1250,6 +1255,11 @@ namespace perlin {
         }
         netLevel.Clear();
         blockEntities.Clear();
+        {
+            std::lock_guard<std::mutex> blk(blobMutex);
+            blobWaits.clear();
+            blobWaiters.clear();
+        }
         std::lock_guard<std::mutex> lk(reqMutex);
         seenColumns.clear();
         requestedSlots.clear();
@@ -1795,13 +1805,7 @@ namespace perlin {
                 pkt.highestSubchunkCount.value_or(-1), pkt.cacheEnabled, pkt.payload.size());
         }
         if (pkt.cacheEnabled) {
-            static bool warned = false;
-            if (!warned) {
-                warned = true;
-                std::cout << "[chunk] server enabled the blob cache even though we asked for it off; "
-                             "chunk data will be missing"
-                          << std::endl;
-            }
+            HandleCachedColumn(pkt);
             return;
         }
         if (pkt.dimension != dimensionId) {
@@ -2028,16 +2032,12 @@ namespace perlin {
         statSubChunkReplies++;
         if (pkt.dimension != dimensionId)
             return;
-        const DimensionInfo& dim = ChunkCodec::Dimension(pkt.dimension);
-        (void)dim;
-        struct DecodeJob {
-            int cx, absY, cz;
-            const std::vector<uint8_t>* body;
-        };
-        std::vector<DecodeJob> decodeJobs;
-        decodeJobs.reserve(pkt.entries.size());
+        std::vector<std::pair<std::tuple<int, int, int, int>, std::vector<uint8_t>>> bodies;
+        bodies.reserve(pkt.entries.size());
+        std::vector<uint64_t> missing, have;
         for (const SubChunkEntryEntry& e : pkt.entries) {
             int cx = pkt.origin.x + e.dx, absY = pkt.origin.y + e.dy, cz = pkt.origin.z + e.dz;
+            const auto key = std::make_tuple(pkt.dimension, cx, absY, cz);
             const auto result = e.result;
             const std::vector<uint8_t> noPayload;
             const std::vector<uint8_t>& body = e.payload ? *e.payload : noPayload;
@@ -2046,46 +2046,228 @@ namespace perlin {
             {
                 static int shown = 0;
                 if (shown++ < 12)
-                    Log("chunk", "reply ({},{},{}) result={} payload={}B", cx, absY, cz, resultId,
-                        body.size());
+                    Log("chunk", "reply ({},{},{}) result={} payload={}B blob={}", cx, absY, cz, resultId,
+                        body.size(), e.blobId.value_or(0));
             }
             if (result == SubChunkEntryEntryResult::SuccessAllAir) {
                 static const std::array<uint16_t, ChunkCodec::kCells> air{};
                 netLevel.SetSubChunk(cx, cz, absY, air.data());
-                CompleteRequest(std::make_tuple(pkt.dimension, cx, absY, cz), false);
+                CompleteRequest(key, false);
                 continue;
             }
             if (result != SubChunkEntryEntryResult::Success) {
-                CompleteRequest(std::make_tuple(pkt.dimension, cx, absY, cz),
-                                result != SubChunkEntryEntryResult::YIndexOutOfBounds &&
-                                    result != SubChunkEntryEntryResult::InvalidDimension);
+                CompleteRequest(key, result != SubChunkEntryEntryResult::YIndexOutOfBounds &&
+                                         result != SubChunkEntryEntryResult::InvalidDimension);
                 static int logged = 0;
                 if (logged++ < 8)
                     Log("chunk", "SubChunk ({},{},{}) result={}", cx, absY, cz, resultId);
                 continue;
             }
-            decodeJobs.push_back({cx, absY, cz, &body});
+            if (!pkt.cacheEnabled || !e.blobId) {
+                bodies.emplace_back(key, body);
+                continue;
+            }
+            // the blob carries the blocks, the payload only what follows them (block entities)
+            BlobWait wait;
+            wait.hashes = {*e.blobId};
+            wait.slot = key;
+            wait.tail = body;
+            if (LoadBlobs(wait, missing, have))
+                bodies.emplace_back(key, JoinBlobs(wait));
         }
-        const auto decode = [this, &decodeJobs](size_t i) {
-            const DecodeJob& job = decodeJobs[i];
+        SendBlobStatus(missing, have);
+        DecodeSubChunkBodies(bodies);
+    }
+
+    void BedrockSession::DecodeSubChunkBodies(
+        const std::vector<std::pair<std::tuple<int, int, int, int>, std::vector<uint8_t>>>& bodies) {
+        const auto decode = [this, &bodies](size_t i) {
+            const auto& [key, body] = bodies[i];
+            const int cx = std::get<1>(key), absY = std::get<2>(key), cz = std::get<3>(key);
             SubChunkData sc;
             size_t used = 0;
             const char* why = nullptr;
-            if (!ChunkCodec::ParseSubChunk(job.body->data(), job.body->size(), sc, used, &why)) {
-                LogHex("SubChunk payload", why ? why : "?", *job.body);
-                CompleteRequest(std::make_tuple(dimensionId.load(), job.cx, job.absY, job.cz), true);
+            if (!ChunkCodec::ParseSubChunk(body.data(), body.size(), sc, used, &why)) {
+                LogHex("SubChunk payload", why ? why : "?", body);
+                CompleteRequest(key, true);
                 return;
             }
-            const bool applied = ApplySubChunk(job.cx, job.cz, job.absY, sc);
-            CompleteRequest(std::make_tuple(dimensionId.load(), job.cx, job.absY, job.cz), !applied);
-            if (used < job.body->size())
-                ParseBlockEntities(job.body->data() + used, job.body->size() - used, false);
+            const bool applied = ApplySubChunk(cx, cz, absY, sc);
+            CompleteRequest(key, !applied);
+            if (used < body.size())
+                ParseBlockEntities(body.data() + used, body.size() - used, false);
         };
-        if (decodeJobs.size() >= 4 && decodePool)
-            decodePool->ParallelFor(decodeJobs.size(), decode);
+        if (bodies.size() >= 4 && decodePool)
+            decodePool->ParallelFor(bodies.size(), decode);
         else
-            for (size_t i = 0; i < decodeJobs.size(); i++)
+            for (size_t i = 0; i < bodies.size(); i++)
                 decode(i);
+    }
+
+    bool BedrockSession::LoadBlobs(BlobWait& wait, std::vector<uint64_t>& missing, std::vector<uint64_t>& have) {
+        wait.parts.assign(wait.hashes.size(), {});
+        wait.filled.assign(wait.hashes.size(), false);
+        wait.missing = 0;
+        for (size_t i = 0; i < wait.hashes.size(); i++) {
+            if (BlobCache::Instance().Get(wait.hashes[i], wait.parts[i])) {
+                wait.filled[i] = true;
+                have.push_back(wait.hashes[i]);
+            } else {
+                wait.missing++;
+            }
+        }
+        statBlobHit += wait.hashes.size() - wait.missing;
+        statBlobMiss += wait.missing;
+        if (wait.missing == 0)
+            return true;
+        std::lock_guard<std::mutex> lk(blobMutex);
+        const uint64_t id = nextBlobWait++;
+        for (size_t i = 0; i < wait.hashes.size(); i++) {
+            if (wait.filled[i])
+                continue;
+            auto& waiters = blobWaiters[wait.hashes[i]];
+            // one ask per hash: later waiters ride on the request already out
+            if (waiters.empty())
+                missing.push_back(wait.hashes[i]);
+            waiters.push_back(id);
+        }
+        wait.askedAt = std::chrono::steady_clock::now();
+        blobWaits.emplace(id, std::move(wait));
+        return false;
+    }
+
+    std::vector<uint8_t> BedrockSession::JoinBlobs(BlobWait& wait) {
+        size_t total = wait.tail.size();
+        for (const auto& part : wait.parts)
+            total += part.size();
+        std::vector<uint8_t> out;
+        out.reserve(total);
+        for (const auto& part : wait.parts)
+            out.insert(out.end(), part.begin(), part.end());
+        out.insert(out.end(), wait.tail.begin(), wait.tail.end());
+        return out;
+    }
+
+    void BedrockSession::SendBlobStatus(const std::vector<uint64_t>& missing, const std::vector<uint64_t>& have) {
+        // the server holds every blob it named until it hears back, so hits are acked too
+        constexpr size_t kMaxPerList = 0xFFF;
+        size_t m = 0, h = 0;
+        while (m < missing.size() || h < have.size()) {
+            ClientCacheBlobStatusPacket status;
+            const size_t mn = std::min(kMaxPerList, missing.size() - m), hn = std::min(kMaxPerList, have.size() - h);
+            status.missing.assign(missing.begin() + static_cast<std::ptrdiff_t>(m),
+                                  missing.begin() + static_cast<std::ptrdiff_t>(m + mn));
+            status.have.assign(have.begin() + static_cast<std::ptrdiff_t>(h),
+                               have.begin() + static_cast<std::ptrdiff_t>(h + hn));
+            m += mn;
+            h += hn;
+            Send(status);
+        }
+    }
+
+    void BedrockSession::HandleCachedColumn(const LevelChunkPacket& pkt) {
+        BlobWait wait;
+        wait.hashes = pkt.blobs;
+        wait.tail = pkt.payload;
+        wait.column = pkt;
+        wait.column->cacheEnabled = false;
+        wait.column->blobs.clear();
+        wait.column->payload.clear();
+        std::vector<uint64_t> missing, have;
+        const bool ready = LoadBlobs(wait, missing, have);
+        SendBlobStatus(missing, have);
+        if (!ready)
+            return;
+        LevelChunkPacket full = std::move(*wait.column);
+        full.payload = JoinBlobs(wait);
+        HandleLevelChunk(full);
+    }
+
+    void BedrockSession::HandleCacheMiss(const ClientCacheMissResponsePacket& pkt) {
+        std::vector<BlobWait> ready;
+        for (const Blob& blob : pkt.blobs)
+            BlobCache::Instance().Put(blob.hash, blob.payload.data(), blob.payload.size());
+        BlobCache::Instance().Flush();
+        {
+            std::lock_guard<std::mutex> lk(blobMutex);
+            for (const Blob& blob : pkt.blobs) {
+                const auto waiters = blobWaiters.find(blob.hash);
+                if (waiters == blobWaiters.end())
+                    continue;
+                for (const uint64_t id : waiters->second) {
+                    const auto it = blobWaits.find(id);
+                    if (it == blobWaits.end())
+                        continue;
+                    BlobWait& wait = it->second;
+                    for (size_t i = 0; i < wait.hashes.size(); i++) {
+                        if (wait.filled[i] || wait.hashes[i] != blob.hash)
+                            continue;
+                        wait.parts[i] = blob.payload;
+                        wait.filled[i] = true;
+                        wait.missing--;
+                    }
+                    if (wait.missing == 0) {
+                        ready.push_back(std::move(wait));
+                        blobWaits.erase(it);
+                    }
+                }
+                blobWaiters.erase(waiters);
+            }
+        }
+        std::vector<std::pair<std::tuple<int, int, int, int>, std::vector<uint8_t>>> bodies;
+        for (BlobWait& wait : ready) {
+            if (!wait.column) {
+                bodies.emplace_back(wait.slot, JoinBlobs(wait));
+                continue;
+            }
+            LevelChunkPacket full = std::move(*wait.column);
+            full.payload = JoinBlobs(wait);
+            HandleLevelChunk(full);
+        }
+        DecodeSubChunkBodies(bodies);
+    }
+
+    void BedrockSession::RetryBlobWaits() {
+        constexpr auto kAskAgain = std::chrono::seconds(3);
+        constexpr int kMaxAsks = 3;
+        const auto now = std::chrono::steady_clock::now();
+        std::vector<uint64_t> missing;
+        std::vector<std::tuple<int, int, int, int>> dropped;
+        {
+            std::lock_guard<std::mutex> lk(blobMutex);
+            for (auto it = blobWaits.begin(); it != blobWaits.end();) {
+                BlobWait& wait = it->second;
+                if (now - wait.askedAt < kAskAgain) {
+                    ++it;
+                    continue;
+                }
+                if (++wait.asks < kMaxAsks) {
+                    wait.askedAt = now;
+                    for (size_t i = 0; i < wait.hashes.size(); i++)
+                        if (!wait.filled[i])
+                            missing.push_back(wait.hashes[i]);
+                    ++it;
+                    continue;
+                }
+                for (size_t i = 0; i < wait.hashes.size(); i++) {
+                    const auto waiters = blobWaiters.find(wait.hashes[i]);
+                    if (waiters == blobWaiters.end())
+                        continue;
+                    std::erase(waiters->second, it->first);
+                    if (waiters->second.empty())
+                        blobWaiters.erase(waiters);
+                }
+                if (!wait.column)
+                    dropped.push_back(wait.slot);
+                it = blobWaits.erase(it);
+            }
+        }
+        std::sort(missing.begin(), missing.end());
+        missing.erase(std::unique(missing.begin(), missing.end()), missing.end());
+        SendBlobStatus(missing, {});
+        // a sub-chunk whose blob never came is asked for again from scratch
+        for (const auto& key : dropped)
+            CompleteRequest(key, true);
     }
 
     bool BedrockSession::ApplySubChunk(int cx, int cz, int absSubY, const SubChunkData& sc) {
@@ -2420,6 +2602,7 @@ namespace perlin {
 
     void BedrockSession::PumpRequests(int budget) {
         constexpr size_t kMaxBatch = 32;
+        RetryBlobWaits();
         auto now = std::chrono::steady_clock::now();
         std::vector<std::pair<int, int>> completed;
         {
@@ -2497,11 +2680,12 @@ namespace perlin {
             return;
         Log("chunk",
             "stats: levelChunks={} requestsSent={} replies={} subChunksApplied={} failed={} "
-            "results[0..6,other]={},{},{},{},{},{},{},{} queued={}+{} lodOnly={} inflight={} blocksKnown={}",
+            "results[0..6,other]={},{},{},{},{},{},{},{} queued={}+{} lodOnly={} inflight={} blocksKnown={} blobs hit={} miss={} wire={}KB",
             statLevelChunks, statRequestsSent, statSubChunkReplies, statSubChunksApplied.load(),
             statSubChunksFailed, statResult[0], statResult[1], statResult[2], statResult[3], statResult[4],
             statResult[5], statResult[6], statResult[7], reqQueue.size(), reqQueueFar.size(),
-            netLevel.lodOnlyCount.load(), inflight.size(), BlockPalette::Instance().Count());
+            netLevel.lodOnlyCount.load(), inflight.size(), BlockPalette::Instance().Count(),
+            statBlobHit.load(), statBlobMiss.load(), rxWireBytes.load() / 1024);
     }
 
 }
