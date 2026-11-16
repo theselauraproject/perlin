@@ -8,6 +8,8 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <sstream>
 
@@ -143,6 +145,22 @@ namespace perlin::gpu {
                     summary += std::string(" ") + kNames[f] + "=" + (state[f] ? "on" : "off");
                 }
                 Log("tune", "using the saved tuning for {}:{}", adapter.name, summary);
+            }
+        }
+        {
+            int hangs = 0;
+            std::ifstream in(std::filesystem::path(path).parent_path() / "gpu-hang.txt");
+            in >> hangs;
+            if (hangs > 0 && !EnvSet("PERLIN_GPU_RESET")) {
+                state[GpuCull] = false;
+                tested[GpuCull] = true;
+                if (hangs > 1) {
+                    state[EntityCull] = false;
+                    state[GpuUi] = false;
+                    tested[EntityCull] = tested[GpuUi] = true;
+                }
+                Log("tune", "safe mode after {} graphics driver reset(s): gpu_cull off{}", hangs,
+                    hangs > 1 ? ", entity_cull off, gpu_ui off" : "");
             }
         }
         phase = Phase::Done;

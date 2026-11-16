@@ -2,6 +2,7 @@
 #include "client/platform/sdl/AppPlatform_SDL.hpp"
 #include "client/platform/sdl/DesktopEntry.hpp"
 #include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
+#include "client/systems/renderer/gpu/GpuCore.hpp"
 #include "client/systems/input/Input.hpp"
 #include "client/systems/bindings/Keys.hpp"
 #include "client/systems/bindings/KeyMapping.hpp"
@@ -673,6 +674,20 @@ bool AppPlatform_SDL::Initialize() {
         return false;
     }
     ApplyWindowIcon(window);
+    perlin::gpu::GpuLostHandler() = [] {
+        const std::string path = perlin::paths::DataDir() + "/gpu-hang.txt";
+        int count = 0;
+        {
+            std::ifstream in(path);
+            in >> count;
+        }
+        std::ofstream(path, std::ios::trunc) << (count + 1);
+        SDL_ShowSimpleMessageBox(
+            SDL_MESSAGEBOX_ERROR, "Perlin",
+            "The graphics driver stopped responding and reset the GPU.\nPerlin will close. The next launch uses "
+            "safer rendering settings automatically.",
+            nullptr);
+    };
 #if defined(SDL_PLATFORM_WIN32)
     if (HWND hwnd = static_cast<HWND>(
             SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr))) {

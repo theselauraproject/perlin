@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <cstdio>
+#include <cstdlib>
 
 namespace perlin::gpu {
     using namespace conduit;
@@ -531,6 +532,12 @@ namespace perlin::gpu {
 
     void Gpu::BeginFrame() {
         device->begin_frame();
+        if (device->lost()) {
+            Log("gpu", "the graphics device was lost (driver timeout); next launch uses safer settings");
+            if (GpuLostHandler())
+                GpuLostHandler()();
+            std::exit(3);
+        }
         for (const bind_group_handle& g : retiredGroups)
             device->destroy(g);
         retiredGroups.clear();

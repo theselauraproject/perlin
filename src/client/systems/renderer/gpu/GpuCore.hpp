@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <conduit/device.hpp>
 #include <conduit/shader_library.hpp>
 #include "client/systems/renderer/RangeAllocator.hpp"
@@ -11,6 +12,12 @@
 #include <vector>
 
 namespace perlin::gpu {
+
+    inline std::function<void()>& GpuLostHandler() {
+        static std::function<void()> handler;
+        return handler;
+    }
+
     enum class VertexLayout : uint8_t { Terrain, Position, Color, Texture, Ui, UiInstanced, Count };
 
     struct VertexLayoutInfo {
