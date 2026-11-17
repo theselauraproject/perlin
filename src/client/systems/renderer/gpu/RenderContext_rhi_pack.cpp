@@ -28,7 +28,7 @@ namespace perlin {
     int RenderContext_rhi::PackShadowInterval() const {
         if (const char* forced = PERLIN_ENV("PERLIN_PACK_SHADOW_INTERVAL"))
             return std::max(1, std::atoi(forced));
-        return 1;
+        return 2;
     }
 
     bool RenderContext_rhi::AttachJavaPack() {

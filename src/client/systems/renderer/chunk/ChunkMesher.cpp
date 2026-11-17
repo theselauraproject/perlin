@@ -994,6 +994,8 @@ namespace perlin {
             CornerShade ShadeCorner(const int center[3], const int normal[3], int axis1, int axis2, int d1,
                                     int d2, const int first[3], float shadeCenter,
                                     PackedLight lightCenter) const;
+            void ShadeFace(const int center[3], const int normal[3], int axis1, int axis2, const int first[3],
+                           float shadeCenter, PackedLight lightCenter, CornerShade out[2][2]) const;
             CellLight OwnLight(int lx, int ly, int lz, uint16_t cellId) const;
             std::array<float, 4> BiomeTintForRaw(const BlockCtx& blk, const std::string& biomeName,
                                                  const std::string& tex, int tile, bool isTop);
@@ -1436,6 +1438,54 @@ namespace perlin {
                                static_cast<float>(blended.sky) / 16.0f};
         }
 
+        void BlockMesher::ShadeFace(const int center[3], const int normal[3], int axis1, int axis2,
+                                    const int first[3], float shadeCenter, PackedLight lightCenter,
+                                    CornerShade out[2][2]) const {
+            struct Tap {
+                float ao;
+                PackedLight light;
+            };
+            const auto tap = [&](const int p[3]) {
+                return Tap{AoShade(cache, library, p[0], p[1], p[2]), LightAt(p)};
+            };
+            bool open1[2], open2[2];
+            Tap t1[2], t2[2];
+            for (int s = 0; s < 2; s++) {
+                const int d = s ? 1 : -1;
+                int e1[3] = {center[0], center[1], center[2]};
+                int e2[3] = {center[0], center[1], center[2]};
+                e1[axis1] += d;
+                e2[axis2] += d;
+                open1[s] = !cache.Occ(e1[0] + normal[0], e1[1] + normal[1], e1[2] + normal[2]);
+                open2[s] = !cache.Occ(e2[0] + normal[0], e2[1] + normal[1], e2[2] + normal[2]);
+                t1[s] = tap(e1);
+                t2[s] = tap(e2);
+            }
+            bool haveFallback = false;
+            Tap fallback{};
+            for (int a = 0; a < 2; a++)
+                for (int b = 0; b < 2; b++) {
+                    Tap diagonal;
+                    if (!open1[a] && !open2[b]) {
+                        if (!haveFallback) {
+                            const int f[3] = {center[0] + first[0], center[1] + first[1], center[2] + first[2]};
+                            fallback = tap(f);
+                            haveFallback = true;
+                        }
+                        diagonal = fallback;
+                    } else {
+                        int corner[3] = {center[0], center[1], center[2]};
+                        corner[axis1] += a ? 1 : -1;
+                        corner[axis2] += b ? 1 : -1;
+                        diagonal = tap(corner);
+                    }
+                    const PackedLight blended = BlendCorner(t1[a].light, t2[b].light, diagonal.light, lightCenter);
+                    out[a][b] = CornerShade{(t1[a].ao + t2[b].ao + diagonal.ao + shadeCenter) * 0.25f,
+                                            static_cast<float>(blended.block) / 16.0f,
+                                            static_cast<float>(blended.sky) / 16.0f};
+                }
+        }
+
         class BlockMesher::ModelEmitter {
         public:
             ModelEmitter(BlockMesher& mesher, BlockCtx& blk, const ModelEntry& entry)
@@ -1631,11 +1681,11 @@ namespace perlin {
                                        blk.z + (flush ? nrm[2] : 0)};
                 const float shadeCenter = AoShade(m.cache, m.library, center[0], center[1], center[2]);
                 const PackedLight lightCenter = m.LightAt(center);
+                CornerShade shades[2][2];
+                m.ShadeFace(center, nrm, axis1, axis2, first, shadeCenter, lightCenter, shades);
                 for (int s1 = 0; s1 < 2; s1++)
                     for (int s2 = 0; s2 < 2; s2++) {
-                        const CornerShade corner =
-                            m.ShadeCorner(center, nrm, axis1, axis2, s1 ? 1 : -1, s2 ? 1 : -1, first,
-                                          shadeCenter, lightCenter);
+                        const CornerShade& corner = shades[s1][s2];
                         out.ao[s1][s2] = corner.ao;
                         out.block[s1][s2] = corner.block;
                         out.sky[s1][s2] = corner.sky;
@@ -2474,16 +2524,18 @@ namespace perlin {
                 const float shadeCenter = AoShade(cache(), library(), center[0], center[1], center[2]);
                 const PackedLight lightCenter = m.LightAt(center);
                 const int origin[3] = {x, y, z};
+                CornerShade shades[2][2];
+                if (!water)
+                    m.ShadeFace(center, normal, axis1, axis2, first, shadeCenter, lightCenter, shades);
                 for (int i = 0; i < 4; i++) {
                     if (water) {
                         ao[i] = 1.0f;
                         lt[i][0] = blk.cellLight.block;
                         lt[i][1] = blk.cellLight.sky;
                     } else {
-                        const int d1 = f.cells[i][axis1] - origin[axis1] > 0 ? 1 : -1;
-                        const int d2 = f.cells[i][axis2] - origin[axis2] > 0 ? 1 : -1;
-                        const CornerShade corner = m.ShadeCorner(center, normal, axis1, axis2, d1, d2, first,
-                                                                 shadeCenter, lightCenter);
+                        const int a = f.cells[i][axis1] - origin[axis1] > 0 ? 1 : 0;
+                        const int b = f.cells[i][axis2] - origin[axis2] > 0 ? 1 : 0;
+                        const CornerShade& corner = shades[a][b];
                         ao[i] = corner.ao;
                         lt[i][0] = corner.block;
                         lt[i][1] = corner.sky;
@@ -2655,10 +2707,30 @@ namespace perlin {
                 rebuiltSections++;
             }
             tess.EnterSection(y >> 4);
-            for (int z = 0; z < 16; z++)
-                for (int x = 0; x < 16; x++)
-                    for (int pass = 0; pass < 2; pass++)
-                        mesher.MeshCell(x, y, z, pass);
+            uint16_t lastId = 0;
+            int lastKind = 0;
+            for (int z = 0; z < 16; z++) {
+                const size_t rowIndex = cache.Idx(0, y, z);
+                for (int x = 0; x < 16; x++) {
+                    const uint16_t here = cache.cells[rowIndex + static_cast<size_t>(x)];
+                    bool liquidPass = true;
+                    if (cache.liquid[rowIndex + static_cast<size_t>(x)] == 0) {
+                        if (here == 0) {
+                            liquidPass = false;
+                        } else {
+                            if (here != lastId) {
+                                lastId = here;
+                                lastKind = SpecialKind(here);
+                            }
+                            liquidPass = lastKind == 4;
+                        }
+                    }
+                    if (liquidPass)
+                        mesher.MeshCell(x, y, z, 0);
+                    if (here != 0)
+                        mesher.MeshCell(x, y, z, 1);
+                }
+            }
         }
         if (reuse) {
             reuse->mesh.reset();

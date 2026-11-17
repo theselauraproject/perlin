@@ -1,3 +1,4 @@
+#include <cstring>
 #include "world/level/lighting/ChunkLighting.hpp"
 
 #include <algorithm>
@@ -241,8 +242,12 @@ namespace perlin {
         static thread_local std::vector<uint16_t> props(65536, 0);
         static thread_local std::vector<uint16_t> seenIds;
         constexpr uint16_t kResolved = 0x8000, kShaped = 0x1000;
-        for (size_t i = 0; i < cells; i++) {
-            const uint16_t id = grid.ids[i];
+        const uint16_t* idData = grid.ids.data();
+        for (size_t i = 0; i < cells;) {
+            const uint16_t id = idData[i];
+            size_t end = i + 1;
+            while (end < cells && idData[end] == id)
+                end++;
             uint16_t p = props[id];
             if (!(p & kResolved)) {
                 p = kResolved;
@@ -255,10 +260,13 @@ namespace perlin {
                 props[id] = p;
                 seenIds.push_back(id);
             }
-            grid.opacity[i] = static_cast<uint8_t>(p & 0xFF);
-            grid.shaped[i] = (p & kShaped) ? 1 : 0;
+            const size_t run = end - i;
+            std::memset(grid.opacity.data() + i, static_cast<int>(p & 0xFF), run);
+            std::memset(grid.shaped.data() + i, (p & kShaped) ? 1 : 0, run);
             if (const uint8_t emission = static_cast<uint8_t>((p >> 8) & 15); emission > 0)
-                scratch.emitters.push_back({static_cast<uint32_t>(i), emission});
+                for (size_t k = i; k < end; k++)
+                    scratch.emitters.push_back({static_cast<uint32_t>(k), emission});
+            i = end;
         }
         for (const uint16_t id : seenIds)
             props[id] = 0;
