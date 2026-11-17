@@ -2,6 +2,7 @@
 #include "util/Env.hpp"
 #include "util/ThreadPool.hpp"
 #include "client/systems/renderer/LevelRenderer.hpp"
+#include "client/systems/renderer/gpu/SafeMode.hpp"
 #include "client/systems/resources/BedrockSamples.hpp"
 #include "util/Resources.hpp"
 #include "util/ResourcePaths.hpp"
@@ -339,7 +340,7 @@ namespace perlin {
         const auto uploadStart = std::chrono::steady_clock::now();
         size_t consumed = 0;
         double budgetMs = uploadBudgetMs;
-        if (finished.size() > 6)
+        if (finished.size() > 6 && gpu::SafeModeLevel() == 0)
             budgetMs = std::max(budgetMs, std::min(frameEma * 0.45, 7.0));
         for (MeshResult& r : finished) {
             if (consumed > 0 && std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - uploadStart)

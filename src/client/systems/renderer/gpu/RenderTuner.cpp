@@ -1,4 +1,5 @@
 #include "client/systems/renderer/gpu/RenderTuner.hpp"
+#include "client/systems/renderer/gpu/SafeMode.hpp"
 
 #include "util/FileIo.hpp"
 #include "util/Log.hpp"
@@ -152,14 +153,17 @@ namespace perlin::gpu {
             std::ifstream in(std::filesystem::path(path).parent_path() / "gpu-hang.txt");
             in >> hangs;
             if (hangs > 0 && !EnvSet("PERLIN_GPU_RESET")) {
-                state[GpuCull] = false;
-                tested[GpuCull] = true;
+                SafeModeLevel() = hangs;
+                for (Feature f : {GpuCull, Occlusion, FaceCull, ShadowCull}) {
+                    state[f] = false;
+                    tested[f] = true;
+                }
                 if (hangs > 1) {
                     state[EntityCull] = false;
                     state[GpuUi] = false;
                     tested[EntityCull] = tested[GpuUi] = true;
                 }
-                Log("tune", "safe mode after {} graphics driver reset(s): gpu_cull off{}", hangs,
+                Log("tune", "safe mode after {} graphics driver reset(s): gpu_cull, occlusion, face_cull, shadow_cull off{}", hangs,
                     hangs > 1 ? ", entity_cull off, gpu_ui off" : "");
             }
         }

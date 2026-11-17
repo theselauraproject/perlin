@@ -1,3 +1,4 @@
+#include "client/systems/renderer/gpu/SafeMode.hpp"
 #include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
 
 #include "client/systems/renderer/CustomSky.hpp"
@@ -892,6 +893,8 @@ namespace perlin {
                 std::fprintf(stderr, "[javadbg] census chunks=%zu solid=%zu\n", total, solidChunks);
             }
         }
+        gpu::LastFrameNote().width = static_cast<int>(post.worldW);
+        gpu::LastFrameNote().height = static_cast<int>(post.worldH);
         const bool wantGpu = !pack && terrain.Ready() && UseMultiDraw() && tuner.On(gpu::RenderTuner::GpuCull);
         tuneWorldFrame = !pack;
         meshes.Select(frustum, camX, frame.cameraPosition[1], camZ, chunkCullRadius, caveCulling,

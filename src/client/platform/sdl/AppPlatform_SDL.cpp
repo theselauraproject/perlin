@@ -3,6 +3,7 @@
 #include "client/platform/sdl/DesktopEntry.hpp"
 #include "client/systems/renderer/gpu/RenderContext_rhi.hpp"
 #include "client/systems/renderer/gpu/GpuCore.hpp"
+#include "client/systems/renderer/gpu/SafeMode.hpp"
 #include "client/systems/input/Input.hpp"
 #include "client/systems/bindings/Keys.hpp"
 #include "client/systems/bindings/KeyMapping.hpp"
@@ -674,6 +675,10 @@ bool AppPlatform_SDL::Initialize() {
         return false;
     }
     ApplyWindowIcon(window);
+    {
+        std::ifstream marker(perlin::paths::DataDir() + "/gpu-hang.txt");
+        perlin::gpu::CrashDiagnostics() = marker.good() || SDL_getenv("PERLIN_GPU_DIAG") != nullptr;
+    }
     perlin::gpu::GpuLostHandler() = [] {
         const std::string path = perlin::paths::DataDir() + "/gpu-hang.txt";
         int count = 0;

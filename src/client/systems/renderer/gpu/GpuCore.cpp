@@ -2,6 +2,7 @@
 #include "util/GraphicsDebugger.hpp"
 
 #include "util/Log.hpp"
+#include "client/systems/renderer/gpu/SafeMode.hpp"
 #include <algorithm>
 #include <unordered_set>
 #include <cstdio>
@@ -143,6 +144,7 @@ namespace perlin::gpu {
         instance_options io;
         io.app_name = "Perlin";
         io.validation = s.validation;
+        io.crash_diagnostics = CrashDiagnostics().load();
         io.hooks = s.hooks;
         instance = create_instance(s.api, io);
         if (!instance || instance->adapters().empty())
@@ -533,7 +535,9 @@ namespace perlin::gpu {
     void Gpu::BeginFrame() {
         device->begin_frame();
         if (device->lost()) {
-            Log("gpu", "the graphics device was lost (driver timeout); next launch uses safer settings");
+            const FrameNote& note = LastFrameNote();
+            Log("gpu", "the graphics device was lost (driver timeout); last frame {}x{}, safe level {}; next launch uses safer settings",
+                note.width.load(), note.height.load(), SafeModeLevel().load());
             if (GpuLostHandler())
                 GpuLostHandler()();
             std::exit(3);
