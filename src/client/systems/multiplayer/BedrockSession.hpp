@@ -1114,6 +1114,31 @@ namespace perlin {
         void FinishColumns(const std::vector<std::pair<int, int>>& columns);
         std::map<std::pair<int, int>, int> colPending;
 
+        // a column or sub-chunk the server sent as blob hashes, parked until every blob is on hand
+        struct BlobWait {
+            std::vector<uint64_t> hashes;
+            std::vector<std::vector<uint8_t>> parts;
+            std::vector<bool> filled;
+            size_t missing = 0;
+            std::optional<proto::LevelChunkPacket> column;
+            std::tuple<int, int, int, int> slot{};
+            std::vector<uint8_t> tail;
+            std::chrono::steady_clock::time_point askedAt;
+            int asks = 0;
+        };
+        std::mutex blobMutex;
+        uint64_t nextBlobWait = 0;
+        std::unordered_map<uint64_t, BlobWait> blobWaits;
+        std::unordered_map<uint64_t, std::vector<uint64_t>> blobWaiters;
+        std::atomic<uint64_t> statBlobHit{0}, statBlobMiss{0};
+        bool LoadBlobs(BlobWait& wait, std::vector<uint64_t>& missing, std::vector<uint64_t>& have);
+        void SendBlobStatus(const std::vector<uint64_t>& missing, const std::vector<uint64_t>& have);
+        void HandleCachedColumn(const proto::LevelChunkPacket& packet);
+        void HandleCacheMiss(const proto::ClientCacheMissResponsePacket& packet);
+        std::vector<uint8_t> JoinBlobs(BlobWait& wait);
+        void DecodeSubChunkBodies(const std::vector<std::pair<std::tuple<int, int, int, int>, std::vector<uint8_t>>>& bodies);
+        void RetryBlobWaits();
+
         std::string playerName = "Perlin";
         mutable std::mutex worldNameMutex;
         std::string worldName;
@@ -1233,6 +1258,7 @@ namespace perlin {
         std::atomic<uint64_t> txPackets{0};
         std::atomic<uint64_t> txBytes{0};
         std::atomic<uint64_t> rxBytes{0};
+        std::atomic<uint64_t> rxWireBytes{0};
         std::mutex idCountMutex;
         std::map<uint32_t, uint64_t> idCounts;
         std::atomic<uint32_t> diagLastId{0};

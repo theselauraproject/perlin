@@ -31,6 +31,7 @@ namespace perlin {
 
         On<LevelChunkPacket>([this](const LevelChunkPacket& p) { HandleLevelChunk(p); });
         On<SubchunkPacket>([this](const SubchunkPacket& p) { HandleSubChunk(p); });
+        On<ClientCacheMissResponsePacket>([this](const ClientCacheMissResponsePacket& p) { HandleCacheMiss(p); });
         RegisterPlayerStateHandlers();
     }
 
