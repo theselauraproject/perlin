@@ -55,7 +55,7 @@ namespace perlin::paths {
         ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
         if (n <= 0)
             return {};
-        return fs::path(std::string(buf, (size_t)n)).generic_string();
+        return fs::path(std::string(buf, static_cast<size_t>(n))).generic_string();
 #endif
     }
 

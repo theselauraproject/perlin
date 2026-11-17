@@ -1,11 +1,10 @@
-#include "client/attachable/Animation.hpp"
-#include "client/attachable/Geometry.hpp"
-#include "client/attachable/Molang.hpp"
+#include "client/systems/attachable/Animation.hpp"
+#include "client/systems/attachable/Geometry.hpp"
+#include "client/systems/attachable/Molang.hpp"
+#include "util/FileIo.hpp"
 
 #include <cmath>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 
 using namespace perlin;
 
@@ -23,10 +22,8 @@ static double Eval(const std::string& text, molang::Scope& scope) {
 }
 
 static std::string Slurp(const std::string& path) {
-    std::ifstream f(path, std::ios::binary);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
+    const std::string contents = file::Read(path);
+    return contents;
 }
 
 struct TestHost : molang::Host {

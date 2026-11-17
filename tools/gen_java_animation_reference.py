@@ -16,7 +16,6 @@ import urllib.request
 CLIENT_SHA1 = 'e877b6a07acd633fb3bb475002175cec036e7b87'
 ROOT = Path(__file__).resolve().parents[1]
 
-
 def download(url, target, sha1=None):
     if not target.exists() or (sha1 and hashlib.sha1(target.read_bytes()).hexdigest() != sha1):
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -25,7 +24,6 @@ def download(url, target, sha1=None):
             raise RuntimeError(f'Checksum mismatch: {url}')
         target.write_bytes(data)
     return target
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -60,7 +58,6 @@ def main():
     subprocess.run([str(args.java_home / 'bin/java'), '-Djava.awt.headless=true', '-cp', str(classes.resolve()) + os.pathsep + classpath,
                     'AnimationOracle', str(args.output.resolve()), str(args.output.resolve().with_name('java_animation_root_reference.txt'))], check=True)
     print(f'Wrote reference poses to {args.output}')
-
 
 if __name__ == '__main__':
     main()

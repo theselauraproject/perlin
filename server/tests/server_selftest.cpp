@@ -18,6 +18,7 @@
 
 #include "world/level/chunk/ChunkCodec.hpp"
 #include "protocol/Packets.hpp"
+#include "util/JsonText.hpp"
 
 #include <cstring>
 #include <filesystem>
@@ -40,7 +41,7 @@ static void TestJson() {
     json::Value claims;
     CHECK(json::DecodeJwtPayload("e30.eyJleHRyYURhdGEiOnsiZGlzcGxheU5hbWUiOiJBbGljZSJ9fQ.sig", claims));
     CHECK(claims["extraData"]["displayName"].String() == "Alice");
-    CHECK(json::Escape("a\"b\\c\n") == "a\\\"b\\\\c\\n");
+    CHECK(::perlin::json::Escape("a\"b\\c\n") == "a\\\"b\\\\c\\n");
 }
 
 static void TestBlockHash() {

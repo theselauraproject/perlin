@@ -19,7 +19,7 @@ namespace perlin::server::vanilla {
     std::unique_ptr<DataPack> DataPack::Embedded() {
         auto pack = std::unique_ptr<DataPack>(new DataPack());
         pack->impl = std::make_unique<Impl>();
-        // the archive is compiled in and checked by the tests; an unreadable one is a broken build, which shows up as every lookup missing
+
         if (!mz_zip_reader_init_mem(&pack->impl->zip, kOverworldShapeArchive, kOverworldShapeArchiveSize, 0))
             return pack;
         const std::string prefix = "data/minecraft/";

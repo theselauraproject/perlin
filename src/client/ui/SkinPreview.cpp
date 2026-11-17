@@ -6,7 +6,7 @@
 #include <future>
 #include <thread>
 
-#include "client/multiplayer/SkinLoader.hpp"
+#include "client/systems/resources/SkinLoader.hpp"
 
 namespace perlin::ui {
     namespace {
@@ -188,7 +188,6 @@ namespace perlin::ui {
             toModel(az, e0, false);
         }
 
-        // head turns on its own about the neck (0, 24, 0): rays for head boxes moved into head space
         const bool headTurned = view.headYaw != 0.0f || view.headPitch != 0.0f;
         const float hcy = std::cos(-view.headYaw * 0.017453292f),
                     hsy = std::sin(-view.headYaw * 0.017453292f);
@@ -227,7 +226,7 @@ namespace perlin::ui {
                 maxY = std::max(maxY, vy);
             }
             if (b.head && headTurned) {
-                // turned head can reach past its resting box; widen its screen bounds
+
                 minX -= 3.0f;
                 maxX += 3.0f;
                 minY -= 3.0f;
@@ -289,7 +288,7 @@ namespace perlin::ui {
                     }
                     if (hits.empty())
                         continue;
-                    std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.t < b.t; });
+                    std::ranges::sort(hits, [](const Hit& a, const Hit& b) { return a.t < b.t; });
                     float r = 0, g = 0, bl = 0, a = 0;
                     for (const Hit& h : hits) {
                         const float ha = static_cast<float>(h.c[3]) / 255.0f;

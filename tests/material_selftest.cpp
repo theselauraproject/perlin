@@ -1,5 +1,5 @@
-#include "client/entity/Materials.hpp"
-#include "client/renderer/MaterialDb.hpp"
+#include "client/systems/entity/Materials.hpp"
+#include "client/systems/gfx/MaterialDb.hpp"
 
 #include <cstdio>
 #include <filesystem>

@@ -11,7 +11,6 @@ from unicorn import x86_const as x86
 
 from generate import HEAP, INPUT_SHA256, Machine, bits
 
-
 def install_storage(machine):
     def storage(cpu, pc, size, user):
         if pc == 0x140B7C620:
@@ -47,7 +46,6 @@ def install_storage(machine):
             machine.cpu.mem_map(pc & ~4095, 4096)
         machine.cpu.mem_write(pc, b'\xc3')
         machine.cpu.hook_add(unicorn.UC_HOOK_CODE, storage, begin=pc, end=pc)
-
 
 def generate(data):
     if data['input_sha256'] != INPUT_SHA256 or data['input_name'] != 'Windows Server 1.26.10':
@@ -96,7 +94,6 @@ def generate(data):
             output.extend(machine.get(begin, count * 6))
         lines.append('E ' + ' '.join(f'{v:08x}' for v in output))
     return '\n'.join(lines) + '\n'
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

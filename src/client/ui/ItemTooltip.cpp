@@ -1,17 +1,39 @@
 #include "client/ui/ItemTooltip.hpp"
+#include "util/Resources.hpp"
 
-#include "client/i18n/Lang.hpp"
-#include "client/ui/InventoryScreen.hpp"
-#include "client/ui/FormatCodes.hpp"
-#include "client/ui/McFont.hpp"
-#include "client/ui/RmlEmit.hpp"
-#include "client/ui/UiAssets.hpp"
+#include "client/systems/i18n/Lang.hpp"
+#include "client/systems/text/FormatCodes.hpp"
+#include "client/systems/text/McFont.hpp"
+#include "client/ui/SceneEmit.hpp"
+#include "client/systems/sprites/UiAssets.hpp"
+
+#include "client/ui/SceneKit.hpp"
+#include "util/Strings.hpp"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 
 namespace perlin::ui {
+    std::string PrettyItemName(const std::string& id) {
+        std::string name = id;
+        if (const size_t colon = name.find(':'); colon != std::string::npos)
+            name = name.substr(colon + 1);
+        bool start = true;
+        for (char& c : name) {
+            if (c == '_') {
+                c = ' ';
+                start = true;
+            } else {
+                if (start)
+                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                start = false;
+            }
+        }
+        return name;
+    }
+
+
     namespace {
         struct Enchant {
             const char* name;
@@ -78,12 +100,6 @@ namespace perlin::ui {
                 s.pop_back();
             return s;
         }
-
-        std::string Short(const std::string& id) {
-            const size_t c = id.find(':');
-            return c == std::string::npos ? id : id.substr(c + 1);
-        }
-
         int Tier(const std::string& name) {
             static const char* const kTiers[] = {"wooden_", "stone_",   "iron_",
                                                  "golden_", "diamond_", "netherite_"};
@@ -190,7 +206,7 @@ namespace perlin::ui {
     }
 
     int ItemRarity(const HudItem& item) {
-        const std::string n = Short(item.name);
+        const std::string n = std::string(str::StripAnyNamespace(item.name));
         int rarity = 0;
         static const char* const kUncommon[] = {"experience_bottle", "nether_star",   "totem_of_undying",
                                                 "heart_of_the_sea",  "dragon_breath", "enchanted_book"};
@@ -231,7 +247,7 @@ namespace perlin::ui {
         if (item.Empty())
             return lines;
         static const uint32_t kRarityColor[] = {0xFFFFFF, 0xFFFF55, 0x55FFFF, 0xFF55FF};
-        const std::string shortName = Short(item.name);
+        const std::string shortName = std::string(str::StripAnyNamespace(item.name));
         const bool custom = !item.customName.empty();
         std::string title =
             custom
@@ -299,8 +315,8 @@ namespace perlin::ui {
             y = 4;
     }
 
-    std::string TooltipRml(const std::vector<TooltipLine>& input, int mouseX, int mouseY, int guiW,
-                           int guiH) {
+    void AddTooltip(SceneBuilder& b, const std::vector<TooltipLine>& input, int mouseX, int mouseY, int guiW,
+                    int guiH) {
         std::vector<TooltipLine> lines;
         for (const TooltipLine& l : input) {
             size_t start = 0;
@@ -317,7 +333,7 @@ namespace perlin::ui {
             }
         }
         if (lines.empty())
-            return {};
+            return;
         int widest = 0;
         for (const TooltipLine& l : lines)
             widest = std::max(widest, static_cast<int>(McFont::Instance().Width(l.text, 1.0f)));
@@ -327,30 +343,25 @@ namespace perlin::ui {
         gTipH = estH;
         int x, y;
         PlaceTooltip(mouseX, mouseY, guiW, guiH, x, y);
+        kit::Begin(b, static_cast<float>(x), static_cast<float>(y), static_cast<float>(estW),
+                   static_cast<float>(estH), {}, "tip", "40");
+        SceneNode& border = kit::Image(b, 0, 0, static_cast<float>(estW), static_cast<float>(estH),
+                                       "textures/ui/purpleBorder", "1");
+        border.nine = "4 4 4 4";
+        border.cls = "tipb";
+        kit::Begin(b, 5, 4, static_cast<float>(estW - 10), 0, "txt", {}, "2");
         char color[16];
-        std::string body;
         for (size_t i = 0; i < lines.size(); i++) {
             const TooltipLine& l = lines[i];
             std::snprintf(color, sizeof color, "#%06X", l.color & 0xFFFFFFu);
-            body += std::string("<div class=\"ln\" style=\"color:") + color + ";" +
-                    (l.italic ? "font-style:italic;" : "") +
-                    (i == 0 && lines.size() > 1 ? "margin-bottom:2px;" : "") + "\">" +
-                    (l.text.empty() ? std::string("&nbsp;") : FormatCodesToRml(l.text)) + "</div>";
+            std::vector<SceneRun> runs = kit::Formatted(l.text, color);
+            if (l.italic)
+                for (SceneRun& run : runs)
+                    run.style = "italic";
+            const float ly = static_cast<float>(i) * 10.0f + (i > 0 && lines.size() > 1 ? 2.0f : 0.0f);
+            kit::Label(b, 0, ly, static_cast<float>(estW - 10), "ln", std::move(runs));
         }
-        return "  <div id=\"tip\" style=\"left:" + std::to_string(x) + "px;top:" + std::to_string(y) +
-               "px;width:" + std::to_string(estW) + "px;height:" + std::to_string(estH) +
-               "px;\"><mcimg class=\"tipb\" src=\"textures/ui/purpleBorder\" nine=\"4 4 4 4\" "
-               "style=\"width:" +
-               std::to_string(estW) + "px;height:" + std::to_string(estH) +
-               "px;\"/><div class=\"txt\" style=\"width:" + std::to_string(estW - 10) + "px;\">" + body +
-               "</div></div>\n";
-    }
-
-    const char* TooltipStyles() {
-        return "mcimg { display: block; position: absolute; }\n#tip { z-index: 40; pointer-events: none; }\n"
-               "#tip .tipb { left: 0px; top: 0px; z-index: 1; }\n"
-               "#tip .txt { position: absolute; left: 5px; top: 4px; display: block; font-family: "
-               "minecraft-shadow; font-size: 8px; line-height: 10px; white-space: nowrap; z-index: 2; }\n"
-               "#tip .ln { position: relative; display: block; white-space: nowrap; }\n";
+        b.End();
+        b.End();
     }
 }

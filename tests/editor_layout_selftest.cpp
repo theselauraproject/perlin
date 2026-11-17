@@ -1,6 +1,6 @@
 #include <cassert>
 #include <cstdio>
-#include "client/ui/ReplayScreen.hpp"
+#include "client/ui/ReplayControls.hpp"
 using namespace perlin::ui;
 int main() {
     for (int gw : {320, 427, 640, 960}) {
@@ -23,9 +23,9 @@ int main() {
             r.value = "1";
             m.rows.push_back(r);
         }
-        const EditorBuilt b = BuildEditorRml(m, gw, gh);
+        const EditorBuilt b = BuildEditor(m, gw, gh);
         const EditorLayout l = ComputeEditorLayout(gw, gh);
-        assert(!b.rml.empty() && b.rml.contains("</rml>"));
+        assert(!b.doc.scene.nodes.empty());
         bool play = false, key = false, ruler = false;
         for (const EditorHit& h : b.hits) {
             play = play || h.id == "t_play";

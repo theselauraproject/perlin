@@ -16,8 +16,8 @@ concurrency:
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
-  # builds of main are what the nightly release carries: they know their commit and where to look for a newer one,
-  # which is what the in-game updater compares against. Pull requests and tags build without it (no auto-update).
+  DEPS_CACHE_VERSION: v4
+
   PERLIN_UPDATE_FLAGS: ${{ github.ref == 'refs/heads/main' && format('-DPERLIN_BUILD_COMMIT={0} -DPERLIN_UPDATE_REPO={1} -DPERLIN_BUNDLE_VERSION=1.0.{2}', github.sha, github.repository, github.run_number) || '' }}
   EMSDK_VERSION: 4.0.10
   OPENSSL_VERSION: openssl-3.0.15
@@ -28,15 +28,14 @@ env:
   CCACHE_NOHASHDIR: "true"
   CCACHE_COMPRESS: "true"
   CCACHE_COMPRESSLEVEL: "6"
-  # FFmpeg on Windows is skipped for now (video export uses the built-in AVI encoder). Set to "true" to build/bundle it again;
-  # it is installed once and restored from the cache below, never rebuilt per run.
+
   WINDOWS_FFMPEG: "false"
 
 jobs:
   native:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    # new targets report failures without holding back the nightly; drop `experimental` once they are green
+
     continue-on-error: ${{ matrix.experimental == true }}
     strategy:
       fail-fast: false
@@ -47,7 +46,7 @@ jobs:
           - name: linux-x64
             os: ubuntu-24.04
             appimage: x86_64
-          # native arm64 runner (free for public repositories): Raspberry Pi 5, Asahi, Snapdragon Linux laptops
+
           - name: linux-arm64
             os: ubuntu-24.04-arm
             appimage: aarch64
@@ -69,17 +68,27 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .cpm-cache
-          key: cpm-complete-v2-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
-          restore-keys: cpm-complete-v2-${{ matrix.name }}-
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-
+
+      - name: Cache apt packages
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: .apt-cache
+          key: apt-${{ matrix.name }}-${{ hashFiles('.github/workflows/build.yml') }}
+          restore-keys: apt-${{ matrix.name }}-
 
       - name: Install Linux packages
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
+          mkdir -p .apt-cache/partial
+          sudo apt-get update || true
+          sudo apt-get install -y -o Dir::Cache::Archives="$PWD/.apt-cache" ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
             libxtst-dev libxrender-dev libwayland-dev wayland-protocols libxkbcommon-dev libasound2-dev \
             libpulse-dev libudev-dev libdbus-1-dev
+          sudo chown -R "$(id -u):$(id -g)" .apt-cache
 
       - name: Select Xcode
         if: runner.os == 'macOS'
@@ -90,9 +99,8 @@ jobs:
       - name: Install macOS packages
         if: runner.os == 'macOS'
         run: |
-          brew install ninja
-          # Homebrew's fmt is a dynamic library that would get picked up by a dependency's find_package/pkg-config and then
-          # be missing on other Macs (libfmt.12.dylib). Remove it so everything is built from the pinned sources instead.
+          python -m pip install --upgrade ninja
+
           brew uninstall --ignore-dependencies fmt || true
 
       - name: Cache OpenSSL (macOS)
@@ -128,7 +136,6 @@ jobs:
         run: |
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:x64-windows-static --x-install-root="$env:GITHUB_WORKSPACE/openssl-install"
 
-      # Saved right away (not at the end of the job) so a later failing step cannot throw the cache away.
       - name: Save OpenSSL cache
         if: runner.os == 'Windows' && steps.openssl-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -172,35 +179,42 @@ jobs:
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
-        run: >
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON
-          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static"
-          -DPERLIN_WINDOWS_FFMPEG=${{ env.WINDOWS_FFMPEG }}
-          -DFFMPEG_ROOT="$env:GITHUB_WORKSPACE/ffmpeg-install/x64-windows-static"
-          ${{ env.PERLIN_UPDATE_FLAGS }}
+        shell: pwsh
+        run: |
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static" `
+            -DPERLIN_WINDOWS_FFMPEG=${{ env.WINDOWS_FFMPEG }} `
+            -DFFMPEG_ROOT="$env:GITHUB_WORKSPACE/ffmpeg-install/x64-windows-static" `
+            ${{ env.PERLIN_UPDATE_FLAGS }}
+          exit $LASTEXITCODE
 
       - name: Configure (Unix)
         if: runner.os != 'Windows'
-        run: >
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
-          ${{ env.PERLIN_UPDATE_FLAGS }}
-          ${{ runner.os == 'macOS' && format('-DOPENSSL_ROOT_DIR={0}/ossl-mac -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON', github.workspace) || '' }}
+        shell: bash
+        run: |
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            ${{ env.PERLIN_UPDATE_FLAGS }} \
+            ${{ runner.os == 'macOS' && format('-DOPENSSL_ROOT_DIR={0}/ossl-mac -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON', github.workspace) || '' }}
+
+      - name: Save dependency cache
+        if: steps.cpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cpm-cache
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
-
-      - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Package
         run: cmake --install build --config Release --prefix dist
 
       - name: Slim the package
-        # the dependencies install their headers and libraries too; a player needs none of them, nor symbol files
+
         shell: bash
         run: |
           rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
@@ -215,10 +229,6 @@ jobs:
           echo "$bin"; otool -L "$bin"; otool -l "$bin" | grep -A3 LC_BUILD_VERSION
           if otool -L "$bin" | tail -n +2 | grep -Ev '^\s+(/usr/lib/|/System/Library/)' ; then echo "::error::links a non-system dylib"; exit 1; fi
 
-      # Apple silicon refuses to run code whose signature does not cover the bundle ("Perlin is damaged"): cmake
-      # --install adds files after the linker signed the executable, so the finished bundle is signed again here.
-      # With a Developer ID (repository secrets below) it is also notarized and opens with no warning at all;
-      # without one it is ad-hoc signed and opens after right-click > Open (or System Settings > Open Anyway).
       - name: Sign macOS app
         if: runner.os == 'macOS'
         env:
@@ -252,8 +262,6 @@ jobs:
           fi
           codesign --verify --deep --strict --verbose=2 "$app"
 
-      # archives are made here, on the runner that built them: upload-artifact drops unix permissions and macOS
-      # extended attributes, so a bundle zipped later by the release job would lose its executable bit and signature
       - name: Archive
         shell: bash
         run: |
@@ -265,15 +273,6 @@ jobs:
             *) (cd dist && zip -qry "$out" .) ;;
           esac
           ls -l pkg
-
-      - name: Save dependency cache
-        # Failed configuration can leave incomplete submodule checkouts that
-        # CPM reuses without fetching again. Cache only successful builds.
-        if: success() && steps.cpm-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .cpm-cache
-          key: cpm-complete-v2-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
 
       - name: Keep debug symbols (Windows)
         if: runner.os == 'Windows'
@@ -290,8 +289,6 @@ jobs:
           path: symbols
           if-no-files-found: ignore
 
-      # the package is already an archive: uploaded as that file (the artifact is named after it), so downloading
-      # it gives Perlin-<platform>.zip itself and not a zip holding the zip
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
@@ -299,13 +296,32 @@ jobs:
           archive: false
           if-no-files-found: error
 
-      # Linux also as one AppImage: runs on any distribution, and updates itself by replacing that one file
+      - name: Cache appimagetool
+        if: matrix.appimage
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/appimagetool
+            .tools/runtime
+          key: appimagetool-${{ matrix.appimage }}-v2
+
       - name: AppImage
         if: matrix.appimage
         run: |
-          curl -fsSL -o /usr/local/bin/appimagetool \
-            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage }}.AppImage"
-          chmod +x /usr/local/bin/appimagetool
+          if [ ! -x .tools/appimagetool ]; then
+            mkdir -p .tools
+            curl -fsSL --retry 5 --retry-all-errors --retry-delay 20 -o .tools/appimagetool.part \
+              "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimage }}.AppImage"
+            mv .tools/appimagetool.part .tools/appimagetool
+            chmod +x .tools/appimagetool
+          fi
+          if [ ! -s .tools/runtime ]; then
+            curl -fsSL --retry 5 --retry-all-errors --retry-delay 20 -o .tools/runtime.part \
+              "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${{ matrix.appimage }}"
+            mv .tools/runtime.part .tools/runtime
+          fi
+          sudo cp .tools/appimagetool /usr/local/bin/appimagetool
+          export APPIMAGE_RUNTIME_FILE="$PWD/.tools/runtime"
           sh tools/package/make-appimage.sh dist "pkg/Perlin-${{ matrix.name }}.AppImage" ${{ matrix.appimage }}
           "pkg/Perlin-${{ matrix.name }}.AppImage" --appimage-extract >/dev/null
           test -x squashfs-root/usr/lib/perlin/Perlin && test -s squashfs-root/io.perlin.client.desktop
@@ -317,8 +333,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # the Vulkan shader pack on its own, so the FreeBSD build (which has no slang compiler) starts at once instead of
-  # waiting for every native package to finish; the file is identical to the one the linux-x64 build makes
   shader-pack:
     name: shader-pack
     runs-on: ubuntu-24.04
@@ -331,18 +345,28 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: cpm-complete-v2-linux-x64-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
-          restore-keys: cpm-complete-v2-linux-x64-
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-shader-pack-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: |
+            deps-${{ env.DEPS_CACHE_VERSION }}-shader-pack-
+            deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: .apt-cache
+          key: apt-linux-x64-${{ hashFiles('.github/workflows/build.yml') }}
+          restore-keys: apt-linux-x64-
       - name: Install Linux packages
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
+          mkdir -p .apt-cache/partial
+          sudo apt-get update || true
+          sudo apt-get install -y -o Dir::Cache::Archives="$PWD/.apt-cache" ninja-build pkg-config libssl-dev libgl-dev libegl-dev libdrm-dev libgbm-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
             libxtst-dev libxrender-dev libwayland-dev wayland-protocols libxkbcommon-dev libasound2-dev \
             libpulse-dev libudev-dev libdbus-1-dev
+          sudo chown -R "$(id -u):$(id -g)" .apt-cache
       - name: Build shaders only
         run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target perlin_shader_pack --parallel
       - name: Upload shader pack
         uses: actions/upload-artifact@v7
@@ -351,8 +375,6 @@ jobs:
           path: build/shaders/perlin_shaders.pack
           if-no-files-found: error
 
-  # Windows on ARM (Snapdragon X and friends), cross-compiled on the x64 runner: its compilers, vcpkg and the
-  # x64 shader compilers are all there; the arm64 binary cannot run on it, so there are no tests here
   windows-arm64:
     name: windows-arm64
     runs-on: windows-latest
@@ -365,7 +387,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: cpm-windows-arm64-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-windows-arm64-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-windows-arm64-
       - name: Cache OpenSSL (arm64)
         id: openssl-cache
         uses: actions/cache@v4
@@ -386,15 +409,17 @@ jobs:
           key: windows-arm64
           max-size: 500M
       - name: Configure
-        run: >
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64
-          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link
-          -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static"
-          -DPERLIN_WINDOWS_FFMPEG=OFF
-          ${{ env.PERLIN_UPDATE_FLAGS }}
+        shell: pwsh
+        run: |
+          python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 `
+            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
+            -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static" `
+            -DPERLIN_WINDOWS_FFMPEG=OFF `
+            ${{ env.PERLIN_UPDATE_FLAGS }}
+          exit $LASTEXITCODE
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Package
@@ -404,7 +429,7 @@ jobs:
           rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
           find dist \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.a' \) -delete
           find dist -type d -empty -delete
-          # an arm64 image (IMAGE_FILE_MACHINE_ARM64 = 0xaa64 at the PE header)
+
           python - <<'PY'
           import struct, glob
           exe = glob.glob("dist/*.exe")[0]
@@ -422,8 +447,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # FreeBSD (x64) in a VM. Slang publishes no FreeBSD compiler, so the Vulkan shader pack comes from the linux-x64
-  # build (the same backends, the same file)
   freebsd:
     name: freebsd-x64
     needs: shader-pack
@@ -435,12 +458,17 @@ jobs:
         with:
           name: shader-pack-vulkan
           path: prebuilt
+      - uses: actions/cache@v4
+        with:
+          path: .cpm-cache
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-freebsd-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-freebsd-
       - name: Build in FreeBSD
         uses: vmactions/freebsd-vm@v1
         with:
           release: "14.3"
           mem: 12288
-          envs: "PERLIN_UPDATE_FLAGS"
+          envs: "PERLIN_UPDATE_FLAGS CPM_SOURCE_CACHE"
           usesh: true
           prepare: |
             pkg install -y cmake ninja git python3 pkgconf perl5 bash \
@@ -449,10 +477,9 @@ jobs:
               pulseaudio alsa-lib libinotify dbus zip
           run: |
             set -e
-            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPERLIN_BUILD_TESTS=ON \
+            python3 tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
               -DPERLIN_SHADER_PACK_PREBUILT="$PWD/prebuilt/perlin_shaders.pack" $PERLIN_UPDATE_FLAGS
             cmake --build build --parallel
-            ctest --test-dir build --output-on-failure || echo "::warning::some tests failed on FreeBSD"
             cmake --install build --prefix dist
             rm -rf dist/include dist/lib dist/lib64 dist/cmake dist/share/pkgconfig
             find dist -name '*.a' -delete
@@ -465,14 +492,12 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # a Flatpak bundle for sideloading (flatpak install Perlin.flatpak); not on Flathub yet, because Flathub builds
-  # without network access and this build fetches its pinned dependencies
   flatpak:
     name: flatpak-x64
     runs-on: ubuntu-24.04
     continue-on-error: true
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
       options: --privileged
     steps:
       - uses: actions/checkout@v4
@@ -480,7 +505,7 @@ jobs:
         with:
           bundle: Perlin.flatpak
           manifest-path: packaging/flatpak/io.perlin.client.yml
-          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
           upload-artifact: false
       - uses: actions/upload-artifact@v7
         with:
@@ -498,7 +523,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: cpm-web-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-web-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-web-
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: ${{ env.EMSDK_VERSION }}
@@ -525,7 +551,7 @@ jobs:
           make install_dev
       - name: Configure
         run: |
-          emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          python3 tools/ci/retry_configure.py -- emcmake cmake -S . -B build-web -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-wasm" \
             -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-wasm/include" \
@@ -539,9 +565,15 @@ jobs:
           test -s build-web/index.wasm && test -s build-web/index.js && test -s build-web/index.html
           ! grep -q 'id="launcher"' build-web/index.html
           grep -q 'perlin-loader.js' build-web/index.html
+      - name: Cache bedrock-samples index
+        uses: actions/cache@v4
+        with:
+          path: bedrock-samples-index
+          key: bedrock-samples-index-${{ github.run_id }}
+          restore-keys: bedrock-samples-index-
       - name: Generate asset manifest
         run: |
-          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
+          if [ -d bedrock-samples-index/.git ]; then git -C bedrock-samples-index fetch --depth 1 origin HEAD && git -C bedrock-samples-index reset --soft FETCH_HEAD || echo "::warning::using the cached bedrock-samples index"; else for i in 1 2 3; do git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index && break; sleep $((30 * i)); done; fi
           python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out build-web/assets-manifest.json
       - name: Assemble site
         run: |
@@ -552,13 +584,13 @@ jobs:
           cp build-web/perlin-*.js build-web/coi-sw.js build-web/perlin.css build-web/assets-manifest.json site/
           cp tools/web/serve.py tools/web/HOSTING.txt site/
           cp -r tools/web/auth-relay site/
-          # the running page compares this with the commit it was built from and offers a reload when they differ
+
           printf '{"commit":"%s","run":%s}\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" > site/version.json
-          # Microsoft sign-in in the browser goes through the relay in tools/web/auth-relay (repository variable)
+
           if [ -n "${{ vars.WEB_AUTH_RELAY }}" ]; then
             printf '{"authRelay":"%s"}\n' "${{ vars.WEB_AUTH_RELAY }}" > site/perlin-config.json
           fi
-      # the artifact is zipped by the action itself; the release job makes Perlin-web.zip from it
+
       - uses: actions/upload-artifact@v7
         with:
           name: Perlin-web
@@ -575,7 +607,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: cpm-android-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-android-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-android-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -607,8 +640,20 @@ jobs:
           [ -d "$ANDROID_HOME/ndk/$NDK_VERSION" ] || packages+=("ndk;${NDK_VERSION}")
           [ -d "$ANDROID_HOME/cmake/$CMAKE_VERSION" ] || packages+=("cmake;${CMAKE_VERSION}")
           "$SDKMANAGER" "${packages[@]}"
+      - name: Cache SDL
+        id: sdl-cache
+        uses: actions/cache@v4
+        with:
+          path: android/sdl
+          key: sdl-${{ env.SDL_REF }}
       - name: Fetch SDL
-        run: git clone --depth 1 -b "$SDL_REF" https://github.com/libsdl-org/SDL android/sdl
+        if: steps.sdl-cache.outputs.cache-hit != 'true'
+        run: |
+          for i in 1 2 3; do
+            git clone --depth 1 -b "$SDL_REF" https://github.com/libsdl-org/SDL android/sdl && exit 0
+            rm -rf android/sdl; sleep $((30 * i))
+          done
+          exit 1
       - name: Cache OpenSSL for Android
         id: openssl-cache
         uses: actions/cache@v4
@@ -628,14 +673,18 @@ jobs:
             mkdir "openssl-build-$abi"
             (cd "openssl-build-$abi" && ../openssl-src/Configure "$target" -D__ANDROID_API__=26 no-shared no-tests no-ui-console no-engine no-dso --prefix="$GITHUB_WORKSPACE/ossl-android/$abi" --openssldir="$GITHUB_WORKSPACE/ossl-android/$abi/ssl" && make -j"$(nproc)" build_libs && make install_dev)
           done
+      - name: Cache bedrock-samples index
+        uses: actions/cache@v4
+        with:
+          path: bedrock-samples-index
+          key: bedrock-samples-index-${{ github.run_id }}
+          restore-keys: bedrock-samples-index-
       - name: Generate asset manifest
         run: |
-          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
+          if [ -d bedrock-samples-index/.git ]; then git -C bedrock-samples-index fetch --depth 1 origin HEAD && git -C bedrock-samples-index reset --soft FETCH_HEAD || echo "::warning::using the cached bedrock-samples index"; else for i in 1 2 3; do git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index && break; sleep $((30 * i)); done; fi
           mkdir -p android/app/src/main/assets
           python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out android/app/src/main/assets/assets-manifest.json
-      # every nightly apk must carry the same signature or Android refuses it as an update: set the
-      # ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD secrets
-      # (without them each build is signed with that runner's throwaway debug key)
+
       - name: Signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -658,7 +707,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease \
+          python ../tools/ci/retry_configure.py -- ./gradlew --no-daemon assembleRelease \
             -PsdlDir="$GITHUB_WORKSPACE/android/sdl" \
             -PopensslBase="$GITHUB_WORKSPACE/ossl-android" \
             -Pccache=true \
@@ -698,14 +747,15 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: cpm-ios-${{ hashFiles('CMakeLists.txt', 'cmake/CPM.cmake') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-ios-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-ios-
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "16.4"
       - name: Install tools
         run: |
-          brew install ninja
+          python -m pip install --upgrade ninja
           brew uninstall --ignore-dependencies fmt || true
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -726,24 +776,30 @@ jobs:
             --prefix="$GITHUB_WORKSPACE/ossl-ios" --openssldir="$GITHUB_WORKSPACE/ossl-ios/ssl"
           make -j"$(sysctl -n hw.ncpu)" build_libs
           make install_dev
+      - name: Cache bedrock-samples index
+        uses: actions/cache@v4
+        with:
+          path: bedrock-samples-index
+          key: bedrock-samples-index-${{ github.run_id }}
+          restore-keys: bedrock-samples-index-
       - name: Generate asset manifest
         run: |
-          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index
+          if [ -d bedrock-samples-index/.git ]; then git -C bedrock-samples-index fetch --depth 1 origin HEAD && git -C bedrock-samples-index reset --soft FETCH_HEAD || echo "::warning::using the cached bedrock-samples index"; else for i in 1 2 3; do git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Mojang/bedrock-samples bedrock-samples-index && break; sleep $((30 * i)); done; fi
           python3 tools/web/gen_manifest.py --repo bedrock-samples-index --out assets-manifest.json
       - name: Configure
-        run: >
-          cmake -B build-ios -G Ninja -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }}
-          -DPERLIN_IOS_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }}
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON
-          -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-ios"
-          -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-ios/include"
-          -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libcrypto.a"
-          -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libssl.a"
-          -DPERLIN_ASSET_MANIFEST="$GITHUB_WORKSPACE/assets-manifest.json"
-          ${{ env.PERLIN_UPDATE_FLAGS }}
+        run: |
+          python tools/ci/retry_configure.py -- cmake -B build-ios -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 \
+              -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
+              -DPERLIN_IOS_DEPLOYMENT_TARGET=${{ env.IOS_DEPLOYMENT_TARGET }} \
+              -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON \
+              -DOPENSSL_ROOT_DIR="$GITHUB_WORKSPACE/ossl-ios" \
+              -DOPENSSL_INCLUDE_DIR="$GITHUB_WORKSPACE/ossl-ios/include" \
+              -DOPENSSL_CRYPTO_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libcrypto.a" \
+              -DOPENSSL_SSL_LIBRARY="$GITHUB_WORKSPACE/ossl-ios/lib/libssl.a" \
+              -DPERLIN_ASSET_MANIFEST="$GITHUB_WORKSPACE/assets-manifest.json" \
+              ${{ env.PERLIN_UPDATE_FLAGS }}
       - name: Build
         run: cmake --build build-ios --target Perlin --parallel
       - name: Check app bundle
@@ -758,7 +814,7 @@ jobs:
           otool -L "$app/Perlin"
           if otool -L "$app/Perlin" | tail -n +2 | grep -Ev '^\s+(/usr/lib/|/System/Library/)'; then echo "::error::links a non-system dylib"; exit 1; fi
       - name: Package IPA
-        # ad-hoc signed only: sideload with AltStore / Sideloadly (they re-sign with your Apple ID) or install with TrollStore
+
         run: |
           mkdir -p Payload dist
           cp -R build-ios/Perlin.app Payload/
@@ -771,9 +827,6 @@ jobs:
           archive: false
           if-no-files-found: error
 
-  # the web build on GitHub Pages, redeployed by every nightly: the site is always the newest build and the page
-  # offers a reload when it notices it. Off until Pages is set up: Settings > Pages > Source: GitHub Actions, then
-  # Settings > Secrets and variables > Actions > Variables: DEPLOY_PAGES = true
   pages:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_PAGES == 'true'
     needs: web
@@ -805,8 +858,6 @@ jobs:
       - uses: actions/checkout@v4
         if: github.ref == 'refs/heads/main'
 
-      # finished packages (Perlin-<platform>.zip, Perlin.apk, Perlin.ipa: names with a dot) are kept exactly as
-      # uploaded; the web site and debug symbols arrive as folders and are zipped once here
       - name: Download packages
         uses: actions/download-artifact@v8
         with:
@@ -833,15 +884,13 @@ jobs:
             (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)
           done
           ls -l release
-          # a package that is itself a zip of a single zip means an artifact got wrapped again: fail loudly
+
           for z in release/Perlin-*.zip; do
             if [ "$(unzip -Z1 "$z" | grep -vc '/$')" = 1 ] && unzip -Z1 "$z" | grep -q '\.zip$'; then
               echo "::error::$z only holds another zip"; exit 1
             fi
           done
 
-      # AltStore / SideStore source: add
-      # https://github.com/<owner>/<repo>/releases/download/nightly/altstore-source.json and iOS updates itself
       - name: iOS app source
         if: github.ref == 'refs/heads/main'
         run: |

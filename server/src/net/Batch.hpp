@@ -6,11 +6,9 @@
 
 namespace perlin::server {
 
-    // game packet batches: [compressor byte once settings are agreed] then (varint length, varint header, body)*
-    // nethernet has no outer 0xFE byte and no encryption (the data channel is already dtls)
     class BatchCodec {
     public:
-        // after NetworkSettings both directions carry the compressor byte
+
         void EnableCompression(uint16_t threshold) {
             compression = true;
             this->threshold = threshold;
@@ -19,7 +17,7 @@ namespace perlin::server {
 
         static void AppendPacket(std::vector<uint8_t>& content, uint32_t id, std::span<const uint8_t> body);
         std::vector<uint8_t> Seal(const std::vector<uint8_t>& content) const;
-        // false on a corrupt or oversized batch
+
         bool Open(std::span<const uint8_t> wire, std::vector<uint8_t>& content) const;
 
         using PacketFn = std::function<void(uint32_t id, std::span<const uint8_t> body)>;

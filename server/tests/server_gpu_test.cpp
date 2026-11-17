@@ -1,5 +1,3 @@
-// the gpu terrain backend against the cpu reference, on whatever graphics device the machine has
-// (software vulkan counts: point VK_ICD_FILENAMES at one to run this on a machine without a gpu)
 #include "test_util.hpp"
 
 #include "gpu/GpuTerrain.hpp"
@@ -12,7 +10,7 @@ using namespace perlin::server;
 int main() {
     ServerConfig config;
     config.generator = "flat";
-    // "gpu" accepts a software device; "auto" would not
+
     config.terrainBackend = "gpu";
     config.seed = 0x1234567890abcdefull;
     config.flatLayers = {{"minecraft:bedrock", 1},
@@ -33,7 +31,6 @@ int main() {
     if (!detail.empty())
         std::fprintf(stderr, "differs: %s\n", detail.c_str());
 
-    // more than one batch, negative coordinates, a batch of one, the whole column compared block by block
     std::vector<ChunkPos> positions;
     for (int x = -5; x <= 6; x++)
         for (int z = -4; z <= 4; z++)

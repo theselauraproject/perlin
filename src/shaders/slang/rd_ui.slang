@@ -1,6 +1,9 @@
 #pragma once
 #include "rd_common.slang"
 
+#define u_uiParams v_uiParams
+#define u_uiOverlay v_uiOverlay
+
 #define OverlayColor u_uiOverlay
 #define DiscardValue u_uiParams
 #define MatColor1 vec4(v_color0.rgb, 1.0)

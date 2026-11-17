@@ -1,8 +1,5 @@
-// Converted from Java shaderpack program composite7 (world0).
-// v1 converter output: uniform feed + renderer wiring still needed, see report.
 #include "compat.slang"
 
-// Iris uniforms: engine must feed these each frame/draw.
 #define PERLIN_JAVA_UNIFORMS \
     float u_jaspectRatio; \
     int2 u_jatlasSize; \
@@ -91,32 +88,9 @@
 #include "vv_resources.slang"
 #undef PERLIN_JAVA_UNIFORMS
 
-// java sampler colortex0 -> RHI slot s_colortex0 (see vv_resources.slang)
-// java sampler colortex1 -> RHI slot s_colortex1 (see vv_resources.slang)
-// java sampler colortex12 -> RHI slot s_colortex12 (see vv_resources.slang)
-// java sampler colortex13 -> RHI slot s_colortex13 (see vv_resources.slang)
-// java sampler colortex2 -> RHI slot s_colortex2 (see vv_resources.slang)
-// java sampler colortex3 -> RHI slot s_colortex3 (see vv_resources.slang)
-// java sampler colortex4 -> RHI slot s_colortex4 (see vv_resources.slang)
-// java sampler colortex5 -> RHI slot s_colortex5 (see vv_resources.slang)
-// java sampler colortex6 -> RHI slot s_colortex6 (see vv_resources.slang)
-// java sampler colortex7 -> RHI slot s_colortex7 (see vv_resources.slang)
-// java sampler colortex8 -> RHI slot s_colortex8 (see vv_resources.slang)
-// java sampler depthtex0 -> RHI slot s_sceneDepth (declared here)
 SAMPLER2D(s_sceneDepth, 10, 11);
-// java sampler depthtex1 -> RHI slot s_depth (declared here)
+
 SAMPLER2D(s_depth, 34, 35);
-// java sampler gaux2 -> RHI slot s_gaux2 (see vv_resources.slang)
-// java sampler gaux4 -> RHI slot s_gaux4 (see vv_resources.slang)
-// java sampler lightmap -> RHI slot s_lightmap (see vv_resources.slang)
-// java sampler noisetex -> RHI slot s_noise (see vv_resources.slang)
-// java sampler normals -> RHI slot s_normals (see vv_resources.slang)
-// java sampler shadowcolor0 -> RHI slot s_shadowTint (see vv_resources.slang)
-// java sampler shadowcolor1 -> RHI slot s_shadowTintB (see vv_resources.slang)
-// java sampler shadowtex0 -> RHI slot s_shadow (see vv_resources.slang)
-// java sampler shadowtex1 -> RHI slot s_shadowB (see vv_resources.slang)
-// java sampler specular -> RHI slot s_specular (see vv_resources.slang)
-// java sampler tex -> RHI slot s_atlas (see vv_resources.slang)
 
 struct VsIn
 {
@@ -236,184 +210,11 @@ static float4x4 u_jTextureMatrix1;
 #define GetSunVector() normalize((gbufferModelView * vec4(vec3(-sin(overworldAngle), cos(overworldAngle) * SUN_ROTATION_DATA) * 2000.0, 1.0)).xyz)
 #define SUN_ROTATION_DATA vec2(cos(sunPathRotation * 0.01745329251994), -sin(sunPathRotation * 0.01745329251994))
 
+static const float shadowDistance = 192.0;
 
-// @included "/program/composite7.glsl"
-/////////////////////////////////////
-// Complementary Shaders by EminGT //
-/////////////////////////////////////
-
-//Common//
-// @included "/lib/common.glsl"
-/*---------------------------------------------------------------------
-         ___ __  __ ____   ___  ____ _____  _    _   _ _____
-        |_ _|  \/  |  _ \ / _ \|  _ \_   _|/ \  | \ | |_   _|
-         | || |\/| | |_) | | | | |_) || | / _ \ |  \| | | |
-         | || |  | |  __/| |_| |  _ < | |/ ___ \| |\  | | |
-        |___|_|  |_|_|    \___/|_| \_\|_/_/   \_\_| \_| |_|
-         .
-  -> -> -> EDITING THIS FILE HAS A HIGH CHANCE TO BREAK THE SHADER PACK
-  -> -> -> DO NOT CHANGE ANYTHING UNLESS YOU KNOW WHAT YOU ARE DOING
-  -> -> -> DO NOT EXPECT SUPPORT AFTER MODIFYING SHADER FILES
----------------------------------------------------------------------*/
-
-//User Settings//
-
-
-static const float shadowDistance = 192.0; //[64.0 80.0 96.0 112.0 128.0 160.0 192.0 224.0 256.0 320.0 384.0 512.0 768.0 1024.0]
-
-
-
-
-
-    //#define CLOUD_SHADOWS
-
-
-    //#define DOUBLE_REIM_CLOUDS
-
-
-
-    //#define LIGHTSHAFT_SMOKE
-
-
-
-    //#define WB_FOV_SCALED
-    //#define WB_CHROMATIC
-    //#define WB_ANAMORPHIC
-
-
-
-    //#define EMISSIVE_REDSTONE_BLOCK
-    //#define EMISSIVE_LAPIS_BLOCK
-    //#define GLOWING_ARMOR_TRIM
-
-    //#define IPBR_COMPAT_MODE_DEFINE
-
-    //#define POM_ALLOW_CUTOUT
-
-
-    //#define WAVING_LILY_PAD
-
-
-
-    //#define SELECT_OUTLINE_AUTO_HIDE
-
-    //#define WORLD_OUTLINE
-    //#define WORLD_OUTLINE_SCALED
-    //#define DARK_OUTLINE
-
-    //#define REDUCE_CLOSE_PARTICLES
-    //#define LESS_LAVA_FOG
-    //#define SNOWY_WORLD
-    //#define COLOR_CODED_PROGRAMS
-    //#define GLOWING_COLORED_PARTICLES
-
-    //#define MOON_PHASE_INF_LIGHT
-    //#define MOON_PHASE_INF_ATMOSPHERE
-
-    //#define PIXELATED_SHADOWS
-    //#define PIXELATED_BLOCKLIGHT
-    //#define PIXELATED_AO
-
-    //#define COLORGRADING
-
-    //#define LIGHT_COLOR_MULTS
-    //#define ATM_COLOR_MULTS
-
-
-
-
-//Internal Settings//
-
-
-
-
-    //#define SAFER_GENERATED_NORMALS
-
-
-//Extensions//
-
-//Information//
-
-//RP Mode, Visual Style and Performance Setting Handling//
-        //#define GENERATED_NORMALS
-        //#define COATED_TEXTURES
-        //#define GREEN_SCREEN_LIME
-
-        //#define WATER_CAUSTIC_STYLE_DEFAULT 1
-    // Thanks to SpacEagle17 and isuewo for the sun angle handling
 static const float sunPathRotation = 0.0;
 
 static const int shadowMapResolution = 2048;
-
-
-
-
-
-//Define Handling//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Activate Settings//
-
-//Very Common Stuff//
-// @included "/lib/uniforms.glsl"
-/*----------------------------------------------------------------------------------------------
-        _____                                                                    _____
-        ( ___ )                                                                  ( ___ )
-        |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   |
-        |   | ██╗   ██╗███╗   ██╗██╗███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗ |   |
-        |   | ██║   ██║████╗  ██║██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝ |   |
-        |   | ██║   ██║██╔██╗ ██║██║█████╗  ██║   ██║██████╔╝██╔████╔██║███████╗ |   |
-        |   | ██║   ██║██║╚██╗██║██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║╚════██║ |   |
-        |   | ╚██████╔╝██║ ╚████║██║██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████║ |   |
-        |   |  ╚═════╝ ╚═╝  ╚═══╝╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ |   |
-        |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___|
-        (_____)                              (thanks to isuewo and SpacEagle17)  (_____)
-
----------------------------------------------------------------------------------------------*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*-----------------------------------------------------------------------------
-  ___ _   _ ___ _____ ___  __  __   _   _ _  _ ___ ___ ___  ___ __  __ ___
- / __| | | / __|_   _/ _ \|  \/  | | | | | \| |_ _| __/ _ \| _ \  \/  / __|
-| (__| |_| \__ \ | || (_) | |\/| | | |_| | .` || || _| (_) |   / |\/| \__ 
- \___|\___/|___/ |_| \___/|_|  |_|  \___/|_|\_|___|_| \___/|_|_\_|  |_|___/
-
------------------------------------------------------------------------------*/
-
 
 static float tAmin;
 static float tAlin;
@@ -422,9 +223,6 @@ static float tAfrc;
 static float tAfrs;
 static float tAmix;
 static float timeAngle;
-
-// @included "/lib/util/commonFunctions.glsl"
-// Do these via macro as Apple otherwise complains
 
 static float overworldAngleRaw;
 static float overworldAngle;
@@ -457,7 +255,7 @@ float GetHorizonFactor(float XdotU) {
         return horizon * horizon * (3.0 - 2.0 * horizon);
 }
 
-bool CheckForColor(vec3 albedo, vec3 check) { // Thanks to Builderb0y - edited a bit later
+bool CheckForColor(vec3 albedo, vec3 check) {
     vec3 dif = albedo - check * 0.003921568;
     return dot(dif, dif) < 0.00001;
 }
@@ -488,8 +286,6 @@ float Noise3D(vec3 p) {
 float GetSkyLightFactor(vec2 lmCoordM, vec3 shadowMult) {
             float skyLightFactor = max(lmCoordM.y - 0.7, 0.0) * 3.33333;
                   skyLightFactor *= skyLightFactor;
-
-
 
     return skyLightFactor;
 }
@@ -567,8 +363,8 @@ vec4 pow3(vec4 x) {
     return pow2(x) * x;
 }
 
-float pow1_5(float x) { // Faster pow(x, 1.5) approximation (that isn't accurate at all) if x is between 0 and 1
-    return x - x * pow2(1.0 - x); // Thanks to SixthSurge
+float pow1_5(float x) {
+    return x - x * pow2(1.0 - x);
 }
 vec2 pow1_5(vec2 x) {
     return x - x * pow2(1.0 - x);
@@ -580,8 +376,8 @@ vec4 pow1_5(vec4 x) {
     return x - x * pow2(1.0 - x);
 }
 
-float sqrt1(float x) { // Faster sqrt() approximation (that isn't accurate at all) if x is between 0 and 1
-    return x * (2.0 - x); // Thanks to Builderb0y
+float sqrt1(float x) {
+    return x * (2.0 - x);
 }
 vec2 sqrt1(vec2 x) {
     return x * (2.0 - x);
@@ -725,7 +521,7 @@ static float invNoonFactor2;
 
 static float vsBrightness;
 
-static float nightVisionWithAddedSupport; // Add support for fullbright mods
+static float nightVisionWithAddedSupport;
 
 static int modifiedWorldDay;
 static float syncedTime;
@@ -739,7 +535,6 @@ static ivec3 cameraPositionBestInt;
 static vec3 cameraPositionBestFract;
 static vec3 previousCameraPositionBestFract;
 
-// @included "/lib/colors/blocklightColors.glsl"
 void AddSpecialLightDetail(inout vec3 light, vec3 albedo, float emission) {
 	vec3 lightM = max(light, vec3(0.0));
 	lightM /= (0.2 + 0.8 * GetLuminance(lightM));
@@ -761,57 +556,51 @@ static float candleColorMult;
 static float candleExtraLight;
 
 vec4 GetSpecialBlocklightColor(int mat) {
-	/* Please note that these colors do not determine the intensity of the
-	final light. Instead; higher values of color change how long the color
-	will travel, and also how dominant it will be next to other colors.*/
-	/* Additional feature: An alpha value bigger than 0 will make that
-	block cast extra light regardless of the vanilla s_lightmap. Use this
-	with caution though because our floodfill isn't as accurate as vanilla.*/
 
 	if (mat < 50) {
 		if (mat < 26) {
 			if (mat < 14) {
 				if (mat < 8) {
 					if (mat < 5) {
-						if (mat == 2) return vec4(fireSpecialLightColor, 0.0); // Torch
-							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0); // End Rod - This is the base for all lights. Total value 12
-						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0); // Beacon
+						if (mat == 2) return vec4(fireSpecialLightColor, 0.0);
+							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0);
+						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0);
 					} else {
-						if (mat == 5) return vec4(fireSpecialLightColor, 0.0); // Fire
-						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0); // Sea Pickle:Waterlogged
-						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0); // Ochre Froglight
+						if (mat == 5) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0);
+						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0);
 					}
 				} else {
 					if (mat < 11) {
-						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0); // Verdant Froglight
-						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0); // Pearlescent Froglight
-						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Glowstone
+						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0);
+						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0);
+						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 11) return vec4(fireSpecialLightColor, 0.0); // Jack o'Lantern
-						if (mat == 12) return vec4(fireSpecialLightColor, 0.0); // Lantern
-						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8); // Lava
+						if (mat == 11) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 12) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8);
 					}
 				}
 			} else {
 				if (mat < 20) {
 					if (mat < 17) {
-						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0); // Lava Cauldron
-						if (mat == 15) return vec4(fireSpecialLightColor, 0.0); // Campfire:Lit
-						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Redstone Lamp:Lit
+						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0);
+						if (mat == 15) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Respawn Anchor:Lit
-						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0); // Sea Lantern
-						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0); // Shroomlight
+						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0);
+						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0);
 					}
 				} else {
 					if (mat < 23) {
-						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0); // Cave Vines:With Glow Berries
-						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0); // Furnace:Lit
-						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0); // Smoker:Lit
+						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0);
+						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0);
 					} else {
-						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0); // Blast Furnace:Lit
-						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight); // Standard Candles:Lit
-						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4); // Nether Portal
+						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight);
+						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4);
 					}
 				}
 			}
@@ -819,45 +608,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 38) {
 				if (mat < 32) {
 					if (mat < 29) {
-						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0); // Crying Obsidian
-						if (mat == 27) return soulFireSpecialColor; // Soul Fire
-						if (mat == 28) return soulFireSpecialColor; // Soul Torch
+						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0);
+						if (mat == 27) return soulFireSpecialColor;
+						if (mat == 28) return soulFireSpecialColor;
 					} else {
-						if (mat == 29) return soulFireSpecialColor; // Soul Lantern
-						if (mat == 30) return soulFireSpecialColor; // Soul Campfire:Lit
-						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1); // Redstone Ores:Lit
+						if (mat == 29) return soulFireSpecialColor;
+						if (mat == 30) return soulFireSpecialColor;
+						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1);
 					}
 				} else {
 					if (mat < 35) {
-						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00; // Redstone Ores:Unlit
-						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05); // Enchanting Table
-							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05); // Glow Lichen with IntegratedPBR
+						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00;
+						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05);
+							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05);
 					} else {
-						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0); // Redstone Torch
-						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05); // Amethyst Cluster, Amethyst Buds, Calibrated Sculk Sensor
-						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1); // Magma Block
+						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0);
+						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05);
+						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1);
 					}
 				}
 			} else {
 				if (mat < 44) {
 					if (mat < 41) {
-						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1); // Dragon Egg
-						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1); // Chorus Flower
-						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1); // Brewing Stand
+						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1);
+						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1);
+						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1);
 					} else {
-						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15); // Redstone Block
-						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15); // Lapis Block
-						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00; // Iron Ores
+						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15);
+						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15);
+						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00;
 					}
 				} else {
 					if (mat < 47) {
-						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00; // Gold Ores
-						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00; // Copper Ores
-						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00; // Lapis Ores
+						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00;
+						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00;
+						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00;
 					} else {
-						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00; // Emerald Ores
-						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00; // Diamond Ores
-						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00; // Nether Quartz Ore
+						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00;
+						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00;
+						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00;
 					}
 				}
 			}
@@ -867,45 +656,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 62) {
 				if (mat < 56) {
 					if (mat < 53) {
-						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00; // Nether Gold Ore
-						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05); // Gilded Blackstone
-						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15); // Ancient Debris
+						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00;
+						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05);
+						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15);
 					} else {
-						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05); // Spawner
-						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1); // Trial Spawner:NotOminous:Active, Vault:NotOminous:Active
-						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Copper Bulb:BrighterOnes:Lit
+						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05);
+						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1);
+						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					}
 				} else {
 					if (mat < 59) {
-						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Copper Bulb:DimmerOnes:Lit
-						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005); // Sculk++
-						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15); // End Portal Frame:Active
+						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005);
+						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15);
 					} else {
-						if (mat == 59) return vec4(0.0); // Bedrock
-						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125); // Command Block
-						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Warped Fungus, Crimson Fungus
+						if (mat == 59) return vec4(0.0);
+						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125);
+						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
 					}
 				}
 			} else {
 				if (mat < 68) {
 					if (mat < 65) {
-						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05); // Crimson Stem, Crimson Hyphae
-						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05); // Warped Stem, Warped Hyphae
-						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1); // Structure Block, Jigsaw Block, Test Block, Test Instance Block
+						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05);
+						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05);
+						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1);
 					} else {
-						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Weeping Vines Plant
-						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002); // Redstone Wire:Lit, Comparator:Unlit:Subtract
-						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125); // Repeater:Lit, Comparator:Lit
+						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
+						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002);
+						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125);
 					}
 				} else {
 					if (mat < 71) {
-						if (mat == 68) return vec4(vec3(0.75), 0.0); // Vault:Inactive
-						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1); // Trial Spawner:Ominous:Active, Vault:Ominous:Active
-						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight); // Red Candles:Lit
+						if (mat == 68) return vec4(vec3(0.75), 0.0);
+						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1);
+						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight); // Orange Candles:Lit
-						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight); // Yellow Candles:Lit
-						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight); // Lime Candles:Lit
+						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight);
 					}
 				}
 			}
@@ -913,22 +702,22 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 86) {
 				if (mat < 80) {
 					if (mat < 77) {
-						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight); // Green Candles:Lit
-						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight); // Cyan Candles:Lit
-						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight); // Light Blue Candles:Lit
+						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight);
+						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight); // Blue Candles:Lit
-						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight); // Purple Candles:Lit
-						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight); // Magenta Candles:Lit
+						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight);
 					}
 				} else {
 					if (mat < 83) {
-						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight); // Pink Candles:Lit
-						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125); // Open Eyeblossom
-						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05); // Creaking Heart: Active
+						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125);
+						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05);
 					} else {
-						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05); // Firefly Bush
-						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0); // Copper Torch, Copper Lantern
+						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05);
+						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0);
 						if (mat == 85) return vec4(0.0);
 					}
 				}
@@ -962,50 +751,50 @@ vec4 GetSpecialBlocklightColor(int mat) {
 }
 
 static const vec3 specialTintColor[20] = {
-	// 200: White
+
 	vec3(1.0),
-	// 201: Orange
+
 	vec3(1.0, 0.3, 0.1),
-	// 202: Magenta
+
 	vec3(1.0, 0.1, 1.0),
-	// 203: Light Blue
+
 	vec3(0.5, 0.65, 1.0),
-	// 204: Yellow
+
 	vec3(1.0, 1.0, 0.1),
-	// 205: Lime
+
 	vec3(0.1, 1.0, 0.1),
-	// 206: Pink
+
 	vec3(1.0, 0.4, 1.0),
-	// 207: Gray
+
 	vec3(1.0),
-	// 208: Light Gray
+
 	vec3(1.0),
-	// 209: Cyan
+
 	vec3(0.3, 0.8, 1.0),
-	// 210: Purple
+
 	vec3(0.7, 0.3, 1.0),
-	// 211: Blue
+
 	vec3(0.1, 0.15, 1.0),
-	// 212: Brown
+
 	vec3(1.0, 0.75, 0.5),
-	// 213: Green
+
 	vec3(0.3, 1.0, 0.3),
-	// 214: Red
+
 	vec3(1.0, 0.1, 0.1),
-	// 215: Black
+
 	vec3(1.0),
-	// 216: Ice
+
 	vec3(0.5, 0.65, 1.0),
-	// 217: Glass
+
 	vec3(1.0),
-	// 218: Glass Pane
+
 	vec3(1.0),
-	// 219++
+
 	vec3(0.0)
 };;
 
 static const vec3 caveFogColorRaw = vec3(0.13, 0.13, 0.15);
-static vec3 caveFogColorRaw2; // Default
+static vec3 caveFogColorRaw2;
 static vec3 caveFogColor;
 
 static vec3 underwaterColorM1;
@@ -1021,58 +810,13 @@ static const vec3 endSkyColor = vec3(0.095, 0.07, 0.15) * 1.65;
 static const float rainTexOpacity = 0.25;
 static const float snowTexOpacity = 0.5;
 
-
-static float cloudHeightM; // iris returns "nan" if there are no clouds
+static float cloudHeightM;
 static float cloudHeightOffset;
-static int cloudAlt1i; // Old setting files can send float values
+static int cloudAlt1i;
 static int cloudAlt2i;
 
-static const float OSIEBCA = 1.0 / 255.0; // One Step In Eight Bit Color Attachment
-    /* materialMask steps
-    0 to 240 - PBR Dependant:
-        IntegratedPBR:
-            0 to 99: deferredMaterials
-                OSIEBCA * 0.0 = *Unused as 0.0 is the default value*
-                OSIEBCA * 1.0 = Intense Fresnel
-                OSIEBCA * 2.0 = Copper Fresnel
-                OSIEBCA * 3.0 = Gold Fresnel
-                OSIEBCA * 4.0 =
-                OSIEBCA * 5.0 = Redstone Fresnel
-            100 to 199: Exact copy of deferredMaterials but toned down reflection handling for entities
-                materialMask += OSIEBCA * 100.0; // Entity Reflection Handling
-            200 to 240: Random checks
-                OSIEBCA * 240.0 = Green Screen Lime Blocks
-        seuspbr:
-            0 to 240: Increasing metalness
-        labPBR:
-            0 to 229: Increasing f0
-            230 to 240: Consistent metalness with still increasing f0
-    241 to 255 - PBR Independant:
-        OSIEBCA * 241.0 = Water
+static const float OSIEBCA = 1.0 / 255.0;
 
-        OSIEBCA * 251.0 = No SSAO, Reduce Reflection
-        OSIEBCA * 252.0 = Versatile Selection Outline
-        OSIEBCA * 253.0 = Reduced Edge 1 (Leaves)
-        OSIEBCA * 254.0 = No SSAO, No 1, Reduce Reflection
-        OSIEBCA * 255.0 = *Unused as 1.0 is the clear color*
-    */
-
-// 62 75 74 20 74 68 4F 73 65 20 77 68 6F 20 68 6F 70 65 20 69 6E 20 74 68 65 20 6C 69 6D 69 4E 61 6C 0A 77 69 6C 6C 20 72 65 6E 65 77 20 74 68 65 69 72 20 73 54 72 65 6E 67 74 48 2E 0A 74 68 65 79 20 77 69 6C 6C 20 73 6F 41 72 20 6F 6E 20 65 6C 79 54 72 61 73 20 6C 69 6B 65 20 70 68 61 6E 74 6F 6D 73 3B 0A 74 68 65 79 20 77 69 6C 6C 20 72 75 6E 20 61 6E 44 20 6E 6F 74 20 67 72 6F 77 20 77 65 41 72 79 2C 0A 74 68 65 59 20 77 69 6C 6C 20 77 61 6C 6B 20 61 6E 64 20 6E 6F 74 20 62 65 20 66 61 69 6E 74 2E
-
-//////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-
-//////////Vertex Shader//////////Vertex Shader//////////Vertex Shader//////////
-
-
-//Attributes//
-
-//Common Variables//
-
-//Common Functions//
-
-//Includes//
-
-//Program//
 void stageMain() {
     tAmin = fract(sunAngle - 0.033333333);
     tAlin = tAmin < 0.433333333 ? tAmin * 1.15384615385 : tAmin * 0.882352941176 + 0.117647058824;
@@ -1223,184 +967,11 @@ static float4x4 u_jProjectionMatrix;
 static float4x4 u_jTextureMatrix0;
 static float4x4 u_jTextureMatrix1;
 
+static const float shadowDistance = 192.0;
 
-// @included "/program/composite7.glsl"
-/////////////////////////////////////
-// Complementary Shaders by EminGT //
-/////////////////////////////////////
-
-//Common//
-// @included "/lib/common.glsl"
-/*---------------------------------------------------------------------
-         ___ __  __ ____   ___  ____ _____  _    _   _ _____
-        |_ _|  \/  |  _ \ / _ \|  _ \_   _|/ \  | \ | |_   _|
-         | || |\/| | |_) | | | | |_) || | / _ \ |  \| | | |
-         | || |  | |  __/| |_| |  _ < | |/ ___ \| |\  | | |
-        |___|_|  |_|_|    \___/|_| \_\|_/_/   \_\_| \_| |_|
-         .
-  -> -> -> EDITING THIS FILE HAS A HIGH CHANCE TO BREAK THE SHADER PACK
-  -> -> -> DO NOT CHANGE ANYTHING UNLESS YOU KNOW WHAT YOU ARE DOING
-  -> -> -> DO NOT EXPECT SUPPORT AFTER MODIFYING SHADER FILES
----------------------------------------------------------------------*/
-
-//User Settings//
-
-
-static const float shadowDistance = 192.0; //[64.0 80.0 96.0 112.0 128.0 160.0 192.0 224.0 256.0 320.0 384.0 512.0 768.0 1024.0]
-
-
-
-
-
-    //#define CLOUD_SHADOWS
-
-
-    //#define DOUBLE_REIM_CLOUDS
-
-
-
-    //#define LIGHTSHAFT_SMOKE
-
-
-
-    //#define WB_FOV_SCALED
-    //#define WB_CHROMATIC
-    //#define WB_ANAMORPHIC
-
-
-
-    //#define EMISSIVE_REDSTONE_BLOCK
-    //#define EMISSIVE_LAPIS_BLOCK
-    //#define GLOWING_ARMOR_TRIM
-
-    //#define IPBR_COMPAT_MODE_DEFINE
-
-    //#define POM_ALLOW_CUTOUT
-
-
-    //#define WAVING_LILY_PAD
-
-
-
-    //#define SELECT_OUTLINE_AUTO_HIDE
-
-    //#define WORLD_OUTLINE
-    //#define WORLD_OUTLINE_SCALED
-    //#define DARK_OUTLINE
-
-    //#define REDUCE_CLOSE_PARTICLES
-    //#define LESS_LAVA_FOG
-    //#define SNOWY_WORLD
-    //#define COLOR_CODED_PROGRAMS
-    //#define GLOWING_COLORED_PARTICLES
-
-    //#define MOON_PHASE_INF_LIGHT
-    //#define MOON_PHASE_INF_ATMOSPHERE
-
-    //#define PIXELATED_SHADOWS
-    //#define PIXELATED_BLOCKLIGHT
-    //#define PIXELATED_AO
-
-    //#define COLORGRADING
-
-    //#define LIGHT_COLOR_MULTS
-    //#define ATM_COLOR_MULTS
-
-
-
-
-//Internal Settings//
-
-
-
-
-    //#define SAFER_GENERATED_NORMALS
-
-
-//Extensions//
-
-//Information//
-
-//RP Mode, Visual Style and Performance Setting Handling//
-        //#define GENERATED_NORMALS
-        //#define COATED_TEXTURES
-        //#define GREEN_SCREEN_LIME
-
-        //#define WATER_CAUSTIC_STYLE_DEFAULT 1
-    // Thanks to SpacEagle17 and isuewo for the sun angle handling
 static const float sunPathRotation = 0.0;
 
 static const int shadowMapResolution = 2048;
-
-
-
-
-
-//Define Handling//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Activate Settings//
-
-//Very Common Stuff//
-// @included "/lib/uniforms.glsl"
-/*----------------------------------------------------------------------------------------------
-        _____                                                                    _____
-        ( ___ )                                                                  ( ___ )
-        |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   |
-        |   | ██╗   ██╗███╗   ██╗██╗███████╗ ██████╗ ██████╗ ███╗   ███╗███████╗ |   |
-        |   | ██║   ██║████╗  ██║██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║██╔════╝ |   |
-        |   | ██║   ██║██╔██╗ ██║██║█████╗  ██║   ██║██████╔╝██╔████╔██║███████╗ |   |
-        |   | ██║   ██║██║╚██╗██║██║██╔══╝  ██║   ██║██╔══██╗██║╚██╔╝██║╚════██║ |   |
-        |   | ╚██████╔╝██║ ╚████║██║██║     ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████║ |   |
-        |   |  ╚═════╝ ╚═╝  ╚═══╝╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝ |   |
-        |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___|
-        (_____)                              (thanks to isuewo and SpacEagle17)  (_____)
-
----------------------------------------------------------------------------------------------*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*-----------------------------------------------------------------------------
-  ___ _   _ ___ _____ ___  __  __   _   _ _  _ ___ ___ ___  ___ __  __ ___
- / __| | | / __|_   _/ _ \|  \/  | | | | | \| |_ _| __/ _ \| _ \  \/  / __|
-| (__| |_| \__ \ | || (_) | |\/| | | |_| | .` || || _| (_) |   / |\/| \__ 
- \___|\___/|___/ |_| \___/|_|  |_|  \___/|_|\_|___|_| \___/|_|_\_|  |_|___/
-
------------------------------------------------------------------------------*/
-
 
 static float tAmin;
 static float tAlin;
@@ -1410,12 +981,8 @@ static float tAfrs;
 static float tAmix;
 static float timeAngle;
 
-// @included "/lib/util/commonFunctions.glsl"
-// Do these via macro as Apple otherwise complains
-
 static float overworldAngleRaw;
 static float overworldAngle;
-
 
 float GetLuminance(vec3 color) {
     return dot(color, vec3(0.299, 0.587, 0.114));
@@ -1440,7 +1007,7 @@ float GetHorizonFactor(float XdotU) {
         return horizon * horizon * (3.0 - 2.0 * horizon);
 }
 
-bool CheckForColor(vec3 albedo, vec3 check) { // Thanks to Builderb0y - edited a bit later
+bool CheckForColor(vec3 albedo, vec3 check) {
     vec3 dif = albedo - check * 0.003921568;
     return dot(dif, dif) < 0.00001;
 }
@@ -1471,8 +1038,6 @@ float Noise3D(vec3 p) {
 float GetSkyLightFactor(vec2 lmCoordM, vec3 shadowMult) {
             float skyLightFactor = max(lmCoordM.y - 0.7, 0.0) * 3.33333;
                   skyLightFactor *= skyLightFactor;
-
-
 
     return skyLightFactor;
 }
@@ -1550,8 +1115,8 @@ vec4 pow3(vec4 x) {
     return pow2(x) * x;
 }
 
-float pow1_5(float x) { // Faster pow(x, 1.5) approximation (that isn't accurate at all) if x is between 0 and 1
-    return x - x * pow2(1.0 - x); // Thanks to SixthSurge
+float pow1_5(float x) {
+    return x - x * pow2(1.0 - x);
 }
 vec2 pow1_5(vec2 x) {
     return x - x * pow2(1.0 - x);
@@ -1563,8 +1128,8 @@ vec4 pow1_5(vec4 x) {
     return x - x * pow2(1.0 - x);
 }
 
-float sqrt1(float x) { // Faster sqrt() approximation (that isn't accurate at all) if x is between 0 and 1
-    return x * (2.0 - x); // Thanks to Builderb0y
+float sqrt1(float x) {
+    return x * (2.0 - x);
 }
 vec2 sqrt1(vec2 x) {
     return x * (2.0 - x);
@@ -1708,7 +1273,7 @@ static float invNoonFactor2;
 
 static float vsBrightness;
 
-static float nightVisionWithAddedSupport; // Add support for fullbright mods
+static float nightVisionWithAddedSupport;
 
 static int modifiedWorldDay;
 static float syncedTime;
@@ -1722,7 +1287,6 @@ static ivec3 cameraPositionBestInt;
 static vec3 cameraPositionBestFract;
 static vec3 previousCameraPositionBestFract;
 
-// @included "/lib/colors/blocklightColors.glsl"
 void AddSpecialLightDetail(inout vec3 light, vec3 albedo, float emission) {
 	vec3 lightM = max(light, vec3(0.0));
 	lightM /= (0.2 + 0.8 * GetLuminance(lightM));
@@ -1744,57 +1308,51 @@ static float candleColorMult;
 static float candleExtraLight;
 
 vec4 GetSpecialBlocklightColor(int mat) {
-	/* Please note that these colors do not determine the intensity of the
-	final light. Instead; higher values of color change how long the color
-	will travel, and also how dominant it will be next to other colors.*/
-	/* Additional feature: An alpha value bigger than 0 will make that
-	block cast extra light regardless of the vanilla s_lightmap. Use this
-	with caution though because our floodfill isn't as accurate as vanilla.*/
 
 	if (mat < 50) {
 		if (mat < 26) {
 			if (mat < 14) {
 				if (mat < 8) {
 					if (mat < 5) {
-						if (mat == 2) return vec4(fireSpecialLightColor, 0.0); // Torch
-							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0); // End Rod - This is the base for all lights. Total value 12
-						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0); // Beacon
+						if (mat == 2) return vec4(fireSpecialLightColor, 0.0);
+							if (mat == 3) return vec4(vec3(1.0, 1.0, 1.0) * 4.0, 0.0);
+						if (mat == 4) return vec4(vec3(0.7, 1.5, 2.0) * 3.0, 0.0);
 					} else {
-						if (mat == 5) return vec4(fireSpecialLightColor, 0.0); // Fire
-						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0); // Sea Pickle:Waterlogged
-						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0); // Ochre Froglight
+						if (mat == 5) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 6) return vec4(vec3(0.7, 1.5, 1.5) * 1.7, 0.0);
+						if (mat == 7) return vec4(vec3(1.1, 0.85, 0.35) * 5.0, 0.0);
 					}
 				} else {
 					if (mat < 11) {
-						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0); // Verdant Froglight
-						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0); // Pearlescent Froglight
-						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Glowstone
+						if (mat == 8) return vec4(vec3(0.6, 1.3, 0.6) * 4.5, 0.0);
+						if (mat == 9) return vec4(vec3(1.1, 0.5, 0.9) * 4.5, 0.0);
+						if (mat == 10) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 11) return vec4(fireSpecialLightColor, 0.0); // Jack o'Lantern
-						if (mat == 12) return vec4(fireSpecialLightColor, 0.0); // Lantern
-						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8); // Lava
+						if (mat == 11) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 12) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 13) return vec4(lavaSpecialLightColor, 0.8);
 					}
 				}
 			} else {
 				if (mat < 20) {
 					if (mat < 17) {
-						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0); // Lava Cauldron
-						if (mat == 15) return vec4(fireSpecialLightColor, 0.0); // Campfire:Lit
-						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Redstone Lamp:Lit
+						if (mat == 14) return vec4(lavaSpecialLightColor, 0.0);
+						if (mat == 15) return vec4(fireSpecialLightColor, 0.0);
+						if (mat == 16) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					} else {
-						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Respawn Anchor:Lit
-						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0); // Sea Lantern
-						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0); // Shroomlight
+						if (mat == 17) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 18) return vec4(vec3(1.0, 1.25, 1.5) * 3.4, 0.0);
+						if (mat == 19) return vec4(vec3(3.0, 0.9, 0.2) * 3.0, 0.0);
 					}
 				} else {
 					if (mat < 23) {
-						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0); // Cave Vines:With Glow Berries
-						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0); // Furnace:Lit
-						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0); // Smoker:Lit
+						if (mat == 20) return vec4(vec3(2.3, 0.9, 0.2) * 3.4, 0.0);
+						if (mat == 21) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 22) return vec4(fireSpecialLightColor * 0.7, 0.0);
 					} else {
-						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0); // Blast Furnace:Lit
-						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight); // Standard Candles:Lit
-						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4); // Nether Portal
+						if (mat == 23) return vec4(fireSpecialLightColor * 0.7, 0.0);
+						if (mat == 24) return vec4(fireSpecialLightColor * 0.25 * candleColorMult, candleExtraLight);
+						if (mat == 25) return vec4(netherPortalSpecialLightColor * 2.0, 0.4);
 					}
 				}
 			}
@@ -1802,45 +1360,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 38) {
 				if (mat < 32) {
 					if (mat < 29) {
-						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0); // Crying Obsidian
-						if (mat == 27) return soulFireSpecialColor; // Soul Fire
-						if (mat == 28) return soulFireSpecialColor; // Soul Torch
+						if (mat == 26) return vec4(netherPortalSpecialLightColor, 0.0);
+						if (mat == 27) return soulFireSpecialColor;
+						if (mat == 28) return soulFireSpecialColor;
 					} else {
-						if (mat == 29) return soulFireSpecialColor; // Soul Lantern
-						if (mat == 30) return soulFireSpecialColor; // Soul Campfire:Lit
-						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1); // Redstone Ores:Lit
+						if (mat == 29) return soulFireSpecialColor;
+						if (mat == 30) return soulFireSpecialColor;
+						if (mat == 31) return vec4(redstoneSpecialLightColor * 0.5, 0.1);
 					}
 				} else {
 					if (mat < 35) {
-						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00; // Redstone Ores:Unlit
-						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05); // Enchanting Table
-							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05); // Glow Lichen with IntegratedPBR
+						if (mat == 32) return vec4(redstoneSpecialLightColor * 0.3, 0.1) * 1.00;
+						if (mat == 33) return vec4(vec3(1.4, 1.1, 0.5), 0.05);
+							if (mat == 34) return vec4(vec3(0.8, 1.1, 1.1), 0.05);
 					} else {
-						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0); // Redstone Torch
-						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05); // Amethyst Cluster, Amethyst Buds, Calibrated Sculk Sensor
-						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1); // Magma Block
+						if (mat == 35) return vec4(redstoneSpecialLightColor * 0.25, 0.0);
+						if (mat == 36) return vec4(vec3(0.325, 0.15, 0.425) * 2.0, 0.05);
+						if (mat == 37) return vec4(lavaSpecialLightColor * 0.1, 0.1);
 					}
 				}
 			} else {
 				if (mat < 44) {
 					if (mat < 41) {
-						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1); // Dragon Egg
-						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1); // Chorus Flower
-						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1); // Brewing Stand
+						if (mat == 38) return vec4(vec3(2.0, 0.5, 1.5) * 0.3, 0.1);
+						if (mat == 39) return vec4(vec3(2.0, 1.0, 1.5) * 0.25, 0.1);
+						if (mat == 40) return vec4(vec3(2.5, 1.2, 0.4) * 0.1, 0.1);
 					} else {
-						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15); // Redstone Block
-						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15); // Lapis Block
-						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00; // Iron Ores
+						if (mat == 41) return vec4(redstoneSpecialLightColor * 0.4, 0.15);
+						if (mat == 42) return vec4(vec3(0.75, 0.75, 3.0) * 0.277, 0.15);
+						if (mat == 43) return vec4(vec3(1.7, 0.9, 0.4) * 0.45, 0.05) * 1.00;
 					}
 				} else {
 					if (mat < 47) {
-						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00; // Gold Ores
-						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00; // Copper Ores
-						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00; // Lapis Ores
+						if (mat == 44) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.1) * 1.00;
+						if (mat == 45) return vec4(vec3(1.7, 0.8, 0.4) * 0.45, 0.05) * 1.00;
+						if (mat == 46) return vec4(vec3(0.75, 0.75, 3.0) * 0.2, 0.1) * 1.00;
 					} else {
-						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00; // Emerald Ores
-						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00; // Diamond Ores
-						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00; // Nether Quartz Ore
+						if (mat == 47) return vec4(vec3(0.5, 3.5, 0.5) * 0.3, 0.1) * 1.00;
+						if (mat == 48) return vec4(vec3(0.5, 2.0, 2.0) * 0.4, 0.15) * 1.00;
+						if (mat == 49) return vec4(vec3(1.5, 1.5, 1.5) * 0.3, 0.05) * 1.00;
 					}
 				}
 			}
@@ -1850,45 +1408,45 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 62) {
 				if (mat < 56) {
 					if (mat < 53) {
-						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00; // Nether Gold Ore
-						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05); // Gilded Blackstone
-						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15); // Ancient Debris
+						if (mat == 50) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05) * 1.00;
+						if (mat == 51) return vec4(vec3(1.7, 1.1, 0.2) * 0.45, 0.05);
+						if (mat == 52) return vec4(vec3(1.8, 0.8, 0.4) * 0.6, 0.15);
 					} else {
-						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05); // Spawner
-						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1); // Trial Spawner:NotOminous:Active, Vault:NotOminous:Active
-						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0); // Copper Bulb:BrighterOnes:Lit
+						if (mat == 53) return vec4(vec3(1.4, 0.2, 1.4) * 0.3, 0.05);
+						if (mat == 54) return vec4(vec3(3.1, 1.1, 0.3) * 1.0, 0.1);
+						if (mat == 55) return vec4(vec3(1.7, 0.9, 0.4) * 4.0, 0.0);
 					}
 				} else {
 					if (mat < 59) {
-						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0); // Copper Bulb:DimmerOnes:Lit
-						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005); // Sculk++
-						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15); // End Portal Frame:Active
+						if (mat == 56) return vec4(vec3(1.7, 0.9, 0.4) * 2.0, 0.0);
+						if (mat == 57) return vec4(vec3(0.1, 0.3, 0.4) * 0.5, 0.0005);
+						if (mat == 58) return vec4(vec3(0.0, 1.4, 1.4) * 4.0, 0.15);
 					} else {
-						if (mat == 59) return vec4(0.0); // Bedrock
-						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125); // Command Block
-						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Warped Fungus, Crimson Fungus
+						if (mat == 59) return vec4(0.0);
+						if (mat == 60) return vec4(vec3(3.1, 1.1, 0.3) * 0.125, 0.0125);
+						if (mat == 61) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
 					}
 				}
 			} else {
 				if (mat < 68) {
 					if (mat < 65) {
-						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05); // Crimson Stem, Crimson Hyphae
-						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05); // Warped Stem, Warped Hyphae
-						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1); // Structure Block, Jigsaw Block, Test Block, Test Instance Block
+						if (mat == 62) return vec4(vec3(3.5, 0.6, 0.4) * 0.3, 0.05);
+						if (mat == 63) return vec4(vec3(0.3, 1.9, 1.5) * 0.3, 0.05);
+						if (mat == 64) return vec4(vec3(1.0, 1.0, 1.0) * 0.45, 0.1);
 					} else {
-						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125); // Weeping Vines Plant
-						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002); // Redstone Wire:Lit, Comparator:Unlit:Subtract
-						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125); // Repeater:Lit, Comparator:Lit
+						if (mat == 65) return vec4(vec3(3.0, 0.9, 0.2) * 0.125, 0.0125);
+						if (mat == 66) return vec4(redstoneSpecialLightColor * 0.05, 0.002);
+						if (mat == 67) return vec4(redstoneSpecialLightColor * 0.125, 0.0125);
 					}
 				} else {
 					if (mat < 71) {
-						if (mat == 68) return vec4(vec3(0.75), 0.0); // Vault:Inactive
-						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1); // Trial Spawner:Ominous:Active, Vault:Ominous:Active
-						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight); // Red Candles:Lit
+						if (mat == 68) return vec4(vec3(0.75), 0.0);
+						if (mat == 69) return vec4(vec3(1.3, 1.6, 1.6) * 1.0, 0.1);
+						if (mat == 70) return vec4(vec3(1.0, 0.1, 0.1) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight); // Orange Candles:Lit
-						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight); // Yellow Candles:Lit
-						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight); // Lime Candles:Lit
+						if (mat == 71) return vec4(vec3(1.0, 0.4, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 72) return vec4(vec3(1.0, 1.0, 0.1) * candleColorMult, candleExtraLight);
+						if (mat == 73) return vec4(vec3(0.1, 1.0, 0.1) * candleColorMult, candleExtraLight);
 					}
 				}
 			}
@@ -1896,22 +1454,22 @@ vec4 GetSpecialBlocklightColor(int mat) {
 			if (mat < 86) {
 				if (mat < 80) {
 					if (mat < 77) {
-						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight); // Green Candles:Lit
-						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight); // Cyan Candles:Lit
-						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight); // Light Blue Candles:Lit
+						if (mat == 74) return vec4(vec3(0.3, 1.0, 0.3) * candleColorMult, candleExtraLight);
+						if (mat == 75) return vec4(vec3(0.3, 0.8, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 76) return vec4(vec3(0.5, 0.65, 1.0) * candleColorMult, candleExtraLight);
 					} else {
-						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight); // Blue Candles:Lit
-						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight); // Purple Candles:Lit
-						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight); // Magenta Candles:Lit
+						if (mat == 77) return vec4(vec3(0.1, 0.15, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 78) return vec4(vec3(0.7, 0.3, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 79) return vec4(vec3(1.0, 0.1, 1.0) * candleColorMult, candleExtraLight);
 					}
 				} else {
 					if (mat < 83) {
-						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight); // Pink Candles:Lit
-						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125); // Open Eyeblossom
-						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05); // Creaking Heart: Active
+						if (mat == 80) return vec4(vec3(1.0, 0.4, 1.0) * candleColorMult, candleExtraLight);
+						if (mat == 81) return vec4(vec3(2.8, 1.1, 0.2) * 0.125, 0.0125);
+						if (mat == 82) return vec4(vec3(2.8, 1.1, 0.2) * 0.3, 0.05);
 					} else {
-						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05); // Firefly Bush
-						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0); // Copper Torch, Copper Lantern
+						if (mat == 83) return vec4(vec3(1.6, 1.6, 0.7) * 0.3, 0.05);
+						if (mat == 84) return vec4(vec3(0.85, 1.3, 1.0) * 3.9, 0.0);
 						if (mat == 85) return vec4(0.0);
 					}
 				}
@@ -1945,50 +1503,50 @@ vec4 GetSpecialBlocklightColor(int mat) {
 }
 
 static const vec3 specialTintColor[20] = {
-	// 200: White
+
 	vec3(1.0),
-	// 201: Orange
+
 	vec3(1.0, 0.3, 0.1),
-	// 202: Magenta
+
 	vec3(1.0, 0.1, 1.0),
-	// 203: Light Blue
+
 	vec3(0.5, 0.65, 1.0),
-	// 204: Yellow
+
 	vec3(1.0, 1.0, 0.1),
-	// 205: Lime
+
 	vec3(0.1, 1.0, 0.1),
-	// 206: Pink
+
 	vec3(1.0, 0.4, 1.0),
-	// 207: Gray
+
 	vec3(1.0),
-	// 208: Light Gray
+
 	vec3(1.0),
-	// 209: Cyan
+
 	vec3(0.3, 0.8, 1.0),
-	// 210: Purple
+
 	vec3(0.7, 0.3, 1.0),
-	// 211: Blue
+
 	vec3(0.1, 0.15, 1.0),
-	// 212: Brown
+
 	vec3(1.0, 0.75, 0.5),
-	// 213: Green
+
 	vec3(0.3, 1.0, 0.3),
-	// 214: Red
+
 	vec3(1.0, 0.1, 0.1),
-	// 215: Black
+
 	vec3(1.0),
-	// 216: Ice
+
 	vec3(0.5, 0.65, 1.0),
-	// 217: Glass
+
 	vec3(1.0),
-	// 218: Glass Pane
+
 	vec3(1.0),
-	// 219++
+
 	vec3(0.0)
 };;
 
 static const vec3 caveFogColorRaw = vec3(0.13, 0.13, 0.15);
-static vec3 caveFogColorRaw2; // Default
+static vec3 caveFogColorRaw2;
 static vec3 caveFogColor;
 
 static vec3 underwaterColorM1;
@@ -2006,60 +1564,19 @@ static const float snowTexOpacity = 0.5;
 
 static ivec2 texelCoord;
 
-static float cloudHeightM; // iris returns "nan" if there are no clouds
+static float cloudHeightM;
 static float cloudHeightOffset;
-static int cloudAlt1i; // Old setting files can send float values
+static int cloudAlt1i;
 static int cloudAlt2i;
 
-static const float OSIEBCA = 1.0 / 255.0; // One Step In Eight Bit Color Attachment
-    /* materialMask steps
-    0 to 240 - PBR Dependant:
-        IntegratedPBR:
-            0 to 99: deferredMaterials
-                OSIEBCA * 0.0 = *Unused as 0.0 is the default value*
-                OSIEBCA * 1.0 = Intense Fresnel
-                OSIEBCA * 2.0 = Copper Fresnel
-                OSIEBCA * 3.0 = Gold Fresnel
-                OSIEBCA * 4.0 =
-                OSIEBCA * 5.0 = Redstone Fresnel
-            100 to 199: Exact copy of deferredMaterials but toned down reflection handling for entities
-                materialMask += OSIEBCA * 100.0; // Entity Reflection Handling
-            200 to 240: Random checks
-                OSIEBCA * 240.0 = Green Screen Lime Blocks
-        seuspbr:
-            0 to 240: Increasing metalness
-        labPBR:
-            0 to 229: Increasing f0
-            230 to 240: Consistent metalness with still increasing f0
-    241 to 255 - PBR Independant:
-        OSIEBCA * 241.0 = Water
+static const float OSIEBCA = 1.0 / 255.0;
 
-        OSIEBCA * 251.0 = No SSAO, Reduce Reflection
-        OSIEBCA * 252.0 = Versatile Selection Outline
-        OSIEBCA * 253.0 = Reduced Edge 1 (Leaves)
-        OSIEBCA * 254.0 = No SSAO, No 1, Reduce Reflection
-        OSIEBCA * 255.0 = *Unused as 1.0 is the clear color*
-    */
-
-// 62 75 74 20 74 68 4F 73 65 20 77 68 6F 20 68 6F 70 65 20 69 6E 20 74 68 65 20 6C 69 6D 69 4E 61 6C 0A 77 69 6C 6C 20 72 65 6E 65 77 20 74 68 65 69 72 20 73 54 72 65 6E 67 74 48 2E 0A 74 68 65 79 20 77 69 6C 6C 20 73 6F 41 72 20 6F 6E 20 65 6C 79 54 72 61 73 20 6C 69 6B 65 20 70 68 61 6E 74 6F 6D 73 3B 0A 74 68 65 79 20 77 69 6C 6C 20 72 75 6E 20 61 6E 44 20 6E 6F 74 20 67 72 6F 77 20 77 65 41 72 79 2C 0A 74 68 65 59 20 77 69 6C 6C 20 77 61 6C 6B 20 61 6E 64 20 6E 6F 74 20 62 65 20 66 61 69 6E 74 2E
-
-//////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
-
-
-//Pipeline Constants//
-
-//Common Variables//
-
-//Common Functions//
 float GetLinearDepth(float depth) {
     return (2.0 * near) / (far + near - depth * (far - near));
 }
 
-//Includes//
-// @included "/lib/antialiasing/fxaa.glsl"
 static ivec2 neighbourhoodOffsets[8];
 
-//FXAA 3.11 from http://blog.simonrodriguez.fr/articles/30-07-2016_implementing_fxaa.html
 static float quality[12];
 
 void FXAA311(inout vec3 color) {
@@ -2199,7 +1716,6 @@ void FXAA311(inout vec3 color) {
 
         finalOffset = max(finalOffset, subPixelOffsetFinal);
 
-        // Compute the final UV coordinates.
         vec2 finalUv = texCoord;
         if (isHorizontal) {
             finalUv.y += finalOffset * stepLength;
@@ -2209,8 +1725,6 @@ void FXAA311(inout vec3 color) {
 
         vec3 newColor = texture2D(s_colortex3, finalUv).rgb;
 
-
-            // Less FXAA when moving
             float skipFXAA = min(
                 20.0 * length(cameraPosition - previousCameraPosition),
                 10 * 0.1
@@ -2237,12 +1751,9 @@ void FXAA311(inout vec3 color) {
 
         color = mix(newColor, color, skipFXAA);
 
-        // debug
-        //if (skipFXAA > texCoord.y && texCoord.x < 0.02) color.rgb = vec3(1,0,1);
     }
 }
 
-//Program//
 void stageMain() {
     tAmin = fract(sunAngle - 0.033333333);
     tAlin = tAmin < 0.433333333 ? tAmin * 1.15384615385 : tAmin * 0.882352941176 + 0.117647058824;
@@ -2314,13 +1825,10 @@ void stageMain() {
 
         FXAA311(color);
 
-    /* DRAWBUFFERS:3 */
     gl_FragData0 = vec4(color, 1.0);
 }
 }
 
-// the pack spells matrix math M * v; slang only defines mul():
-// cover the pack's combinations so bodies stay untouched.
 float2 operator*(float2x2 m, float2 v) { return mul(m, v); }
 float2 operator*(float2 v, float2x2 m) { return mul(v, m); }
 float3 operator*(float3x3 m, float3 v) { return mul(m, v); }
@@ -2331,8 +1839,6 @@ float2x2 operator*(float2x2 a, float2x2 b) { return mul(a, b); }
 float3x3 operator*(float3x3 a, float3x3 b) { return mul(a, b); }
 float4x4 operator*(float4x4 a, float4x4 b) { return mul(a, b); }
 
-// manual depth compare keeps the pack's own PCF taps; works with the
-// existing non-comparison depth samplers until an RHI compare sampler exists.
 float4 javaShadow2D(Texture2D t, SamplerState s, float3 uvw)
 { if (u_shadowInfo.w <= 0.0 || any(uvw.xyz < 0.0) || any(uvw.xyz > 1.0)) return float4(1.0); return float4(step(uvw.z, t.Sample(s, uvw.xy).r)); }
 float4 javaShadow2D(Texture2D t, SamplerState s, float4 uvw)
@@ -2343,7 +1849,6 @@ float javaTextureProj(Texture2D t, SamplerState s, float4 uvw)
 { float w = max(uvw.w, 1e-6); return t.Sample(s, uvw.xy / w).r; }
 int2 javaTextureSize(Texture2D t, int lod) { uint w = 0, h = 0, n = 0; t.GetDimensions(uint(lod), w, h, n); return int2(w, h); }
 
-// engine light bytes are 0..15 levels; the pack wants 0..1
 float4 javaLightCoord(float4 t) { return float4((t.xy * 255.0 + 8.0) / 256.0, t.zw); }
 
 VsOut vsMain(VsIn input)

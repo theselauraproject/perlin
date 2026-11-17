@@ -15,7 +15,7 @@ namespace perlin::server {
     extern const size_t kTerrainShaderPackSize;
 
     namespace {
-        // chunks per dispatch; the cell buffer is sized for it
+
         constexpr uint32_t kBatch = 16;
         constexpr uint64_t kCellsPerChunk = static_cast<uint64_t>(kHeight) * 256;
 
@@ -67,7 +67,7 @@ namespace perlin::server {
                     note = "terrain shader pack has no terrain_flat program";
                     return false;
                 }
-                // the best adapter whose api the pack carries a compute shader for
+
                 for (const conduit::candidate& c : probe.candidates) {
                     if (!c.adapter.usable)
                         continue;
@@ -229,7 +229,7 @@ namespace perlin::server {
                 for (uint32_t n = 0; n < count; n++) {
                     const uint32_t* chunk = cells + static_cast<uint64_t>(n) * kCellsPerChunk;
                     for (int sec = 0; sec < kSections; sec++) {
-                        // the gpu lays a chunk out y-major; the wire wants x outermost and y innermost
+
                         for (int y = 0; y < 16; y++)
                             for (int z = 0; z < 16; z++)
                                 for (int x = 0; x < 16; x++)

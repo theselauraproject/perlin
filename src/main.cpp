@@ -1,23 +1,31 @@
-#include "client/SampleProfiler.hpp"
+#include "client/selftest/SelfTests.hpp"
+#include <string_view>
+#include "util/TaskGroup.hpp"
+#include "client/systems/diagnostics/SampleProfiler.hpp"
 #include "util/Relaunch.hpp"
-#include "client/EmbeddedProvider.hpp"
-#include "client/Perlin.hpp"
+#include "client/platform/EmbeddedProvider.hpp"
+#include "client/application/Perlin.hpp"
+#include "client/systems/renderer/chunk/MeshBench.hpp"
+#include "client/services/discord/DiscordRpc.hpp"
 #include "client/platform/sdl/AppPlatform_SDL.hpp"
 #include "util/GraphicsDebugger.hpp"
 #include "util/Paths.hpp"
 
 #include <SDL3/SDL_main.h>
-#include "client/update/Updater.hpp"
+#include "client/services/update/Updater.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #if defined(__GLIBC__)
+#include <csignal>
+#include <cstring>
+#include <execinfo.h>
+#include <fcntl.h>
 #include <malloc.h>
 #endif
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -42,6 +50,10 @@
 #include <thread>
 
 namespace {
+    std::unique_ptr<perlin::Application> MakeApplication(const perlin::LaunchArgs& args) {
+        return std::make_unique<perlin::Perlin>(args);
+    }
+
     void BootMark(const char* what) {
         const std::string dir = perlin::paths::DataDir();
         std::error_code ec;
@@ -211,6 +223,13 @@ namespace {
             args.hidden = true;
         for (int i = 1; i < argc; i++) {
             const std::string arg = argv[i];
+
+            if (arg.starts_with("perlin://")) {
+                args.server = perlin::discord::ServerFromUrl(arg);
+                continue;
+            }
+            if (arg.starts_with("discord-"))
+                continue;
             if (arg == "--join" && i + 1 < argc)
                 args.server = argv[++i];
             else if (arg == "--name" && i + 1 < argc)
@@ -282,7 +301,55 @@ namespace {
     }
 }
 
+#if defined(__GLIBC__)
+namespace {
+    char gCrashLogPath[1024];
+    char gEarlyCrashPath[1024];
+    time_t gStartSeconds = 0;
+    void OnFatalSignal(int sig) {
+        static volatile sig_atomic_t entered = 0;
+        if (!entered) {
+            entered = 1;
+            const char* name = sig == SIGSEGV   ? "SIGSEGV"
+                               : sig == SIGABRT ? "SIGABRT"
+                               : sig == SIGBUS  ? "SIGBUS"
+                               : sig == SIGFPE  ? "SIGFPE"
+                                                : "SIGILL";
+            timespec now{};
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            if (now.tv_sec - gStartSeconds < 120) {
+                const int mark = open(gEarlyCrashPath, O_WRONLY | O_APPEND | O_CREAT, 0644);
+                if (mark >= 0) {
+                    (void)!write(mark, "x", 1);
+                    close(mark);
+                }
+            }
+            void* frames[64];
+            const int depth = backtrace(frames, 64);
+            for (int pass = 0; pass < 2; pass++) {
+                const int fd = pass == 0 ? open(gCrashLogPath, O_WRONLY | O_APPEND | O_CREAT, 0644) : 2;
+                if (fd < 0)
+                    continue;
+                static const char head[] = "[crash] fatal signal ";
+                (void)!write(fd, head, sizeof(head) - 1);
+                (void)!write(fd, name, std::strlen(name));
+                (void)!write(fd, "; stack:\n", 9);
+                backtrace_symbols_fd(frames, depth, fd);
+                if (pass == 0)
+                    close(fd);
+            }
+        }
+        std::signal(sig, SIG_DFL);
+        raise(sig);
+    }
+}
+#endif
+
 int main(int argc, char** argv) {
+    if (argc >= 3 && std::string_view(argv[1]) == "--selftest") {
+        perlin::RegisterEmbeddedResources();
+        return perlin::selftest::Run(argv[2]);
+    }
 #if defined(__GLIBC__)
     mallopt(M_ARENA_MAX, 2);
     mallopt(M_MMAP_THRESHOLD, 256 * 1024);
@@ -301,6 +368,21 @@ int main(int argc, char** argv) {
 #ifdef _WIN32
     SetUnhandledExceptionFilter(CrashFilter);
 #endif
+#if defined(__GLIBC__)
+    std::snprintf(gCrashLogPath, sizeof(gCrashLogPath), "%s/perlin.log", dataDir.c_str());
+    std::snprintf(gEarlyCrashPath, sizeof(gEarlyCrashPath), "%s/gpu-early-crash", dataDir.c_str());
+    {
+        timespec started{};
+        clock_gettime(CLOCK_MONOTONIC, &started);
+        gStartSeconds = started.tv_sec;
+    }
+    {
+        void* warm[4];
+        backtrace(warm, 4);
+    }
+    for (int sig : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL})
+        std::signal(sig, OnFatalSignal);
+#endif
     std::printf("[boot] exe dir %s\n", perlin::paths::ExeDir().c_str());
     if (perlin::gfxdebug::WantsRenderDoc(argc, argv)) {
         perlin::paths::EnsureDir(dataDir + "/captures");
@@ -309,6 +391,19 @@ int main(int argc, char** argv) {
     if (const char* tool = perlin::gfxdebug::Attached())
         std::printf("[perlin] %s is attached: single device, no pipeline cache, no failure records\n", tool);
     perlin::RegisterEmbeddedResources();
+    for (int i = 1; i < argc; i++)
+        if (std::string(argv[i]) == "--uibench" && i + 1 < argc)
+            return perlin::RunUiBench(argv[i + 1], i + 2 < argc ? std::atoi(argv[i + 2]) : 3);
+        else if (std::string(argv[i]) == "--meshbench")
+            return perlin::RunMeshBench(i + 1 < argc ? std::atoi(argv[i + 1]) : 6, i + 2 < argc ? std::atoi(argv[i + 2]) : 3);
+#ifndef __EMSCRIPTEN__
+
+    perlin::ProcessTasks().Run([] {
+        const std::string exe = perlin::paths::ExePath();
+        perlin::discord::RegisterUrlScheme("perlin", exe);
+        perlin::discord::RegisterLaunch("1568359857915039784", exe);
+    });
+#endif
     std::printf("[boot] embedded resources registered\n");
     perlin::update::OnStartup();
     perlin::paths::EnsureDir(dataDir + "/texturepacks");
@@ -322,12 +417,12 @@ int main(int argc, char** argv) {
     }
 
 #ifdef __EMSCRIPTEN__
-    auto* platform = new AppPlatform_SDL(ParseArgs(argc, argv));
+    auto* platform = new AppPlatform_SDL(ParseArgs(argc, argv), MakeApplication);
     if (!platform->Initialize())
         return 1;
     return 0;
 #else
-    AppPlatform_SDL platform(ParseArgs(argc, argv));
+    AppPlatform_SDL platform(ParseArgs(argc, argv), MakeApplication);
     std::printf("[boot] starting the window and renderer\n");
     BootMark("starting the window and renderer");
     if (!platform.Initialize()) {
@@ -339,6 +434,7 @@ int main(int argc, char** argv) {
 
     platform.Run();
     platform.Shutdown();
+    perlin::ProcessTasks().Shutdown();
     perlin::update::OnExit();
     return 0;
 #endif

@@ -1,5 +1,5 @@
 #include "client/ui/TenFont.hpp"
-#include "client/ui/McFont.hpp"
+#include "client/systems/text/McFont.hpp"
 #include <bit>
 #include <cmath>
 #include <fstream>

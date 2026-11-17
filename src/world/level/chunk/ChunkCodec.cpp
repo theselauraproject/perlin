@@ -1,6 +1,6 @@
 #include "world/level/chunk/ChunkCodec.hpp"
 
-#include "network/VarInt.hpp"
+#include "util/VarInt.hpp"
 
 #include <algorithm>
 #include <map>
@@ -203,7 +203,7 @@ namespace perlin {
             unsigned bpb = hdr >> 1;
             if (!ValidBits(bpb))
                 return fail("invalid bits-per-block");
-            st.bitsPerBlock = (int)bpb;
+            st.bitsPerBlock = static_cast<int>(bpb);
             size_t nwords = WordCount(bpb);
             st.words.resize(nwords);
             for (size_t i = 0; i < nwords; i++)
@@ -240,9 +240,9 @@ namespace perlin {
             int32_t count = 0;
             if (!r.ReadZigzag32(count) || count <= 0 || count > 4096)
                 return fail("bad palette size");
-            st.palette.resize((size_t)count);
+            st.palette.resize(static_cast<size_t>(count));
             for (int32_t i = 0; i < count; i++)
-                if (!readOne(st.palette[(size_t)i]))
+                if (!readOne(st.palette[static_cast<size_t>(i)]))
                     return fail("palette truncated");
             return true;
         }
@@ -317,17 +317,17 @@ namespace perlin {
             out.fill(0);
             return true;
         }
-        unsigned bpb = (unsigned)st.bitsPerBlock;
+        unsigned bpb = static_cast<unsigned>(st.bitsPerBlock);
         unsigned perWord = 32 / bpb;
         uint32_t mask = (1u << bpb) - 1;
         if (st.words.size() < WordCount(bpb))
             return false;
-        for (unsigned pos = 0; pos < (unsigned)kCells; pos++) {
+        for (unsigned pos = 0; pos < static_cast<unsigned>(kCells); pos++) {
             uint32_t w = st.words[pos / perWord];
             uint32_t idx = (w >> ((pos % perWord) * bpb)) & mask;
             if (idx >= st.palette.size())
                 return false;
-            out[pos] = (uint16_t)idx;
+            out[pos] = static_cast<uint16_t>(idx);
         }
         return true;
     }
@@ -337,7 +337,7 @@ namespace perlin {
         if (!ExpandIndices(st, idx))
             return false;
         for (int i = 0; i < kCells; i++)
-            out[(size_t)i] = st.palette[idx[(size_t)i]];
+            out[static_cast<size_t>(i)] = st.palette[idx[static_cast<size_t>(i)]];
         return true;
     }
 
@@ -346,12 +346,13 @@ namespace perlin {
         std::map<int32_t, uint32_t> lookup;
         std::vector<uint32_t> idx(kCells);
         for (int i = 0; i < kCells; i++) {
-            auto it = lookup.find(cells[(size_t)i]);
+            auto it = lookup.find(cells[static_cast<size_t>(i)]);
             if (it == lookup.end()) {
-                it = lookup.emplace(cells[(size_t)i], (uint32_t)palette.size()).first;
-                palette.push_back(cells[(size_t)i]);
+                it = lookup.emplace(cells[static_cast<size_t>(i)], static_cast<uint32_t>(palette.size()))
+                         .first;
+                palette.push_back(cells[static_cast<size_t>(i)]);
             }
-            idx[(size_t)i] = it->second;
+            idx[static_cast<size_t>(i)] = it->second;
         }
         unsigned need = 0;
         while ((1u << need) < palette.size())
@@ -365,18 +366,18 @@ namespace perlin {
                                     : need <= 6 ? 6
                                     : need <= 8 ? 8
                                                 : 16);
-        out.push_back((uint8_t)((bpb << 1) | 1));
+        out.push_back(static_cast<uint8_t>((bpb << 1) | 1));
         if (bpb == 0) {
             wire::WriteZigzag32(out, palette[0]);
             return;
         }
         unsigned perWord = 32 / bpb;
         std::vector<uint32_t> words(WordCount(bpb), 0);
-        for (unsigned pos = 0; pos < (unsigned)kCells; pos++)
+        for (unsigned pos = 0; pos < static_cast<unsigned>(kCells); pos++)
             words[pos / perWord] |= idx[pos] << ((pos % perWord) * bpb);
         for (uint32_t w : words)
             wire::WriteLE32(out, w);
-        wire::WriteZigzag32(out, (int32_t)palette.size());
+        wire::WriteZigzag32(out, static_cast<int32_t>(palette.size()));
         for (int32_t v : palette)
             wire::WriteZigzag32(out, v);
     }
@@ -384,7 +385,7 @@ namespace perlin {
     void ChunkCodec::WriteSubChunk(std::vector<uint8_t>& out, int yIndex, const CellIds& cells) {
         out.push_back(9);
         out.push_back(1);
-        out.push_back((uint8_t)(int8_t)yIndex);
+        out.push_back(static_cast<uint8_t>(static_cast<int8_t>(yIndex)));
         WriteStorage(out, cells);
     }
 
@@ -393,7 +394,7 @@ namespace perlin {
                                  const char** err) {
         out.clear();
         consumed = 0;
-        // some servers send fewer in the count than the payload holds: read the payload, not the count
+
         if (slots < 0 || (count != 0 && (!data || size == 0))) {
             if (err)
                 *err = "inline subchunk count exceeds dimension height";
@@ -402,18 +403,16 @@ namespace perlin {
         std::vector<std::pair<int, SubChunkData>> parsed;
         size_t offset = 0;
         int nextY = firstSubY;
-        // some proxies declare a raised minY yet still ship the full vanilla span: accept indexes
-        // across the union of both so terrain below the declared floor still applies
+
         const int loY = std::min(firstSubY, -4);
         const int hiY = std::max(firstSubY + slots, 20);
         uint32_t read = 0;
         while (offset < size && static_cast<int>(parsed.size()) < (hiY - loY)) {
-            // trailing block-entity nbt starts with a compound tag, never a sub-chunk version
+
             const uint8_t version = data[offset];
             if (version != 1 && version != 8 && version != 9)
                 break;
-            // past the count come the biome palettes, whose header (bpb << 1 | 1) reads as version 1 or 9:
-            // only a well-formed v8/v9 sub-chunk continuing the heights counts, anything else ends the column
+
             const bool counted = read < count;
             if (!counted && version == 1)
                 break;
@@ -435,11 +434,10 @@ namespace perlin {
                 y = nextY++;
             }
             offset += used;
-            // some proxies repeat or overshoot heights: skip the entry, keep the column
+
             if (y > std::numeric_limits<int>::max() || y < loY || y >= static_cast<int64_t>(hiY))
                 continue;
-            if (std::any_of(parsed.begin(), parsed.end(),
-                            [y](const auto& entry) { return entry.first == y; }))
+            if (std::ranges::any_of(parsed, [y](const auto& entry) { return entry.first == y; }))
                 continue;
             parsed.emplace_back(static_cast<int>(y), std::move(sc));
         }

@@ -1,4 +1,3 @@
-// Visual Vibrance shader (see LICENSE-VisualVibrance.txt)
 #include "compat.slang"
 
 #include "vv_resources.slang"
@@ -121,8 +120,6 @@ void stageMain()
     vec4 tex = sampleBlock(v_texcoord0, v_layer);
     vec3 viewDir = normalize(v_rel);
     vec3 n = faceNormal(v_rel);
-    if (tex.a * v_color0.a < 0.5)
-        discard;
     float lava = isTile(v_layer, u_tiles.y);
     float leaves = step(0.5, v_foliage) * step(v_foliage, 1.5);
     vec4 color = vec4(vvLit(tex.rgb, v_tint, n, v_rel, v_light, leaves, lava * 0.9, v_sunLight, v_skyLight), tex.a * v_color0.a);

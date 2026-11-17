@@ -1,4 +1,5 @@
-#include "client/entity/JavaAnimation.hpp"
+#include "client/systems/entity/JavaAnimation.hpp"
+#include "util/Angles.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <array>
@@ -132,13 +133,56 @@ void CheckJavaRootReference(const char* file) {
     CHECK(mismatches == 0);
     std::cout << "Java JAR roots: " << cases << "/120 matrices, maximum error " << largestError << "\n";
 }
+void CheckJava17Reference(const char* file) {
+    std::ifstream input(file);
+    CHECK(input.good());
+    std::string line;
+    int cases = 0, mismatches = 0;
+    float largestError = 0;
+    while (std::getline(input, line)) {
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream row(line);
+        PlayerState s;
+        int id, crouch, riding, held;
+        row >> id >> s.headYaw >> s.pitch >> s.walk >> s.speed >> s.age >> s.attack >> crouch >> riding >> held;
+        s.crouching = crouch != 0;
+        s.riding = riding != 0;
+        s.right = held == 0 ? ArmPose::Empty : held == 1 ? ArmPose::Item : ArmPose::Bow;
+        s.usingItem = held == 2;
+        const auto p = AnimatePlayerClassic(s);
+        const std::array<const Part*, 6> parts = {&p.head,    &p.body,     &p.rightArm,
+                                                  &p.leftArm, &p.rightLeg, &p.leftLeg};
+        bool match = true;
+        for (int bone = 0; bone < 6; ++bone)
+            for (int axis = 0; axis < 6; ++axis) {
+                float expected = 0;
+                row >> expected;
+                CHECK(!row.fail());
+                const float actual = axis < 3 ? parts[bone]->rotation[axis] : parts[bone]->offset[axis - 3];
+                const float error = std::abs(actual - expected);
+                largestError = std::max(largestError, error);
+                if (error > .0001f) {
+                    if (mismatches < 12)
+                        std::cerr << "Java 1.7 reference " << id << " bone " << bone << " axis " << axis << ": "
+                                  << actual << " expected " << expected << "\n";
+                    ++mismatches;
+                    match = false;
+                }
+            }
+        if (match)
+            ++cases;
+    }
+    CHECK(cases == 400);
+    CHECK(mismatches == 0);
+    std::cout << "Java 1.7.10 JAR reference: " << cases << "/400 poses, maximum error " << largestError << "\n";
+}
 static glm::mat4 JavaRotation(glm::vec3 r) {
     return glm::rotate(glm::mat4(1), -r.z, glm::vec3(0, 0, 1)) *
            glm::rotate(glm::mat4(1), r.y, glm::vec3(0, 1, 0)) *
            glm::rotate(glm::mat4(1), -r.x, glm::vec3(1, 0, 0));
 }
 
-// one render-frame stream through PlayerBodyClock; pos and head are functions of time
 template <class Pos, class Head>
 float RunClock(int fps, double seconds, Pos pos, Head head, float& maxOffset, bool swinging = false) {
     PlayerBodyClock clock;
@@ -149,7 +193,7 @@ float RunClock(int fps, double seconds, Pos pos, Head head, float& maxOffset, bo
         const auto [x, z] = pos(t);
         body = clock.Frame(x, z, head(t), frame == 0 ? 0.0 : 1.0 / fps, swinging, false, 0);
         if (frame > 0)
-            maxOffset = std::max(maxOffset, std::abs(Wrap(head(t) - body)));
+            maxOffset = std::max(maxOffset, std::abs(perlin::math::WrapDegrees(head(t) - body)));
     }
     return body;
 }
@@ -158,6 +202,8 @@ int main(int argc, char** argv) {
         CheckJavaReference(argv[1]);
     if (argc > 2)
         CheckJavaRootReference(argv[2]);
+    if (argc > 3)
+        CheckJava17Reference(argv[3]);
     CHECK(Near(Turn(179, -179, 0.5f), 180));
     BodyRotation b;
     b.Reset(0);
@@ -184,6 +230,16 @@ int main(int argc, char** argv) {
     b.Reset(0);
     b.MobTick(.1, 0, 90, 100);
     CHECK(Near(b.current, 90));
+    {
+        BodyRotation classic;
+        classic.Reset(0);
+        for (int i = 0; i < 60; ++i)
+            classic.ClassicPlayerTick(0, -0.2, 0, false);
+        CHECK(Near(std::abs(perlin::math::WrapDegrees(classic.current)), 60.0f, .01f));
+        classic.Reset(0);
+        classic.ClassicPlayerTick(0, 0, 100, false);
+        CHECK(Near(classic.current, 25 + 75 * 0.2f));
+    }
     WalkAnimation w;
     w.Tick(.1f, false);
     CHECK(Near(w.speed, .16f));
@@ -200,8 +256,7 @@ int main(int argc, char** argv) {
         CHECK(Near(t.phase, reference.phase, .001f));
     }
     {
-        // standing, head turns 90: body stays put until the 50 degree limit, then is dragged. The limit holds at
-        // ticks; between them the head leads by up to one tick of its own turn (4.5 degrees here), as in Java
+
         float off;
         const auto still = [](double) { return std::pair{0.0, 0.0}; };
         const float body = RunClock(60, 2, still, [](double t) { return float(std::min(t, 1.0) * 90); }, off);
@@ -210,48 +265,47 @@ int main(int argc, char** argv) {
         CHECK(off > 50.0f);
         RunClock(60, 2, still, [](double t) { return float(std::min(t, 1.0) * 40); }, off);
         CHECK(Near(off, 40, .01f));
-        // walking backward (+z is yaw 0, so -z is behind): body keeps facing the head
+
         const float back = RunClock(
             60, 3, [](double t) { return std::pair{0.0, -t * 4.3}; }, [](double) { return 0.0f; }, off);
-        CHECK(std::abs(Wrap(back)) < .01f);
-        // strafing left (+x is yaw -90): body turns toward the movement, capped 50 from the head
+        CHECK(std::abs(perlin::math::WrapDegrees(back)) < .01f);
+
         const float strafe = RunClock(
             60, 3, [](double t) { return std::pair{t * 4.3, 0.0}; }, [](double) { return 0.0f; }, off);
         CHECK(Near(strafe, -50, .01f));
         CHECK(off <= 50.01f);
-        // diagonal forward-left: body follows the movement direction, under the cap
+
         const float diag = RunClock(
             60, 3, [](double t) { return std::pair{t * 3.0, t * 3.0}; }, [](double) { return 0.0f; }, off);
         CHECK(Near(diag, -45, .05f));
-        // swinging snaps the body back to the head while moving sideways
+
         const float swing = RunClock(
             60, 3, [](double t) { return std::pair{t * 4.3, 0.0}; }, [](double) { return 0.0f; }, off, true);
-        CHECK(std::abs(Wrap(swing)) < .01f);
-        // head crossing +-180: no full spin, offset bounded (one tick of a 20 degree/s turn past the limit)
+        CHECK(std::abs(perlin::math::WrapDegrees(swing)) < .01f);
+
         RunClock(144, 3, still, [](double t) { return float(170 + t * 20); }, off);
         CHECK(off <= 51.01f);
-        // same trajectory, every frame rate: same body
+
         const auto walk = [](double t) {
             return std::pair{std::sin(t) * 3.0, std::min(t, 2.0) * 2.0 - std::max(t - 3.0, 0.0) * 3.0};
         };
         const auto look = [](double t) { return float(t * 37.0); };
         const float ref = RunClock(20, 6, walk, look, off);
         for (int fps : {10, 15, 30, 60, 144, 240})
-            CHECK(Near(Wrap(RunClock(fps, 6, walk, look, off) - ref), 0, 1.0f));
-        // teleport: reset to the head, no turn toward the jump
+            CHECK(Near(perlin::math::WrapDegrees(RunClock(fps, 6, walk, look, off) - ref), 0, 1.0f));
+
         PlayerBodyClock c;
         c.Frame(0, 0, 0, 0, false, false, 0);
         for (int i = 0; i < 10; ++i)
             c.Frame(0, 0, 0, 0.05, false, false, 0);
         CHECK(Near(c.Frame(100, 0, 30, 0.05, false, false, 0), 30));
-        // riding: the mount faces 90, the rider looks at 0: the head is held to 85 from the mount's body and the
-        // body leans a fifth of that toward the head (LivingEntityRenderer.solveBodyRot): 90 - 5 - 17 = 68
+
         c.Reset(0, 0, 0);
         float ride = 0;
         for (int i = 0; i < 40; ++i)
             ride = c.Frame(0, 0, 0, 0.05, false, true, 90);
         CHECK(Near(ride, 68, .1f));
-        // looking 30 degrees off the mount: the body is the mount's
+
         for (int i = 0; i < 40; ++i)
             ride = c.Frame(0, 0, 60, 0.05, false, true, 90);
         CHECK(Near(ride, 90, .1f));

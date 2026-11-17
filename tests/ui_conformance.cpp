@@ -8,16 +8,10 @@
 #include <string>
 #include <vector>
 
-// builds every screen a ui stack defines, reports what the engine couldn't parse: check server packs without joining
-//
-//   ui_conformance <label>:<ui root> [<label>:<ui root> ...]
-//
-// roots layered like the client: pack roots first, then data ui folder and vanilla files
-// env: VANILLA_UI=<vanilla resource_pack/ui> (default: bedrock samples install), DATA_UI=<data dir>/ui
 #include "client/ui/HudData.hpp"
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/McFont.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/systems/text/McFont.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/TenFont.hpp"
 #include "client/ui/UiLayout.hpp"
 #include "util/Paths.hpp"
@@ -31,7 +25,6 @@ namespace {
         return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     }
 
-    // screens a stack defines: namespace + control names ending in "_screen"
     std::vector<std::string> ScreensIn(const std::string& root) {
         std::vector<std::string> out;
         std::error_code ec;
@@ -41,17 +34,17 @@ namespace {
              !ec && it != end; it.increment(ec)) {
             if (!it->is_regular_file(ec) || it->path().extension() != ".json")
                 continue;
-            Json document;
+            json::Value document;
             std::string error;
-            if (!Json::Parse(ReadAll(it->path()), document, error) || !document.IsObject())
+            if (!json::Value::Parse(ReadAll(it->path()), document, error) || !document.IsObject())
                 continue;
-            const Json* ns = document.Find("namespace");
+            const json::Value* ns = document.Find("namespace");
             if (!ns || !ns->IsString())
                 continue;
             for (const auto& [key, value] : document.object) {
                 if (!value.IsObject())
                     continue;
-                // A template suffix is inheritance, not part of the control's name.
+
                 const std::string name = key.substr(0, key.find('@'));
                 if (!name.contains('/') && name.ends_with("_screen"))
                     out.push_back(ns->string + "." + name);
@@ -64,9 +57,9 @@ namespace {
 
     class Globals : public UiData {
     public:
-        bool Global(const std::string&, Json&) const override { return false; }
+        bool Global(const std::string&, json::Value&) const override { return false; }
         int CollectionSize(const std::string&) const override { return 0; }
-        bool CollectionValue(const std::string&, int, const std::string&, Json&) const override {
+        bool CollectionValue(const std::string&, int, const std::string&, json::Value&) const override {
             return false;
         }
         std::vector<FactoryItem> Factory(const std::string&) const override { return {}; }
@@ -83,7 +76,7 @@ namespace {
         if (n.type == "label" && !n.text.empty()) {
             if (n.text == "null")
                 s.nullText++;
-            // undecoded text: raw "$var", "#binding" or control reference left in a label
+
             if (n.text[0] == '$' || n.text[0] == '#' || (n.text.starts_with('@') && n.text.contains('.')))
                 s.rawText++;
         }
@@ -122,7 +115,6 @@ int main(int argc, char** argv) {
     services.lineHeight = [](float s, bool ten) {
         return ten ? TenFont::Instance().LineHeight(s) : static_cast<float>(McFont::kLineHeight) * s;
     };
-    // checks layout, bindings and emitted text, not textures or translations
 
     int totalFailed = 0;
     for (const auto& [label, root] : stacks) {

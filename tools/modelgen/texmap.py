@@ -3,8 +3,8 @@ import json, os
 import numpy as np
 from PIL import Image
 
-JAVA = '/tmp/claude-0/jb/assets/minecraft/textures'
-BEDROCK = '/tmp/claude-0/cl/r/resource_pack'
+JAVA = os.environ['JAVA_TEXTURES']
+BEDROCK = os.environ['BEDROCK_PACK']
 
 def load(path):
     try:

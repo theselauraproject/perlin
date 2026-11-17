@@ -15,7 +15,6 @@ import sys
 
 dump, samples, out = sys.argv[1:4]
 
-# java overworld biome -> bedrock biome identifier (bedrock kept most of the pre-1.18 names)
 JAVA_TO_BEDROCK = {
     'desert': 'desert', 'forest': 'forest', 'plains': 'plains', 'snowy_plains': 'ice_plains', 'savanna': 'savanna', 'taiga': 'taiga', 'beach': 'beach',
     'grove': 'grove', 'snowy_taiga': 'cold_taiga', 'wooded_badlands': 'mesa_plateau_stone', 'badlands': 'mesa', 'jungle': 'jungle',

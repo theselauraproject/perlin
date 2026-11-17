@@ -1,9 +1,10 @@
 #pragma once
-#include "client/mods/ModManager.hpp"
+#include "client/systems/mods/ModManager.hpp"
+#include "client/ui/Scene.hpp"
 
 #include <string>
 #include <vector>
 
 namespace perlin::ui {
-    std::string BuildPluginLayerRml(const std::vector<mods::UiLayer>& layers, int guiW, int guiH);
+    SceneDoc BuildPluginLayer(const std::vector<mods::UiLayer>& layers, int guiW, int guiH);
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include "vv_resources.slang"
-#if BGFX_SHADER_LANGUAGE_HLSL
+#if VV_HLSL
 #define VV_LOOP [loop]
 #define VV_BRANCH [branch]
 #else
@@ -147,20 +147,12 @@ vec3 vvMoonRadiance()
 
 vec3 vvMainLight()
 {
-    vec3 c = u_sunDir.y >= 0.0 ? vvSunRadiance() : vvMoonRadiance();
-    return c * mix(1.0, 0.18, vvRain());
+    return u_lightMain.xyz;
 }
 
 vec3 vvSkyAmbient()
 {
-    float day = vvDay();
-    vec3 noon = vec3(0.42, 0.57, 0.90) * 1.45;
-    vec3 dusk = vec3(0.56, 0.44, 0.66) * 0.6;
-    vec3 night = vec3(0.045, 0.06, 0.12) * S_NIGHT;
-    vec3 c = mix(night, noon, day);
-    c = mix(c, dusk, vvTwilight() * 0.75);
-    c = mix(c, vec3_splat(luma(c)) * vec3(0.88, 0.92, 1.0) * 0.8, vvRain());
-    return c * S_AMBIENT;
+    return u_lightSky.xyz;
 }
 
 float vvFoliageKind(float layer)
@@ -410,7 +402,7 @@ vec4 vvClouds(vec3 origin, vec3 dir, float maxDistance)
     float tm = clamp((base + CLOUD_THICKNESS * 0.5 - origin.y) / dy, t0, max(t1, t0));
     float inside;
     float edge = cloudEdgeDistance(cloudCoord(origin.xz + dir.xz * tm), inside);
-    // wide soft falloffs: a one block wide rim reads as a thin outline once the cloud body is close to the sky colour
+
     float rim = inside * exp(-edge / 3.0) * S_CLOUD_GLOW * 0.55;
     float halo = (1.0 - inside) * exp(-edge / 2.2) * S_CLOUD_GLOW * 0.30;
 

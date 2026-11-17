@@ -1,5 +1,3 @@
-// biome placement against Java's own answers (tools/javaref/biome_lookup_ref.txt: its parameter list searched by brute force), the surface layering rules,
-// and a real stretch of world: biomes must vary and every column must have ground
 #include "core/Config.hpp"
 #include "test_util.hpp"
 #include "world/BlockCatalog.hpp"
@@ -81,7 +79,7 @@ static void TestTable() {
         CHECK(b.top[0] != 0 && b.mid[0] != 0 && b.foundation[0] != 0 && b.seaFloor[0] != 0 && b.sea[0] != 0);
         CHECK(b.seaFloorDepth >= 0 && b.seaFloorDepth <= 16);
     }
-    // a few materials straight from bedrock-samples
+
     CHECK(std::string(kBiomes[IndexOf("desert")].top) == "minecraft:sand");
     CHECK(std::string(kBiomes[IndexOf("badlands")].top) == "minecraft:red_sand" &&
           std::string(kBiomes[IndexOf("badlands")].mid) == "minecraft:hardened_clay");
@@ -96,7 +94,7 @@ static void TestLayers() {
     const BlockCatalog& c = BlockCatalog::Instance();
     const SurfaceMaterial& plains = s.Materials()[static_cast<size_t>(IndexOf("plains"))];
     const SurfaceMaterial& warm = s.Materials()[static_cast<size_t>(IndexOf("warm_ocean"))];
-    // a column of ground up to world y 80: grass, 3 dirt, then stone, deepslate under y 0, bedrock at the floor
+
     const int top = 80 - kMinY;
     CHECK(s.BlockAt(plains, top, top, true) == c.DefaultBlock("grass_block"));
     for (int d = 1; d <= kMidLayers; d++)
@@ -104,16 +102,16 @@ static void TestLayers() {
     CHECK(s.BlockAt(plains, top - kMidLayers - 1, top, true) == s.Stone());
     CHECK(s.BlockAt(plains, -10 - kMinY, top, true) == s.Deepslate());
     CHECK(s.BlockAt(plains, 0, top, true) == s.Bedrock());
-    // air above the ground and water up to sea level
+
     CHECK(s.BlockAt(plains, 100 - kMinY, top, false) == 0);
     CHECK(s.BlockAt(plains, kSeaLevel - kMinY, top, false) == plains.sea);
     CHECK(s.BlockAt(plains, kSeaLevel + 1 - kMinY, top, false) == 0);
-    // ground just under the water: grass turns to dirt; far under it the biome's sea floor material replaces the skin
+
     const int shallow = (kSeaLevel - 2) - kMinY;
     CHECK(s.BlockAt(plains, shallow, shallow, true) == s.Dirt());
     const int deep = (kSeaLevel - 20) - kMinY;
     CHECK(s.BlockAt(plains, deep, deep, true) == plains.seaFloor);
-    // a warm ocean's floor starts only 3 blocks down, and is sand
+
     const int fourDown = (kSeaLevel - 4) - kMinY;
     CHECK(s.BlockAt(warm, fourDown, fourDown, true) == warm.seaFloor);
     CHECK(warm.seaFloor == c.DefaultBlock("sand"));
@@ -131,7 +129,7 @@ static void TestWorld() {
     std::map<int, int> columns;
     std::vector<float> density(static_cast<size_t>(16 * 16 * kHeight));
     int noGround = 0;
-    // a spread of chunks, far apart so climate differs
+
     for (int cx = -3200; cx <= 3200; cx += 1600)
         for (int cz = -3200; cz <= 3200; cz += 1600) {
             DfCacheScope cache;
@@ -168,7 +166,7 @@ static void TestLocate() {
         return;
     std::atomic<bool> never{false};
     CHECK(backend->HasBiomes());
-    // biomes that are common should turn up close by, and the biome of the column found must really be the one asked for
+
     int found = 0;
     for (const char* name :
          {"ocean", "plains", "forest", "desert", "taiga", "swamp", "savanna", "river", "beach"}) {
@@ -191,7 +189,7 @@ static void TestLocate() {
         CHECK(actual == biome);
     }
     CHECK(found >= 5);
-    // a search that is cancelled stops, and one for a biome that is not in the data finds nothing
+
     std::atomic<bool> stop{true};
     int x = 0, y = 0, z = 0;
     CHECK(!backend->LocateBiome(IndexOf("desert"), 0, 0, 6400, stop, x, y, z));

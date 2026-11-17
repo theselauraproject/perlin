@@ -130,7 +130,7 @@ namespace perlin::featured {
             r2.server = std::move(s);
             found.push_back(std::move(r2));
         }
-        std::stable_sort(found.begin(), found.end(), [](const Ranked& a, const Ranked& b) {
+        std::ranges::stable_sort(found, [](const Ranked& a, const Ranked& b) {
             if (a.hasRank != b.hasRank)
                 return a.hasRank;
             return a.hasRank && a.server.rank > b.server.rank;

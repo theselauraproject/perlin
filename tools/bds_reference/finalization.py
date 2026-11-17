@@ -18,7 +18,6 @@ from generate import HEAP, INPUT_SHA256, RETURN, Machine, bits
 TAGS = ((0xD8773ED9, 0x3000), (0x990A4EC3, 0x3600), (0xC3E299A3, 0x3C00),
         (0xCDF8D319, 0x4200), (0x43027696, 0x4800))
 
-
 def generate(data):
     if data['input_sha256'] != INPUT_SHA256 or data['input_name'] != 'Windows Server 1.26.10':
         raise ValueError('Wrong BDS reference')
@@ -117,7 +116,6 @@ def generate(data):
                   *machine.get(HEAP + 0x400, 3), *machine.get(HEAP + 0x418, 3), final_flags)
         lines.append('F ' + ' '.join(f'{v:08x}' for v in values))
     return '\n'.join(lines) + '\n'
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

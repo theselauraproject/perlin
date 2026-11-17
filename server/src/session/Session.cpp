@@ -10,6 +10,7 @@
 #include "world/Blocks.hpp"
 
 #include "protocol/Packets.hpp"
+#include "util/Strings.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -102,10 +103,10 @@ namespace perlin::server {
             s.persona = c["PersonaSkin"].Bool();
             s.capeOnClassic = c["CapeOnClassicSkin"].Bool();
             if (const std::string color = c["SkinColor"].String(); color.size() > 1 && color[0] == '#') {
-                try {
-                    const uint32_t v = static_cast<uint32_t>(std::stoul(color.substr(1), nullptr, 16));
+                if (uint64_t parsed; perlin::str::Parse(std::string_view(color).substr(1), parsed, 16)) {
+                    const uint32_t v = static_cast<uint32_t>(parsed);
                     s.skinColor = static_cast<int32_t>(color.size() <= 7 ? (0xFF000000u | v) : v);
-                } catch (...) {}
+                }
             }
             for (const json::Value& a : c["AnimatedImageData"].items) {
                 proto::SkinAnimationsEntry anim;
@@ -155,9 +156,8 @@ namespace perlin::server {
                 for (size_t i = 0; i < 4 && i < tint["Colors"].items.size(); i++) {
                     const std::string col = tint["Colors"].items[i].String();
                     if (col.size() > 1 && col[0] == '#')
-                        try {
-                            e.colors[i] = static_cast<int32_t>(std::stoul(col.substr(1), nullptr, 16));
-                        } catch (...) {}
+                        if (uint64_t parsed; perlin::str::Parse(std::string_view(col).substr(1), parsed, 16))
+                            e.colors[i] = static_cast<int32_t>(static_cast<uint32_t>(parsed));
                 }
                 s.pieceTintColors.push_back(std::move(e));
             }
@@ -1133,7 +1133,7 @@ namespace perlin::server {
                     Exhaust(0.1f);
                     if (crit)
                         for (Session* s : server.PlayersIn(dimension))
-                            s->MobEvent(on->entityRuntimeId, 17, 0);
+                            s->CritAnimation(on->entityRuntimeId);
                     const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
                     if (n.ends_with("_sword") || n == "minecraft:trident" || n == "minecraft:mace")
                         DamageHeld(1);
@@ -1276,7 +1276,7 @@ namespace perlin::server {
                 if (WantsChunk(p))
                     want.push_back(p);
             }
-        std::sort(want.begin(), want.end(), [this](const ChunkPos& a, const ChunkPos& b) {
+        std::ranges::sort(want, [this](const ChunkPos& a, const ChunkPos& b) {
             const int da = (a.x - center.x) * (a.x - center.x) + (a.z - center.z) * (a.z - center.z);
             const int db = (b.x - center.x) * (b.x - center.x) + (b.z - center.z) * (b.z - center.z);
             return da < db;
@@ -1471,7 +1471,7 @@ namespace perlin::server {
         const double previousY = posY;
         SetPosition(in.position.x, in.position.y, in.position.z, in.pitch, in.yaw);
         const bool wasSneaking = sneaking;
-        sneaking = std::find(in.inputData.begin(), in.inputData.end(), proto::InputData::Sneaking) != in.inputData.end();
+        sneaking = std::ranges::find(in.inputData, proto::InputData::Sneaking) != in.inputData.end();
         if (wasSneaking != sneaking)
             dataDirty = true;
         if (state != State::InGame)
@@ -1772,6 +1772,13 @@ namespace perlin::server {
         p.runtimeEntityId = mob.id;
         p.velocity = {static_cast<float>(mob.vx), static_cast<float>(mob.vy), static_cast<float>(mob.vz)};
         p.tick = server.TickCount();
+        Send(p);
+    }
+
+    void Session::CritAnimation(uint64_t id) {
+        proto::AnimatePacket p;
+        p.actionId = proto::AnimatePacketActionId::CriticalHit;
+        p.runtimeEntityId = id;
         Send(p);
     }
 
@@ -2336,7 +2343,7 @@ namespace perlin::server {
         if (victim.Damage(damage, DamageCause::Player, posX, posZ, name, this, knock)) {
             if (crit)
                 for (Session* s : server.PlayersIn(dimension))
-                    s->MobEvent(victim.runtimeId, 17, 0);
+                    s->CritAnimation(victim.runtimeId);
             const std::string n = held.Empty() ? std::string() : ItemNameOf(held.networkId);
             if (n.ends_with("_sword") || n == "minecraft:trident" || n == "minecraft:mace")
                 DamageHeld(1);
@@ -2583,7 +2590,7 @@ namespace perlin::server {
 
     void Session::MovementTick(const proto::PlayerAuthInputPacket& in, double previousY) {
         const auto has = [&](proto::InputData d) {
-            return std::find(in.inputData.begin(), in.inputData.end(), d) != in.inputData.end();
+            return std::ranges::find(in.inputData, d) != in.inputData.end();
         };
         const bool wasSprinting = sprinting, wasSwimming = swimming, wasGliding = gliding;
         if (has(proto::InputData::StartSprinting))
@@ -2813,7 +2820,7 @@ namespace perlin::server {
                 !eye.contains("wall") && !eye.contains("pane") && !eye.contains("chest") && !eye.contains("trapdoor"))
                 Damage(1.0f, DamageCause::Suffocation, posX, posZ);
         }
-        if (fireTicks > 0 != lastFireSent)
+        if ((fireTicks > 0) != lastFireSent)
             dataDirty = true;
     }
 

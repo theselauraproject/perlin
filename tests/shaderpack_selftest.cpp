@@ -1,4 +1,4 @@
-#include "client/resources/ShaderPack.hpp"
+#include "client/systems/resources/ShaderPack.hpp"
 
 #include <miniz.h>
 

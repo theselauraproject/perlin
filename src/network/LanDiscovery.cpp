@@ -1,4 +1,5 @@
 #include "network/LanDiscovery.hpp"
+#include "network/Interfaces.hpp"
 
 #ifdef __EMSCRIPTEN__
 
@@ -369,19 +370,13 @@ namespace perlin::lan {
         im.targets.push_back(t);
         t.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         im.targets.push_back(t);
-#ifndef _WIN32
-        if (ifaddrs* list = nullptr; getifaddrs(&list) == 0) {
-            for (ifaddrs* a = list; a; a = a->ifa_next) {
-                if (!a->ifa_addr || a->ifa_addr->sa_family != AF_INET || !(a->ifa_flags & IFF_BROADCAST) ||
-                    !(a->ifa_flags & IFF_UP) || !a->ifa_broadaddr)
-                    continue;
-                sockaddr_in b = *reinterpret_cast<sockaddr_in*>(a->ifa_broadaddr);
-                b.sin_port = htons(kPort);
-                im.targets.push_back(b);
-            }
-            freeifaddrs(list);
-        }
-#endif
+        net::ForEachInterface([&](const net::InterfaceAddress& i) {
+            if (!i.address || i.address->sa_family != AF_INET || !i.canBroadcast || !i.up || !i.broadcast)
+                return;
+            sockaddr_in b = *reinterpret_cast<const sockaddr_in*>(i.broadcast);
+            b.sin_port = htons(kPort);
+            im.targets.push_back(b);
+        });
         Impl* raw = &im;
         im.reader = std::thread([raw] {
             uint8_t buf[4096];

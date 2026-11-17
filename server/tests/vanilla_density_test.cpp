@@ -1,4 +1,3 @@
-// density function values from the 26.3 jar's own classes (tools/javaref/reference_seed12345.txt), seed 12345;
 #include "world/vanilla/DensityFunction.hpp"
 
 #include <cmath>
@@ -59,7 +58,7 @@ int main(int argc, char** argv) {
     for (const std::string& u : graph.Unsupported())
         std::printf("unsupported node type: %s\n", u.c_str());
     std::printf("%d value(s) checked, %d differ\n", checked, bad);
-    // a missing or empty reference file must not pass
+
     if (checked < 30) {
         std::printf("too few values checked: is the reference file readable?\n");
         return 1;

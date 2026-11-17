@@ -29,6 +29,7 @@
 #include <set>
 #include <thread>
 #include "util/Log.hpp"
+#include "network/Interfaces.hpp"
 
 namespace perlin {
     namespace {
@@ -295,13 +296,10 @@ namespace perlin {
                 }
             }
 #else
-            ifaddrs* interfaces = nullptr;
-            if (getifaddrs(&interfaces) == 0) {
-                for (const ifaddrs* i = interfaces; i; i = i->ifa_next)
-                    if (i->ifa_flags & IFF_UP)
-                        add(i->ifa_addr);
-                freeifaddrs(interfaces);
-            }
+            net::ForEachInterface([&](const net::InterfaceAddress& i) {
+                if (i.up)
+                    add(i.address);
+            });
 #endif
             return out;
         }
@@ -455,7 +453,7 @@ namespace perlin {
         void FlushRanges(std::vector<uint32_t>& list, uint8_t header) {
             if (list.empty())
                 return;
-            std::sort(list.begin(), list.end());
+            std::ranges::sort(list);
             list.erase(std::unique(list.begin(), list.end()), list.end());
             size_t i = 0;
             while (i < list.size()) {

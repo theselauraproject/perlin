@@ -20,14 +20,11 @@ HEAP = 0x10000000
 STACK = 0x20000000
 RETURN = 0x30000000
 
-
 def words(values):
     return struct.pack("<" + "I" * len(values), *values)
 
-
 def bits(value):
     return struct.unpack("<I", struct.pack("<f", value))[0]
-
 
 class Machine:
     def __init__(self, functions):
@@ -90,7 +87,6 @@ class Machine:
                                f"memory fault {self.last_fault}") from error
         if self.cpu.reg_read(x86.UC_X86_REG_RIP) != RETURN:
             raise RuntimeError("BDS routine did not return within the instruction budget")
-
 
 def generate(data, sine_out):
     if data["input_name"] != "Windows Server 1.26.10" or data["input_sha256"] != INPUT_SHA256:
@@ -230,7 +226,6 @@ def generate(data, sine_out):
                                   bits(definition_friction), bits(speed), result)
                         lines.append("A " + " ".join(f"{v:08x}" for v in values))
     return "\n".join(lines) + "\n"
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

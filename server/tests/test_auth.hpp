@@ -1,5 +1,5 @@
 #pragma once
-// test-side login forging: real P-384 keys and ES384 signatures, the same shapes the client sends
+
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
@@ -42,7 +42,7 @@ namespace testauth {
 
     struct Key {
         EVP_PKEY* pkey = nullptr;
-        std::string spki; // base64 der, what x5u and identityPublicKey carry
+        std::string spki;
 
         Key() {
             EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr);
@@ -58,7 +58,6 @@ namespace testauth {
         Key(const Key&) = delete;
         ~Key() { EVP_PKEY_free(pkey); }
 
-        // raw r||s as jws wants it
         std::string Sign(const std::string& input) const {
             EVP_MD_CTX* ctx = EVP_MD_CTX_new();
             EVP_DigestSignInit(ctx, nullptr, EVP_sha384(), nullptr, pkey);
@@ -86,7 +85,6 @@ namespace testauth {
             .count();
     }
 
-    // header {alg, x5u: signer}, payload text as given
     inline std::string Jwt(const Key& signer, const std::string& payloadJson) {
         const std::string h = B64Url("{\"alg\":\"ES384\",\"x5u\":\"" + signer.spki + "\"}");
         const std::string p = B64Url(payloadJson);
@@ -103,7 +101,6 @@ namespace testauth {
         return Jwt(signer, payload + "}");
     }
 
-    // what the client sends online: its own link to the service's intermediate, then the service's two links
     struct Account {
         Key root, intermediate, player;
         std::string name, xuid;
@@ -130,7 +127,6 @@ namespace testauth {
         }
     };
 
-    // the a=identity line the client adds to its offer: fingerprints signed with the player's key
     inline std::string AssertOffer(const std::string& sdp, const Key& player) {
         std::string payload = "{\"fingerprint\":[";
         bool first = true;

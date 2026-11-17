@@ -1,5 +1,3 @@
-# glslang and SPIRV-Cross as static libraries, for the java shader pack frontend (GLSL -> SPIR-V -> HLSL).
-# needs glslang_SOURCE_DIR and SPIRV-Cross_SOURCE_DIR; shared by the app build and the standalone gpu build
 if(NOT TARGET perlin_glslang)
     set(PERLIN_GLSLANG_GEN "${CMAKE_BINARY_DIR}/perlin_glslang_gen")
     file(WRITE "${PERLIN_GLSLANG_GEN}/glslang/build_info.h" "#pragma once\n#define GLSLANG_VERSION_MAJOR 16\n#define GLSLANG_VERSION_MINOR 6\n#define GLSLANG_VERSION_PATCH 0\n#define GLSLANG_VERSION_FLAVOR \"\"\n#define GLSLANG_VERSION_GREATER_THAN(major, minor, patch) ((GLSLANG_VERSION_MAJOR) > (major) || ((major) == GLSLANG_VERSION_MAJOR && ((GLSLANG_VERSION_MINOR) > (minor) || ((minor) == GLSLANG_VERSION_MINOR && (GLSLANG_VERSION_PATCH) > (patch)))))\n#define GLSLANG_VERSION_GREATER_OR_EQUAL_TO(major, minor, patch) (GLSLANG_VERSION_GREATER_THAN(major, minor, patch) || ((major) == GLSLANG_VERSION_MAJOR && (minor) == GLSLANG_VERSION_MINOR && (patch) == GLSLANG_VERSION_PATCH))\n#define GLSLANG_VERSION_LESS_THAN(major, minor, patch) (!GLSLANG_VERSION_GREATER_OR_EQUAL_TO(major, minor, patch))\n#define GLSLANG_VERSION_LESS_OR_EQUAL_TO(major, minor, patch) (!GLSLANG_VERSION_GREATER_THAN(major, minor, patch))\n")
@@ -10,7 +8,7 @@ if(NOT TARGET perlin_glslang)
         "${glslang_SOURCE_DIR}/glslang/ResourceLimits/*.cpp"
         "${glslang_SOURCE_DIR}/glslang/CInterface/*.cpp"
         "${glslang_SOURCE_DIR}/SPIRV/*.cpp")
-    # the hlsl front end is only for tools/jshader_check, which validates the generated hlsl without fxc / dxc
+
     if(PERLIN_BUILD_TESTS)
         file(GLOB PERLIN_GLSLANG_HLSL_SOURCES "${glslang_SOURCE_DIR}/glslang/HLSL/*.cpp")
         list(APPEND PERLIN_GLSLANG_SOURCES ${PERLIN_GLSLANG_HLSL_SOURCES})

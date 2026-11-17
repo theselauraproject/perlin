@@ -38,6 +38,8 @@ namespace perlin::friends {
                            {"Accept-Language", "en-US"},
                            {"User-Agent", "libhttpclient/1.0.0.0"}},
                           20);
+        if (r.status == 401)
+            account.Invalidate("http://xboxlive.com");
         auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
         if (!doc) {
             error = r.status == 0 ? "could not reach the Xbox friends service"
@@ -99,7 +101,7 @@ namespace perlin::friends {
                 Log("friends", "could not list hosted worlds (HTTP {})", h.status);
             }
         }
-        std::stable_sort(out.begin(), out.end(), [](const Friend& a, const Friend& b) {
+        std::ranges::stable_sort(out, [](const Friend& a, const Friend& b) {
             if (a.hosting != b.hosting)
                 return a.hosting;
             if (a.playingMinecraft != b.playingMinecraft)

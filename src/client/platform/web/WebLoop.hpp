@@ -21,9 +21,9 @@ namespace perlin {
             static bool announced = false;
             if (!announced) {
                 announced = true;
-                // clang-format off
+
                 EM_ASM({ if (Module.onFirstFrame) Module.onFirstFrame(); });
-                // clang-format on
+
             }
             if (!s->frame()) {
                 emscripten_cancel_main_loop();

@@ -24,10 +24,8 @@ SINE_SHA256 = '5834520a8a07b71081b530851803cf051427446a99643b9de13368cc17635628'
 SCENARIOS = {'gen:terrain1_1', 'gen:floors1_0', 'gen:ladder1_0', 'gen:effects1_0'}
 START, END, SINE_BASE = 0x140EAFD9C, 0x140EAFDFA, 0x1472B2560
 
-
 def digest(data):
     return hashlib.sha256(data).hexdigest()
-
 
 def sections(text):
     result = {}
@@ -46,7 +44,6 @@ def sections(text):
         raise ValueError('Missing migration scenarios')
     return result
 
-
 def frames(lines):
     result = {}
     for line in lines:
@@ -60,7 +57,6 @@ def frames(lines):
     if len(result) != 200:
         raise ValueError('Incomplete independent replay')
     return result
-
 
 def migrate(args):
     reference = args.reference_dir.resolve()
@@ -208,7 +204,6 @@ def migrate(args):
               'output_sha256': digest(output.encode())}
     (work / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

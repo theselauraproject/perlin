@@ -1,18 +1,3 @@
-// java terrain density on the gpu: the same arithmetic as src/world/vanilla (float values, double coordinates, no fused multiply-add)
-// four phases over one pipeline, picked by the push constant
-//   phase 0  corners:  the inner graph (everything an `interpolated` node samples) at every cell corner of every chunk
-//   phase 1  density:  the outer graph per block; `interpolated` nodes blend the eight corners around the block
-//   phase 2  columns:  per column, the ground height from the densities, the six climate functions at its biome site, and the nearest box of Java's
-//                      biome placement table (src/world/vanilla/VanillaSurface.cpp is the cpu reference for this and the next phase)
-//   phase 3  surface:  per block, the block id from the column's biome materials (bedrock-samples) and the density; written over the density in place
-// the graph is data, not code: see gpu/VanillaGpuProgram.hpp for the table layout
-//   set 0 binding 0  tables:  header (16 offsets) then nodes, aux, noises, layers, perms, blends, order, interpolated inputs, the climate list,
-//                             the biome placement table and the biome materials
-//   set 0 binding 1  chunks:  chunk x, z per batch entry
-//   set 0 binding 2  scratch: corners from phase 0, in to phase 1: [chunk][cx 5][cz 5][cy 49][interpolated input]; then from columnBase, per column,
-//                             the ground index and the biome, written by phase 2 and read by phase 3
-//   set 0 binding 3  density: out of phase 1: [chunk][x][z][y], one float per block; phase 3 turns each into its block id
-
 struct Params
 {
     uint chunkCount;
@@ -36,7 +21,7 @@ struct Params
 [[vk::push_constant]] ConstantBuffer<Params> params;
 [[vk::binding(0, 0)]] StructuredBuffer<uint> tables;
 [[vk::binding(1, 0)]] StructuredBuffer<int2> chunks;
-// scratch holds raw 32-bit words (float corner values and integer column data alike), converted with asfloat / asuint at each use
+
 [[vk::binding(2, 0)]] RWStructuredBuffer<uint> corners;
 [[vk::binding(3, 0)]] RWStructuredBuffer<float> density;
 
@@ -48,7 +33,6 @@ static const uint kBlendStride = 16;
 #define kCornersXz (16u / params.cellXz + 1u)
 #define kCornersY (params.height / params.cellY + 1u)
 
-// header words
 static const uint H_NODES = 0;
 static const uint H_AUX = 1;
 static const uint H_NOISES = 2;
@@ -61,22 +45,17 @@ static const uint H_CLIMATE = 8;
 static const uint H_BIOMES = 9;
 static const uint H_MATERIALS = 10;
 
-// the value of every node for the position being evaluated; the thread's own copy
 static float g_vals[512];
-// where the block sits in its cell (phase 1)
+
 static uint g_chunk;
 static int g_cx, g_cy, g_cz;
 static int g_fx, g_fy, g_fz;
-
-// ---- helpers ------------------------------------------------------------------------------------------------------
 
 double dbl(uint lo, uint hi)
 {
     return asdouble(lo, hi);
 }
 
-// float division correctly rounded: vulkan allows 2.5 ulp for a plain float divide, a double divide rounded once to float is exact
-// a double product that must not fuse with an add that follows it (the cpu rounds the product first)
 double mulp(double a, double b)
 {
     precise double r = a * b;
@@ -96,7 +75,6 @@ float lerpf(float t, float a, float b)
     return r;
 }
 
-// java's Math.min / Math.max on floats: NaN wins, -0.0 is below 0.0
 float jmin(float a, float b)
 {
     if (a != a)
@@ -121,8 +99,6 @@ float clampf(float v, float lo, float hi)
         return lo;
     return hi < v ? hi : v;
 }
-
-// ---- perlin noise -------------------------------------------------------------------------------------------------
 
 struct Layer
 {
@@ -152,7 +128,6 @@ int permute(uint perm, int i)
     return int(tables[tables[H_PERMS] + perm + uint(i & 255)]);
 }
 
-// positions beyond +-2^24 wrap so float precision holds
 double wrapPos(double x)
 {
     if (x >= -16777216.0 && x < 16777216.0)
@@ -244,7 +219,6 @@ float perlinGet(Layer l, double x, double y, double z)
     return sampleAndLerp(l.perm, ix, iy, iz, fx, fy, fz, fy);
 }
 
-// the old terrain noise: y snaps to steps of the fudge scale while it is within the first step
 float smearedGet(Layer l, double x, double y, double z)
 {
     double px = wrapPos(x) + l.ox;
@@ -257,7 +231,7 @@ float smearedGet(Layer l, double x, double y, double z)
     double fyd = py - double(iy);
     float fz = float(pz - double(iz));
     double d = (y >= 0.0 && y < fyd) ? y : fyd;
-    // 1.0000000116860974E-7 as bits, so no compiler rounds the literal
+
     double eps = asdouble(0xa0000000u, 0x3e7ad7f2u);
     double fudge = mulp(double(javaFloor(d / l.fudge + eps)), l.fudge);
     return sampleAndLerp(l.perm, ix, iy, iz, fx, float(fyd - fudge), fz, float(fyd));
@@ -301,7 +275,7 @@ float blendedGet(uint index, int x, int y, int z)
     double xzS = dbl(tables[b + 4], tables[b + 5]);
     double yS = dbl(tables[b + 6], tables[b + 7]);
     double dx = double(x), dy = double(y), dz = double(z);
-    // pass 0 blends (main), pass 1 the lower limit, pass 2 the upper; the limits are skipped when alpha is 0 or 1
+
     float alpha = 0.0f;
     float lower = 0.0f;
     float upper = 0.0f;
@@ -337,8 +311,6 @@ float blendedGet(uint index, int x, int y, int z)
     precise float r = lower + scaled;
     return r;
 }
-
-// ---- simplex and the end islands -------------------------------------------------------------------------------
 
 static const int2 kGrad2[12] = {
     int2(1, 1), int2(-1, 1), int2(1, -1), int2(-1, -1), int2(1, 0), int2(-1, 0), int2(1, 0), int2(-1, 0),
@@ -449,10 +421,6 @@ float endIslands(uint perm, int bx, int bz)
     return fdiv(shifted, 128.0f);
 }
 
-// ---- splines ------------------------------------------------------------------------------------------------------
-// a spline point's value is a constant or another spline, and shaders cannot recurse: one function per nesting level.
-// aux layout: [coordinate node, point count] then per point [location, derivative, nested?, constant bits or nested spline offset]
-
 #define SPLINE_LEVEL(NAME, NESTED_EVAL, NESTED_ALLOWED)                                                                      \
     float NAME(uint off)                                                                                                     \
     {                                                                                                                        \
@@ -529,8 +497,6 @@ SPLINE_LEVEL(splineLevel4, splineLevel3, true)
 SPLINE_LEVEL(splineLevel5, splineLevel4, true)
 SPLINE_LEVEL(splineLevel6, splineLevel5, true)
 
-// ---- the graph ----------------------------------------------------------------------------------------------------
-
 float cornerAt(uint k, int cx, int cy, int cz)
 {
     uint at = (((g_chunk * kCornersXz + uint(cx)) * kCornersXz + uint(cz)) * kCornersY + uint(cy)) * params.interpCount + k;
@@ -557,7 +523,6 @@ float interpolated(uint k)
     return lerpf(tz, a, b);
 }
 
-// evaluates the nodes whose ids are listed at tables[listBase ...], in that order, for the block position p
 void evalNodes(int3 p0, uint listBase, uint count)
 {
     uint nodes = tables[H_NODES];
@@ -577,14 +542,13 @@ void evalNodes(int3 p0, uint listBase, uint count)
             p.z = asint(tables[b + 13]);
         uint c1 = tables[b + 1], c2 = tables[b + 2], c3 = tables[b + 3];
         float r = 0.0f;
-        // noise nodes (15 to 18) are handled before the switch, in one place: a single lookup call site keeps the compiled shader small, and
-        // keeping their working values out of the switch avoids a slang c++ emitter bug that clobbered loop counters in other cases
+
         if (op >= 15 && op <= 18)
         {
             double nx, ny, nz;
             if (op == 15)
             {
-                // scaled position, with the optional shifts added after scaling
+
                 double xzS = dbl(tables[b + 8], tables[b + 9]);
                 double yS = dbl(tables[b + 10], tables[b + 11]);
                 precise double sx = mulp(double(p.x), xzS);
@@ -630,28 +594,28 @@ void evalNodes(int3 p0, uint listBase, uint count)
         }
         switch (op)
         {
-        case 0: // constant
+        case 0:
             r = asfloat(tables[b + 4]);
             break;
-        case 1: // add
+        case 1:
         {
             precise float v = g_vals[c1] + g_vals[c2];
             r = v;
             break;
         }
-        case 2: // sub
+        case 2:
         {
             precise float v = g_vals[c1] - g_vals[c2];
             r = v;
             break;
         }
-        case 3: // mul
+        case 3:
         {
             precise float v = g_vals[c1] * g_vals[c2];
             r = v;
             break;
         }
-        case 4: // div
+        case 4:
         {
             float l = g_vals[c1];
             r = l == 0.0f ? 0.0f : fdiv(l, g_vals[c2]);
@@ -666,14 +630,14 @@ void evalNodes(int3 p0, uint listBase, uint count)
         case 7:
             r = abs(g_vals[c1]);
             break;
-        case 8: // square
+        case 8:
         {
             float v = g_vals[c1];
             precise float q = v * v;
             r = q;
             break;
         }
-        case 9: // cube
+        case 9:
         {
             float v = g_vals[c1];
             precise float q = v * v;
@@ -681,21 +645,21 @@ void evalNodes(int3 p0, uint listBase, uint count)
             r = q3;
             break;
         }
-        case 10: // half negative
+        case 10:
         {
             float v = g_vals[c1];
             precise float h = v * 0.5f;
             r = v > 0.0f ? v : h;
             break;
         }
-        case 11: // quarter negative
+        case 11:
         {
             float v = g_vals[c1];
             precise float h = v * 0.25f;
             r = v > 0.0f ? v : h;
             break;
         }
-        case 12: // squeeze
+        case 12:
         {
             float c = clampf(g_vals[c1], -1.0f, 1.0f);
             precise float halfC = c * 0.5f;
@@ -709,10 +673,10 @@ void evalNodes(int3 p0, uint listBase, uint count)
         case 13:
             r = -g_vals[c1];
             break;
-        case 14: // clamp
+        case 14:
             r = clampf(g_vals[c1], asfloat(tables[b + 4]), asfloat(tables[b + 5]));
             break;
-        case 19: // y / x / z clamped gradient
+        case 19:
         {
             uint axis = tables[b + 6];
             int cval = axis == 0 ? p.x : (axis == 1 ? p.y : p.z);
@@ -722,7 +686,7 @@ void evalNodes(int3 p0, uint listBase, uint count)
             r = v;
             break;
         }
-        case 20: // lerp
+        case 20:
         {
             float alpha = g_vals[c1];
             if (alpha == 0.0f)
@@ -733,13 +697,13 @@ void evalNodes(int3 p0, uint listBase, uint count)
                 r = lerpf(alpha, g_vals[c2], g_vals[c3]);
             break;
         }
-        case 21: // range choice
+        case 21:
         {
             float v = g_vals[c1];
             r = (v >= asfloat(tables[b + 4]) && v < asfloat(tables[b + 5])) ? g_vals[c2] : g_vals[c3];
             break;
         }
-        case 22: // interval select
+        case 22:
         {
             float v = g_vals[c1];
             uint aux = tables[H_AUX] + tables[b + 6];
@@ -750,22 +714,22 @@ void evalNodes(int3 p0, uint listBase, uint count)
             r = g_vals[tables[aux + 1 + thresholds + i]];
             break;
         }
-        case 23: // spline
+        case 23:
             r = splineLevel6(tables[b + 6]);
             break;
-        case 24: // pass
+        case 24:
             r = g_vals[c1];
             break;
-        case 25: // interpolated
+        case 25:
             r = interpolated(tables[b + 6]);
             break;
-        case 26: // old blended noise
+        case 26:
             r = blendedGet(tables[b + 6], p.x, p.y, p.z);
             break;
-        case 28: // slice: the child was evaluated at the sliced position
+        case 28:
             r = g_vals[c1];
             break;
-        case 29: // distance to point
+        case 29:
         {
             precise float dx = float(asint(tables[b + 4]) - p.x);
             precise float dy = float(asint(tables[b + 5]) - p.y);
@@ -799,7 +763,7 @@ void evalNodes(int3 p0, uint listBase, uint count)
             }
             break;
         }
-        case 30: // end islands
+        case 30:
             r = endIslands(tables[b + 6], p.x, p.z);
             break;
         default:
@@ -809,8 +773,6 @@ void evalNodes(int3 p0, uint listBase, uint count)
     }
 }
 
-// ---- biomes and surface ------------------------------------------------------------------------------------------
-
 static const int kSeaLevel = 63;
 static const int kMidLayers = 3;
 static const uint kMaxClimateDistance = 20000;
@@ -819,7 +781,6 @@ static const uint kMaterialStride = 8;
 
 static int g_target[6];
 
-// climate * 10000 truncated toward zero, NaN as 0 (Climate.quantizeCoord)
 int quantizeClimate(float v)
 {
     precise float scaled = v * 10000.0f;
@@ -828,7 +789,6 @@ int quantizeClimate(float v)
     return int(clamp(scaled, -2.0e9f, 2.0e9f));
 }
 
-// the nearest box of Java's placement table, the first on a tie: a plain search, as VanillaSurface.cpp does it
 uint findBiome()
 {
     uint table = tables[H_BIOMES];
@@ -865,7 +825,6 @@ uint findBiome()
     return found;
 }
 
-// the block at index idx (from the floor) of a column whose ground is at index top; the same rules as VanillaSurface::BlockAt
 uint blockAt(uint biome, int idx, int top, bool solid)
 {
     uint mats = tables[H_MATERIALS];
@@ -956,7 +915,7 @@ void csMain(uint3 id : SV_DispatchThreadID)
         uint col = t % 256;
         int x = int(col / 16);
         int z = int(col % 16);
-        // the ground: the highest block with positive density
+
         int top = -1;
         uint base = t * kHeight;
         for (int y = int(kHeight) - 1; y >= 0; y--)
@@ -969,7 +928,7 @@ void csMain(uint3 id : SV_DispatchThreadID)
         }
         int2 origin = chunks[chunk] * 16;
         int worldTop = kMinY + (top < 0 ? kSeaLevel - kMinY : top);
-        // the biome is read at the column's quart cell, at the height of the ground
+
         int3 site = int3(((origin.x + x) >> 2) << 2, (worldTop >> 2) << 2, ((origin.y + z) >> 2) << 2);
         uint climate = tables[H_CLIMATE];
         evalNodes(site, climate + 1, tables[climate]);

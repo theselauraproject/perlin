@@ -1,5 +1,4 @@
-// the user shader pack reader is part of the wider client; the headless gpu test runs without packs
-#include "client/resources/ShaderPack.hpp"
+#include "client/systems/resources/ShaderPack.hpp"
 
 namespace perlin {
     struct ShaderPack::Impl {};

@@ -12,7 +12,6 @@ from unicorn import x86_const as x86
 
 from generate import HEAP, INPUT_SHA256, RETURN, Machine, bits
 
-
 def generate(data):
     if data['input_sha256'] != INPUT_SHA256 or data['input_name'] != 'Windows Server 1.26.10':
         raise ValueError('Wrong BDS reference')
@@ -114,7 +113,6 @@ def generate(data):
                   *(v & 0xFFFFFFFF for chunk in chunks for v in chunk)]
         lines.append('R ' + ' '.join(f'{v:08x}' for v in values))
     return '\n'.join(lines) + '\n'
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

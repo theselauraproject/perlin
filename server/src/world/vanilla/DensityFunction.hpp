@@ -1,5 +1,5 @@
 #pragma once
-// the density function graphs of worldgen/density_function/**.json, evaluated the way the 26.3 samplers do (float arithmetic, per block position)
+
 #include "core/Json.hpp"
 #include "world/vanilla/DataPack.hpp"
 #include "world/vanilla/Noise.hpp"
@@ -11,7 +11,6 @@
 
 namespace perlin::server::vanilla {
 
-    // while a chunk is generated on a thread, interpolated nodes remember their cell corners: each is shared by up to eight cells
     class DfCacheScope {
     public:
         explicit DfCacheScope(bool keep = false);
@@ -29,11 +28,10 @@ namespace perlin::server::vanilla {
     struct DfNode;
     using DfPtr = std::shared_ptr<const DfNode>;
 
-    // a cubic spline of the climate parameters (worldgen "spline" nodes)
     struct SplineNode {
         DfPtr coordinate;
         std::vector<float> locations, derivatives;
-        // each point's value is a constant or another spline
+
         std::vector<float> constants;
         std::vector<std::shared_ptr<const SplineNode>> nested;
         float Eval(int x, int y, int z) const;
@@ -79,7 +77,7 @@ namespace perlin::server::vanilla {
         std::vector<DfPtr> in;
         const NormalNoise* noise = nullptr;
         double xzScale = 1, yScale = 1;
-        // clamp / range choice / gradient
+
         float lo = 0, hi = 0;
         int axis = 1;
         int fromCoordinate = 0, minCoordinate = 0, maxCoordinate = 0;
@@ -99,19 +97,18 @@ namespace perlin::server::vanilla {
         float EvalUncached(int x, int y, int z) const;
     };
 
-    // loads named functions from a data pack for one world seed
     class DensityGraph {
     public:
         DensityGraph(const DataPack& pack, int64_t seed, bool legacyRandom = false);
         ~DensityGraph();
-        // "minecraft:overworld/final_density"; null when the file is missing
+
         DfPtr Load(const std::string& id);
         DfPtr Inline(const json::Value& v) { return Build(v); }
         const NormalNoise* Noise(const std::string& id) { return NoiseFor(id); }
         const WorldRandom::Factory& Positional() const { return positional; }
         int64_t Seed() const { return seed; }
         bool Legacy() const { return legacy; }
-        // node types the evaluator does not know yet, found while loading (empty when everything loaded is supported)
+
         const std::vector<std::string>& Unsupported() const { return unsupported; }
 
     private:

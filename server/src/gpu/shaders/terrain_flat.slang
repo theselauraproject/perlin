@@ -1,10 +1,3 @@
-// one thread per cell of every chunk in the batch; the block is a function of (x, y, z, seed)
-// flat terrain only looks y up in a table; vanilla terrain replaces blockAt with noise and keeps everything around it
-//   set 0 binding 0  profile: block id per world y, from the floor up
-//   set 0 binding 1  chunks: chunk x, z per batch entry
-//   set 0 binding 2  cells: out, [chunk][y][z][x], one uint per cell
-// push constants: chunk count, seed low, seed high, unused
-
 struct Params
 {
     uint chunkCount;

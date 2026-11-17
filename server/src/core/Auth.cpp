@@ -1,4 +1,6 @@
+#include "util/TaskGroup.hpp"
 #include "core/Auth.hpp"
+#include "util/JsonText.hpp"
 
 #include <openssl/bn.h>
 #include <openssl/ecdsa.h>
@@ -446,8 +448,8 @@ namespace perlin::server::auth {
                 if (sp == std::string::npos)
                     continue;
                 payload += std::string(first ? "" : ",") + "{\"algorithm\":\"" +
-                           json::Escape(rest.substr(0, sp)) + "\",\"digest\":\"" +
-                           json::Escape(rest.substr(sp + 1)) + "\"}";
+                           ::perlin::json::Escape(rest.substr(0, sp)) + "\",\"digest\":\"" +
+                           ::perlin::json::Escape(rest.substr(sp + 1)) + "\"}";
                 first = false;
             } else if (line.starts_with("a=identity:") && assertionAttr.empty()) {
                 assertionAttr = line.substr(11);
@@ -567,7 +569,7 @@ namespace perlin::server::auth {
                             std::string lower = head;
                             for (char& c : lower)
                                 c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                            if (lower.find("transfer-encoding: chunked") != std::string::npos) {
+                            if (lower.contains("transfer-encoding: chunked")) {
                                 std::string joined;
                                 size_t at = 0;
                                 while (at < body.size()) {
@@ -622,14 +624,18 @@ namespace perlin::server::auth {
         static std::atomic<bool> started{false};
         if (started.exchange(true))
             return;
-        std::thread([] {
+        ProcessTasks().Run([](StopToken stop) {
             int failures = 0;
-            for (;;) {
+            while (!stop.stop_requested()) {
                 const bool ok = RefreshTokenKeys();
                 failures = ok ? 0 : failures + 1;
-                std::this_thread::sleep_for(ok ? std::chrono::minutes(30) : std::chrono::seconds(std::min(300, 10 << std::min(failures, 5))));
+                const auto delay = ok ? std::chrono::seconds(30 * 60)
+                                      : std::chrono::seconds(std::min(300, 10 << std::min(failures, 5)));
+                const auto deadline = std::chrono::steady_clock::now() + delay;
+                while (!stop.stop_requested() && std::chrono::steady_clock::now() < deadline)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
-        }).detach();
+        });
     }
 #else
     void StartTokenKeyRefresh() {}

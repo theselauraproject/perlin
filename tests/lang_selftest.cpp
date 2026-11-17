@@ -1,8 +1,7 @@
-#include "client/i18n/Lang.hpp"
+#include "client/systems/i18n/Lang.hpp"
+#include "util/FileIo.hpp"
 
 #include <cstdio>
-#include <fstream>
-#include <sstream>
 #include <string>
 
 using perlin::i18n::Lang;
@@ -37,16 +36,15 @@ int main(int argc, char** argv) {
     CHECK(lang.Has("hello") && !lang.Has("missing.key"));
 
     if (argc > 1) {
-        std::ifstream f(std::string(argv[1]) + "/perlin_en_US.lang", std::ios::binary);
-        std::stringstream ss;
-        ss << f.rdbuf();
-        CHECK(!ss.str().empty());
+        const std::string contents = perlin::file::Read(std::string(argv[1]) + "/localization/perlin_en_US.lang");
+        CHECK(!contents.empty());
         std::unordered_map<std::string, std::string> shipped;
-        Lang::Parse(ss.str(), shipped);
+        Lang::Parse(contents, shipped);
         CHECK(shipped.size() > 50);
-        lang.LoadFromText(ss.str());
+        lang.LoadFromText(contents);
         CHECK(lang.Tr("perlin.debug.block", {"1", "2", "3"}) == "Block: 1 2 3");
-        CHECK(lang.Tr("perlin.debug.memory", {"50", "10", "20"}) == "Mem: 50% 10/20MB");
+        CHECK(lang.Tr("perlin.debug.memory", {"50", "10", "20"}) == "RAM: 50% 10/20MB");
+        CHECK(lang.Tr("perlin.debug.vram", {"300", "200", "100"}) == "VRAM: 300MB (200MB dedicated, 100MB shared)");
         CHECK(lang.Tr("perlin.title.fps", {"60"}) == "60 FPS");
         for (const auto& [k, v] : shipped)
             if (v.empty()) {

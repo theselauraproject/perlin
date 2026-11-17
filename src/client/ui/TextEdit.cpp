@@ -1,7 +1,7 @@
 #include "client/ui/TextEdit.hpp"
 
-#include "client/input/Keys.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/systems/bindings/Keys.hpp"
+#include "util/Utf8.hpp"
 
 #include <algorithm>
 
@@ -52,25 +52,6 @@ namespace perlin::ui {
                 i = Next(s, i);
             return i;
         }
-
-        void AppendUtf8(std::string& out, uint32_t cp) {
-            if (cp < 0x80) {
-                out += static_cast<char>(cp);
-            } else if (cp < 0x800) {
-                out += static_cast<char>(0xC0 | (cp >> 6));
-                out += static_cast<char>(0x80 | (cp & 0x3F));
-            } else if (cp < 0x10000) {
-                out += static_cast<char>(0xE0 | (cp >> 12));
-                out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
-                out += static_cast<char>(0x80 | (cp & 0x3F));
-            } else {
-                out += static_cast<char>(0xF0 | (cp >> 18));
-                out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
-                out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
-                out += static_cast<char>(0x80 | (cp & 0x3F));
-            }
-        }
-
         bool DecodeUtf8(const std::string& s, size_t& i, uint32_t& cp) {
             if (i >= s.size())
                 return false;
@@ -276,24 +257,43 @@ namespace perlin::ui {
         return caret >= value.size() ? value + "_" : value.substr(0, caret) + "|" + value.substr(caret);
     }
 
-    std::string TextFieldRml(const std::string& value, bool caretOn) {
+    std::vector<SceneRun> TextFieldRuns(const std::string& value, bool caretOn) {
         size_t caret = 0, a = 0, b = 0;
         TextEdit::Focused().State(value, caret, a, b);
-        const auto bar = [&](size_t at) -> std::string {
-            if (!caretOn || at != caret)
-                return {};
-            if (at >= value.size())
-                return "_";
-            return "<span style=\"display:inline-block;width:0px;overflow:visible;\">|</span>";
+        std::vector<SceneRun> out;
+        const auto text = [&](const std::string& part) {
+            if (part.empty())
+                return;
+            SceneRun run;
+            run.text = part;
+            out.push_back(std::move(run));
         };
-        std::string out = EscapeRml(value.substr(0, a));
-        out += bar(a);
+        const auto bar = [&](size_t at) {
+            if (!caretOn || at != caret)
+                return;
+            SceneRun run;
+            if (at >= value.size()) {
+                run.text = "_";
+            } else {
+                run.text = "|";
+                run.display = "inline-block";
+                run.width = "0px";
+                run.overflow = "visible";
+            }
+            out.push_back(std::move(run));
+        };
+        text(value.substr(0, a));
+        bar(a);
         if (b > a) {
-            out += "<span style=\"background-color:#3d6bffb4;color:#ffffff;\">" +
-                   EscapeRml(value.substr(a, b - a)) + "</span>";
-            out += bar(b);
+            SceneRun run;
+            run.text = value.substr(a, b - a);
+            run.colored = "1";
+            run.color = "#ffffff";
+            run.background = "#3d6bffb4";
+            out.push_back(std::move(run));
+            bar(b);
         }
-        out += EscapeRml(value.substr(b));
+        text(value.substr(b));
         return out;
     }
 }

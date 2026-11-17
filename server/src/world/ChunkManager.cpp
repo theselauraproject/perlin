@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "world/ChunkManager.hpp"
 
 #include <algorithm>
@@ -10,6 +11,7 @@ __declspec(dllimport) void* __stdcall GetCurrentThread(void);
 __declspec(dllimport) int __stdcall SetThreadPriority(void*, int);
 }
 #elif defined(__linux__) || defined(__ANDROID__)
+#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -31,7 +33,7 @@ namespace perlin::server {
         size_t threads = 1;
         if (backend->ThreadSafe()) {
             const unsigned hw = std::thread::hardware_concurrency();
-            // leave a core for the tick and network threads
+
             threads = std::clamp<size_t>(hw > 2 ? hw - 1 : 1, 1, 16);
             if (maxThreads > 0)
                 threads = std::min(threads, maxThreads);
@@ -53,6 +55,9 @@ namespace perlin::server {
     }
 
     void ChunkManager::Worker() {
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "server-chunkgen");
+#endif
         YieldToTick();
         for (;;) {
             std::vector<ChunkPos> batch;
@@ -136,10 +141,10 @@ namespace perlin::server {
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++) {
                     const ChunkPos q{p.x + dx, p.z + dz};
-                    if (std::find(wanted.begin(), wanted.end(), q) == wanted.end())
+                    if (std::ranges::find(wanted, q) == wanted.end())
                         wanted.push_back(q);
                 }
-        std::sort(wanted.begin(), wanted.end(), [&](const ChunkPos& a, const ChunkPos& b) {
+        std::ranges::sort(wanted, [&](const ChunkPos& a, const ChunkPos& b) {
             const bool ia = std::find(batch.begin(), batch.end(), a) != batch.end();
             const bool ib = std::find(batch.begin(), batch.end(), b) != batch.end();
             return ia > ib;
@@ -150,7 +155,7 @@ namespace perlin::server {
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++) {
                     const ChunkPos q{batch[i].x + dx, batch[i].z + dz};
-                    const size_t at = static_cast<size_t>(std::find(wanted.begin(), wanted.end(), q) - wanted.begin());
+                    const size_t at = static_cast<size_t>(std::ranges::find(wanted, q) - wanted.begin());
                     region[(dz + 1) * 3 + dx + 1] = raws[at].get();
                 }
             if (!region[4])
@@ -189,7 +194,8 @@ namespace perlin::server {
             if (chunks.contains(pos))
                 continue;
             chunks[pos] = std::move(entry);
-            this->ready.push_back(pos);
+            if (everReady.insert(pos).second)
+                this->ready.push_back(pos);
         }
     }
 
@@ -244,6 +250,32 @@ namespace perlin::server {
         if (it == chunks.end())
             return false;
         it->second->column.Set(x & 15, y, z & 15, block);
+        edited.insert(it->first);
         return true;
+    }
+
+    size_t ChunkManager::UnloadFar(const std::vector<Viewer>& viewers, int margin) {
+        const auto far = [&](ChunkPos p) {
+            for (const Viewer& v : viewers)
+                if (std::abs(p.x - v.center.x) <= v.radius + margin && std::abs(p.z - v.center.z) <= v.radius + margin)
+                    return false;
+            return true;
+        };
+        size_t dropped = 0;
+        for (auto it = chunks.begin(); it != chunks.end();) {
+            if (!far(it->first)) {
+                ++it;
+                continue;
+            }
+            if (edited.contains(it->first)) {
+                std::vector<uint8_t>().swap(it->second->payload);
+                it->second->payloadVersion = ~0ull;
+                ++it;
+                continue;
+            }
+            it = chunks.erase(it);
+            dropped++;
+        }
+        return dropped;
     }
 }

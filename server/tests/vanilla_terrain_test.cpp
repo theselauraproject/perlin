@@ -1,4 +1,3 @@
-// the vanilla backend fills chunks from the real density graph
 #include "core/Config.hpp"
 #include "world/BlockCatalog.hpp"
 #include "world/vanilla/VanillaTerrain.hpp"
@@ -29,7 +28,7 @@ int main() {
                 ms / static_cast<double>(pos.size()));
     int bad = 0;
     for (size_t n = 0; n < pos.size(); n++) {
-        // every sampled block agrees with the density sign, except where a cave or canyon carver cut through
+
         for (int i = 0; i < 400; i++) {
             const int x = (i * 7) & 15, z = (i * 13) & 15, y = -60 + (i * 31) % 360;
             const bool solid = backend->Density(pos[n].x * 16 + x, y, pos[n].z * 16 + z) > 0.0f;

@@ -1,8 +1,9 @@
 #pragma once
-#include "client/input/InputManager.hpp"
-#include "client/ui/CommandInfo.hpp"
-#include "client/ui/HudState.hpp"
+#include "client/systems/input/InputManager.hpp"
+#include "client/systems/model/CommandInfo.hpp"
+#include "client/systems/model/HudState.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <deque>
 #include <string>
@@ -16,9 +17,21 @@ namespace perlin::ui {
         static constexpr int kMaxHistory = 100;
         static constexpr int kMaxInput = 256;
 
+        struct Layout {
+            int width = 320;
+            float scale = 1.0f;
+            int lineHeight = 9;
+            int focusedLines = 20;
+            int unfocusedLines = 10;
+            float textAlpha = 1.0f;
+            float backgroundAlpha = 0.5f;
+        };
+        void SetLayout(const Layout& next);
+
         void AddMessage(const std::string& text, uint64_t tick);
         void Clear() {
             lines.clear();
+            messages.clear();
             scroll = 0;
         }
         std::vector<std::string> RecentLines(size_t count) const {
@@ -65,6 +78,9 @@ namespace perlin::ui {
             uint64_t added;
             std::vector<UrlSpan> urls;
         };
+        int WrapWidth() const { return std::max(1, static_cast<int>(layout.width / layout.scale)); }
+        int PageLines() const { return std::max(1, layout.focusedLines); }
+        void AppendWrapped(const std::string& text, uint64_t tick);
         void Insert(uint32_t codepoint);
         void Erase(bool forward, bool word);
         void MoveCaret(int delta, bool word);
@@ -80,6 +96,12 @@ namespace perlin::ui {
         bool cycling = false;
         std::string cycleBase;
 
+        Layout layout;
+        struct Message {
+            std::string text;
+            uint64_t added;
+        };
+        std::deque<Message> messages;
         std::deque<Line> lines;
         std::vector<std::string> history;
         int historyIndex = -1;

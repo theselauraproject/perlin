@@ -8,7 +8,7 @@ def abiList = (project.findProperty('abis') ?: 'arm64-v8a').toString().split(','
 def useCcache = (project.findProperty('ccache') ?: 'false').toString() == 'true'
 def appVersionCode = (project.findProperty('appVersionCode') ?: '1').toString().toInteger()
 def appVersionName = (project.findProperty('appVersionName') ?: '1.0.0').toString()
-// nightly builds: the commit and repository the in-game updater compares against (empty = no auto update)
+
 def buildCommit = (project.findProperty('buildCommit') ?: '').toString()
 def updateRepo = (project.findProperty('updateRepo') ?: '').toString()
 

@@ -35,7 +35,7 @@ namespace perlin::ui {
         };
         using Dim = std::vector<Term>;
 
-        Dim ParseDim(const Json& v) {
+        Dim ParseDim(const json::Value& v) {
             Dim dim;
             if (v.IsNumber()) {
                 dim.push_back({Term::Px, v.number, 1});
@@ -189,11 +189,11 @@ namespace perlin::ui {
         }
 
         bool UsesKind(const Dim& dim, Term::Kind kind) {
-            return std::any_of(dim.begin(), dim.end(), [&](const Term& t) { return t.kind == kind; });
+            return std::ranges::any_of(dim, [&](const Term& t) { return t.kind == kind; });
         }
         bool UsesParent(const Dim& dim) {
-            return std::any_of(dim.begin(), dim.end(),
-                               [](const Term& t) { return t.kind == Term::Pct || t.kind == Term::Fill; });
+            return std::ranges::any_of(
+                dim, [](const Term& t) { return t.kind == Term::Pct || t.kind == Term::Fill; });
         }
 
         double Ease(const std::string& name, double t) {
@@ -269,7 +269,7 @@ namespace perlin::ui {
             return t;
         }
 
-        bool AnimNumber(const Json& j, double& v, bool& pct) {
+        bool AnimNumber(const json::Value& j, double& v, bool& pct) {
             pct = false;
             if (j.IsNumber()) {
                 v = j.number;
@@ -286,9 +286,9 @@ namespace perlin::ui {
             return false;
         }
 
-        Json LerpJson(const Json& a, const Json& b, double t) {
+        json::Value LerpJson(const json::Value& a, const json::Value& b, double t) {
             if (a.IsArray() && b.IsArray()) {
-                Json out = Json::MakeArray();
+                json::Value out = json::Value::MakeArray();
                 for (size_t i = 0; i < std::min(a.array.size(), b.array.size()); i++)
                     out.Push(LerpJson(a.array[i], b.array[i], t));
                 return out;
@@ -300,9 +300,9 @@ namespace perlin::ui {
                 if (ap || bp) {
                     char buf[48];
                     std::snprintf(buf, sizeof(buf), "%g%%", v);
-                    return Json(std::string(buf));
+                    return json::Value(std::string(buf));
                 }
-                return Json(v);
+                return json::Value(v);
             }
             return t < 1.0 ? a : b;
         }
@@ -324,16 +324,16 @@ namespace perlin::ui {
                 n->src = &node;
                 n->type = node.type;
                 n->id = node.name;
-                // collection_name on a plain control opens a collection for descendants; their collection_index binds one item, no grid
+
                 std::vector<Collection> scoped;
-                if (const Json* ci = node.props.Find("collection_index"); ci && ci->IsNumber()) {
+                if (const json::Value* ci = node.props.Find("collection_index"); ci && ci->IsNumber()) {
                     scoped = outerCollections;
                     for (size_t i = scoped.size(); i-- > 0;)
                         if (scoped[i].index < 0) {
                             scoped[i].index = static_cast<int>(ci->number);
                             break;
                         }
-                } else if (const Json* cn = node.props.Find("collection_name");
+                } else if (const json::Value* cn = node.props.Find("collection_name");
                            cn && cn->IsString() && !cn->string.empty() && node.type != "grid") {
                     scoped = outerCollections;
                     scoped.push_back({cn->string, -1});
@@ -345,24 +345,24 @@ namespace perlin::ui {
                 }
                 const Vars* vars = factoryVars;
                 bool deferredView = false;
-                for (const Json& b : node.bindings) {
+                for (const json::Value& b : node.bindings) {
                     if (!b.IsObject() || !b.Find("binding_type") ||
                         b.Find("binding_type")->StringOr("") != "view")
                         continue;
-                    const Json* sc = b.Find("source_control_name");
+                    const json::Value* sc = b.Find("source_control_name");
                     if (sc && sc->IsString() && !sc->string.empty() && sc->string != node.name)
                         deferredView = true;
                 }
                 ApplyBindings(*n, collections);
                 ResolveProps(*n, vars);
-                if (const Json* ignored = n->p.Find("ignored"); ignored && Truthy(*ignored))
+                if (const json::Value* ignored = n->p.Find("ignored"); ignored && Truthy(*ignored))
                     return nullptr;
 
                 bool visible = true;
-                if (const Json* v = n->p.Find("visible"))
+                if (const json::Value* v = n->p.Find("visible"))
                     visible = Truthy(*v) || (v->IsString() && v->string.empty());
-                // #visible binding decides alone; "visible" property is only the default
-                if (const Json* v = n->bag.Find("#visible"))
+
+                if (const json::Value* v = n->bag.Find("#visible"))
                     visible = Truthy(*v);
                 n->visible = visible;
                 if (services.anim && services.anim->destroyed.contains(n->id))
@@ -372,7 +372,7 @@ namespace perlin::ui {
 
                 n->layer = parentLayer + static_cast<int>(n->Num("layer", 0));
                 float alpha = 1.0f;
-                if (const Json* a = n->p.Find("alpha")) {
+                if (const json::Value* a = n->p.Find("alpha")) {
                     if (a->IsNumber())
                         alpha = static_cast<float>(a->number);
                     else if (a->IsString() && !a->string.empty() && a->string[0] == '@') {
@@ -381,7 +381,7 @@ namespace perlin::ui {
                                            a->string.contains("actionbar") || a->string.contains("title") ||
                                            a->string.contains("chat");
                         if (!known && services.anim && services.animDef) {
-                            std::unordered_map<std::string, Json> out;
+                            std::unordered_map<std::string, json::Value> out;
                             RunAnimation(a->string, n->src->ns, AnimKey(*n) + "|alpha" + a->string, n.get(),
                                          out);
                             const auto it = out.find("alpha");
@@ -393,7 +393,7 @@ namespace perlin::ui {
                         }
                     }
                 }
-                if (const Json* a = n->bag.Find("#alpha"); a && a->IsNumber())
+                if (const json::Value* a = n->bag.Find("#alpha"); a && a->IsNumber())
                     alpha = static_cast<float>(a->number);
                 n->alpha = propagateAlpha ? alpha * parentAlpha : alpha;
                 const bool propagate =
@@ -414,14 +414,13 @@ namespace perlin::ui {
                     addKid(Instantiate(*child, collections, factoryVars, n->layer, n->alpha, propagate));
                 if (deferredView) {
                     ApplyBindings(*n, collections);
-                    // The source may be a child instantiated above. Resolve label text
-                    // again after its view binding has received that child's value.
+
                     if (n->type == "label")
                         n->text = ResolveText(*n, vars);
                     bool nowVisible = true;
-                    if (const Json* v = n->p.Find("visible"))
+                    if (const json::Value* v = n->p.Find("visible"))
                         nowVisible = Truthy(*v) || (v->IsString() && v->string.empty());
-                    if (const Json* v = n->bag.Find("#visible"))
+                    if (const json::Value* v = n->bag.Find("#visible"))
                         nowVisible = Truthy(*v);
                     if (!nowVisible) {
                         n->visible = false;
@@ -437,13 +436,13 @@ namespace perlin::ui {
                     int count = std::max(0, cols * rows);
                     if (!collection.empty())
                         count = std::min(count, data.CollectionSize(collection));
-                    // rescaling grid: holds #maximum_grid_items (or whole collection), rows/columns from the space it gets
+
                     if (const std::string rescale = n->Str("grid_rescaling_type");
                         rescale == "horizontal" || rescale == "vertical") {
                         int maxItems = -1;
-                        if (const Json* m = n->bag.Find("#maximum_grid_items"); m && m->IsNumber())
+                        if (const json::Value* m = n->bag.Find("#maximum_grid_items"); m && m->IsNumber())
                             maxItems = static_cast<int>(m->number);
-                        else if (const Json* m = n->p.Find("maximum_grid_items"); m && m->IsNumber())
+                        else if (const json::Value* m = n->p.Find("maximum_grid_items"); m && m->IsNumber())
                             maxItems = static_cast<int>(m->number);
                         if (collection.empty())
                             count = std::max(0, maxItems);
@@ -461,12 +460,11 @@ namespace perlin::ui {
                 }
                 if (!node.factoryControls.empty()) {
                     std::string name = node.name;
-                    if (const Json* f = n->p.Find("factory"); f && f->IsObject())
-                        if (const Json* fn = f->Find("name"); fn && fn->IsString())
+                    if (const json::Value* f = n->p.Find("factory"); f && f->IsObject())
+                        if (const json::Value* fn = f->Find("name"); fn && fn->IsString())
                             name = fn->string;
-                    // #collection_length as list of control ids: creates exactly those, in order (servers pick a layout from a binding)
-                    // numeric #collection_length: stamps the control once per item of the panel's collection
-                    if (const Json* count = n->bag.Find("#collection_length");
+
+                    if (const json::Value* count = n->bag.Find("#collection_length");
                         count && count->IsNumber() && node.factoryControls.size() == 1) {
                         const std::string c = n->Str("collection_name");
                         const int total = std::clamp(static_cast<int>(count->number), 0, 1000);
@@ -483,9 +481,9 @@ namespace perlin::ui {
                             addKid(std::move(kid));
                         }
                     }
-                    if (const Json* ids = n->bag.Find("#collection_length"); ids && ids->IsArray()) {
+                    if (const json::Value* ids = n->bag.Find("#collection_length"); ids && ids->IsArray()) {
                         int index = 0;
-                        for (const Json& id : ids->array) {
+                        for (const json::Value& id : ids->array) {
                             if (id.IsString())
                                 for (const auto& entry : node.factoryControls)
                                     if (entry.first == id.string) {
@@ -535,7 +533,7 @@ namespace perlin::ui {
                     DimContext cw, ch;
                     cw.parent = pw;
                     ch.parent = ph;
-                    // "%x"/"%y" name the parent's axes, whichever axis the control measures
+
                     cw.parentX = ch.parentX = pw;
                     cw.parentY = ch.parentY = ph;
                     cw.fill = fillW;
@@ -554,7 +552,7 @@ namespace perlin::ui {
                         EvalDim(hd, ch, h);
                 };
                 resolve();
-                // min/max bound the control before its children size against it (NaN axes stay unknown)
+
                 ClampSize(n, pw, ph, w, h);
                 const bool wKnown0 = Known(w), hKnown0 = Known(h);
                 const float w0 = w, h0 = h;
@@ -584,7 +582,7 @@ namespace perlin::ui {
                     maxW = sumW;
                     maxH = sumH;
                 } else {
-                    // widgets show one state child at rest; others (hover, pressed, locked...) take no space
+
                     std::vector<std::string> resting;
                     if (n.type == "button" || n.type == "edit_box") {
                         for (const char* key : {"hover_control", "pressed_control", "locked_control"})
@@ -601,7 +599,7 @@ namespace perlin::ui {
                                 resting.push_back(name);
                     }
                     for (LNode* k : live) {
-                        if (std::find(resting.begin(), resting.end(), k->id) != resting.end())
+                        if (std::ranges::find(resting, k->id) != resting.end())
                             continue;
                         maxW = std::max(maxW, k->w);
                         maxH = std::max(maxH, k->h);
@@ -623,7 +621,7 @@ namespace perlin::ui {
                     ch.intrinsic = intrinsicH;
                     cw.childrenMax = maxW;
                     ch.childrenMax = maxH;
-                    // "%c": sum of visible children on that axis, every control; "%cm": the largest
+
                     cw.children = sumW;
                     ch.children = sumH;
                     if (!Known(w) || needsChildrenW) {
@@ -681,11 +679,11 @@ namespace perlin::ui {
                         live.push_back(k.get());
                 if (n.type == "stack_panel") {
                     const bool vertical = StackVertical(n);
-                    // children at cross-axis start unless the stack opts into their anchors
+
                     const bool childAnchors = n.Bool("use_child_anchors", false);
                     float cursor = 0;
                     for (LNode* k : live) {
-                        float ox = 0, oy = 0; // stack children ignore offset
+                        float ox = 0, oy = 0;
                         if (vertical) {
                             float cx = 0, cy = 0;
                             if (childAnchors)
@@ -731,7 +729,7 @@ namespace perlin::ui {
                 n.lines.clear();
                 if (n.text.empty())
                     return;
-                // never break lines tighter than the size pass (widest line is textWidth): a label sized to its text keeps its lines
+
                 const float wrap = std::max(n.w, n.textWidth) + 0.01f;
                 WrapLines(n.text, scale, ten, wrap, n.lines);
                 (void)lines;
@@ -770,11 +768,11 @@ namespace perlin::ui {
                 }
             }
 
-            bool Lookup(const LNode& n, const std::string& name, const Vars* vars, Json& out) const {
+            bool Lookup(const LNode& n, const std::string& name, const Vars* vars, json::Value& out) const {
                 if (name.empty())
                     return false;
                 if (name[0] == '#') {
-                    if (const Json* v = n.bag.Find(name)) {
+                    if (const json::Value* v = n.bag.Find(name)) {
                         out = *v;
                         return true;
                     }
@@ -790,58 +788,58 @@ namespace perlin::ui {
                 return false;
             }
 
-            Json Resolve(const LNode& n, const Json& v, const Vars* vars) const {
+            json::Value Resolve(const LNode& n, const json::Value& v, const Vars* vars) const {
                 if (!v.IsString())
                     return v;
                 const std::string& s = v.string;
                 if (s.empty())
                     return v;
                 if (s[0] == '#' || (s[0] == '$' && s.find_first_of(" ()") == std::string::npos)) {
-                    Json out;
+                    json::Value out;
                     if (Lookup(n, s, vars, out))
                         return out;
-                    return s[0] == '#' ? Json() : v;
+                    return s[0] == '#' ? json::Value() : v;
                 }
                 if (IsExpression(s)) {
                     ExprEnv env;
-                    env.binding = [&](const std::string& name, Json& out) {
+                    env.binding = [&](const std::string& name, json::Value& out) {
                         return Lookup(n, name, vars, out);
                     };
-                    env.variable = [&](const std::string& name, Json& out) {
+                    env.variable = [&](const std::string& name, json::Value& out) {
                         return Lookup(n, name, vars, out);
                     };
-                    Json result;
+                    json::Value result;
                     if (EvalExpression(s, env, result))
                         return result;
-                    return Json();
+                    return json::Value();
                 }
                 return v;
             }
 
             void ApplyBindings(LNode& n, const std::vector<Collection>& collections) {
                 byName[n.id] = &n;
-                // property_bag seeds binding values; bindings below may overwrite
-                if (const Json* bag = n.src->props.Find("property_bag"); bag && bag->IsObject())
+
+                if (const json::Value* bag = n.src->props.Find("property_bag"); bag && bag->IsObject())
                     for (const auto& member : bag->object)
                         if (!n.bag.Find(member.first))
                             n.bag.Set(member.first, member.second);
-                for (const Json& b : n.src->bindings) {
+                for (const json::Value& b : n.src->bindings) {
                     if (!b.IsObject())
                         continue;
                     const std::string type =
                         b.Find("binding_type") ? b.Find("binding_type")->StringOr("global") : "global";
-                    // "none" isn't fed by data: the control keeps its own value
+
                     if (type == "collection_details" || type == "none")
                         continue;
                     if (type == "view") {
-                        const Json* expr = b.Find("source_property_name");
-                        const Json* target = b.Find("target_property_name");
+                        const json::Value* expr = b.Find("source_property_name");
+                        const json::Value* target = b.Find("target_property_name");
                         if (!expr || !expr->IsString() || !target || !target->IsString())
                             continue;
                         const LNode* source = &n;
-                        if (const Json* sc = b.Find("source_control_name");
+                        if (const json::Value* sc = b.Find("source_control_name");
                             sc && sc->IsString() && !sc->string.empty()) {
-                            // "($dropdown_name)" arrives as "(custom_dropdown)" or "('custom_dropdown')"
+
                             std::string control = sc->string;
                             while (!control.empty() && (control.front() == '(' || control.front() == '\'' ||
                                                         control.front() == ' '))
@@ -853,39 +851,39 @@ namespace perlin::ui {
                             if (it != byName.end())
                                 source = it->second;
                         }
-                        Json result;
+                        json::Value result;
                         std::string text = expr->string;
                         if (!IsExpression(text) && !text.empty() && text[0] == '#') {
                             Lookup(*source, text, nullptr, result);
                         } else {
                             ExprEnv env;
-                            env.binding = [&](const std::string& name, Json& out) {
+                            env.binding = [&](const std::string& name, json::Value& out) {
                                 return Lookup(*source, name, nullptr, out);
                             };
                             EvalExpression(text, env, result);
                         }
-                        // result naming another property ("#if_" + ... -> "#if_true") reads that property: packs' property_bag indirection
+
                         if (result.IsString() && result.string.size() > 1 && result.string[0] == '#' &&
                             result.string != target->string)
-                            if (const Json* named = n.bag.Find(result.string))
+                            if (const json::Value* named = n.bag.Find(result.string))
                                 result = *named;
                         n.bag.Set(target->string, result);
                         continue;
                     }
-                    const Json* nameJson = b.Find("binding_name");
+                    const json::Value* nameJson = b.Find("binding_name");
                     if (!nameJson || !nameJson->IsString())
                         continue;
                     const std::string name = nameJson->string;
                     std::string target = name;
-                    if (const Json* o = b.Find("binding_name_override"); o && o->IsString())
+                    if (const json::Value* o = b.Find("binding_name_override"); o && o->IsString())
                         target = o->string;
-                    Json value;
+                    json::Value value;
                     bool have = false;
-                    // collection row this binding reads, if a collection binding
+
                     int row = -1;
                     std::string rowCollection;
                     if (type == "collection") {
-                        const Json* c = b.Find("binding_collection_name");
+                        const json::Value* c = b.Find("binding_collection_name");
                         rowCollection = c && c->IsString() ? c->string : std::string();
                         for (size_t i = collections.size(); i-- > 0;)
                             if (collections[i].name == rowCollection) {
@@ -894,22 +892,22 @@ namespace perlin::ui {
                             }
                     }
                     if (IsExpression(name)) {
-                        // collection binding: names in the expression are that row's values
+
                         ExprEnv env;
-                        env.binding = [&](const std::string& nm, Json& out) {
+                        env.binding = [&](const std::string& nm, json::Value& out) {
                             if (row >= 0 && data.CollectionValue(rowCollection, row, nm, out))
                                 return true;
                             return Lookup(n, nm, nullptr, out);
                         };
                         have = EvalExpression(name, env, value);
-                        // "('#' + $dropdown_name)" only builds the binding's name: read the binding it names
+
                         if (have && value.IsString() && value.string.size() > 1 && value.string[0] == '#') {
                             const std::string named = value.string;
                             have = row >= 0 ? data.CollectionValue(rowCollection, row, named, value)
                                             : data.Global(named, value);
                         }
                     } else if (type == "collection") {
-                        const Json* c = b.Find("binding_collection_name");
+                        const json::Value* c = b.Find("binding_collection_name");
                         const std::string collection = c && c->IsString() ? c->string : std::string();
                         for (size_t i = collections.size(); i-- > 0;)
                             if (collections[i].name == collection) {
@@ -922,7 +920,7 @@ namespace perlin::ui {
                     if (have)
                         n.bag.Set(target, std::move(value));
                     else if (target == "#visible")
-                        n.bag.Set(target, Json(false));
+                        n.bag.Set(target, json::Value(false));
                 }
             }
 
@@ -931,7 +929,7 @@ namespace perlin::ui {
                     const std::string& key = member.first;
                     if (key == "controls" || key == "bindings" || key == "anims")
                         continue;
-                    const Json& v = member.second;
+                    const json::Value& v = member.second;
                     if (v.IsString() && !v.string.empty() &&
                         (v.string[0] == '#' || v.string[0] == '$' || IsExpression(v.string)))
                         n.p.Set(key, Resolve(n, v, vars));
@@ -941,15 +939,15 @@ namespace perlin::ui {
             }
 
             std::string ResolveText(LNode& n, const Vars* vars) {
-                const Json* t = n.p.Find("text");
+                const json::Value* t = n.p.Find("text");
                 std::string text;
                 if (t && t->IsString())
                     text = t->string;
                 else if (t && t->IsNumber())
                     text = t->Dump();
                 if (t && t->IsNull()) {
-                    Json b;
-                    // unresolved binding draws nothing: never a literal "null"
+                    json::Value b;
+
                     if (Lookup(n, "#text", vars, b))
                         text = b.IsString() ? b.string : (b.IsNull() ? std::string() : b.Dump());
                 }
@@ -960,12 +958,12 @@ namespace perlin::ui {
             }
 
             void RunAnimation(const std::string& ref, const std::string& ns, const std::string& key, LNode* n,
-                              std::unordered_map<std::string, Json>& out) {
+                              std::unordered_map<std::string, json::Value>& out) {
                 AnimHost* host = services.anim;
                 if (!host || !services.animDef || ref.empty())
                     return;
                 struct Step {
-                    Json def;
+                    json::Value def;
                     double duration = 0;
                 };
                 std::vector<Step> chain;
@@ -978,14 +976,14 @@ namespace perlin::ui {
                         loopStart = hit->second;
                         break;
                     }
-                    Json def = services.animDef(cur, ns);
+                    json::Value def = services.animDef(cur, ns);
                     if (!def.IsObject())
                         break;
                     visited[cur] = chain.size();
                     Step s;
                     s.duration =
                         std::max(0.0, def.Find("duration") ? def.Find("duration")->NumberOr(0) : 0.0);
-                    const Json* next = def.Find("next");
+                    const json::Value* next = def.Find("next");
                     s.def = std::move(def);
                     chain.push_back(std::move(s));
                     cur = next && next->IsString() ? next->string : std::string();
@@ -999,14 +997,14 @@ namespace perlin::ui {
                 rec.seen = host->epoch;
 
                 double start = rec.start;
-                const Json& first = chain.front().def;
-                if (const Json* pe = first.Find("play_event"); pe && pe->IsString() && !pe->string.empty()) {
+                const json::Value& first = chain.front().def;
+                if (const json::Value* pe = first.Find("play_event"); pe && pe->IsString() && !pe->string.empty()) {
                     const auto ev = host->events.find(pe->string);
                     if (ev == host->events.end())
                         return;
                     start = std::max(start, ev->second);
                 }
-                if (const Json* rn = first.Find("animation_reset_name");
+                if (const json::Value* rn = first.Find("animation_reset_name");
                     rn && rn->IsString() && !rn->string.empty()) {
                     const auto ev = host->events.find(rn->string);
                     if (ev != host->events.end() && ev->second > start)
@@ -1023,23 +1021,23 @@ namespace perlin::ui {
                         elapsed = pre;
                 }
 
-                auto currentOf = [&](const std::string& type) -> Json {
+                auto currentOf = [&](const std::string& type) -> json::Value {
                     if (n) {
                         if (type == "alpha")
-                            return Json(1.0);
+                            return json::Value(1.0);
                         if (type == "offset" || type == "size" || type == "uv") {
-                            if (const Json* v = n->p.Find(type); v && v->IsArray())
+                            if (const json::Value* v = n->p.Find(type); v && v->IsArray())
                                 return *v;
                         }
                     }
-                    Json z = Json::MakeArray();
-                    z.Push(Json(0.0));
-                    z.Push(Json(0.0));
-                    return type == "alpha" || type == "clip" ? Json(0.0) : z;
+                    json::Value z = json::Value::MakeArray();
+                    z.Push(json::Value(0.0));
+                    z.Push(json::Value(0.0));
+                    return type == "alpha" || type == "clip" ? json::Value(0.0) : z;
                 };
                 bool active = false, finished = true;
                 for (size_t i = 0; i < chain.size(); i++) {
-                    const Json& def = chain[i].def;
+                    const json::Value& def = chain[i].def;
                     const std::string type =
                         def.Find("anim_type") ? def.Find("anim_type")->StringOr("") : std::string();
                     const double d = chain[i].duration;
@@ -1053,29 +1051,29 @@ namespace perlin::ui {
                         int frame =
                             static_cast<int>(std::floor(std::min(elapsed, d > 0 ? d : elapsed) * fps));
                         frame = std::clamp(frame, 0, frames - 1);
-                        Json uv = Json::MakeArray();
+                        json::Value uv = json::Value::MakeArray();
                         double ix = 0, iy = 0, sx = 0, sy = 0;
-                        if (const Json* iu = def.Find("initial_uv");
+                        if (const json::Value* iu = def.Find("initial_uv");
                             iu && iu->IsArray() && iu->array.size() >= 2) {
                             ix = iu->array[0].NumberOr(0);
                             iy = iu->array[1].NumberOr(0);
                         }
-                        if (const Json* fs = def.Find("frame_step");
+                        if (const json::Value* fs = def.Find("frame_step");
                             fs && fs->IsArray() && fs->array.size() >= 2) {
                             sx = fs->array[0].NumberOr(0);
                             sy = fs->array[1].NumberOr(0);
-                        } else if (const Json* fs1 = def.Find("frame_step"); fs1 && fs1->IsNumber()) {
+                        } else if (const json::Value* fs1 = def.Find("frame_step"); fs1 && fs1->IsNumber()) {
                             sx = fs1->number;
                         }
-                        uv.Push(Json(ix + sx * frame));
-                        uv.Push(Json(iy + sy * frame));
+                        uv.Push(json::Value(ix + sx * frame));
+                        uv.Push(json::Value(iy + sy * frame));
                         out["uv"] = uv;
                     } else if (type == "alpha" || type == "offset" || type == "size" || type == "uv" ||
                                type == "color" || type == "clip") {
-                        const Json* from = def.Find("from");
-                        const Json* to = def.Find("to");
-                        const Json fromJson = from ? *from : currentOf(type);
-                        const Json toJson = to ? *to : fromJson;
+                        const json::Value* from = def.Find("from");
+                        const json::Value* to = def.Find("to");
+                        const json::Value fromJson = from ? *from : currentOf(type);
+                        const json::Value toJson = to ? *to : fromJson;
                         const std::string easing =
                             def.Find("easing") ? def.Find("easing")->StringOr("linear") : "linear";
                         out[type] = elapsed >= d ? toJson : LerpJson(fromJson, toJson, Ease(easing, t));
@@ -1096,12 +1094,12 @@ namespace perlin::ui {
                     host->animating = true;
                 if (finished && !rec.finished) {
                     rec.finished = true;
-                    const Json& last = chain.back().def;
-                    if (const Json* de = last.Find("destroy_at_end");
+                    const json::Value& last = chain.back().def;
+                    if (const json::Value* de = last.Find("destroy_at_end");
                         de && de->IsString() && !de->string.empty()) {
                         rec.destroyName = de->string;
                         host->destroyed.insert(de->string);
-                    } else if (const Json* de2 = last.Find("destroy_at_end");
+                    } else if (const json::Value* de2 = last.Find("destroy_at_end");
                                de2 && de2->IsBool() && de2->boolean && n) {
                         rec.destroyName = n->id;
                         host->destroyed.insert(n->id);
@@ -1109,7 +1107,7 @@ namespace perlin::ui {
                     host->animating = true;
                 }
                 if (finished) {
-                    const Json* roe = chain.back().def.Find("reset_on_end");
+                    const json::Value* roe = chain.back().def.Find("reset_on_end");
                     if (roe && Truthy(*roe))
                         out.clear();
                 }
@@ -1119,11 +1117,11 @@ namespace perlin::ui {
                 if (!services.anim || !services.animDef || !n.src)
                     return;
                 std::vector<std::string> refs;
-                if (const Json* list = n.src->props.Find("anims"); list && list->IsArray())
-                    for (const Json& entry : list->array)
+                if (const json::Value* list = n.src->props.Find("anims"); list && list->IsArray())
+                    for (const json::Value& entry : list->array)
                         if (entry.IsString())
                             refs.push_back(entry.string);
-                // property can name an animation directly: "size": "@ns.logo_in_anim", "offset": "@ns.slide"
+
                 for (const auto& member : n.src->props.object) {
                     if (!member.second.IsString() || member.second.string.empty() ||
                         member.second.string[0] != '@')
@@ -1131,7 +1129,7 @@ namespace perlin::ui {
                     if (services.animDef(member.second.string, n.src->ns).Find("anim_type"))
                         refs.push_back(member.second.string);
                 }
-                std::unordered_map<std::string, Json> out;
+                std::unordered_map<std::string, json::Value> out;
                 for (const std::string& ref : refs)
                     RunAnimation(ref, n.src->ns, instanceKey + "|" + ref, &n, out);
                 for (auto& [type, value] : out) {
@@ -1152,7 +1150,7 @@ namespace perlin::ui {
             }
 
             float AnimatedAlpha(const std::string& reference) const {
-                Json v;
+                json::Value v;
                 float backdrop = 1.0f;
                 if (reference.contains("background") && data.Global("#hud_text_background_alpha", v) &&
                     v.IsNumber())
@@ -1170,12 +1168,12 @@ namespace perlin::ui {
 
             void GridDimensions(const LNode& n, int& cols, int& rows) const {
                 cols = rows = 1;
-                if (const Json* d = n.Get("grid_dimensions"); d && d->IsArray() && d->array.size() >= 2) {
+                if (const json::Value* d = n.Get("grid_dimensions"); d && d->IsArray() && d->array.size() >= 2) {
                     cols = static_cast<int>(d->array[0].NumberOr(1));
                     rows = static_cast<int>(d->array[1].NumberOr(1));
                 }
-                if (const Json* b = n.Get("grid_dimension_binding"); b) {
-                    Json v;
+                if (const json::Value* b = n.Get("grid_dimension_binding"); b) {
+                    json::Value v;
                     if (b->IsArray())
                         v = *b;
                     else if (b->IsString())
@@ -1192,12 +1190,12 @@ namespace perlin::ui {
             }
 
             static bool StackVertical(const LNode& n) {
-                const Json* o = n.Get("orientation");
+                const json::Value* o = n.Get("orientation");
                 return !(o && o->IsString() && o->string == "horizontal");
             }
 
             void SizeSpecs(LNode& n, Dim& w, Dim& h) const {
-                const Json* size = n.Get("size");
+                const json::Value* size = n.Get("size");
                 if (size && size->IsArray() && size->array.size() >= 2) {
                     w = ParseDim(size->array[0]);
                     h = ParseDim(size->array[1]);
@@ -1208,8 +1206,7 @@ namespace perlin::ui {
                 if (w.empty() || h.empty()) {
                     Term hundred{Term::Pct, 100, 1};
                     Term def{Term::Default, 0, 1};
-                    // no size: labels take natural size, everything else (images too, like vanilla dialog backgrounds) fills parent
-                    // explicit "default" still means natural size
+
                     const bool intrinsic = n.type == "label";
                     (void)fill;
                     if (n.type == "grid")
@@ -1218,20 +1215,20 @@ namespace perlin::ui {
                         w.push_back(intrinsic ? def : hundred);
                     if (h.empty())
                         h.push_back(intrinsic ? def : hundred);
-                    // unsized stacks wrap children on their stacking axis, leaving room for fill siblings
+
                     if (n.type == "stack_panel" && !size) {
                         Dim& main = StackVertical(n) ? h : w;
                         main = {Term{Term::PctChildren, 100, 1}};
                     }
                 }
-                // inherit_max_sibling_width/height: grow to widest/tallest sibling; applied in Measure
+
             }
 
             void Intrinsic(LNode& n, float pw, const Dim& wd, float& iw, float& ih) {
                 if (n.type == "label") {
                     float scale = FontScale(n);
                     const bool ten = TenLabel(n);
-                    // measure text as drawn: font skips format codes, bold (§l) glyphs wider
+
                     const std::string& plain = n.text;
                     float wrap = kUnknown;
                     DimContext c;
@@ -1246,7 +1243,7 @@ namespace perlin::ui {
                     if (Known(fixed))
                         wrap = fixed;
                     float maxW = kUnknown;
-                    if (const Json* m = n.Get("max_size"); m && m->IsArray() && m->array.size() >= 2) {
+                    if (const json::Value* m = n.Get("max_size"); m && m->IsArray() && m->array.size() >= 2) {
                         float t = kUnknown;
                         Dim md = ParseDim(m->array[0]);
                         DimContext mc;
@@ -1259,7 +1256,10 @@ namespace perlin::ui {
                     const float line = LineHeight(scale, ten);
                     int lines = 1;
                     float width = 0;
-                    LayoutText(plain, scale, ten, wrap, lines, width);
+                    std::string measured = plain;
+                    while (!measured.empty() && (measured.back() == ' ' || measured.back() == '\t'))
+                        measured.pop_back();
+                    LayoutText(measured, scale, ten, wrap, lines, width);
                     iw = std::ceil(width);
                     ih = static_cast<float>(lines) * line +
                          (lines - 1) * static_cast<float>(n.Num("line_padding", 0));
@@ -1273,7 +1273,7 @@ namespace perlin::ui {
                     if (!tex.empty() && services.textureSize && services.textureSize(tex, tw, th)) {
                         iw = static_cast<float>(tw);
                         ih = static_cast<float>(th);
-                        if (const Json* uv = n.Get("uv_size"); uv && uv->IsArray() && uv->array.size() >= 2) {
+                        if (const json::Value* uv = n.Get("uv_size"); uv && uv->IsArray() && uv->array.size() >= 2) {
                             iw = static_cast<float>(uv->array[0].NumberOr(iw));
                             ih = static_cast<float>(uv->array[1].NumberOr(ih));
                         }
@@ -1293,7 +1293,6 @@ namespace perlin::ui {
                 return scale;
             }
 
-            // font_type: MinecraftTen label measured with that face's metrics, not the 8 px bitmap font
             bool TenLabel(const LNode& n) const {
                 if (!IsTenFontType(n.Str("font_type")))
                     return false;
@@ -1374,11 +1373,11 @@ namespace perlin::ui {
 
             void ClampSize(const LNode& n, float pw, float ph, float& w, float& h) const {
                 auto limit = [&](const char* key, bool isMax) {
-                    const Json* v = n.Get(key);
+                    const json::Value* v = n.Get(key);
                     if (!v || !v->IsArray() || v->array.size() < 2)
                         return;
                     for (int axis = 0; axis < 2; axis++) {
-                        const Json& e = v->array[static_cast<size_t>(axis)];
+                        const json::Value& e = v->array[static_cast<size_t>(axis)];
                         if (e.IsString() && e.string == "default")
                             continue;
                         const Dim d = ParseDim(e);
@@ -1392,7 +1391,7 @@ namespace perlin::ui {
                         float value = 0;
                         if (!EvalDim(d, c, value))
                             continue;
-                        // max 0 leaves the axis unbounded: packs default max_size to [0, 0] on shown controls
+
                         if (isMax && value <= 0.0f)
                             continue;
                         float& target = axis == 0 ? w : h;
@@ -1465,8 +1464,6 @@ namespace perlin::ui {
                 return EvalDim(d, c, v);
             }
 
-            // columns/rows for `live`: grid_dimensions, or for a rescaling grid as many as fit across `width` (horizontal)
-            // or down `height` (vertical), growing the other way for the rest
             void GridShape(const LNode& n, const std::vector<LNode*>& live, float width, float height,
                            int& cols, int& rows) const {
                 GridDimensions(n, cols, rows);
@@ -1581,7 +1578,7 @@ namespace perlin::ui {
 
             void Offset(const LNode& k, float pw, float ph, float& x, float& y) const {
                 x = y = 0;
-                const Json* o = k.Get("offset");
+                const json::Value* o = k.Get("offset");
                 if (o && o->IsArray() && o->array.size() >= 2) {
                     for (int axis = 0; axis < 2; axis++) {
                         const Dim d = ParseDim(o->array[static_cast<size_t>(axis)]);
@@ -1593,33 +1590,18 @@ namespace perlin::ui {
                     }
                 }
                 if (k.Bool("use_anchored_offset", false)) {
-                    if (const Json* v = k.bag.Find("#anchored_offset_value_x"); v && v->IsNumber())
+                    if (const json::Value* v = k.bag.Find("#anchored_offset_value_x"); v && v->IsNumber())
                         x += static_cast<float>(v->number);
-                    if (const Json* v = k.bag.Find("#anchored_offset_value_y"); v && v->IsNumber())
+                    if (const json::Value* v = k.bag.Find("#anchored_offset_value_y"); v && v->IsNumber())
                         y += static_cast<float>(v->number);
                 }
-                if (const Json* v = k.bag.Find("#offset"); v && v->IsArray() && v->array.size() >= 2) {
+                if (const json::Value* v = k.bag.Find("#offset"); v && v->IsArray() && v->array.size() >= 2) {
                     x += static_cast<float>(v->array[0].NumberOr(0));
                     y += static_cast<float>(v->array[1].NumberOr(0));
                 }
             }
         };
     }
-
-    std::string StripFormatting(const std::string& text) {
-        std::string out;
-        out.reserve(text.size());
-        for (size_t i = 0; i < text.size(); i++) {
-            if (static_cast<unsigned char>(text[i]) == 0xC2 && i + 2 < text.size() + 0 &&
-                static_cast<unsigned char>(text[i + 1]) == 0xA7) {
-                i += 2;
-                continue;
-            }
-            out += text[i];
-        }
-        return out;
-    }
-
     std::unique_ptr<LNode> EvaluateTree(const Node& root, const UiData& data, const UiServices& services,
                                         float guiW, float guiH) {
         Evaluator evaluator(data, services);

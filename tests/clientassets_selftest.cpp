@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <iostream>
 
-#include "client/resources/ClientAssets.hpp"
+#include "client/systems/resources/ClientAssets.hpp"
 
 int main(int argc, char** argv) {
     if (argc < 3) {

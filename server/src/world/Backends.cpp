@@ -6,7 +6,7 @@
 namespace perlin::server {
 
     bool BackendsAgree(TerrainBackend& candidate, TerrainBackend& reference, std::string& detail) {
-        // a spread of positions: origin, negatives, and far out where float precision would show
+
         const std::vector<ChunkPos> probe = {{0, 0},   {-1, -1},      {1, -3},
                                              {37, 12}, {-2048, 2047}, {100000, -100000}};
         std::vector<ChunkColumn> a(probe.size()), b(probe.size());
@@ -30,7 +30,7 @@ namespace perlin::server {
     BackendChoice CreateTerrainBackend(const ServerConfig& config) {
         BackendChoice out;
         if (config.generator == "vanilla") {
-            // the gpu path is the default; "cpu" forces the reference, and anything the gpu cannot do falls back to it with the reason in the note
+
             std::string error;
             if (config.terrainBackend != "cpu") {
                 std::string note;
@@ -57,8 +57,7 @@ namespace perlin::server {
             out.note = "forced by config";
             return out;
         }
-        // a flat world is a table lookup: the cpu fills a section in one store, so the gpu (dispatch, readback, copy-out) only loses.
-        // auto leaves it to terrain that does real work per block; "gpu" forces it for testing
+
         if (config.terrainBackend == "auto" && config.generator == "flat") {
             out.backend = std::move(cpu);
             out.note = "flat terrain is faster on the cpu; gpu terrain is for noise generators";

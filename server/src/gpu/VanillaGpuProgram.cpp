@@ -28,7 +28,7 @@ namespace perlin::server::vanilla {
             int32_t ctxValue = 0;
             bool haveCell = false;
             std::map<const NormalNoise*, uint32_t> noiseIndex;
-            std::vector<std::vector<uint32_t>> children; // per node, for reachability
+            std::vector<std::vector<uint32_t>> children;
 
             uint32_t Layers(const std::vector<std::pair<const PerlinNoise*, std::pair<double, float>>>& list,
                             const std::vector<double>& fudge) {
@@ -316,7 +316,7 @@ namespace perlin::server::vanilla {
                     " nodes, more than the kernel's register file holds";
             return nullptr;
         }
-        // outer set: reachable from the root without looking inside an interpolated node; inner set: what the interpolated nodes sample at the corners
+
         std::set<uint32_t> outer, inner;
         const auto isInterp = [&](uint32_t n) {
             return p->nodes[n * kNodeStride] == static_cast<uint32_t>(DfNode::Op::Interpolated);
@@ -346,7 +346,7 @@ namespace perlin::server::vanilla {
             for (uint32_t c : b.children[n])
                 stack.push_back(c);
         }
-        // the climate closure: every node the six functions need, in dependency order
+
         std::set<uint32_t> climateSet;
         for (uint32_t r : p->climateRoots)
             stack.push_back(r);

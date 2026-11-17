@@ -1,10 +1,13 @@
 #include "network/XboxAuth.hpp"
+#include "network/XboxRelyingParties.hpp"
 #include <future>
 
 #include "network/ClientIdentity.hpp"
+#include "network/TokenStore.hpp"
 #include "network/Http.hpp"
 #include "util/Json.hpp"
 #include "util/Strings.hpp"
+#include "util/UtcTime.hpp"
 
 #include <openssl/bio.h>
 #include <openssl/bn.h>
@@ -19,32 +22,21 @@
 #include <chrono>
 #include <cstring>
 #include <ctime>
-#include <fstream>
 #include <iostream>
 #include <map>
-#include <sstream>
+#include <mutex>
+#include <optional>
 #include <thread>
 #include <vector>
 #include "util/Log.hpp"
+#include "util/FileIo.hpp"
+#include "util/JsonText.hpp"
 
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif
 
 namespace perlin::xbox {
-    namespace persist {
-        struct Cache {
-            std::string refreshToken;
-            std::string proofKeyPem;
-            std::string deviceId;
-            std::string deviceToken;
-            int64_t deviceNotAfter = 0;
-            std::string minecraftDeviceId;
-        };
-
-    }
-    using persist::Cache;
-
     namespace {
         constexpr const char* kMsaClientId = "0000000048183522";
         constexpr const char* kMsaScope = "service::user.auth.xboxlive.com::MBI_SSL";
@@ -53,7 +45,7 @@ namespace perlin::xbox {
         constexpr int64_t kTitleId = 1739947436;
         constexpr const char* kFallbackServiceUri = "https://authorization.franchise.minecraft-services.net";
         constexpr const char* kFallbackPlayFabTitle = "20CA2";
-        constexpr const char* kPlayFabRelyingParty = "rp://playfabapi.com/";
+        constexpr const char* kXboxLiveRelyingParty = "http://xboxlive.com";
         constexpr const char* kMultiplayerRelyingParty = "https://multiplayer.minecraft.net/";
 
         struct TestEndpoint {
@@ -66,43 +58,6 @@ namespace perlin::xbox {
                        std::chrono::system_clock::now().time_since_epoch())
                 .count();
         }
-
-        std::string Esc(const std::string& s) {
-            std::string out;
-            out.reserve(s.size() + 2);
-            for (char c : s) {
-                switch (c) {
-                case '"':
-                    out += "\\\"";
-                    break;
-                case '\\':
-                    out += "\\\\";
-                    break;
-                case '\n':
-                    out += "\\n";
-                    break;
-                case '\r':
-                    out += "\\r";
-                    break;
-                case '\t':
-                    out += "\\t";
-                    break;
-                default:
-                    if (static_cast<unsigned char>(c) < 0x20) {
-                        char buf[8];
-                        std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                        out += buf;
-                    } else {
-                        out += c;
-                    }
-                }
-            }
-            return out;
-        }
-        std::string Q(const std::string& s) {
-            return "\"" + Esc(s) + "\"";
-        }
-
         std::string UrlEnc(const std::string& s) {
             static const char* hex = "0123456789ABCDEF";
             std::string out;
@@ -187,11 +142,7 @@ namespace perlin::xbox {
             return static_cast<uint64_t>(unixNanos / 100 + 116444736000000000LL);
         }
 
-        struct Policy {
-            uint32_t version = 1;
-            size_t maxBody = 0;
-            std::vector<std::string> extraHeaders;
-        };
+        using Policy = auth::SignaturePolicy;
 
         std::string Digest(const Policy& policy, const std::string& method, const std::string& path,
                            const std::vector<std::string>& headerValues, const std::string& body,
@@ -270,6 +221,14 @@ namespace perlin::xbox {
             return key;
         }
 
+        bool KeyFromPemValid(const std::string& pem) {
+            EC_KEY* key = KeyFromPem(pem);
+            if (!key)
+                return false;
+            EC_KEY_free(key);
+            return true;
+        }
+
         std::string JwkJson(EC_KEY* key) {
             BIGNUM* x = BN_new();
             BIGNUM* y = BN_new();
@@ -284,12 +243,7 @@ namespace perlin::xbox {
                    B64Url(xb, 32) + "\",\"y\":\"" + B64Url(yb, 32) + "\"}";
         }
 
-        struct Tok {
-            std::string token;
-            int64_t notAfter = 0;
-            std::string uhs, gtg, xid;
-            bool Valid() const { return !token.empty() && NowSec() < notAfter - 60; }
-        };
+        using Tok = auth::Token;
 
         bool ReadTok(const json::View& v, Tok& out) {
             out = {};
@@ -302,11 +256,7 @@ namespace perlin::xbox {
             return !out.token.empty();
         }
 
-        struct Endpoint {
-            std::string protocol, host, hostType, path, relyingParty;
-            int port = 0;
-            int policy = -1;
-        };
+        using Endpoint = auth::NsalEndpoint;
 
         std::string XboxErrorText(uint64_t code) {
             switch (code) {
@@ -359,18 +309,7 @@ namespace perlin::xbox {
             int y, mo, d, h, mi, s;
             if (std::sscanf(iso.c_str(), "%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &s) != 6)
                 return 0;
-            std::tm tm{};
-            tm.tm_year = y - 1900;
-            tm.tm_mon = mo - 1;
-            tm.tm_mday = d;
-            tm.tm_hour = h;
-            tm.tm_min = mi;
-            tm.tm_sec = s;
-#ifdef _WIN32
-            return static_cast<int64_t>(_mkgmtime(&tm));
-#else
-            return static_cast<int64_t>(timegm(&tm));
-#endif
+            return utc::UnixSeconds(y, mo, d, h, mi, s);
         }
 
         int64_t ParseHttpDate(const std::string& date) {
@@ -388,73 +327,41 @@ namespace perlin::xbox {
                     m = i;
             if (m < 0)
                 return 0;
-            std::tm tm{};
-            tm.tm_year = y - 1900;
-            tm.tm_mon = m;
-            tm.tm_mday = d;
-            tm.tm_hour = h;
-            tm.tm_min = mi;
-            tm.tm_sec = s;
-#ifdef _WIN32
-            return static_cast<int64_t>(_mkgmtime(&tm));
-#else
-            return static_cast<int64_t>(timegm(&tm));
-#endif
+            return utc::UnixSeconds(y, m + 1, d, h, mi, s);
         }
     }
 
     struct Account::Impl {
-        std::string cachePath;
-        Cache cache;
-        EC_KEY* proofKey = nullptr;
-        std::string msaAccess;
-        int64_t msaExpiry = 0;
-        Tok device, title, user;
-        int64_t skewSeconds = 0;
-        std::vector<Endpoint> endpoints;
-        std::vector<Policy> policies;
-        bool nsalLoaded = false;
+        std::shared_ptr<auth::TokenStore> store;
         std::atomic<bool> cancelled{false};
+        std::mutex keyMutex;
+        std::shared_ptr<EC_KEY> keyHandle;
+        std::string keyPem;
 
-        ~Impl() {
-            if (proofKey)
-                EC_KEY_free(proofKey);
-        }
+        explicit Impl(std::shared_ptr<auth::TokenStore> s) : store(std::move(s)) {}
 
-        void LoadCache() {
-            std::ifstream file(cachePath, std::ios::binary);
-            if (!file.good())
-                return;
-            const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-            if (auto parsed = json::Read<Cache>(text))
-                cache = std::move(*parsed);
-        }
-        void SaveCache() {
-            const std::string text = json::Write(cache);
-            if (text.empty())
-                return;
-            {
-                std::ofstream file(cachePath, std::ios::binary | std::ios::trunc);
-                file << text;
-            }
-#ifndef _WIN32
-            chmod(cachePath.c_str(), 0600);
-#endif
+        static std::shared_ptr<EC_KEY> Wrap(EC_KEY* k) {
+            return std::shared_ptr<EC_KEY>(k, [](EC_KEY* p) {
+                if (p)
+                    EC_KEY_free(p);
+            });
         }
 
-        int64_t ServerNow() const { return NowSec() + skewSeconds; }
-        int64_t ServerNanos() const {
-            return (std::chrono::duration_cast<std::chrono::nanoseconds>(
-                        std::chrono::system_clock::now().time_since_epoch())
-                        .count()) +
-                   skewSeconds * 1000000000LL;
+        auth::TokenStore::EnsureOptions Cross(bool persist = true) const {
+            return {auth::TokenStore::Scope::Account, persist, &cancelled};
         }
+        auth::TokenStore::EnsureOptions Local(bool persist = true) const {
+            return {persist ? auth::TokenStore::Scope::Key : auth::TokenStore::Scope::Process, persist, &cancelled};
+        }
+
+        int64_t ServerNow() const { return store->ServerNow(); }
+        int64_t ServerNanos() const { return store->ServerNanos(); }
         void NoteDate(const http::Response& r) {
             const auto it = r.headers.find("date");
             if (it == r.headers.end())
                 return;
             if (const int64_t t = detail::ParseHttpDate(it->second))
-                skewSeconds = t - NowSec();
+                store->SetSkew(t - store->LocalNow());
         }
 
         static http::Response Send(const char* method, const Url& u, const std::string& body,
@@ -480,7 +387,8 @@ namespace perlin::xbox {
 
         static std::string NetworkError(const http::Response& r, const char* what) {
             if (r.status == 0)
-                return std::string("cannot reach ") + what + " (no network, or TLS failed)";
+                return std::string("cannot reach ") + what + " (" +
+                       (r.error.empty() ? std::string("no network, or TLS failed") : r.error) + ")";
             return std::string(what) + " answered HTTP " + std::to_string(r.status);
         }
 
@@ -493,46 +401,65 @@ namespace perlin::xbox {
             return !cancelled;
         }
 
-        void LoadNsal() {
-            if (nsalLoaded)
-                return;
-            Url u;
-            ParseUrl("https://title.mgt.xboxlive.com/titles/default/endpoints?type=1", u);
-            const http::Response r = Get(u, {{"x-xbl-contract-version", "1"}});
-            auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
-            if (!doc) {
-                Log("auth", "could not load Xbox endpoint policies ({}); using defaults", r.status);
-                nsalLoaded = true;
-                return;
-            }
-            for (const json::View p : doc->root()["SignaturePolicies"].items()) {
-                Policy pol;
-                pol.version = static_cast<uint32_t>(p["Version"].integer(1));
-                pol.maxBody = static_cast<size_t>(p["MaxBodyBytes"].integer(0));
-                for (const json::View h : p["ExtraHeaders"].items())
-                    pol.extraHeaders.push_back(h.str());
-                policies.push_back(std::move(pol));
-            }
-            for (const json::View e : doc->root()["EndPoints"].items()) {
-                Endpoint ep;
-                ep.protocol = e["Protocol"].str();
-                ep.host = e["Host"].str();
-                ep.hostType = e["HostType"].str();
-                ep.path = e["Path"].str();
-                ep.relyingParty = e["RelyingParty"].str();
-                ep.port = e["Port"].integer(0);
-                ep.policy = e.contains("SignaturePolicyIndex") ? e["SignaturePolicyIndex"].integer(-1) : -1;
-                endpoints.push_back(std::move(ep));
-            }
-            nsalLoaded = true;
+        std::shared_ptr<const auth::Nsal> LoadNsal() {
+            std::string error;
+            store->Ensure(
+                "nsal", Local(false),
+                [this](const auth::State& s) {
+                    const int64_t age = store->LocalNow() - s.nsalAt;
+                    return s.nsal && age >= 0 && age < auth::policy::kNsalTtlSec;
+                },
+                [this](const auth::State&, auth::Mutator& commit, std::string&) {
+                    auto fetched = std::make_shared<auth::Nsal>();
+                    bool loaded = false;
+                    Url u;
+                    ParseUrl("https://title.mgt.xboxlive.com/titles/default/endpoints?type=1", u);
+                    const http::Response r = Get(u, {{"x-xbl-contract-version", "1"}});
+                    auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
+                    if (!doc) {
+                        Log("auth", "could not load Xbox endpoint policies ({}); using defaults", r.status);
+                    } else {
+                        loaded = true;
+                        for (const json::View p : doc->root()["SignaturePolicies"].items()) {
+                            Policy pol;
+                            pol.version = static_cast<uint32_t>(p["Version"].integer(1));
+                            pol.maxBody = static_cast<size_t>(p["MaxBodyBytes"].integer(0));
+                            for (const json::View h : p["ExtraHeaders"].items())
+                                pol.extraHeaders.push_back(h.str());
+                            fetched->policies.push_back(std::move(pol));
+                        }
+                        for (const json::View e : doc->root()["EndPoints"].items()) {
+                            Endpoint ep;
+                            ep.protocol = e["Protocol"].str();
+                            ep.host = e["Host"].str();
+                            ep.hostType = e["HostType"].str();
+                            ep.path = e["Path"].str();
+                            ep.relyingParty = e["RelyingParty"].str();
+                            ep.port = e["Port"].integer(0);
+                            ep.policy = e.contains("SignaturePolicyIndex") ? e["SignaturePolicyIndex"].integer(-1) : -1;
+                            fetched->endpoints.push_back(std::move(ep));
+                        }
+                    }
+                    const int64_t now = store->LocalNow();
+                    const int64_t stamp = loaded ? now : now - auth::policy::kNsalTtlSec + auth::policy::kNsalRetrySec;
+                    commit = [fetched, stamp](auth::State& s) {
+                        s.nsal = fetched;
+                        s.nsalAt = stamp;
+                    };
+                    return true;
+                },
+                error);
+            return store->Current()->nsal;
         }
 
-        const Endpoint* MatchEndpoint(const Url& u) {
-            LoadNsal();
+        std::optional<Endpoint> MatchEndpoint(const Url& u) {
+            const auto nsal = LoadNsal();
+            if (!nsal)
+                return std::nullopt;
             const Endpoint* found = nullptr;
             const std::string scheme = u.tls ? "https" : "http";
             const std::string path = u.path.substr(0, u.path.find('?'));
-            for (const Endpoint& e : endpoints) {
+            for (const Endpoint& e : nsal->endpoints) {
                 if (e.relyingParty.empty() || e.protocol != scheme)
                     continue;
                 bool host = false;
@@ -546,14 +473,28 @@ namespace perlin::xbox {
                 if (e.hostType == "fqdn")
                     break;
             }
-            return found;
+            if (!found)
+                return std::nullopt;
+            return *found;
         }
 
         Policy PolicyFor(const Url& u) {
-            if (const Endpoint* e = MatchEndpoint(u))
-                if (e->policy >= 0 && e->policy < static_cast<int>(policies.size()))
-                    return policies[static_cast<size_t>(e->policy)];
+            if (const auto e = MatchEndpoint(u)) {
+                const auto nsal = store->Current()->nsal;
+                if (nsal && e->policy >= 0 && e->policy < static_cast<int>(nsal->policies.size()))
+                    return nsal->policies[static_cast<size_t>(e->policy)];
+            }
             return {};
+        }
+
+        std::shared_ptr<EC_KEY> Key() {
+            const auto snap = store->Current();
+            std::lock_guard<std::mutex> lock(keyMutex);
+            if (!keyHandle || keyPem != snap->data.proofKeyPem) {
+                keyHandle = Wrap(KeyFromPem(snap->data.proofKeyPem));
+                keyPem = snap->data.proofKeyPem;
+            }
+            return keyHandle;
         }
 
         http::Response PostSigned(const Url& u, const std::string& body,
@@ -568,8 +509,8 @@ namespace perlin::xbox {
             std::vector<std::string> values{find("Authorization")};
             for (const std::string& h : policy.extraHeaders)
                 values.push_back(find(h));
-            const std::string path = u.path;
-            headers["Signature"] = SignWith(proofKey, policy, "POST", path, values, body, ServerNanos());
+            const auto key = Key();
+            headers["Signature"] = SignWith(key.get(), policy, "POST", u.path, values, body, ServerNanos());
             return Post(u, body, "application/json", headers);
         }
 
@@ -598,32 +539,43 @@ namespace perlin::xbox {
             return false;
         }
 
-        bool Refresh(std::string& error) {
-            if (cache.refreshToken.empty())
-                return false;
-            Url u;
-            ParseUrl("https://login.live.com/oauth20_token.srf", u);
-            const http::Response r =
-                Post(u,
-                     "grant_type=refresh_token&refresh_token=" + UrlEnc(cache.refreshToken) +
-                         "&scope=" + UrlEnc(kMsaScope) + "&client_id=" + kMsaClientId,
-                     "application/x-www-form-urlencoded", {{"User-Agent", kUserAgent}});
-            MsaTokens t;
-            std::string code;
-            if (!ReadMsa(r, t, code, error)) {
-                if (r.status != 0 && (code == "invalid_grant" || r.status == 400 || r.status == 401)) {
-                    cache.refreshToken.clear();
-                    SaveCache();
-                }
-                return false;
-            }
-            msaAccess = t.access;
-            msaExpiry = NowSec() + t.expiresIn;
-            if (!t.refresh.empty() && t.refresh != cache.refreshToken) {
-                cache.refreshToken = t.refresh;
-                SaveCache();
-            }
-            return true;
+        bool RefreshMsa(std::string& error) {
+            return store->Ensure(
+                "msa", Cross(),
+                [this](const auth::State& s) { return auth::policy::MsaUsable(s, store->LocalNow()); },
+                [this](const auth::State& snap, auth::Mutator& commit, std::string& why) {
+                    if (snap.data.refreshToken.empty()) {
+                        why = "no saved login";
+                        return false;
+                    }
+                    Url u;
+                    ParseUrl("https://login.live.com/oauth20_token.srf", u);
+                    const http::Response r =
+                        Post(u,
+                             "grant_type=refresh_token&refresh_token=" + UrlEnc(snap.data.refreshToken) +
+                                 "&scope=" + UrlEnc(kMsaScope) + "&client_id=" + kMsaClientId,
+                             "application/x-www-form-urlencoded", {{"User-Agent", kUserAgent}});
+                    MsaTokens t;
+                    std::string code;
+                    if (!ReadMsa(r, t, code, why)) {
+                        if (r.status != 0 && (code == "invalid_grant" || r.status == 400 || r.status == 401))
+                            store->Publish([](auth::State& s) {
+                                s.data.refreshToken.clear();
+                                s.msaAccess.clear();
+                                s.msaExpiry = 0;
+                            });
+                        return false;
+                    }
+                    const int64_t expiry = store->LocalNow() + t.expiresIn;
+                    commit = [t, expiry](auth::State& s) {
+                        s.msaAccess = t.access;
+                        s.msaExpiry = expiry;
+                        if (!t.refresh.empty())
+                            s.data.refreshToken = t.refresh;
+                    };
+                    return true;
+                },
+                error);
         }
 
         bool DeviceCode(const PromptFn& prompt, std::string& error) {
@@ -643,11 +595,11 @@ namespace perlin::xbox {
             const std::string userCode = root["user_code"].str();
             std::string verify = root["verification_uri"].str("https://www.microsoft.com/link");
             int interval = std::max(1, root["interval"].integer(5));
-            const int64_t deadline = NowSec() + static_cast<int64_t>(root["expires_in"].number(900));
+            const int64_t deadline = store->LocalNow() + static_cast<int64_t>(root["expires_in"].number(900));
             prompt(verify, userCode);
 
             ParseUrl("https://login.live.com/oauth20_token.srf", u);
-            while (NowSec() < deadline) {
+            while (store->LocalNow() < deadline) {
                 if (!Sleep(interval * 1000)) {
                     error = "sign-in cancelled";
                     return false;
@@ -659,10 +611,14 @@ namespace perlin::xbox {
                 MsaTokens t;
                 std::string code, text;
                 if (ReadMsa(r, t, code, text)) {
-                    msaAccess = t.access;
-                    msaExpiry = NowSec() + t.expiresIn;
-                    cache.refreshToken = t.refresh;
-                    SaveCache();
+                    const int64_t expiry = store->LocalNow() + t.expiresIn;
+                    store->Publish([t, expiry](auth::State& s) {
+                        s.msaAccess = t.access;
+                        s.msaExpiry = expiry;
+                        s.data.refreshToken = t.refresh;
+                        s.data.sisu = {};
+                        s.data.xsts.clear();
+                    });
                     return true;
                 }
                 if (code == "authorization_pending" || (r.status == 0))
@@ -684,120 +640,220 @@ namespace perlin::xbox {
             return false;
         }
 
-        bool EnsureProofKey() {
-            if (proofKey)
-                return true;
-            if (!cache.proofKeyPem.empty())
-                proofKey = KeyFromPem(cache.proofKeyPem);
-            if (!proofKey) {
-                proofKey = NewProofKey();
-                if (!proofKey)
-                    return false;
-                cache.proofKeyPem = KeyToPem(proofKey);
-                cache.deviceId.clear();
-                cache.deviceToken.clear();
-                cache.deviceNotAfter = 0;
-                SaveCache();
-            }
-            return true;
+        bool EnsureProofKey(std::string& error) {
+            const bool ok = store->Ensure(
+                "proofkey", Cross(),
+                [](const auth::State& s) { return !s.data.proofKeyPem.empty() && KeyFromPemValid(s.data.proofKeyPem); },
+                [](const auth::State&, auth::Mutator& commit, std::string& why) {
+                    EC_KEY* fresh = NewProofKey();
+                    if (!fresh) {
+                        why = "could not create the Xbox device key";
+                        return false;
+                    }
+                    const std::string pem = KeyToPem(fresh);
+                    EC_KEY_free(fresh);
+                    commit = [pem](auth::State& s) {
+                        s.data.proofKeyPem = pem;
+                        s.data.deviceId.clear();
+                        s.data.deviceToken.clear();
+                        s.data.deviceNotAfter = 0;
+                        s.data.sisu = {};
+                        s.data.xsts.clear();
+                    };
+                    return true;
+                },
+                error);
+            return ok;
         }
 
-        bool EnsureDeviceToken(std::string& error) {
-            if (!EnsureProofKey()) {
-                error = "could not create the Xbox device key";
+        bool EnsureDevice(std::string& error) {
+            if (!EnsureProofKey(error))
                 return false;
-            }
-            if (!cache.deviceToken.empty() && ServerNow() < cache.deviceNotAfter - 60) {
-                device.token = cache.deviceToken;
-                device.notAfter = cache.deviceNotAfter;
-                return true;
-            }
-            if (cache.deviceId.empty())
-                cache.deviceId = "{" + RandomUuid() + "}";
-            const std::string body =
-                "{\"RelyingParty\":\"http://"
-                "auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":"
-                "\"ProofOfPossession\",\"Id\":" +
-                Q(cache.deviceId) +
-                ",\"DeviceType\":\"Android\",\"Version\":\"13\","
-                "\"ProofKey\":" +
-                JwkJson(proofKey) + "}}";
-            Url u;
-            ParseUrl("https://device.auth.xboxlive.com/device/authenticate", u);
-            const http::Response r = PostSigned(u, body, {{"x-xbl-contract-version", "1"}}, Policy{});
-            auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
-            if (!doc || !ReadTok(doc->root(), device)) {
-                error = NetworkError(r, "the Xbox device service");
-                return false;
-            }
-            cache.deviceToken = device.token;
-            cache.deviceNotAfter = device.notAfter;
-            SaveCache();
-            return true;
+            return store->Ensure(
+                "device", Cross(),
+                [this](const auth::State& s) { return auth::policy::DeviceUsable(s.data, ServerNow()); },
+                [this](const auth::State& snap, auth::Mutator& commit, std::string& why) {
+                    const std::string deviceId =
+                        snap.data.deviceId.empty() ? "{" + RandomUuid() + "}" : snap.data.deviceId;
+                    const auto key = Key();
+                    if (!key) {
+                        why = "could not load the Xbox device key";
+                        return false;
+                    }
+                    const std::string body =
+                        "{\"RelyingParty\":\"http://"
+                        "auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":"
+                        "\"ProofOfPossession\",\"Id\":" +
+                        json::Quote(deviceId) +
+                        ",\"DeviceType\":\"Android\",\"Version\":\"13\","
+                        "\"ProofKey\":" +
+                        JwkJson(key.get()) + "}}";
+                    Url u;
+                    ParseUrl("https://device.auth.xboxlive.com/device/authenticate", u);
+                    const http::Response r = PostSigned(u, body, {{"x-xbl-contract-version", "1"}}, Policy{});
+                    auto doc = r.status == 200 ? json::Document::Parse(r.body) : std::nullopt;
+                    Tok device;
+                    if (!doc || !ReadTok(doc->root(), device)) {
+                        why = NetworkError(r, "the Xbox device service");
+                        return false;
+                    }
+                    commit = [device, deviceId](auth::State& s) {
+                        s.data.deviceId = deviceId;
+                        s.data.deviceToken = device.token;
+                        s.data.deviceNotAfter = device.notAfter;
+                        s.data.sisu = {};
+                    };
+                    return true;
+                },
+                error);
         }
 
-        Tok sisuXsts;
+        bool SisuUsable() const {
+            const auto snap = store->Current();
+            return auth::policy::SisuUsable(snap->data, store->LocalNow(), ServerNow());
+        }
 
-        bool EnsureUserAndTitle(std::string& error) {
-            if (title.Valid() && user.Valid())
-                return true;
-            if (!EnsureDeviceToken(error))
-                return false;
-            if (msaAccess.empty() || NowSec() >= msaExpiry - 60) {
-                if (!Refresh(error))
-                    return false;
-            }
-            Url u;
-            ParseUrl("https://sisu.xboxlive.com/authorize", u);
-            const std::string body = "{\"AccessToken\":" + Q("t=" + msaAccess) +
-                                     ",\"AppId\":" + Q(kMsaClientId) + ",\"DeviceToken\":" + Q(device.token) +
-                                     ",\"Sandbox\":\"RETAIL\",\"UseModernGamertag\":true,"
-                                     "\"SiteName\":\"user.auth.xboxlive.com\",\"RelyingParty\":\"http://"
-                                     "xboxlive.com\",\"ProofKey\":" +
-                                     JwkJson(proofKey) + "}";
-            const http::Response r = PostSigned(u, body, {}, PolicyFor(u));
-            if (r.status != 200) {
-                const auto xerr = r.headers.find("x-err");
-                if (xerr != r.headers.end())
-                    error = XboxErrorText(std::strtoull(xerr->second.c_str(), nullptr, 10));
-                else
-                    error = NetworkError(r, "the Xbox sign-in service");
-                return false;
-            }
-            auto doc = json::Document::Parse(r.body);
-            if (!doc || !ReadTok(doc->root()["TitleToken"], title) ||
-                !ReadTok(doc->root()["UserToken"], user)) {
-                error = "the Xbox sign-in service returned an unexpected answer";
-                return false;
-            }
-            ReadTok(doc->root()["AuthorizationToken"], sisuXsts);
-            return true;
+        bool EnsureSisu(std::string& error) {
+            return store->Ensure(
+                "sisu", Cross(),
+                [this](const auth::State& s) {
+                    return auth::policy::SisuUsable(s.data, store->LocalNow(), ServerNow());
+                },
+                [this](const auth::State&, auth::Mutator& commit, std::string& why) {
+                    if (!EnsureDevice(why))
+                        return false;
+                    if (!RefreshMsaIfNeeded(why))
+                        return false;
+                    const auto snap = store->Current();
+                    const auto key = Key();
+                    if (!key) {
+                        why = "could not load the Xbox device key";
+                        return false;
+                    }
+                    Url u;
+                    ParseUrl("https://sisu.xboxlive.com/authorize", u);
+                    const std::string body = "{\"AccessToken\":" + json::Quote("t=" + snap->msaAccess) +
+                                             ",\"AppId\":" + json::Quote(kMsaClientId) +
+                                             ",\"DeviceToken\":" + json::Quote(snap->data.deviceToken) +
+                                             ",\"Sandbox\":\"RETAIL\",\"UseModernGamertag\":true,"
+                                             "\"SiteName\":\"user.auth.xboxlive.com\",\"RelyingParty\":\"http://"
+                                             "xboxlive.com\",\"ProofKey\":" +
+                                             JwkJson(key.get()) + "}";
+                    const http::Response r = PostSigned(u, body, {}, PolicyFor(u));
+                    if (r.status != 200) {
+                        const auto xerr = r.headers.find("x-err");
+                        if (xerr != r.headers.end())
+                            why = XboxErrorText(std::strtoull(xerr->second.c_str(), nullptr, 10));
+                        else
+                            why = NetworkError(r, "the Xbox sign-in service");
+                        return false;
+                    }
+                    auto doc = json::Document::Parse(r.body);
+                    Tok title, user;
+                    if (!doc || !ReadTok(doc->root()["TitleToken"], title) ||
+                        !ReadTok(doc->root()["UserToken"], user)) {
+                        why = "the Xbox sign-in service returned an unexpected answer";
+                        return false;
+                    }
+                    const int64_t acquired = store->LocalNow();
+                    const std::string binding = auth::policy::Fingerprint(snap->data.deviceToken);
+                    commit = [title, user, acquired, binding](auth::State& s) {
+                        s.data.sisu.title = title;
+                        s.data.sisu.user = user;
+                        s.data.sisu.acquiredAt = acquired;
+                        s.data.sisu.deviceBinding = binding;
+                    };
+                    return true;
+                },
+                error);
+        }
+
+        bool RefreshMsaIfNeeded(std::string& error) { return RefreshMsa(error); }
+
+        void InvalidateSisu(const std::string& rejectedTitle) {
+            store->Publish([rejectedTitle](auth::State& s) {
+                if (s.data.sisu.title.token != rejectedTitle)
+                    return;
+                s.data.sisu = {};
+                s.data.xsts.clear();
+            });
+        }
+
+        void InvalidateXsts(const std::string& relyingParty) {
+            store->Publish([relyingParty](auth::State& s) { s.data.xsts.erase(relyingParty); });
         }
 
         bool Xsts(const std::string& relyingParty, Tok& out, std::string& error) {
-            if (!EnsureUserAndTitle(error))
-                return false;
-            const std::string body = "{\"RelyingParty\":" + Q(relyingParty) +
-                                     ",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\","
-                                     "\"DeviceToken\":" +
-                                     Q(device.token) + ",\"TitleToken\":" + Q(title.token) +
-                                     ",\"UserTokens\":[" + Q(user.token) + "]}}";
-            Url u;
-            ParseUrl("https://xsts.auth.xboxlive.com/xsts/authorize", u);
-            const http::Response r = PostSigned(u, body, {{"x-xbl-contract-version", "1"}}, Policy{});
-            auto doc = json::Document::Parse(r.body);
-            if (r.status != 200 || !doc || !ReadTok(doc->root(), out)) {
-                if (doc && doc->root()["XErr"].isNumber())
-                    error = XboxErrorText(static_cast<uint64_t>(doc->root()["XErr"].number()));
-                else
-                    error = NetworkError(r, "the Xbox token service");
-                if (r.status == 401 && !(doc && doc->root()["XErr"].isNumber())) {
-                    title = {};
-                    user = {};
+            for (int attempt = 0; attempt < 3; attempt++) {
+                bool sisuRejected = false;
+                std::string rejectedTitle;
+                const bool ok = store->Ensure(
+                    "xsts:" + relyingParty, Local(),
+                    [this, &relyingParty](const auth::State& s) {
+                        return auth::policy::XstsUsable(s.data, relyingParty, ServerNow());
+                    },
+                    [this, &relyingParty, &sisuRejected, &rejectedTitle](const auth::State&, auth::Mutator& commit,
+                                                         std::string& why) {
+                        if (!EnsureDevice(why) || !EnsureSisu(why))
+                            return false;
+                        const auto snap = store->Current();
+                        rejectedTitle = snap->data.sisu.title.token;
+                        const std::string body =
+                            "{\"RelyingParty\":" + json::Quote(relyingParty) +
+                            ",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\","
+                            "\"DeviceToken\":" +
+                            json::Quote(snap->data.deviceToken) + ",\"TitleToken\":" + json::Quote(snap->data.sisu.title.token) +
+                            ",\"UserTokens\":[" + json::Quote(snap->data.sisu.user.token) + "]}}";
+                        Url u;
+                        ParseUrl("https://xsts.auth.xboxlive.com/xsts/authorize", u);
+                        const http::Response r =
+                            PostSigned(u, body, {{"x-xbl-contract-version", "1"}}, Policy{});
+                        auto doc = json::Document::Parse(r.body);
+                        Tok issued;
+                        if (r.status != 200 || !doc || !ReadTok(doc->root(), issued)) {
+                            const bool hasXErr = doc && doc->root()["XErr"].isNumber();
+                            if (hasXErr)
+                                why = XboxErrorText(static_cast<uint64_t>(doc->root()["XErr"].number()));
+                            else
+                                why = NetworkError(r, "the Xbox token service");
+                            sisuRejected = r.status == 401 && !hasXErr;
+                            return false;
+                        }
+                        commit = [relyingParty, issued](auth::State& s) { s.data.xsts[relyingParty] = issued; };
+                        return true;
+                    },
+                    error);
+                if (ok) {
+                    const auto snap = store->Current();
+                    const auto it = snap->data.xsts.find(relyingParty);
+                    if (it != snap->data.xsts.end() && auth::policy::XstsUsable(snap->data, relyingParty, ServerNow())) {
+                        out = it->second;
+                        return true;
+                    }
+                    continue;
+                }
+                if (sisuRejected && attempt == 0) {
+                    InvalidateSisu(rejectedTitle);
+                    continue;
                 }
                 return false;
             }
-            return true;
+            if (error.empty())
+                error = "the Xbox token expired while it was being issued";
+            return false;
+        }
+
+        std::string MinecraftDeviceId() {
+            std::string error;
+            store->Ensure(
+                "mcdevice", Cross(), [](const auth::State& s) { return !s.data.minecraftDeviceId.empty(); },
+                [](const auth::State&, auth::Mutator& commit, std::string&) {
+                    const std::string id = RandomUuid();
+                    commit = [id](auth::State& s) { s.data.minecraftDeviceId = id; };
+                    return true;
+                },
+                error);
+            return store->Current()->data.minecraftDeviceId;
         }
 
         static std::string XblHeader(const Tok& t) { return "XBL3.0 x=" + t.uhs + ";" + t.token; }
@@ -842,14 +898,13 @@ namespace perlin::xbox {
                            std::string& error) {
             Url u;
             ParseUrl("https://" + str::Lower(env.playFabTitle) + ".playfabapi.com/Client/LoginWithXbox", u);
-            std::string rp = kPlayFabRelyingParty;
-            if (const Endpoint* e = MatchEndpoint(u))
-                rp = e->relyingParty;
+            const auto advertised = MatchEndpoint(u);
+            const std::string party = rp::ForPlayFab(advertised ? advertised->relyingParty : std::string());
             Tok xsts;
-            if (!Xsts(rp, xsts, error))
+            if (!Xsts(party, xsts, error))
                 return false;
-            const std::string body = "{\"CreateAccount\":true,\"TitleId\":" + Q(env.playFabTitle) +
-                                     ",\"XboxToken\":" + Q(XblHeader(xsts)) + "}";
+            const std::string body = "{\"CreateAccount\":true,\"TitleId\":" + json::Quote(env.playFabTitle) +
+                                     ",\"XboxToken\":" + json::Quote(XblHeader(xsts)) + "}";
             const http::Response r = Post(u, body, "application/json");
             auto doc = json::Document::Parse(r.body);
             const json::View data = doc ? doc->root()["data"] : json::View();
@@ -866,21 +921,18 @@ namespace perlin::xbox {
 
         bool MinecraftToken(const ServiceEnv& env, const std::string& ticket, const std::string& gameVersion,
                             const std::string& publicKeyB64, std::string& token, std::string& error) {
-            if (cache.minecraftDeviceId.empty()) {
-                cache.minecraftDeviceId = RandomUuid();
-                SaveCache();
-            }
+            const std::string minecraftDeviceId = MinecraftDeviceId();
             Url u;
             ParseUrl(env.serviceUri + "/api/v1.0/session/start", u);
             const std::string sessionBody =
                 "{\"device\":{\"applicationType\":\"MinecraftPE\",\"capabilities\":[],\"gameVersion\":" +
-                Q(gameVersion) + ",\"id\":" + Q(cache.minecraftDeviceId) +
+                json::Quote(gameVersion) + ",\"id\":" + json::Quote(minecraftDeviceId) +
                 ",\"memory\":\"17179869184\",\"platform\":\"Windows10\","
                 "\"playFabTitleId\":" +
-                Q(env.playFabTitle) +
+                json::Quote(env.playFabTitle) +
                 ",\"storePlatform\":\"uwp.store\",\"type\":\"Windows10\"},"
                 "\"user\":{\"language\":\"en\",\"languageCode\":\"en-US\",\"regionCode\":\"US\",\"token\":" +
-                Q(ticket) + ",\"tokenType\":\"PlayFab\"}}";
+                json::Quote(ticket) + ",\"tokenType\":\"PlayFab\"}}";
             const std::map<std::string, std::string> common{{"Accept", "application/json"},
                                                             {"User-Agent", "libhttpclient/1.0.0.0"}};
             http::Response r = Post(u, sessionBody, "application/json", common);
@@ -896,7 +948,7 @@ namespace perlin::xbox {
             ParseUrl(env.serviceUri + "/api/v1.0/multiplayer/session/start", u);
             auto headers = common;
             headers["Authorization"] = authorization;
-            r = Post(u, "{\"publicKey\":" + Q(publicKeyB64) + "}", "application/json", headers);
+            r = Post(u, "{\"publicKey\":" + json::Quote(publicKeyB64) + "}", "application/json", headers);
             doc = json::Document::Parse(r.body);
             if (r.status != 200 || !doc || !doc->root()["result"]["signedToken"].isString()) {
                 error = doc && doc->root()["message"].isString()
@@ -911,21 +963,18 @@ namespace perlin::xbox {
         bool ServiceAuthorization(const ServiceEnv& env, const std::string& ticket,
                                   const std::string& gameVersion, std::string& authorization,
                                   std::string& error) {
-            if (cache.minecraftDeviceId.empty()) {
-                cache.minecraftDeviceId = RandomUuid();
-                SaveCache();
-            }
+            const std::string minecraftDeviceId = MinecraftDeviceId();
             Url u;
             ParseUrl(env.serviceUri + "/api/v1.0/session/start", u);
             const std::string sessionBody =
                 "{\"device\":{\"applicationType\":\"MinecraftPE\",\"capabilities\":[],\"gameVersion\":" +
-                Q(gameVersion) + ",\"id\":" + Q(cache.minecraftDeviceId) +
+                json::Quote(gameVersion) + ",\"id\":" + json::Quote(minecraftDeviceId) +
                 ",\"memory\":\"17179869184\",\"platform\":\"Windows10\","
                 "\"playFabTitleId\":" +
-                Q(env.playFabTitle) +
+                json::Quote(env.playFabTitle) +
                 ",\"storePlatform\":\"uwp.store\",\"type\":\"Windows10\"},"
                 "\"user\":{\"language\":\"en\",\"languageCode\":\"en-US\",\"regionCode\":\"US\",\"token\":" +
-                Q(ticket) + ",\"tokenType\":\"PlayFab\"}}";
+                json::Quote(ticket) + ",\"tokenType\":\"PlayFab\"}}";
             const http::Response r =
                 Post(u, sessionBody, "application/json",
                      {{"Accept", "application/json"}, {"User-Agent", "libhttpclient/1.0.0.0"}});
@@ -951,7 +1000,7 @@ namespace perlin::xbox {
             if (gamertag.empty()) {
                 Tok live;
                 std::string why;
-                if (Xsts("http://xboxlive.com", live, why)) {
+                if (Xsts(kXboxLiveRelyingParty, live, why)) {
                     gamertag = live.gtg;
                     if (xuid.empty())
                         xuid = live.xid;
@@ -960,7 +1009,7 @@ namespace perlin::xbox {
             Url u;
             ParseUrl("https://multiplayer.minecraft.net/authentication", u);
             const http::Response r =
-                Post(u, "{\"identityPublicKey\":" + Q(publicKeyB64) + "}", "application/json",
+                Post(u, "{\"identityPublicKey\":" + json::Quote(publicKeyB64) + "}", "application/json",
                      {{"User-Agent", "MCPE/Android"},
                       {"Client-Version", gameVersion},
                       {"Authorization", XblHeader(xsts)}});
@@ -990,14 +1039,12 @@ namespace perlin::xbox {
         }
     };
 
-    Account::Account(std::string cachePath) : impl(std::make_unique<Impl>()) {
-        impl->cachePath = std::move(cachePath);
-        impl->LoadCache();
-    }
+    Account::Account(std::string cachePath) : impl(std::make_unique<Impl>(auth::TokenStore::Open(cachePath))) {}
+    Account::Account(std::shared_ptr<auth::TokenStore> store) : impl(std::make_unique<Impl>(std::move(store))) {}
     Account::~Account() = default;
 
     bool Account::HasSavedLogin() const {
-        return !impl->cache.refreshToken.empty();
+        return !impl->store->Current()->data.refreshToken.empty();
     }
 
     void Account::Cancel() {
@@ -1005,13 +1052,17 @@ namespace perlin::xbox {
     }
 
     void Account::SignOut(const std::string& cachePath) {
-        std::remove(cachePath.c_str());
+        auth::TokenStore::Forget(cachePath);
+    }
+
+    void Account::Invalidate(const std::string& relyingParty) {
+        impl->InvalidateXsts(relyingParty);
     }
 
     bool Account::SignIn(const PromptFn& prompt, std::string& error) {
-        if (impl->cache.refreshToken.empty() == false) {
+        if (HasSavedLogin()) {
             std::string why;
-            if (impl->Refresh(why))
+            if (impl->SisuUsable() || impl->RefreshMsa(why))
                 return true;
             Log("auth", "saved login no longer works ({}); signing in again", why);
         }
@@ -1019,19 +1070,17 @@ namespace perlin::xbox {
     }
 
     bool Account::SignInSaved(std::string& error) {
-        if (impl->cache.refreshToken.empty()) {
+        if (!HasSavedLogin()) {
             error = "no saved login";
             return false;
         }
-        return impl->Refresh(error);
+        return impl->SisuUsable() || impl->RefreshMsa(error);
     }
 
     bool Account::FetchGamertag(std::string& gamertag, std::string& error) {
         Impl& s = *impl;
-        if (!s.EnsureUserAndTitle(error))
-            return false;
         Tok xsts;
-        if (!s.Xsts("http://xboxlive.com", xsts, error))
+        if (!s.Xsts(kXboxLiveRelyingParty, xsts, error))
             return false;
         gamertag = xsts.gtg;
         if (gamertag.empty())
@@ -1042,8 +1091,6 @@ namespace perlin::xbox {
     bool Account::AuthorizationHeader(const std::string& relyingParty, std::string& header, std::string& xuid,
                                       std::string& error) {
         Impl& s = *impl;
-        if (!s.EnsureUserAndTitle(error))
-            return false;
         Tok xsts;
         if (!s.Xsts(relyingParty, xsts, error))
             return false;
@@ -1055,7 +1102,7 @@ namespace perlin::xbox {
     bool Account::ServiceSession(const std::string& gameVersion, ServiceInfo& out, std::string& error) {
         out = {};
         Impl& s = *impl;
-        if (!s.EnsureUserAndTitle(error))
+        if (!s.EnsureSisu(error))
             return false;
         const Impl::ServiceEnv env = s.Discover(gameVersion);
         std::string ticket, playFabId;
@@ -1089,7 +1136,7 @@ namespace perlin::xbox {
         auto discovery =
             std::async(std::launch::async, [&s, &gameVersion] { return s.Discover(gameVersion); });
         std::string ensureError;
-        const bool tokensReady = s.EnsureUserAndTitle(ensureError);
+        const bool tokensReady = s.EnsureSisu(ensureError);
         struct Chain {
             std::string json, gamertag, xuid, error;
             bool ok = false;

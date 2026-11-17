@@ -1,7 +1,8 @@
-// dedicated server: perlin-server [--data <dir>] [--port <n>] [--config-json '{...}']
+#include "util/TaskGroup.hpp"
 #include "core/Config.hpp"
 #include "core/Log.hpp"
 #include "core/Server.hpp"
+#include "world/BlockCatalog.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -29,7 +30,7 @@ namespace {
 
 int main(int argc, char** argv) {
 #ifdef _WIN32
-    // player names and plugin output are utf-8
+
     SetConsoleOutputCP(CP_UTF8);
 #endif
     std::string dir = ".";
@@ -49,7 +50,7 @@ int main(int argc, char** argv) {
         }
     }
     std::filesystem::create_directories(dir);
-    // bds reads server.properties from its working directory; a server.json from before that is still read when there is no .properties
+
     const std::string propsPath = dir + "/server.properties";
     const bool hadProps = std::filesystem::exists(propsPath);
     const bool hadLegacy = std::filesystem::exists(dir + "/server.json");
@@ -60,7 +61,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (!hadProps && !hadLegacy) {
-        // first run: a random seed, and the file written out so there is something to edit
+
         config.randomSeed = true;
         config.udpPortsSet = true;
         config.udpPortBegin = config.udpPortEnd = config.port;
@@ -68,11 +69,10 @@ int main(int argc, char** argv) {
         LogInfo("wrote default " + propsPath);
     }
     config.dataDir = dir;
-    // a packaged server carries its block tables in resources/ next to the executable
+
     if (config.blockDataDir.empty() && argc > 0) {
-        std::error_code ec;
         const std::filesystem::path beside = std::filesystem::path(argv[0]).parent_path() / "resources";
-        if (std::filesystem::exists(beside / "block_states.json", ec))
+        if (!BlockCatalog::FindFile(beside.string(), "block_states.json").empty())
             config.blockDataDir = beside.string();
     }
     if (config.pluginDir.empty())
@@ -90,20 +90,18 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, OnSignal);
     std::signal(SIGTERM, OnSignal);
 
-    // console commands: a thread reads stdin; its commands run on the tick thread's behalf under the same single-threaded rules
-    std::thread console;
-    std::mutex lineMutex;
-    std::vector<std::string> lines;
-    std::atomic<bool> consoleDone{false};
-    console = std::thread([&] {
+    struct ConsoleInput {
+        std::mutex mutex;
+        std::vector<std::string> lines;
+    };
+    const auto input = std::make_shared<ConsoleInput>();
+    std::thread([input] {
         std::string line;
         while (std::getline(std::cin, line)) {
-            std::lock_guard lock(lineMutex);
-            lines.push_back(line);
+            std::lock_guard lock(input->mutex);
+            input->lines.push_back(line);
         }
-        consoleDone = true;
-    });
-    console.detach();
+    }).detach();
 
     using clock = std::chrono::steady_clock;
     auto next = clock::now();
@@ -111,8 +109,8 @@ int main(int argc, char** argv) {
         {
             std::vector<std::string> pending;
             {
-                std::lock_guard lock(lineMutex);
-                pending.swap(lines);
+                std::lock_guard lock(input->mutex);
+                pending.swap(input->lines);
             }
             for (const std::string& l : pending)
                 server.RunConsoleCommand(l);
@@ -128,5 +126,6 @@ int main(int argc, char** argv) {
     LogInfo("stopping");
     g_server = nullptr;
     server.Stop();
+    perlin::ProcessTasks().Shutdown();
     return 0;
 }

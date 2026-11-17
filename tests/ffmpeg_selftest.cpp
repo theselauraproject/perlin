@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <vector>
-#include "client/replay/Ffmpeg.hpp"
+#include "client/systems/replay/Ffmpeg.hpp"
 using namespace perlin::replay::ffmpeg;
 int main(int argc, char** argv) {
     std::string path = argc > 1 ? argv[1] : FindExecutable();

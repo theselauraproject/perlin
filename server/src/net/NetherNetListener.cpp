@@ -53,7 +53,7 @@ namespace perlin::server {
                         if (!dc->send(std::move(msg)))
                             return false;
                     }
-                } catch (...) {
+                } catch (const std::exception&) {
                     return false;
                 }
                 return true;
@@ -67,7 +67,9 @@ namespace perlin::server {
                         reliable->close();
                     if (pc)
                         pc->close();
-                } catch (...) {}
+                } catch (const std::exception& e) {
+                    LogWarn(std::string("nethernet: close failed: ") + e.what());
+                }
             }
 
             bool Alive() const override { return !closed && reliable && reliable->isOpen(); }
@@ -167,7 +169,7 @@ namespace perlin::server {
             bool Start(EventQueue& q, std::string& error) override {
                 queue = &q;
                 rtc::InitLogger(std::getenv("PS_RTC_LOG") ? rtc::LogLevel::Debug : rtc::LogLevel::Error);
-                // set here, not through CPPHTTPLIB_THREAD_POOL_COUNT: the client shares these httplib inlines
+
                 http.new_task_queue = [] { return new httplib::ThreadPool(16, 64); };
 
                 http.Get("/v1/join", [this](const httplib::Request&, httplib::Response& res) {
@@ -302,7 +304,9 @@ namespace perlin::server {
                     const auto desc = peer->pc->localDescription();
                     if (desc)
                         answer = std::string(*desc);
-                } catch (...) {}
+                } catch (const std::exception& e) {
+                    LogWarn(std::string("nethernet: no local description: ") + e.what());
+                }
                 if (answer.empty()) {
                     peer->Close();
                     res.status = 500;

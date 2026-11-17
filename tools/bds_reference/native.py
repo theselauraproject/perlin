@@ -12,7 +12,6 @@ from pathlib import Path
 
 INPUT_SHA256 = "f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539"
 
-
 def export_pages(data, output):
     if data["input_sha256"] != INPUT_SHA256 or data["input_name"] != "Windows Server 1.26.10":
         raise ValueError("Wrong BDS reference")
@@ -36,7 +35,6 @@ def export_pages(data, output):
             stream.write(struct.pack('<Q', address))
             stream.write(value)
 
-
 def compare_fixture(emulated, native):
     """Reject changed inputs/finite results; count the known NaN payload issue."""
     old = [line.split() for line in emulated.splitlines() if line and not line.startswith('#')]
@@ -56,7 +54,6 @@ def compare_fixture(emulated, native):
                     raise ValueError('Native and emulated BDS disagree on a non-NaN result')
                 differences += 1
     return differences
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

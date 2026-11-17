@@ -134,6 +134,8 @@ Changes are saved to the pack's `.txt` file and applied with Apply Changes.
 
 - Geometry shaders (`.gsh`) and tessellation. The engine's pipelines have no geometry stage, and Metal has
   none at all.
+- Instancing (`countInstances` above 1) and `layer.*` render layer overrides in `block.properties`.
+- `occlusion.culling` and `shadow.culling` are read but the engine's own culling is not changed by them.
 - Distant Horizons / Voxy programs (`dh_*`), which Iris also skips without those mods.
 - Per-texture PBR maps from resource packs: `normals` and `specular` bind flat defaults.
 - Block states Bedrock does not store (`waterlogged`, `snowy`) use Java's defaults.

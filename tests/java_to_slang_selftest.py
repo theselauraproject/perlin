@@ -8,7 +8,6 @@ spec = importlib.util.spec_from_file_location("java_to_slang", ROOT / "tools/jav
 converter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(converter)
 
-
 class ConversionTests(unittest.TestCase):
     def test_uniform_dependent_globals_run_after_uniform_feed(self):
         source = "static vec2 view = vec2(viewWidth, viewHeight);\nvoid stageMain() {\n}"
@@ -43,7 +42,6 @@ class ConversionTests(unittest.TestCase):
             self.assertIn("transpose(first)[1]", text)
             self.assertIn("output.clipPosition = float4(input.a_position.xy, 0.0, 1.0)", text)
             self.assertLess(text.index("fs_stage::viewWidth = u_jviewWidth"), text.index("fs_stage::stageMain();"))
-
 
 if __name__ == "__main__":
     unittest.main()

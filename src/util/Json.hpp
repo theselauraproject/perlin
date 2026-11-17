@@ -48,6 +48,7 @@ namespace perlin::json {
                 return node->get<glz::generic::object_t>().size();
             return 0;
         }
+        bool empty() const { return size() == 0; }
 
         std::string str(std::string fallback = {}) const {
             return isString() ? node->get<std::string>() : fallback;

@@ -1,4 +1,3 @@
-// ore features from Java's data: the right ores turn up in the right heights after decoration, they are repeatable, and they don't depend on which chunks are built together
 #include "core/Config.hpp"
 #include "test_util.hpp"
 #include "world/BlockCatalog.hpp"
@@ -35,7 +34,6 @@ int main() {
     std::printf("%zu chunks in %.0f ms\n", pos.size(),
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
 
-    // block id -> [count, lowest y, highest y]
     struct Stat {
         int count = 0, lo = 9999, hi = -9999;
     };
@@ -75,7 +73,7 @@ int main() {
     for (const char* n : {"coal_ore", "iron_ore", "copper_ore", "gold_ore", "lapis_ore", "redstone_ore",
                           "diamond_ore", "granite", "diorite", "andesite", "tuff", "gravel"})
         CHECK(stats[n].count > 0);
-    // the rules' height ranges (blobs reach a few blocks past the start)
+
     CHECK(stats["diamond_ore"].hi <= 16 + 8);
     CHECK(stats["deepslate_diamond_ore"].hi <= 16 + 8);
     CHECK(stats["redstone_ore"].hi <= 15 + 8);
@@ -83,10 +81,9 @@ int main() {
     CHECK(stats["tuff"].hi <= 0 + 8);
     CHECK(stats["deepslate_diamond_ore"].count > 0);
     CHECK(stats["diamond_ore"].lo >= -144 - 8);
-    // stone variants below y 0 are deepslate: iron under 0 is the deepslate kind
+
     CHECK(stats["deepslate_iron_ore"].count > 0);
 
-    // the same chunk built alone, or in another batch, is the same (terrain stage)
     std::vector<ChunkPos> one = {{1, -1}};
     std::vector<ChunkColumn> alone(1);
     backend->Generate(one, alone);
@@ -102,7 +99,6 @@ int main() {
                     differing++;
     CHECK(differing == 0);
 
-    // a different seed puts the ore somewhere else
     ServerConfig other = config;
     other.seed = 4243;
     auto b2 = vanilla::VanillaCpuBackend::Create(other, error);

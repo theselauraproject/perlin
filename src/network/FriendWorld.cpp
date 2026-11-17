@@ -23,11 +23,13 @@ namespace perlin::friendworld {
 #include "network/Http.hpp"
 #include "util/Json.hpp"
 #include "util/Strings.hpp"
+#include "util/JsonText.hpp"
 
 #include <httplib.h>
 
 #include <algorithm>
 #include <atomic>
+#include <memory>
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
@@ -72,45 +74,6 @@ namespace perlin::friendworld {
             }
             return out;
         }
-
-        std::string Upper(std::string s) {
-            for (char& c : s)
-                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-            return s;
-        }
-
-        std::string Q(const std::string& s) {
-            std::string out = "\"";
-            for (const char c : s) {
-                switch (c) {
-                case '"':
-                    out += "\\\"";
-                    break;
-                case '\\':
-                    out += "\\\\";
-                    break;
-                case '\n':
-                    out += "\\n";
-                    break;
-                case '\r':
-                    out += "\\r";
-                    break;
-                case '\t':
-                    out += "\\t";
-                    break;
-                default:
-                    if (static_cast<unsigned char>(c) < 0x20) {
-                        char buf[8];
-                        std::snprintf(buf, sizeof buf, "\\u%04x", c);
-                        out += buf;
-                    } else {
-                        out += c;
-                    }
-                }
-            }
-            return out + "\"";
-        }
-
         std::string QuoteBigIds(const std::string& body) {
             static const char* const kKeys[] = {"\"NetherNetId\"", "\"RakNetGUID\""};
             std::string out = body;
@@ -136,10 +99,13 @@ namespace perlin::friendworld {
 
         class Link {
         public:
+            Link() : shared(std::make_shared<Shared>()) {}
             ~Link() { Close(); }
+            Link(const Link&) = delete;
+            Link& operator=(const Link&) = delete;
 
             bool Open(const std::string& url, const httplib::Headers& headers, std::string& error) {
-                ws = std::make_unique<httplib::ws::WebSocketClient>(url, headers);
+                auto ws = std::make_unique<httplib::ws::WebSocketClient>(url, headers);
                 if (!ws->is_valid()) {
                     error = "bad WebSocket address " + url;
                     return false;
@@ -151,59 +117,71 @@ namespace perlin::friendworld {
                     error = "could not open a WebSocket to " + url.substr(0, url.find('/', 8)) +
                             (result.status() > 0 ? " (HTTP " + std::to_string(result.status()) + ")"
                                                  : std::string());
-                    ws.reset();
                     return false;
                 }
                 ws->set_read_timeout(1);
-                open = true;
-                reader = std::thread([this] {
-                    std::string message;
-                    while (!stop) {
-                        const httplib::ws::ReadResult r = ws->read(message);
-                        if (r == httplib::ws::Timeout)
-                            continue;
-                        if (r == httplib::ws::Text || r == httplib::ws::Binary) {
-                            if (onText)
-                                onText(message);
-                            continue;
-                        }
-                        break;
-                    }
-                    open = false;
-                    if (!stop && onClosed)
-                        onClosed();
-                });
+                shared->ws = std::move(ws);
+                shared->open = true;
+                reader = std::thread(&Link::ReadLoop, shared, onText, onClosed);
                 return true;
             }
 
             bool Send(const std::string& text) {
-                std::lock_guard lock(sendMutex);
-                return ws && open && ws->send(text);
+                std::lock_guard lock(shared->sendMutex);
+                return shared->ws && shared->open && shared->ws->send(text);
             }
 
             void Close() {
-                stop = true;
-                if (ws) {
+                shared->stop = true;
+                if (shared->ws) {
                     try {
-                        ws->close();
-                    } catch (...) {}
+                        shared->ws->close();
+                    } catch (const std::exception& e) {
+                        Log("friends", "websocket close failed: {}", e.what());
+                    }
                 }
-                if (reader.joinable() && std::this_thread::get_id() != reader.get_id())
-                    reader.join();
-                else if (reader.joinable())
-                    reader.detach();
-                open = false;
+                if (reader.joinable()) {
+                    if (std::this_thread::get_id() == reader.get_id())
+                        reader.detach();
+                    else
+                        reader.join();
+                }
+                shared->open = false;
             }
+
+            bool IsOpen() const { return shared->open; }
 
             std::function<void(const std::string&)> onText;
             std::function<void()> onClosed;
-            std::atomic<bool> open{false};
 
         private:
-            std::unique_ptr<httplib::ws::WebSocketClient> ws;
+            struct Shared {
+                std::unique_ptr<httplib::ws::WebSocketClient> ws;
+                std::atomic<bool> open{false};
+                std::atomic<bool> stop{false};
+                std::mutex sendMutex;
+            };
+
+            static void ReadLoop(std::shared_ptr<Shared> shared,
+                                 std::function<void(const std::string&)> onText,
+                                 std::function<void()> onClosed) {
+                std::string message;
+                while (!shared->stop) {
+                    const httplib::ws::ReadResult r = shared->ws->read(message);
+                    if (r == httplib::ws::Timeout)
+                        continue;
+                    if (r != httplib::ws::Text && r != httplib::ws::Binary)
+                        break;
+                    if (onText)
+                        onText(message);
+                }
+                shared->open = false;
+                if (!shared->stop && onClosed)
+                    onClosed();
+            }
+
+            std::shared_ptr<Shared> shared;
             std::thread reader;
-            std::atomic<bool> stop{false};
-            std::mutex sendMutex;
         };
 
         struct Waiter {
@@ -314,8 +292,8 @@ namespace perlin::friendworld {
                 std::shared_ptr<Waiter> waiter;
                 if (waitDelivery)
                     waiter = waiters.Add(id);
-                const std::string message = "{\"Type\":1,\"To\":" + Q(to) + ",\"Message\":" + Q(text) +
-                                            ",\"MessageId\":" + Q(id) + "}";
+                const std::string message = "{\"Type\":1,\"To\":" + json::Quote(to) + ",\"Message\":" + json::Quote(text) +
+                                            ",\"MessageId\":" + json::Quote(id) + "}";
                 if (!link.Send(message)) {
                     waiters.Remove(id);
                     error = "the signalling connection is closed";
@@ -336,7 +314,7 @@ namespace perlin::friendworld {
             bool Credentials(std::vector<IceServerInfo>& servers, std::string& error) override {
                 std::unique_lock lock(credMutex);
                 if (!cv.wait_for(lock, std::chrono::seconds(15),
-                                 [this] { return haveCredentials || !link.open; })) {
+                                 [this] { return haveCredentials || !link.IsOpen(); })) {
                     error = "the signalling service sent no relay servers";
                     return false;
                 }
@@ -348,7 +326,7 @@ namespace perlin::friendworld {
                 return true;
             }
 
-            bool Alive() const override { return link.open; }
+            bool Alive() const override { return link.IsOpen(); }
 
             void Close() override {
                 {
@@ -471,13 +449,13 @@ namespace perlin::friendworld {
                 std::shared_ptr<Waiter> waiter;
                 if (waitDelivery)
                     waiter = waiters.Add(id);
-                const std::string inner = "{\"params\":{\"netherNetId\":" + Q(networkId) +
-                                          ",\"message\":" + Q(text) +
+                const std::string inner = "{\"params\":{\"netherNetId\":" + json::Quote(networkId) +
+                                          ",\"message\":" + json::Quote(text) +
                                           "},\"jsonrpc\":\"2.0\",\"method\":\"Signaling_WebRtc_v1_0\"}";
                 std::string reply;
                 if (!Call("Signaling_SendClientMessage_v1_0",
-                          "{\"toPlayerId\":" + Q(to) + ",\"messageId\":" + Q(id) +
-                              ",\"message\":" + Q(inner) + "}",
+                          "{\"toPlayerId\":" + json::Quote(to) + ",\"messageId\":" + json::Quote(id) +
+                              ",\"message\":" + json::Quote(inner) + "}",
                           10000, reply)) {
                     waiters.Remove(id);
                     error = reply.empty() ? "the signalling service did not answer" : reply;
@@ -511,7 +489,7 @@ namespace perlin::friendworld {
                 return true;
             }
 
-            bool Alive() const override { return link.open; }
+            bool Alive() const override { return link.IsOpen(); }
 
             void Close() override {
                 {
@@ -543,7 +521,7 @@ namespace perlin::friendworld {
                     calls[id] = pending;
                 }
                 const std::string request = "{\"jsonrpc\":\"2.0\",\"id\":" + std::to_string(id) +
-                                            ",\"method\":" + Q(method) + ",\"params\":" + params + "}";
+                                            ",\"method\":" + json::Quote(method) + ",\"params\":" + params + "}";
                 bool ok = link.Send(request);
                 if (ok) {
                     std::unique_lock lock(pending->m);
@@ -573,7 +551,7 @@ namespace perlin::friendworld {
                 for (auto& [id, p] : calls) {
                     std::lock_guard inner(p->m);
                     p->done = true;
-                    p->text = "{\"error\":{\"message\":" + Q(why) + "}}";
+                    p->text = "{\"error\":{\"message\":" + json::Quote(why) + "}}";
                     p->cv.notify_all();
                 }
             }
@@ -581,7 +559,7 @@ namespace perlin::friendworld {
             void Reply(const json::View id) {
                 if (!id.valid())
                     return;
-                const std::string raw = id.isString() ? Q(id.str()) : id.text();
+                const std::string raw = id.isString() ? json::Quote(id.str()) : id.text();
                 link.Send("{\"jsonrpc\":\"2.0\",\"id\":" + raw + ",\"result\":null}");
             }
 
@@ -651,12 +629,12 @@ namespace perlin::friendworld {
                     if (h)
                         h(from, inner->root()["params"]["message"].str());
                     const std::string ack =
-                        "{\"params\":{\"messageId\":" + Q(id) +
+                        "{\"params\":{\"messageId\":" + json::Quote(id) +
                         "},\"jsonrpc\":\"2.0\",\"method\":\"Signaling_DeliveryNotification_V1_0\"}";
                     const int callId = ++nextId;
                     link.Send("{\"jsonrpc\":\"2.0\",\"id\":" + std::to_string(callId) +
                               ",\"method\":\"Signaling_SendClientMessage_v1_0\",\"params\":{\"toPlayerId\":" +
-                              Q(from) + ",\"messageId\":" + Q(NewUuid()) + ",\"message\":" + Q(ack) + "}}");
+                              json::Quote(from) + ",\"messageId\":" + json::Quote(NewUuid()) + ",\"message\":" + json::Quote(ack) + "}}");
                 } else if (inner->root()["Code"].isNumber() && !id.empty()) {
                     waiters.Complete(id, inner->root()["Message"].str("the message could not be delivered"));
                 }
@@ -888,7 +866,7 @@ namespace perlin::friendworld {
 
         say("Looking for the world...");
         const std::string query = "{\"type\":\"activity\",\"scid\":\"" + std::string(kScid) +
-                                  "\",\"owners\":{\"xuids\":[" + Q(friendXuid) + "]}}";
+                                  "\",\"owners\":{\"xuids\":[" + json::Quote(friendXuid) + "]}}";
         const http::Response found =
             Mpsd("POST", "/handles/query?include=relatedInfo,customProperties", query, authorization);
         if (found.status != 200) {
@@ -938,9 +916,9 @@ namespace perlin::friendworld {
 
         say("Joining " + (hostName.empty() ? std::string("the world") : hostName) + "'s session...");
         const std::string joinBody =
-            "{\"members\":{\"me\":{\"constants\":{\"system\":{\"initialize\":true,\"xuid\":" + Q(myXuid) +
-            "}},\"properties\":{\"system\":{\"active\":true,\"connection\":" + Q(state->rta.connectionId) +
-            ",\"subscription\":{\"id\":" + Q(Upper(NewUuid())) + ",\"changeTypes\":[\"everything\"]}}}}}}";
+            "{\"members\":{\"me\":{\"constants\":{\"system\":{\"initialize\":true,\"xuid\":" + json::Quote(myXuid) +
+            "}},\"properties\":{\"system\":{\"active\":true,\"connection\":" + json::Quote(state->rta.connectionId) +
+            ",\"subscription\":{\"id\":" + json::Quote(str::Upper(NewUuid())) + ",\"changeTypes\":[\"everything\"]}}}}}}";
         http::Response joined;
         std::string ifMatch = "*";
         for (int attempt = 0; attempt < 3; attempt++) {

@@ -2,7 +2,8 @@
 Type=Application
 Name=Perlin
 Comment=A Minecraft Bedrock compatible client
-Exec=Perlin
+Exec=Perlin %u
+MimeType=x-scheme-handler/perlin;
 Icon=io.perlin.client
 Terminal=false
 Categories=Game;

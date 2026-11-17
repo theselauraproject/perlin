@@ -16,7 +16,7 @@ using namespace perlin::server;
 int main(int argc, char** argv) {
     const std::string dir = argc > 1 ? argv[1] : "resources";
     std::string error;
-    if (!BlockCatalog::Instance().Load(dir + "/block_states.json", dir + "/block_destroy.tsv", error)) {
+    if (!BlockCatalog::Instance().Load(BlockCatalog::FindFile(dir, "block_states.json"), BlockCatalog::FindFile(dir, "block_destroy.tsv"), error)) {
         std::printf("block data: %s\n", error.c_str());
         return 1;
     }

@@ -305,7 +305,6 @@
     });
   }
 
-  // the engine cannot wait on a promise from inside main(), so the device is created here and handed over
   async function acquireWebGpu() {
     if (!navigator.gpu) throw new Error('This browser has no WebGPU. Use a current Chrome, Edge or Safari.');
     var adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
@@ -320,8 +319,6 @@
     Module.preinitializedWebGPUDevice = device;
   }
 
-  // Microsoft, Xbox and Minecraft services send no CORS headers, so the page reaches them through a relay
-  // (tools/web/auth-relay): ?relay=<url>, else perlin-config.json's "authRelay", else serve.py's own /__relay-https
   async function authRelay() {
     var fromUrl = new URLSearchParams(location.search).get('relay');
     if (fromUrl) return fromUrl;

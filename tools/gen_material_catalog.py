@@ -3,7 +3,6 @@ import argparse
 import json
 from pathlib import Path
 
-
 def generate(source, output):
     rows = []
     for fragment in sorted((source / 'materials').glob('*/*.Fragment.glsl')):
@@ -26,7 +25,6 @@ def generate(source, output):
                       '\n'.join(rows) + '\n};\n}\n')
     if not output.exists() or output.read_text(encoding='utf-8') != content:
         output.write_text(content, encoding='utf-8')
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

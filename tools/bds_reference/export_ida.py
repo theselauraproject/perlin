@@ -12,7 +12,6 @@ import ida_funcs
 import ida_nalt
 import idautils
 
-
 def export_reference():
     def read_page(address):
         data = ida_bytes.get_bytes(address, 4096)

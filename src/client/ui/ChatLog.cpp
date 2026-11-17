@@ -1,9 +1,10 @@
 #include <cstring>
 #include "client/ui/ChatLog.hpp"
-#include "client/ui/FormatCodes.hpp"
-#include "client/ui/McFont.hpp"
+#include "client/systems/text/FormatCodes.hpp"
+#include "client/systems/text/McFont.hpp"
 #include "client/ui/TextEdit.hpp"
 #include "util/Strings.hpp"
+#include "util/Utf8.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -34,31 +35,32 @@ namespace perlin::ui {
             } while (pos < s.size() && !Utf8Lead(static_cast<unsigned char>(s[pos])));
             return pos;
         }
-
-        void AppendUtf8(std::string& out, uint32_t cp) {
-            if (cp < 0x80) {
-                out += static_cast<char>(cp);
-            } else if (cp < 0x800) {
-                out += static_cast<char>(0xC0 | (cp >> 6));
-                out += static_cast<char>(0x80 | (cp & 0x3F));
-            } else if (cp < 0x10000) {
-                out += static_cast<char>(0xE0 | (cp >> 12));
-                out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
-                out += static_cast<char>(0x80 | (cp & 0x3F));
-            } else {
-                out += static_cast<char>(0xF0 | (cp >> 18));
-                out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
-                out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
-                out += static_cast<char>(0x80 | (cp & 0x3F));
-            }
-        }
-
         size_t Utf8Count(const std::string& s) {
             size_t n = 0;
             for (unsigned char c : s)
                 if (Utf8Lead(c))
                     n++;
             return n;
+        }
+    }
+
+    namespace {
+        std::string StripJunk(const std::string& in) {
+            std::string out;
+            out.reserve(in.size());
+            for (size_t i = 0; i < in.size();) {
+                const size_t start = i;
+                uint32_t cp = 0;
+                if (!McFont::Next(in, i, cp))
+                    break;
+                const bool junk = (cp < 0x20 && cp != '\n') || (cp >= 0x7F && cp < 0xA0) || cp == 0xFFFD ||
+                                  (cp >= 0xFFF0 && cp <= 0xFFFF) || (cp >= 0x200B && cp <= 0x200F) ||
+                                  (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2060 && cp <= 0x206F) ||
+                                  cp == 0xFEFF || (cp >= 0xD800 && cp <= 0xDFFF);
+                if (!junk)
+                    out.append(in, start, i - start);
+            }
+            return out;
         }
     }
 
@@ -102,7 +104,7 @@ namespace perlin::ui {
                 cut = lastSpace;
             const std::string head = rest.substr(0, cut);
             out.push_back(carry + head);
-            // the state the cut line ends in starts the next one: a colour keeps bold on, as in the game
+
             FormatState state;
             const std::string line = carry + head;
             for (size_t i = 0; i < line.size();) {
@@ -122,7 +124,7 @@ namespace perlin::ui {
     }
 
     void ChatLog::AddMessage(const std::string& original, uint64_t tick) {
-        std::string text = original;
+        std::string text = StripJunk(original);
         if (text.contains(" is at ") && !text.starts_with('<') &&
             !text.contains("\xC2\xA7"
                            "a[")) {
@@ -135,9 +137,33 @@ namespace perlin::ui {
                                  "]\xC2\xA7"
                                  "r");
         }
+        messages.push_back({text, tick});
+        while (messages.size() > kMaxLines)
+            messages.pop_front();
+        AppendWrapped(text, tick);
+        while (lines.size() > kMaxLines)
+            lines.pop_front();
+        scroll = std::min(scroll, std::max(0, static_cast<int>(lines.size()) - PageLines()));
+    }
+
+    void ChatLog::SetLayout(const Layout& next) {
+        const int oldWrap = WrapWidth();
+        layout = next;
+        layout.scale = std::max(0.05f, layout.scale);
+        if (WrapWidth() == oldWrap)
+            return;
+        lines.clear();
+        for (const Message& m : messages)
+            AppendWrapped(m.text, m.added);
+        while (lines.size() > kMaxLines)
+            lines.pop_front();
+        scroll = 0;
+    }
+
+    void ChatLog::AppendWrapped(const std::string& text, uint64_t tick) {
         const std::vector<std::string> urls = FindUrls(text);
         size_t urlAt = 0, urlPos = 0;
-        for (const std::string& piece : Wrap(text, kWidth)) {
+        for (const std::string& piece : Wrap(text, WrapWidth())) {
             if (scroll > 0)
                 scroll++;
             Line line{piece, tick, {}};
@@ -188,9 +214,6 @@ namespace perlin::ui {
             }
             lines.push_back(std::move(line));
         }
-        while (lines.size() > kMaxLines)
-            lines.pop_front();
-        scroll = std::min(scroll, std::max(0, static_cast<int>(lines.size()) - 20));
     }
 
     void ChatLog::Open(const std::string& prefill, uint64_t nowMs) {
@@ -458,7 +481,7 @@ namespace perlin::ui {
                 }
             }
         }
-        std::sort(found.begin(), found.end(), [&](const std::string& a, const std::string& b) {
+        std::ranges::sort(found, [&](const std::string& a, const std::string& b) {
             const bool pa = str::Lower(a).starts_with(prefix), pb = str::Lower(b).starts_with(prefix);
             if (pa != pb)
                 return pa;
@@ -486,7 +509,7 @@ namespace perlin::ui {
         if (wheel != 0.0f) {
             const int step =
                 static_cast<int>(std::lround(wheel > 0 ? std::max(1.0f, wheel) : std::min(-1.0f, wheel)));
-            scroll = std::clamp(scroll + step, 0, std::max(0, static_cast<int>(lines.size()) - 20));
+            scroll = std::clamp(scroll + step, 0, std::max(0, static_cast<int>(lines.size()) - PageLines()));
         }
         for (const auto& t : typed) {
             if (!t.character && (t.key == Key::Tab) && !suggestions.empty()) {
@@ -543,10 +566,10 @@ namespace perlin::ui {
                 Recall(1);
                 break;
             case Key::PageUp:
-                scroll = std::clamp(scroll + 19, 0, std::max(0, static_cast<int>(lines.size()) - 20));
+                scroll = std::clamp(scroll + PageLines() - 1, 0, std::max(0, static_cast<int>(lines.size()) - PageLines()));
                 break;
             case Key::PageDown:
-                scroll = std::clamp(scroll - 19, 0, std::max(0, static_cast<int>(lines.size()) - 20));
+                scroll = std::clamp(scroll - PageLines() + 1, 0, std::max(0, static_cast<int>(lines.size()) - PageLines()));
                 break;
             default:
                 break;
@@ -559,7 +582,13 @@ namespace perlin::ui {
     void ChatLog::Fill(HudState& s, uint64_t tick, uint64_t nowMs) const {
         s.chatOpen = open;
         s.chatLines.clear();
-        const int maxLines = open ? 20 : 10;
+        const int maxLines = open ? PageLines() : std::max(1, layout.unfocusedLines);
+        s.chatScale = layout.scale;
+        s.chatWrapWidth = WrapWidth();
+        s.chatLineHeight = layout.lineHeight;
+        s.chatPageLines = maxLines;
+        s.chatTextAlpha = layout.textAlpha;
+        s.chatBackgroundAlpha = layout.backgroundAlpha;
         const int total = static_cast<int>(lines.size());
         for (int i = 0; i < maxLines && i + scroll < total; i++) {
             const Line& l = lines[static_cast<size_t>(total - 1 - (i + scroll))];
@@ -578,7 +607,7 @@ namespace perlin::ui {
             {
                 const McFont& font = McFont::Instance();
                 for (const UrlSpan& u : l.urls) {
-                    const std::string full = u.url.compare(0, 4, "www.") == 0 ? "https://" + u.url : u.url;
+                    const std::string full = u.url.starts_with("www.") ? "https://" + u.url : u.url;
                     v.clicks.push_back({font.Width(l.text.substr(0, u.begin)),
                                         font.Width(l.text.substr(u.begin, u.end - u.begin)), "url:" + full});
                 }

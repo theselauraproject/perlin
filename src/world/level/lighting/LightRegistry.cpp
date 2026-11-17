@@ -9,6 +9,7 @@
 #include <iostream>
 #include "util/Json.hpp"
 #include "util/Log.hpp"
+#include "util/FileIo.hpp"
 
 namespace perlin {
     namespace {
@@ -61,9 +62,9 @@ namespace perlin {
 
     const FaceOcclusion* LightRegistry::Occlusion(uint16_t id) const {
         uintptr_t v = occlusion[id].load(std::memory_order_acquire);
-        if (v == 1)
+        if (v == kNoOcclusion)
             return nullptr;
-        if (v > 1)
+        if (v > kNoOcclusion)
             return reinterpret_cast<const FaceOcclusion*>(v);
         OcclusionFn fn;
         {
@@ -72,14 +73,18 @@ namespace perlin {
         }
         if (!fn || id == 0)
             return nullptr;
-        auto* fresh = new FaceOcclusion();
+        auto fresh = std::make_unique<FaceOcclusion>();
         if (!fn(id, *fresh)) {
-            delete fresh;
-            occlusion[id].store(1, std::memory_order_release);
+            occlusion[id].store(kNoOcclusion, std::memory_order_release);
             return nullptr;
         }
-        occlusion[id].store(reinterpret_cast<uintptr_t>(fresh), std::memory_order_release);
-        return fresh;
+        const FaceOcclusion* published = fresh.get();
+        {
+            std::lock_guard lock(occlusionStoreMutex);
+            occlusionStore.push_back(std::move(fresh));
+        }
+        occlusion[id].store(reinterpret_cast<uintptr_t>(published), std::memory_order_release);
+        return published;
     }
 
     void LightRegistry::Invalidate() {
@@ -189,7 +194,8 @@ namespace perlin {
             if (!entry.is_regular_file() || entry.path().extension() != ".json")
                 continue;
             std::ifstream file(entry.path(), std::ios::binary);
-            const std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            std::string text;
+            file::ReadRest(file, text);
             const auto document = json::Document::Parse(text, true);
             if (!document)
                 continue;
@@ -231,7 +237,7 @@ namespace perlin {
         case Rule::Match::Exact:
             return name == rule.pattern;
         case Rule::Match::Prefix:
-            return name.compare(0, rule.pattern.size(), rule.pattern) == 0;
+            return name.starts_with(rule.pattern);
         case Rule::Match::Suffix:
             return name.size() >= rule.pattern.size() &&
                    name.compare(name.size() - rule.pattern.size(), rule.pattern.size(), rule.pattern) == 0;

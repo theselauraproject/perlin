@@ -1,4 +1,3 @@
-// the gpu density kernel against the cpu graph: bit-identical densities, identical blocks, and a speed figure; (the second half needs a gpu with 64-bit shader floats)
 #include "core/Config.hpp"
 #include "gpu/GpuTerrain.hpp"
 #include "gpu/VanillaGpuProgram.hpp"
@@ -39,14 +38,14 @@ static void TestProgram() {
     CHECK(program->nodeCount <= vanilla::GpuProgram::kMaxNodes);
     CHECK(program->innerCount + program->outerCount == program->order.size());
     CHECK(!program->climateOrder.empty());
-    // the packed buffer: header offsets ascend, and the biome table and materials sit where the header says
+
     const std::vector<uint32_t> packed = vanilla::PackTables(*program, cpu->Surface());
     for (int i = 1; i <= vanilla::GpuProgram::HMaterials; i++)
         CHECK(packed[static_cast<size_t>(i)] >= packed[static_cast<size_t>(i) - 1]);
     CHECK(packed[packed[vanilla::GpuProgram::HBiomes]] == static_cast<uint32_t>(vanilla::kBiomePointCount));
     CHECK(packed.size() ==
           packed[vanilla::GpuProgram::HMaterials] + 8 + static_cast<size_t>(vanilla::kBiomeCount) * 8);
-    // nothing in the block phase may read a node only the corner phase computes
+
     std::vector<char> inOuter(program->nodeCount, 0);
     for (uint32_t i = 0; i < program->outerCount; i++)
         inOuter[program->order[program->innerCount + i]] = 1;
@@ -62,7 +61,7 @@ static bool Gpu(int64_t seed, bool& ran) {
     std::unique_ptr<TerrainBackend> gpu = CreateGpuVanillaBackend(config, note);
     if (!gpu) {
         std::printf("no gpu path: %s\n", note.c_str());
-        // the gate refusing the device is a result, not a skip
+
         if (note.contains("differs")) {
             std::fprintf(stderr, "FAIL gate: %s\n", note.c_str());
             g_failed++;
@@ -105,7 +104,6 @@ static bool Gpu(int64_t seed, bool& ran) {
         CHECK(bad == 0);
     }
 
-    // whole columns, block for block
     std::vector<ChunkColumn> a(positions.size()), b(positions.size());
     auto t0 = std::chrono::steady_clock::now();
     gpu->Generate(positions, a);
@@ -127,7 +125,6 @@ static bool Gpu(int64_t seed, bool& ran) {
                 gpuMs, cpuMs, differing);
     CHECK(differing == 0);
 
-    // a bigger batch than one submit holds, to cover the split
     std::vector<ChunkPos> many;
     for (int i = 0; i < 40; i++)
         many.push_back({i - 20, (i * 7) % 11 - 5});
@@ -201,7 +198,7 @@ int main() {
     BlockCatalog::Instance().LoadBuiltin();
     TestProgram();
     bool ran = false;
-    // two seeds: the noise tables differ, the graph does not
+
     Gpu(12345, ran);
     if (ran)
         Gpu(-987654321, ran);

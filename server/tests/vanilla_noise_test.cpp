@@ -1,4 +1,3 @@
-// noise values from the 26.3 jar's own classes (tools/javaref/Oracle.java), seed 12345
 #include "core/Json.hpp"
 #include "world/vanilla/DataPack.hpp"
 #include "world/vanilla/Noise.hpp"
@@ -31,7 +30,7 @@ namespace {
 int main() {
     CHECK(SeedFromHashOf("").hi != 0);
     {
-        // xoroshiro: seed 12345/67890 from the real class
+
         WorldRandom r(12345ull, 67890ull);
         CHECK(static_cast<int64_t>(r.NextLong()) == 10516574265ll);
         CHECK(static_cast<int64_t>(r.NextLong()) == -8655457884744189457ll);
@@ -51,7 +50,7 @@ int main() {
         cont.baseOctave = -9;
         cont.octaveCount = 9;
         cont.amplitudeModifiers = {1, 1, 2, 2, 2, 1, 1, 1, 1};
-        // RandomState: WorldRandom(seed).forkPositional(), then fromHashOf("minecraft:<name>")
+
         WorldRandom root = WorldRandom::FromSeed(12345);
         const WorldRandom::Factory positional = root.ForkPositional();
         NormalNoise noise(cont, positional.FromHashOf("minecraft:continentalness"));
@@ -64,7 +63,7 @@ int main() {
             }
         }
     }
-    // the built-in noise definitions, against the real engine's values
+
     {
         auto pack = DataPack::Embedded();
         {

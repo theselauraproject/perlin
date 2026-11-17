@@ -1,4 +1,4 @@
-#include "client/player/PerlinSineTable.hpp"
+#include "world/movement/PerlinSineTable.hpp"
 
 #include <array>
 #include <bit>

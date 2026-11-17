@@ -13,6 +13,7 @@
 
 #include "protocol/Packets.hpp"
 #include "util/Strings.hpp"
+#include "util/JsonText.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -153,9 +154,9 @@ namespace perlin::server {
         if (wantNetherNet) {
             nethernet = CreateNetherNetListener(config, [this] {
                 std::ostringstream o;
-                o << "{\"name\":\"" << json::Escape(config.name)
+                o << "{\"name\":\"" << ::perlin::json::Escape(config.name)
                   << "\",\"protocol\":2225,\"version\":\"1.26.60\",\"level\":\""
-                  << json::Escape(config.levelName) << "\",\"players\":" << InGamePlayers().size()
+                  << ::perlin::json::Escape(config.levelName) << "\",\"players\":" << InGamePlayers().size()
                   << ",\"maxPlayers\":" << config.maxPlayers << ",\"gameType\":" << config.gameMode << "}";
                 return o.str();
             });
@@ -284,6 +285,10 @@ namespace perlin::server {
         for (auto& [id, session] : sessions)
             session->Tick(tick);
         ReapClosed();
+        if (--unloadCountdown <= 0) {
+            unloadCountdown = 100;
+            UnloadFarChunks();
+        }
         if (advance) {
             tickMillis.push_back(
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - began).count());
@@ -311,7 +316,7 @@ namespace perlin::server {
         out += line;
         if (!tickMillis.empty()) {
             std::vector<double> sorted(tickMillis.begin(), tickMillis.end());
-            std::sort(sorted.begin(), sorted.end());
+            std::ranges::sort(sorted);
             double sum = 0;
             for (double v : sorted)
                 sum += v;
@@ -350,30 +355,21 @@ namespace perlin::server {
                 unit = suffix == 's' ? 20.0 : suffix == 'd' ? 24000.0 : 1.0;
                 text.pop_back();
             }
-            try {
-                size_t used = 0;
-                const double v = std::stod(text, &used);
-                if (used != text.size() || v < 1 || v * unit > 10'000'000)
-                    return false;
-                ticks = static_cast<int64_t>(v * unit);
-                return true;
-            } catch (...) {
+            const auto v = str::ParseDouble(text);
+            if (!v || *v < 1 || *v * unit > 10'000'000)
                 return false;
-            }
+            ticks = static_cast<int64_t>(*v * unit);
+            return true;
         };
         if (sub == "query") {
             reply(TickQuery());
         } else if (sub == "rate") {
-            try {
-                size_t used = 0;
-                const double v = std::stod(arg, &used);
-                if (arg.empty() || used != arg.size() || v < 1.0 || v > 10000.0)
-                    throw std::invalid_argument("range");
-                tickRateTarget = v;
+            if (const auto v = str::ParseDouble(arg); v && *v >= 1.0 && *v <= 10000.0) {
+                tickRateTarget = *v;
                 char text[96];
-                std::snprintf(text, sizeof text, "Set the target tick rate to %.1f per second", v);
+                std::snprintf(text, sizeof text, "Set the target tick rate to %.1f per second", *v);
                 reply(text);
-            } catch (...) {
+            } else {
                 reply("§cUsage: /tick rate <1.0 - 10000.0>");
             }
         } else if (sub == "freeze") {
@@ -622,6 +618,23 @@ namespace perlin::server {
         if (!w.Peek({x >> 4, z >> 4}))
             return BlockRegistry::kAir;
         return w.GetBlock(x, y, z);
+    }
+
+    void Server::UnloadFarChunks() {
+        constexpr int kMargin = 4;
+        for (int dim = kOverworld; dim < kDimensionCount; dim++) {
+            ChunkManager* world = dim == kOverworld ? chunks.get() : otherWorlds[static_cast<size_t>(dim)].get();
+            if (!world || world->Loaded() == 0)
+                continue;
+            std::vector<ChunkManager::Viewer> viewers;
+            for (auto& [id, s] : sessions)
+                if (s->DimensionId() == dim)
+                    viewers.push_back({{static_cast<int>(std::floor(s->X())) >> 4, static_cast<int>(std::floor(s->Z())) >> 4},
+                                       std::max(s->ChunkRadius(), 8)});
+            if (viewers.empty())
+                continue;
+            world->UnloadFar(viewers, kMargin);
+        }
     }
 
     std::vector<Session*> Server::InGamePlayers() {
@@ -1181,7 +1194,7 @@ namespace perlin::server {
                 groups[p.group].iconItem = p.legacy;
                 creative.groups.push_back(groups[p.group]);
             }
-        std::stable_sort(placed.begin(), placed.end(),
+        std::ranges::stable_sort(placed,
                          [&](const Placed& a, const Placed& b) { return remap[a.group] < remap[b.group]; });
         for (const Placed& p : placed) {
             proto2225::CreativeContentPacketItemsEntry e;

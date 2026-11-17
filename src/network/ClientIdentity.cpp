@@ -20,7 +20,7 @@ namespace perlin {
         if (len == 0)
             return {};
         std::string out(4 * ((len + 2) / 3), '\0');
-        int n = EVP_EncodeBlock(reinterpret_cast<unsigned char*>(out.data()), data, (int)len);
+        int n = EVP_EncodeBlock(reinterpret_cast<unsigned char*>(out.data()), data, static_cast<int>(len));
         out.resize(n < 0 ? 0 : n);
         return out;
     }
@@ -66,9 +66,11 @@ namespace perlin {
         std::mt19937_64 rng((static_cast<uint64_t>(rd()) << 32) | rd());
         uint64_t hi = rng(), lo = rng();
         char buf[37];
-        snprintf(buf, sizeof(buf), "%08x-%04x-%04x-%04x-%012llx", (unsigned)(hi >> 32),
-                 (unsigned)((hi >> 16) & 0xFFFF), (unsigned)(((hi >> 8) & 0xF0) | 0x40),
-                 (unsigned)(((lo >> 48) & 0x3FFF) | 0x8000), (unsigned long long)(lo & 0xFFFFFFFFFFFFULL));
+        snprintf(buf, sizeof(buf), "%08x-%04x-%04x-%04x-%012llx", static_cast<unsigned>(hi >> 32),
+                 static_cast<unsigned>((hi >> 16) & 0xFFFF),
+                 static_cast<unsigned>((((hi >> 8) & 0xF0) | 0x40)),
+                 static_cast<unsigned>((((lo >> 48) & 0x3FFF) | 0x8000)),
+                 (unsigned long long)(lo & 0xFFFFFFFFFFFFULL));
         return buf;
     }
 
@@ -142,7 +144,7 @@ namespace perlin {
         std::string cpk = PublicKeyB64();
         if (cpk.empty())
             return mpToken;
-        int64_t now = (int64_t)time(nullptr);
+        int64_t now = static_cast<int64_t>(time(nullptr));
         const claims::Header header{.x5u = cpk};
         claims::Multiplayer payload;
         payload.cpk = cpk;

@@ -11,7 +11,6 @@ from pathlib import Path
 
 from generate import HEAP, INPUT_SHA256, Machine
 
-
 def generate(data):
     if data["input_sha256"] != INPUT_SHA256 or data["input_name"] != "Windows Server 1.26.10":
         raise ValueError("Wrong BDS reference")
@@ -69,7 +68,6 @@ def generate(data):
                                   tick & 0xFFFFFFFF, tick >> 32, *machine.get(HEAP + 0x1000, 8))
                         lines.append("A " + " ".join(f"{v:08x}" for v in result))
     return "\n".join(lines) + "\n"
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

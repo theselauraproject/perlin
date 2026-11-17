@@ -16,14 +16,14 @@ struct ps_server {
     std::unique_ptr<Server> server;
     std::thread thread;
     std::atomic<bool> asyncRunning{false};
-    // the tick thread ended: a stop was asked for, or the server threw and shut itself down
+
     std::atomic<bool> finished{false};
     std::atomic<bool> crashed{false};
 };
 
 struct ps_conn {
     std::shared_ptr<LoopbackListener::Endpoint> endpoint;
-    // a message too big for the caller's buffer waits here
+
     std::vector<uint8_t> held;
     bool hasHeld = false;
 };
@@ -64,7 +64,7 @@ PS_API ps_server* ps_create(const ps_options* options) {
         if (config.pluginDir.empty())
             config.pluginDir = dir + "/plugins";
         if (options && options->config_json) {
-            // overrides: write them over the loaded file the same way server.json is read
+
             json::Value over;
             if (json::Parse(options->config_json, over, &error)) {
                 if (over["name"].IsString())
@@ -121,7 +121,7 @@ PS_API int ps_run_async(ps_server* s) {
         try {
             s->server->Run();
         } catch (const std::exception& e) {
-            // a bug in one tick must not take the host down with it: log it and let the host see the server is gone
+
             LogError(std::string("server crashed: ") + e.what());
             s->crashed = true;
         } catch (...) {

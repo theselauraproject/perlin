@@ -1,4 +1,3 @@
-// Visual Vibrance shader (see LICENSE-VisualVibrance.txt)
 #include "compat.slang"
 
 #include "vv_resources.slang"

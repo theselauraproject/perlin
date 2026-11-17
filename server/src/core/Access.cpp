@@ -2,10 +2,11 @@
 
 #include "core/Json.hpp"
 #include "util/Strings.hpp"
+#include "util/JsonText.hpp"
+#include "util/FileIo.hpp"
 
 #include <algorithm>
 #include <fstream>
-#include <sstream>
 
 namespace perlin::server {
     namespace {}
@@ -13,13 +14,11 @@ namespace perlin::server {
     void AccessList::Load(const std::string& file) {
         path = file;
         entries.clear();
-        std::ifstream in(path, std::ios::binary);
-        if (!in)
+        std::string contents;
+        if (!file::Read(path, contents))
             return;
-        std::stringstream buf;
-        buf << in.rdbuf();
         json::Value root;
-        if (!json::Parse(buf.str(), root) || !root.IsArray())
+        if (!json::Parse(contents, root) || !root.IsArray())
             return;
         for (const json::Value& e : root.items) {
             AccessEntry entry;
@@ -49,14 +48,14 @@ namespace perlin::server {
             const AccessEntry& e = entries[i];
             out << (i ? "," : "") << "\n  {";
             if (kind == Kind::Permissions)
-                out << "\"permission\": \"" << json::Escape(e.permission.empty() ? "member" : e.permission)
+                out << "\"permission\": \"" << ::perlin::json::Escape(e.permission.empty() ? "member" : e.permission)
                     << "\"";
             else
                 out << "\"ignoresPlayerLimit\": " << (e.ignoresPlayerLimit ? "true" : "false");
             if (!e.name.empty())
-                out << ", \"name\": \"" << json::Escape(e.name) << "\"";
+                out << ", \"name\": \"" << ::perlin::json::Escape(e.name) << "\"";
             if (!e.xuid.empty())
-                out << ", \"xuid\": \"" << json::Escape(e.xuid) << "\"";
+                out << ", \"xuid\": \"" << ::perlin::json::Escape(e.xuid) << "\"";
             out << "}";
         }
         out << (entries.empty() ? "]\n" : "\n]\n");
@@ -70,7 +69,7 @@ namespace perlin::server {
                 return &e;
             if (!name.empty() && !e.name.empty() && str::Lower(e.name) == lowered)
                 return &e;
-            // an entry that is only an xuid (a name field holding digits works too)
+
             if (!xuid.empty() && e.name == xuid)
                 return &e;
         }

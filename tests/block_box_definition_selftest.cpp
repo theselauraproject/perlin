@@ -1,4 +1,4 @@
-#include "client/resources/BlockBoxDefinition.hpp"
+#include "client/systems/resources/BlockBoxDefinition.hpp"
 #include <cstdlib>
 #include <iostream>
 using namespace perlin;
@@ -9,9 +9,9 @@ static void Check(bool v, const char* why) {
     }
 }
 static CollisionSet Parse(const char* text) {
-    ui::Json json;
+    json::Value json;
     std::string error;
-    Check(ui::Json::Parse(text, json, error), "bad fixture");
+    Check(json::Value::Parse(text, json, error), "bad fixture");
     return ParseBlockBoxComponent(&json);
 }
 int main() {

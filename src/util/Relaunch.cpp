@@ -1,3 +1,4 @@
+#include "util/EnvVar.hpp"
 #include "util/Relaunch.hpp"
 #include "util/Paths.hpp"
 
@@ -53,7 +54,7 @@ namespace perlin {
         CloseHandle(pi.hProcess);
         return true;
 #else
-        setenv("PERLIN_RELAUNCH", next.c_str(), 1);
+        perlin::env::Set("PERLIN_RELAUNCH", next.c_str());
         std::vector<char*> argv;
         for (std::string& a : Args())
             argv.push_back(a.data());
@@ -61,7 +62,7 @@ namespace perlin {
 #if defined(__linux__)
         execv("/proc/self/exe", argv.data());
 #else
-        // the program's own path; argv[0] may be relative to a directory that is no longer current
+
         const std::string self = paths::ExeDir() + "/" + std::filesystem::path(Args()[0]).filename().string();
         execv(self.c_str(), argv.data());
 #endif

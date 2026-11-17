@@ -12,7 +12,11 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <map>
+#include <unordered_map>
 #include <mutex>
+#include <shared_mutex>
+#include <string_view>
 #include <optional>
 #include <cstdio>
 #include <cstdlib>
@@ -189,7 +193,12 @@ namespace perlin::server::vanilla {
         }
     }
 
+    namespace {
+        std::atomic<uint64_t> gImplSerial{0};
+    }
+
     struct JavaDecorator::Impl {
+        const uint64_t serial = gImplSerial.fetch_add(1, std::memory_order_relaxed) + 1;
         json::Value doc;
         std::vector<JavaBiome> biomes;
         std::vector<int> tableToBiome;
@@ -227,15 +236,15 @@ namespace perlin::server::vanilla {
                 const bool plant = in("minecraft:replaceable") || in("minecraft:flowers") || in("minecraft:saplings") ||
                                    in("minecraft:small_flowers") || in("minecraft:crops") ||
                                    in("minecraft:replaceable_by_trees") || name.contains("sapling") ||
-                                   name.contains("mushroom") && !name.contains("block") && !name.contains("stem") ||
-                                   name.contains("vine") || name.contains("bush") || name.contains("grass") &&
-                                   !name.contains("block") || name.contains("fern") || name.contains("torch") ||
+                                   (name.contains("mushroom") && !name.contains("block") && !name.contains("stem")) ||
+                                   name.contains("vine") || name.contains("bush") || (name.contains("grass") &&
+                                    !name.contains("block")) || name.contains("fern") || name.contains("torch") ||
                                    name.contains("snow_layer") || name.contains("seagrass") || name.contains("kelp") ||
                                    name.contains("reeds") || name.contains("waterlily") || name.contains("leaf_litter") ||
                                    name.contains("petals") || name.contains("wildflowers") || name.contains("cocoa") ||
                                    name.contains("dead_bush") || name.contains("deadbush") || name.contains("coral_fan") ||
-                                   name.contains("lichen") || name.contains("dripleaf") || name.contains("roots") &&
-                                   !name.contains("mangrove_roots");
+                                   name.contains("lichen") || name.contains("dripleaf") || (name.contains("roots") &&
+                                    !name.contains("mangrove_roots"));
                 if (in("minecraft:replaceable") || name == "minecraft:snow_layer")
                     f |= kReplaceable;
                 if (!plant)
@@ -245,12 +254,44 @@ namespace perlin::server::vanilla {
             return f;
         }
 
-        bool InTag(const std::string& tag, uint16_t id) const {
-            const std::string t = tag.starts_with('#') ? tag.substr(1) : tag;
-            const auto it = tags.find(t);
-            if (it == tags.end())
+        struct TagMask {
+            std::array<std::atomic<uint8_t>, 65536> state{};
+            const std::unordered_set<std::string>* names = nullptr;
+        };
+        mutable std::shared_mutex maskMutex;
+        mutable std::map<std::string, std::unique_ptr<TagMask>, std::less<>> masks;
+
+        const TagMask* MaskFor(std::string_view tag) const {
+            if (tag.starts_with('#'))
+                tag.remove_prefix(1);
+            {
+                std::shared_lock lock(maskMutex);
+                const auto it = masks.find(tag);
+                if (it != masks.end())
+                    return it->second.get();
+            }
+            std::unique_lock lock(maskMutex);
+            auto& slot = masks[std::string(tag)];
+            if (!slot) {
+                slot = std::make_unique<TagMask>();
+                const auto it = tags.find(std::string(tag));
+                slot->names = it == tags.end() ? nullptr : &it->second;
+            }
+            return slot.get();
+        }
+
+        bool InTag(std::string_view tag, uint16_t id) const { return MaskHas(MaskFor(tag), id); }
+
+        bool MaskHas(const TagMask* mask, uint16_t id) const {
+            if (!mask->names)
                 return false;
-            return it->second.contains(BlockRegistry::Instance().Name(id));
+            auto& cell = const_cast<TagMask*>(mask)->state[id];
+            uint8_t known = cell.load(std::memory_order_relaxed);
+            if (!known) {
+                known = mask->names->contains(BlockRegistry::Instance().Name(id)) ? 2 : 1;
+                cell.store(known, std::memory_order_relaxed);
+            }
+            return known == 2;
         }
     };
 
@@ -396,7 +437,7 @@ namespace perlin::server::vanilla {
                     return static_cast<int>(v.Int());
                 if (Is(vType, "constant"))
                     return static_cast<int>(v["value"].Int());
-                if (Is(vType, "uniform") || !v.members.contains("type") && v.members.contains("min_inclusive"))
+                if (Is(vType, "uniform") || (!v.members.contains("type") && v.members.contains("min_inclusive")))
                     return r.Between(static_cast<int>(v["min_inclusive"].Int()), static_cast<int>(v["max_inclusive"].Int()));
                 if (Is(vType, "biased_to_bottom")) {
                     const int lo = static_cast<int>(v["min_inclusive"].Int()), hi = static_cast<int>(v["max_inclusive"].Int());
@@ -512,7 +553,7 @@ namespace perlin::server::vanilla {
                     return e.text == name;
                 };
                 if (list.IsArray())
-                    return std::any_of(list.items.begin(), list.items.end(), one);
+                    return std::ranges::any_of(list.items, one);
                 return one(list);
             }
 
@@ -557,7 +598,7 @@ namespace perlin::server::vanilla {
                     return (bf & kSolid) != 0;
                 if (name == "minecraft:bamboo" || name == "minecraft:bamboo_sapling")
                     return belowIn("minecraft:supports_bamboo");
-                if (name.contains("sapling") || name.contains("flower") || name.contains("grass") && !name.contains("block") ||
+                if (name.contains("sapling") || name.contains("flower") || (name.contains("grass") && !name.contains("block")) ||
                     name.contains("fern") || name.contains("bush") || name.contains("petals") || name.contains("wildflowers") ||
                     name.contains("tulip") || name.contains("orchid") || name.contains("allium") || name.contains("bluet") ||
                     name.contains("daisy") || name.contains("dandelion") || name.contains("poppy") || name.contains("lily") ||
@@ -607,7 +648,7 @@ namespace perlin::server::vanilla {
                         return false;
                     };
                     if (fl.IsArray())
-                        return std::any_of(fl.items.begin(), fl.items.end(), one);
+                        return std::ranges::any_of(fl.items, one);
                     return one(fl);
                 }
                 if (Is(vType, "solid") || Is(vType, "has_sturdy_face"))
@@ -697,7 +738,7 @@ namespace perlin::server::vanilla {
             bool ValidTree(const Pos& p) {
                 const uint16_t id = w.Get(p);
                 const uint8_t f = d.Flags(id);
-                return (f & kAir) || d.InTag("minecraft:replaceable_by_trees", id) || (f & kReplaceable) && !(f & kWater);
+                return (f & kAir) || d.InTag("minecraft:replaceable_by_trees", id) || ((f & kReplaceable) && !(f & kWater));
             }
             bool FreeTree(const Pos& p) { return ValidTree(p) || (w.F(p) & kLog); }
 
@@ -847,12 +888,42 @@ namespace perlin::server::vanilla {
             }
 
             bool RuleTest(const json::Value& t, uint16_t id, const Pos& p) {
-                const std::string type = t["predicate_type"].String();
-                const std::string_view name = std::string_view(type).substr(type.starts_with("minecraft:") ? 10 : 0);
+                struct RuleMemo {
+                    uint64_t serial = 0;
+                    std::unordered_map<const json::Value*, std::pair<uint8_t, const JavaDecorator::Impl::TagMask*>> map;
+                };
+                thread_local RuleMemo memo;
+                if (memo.serial != d.serial) {
+                    memo.map.clear();
+                    memo.serial = d.serial;
+                }
+                auto [slot, fresh] = memo.map.try_emplace(&t, uint8_t{0}, nullptr);
+                if (fresh) {
+                    const json::Value& kind = t["predicate_type"];
+                    const std::string_view k = kind.IsString() ? std::string_view(kind.text) : std::string_view();
+                    const std::string_view bare = k.substr(k.starts_with("minecraft:") ? 10 : 0);
+                    if (bare == "always_true") {
+                        slot->second.first = 2;
+                    } else if (bare == "tag_match" && t["tag"].IsString()) {
+                        slot->second.first = 1;
+                        slot->second.second = d.MaskFor(t["tag"].text);
+                    } else {
+                        slot->second.first = 3;
+                    }
+                }
+                if (slot->second.first == 2)
+                    return true;
+                if (slot->second.first == 1)
+                    return d.MaskHas(slot->second.second, id);
+                const json::Value& typeValue = t["predicate_type"];
+                const std::string_view type = typeValue.IsString() ? std::string_view(typeValue.text) : std::string_view();
+                const std::string_view name = type.substr(type.starts_with("minecraft:") ? 10 : 0);
                 if (name == "always_true")
                     return true;
-                if (name == "tag_match")
-                    return d.InTag(t["tag"].String(), id);
+                if (name == "tag_match") {
+                    const json::Value& tag = t["tag"];
+                    return tag.IsString() && d.InTag(tag.text, id);
+                }
                 if (name == "block_match")
                     return id == StateId(t["block"]) ||
                            BlockRegistry::Instance().Name(id) == BlockRegistry::Instance().Name(StateId(t["block"]));

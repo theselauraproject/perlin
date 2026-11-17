@@ -71,7 +71,7 @@ namespace perlin::server {
     }
 
     uint16_t BlockRegistry::Intern(const std::string& name, StateList states) {
-        std::sort(states.begin(), states.end(),
+        std::ranges::sort(states,
                   [](const auto& a, const auto& b) { return a.first < b.first; });
         const std::string key = Key(name, states);
         std::lock_guard lock(mutex);

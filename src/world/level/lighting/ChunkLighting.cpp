@@ -1,3 +1,4 @@
+#include <cstring>
 #include "world/level/lighting/ChunkLighting.hpp"
 
 #include <algorithm>
@@ -77,9 +78,12 @@ namespace perlin {
         grid.block.assign(cells, 0);
 
         static thread_local std::vector<int16_t> colTop;
+        static thread_local std::vector<int16_t> colLit;
         colTop.assign(kLayer, -1);
+        colLit.assign(kLayer, static_cast<int16_t>(rows));
         for (int z = 0; z < kSpan; z++)
             for (int x = 0; x < kSpan; x++) {
+                const size_t c = static_cast<size_t>(z) * kSpan + x;
                 int level = kMaxLight;
                 size_t i = grid.Index(x, grid.yBase + rows - 1, z);
                 for (int row = rows - 1; row >= 0; row--, i -= kLayer) {
@@ -91,9 +95,13 @@ namespace perlin {
                         level = 0;
                     else
                         level = std::max(0, level - cost);
+                    if (level < kMaxLight && colTop[c] < row)
+                        colTop[c] = static_cast<int16_t>(row);
+                    if (level == 0)
+                        break;
                     grid.sky[i] = static_cast<uint8_t>(level);
-                    if (level < kMaxLight && colTop[static_cast<size_t>(z) * kSpan + x] < row)
-                        colTop[static_cast<size_t>(z) * kSpan + x] = static_cast<int16_t>(row);
+                    if (level > 1)
+                        colLit[c] = static_cast<int16_t>(row);
                 }
             }
 
@@ -112,7 +120,7 @@ namespace perlin {
                 if (z < kSpan - 1)
                     top = std::max<int>(top, colTop[c + kSpan]);
                 const int scanTop = std::min(rows - 1, top + 1);
-                for (int row = 0; row <= scanTop; row++) {
+                for (int row = colLit[c]; row <= scanTop; row++) {
                     const uint32_t i = static_cast<uint32_t>(static_cast<size_t>(row) * kLayer + c);
                     const int level = grid.sky[i];
                     if (level <= 1)
@@ -196,7 +204,7 @@ namespace perlin {
                         hi = std::max(hi, chi);
                     }
                 }
-            if (hi < lo) {
+            if (hi < lo || yLo >= Chunk::MIN_Y + Chunk::HEIGHT) {
                 out.yBase = yLo;
                 out.rows = yHi - yLo + 1;
                 out.packed.assign(static_cast<size_t>(out.rows) * kPadded * kPadded, Result::kSkyOnly);
@@ -205,6 +213,13 @@ namespace perlin {
             grid.yBase = std::max(std::max(Chunk::MIN_Y, std::min(lo, yLo) - 1), yLo - 16);
             const int top = std::min(Chunk::MIN_Y + Chunk::HEIGHT - 1, std::max(hi, yHi) + 1);
             grid.rows = top - grid.yBase + 1;
+            if (grid.rows <= 0) {
+                out.yBase = yLo;
+                out.rows = yHi - yLo + 1;
+                out.packed.assign(static_cast<size_t>(out.rows) * kPadded * kPadded,
+                                  yLo >= Chunk::MIN_Y ? Result::kSkyOnly : uint8_t{0});
+                return true;
+            }
             grid.ids.assign(kLayer * static_cast<size_t>(grid.rows), 0);
             for (int row = 0; row < grid.rows; row++) {
                 const int y = grid.yBase + row;
@@ -222,21 +237,40 @@ namespace perlin {
         const LightRegistry& registry = LightRegistry::Instance();
         const size_t cells = grid.ids.size();
         grid.opacity.resize(cells);
-        grid.shaped.assign(cells, 0);
+        grid.shaped.resize(cells);
         scratch.emitters.clear();
-        for (size_t i = 0; i < cells; i++) {
-            const uint16_t id = grid.ids[i];
-            if (id == 0) {
-                grid.opacity[i] = 0;
-                continue;
+        static thread_local std::vector<uint16_t> props(65536, 0);
+        static thread_local std::vector<uint16_t> seenIds;
+        constexpr uint16_t kResolved = 0x8000, kShaped = 0x1000;
+        const uint16_t* idData = grid.ids.data();
+        for (size_t i = 0; i < cells;) {
+            const uint16_t id = idData[i];
+            size_t end = i + 1;
+            while (end < cells && idData[end] == id)
+                end++;
+            uint16_t p = props[id];
+            if (!(p & kResolved)) {
+                p = kResolved;
+                if (id != 0) {
+                    const BlockLightProps lp = registry.Resolve(id);
+                    p |= static_cast<uint16_t>(lp.opacity | (lp.emission << 8));
+                    if (lp.opacity < kMaxLight && registry.Occlusion(id))
+                        p |= kShaped;
+                }
+                props[id] = p;
+                seenIds.push_back(id);
             }
-            const BlockLightProps props = registry.Resolve(id);
-            grid.opacity[i] = props.opacity;
-            if (props.opacity < kMaxLight && registry.Occlusion(id))
-                grid.shaped[i] = 1;
-            if (props.emission > 0)
-                scratch.emitters.push_back({static_cast<uint32_t>(i), props.emission});
+            const size_t run = end - i;
+            std::memset(grid.opacity.data() + i, static_cast<int>(p & 0xFF), run);
+            std::memset(grid.shaped.data() + i, (p & kShaped) ? 1 : 0, run);
+            if (const uint8_t emission = static_cast<uint8_t>((p >> 8) & 15); emission > 0)
+                for (size_t k = i; k < end; k++)
+                    scratch.emitters.push_back({static_cast<uint32_t>(k), emission});
+            i = end;
         }
+        for (const uint16_t id : seenIds)
+            props[id] = 0;
+        seenIds.clear();
         for (int dz = 0; dz < 3; dz++)
             for (int dx = 0; dx < 3; dx++) {
                 if (present[dz][dx])

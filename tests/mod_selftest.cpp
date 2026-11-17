@@ -1,4 +1,4 @@
-#include "client/mods/ModManager.hpp"
+#include "client/systems/mods/ModManager.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -130,6 +130,32 @@ int main(int argc, char** argv) {
 
         fs::remove(dir / (reloaded + ".wasm"));
         CHECK(WaitFor([&] { return Find(reloaded).name.empty(); }));
+    }
+
+    {
+        const fs::path other = fs::temp_directory_path() / "perlin_mod_selftest_second";
+        fs::remove_all(other);
+        fs::create_directories(other);
+        std::ofstream(other / "second.wasm", std::ios::binary | std::ios::trunc)
+            .write(reinterpret_cast<const char*>(first.data()), static_cast<std::streamsize>(first.size()));
+        ModManager independent;
+        independent.Start(other.string());
+        const auto running = [&] {
+            for (const ModInfo& info : independent.List())
+                if (info.name == "second")
+                    return info.state == "running";
+            return false;
+        };
+        bool up = false;
+        for (int i = 0; i < 400 && !up; i++) {
+            independent.Update();
+            up = running();
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+        CHECK(up);
+        CHECK(Find("second").name.empty());
+        independent.Stop();
+        fs::remove_all(other);
     }
 
     const auto stopAt = std::chrono::steady_clock::now();

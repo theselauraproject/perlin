@@ -9,6 +9,7 @@ namespace perlin::http {
         int status = 0;
         std::string body;
         std::map<std::string, std::string> headers;
+        std::string error;
     };
 
     Response Request(const std::string& host, uint16_t port, bool tls, const std::string& method,
@@ -18,6 +19,10 @@ namespace perlin::http {
 
     bool SystemCaPaths(std::string& file, std::string& dir);
 
+#if defined(_WIN32)
+    const std::string& CombinedCaPem();
+#endif
+
 #if defined(__ANDROID__)
     const std::string& AndroidCaBundle();
 #endif
@@ -25,6 +30,13 @@ namespace perlin::http {
     template <class HttpClient> void UseSystemCa(HttpClient& cli) {
 #if defined(__ANDROID__)
         const std::string& pem = AndroidCaBundle();
+        if (!pem.empty()) {
+            cli.load_ca_cert_store(pem.c_str(), pem.size());
+            return;
+        }
+#endif
+#if defined(_WIN32)
+        const std::string& pem = CombinedCaPem();
         if (!pem.empty()) {
             cli.load_ca_cert_store(pem.c_str(), pem.size());
             return;
@@ -41,11 +53,10 @@ namespace perlin::http {
                     int timeoutSecs = 60);
 
 #if defined(__EMSCRIPTEN__)
-    // the browser only lets a page call Microsoft, Xbox and Minecraft services through a relay that adds CORS
-    // headers (tools/web/auth-relay): requests to those hosts go to <base>/<host>/<path>. Empty = no relay.
+
     void SetWebRelay(std::string base);
     bool WebRelayReady();
-    // true for the hosts the relay forwards to (sign-in, Xbox Live, Realms, Minecraft services)
+
     bool NeedsWebRelay(std::string_view host);
 #endif
 }

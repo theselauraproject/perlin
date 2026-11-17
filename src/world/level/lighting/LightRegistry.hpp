@@ -3,6 +3,8 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
@@ -86,7 +88,10 @@ namespace perlin {
         static int Evaluate(const Rule& rule, uint16_t id);
 
         mutable std::array<std::atomic<uint16_t>, 65536> memo;
+        static constexpr uintptr_t kNoOcclusion = 1;
         mutable std::array<std::atomic<uintptr_t>, 65536> occlusion;
+        mutable std::mutex occlusionStoreMutex;
+        mutable std::vector<std::unique_ptr<FaceOcclusion>> occlusionStore;
         OcclusionFn occlusionFn;
         mutable std::shared_mutex mutex;
         std::vector<Rule> emissionRules, opacityRules;

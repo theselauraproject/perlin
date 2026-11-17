@@ -31,7 +31,6 @@ namespace perlin {
             static int Block(uint8_t light) { return light & 15; }
         };
 
-        // tryLock: give up (false) instead of waiting when the level is busy
         static bool Compute(Level& level, const ChunkPos& pos, int yLo, int yHi, Result& out,
                             bool tryLock = false);
 

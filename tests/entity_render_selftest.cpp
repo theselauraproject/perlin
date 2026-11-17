@@ -1,6 +1,6 @@
-#include "client/attachable/Geometry.hpp"
-#include "client/entity/EntityQuery.hpp"
-#include "client/entity/BlockEntityView.hpp"
+#include "client/systems/attachable/Geometry.hpp"
+#include "client/systems/entity/EntityQuery.hpp"
+#include "client/systems/entity/BlockEntityView.hpp"
 #include "world/level/block/BlockPalette.hpp"
 #include <cstdlib>
 #include <iostream>
@@ -66,9 +66,9 @@ int main() {
     };
     const auto foot = makeBed(footStates), head = makeBed(headStates);
     BlockEntityStore store;
-    ui::Json nbt;
+    json::Value nbt;
     std::string error;
-    Check(ui::Json::Parse("{\"id\":\"Bed\",\"color\":3}", nbt, error), "invalid bed fixture");
+    Check(json::Value::Parse("{\"id\":\"Bed\",\"color\":3}", nbt, error), "invalid bed fixture");
     store.Set(0, 61, 1, nbt);
     std::vector<SpecialBlock> specials = {{0, 61, 0, foot}, {0, 61, 1, head}, {0, 317, 1, foot}};
     std::vector<entity::BlockEntityDraw> draws;

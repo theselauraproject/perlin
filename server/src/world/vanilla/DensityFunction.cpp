@@ -26,7 +26,7 @@ namespace perlin::server::vanilla {
             Entry* Find(const DfNode* node, int x, int y, int z, bool& found) {
                 if (used * 2 >= table.size()) {
                     if (table.size() >= (size_t{1} << 20)) {
-                        std::fill(table.begin(), table.end(), Entry{});
+                        std::ranges::fill(table, Entry{});
                         used = 0;
                     } else {
                         Grow();
@@ -95,7 +95,6 @@ namespace perlin::server::vanilla {
             return v < lo ? lo : std::min(v, hi);
         }
 
-        // java's Math.min/max on floats: NaN wins, -0.0 < 0.0
         float JMin(float a, float b) {
             if (a != a)
                 return a;
@@ -117,9 +116,23 @@ namespace perlin::server::vanilla {
     }
 
     namespace {
-        thread_local CornerMap* t_keptCorners = nullptr;
-        thread_local Memo* t_keptMemo = nullptr;
-        thread_local uint64_t t_keptEpoch = 0;
+        struct ThreadCaches {
+            std::unique_ptr<CornerMap> corners;
+            std::unique_ptr<Memo> memo;
+            uint64_t epoch = 0;
+
+            void Reset() {
+                corners = std::make_unique<CornerMap>();
+                memo = std::make_unique<Memo>();
+            }
+            void Release() {
+                corners.reset();
+                memo.reset();
+            }
+        };
+
+        thread_local ThreadCaches t_kept;
+        thread_local ThreadCaches t_scratch;
         std::atomic<uint64_t> g_graphEpoch{1};
     }
 
@@ -128,33 +141,24 @@ namespace perlin::server::vanilla {
             return;
         owner = true;
         kept = keep;
+        ThreadCaches& caches = keep ? t_kept : t_scratch;
         if (keep) {
             const uint64_t epoch = g_graphEpoch.load(std::memory_order_acquire);
-            if (t_keptCorners && t_keptEpoch != epoch) {
-                delete t_keptCorners;
-                delete t_keptMemo;
-                t_keptCorners = nullptr;
-                t_keptMemo = nullptr;
+            if (!caches.corners || caches.epoch != epoch) {
+                caches.Reset();
+                caches.epoch = epoch;
             }
-            if (!t_keptCorners) {
-                t_keptCorners = new CornerMap();
-                t_keptMemo = new Memo();
-                t_keptEpoch = epoch;
-            }
-            t_corners = t_keptCorners;
-            t_memo = t_keptMemo;
-            return;
+        } else {
+            caches.Reset();
         }
-        t_corners = new CornerMap();
-        t_memo = new Memo();
+        t_corners = caches.corners.get();
+        t_memo = caches.memo.get();
     }
     DfCacheScope::~DfCacheScope() {
         if (!owner)
             return;
-        if (!kept) {
-            delete t_corners;
-            delete t_memo;
-        }
+        if (!kept)
+            t_scratch.Release();
         t_corners = nullptr;
         t_memo = nullptr;
     }
@@ -162,7 +166,7 @@ namespace perlin::server::vanilla {
     float SplineNode::Eval(int x, int y, int z) const {
         const float c = coordinate->Eval(x, y, z);
         const int n = static_cast<int>(locations.size());
-        // first location above the coordinate, minus one
+
         int lo = 0, hi = n;
         while (lo < hi) {
             const int mid = (lo + hi) / 2;
@@ -262,7 +266,7 @@ namespace perlin::server::vanilla {
         case O::Clamp:
             return Clamp(in[0]->Eval(x, y, z), lo, hi);
         case O::Noise: {
-            // shifts (when present) are evaluated at the block and added after scaling
+
             double nx = static_cast<double>(x) * xzScale, ny = static_cast<double>(y) * yScale,
                    nz = static_cast<double>(z) * xzScale;
             if (!in.empty()) {
@@ -314,7 +318,7 @@ namespace perlin::server::vanilla {
         case O::Pass:
             return in[0]->Eval(x, y, z);
         case O::Interpolated: {
-            // between cell corners the value is blended from the inner function sampled at the eight corners
+
             const auto mod = [](int a, int b) {
                 const int r = a % b;
                 return r < 0 ? r + b : r;
@@ -644,7 +648,7 @@ namespace perlin::server::vanilla {
             node->cellY = static_cast<int>(v["cell_height"].Int(8));
         } else if (type == "old_blended_noise") {
             node->op = O::OldBlendedNoise;
-            // the generator seeds it from the world's positional random by the name "minecraft:terrain"
+
             node->blended = std::make_shared<BlendedNoise>(
                 v["xz_scale"].Number(1.0), v["y_scale"].Number(1.0), v["xz_factor"].Number(80.0),
                 v["y_factor"].Number(160.0), v["smear_scale_multiplier"].Number(8.0),

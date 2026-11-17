@@ -9,13 +9,14 @@
 #include "util/Json.hpp"
 #include <set>
 #include "util/Log.hpp"
+#include "util/FileIo.hpp"
 
 namespace perlin {
     namespace {
 
         void PutU16(std::string& o, size_t v) {
-            o.push_back((char)(v & 0xFF));
-            o.push_back((char)((v >> 8) & 0xFF));
+            o.push_back(static_cast<char>(v & 0xFF));
+            o.push_back(static_cast<char>((v >> 8) & 0xFF));
         }
 
         void PutName(std::string& o, const std::string& s) {
@@ -55,7 +56,7 @@ namespace perlin {
                 nbt.push_back(3);
                 PutName(nbt, key);
                 for (int b = 0; b < 4; b++)
-                    nbt.push_back((char)(((uint32_t)v.i >> (8 * b)) & 0xFF));
+                    nbt.push_back(static_cast<char>((((uint32_t)v.i >> (8 * b)) & 0xFF)));
                 break;
             case StateValue::String:
                 nbt.push_back(8);
@@ -66,7 +67,7 @@ namespace perlin {
         }
         nbt.push_back(0);
         nbt.push_back(0);
-        return (int32_t)Fnv1a(nbt);
+        return static_cast<int32_t>(Fnv1a(nbt));
     }
 
     int32_t BlockPalette::AirHash() {
@@ -93,7 +94,8 @@ namespace perlin {
         std::ifstream f(path, std::ios::binary);
         if (!f)
             return false;
-        const std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        std::string text;
+        file::ReadRest(f, text);
         const auto document = json::Document::Parse(text);
         if (!document || !document->root().contains("block_properties") ||
             !document->root().contains("data_items")) {
@@ -200,7 +202,8 @@ namespace perlin {
         std::ifstream f(path, std::ios::binary);
         if (!f)
             return false;
-        const std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        std::string text;
+        file::ReadRest(f, text);
         return LoadServerStatesText(text, path);
     }
 
@@ -228,7 +231,7 @@ namespace perlin {
                     sv.i = static_cast<int32_t>(value[size_t{1}].integer());
                 st.emplace_back(key, std::move(sv));
             }
-            std::sort(st.begin(), st.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+            std::ranges::sort(st, [](const auto& a, const auto& b) { return a.first < b.first; });
             if (path == "block_states.json" && !sequenceFrozen) {
                 if (rec.size() > 3 && rec[size_t{3}].boolean(false))
                     dataDrivenHashes.insert(hash);
@@ -256,7 +259,7 @@ namespace perlin {
             auto& props = propsByName[name];
             for (const auto& [k, v] : statesByHash[hash]) {
                 (void)v;
-                if (std::find(props.begin(), props.end(), k) == props.end())
+                if (std::ranges::find(props, k) == props.end())
                     props.push_back(k);
             }
         }
@@ -365,8 +368,8 @@ namespace perlin {
                 if (st == statesByHash.end())
                     continue;
                 for (const auto& [key, want] : pin->second) {
-                    const auto have = std::find_if(st->second.begin(), st->second.end(),
-                                                   [&](const auto& kv) { return kv.first == key; });
+                    const auto have =
+                        std::ranges::find_if(st->second, [&](const auto& kv) { return kv.first == key; });
                     if (have == st->second.end())
                         continue;
                     const bool same = want.kind == StateValue::String ? have->second.s == want.s
@@ -437,7 +440,7 @@ namespace perlin {
                         sequenceKeys.push_back(k.key);
                     }
             } else {
-                std::stable_sort(order.begin(), order.end(), [](const Keyed& a, const Keyed& b) {
+                std::ranges::stable_sort(order, [](const Keyed& a, const Keyed& b) {
                     return a.key != b.key ? a.key < b.key : a.run->name < b.run->name;
                 });
                 std::vector<int32_t> merged;
@@ -595,7 +598,7 @@ namespace perlin {
         size_t n = count.load(std::memory_order_relaxed);
         if (n >= kMaxLocal)
             return 1;
-        uint16_t local = (uint16_t)n;
+        uint16_t local = static_cast<uint16_t>(n);
         netByLocal[n] = networkId;
         localByNet[networkId] = local;
         count.store(n + 1, std::memory_order_release);
@@ -617,8 +620,7 @@ namespace perlin {
         if (it == kRenamed.end())
             return hash;
         auto states = States(local);
-        std::sort(states.begin(), states.end(),
-                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        std::ranges::sort(states, [](const auto& a, const auto& b) { return a.first < b.first; });
         return HashState(it->second, states);
     }
 

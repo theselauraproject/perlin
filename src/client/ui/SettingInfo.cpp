@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iterator>
-#include "client/i18n/Lang.hpp"
+#include "client/systems/i18n/Lang.hpp"
 #include "util/Strings.hpp"
 
 namespace perlin::ui {
@@ -58,14 +58,17 @@ namespace perlin::ui {
              "Contrast-adaptive sharpening after the upscale. Brings back some of the detail the lower "
              "resolution loses.",
              3},
-            {"Enable LODs", "", "",
-             "Distant terrain as simplified tiles, so the render distance can go far past the loaded chunks.",
-             3},
+            {"Background FPS", "", "",
+             "Frame cap while another window is focused. Lower values free the CPU and GPU for other "
+             "windows, such as several Perlin instances side by side. Minimized windows always drop to 5 fps.",
+             0},
+            {"Clouds", "options.renderClouds", "", "Shows or hides the clouds in the sky.", 2},
             {"Cloud Range", "", "", "How far away clouds are drawn. Larger ranges draw more clouds.", 2},
             {"Better Grass", "", "",
              "Grass block sides blend with the grass next to them so there are no visible edges between "
              "blocks.",
              1},
+            {"Cull Inner Leaves", "", "", "Skips leaf faces hidden between neighbouring leaf blocks. Much faster in forests; trees look less dense inside.", 1},
             {"Glass", "", "",
              "Choose how glass panes and blocks join: Normal keeps borders, Connected merges neighbouring "
              "glass, Clear removes the frame.",
@@ -78,6 +81,8 @@ namespace perlin::ui {
              "Held and dropped light sources illuminate the world around them. Fancy updates more often.", 2},
             {"Third Person Crosshair", "perlin.options.thirdCrosshair", "",
              "Show the crosshair in third-person views.", 0},
+            {"Perlin User Badges", "perlin.options.perlinBadges", "",
+             "Shows the Perlin logo next to the names of players who also use Perlin, yourself included, in nametags and the tab list.", 0},
             {"Third Person Nametag", "perlin.options.thirdNametag", "",
              "Show your own nametag in third-person views.", 0},
             {"Zoom Level", "", "", "How strongly the zoom key magnifies the view.", 0},

@@ -475,7 +475,7 @@ namespace perlin::server {
             void FlushRanges(std::vector<uint32_t>& list, uint8_t header) {
                 if (list.empty())
                     return;
-                std::sort(list.begin(), list.end());
+                std::ranges::sort(list);
                 list.erase(std::unique(list.begin(), list.end()), list.end());
                 size_t i = 0;
                 while (i < list.size()) {

@@ -1,10 +1,10 @@
 #pragma once
 #include "client/ui/HudRenderers.hpp"
 #include "client/ui/HudData.hpp"
-#include "client/ui/HudState.hpp"
+#include "client/systems/model/HudState.hpp"
 #include "client/ui/JsonUi.hpp"
-#include "client/ui/RmlBackend.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/ui/UiBackend.hpp"
+#include "client/ui/SceneEmit.hpp"
 #include "client/ui/UiLayout.hpp"
 
 #include <future>
@@ -44,7 +44,7 @@ namespace perlin::ui {
             return true;
         }
         bool Ready() const { return backend.Ready() && tree != nullptr; }
-        RmlBackend& Overlay() { return backend; }
+        UiBackend& Overlay() { return backend; }
         void UpdateOverlay(int framebufferW, int framebufferH, int guiScaleOption);
         void FireUiEvent(const std::string& name) {
             animHost.Fire(name);
@@ -54,7 +54,7 @@ namespace perlin::ui {
         float GuiWidth() const { return guiW; }
         float GuiHeight() const { return guiH; }
         int Scale() const { return scale; }
-        const std::string& LastDocument() const { return lastRml; }
+        const SceneDoc& LastDocument() const { return lastDoc; }
         size_t Rebuilds() const { return rebuilds; }
         void Reload() { reloadRequested = true; }
         void SetJavaStyle(bool java);
@@ -65,28 +65,27 @@ namespace perlin::ui {
     private:
         bool Rebuild();
         void WriteDefaults();
-        std::string ReadUserRcss() const;
 
-        RmlBackend backend;
+        UiBackend backend;
         UiLibrary library;
+        std::vector<std::string> builtPackDirs;
+        bool builtPackDirsKnown = false;
         std::unique_ptr<Node> tree;
-        RmlEmitter emitter;
+        SceneEmitter emitter;
         std::unique_ptr<Node> crosshairTree;
-        RmlEmitter cursorEmitter;
+        SceneEmitter cursorEmitter;
         bool cursorValid = false;
         float cursorX = 0, cursorY = 0;
         HudState state;
         std::unique_ptr<HudData> data;
         UiServices services;
         AnimHost animHost;
-        std::unordered_map<std::string, Json> animCache;
+        std::unordered_map<std::string, json::Value> animCache;
         double lastAnimEval = 0;
         std::string dataDir, vanillaRoot;
-        std::string lastRml;
-        std::string lastRcss;
+        SceneDoc lastDoc;
         uint64_t lastSignature = 0;
         uint64_t lastIncomingSignature = 0;
-        std::string rcssCache;
         int scale = 1;
         float guiW = 0, guiH = 0;
         int lastFbW = 0, lastFbH = 0;
@@ -95,12 +94,9 @@ namespace perlin::ui {
         bool probeLaunched = false;
         size_t rebuilds = 0;
         bool reloadRequested = false;
-        // server packs bring their own ui and font/glyph_XX.png pages: rebuild when they mount or unmount
+
         uint32_t serverPackGeneration = 0;
         double serverPacksChangedAt = -1.0;
-        bool templatesStale = true, emitterDefault = false;
-        double templateCheck = 0;
-        uint64_t hudTemplateVersion = 0, chatTemplateVersion = 0;
         bool dumped = false;
         bool javaStyle = false;
         uint64_t fontVersion = 0;

@@ -1,9 +1,8 @@
 #include "client/ui/ServerLayer.hpp"
-#include "client/ui/UiTemplate.hpp"
 
-#include "client/ui/FormatCodes.hpp"
-#include "client/ui/McFont.hpp"
-#include "client/ui/RmlEmit.hpp"
+#include "client/systems/text/FormatCodes.hpp"
+#include "client/systems/text/McFont.hpp"
+#include "client/ui/SceneKit.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -11,63 +10,37 @@
 
 namespace perlin::ui {
     namespace {
-        std::string F(float v) {
-            char buf[32];
-            std::snprintf(buf, sizeof(buf), "%.1f", static_cast<double>(v));
-            return buf;
-        }
-
         const char* BarColor(int c) {
-            // packet color 0 is gray, vanilla order gray/blue/red/green/yellow/purple/white
+
             static const char* const colors[] = {"#808080", "#5555ff", "#ff5555", "#55ff55",
                                                  "#ffff55", "#aa00aa", "#ffffff", "#ff55ff"};
             return colors[std::clamp(c, 0, 7)];
         }
 
-        std::string Text(const std::string& t, float x, float y, float w, const char* align,
-                         const char* color = "#ffffff") {
-            return "<div class=\"t\" style=\"left:" + F(x) + "px;top:" + F(y) + "px;width:" + F(w) +
-                   "px;height:9px;text-align:" + align + ";color:" + color + ";\">" + FormatCodesToRml(t) +
-                   "</div>\n";
-        }
-
-        std::string Rect(float x, float y, float w, float h, const std::string& style) {
-            return "<div style=\"left:" + F(x) + "px;top:" + F(y) + "px;width:" + F(w) + "px;height:" + F(h) +
-                   "px;" + style + "\"></div>\n";
+        void Text(SceneBuilder& out, const std::string& t, float x, float y, float w, const char* cls,
+                  const char* color = "#ffffff") {
+            kit::Label(out, x, y, w, std::string("t ") + cls, kit::Formatted(t, color), "3");
         }
     }
 
-    namespace {
-        const char* kServerLayerHead =
-            "<rml>\n<head>\n<title>server</title>\n<style>\n"
-            "body { position: absolute; left: 0px; top: 0px; width: {{w}}px; height: {{h}}px; margin: 0; "
-            "padding: 0; background: transparent; overflow: hidden; }\n"
-            "div { display: block; position: absolute; }\n"
-            ".t { font-family: minecraft-shadow; font-size: 8px; line-height: 9px; white-space: nowrap; "
-            "color: #ffffff; z-index: 3; }\n"
-            "</style>\n</head>\n<body>\n";
-        const ScreenTemplateDefault kServerLayerDefault("server_layer.rml", kServerLayerHead);
-    }
-
-    std::string BuildServerLayerRml(const ServerLayerData& data, int guiW, int guiH) {
-        std::string out = ScreenTemplate("server_layer.rml", kServerLayerHead);
-        ReplaceAll(out, "w", std::to_string(guiW));
-        ReplaceAll(out, "h", std::to_string(guiH));
+    SceneDoc BuildServerLayer(const ServerLayerData& data, int guiW, int guiH) {
+        SceneDoc doc;
+        doc.scene.theme = Theme::Server;
+        SceneBuilder out(doc.scene.nodes);
         float y = 12.0f;
         for (const auto& bar : data.bars) {
             const float w = 182.0f, x = (guiW - w) / 2.0f;
-            out += Text(bar.title, x - 100, y - 10, w + 200, "center");
-            out += Rect(x, y, w, 5, "background-color:#202020e0;z-index:1;");
-            out += Rect(x, y, w * std::clamp(bar.progress, 0.0f, 1.0f), 5,
-                        std::string("background-color:") + BarColor(bar.color) + ";z-index:2;");
+            Text(out, bar.title, x - 100, y - 10, w + 200, "c");
+            kit::Rect(out, x, y, w, 5, "#202020e0", "1");
+            kit::Rect(out, x, y, w * std::clamp(bar.progress, 0.0f, 1.0f), 5, BarColor(bar.color), "2");
             if (bar.overlay > 0) {
                 const int segments = bar.overlay == 1   ? 6
                                      : bar.overlay == 2 ? 10
                                      : bar.overlay == 3 ? 12
                                                         : 20;
                 for (int i = 1; i < segments; i++)
-                    out += Rect(x + w * static_cast<float>(i) / static_cast<float>(segments), y, 1, 5,
-                                "background-color:#000000a0;z-index:4;");
+                    kit::Rect(out, x + w * static_cast<float>(i) / static_cast<float>(segments), y, 1, 5,
+                              "#000000a0", "4");
             }
             y += 19.0f;
         }
@@ -80,15 +53,15 @@ namespace perlin::ui {
             width += 6.0f;
             const float height = static_cast<float>((data.rows.size() + 1) * 9 + 2);
             const float x = static_cast<float>(guiW) - width - 2.0f;
-            // anchored upper-right below bossbars, vanilla positions it near the top edge
+
             const float top = 4.0f;
-            out += Rect(x, top, width, height, "background-color:#00000066;z-index:1;");
-            out += Rect(x, top, width, 10, "background-color:#00000040;z-index:1;");
-            out += Text(data.scoreboardTitle, x, top + 1, width, "center");
+            kit::Rect(out, x, top, width, height, "#00000066", "1");
+            kit::Rect(out, x, top, width, 10, "#00000040", "1");
+            Text(out, data.scoreboardTitle, x, top + 1, width, "c");
             float ry = top + 11.0f;
             for (const auto& row : data.rows) {
-                out += Text(row.first, x + 3, ry, width - 6, "left");
-                out += Text(std::to_string(row.second), x + 3, ry, width - 6, "right", "#ff5555");
+                Text(out, row.first, x + 3, ry, width - 6, "");
+                Text(out, std::to_string(row.second), x + 3, ry, width - 6, "r", "#ff5555");
                 ry += 9.0f;
             }
         }
@@ -98,13 +71,12 @@ namespace perlin::ui {
                                      font.Width(StripFormatCodes(data.toastMessage))) +
                             16.0f;
             const float x = (static_cast<float>(guiW) - w) / 2.0f;
-            out += Rect(x, 4, w, 26, "background-color:#101010e6;z-index:1;");
-            out += Rect(x, 4, w, 1, "background-color:#ffffff80;z-index:2;");
-            out += Text(data.toastTitle, x, 8, w, "center", "#ffff55");
-            out += Text(data.toastMessage, x, 19, w, "center");
+            kit::Rect(out, x, 4, w, 26, "#101010e6", "1");
+            kit::Rect(out, x, 4, w, 1, "#ffffff80", "2");
+            Text(out, data.toastTitle, x, 8, w, "c", "#ffff55");
+            Text(out, data.toastMessage, x, 19, w, "c");
         }
-        out += "</body>\n</rml>\n";
-        return out;
+        return doc;
     }
 
     std::string ServerLayerSignature(const ServerLayerData& data, int guiW, int guiH) {

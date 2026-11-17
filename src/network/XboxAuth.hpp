@@ -4,6 +4,10 @@
 #include <memory>
 #include <string>
 
+namespace perlin::auth {
+    class TokenStore;
+}
+
 namespace perlin::xbox {
 
     struct Credentials {
@@ -27,6 +31,7 @@ namespace perlin::xbox {
     class Account {
     public:
         explicit Account(std::string cachePath);
+        explicit Account(std::shared_ptr<auth::TokenStore> store);
         ~Account();
         Account(const Account&) = delete;
         Account& operator=(const Account&) = delete;
@@ -46,6 +51,8 @@ namespace perlin::xbox {
 
         bool LoginMinecraft(const std::string& identityPublicKeyB64, const std::string& gameVersion,
                             Credentials& out, std::string& error);
+
+        void Invalidate(const std::string& relyingParty);
 
         static void SignOut(const std::string& cachePath);
 

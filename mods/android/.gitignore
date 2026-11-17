@@ -1,8 +1,0 @@
-.gradle/
-build/
-app/build/
-app/.cxx/
-sdl/
-local.properties
-app/src/main/java/org/
-app/src/main/assets/assets-manifest.json

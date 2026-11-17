@@ -1,7 +1,7 @@
-#include "client/input/KeyMapping.hpp"
-#include "client/renderer/Lightmap.hpp"
-#include "client/renderer/Environment.hpp"
-#include "client/renderer/Fog.hpp"
+#include "client/systems/bindings/KeyMapping.hpp"
+#include "client/systems/gfx/Lightmap.hpp"
+#include "client/systems/renderer/Environment.hpp"
+#include "client/systems/renderer/Fog.hpp"
 
 #include <cstdio>
 #include <initializer_list>

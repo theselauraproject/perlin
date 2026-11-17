@@ -1,5 +1,5 @@
-#include "client/input/TouchControls.hpp"
-#include "client/input/Input.hpp"
+#include "client/systems/input/TouchControls.hpp"
+#include "client/systems/input/Input.hpp"
 #include <cstdlib>
 #include <iostream>
 using namespace perlin;

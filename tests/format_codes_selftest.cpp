@@ -1,4 +1,4 @@
-#include "client/ui/FormatCodes.hpp"
+#include "client/systems/text/FormatCodes.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -22,30 +22,49 @@ namespace {
     }
 }
 
+namespace {
+    std::string Spans(const std::string& text) {
+        std::string out;
+        char buf[32];
+        for (const FormatRun& run : ParseFormatCodes(text, false)) {
+            std::string style;
+            if (run.hasColor) {
+                std::snprintf(buf, sizeof buf, "#%06X", run.rgb & 0xFFFFFFu);
+                style += buf;
+            }
+            if (run.bold)
+                style += style.empty() ? "bold" : " bold";
+            if (run.italic)
+                style += style.empty() ? "italic" : " italic";
+            out += style.empty() ? run.text : "[" + style + "]" + run.text + "[/]";
+        }
+        return out;
+    }
+}
+
 int main() {
-    // a colour keeps bold on (java would drop it); only §r clears
-    Expect(FormatCodesToRml("\xC2\xA7l\xC2\xA7"
+
+    Expect(Spans("\xC2\xA7l\xC2\xA7"
                             "cA\xC2\xA7"
                             "aB\xC2\xA7rC"),
-           "<span style=\"color:#FF5555;font-weight:bold;\">A</span>"
-           "<span style=\"color:#55FF55;font-weight:bold;\">B</span>C",
+           "[#FF5555 bold]A[/][#55FF55 bold]B[/]C",
            "colour keeps bold");
-    // a change in the middle of a word
-    Expect(FormatCodesToRml("ab\xC2\xA7"
+
+    Expect(Spans("ab\xC2\xA7"
                             "ecd"),
-           "ab<span style=\"color:#FFFF55;\">cd</span>", "mid-word");
-    // material colours, not strike/underline
-    Expect(FormatCodesToRml("\xC2\xA7mx\xC2\xA7nY"),
-           "<span style=\"color:#EE222C;\">x</span><span style=\"color:#C87363;\">Y</span>", "m and n");
-    // ui/_global_variables.json can recolour a code; an empty list brings the built-in palette back
+           "ab[#FFFF55]cd[/]", "mid-word");
+
+    Expect(Spans("\xC2\xA7mx\xC2\xA7nY"),
+           "[#EE222C]x[/][#C87363]Y[/]", "m and n");
+
     SetFormatColorOverrides({{'i', 0xD461FF}});
-    Expect(FormatCodesToRml("\xC2\xA7ix"), "<span style=\"color:#D461FF;\">x</span>", "pack override");
+    Expect(Spans("\xC2\xA7ix"), "[#D461FF]x[/]", "pack override");
     SetFormatColorOverrides({});
-    Expect(FormatCodesToRml("\xC2\xA7ix"), "<span style=\"color:#A9B4B7;\">x</span>", "override cleared");
-    Expect(FormatCodesToRml("\xC2\xA7ox"), "<span style=\"font-style:italic;\">x</span>", "italic");
-    // the code is the whole character after the sign, never half of one
+    Expect(Spans("\xC2\xA7ix"), "[#A9B4B7]x[/]", "override cleared");
+    Expect(Spans("\xC2\xA7ox"), "[italic]x[/]", "italic");
+
     Expect(StripFormatCodes("\xC2\xA7\xC3\xA9x"), "x", "multibyte code strip");
-    Expect(FormatCodesToRml("\xC2\xA7\xC3\xA9x"), "x", "multibyte code");
+    Expect(Spans("\xC2\xA7\xC3\xA9x"), "x", "multibyte code");
     Expect(StripFormatCodes("a\xC2\xA7"
                             "bc"),
            "ac", "strip");

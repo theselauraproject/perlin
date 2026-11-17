@@ -1,5 +1,24 @@
 # Perlin
 
+A cross-platform Minecraft: Bedrock Edition client written in C++23. It speaks the Bedrock protocol (generated from `protocol/`), renders through [conduit](https://github.com/theperlinproject/conduit) and SDL3, and runs WebAssembly plugins through [perlin-api](https://github.com/theperlinproject/perlin-api).
+
+## Layout
+
+| Path | Contents |
+|------|----------|
+| `src/client` | the game client: screens, input, player, entities, UI, resource packs, plugin manager |
+| `src/network` | transports (RakNet, NetherNet), authentication, packet handling |
+| `src/world` | level, chunk and block data |
+| `src/render`, `src/shaders` | chunk meshing and shader sources |
+| `src/util` | shared helpers: strings, paths, file I/O, logging, JSON |
+| `server/` | dedicated server and its plugin host, see `server/README.md` |
+| `plugins/` | first-party plugins and plugin examples |
+| `protocol/`, `tools/protogen` | protocol specs and the codec generator run at build time |
+| `tests/` | self-tests, built with `-DPERLIN_BUILD_TESTS=ON` |
+| `docs/` | user and platform references; `platforms.md` lists supported platforms, `plugin-host.md` describes the plugin host |
+
+Platforms and what each one ships are in `docs/platforms.md`. To contribute, see `CONTRIBUTING.md`.
+
 ## Rendering
 
 Perlin renders through [conduit](https://github.com/theperlinproject/conduit). CMake fetches it automatically.
@@ -12,3 +31,20 @@ Perlin renders through [conduit](https://github.com/theperlinproject/conduit). C
 ```sh
 cmake --preset <preset> -DPERLIN_CONDUIT_DIR=../conduit
 ```
+
+## Mod API
+
+The plugin SDK, the schema it is generated from and the host core that runs plugins live in [perlin-api](https://github.com/theperlinproject/perlin-api). CMake fetches its `main` branch automatically, so Perlin always builds against the current API.
+
+| Cache variable          | Default | Effect                                                    |
+|-------------------------|---------|-----------------------------------------------------------|
+| `PERLIN_API_SOURCE_DIR` | empty   | build a local perlin-api checkout instead of fetching one |
+| `PERLIN_API_TAG`        | `main`  | the perlin-api revision to fetch (a branch, tag or commit) |
+
+```sh
+cmake --preset <preset> -DPERLIN_API_SOURCE_DIR=../perlin-api
+```
+
+Plugins declare the API revision they were built for and keep working on later games: see `docs/versioning.md` in perlin-api. The prebuilt plugin binaries in `tests/data/plugins` and `plugins/prebuilt` are loaded by `mod_selftest` (part of `PERLIN_BUILD_TESTS`).
+
+The first-party plugins (waila, minimap, barrel roll) and the plugin examples are in `plugins/`; see `plugins/README.md`. How Perlin hosts plugins (lifecycle, states, permissions, engines) is in `docs/plugin-host.md`.

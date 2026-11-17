@@ -1,6 +1,6 @@
 # Sequential block palettes
 
-`resources/block_states.json` contains the canonical
+`resources/data/blocks/block_states.json` contains the canonical
 `6.9.0+bedrock-1.26.50` palette, source commit
 `508b8791188868f2d92a55be8b2be2e771a6a171` (CC0-1.0).
 Each record contains `[state hash, block name, typed states, data-driven]`.

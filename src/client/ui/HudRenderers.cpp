@@ -1,7 +1,7 @@
 #include "client/ui/HudRenderers.hpp"
 #include "client/ui/UiExpr.hpp"
-#include "client/ui/EffectData.hpp"
-#include "client/ui/McFont.hpp"
+#include "client/systems/model/EffectData.hpp"
+#include "client/systems/text/McFont.hpp"
 
 #include <algorithm>
 #include <array>
@@ -26,7 +26,7 @@ namespace perlin::ui {
     }
 
     namespace {
-        void Tex(RmlWriter& w, const LNode& n, float x, float y, float size, const char* texture,
+        void Tex(SceneWriter& w, const LNode& n, float x, float y, float size, const char* texture,
                  int zOffset = 0, float alpha = 1.0f) {
             ImageStyle st;
             st.alpha = alpha * n.alpha;
@@ -59,7 +59,7 @@ namespace perlin::ui {
             return std::max(10 - (HealthRows(s) - 2), 3);
         }
 
-        void Hearts(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Hearts(const HudState& s, const LNode& n, SceneWriter& w) {
             const int health = static_cast<int>(std::ceil(s.health));
             const int shown = static_cast<int>(std::ceil(s.displayHealth));
             const int maxHealth = static_cast<int>(std::ceil(s.maxHealth));
@@ -109,7 +109,7 @@ namespace perlin::ui {
             if (s.hardcore) {}
         }
 
-        void Armor(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Armor(const HudState& s, const LNode& n, SceneWriter& w) {
             const int rows = HealthRows(s);
             const float y = n.ay - 10 - (rows - 1) * RowHeight(s);
             for (int i = 0; i < 10; i++) {
@@ -120,7 +120,7 @@ namespace perlin::ui {
             }
         }
 
-        void Hunger(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Hunger(const HudState& s, const LNode& n, SceneWriter& w) {
             JavaRandom random(static_cast<int64_t>(s.tick) * 312871);
             const bool effect = s.hungerEffect;
             const float right = n.ax + 1;
@@ -140,7 +140,7 @@ namespace perlin::ui {
             }
         }
 
-        void Bubbles(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Bubbles(const HudState& s, const LNode& n, SceneWriter& w) {
             if (!s.Survival() || !(s.inWater || s.air < s.maxAir))
                 return;
             const int air = std::max(0, s.air);
@@ -151,9 +151,7 @@ namespace perlin::ui {
                 Tex(w, n, right - i * 8 - 9, n.ay, 9, i < full ? "bubble" : "bubble_pop");
         }
 
-        // totem / omen activation: icon rises from below, swells past the crosshair, fades
-        // curve from java GameRenderer item activation
-        void ScreenAnimation(const HudState& s, const LNode& n, RmlWriter& w) {
+        void ScreenAnimation(const HudState& s, const LNode& n, SceneWriter& w) {
             if (s.screenAnimation < 0)
                 return;
             const float f = std::clamp(s.screenAnimationT, 0.0f, 1.0f);
@@ -175,13 +173,13 @@ namespace perlin::ui {
             w.Image(x, y, size, size, n.layer + 2, std::string("mcres:effect_") + info.texture + ".png", st);
         }
 
-        void Fire(const HudState& s, const LNode& n, RmlWriter& w) {
-            // the flames themselves are drawn in the world pass, where the view's perspective belongs to them
+        void Fire(const HudState& s, const LNode& n, SceneWriter& w) {
+
             ScreenAnimation(s, n, w);
         }
 
         void Offhand(const HudState& s, float slotX, float slotY, float slotW, float slotH, int layer, float alpha,
-                     RmlWriter& w) {
+                     SceneWriter& w) {
             const float unit = slotW / 20.0f;
             const float x = s.offhandRight ? slotX + slotW + unit + 7.0f * unit : slotX - unit - 29.0f * unit;
             const float y = slotY;
@@ -205,7 +203,7 @@ namespace perlin::ui {
             }
         }
 
-        void Hotbar(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Hotbar(const HudState& s, const LNode& n, SceneWriter& w) {
             if (n.index < 0 || n.index > 8)
                 return;
             ImageStyle st;
@@ -215,7 +213,7 @@ namespace perlin::ui {
                 Offhand(s, n.ax, n.ay, n.w, n.h, n.layer, n.alpha, w);
         }
 
-        void HotbarSlots(const HudState& s, const LNode& n, RmlWriter& w) {
+        void HotbarSlots(const HudState& s, const LNode& n, SceneWriter& w) {
             const float unit = n.h / 22.0f;
             const float slotW = 20.0f * unit;
             ImageStyle st;
@@ -228,26 +226,66 @@ namespace perlin::ui {
                         w);
         }
 
-        void InventoryItem(const HudState& s, const LNode& n, RmlWriter& w) {
+        void SlotOverlays(const HudState& s, const LNode& n, SceneWriter& w, bool background) {
+            for (const HudSlotOverlay& o : s.slotOverlays) {
+                if (o.slot != n.index)
+                    continue;
+                const auto channel = [](uint32_t argb, int shift) { return static_cast<float>((argb >> shift) & 0xFF) / 255.0f; };
+                if (background) {
+                    if (o.background >> 24)
+                        w.Rect(n.ax, n.ay, n.w, n.h, n.layer, channel(o.background, 16), channel(o.background, 8),
+                               channel(o.background, 0), channel(o.background, 24) * n.alpha);
+                    continue;
+                }
+                if (o.bar >= 0.0f) {
+                    const float fill = std::clamp(o.bar, 0.0f, 1.0f);
+                    const float bx = n.ax + n.w * 0.125f, by = n.ay + n.h * 0.8125f, bw = n.w * 0.8125f;
+                    w.Rect(bx, by, bw, 2, n.layer + 1, 0, 0, 0, n.alpha);
+                    w.Rect(bx, by, bw * fill, 1, n.layer + 2, channel(o.barColor, 16), channel(o.barColor, 8),
+                           channel(o.barColor, 0), channel(o.barColor, 24) * n.alpha);
+                }
+                if (!o.text.empty()) {
+                    const float width = McFont::Instance().Width(o.text);
+                    float x = n.ax, y = n.ay;
+                    if (o.corner == 1 || o.corner == 3)
+                        x = n.ax + n.w - width;
+                    if (o.corner == 2 || o.corner == 3)
+                        y = n.ay + n.h - 9.0f;
+                    if (o.corner == 4) {
+                        x = n.ax + (n.w - width) * 0.5f;
+                        y = n.ay + (n.h - 9.0f) * 0.5f;
+                    }
+                    TextStyle st;
+                    st.shadow = true;
+                    st.r = channel(o.textColor, 16);
+                    st.g = channel(o.textColor, 8);
+                    st.b = channel(o.textColor, 0);
+                    w.Text(x, y, width + 1, 9, n.layer + 3, {o.text}, st);
+                }
+            }
+        }
+
+        void InventoryItem(const HudState& s, const LNode& n, SceneWriter& w) {
             if (n.index < 0 || n.index > 8)
                 return;
             const HudItem& item = s.hotbar[n.index];
-            if (item.Empty())
-                return;
-            w.Item(n.ax, n.ay, n.w, n.h, n.layer, item.Key(), n.alpha, item.enchanted);
+            SlotOverlays(s, n, w, true);
+            if (!item.Empty())
+                w.Item(n.ax, n.ay, n.w, n.h, n.layer, item.Key(), n.alpha, item.enchanted);
+            SlotOverlays(s, n, w, false);
         }
 
-        void ProgressBar(const HudState& s, const LNode& n, RmlWriter& w) {
-            const Json* bag = n.Get("property_bag");
+        void ProgressBar(const HudState& s, const LNode& n, SceneWriter& w) {
+            const json::Value* bag = n.Get("property_bag");
             const bool durability =
                 bag && bag->Find("is_durability") && bag->Find("is_durability")->BoolOr(false);
             if (!durability)
                 return;
-            const Json* vis = n.bag.Find("#touch_progress_bar_visible");
+            const json::Value* vis = n.bag.Find("#touch_progress_bar_visible");
             if (!vis || !Truthy(*vis))
                 return;
-            const Json* total = n.bag.Find("#progress_bar_total_amount");
-            const Json* current = n.bag.Find("#progress_bar_current_amount");
+            const json::Value* total = n.bag.Find("#progress_bar_total_amount");
+            const json::Value* current = n.bag.Find("#progress_bar_current_amount");
             if (!total || !current || total->number <= 0)
                 return;
             (void)s;
@@ -287,7 +325,7 @@ namespace perlin::ui {
     }
 
     namespace {
-        void Debug(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Debug(const HudState& s, const LNode& n, SceneWriter& w) {
             if (!s.debug) {
                 if (!s.moveStatus.empty()) {
                     TextStyle ms;
@@ -329,7 +367,7 @@ namespace perlin::ui {
             column(s.debugRight, true);
         }
 
-        void Subtitles(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Subtitles(const HudState& s, const LNode& n, SceneWriter& w) {
             if (s.subtitles.empty())
                 return;
             const McFont& font = McFont::Instance();
@@ -357,7 +395,7 @@ namespace perlin::ui {
             }
         }
 
-        void TabList(const HudState& s, const LNode& n, RmlWriter& w) {
+        void TabList(const HudState& s, const LNode& n, SceneWriter& w) {
             if (!s.tabOpen || s.tabEntries.empty())
                 return;
             const McFont& font = McFont::Instance();
@@ -368,8 +406,10 @@ namespace perlin::ui {
                 rows = (count + columns - 1) / columns;
             }
             float widest = 0.0f;
-            for (int i = 0; i < count; i++)
-                widest = std::max(widest, font.Width(s.tabEntries[static_cast<size_t>(i)].name));
+            for (int i = 0; i < count; i++) {
+                const HudState::TabEntry& e = s.tabEntries[static_cast<size_t>(i)];
+                widest = std::max(widest, font.Width(e.name) + (e.badgeKey.empty() ? 0.0f : 9.0f));
+            }
             const float maxColumn = (s.guiW - 50.0f) / static_cast<float>(columns);
             const float cell = std::min(9.0f + widest + 4.0f, maxColumn);
             const float total = cell * static_cast<float>(columns) + static_cast<float>(columns - 1) * 1.0f;
@@ -385,46 +425,57 @@ namespace perlin::ui {
                 const HudState::TabEntry& e = s.tabEntries[static_cast<size_t>(i)];
                 ImageStyle st;
                 w.Image(x, y, 8, 8, z + 2, "mchead:" + e.headKey, st);
+                float textX = x + 9.0f;
+                if (!e.badgeKey.empty()) {
+                    w.Image(textX, y, 8, 8, z + 2, "mchead:" + e.badgeKey, st);
+                    textX += 9.0f;
+                }
                 TextStyle ts;
                 ts.shadow = true;
                 ts.r = ts.g = ts.b = 1.0f;
-                w.Text(x + 9.0f, y, cell - 9.0f - 1.0f, 9, z + 2, {e.name}, ts);
+                w.Text(textX, y, cell - (textX - x) - 1.0f, 9, z + 2, {e.name}, ts);
             }
         }
 
-        void Chat(const HudState& s, const LNode& n, RmlWriter& w) {
+        void Chat(const HudState& s, const LNode& n, SceneWriter& w) {
             TabList(s, n, w);
             const McFont& font = McFont::Instance();
-            const float width = 320.0f;
+            const float sc = s.chatScale;
+            const float width = static_cast<float>(s.chatWrapWidth);
+            const float lineH = static_cast<float>(s.chatLineHeight);
+            constexpr float kBottom = 180.0f;
+            const float textAlpha = s.chatTextAlpha * 0.9f + 0.1f;
             w.BeginSection();
             for (const HudState::ChatLine& l : s.chatLines) {
-                if (l.alpha * 255.0f <= 3.0f)
+                const float a = l.alpha * textAlpha;
+                if (a * 255.0f <= 3.0f)
                     continue;
-                const float top = 171.0f - static_cast<float>(l.row) * 9.0f;
-                if (top < 0.0f)
-                    continue;
-                w.Rect(0, top, width + 8, 9, 1, 0, 0, 0, 0.5f * l.alpha);
+                const float top = kBottom - (static_cast<float>(l.row) + 1.0f) * lineH * sc;
+                const float textTop = top + ((lineH - 9.0f) * 0.5f + 1.0f) * sc;
+                w.Rect(0, top, (width + 8) * sc, lineH * sc, 1, 0, 0, 0, s.chatBackgroundAlpha * l.alpha);
                 for (const HudState::ChatLine::Click& c : l.clicks) {
                     const bool url = c.command.starts_with("url:");
                     if (url)
-                        w.Rect(4 + c.x, top + 9.0f, c.w, 1, 3, 0.33f, 0.55f, 1.0f, l.alpha);
+                        w.Rect((4 + c.x) * sc, textTop + 8.0f * sc, c.w * sc, sc, 3, 0.33f, 0.55f, 1.0f, a);
                     if (url ? s.chatOpen : true)
-                        w.Link(4 + c.x, top, c.w, 9, 4, c.command);
+                        w.Link((4 + c.x) * sc, top, c.w * sc, lineH * sc, 4, c.command);
                 }
                 TextStyle st;
                 st.shadow = true;
-                st.a = l.alpha;
-                w.Text(4, top + 1, width, 9, 2, {l.text}, st);
+                st.a = a;
+                st.scale = sc;
+                w.Text(4 * sc, textTop, width * sc, 9 * sc, 2, {l.text}, st);
             }
             w.EndSection("chat_lines");
             w.BeginSection();
             if (s.chatScrolled && s.chatTotalLines > 0) {
-                const float track = 180.0f;
-                const float thumb =
-                    std::max(4.0f, track * 20.0f / static_cast<float>(std::max(20, s.chatTotalLines)));
+                const int page = std::max(1, s.chatPageLines);
+                const float track = static_cast<float>(page) * lineH * sc;
+                const float thumb = std::max(4.0f, track * static_cast<float>(page) /
+                                                       static_cast<float>(std::max(page, s.chatTotalLines)));
                 const float pos = (track - thumb) * static_cast<float>(s.chatScroll) /
-                                  static_cast<float>(std::max(1, s.chatTotalLines - 20));
-                w.Rect(0, 180.0f - pos - thumb, 2, thumb, 1, 0.8f, 0.8f, 0.8f, 0.9f);
+                                  static_cast<float>(std::max(1, s.chatTotalLines - page));
+                w.Rect(0, kBottom - pos - thumb, 2, thumb, 1, 0.8f, 0.8f, 0.8f, 0.9f);
             }
             w.EndSection("chat_scroll");
             w.BeginSection();
@@ -578,7 +629,7 @@ namespace perlin::ui {
             return (to8(rr) << 16) | (to8(gg) << 8) | to8(bb);
         }
 
-        void MobEffects(const HudState& s, const LNode& n, RmlWriter& w) {
+        void MobEffects(const HudState& s, const LNode& n, SceneWriter& w) {
             int beneficial = 0, harmful = 0;
             for (const HudEffect& e : s.effects) {
                 EffectInfo info;
@@ -599,7 +650,7 @@ namespace perlin::ui {
             }
         }
 
-        void LocatorBar(const HudState& s, const LNode& n, RmlWriter& w) {
+        void LocatorBar(const HudState& s, const LNode& n, SceneWriter& w) {
             if (!s.locatorActive)
                 return;
             const float x0 = n.ax + std::floor((n.w - 182.0f) / 2.0f);
@@ -646,11 +697,11 @@ namespace perlin::ui {
         return BrightnessNinety(hash & 0xFFFFFFu);
     }
 
-    void RegisterHudRenderers(RmlEmitter& emitter, const HudState& state, const UiServices&) {
+    void RegisterHudRenderers(SceneEmitter& emitter, const HudState& state, const UiServices&) {
         const HudState* s = &state;
-        // every vanilla element goes through the mod filter: may hide it or shift its node
-        const auto Reg = [&emitter](const char* name, std::function<void(const LNode&, RmlWriter&)> draw) {
-            emitter.Register(name, [name, draw = std::move(draw)](const LNode& n, RmlWriter& w) {
+
+        const auto Reg = [&emitter](const char* name, std::function<void(const LNode&, SceneWriter&)> draw) {
+            emitter.Register(name, [name, draw = std::move(draw)](const LNode& n, SceneWriter& w) {
                 float dx = 0, dy = 0;
                 if (!FilterHudElement(name, dx, dy))
                     return;
@@ -658,7 +709,7 @@ namespace perlin::ui {
                     draw(n, w);
                     return;
                 }
-                // nodes own children, can't be copied: shift for this draw, put back
+
                 LNode& moved = const_cast<LNode&>(n);
                 moved.x += dx;
                 moved.ax += dx;
@@ -671,25 +722,25 @@ namespace perlin::ui {
                 moved.ay -= dy;
             });
         };
-        Reg("heart_renderer", [s](const LNode& n, RmlWriter& w) { Hearts(*s, n, w); });
-        Reg("armor_renderer", [s](const LNode& n, RmlWriter& w) { Armor(*s, n, w); });
-        Reg("hunger_renderer", [s](const LNode& n, RmlWriter& w) { Hunger(*s, n, w); });
-        Reg("bubbles_renderer", [s](const LNode& n, RmlWriter& w) { Bubbles(*s, n, w); });
-        Reg("hotbar_renderer", [s](const LNode& n, RmlWriter& w) { Hotbar(*s, n, w); });
-        Reg("hotbar_slots_renderer", [s](const LNode& n, RmlWriter& w) { HotbarSlots(*s, n, w); });
-        Reg("inventory_item_renderer", [s](const LNode& n, RmlWriter& w) { InventoryItem(*s, n, w); });
-        Reg("debug_renderer", [s](const LNode& n, RmlWriter& w) { Debug(*s, n, w); });
-        Reg("chat_renderer", [s](const LNode& n, RmlWriter& w) { Chat(*s, n, w); });
-        Reg("subtitle_renderer", [s](const LNode& n, RmlWriter& w) { Subtitles(*s, n, w); });
-        Reg("fire_renderer", [s](const LNode& n, RmlWriter& w) { Fire(*s, n, w); });
-        Reg("progress_bar_renderer", [s](const LNode& n, RmlWriter& w) { ProgressBar(*s, n, w); });
-        Reg("locator_bar", [s](const LNode& n, RmlWriter& w) { LocatorBar(*s, n, w); });
-        Reg("mob_effects_renderer", [s](const LNode& n, RmlWriter& w) { MobEffects(*s, n, w); });
+        Reg("heart_renderer", [s](const LNode& n, SceneWriter& w) { Hearts(*s, n, w); });
+        Reg("armor_renderer", [s](const LNode& n, SceneWriter& w) { Armor(*s, n, w); });
+        Reg("hunger_renderer", [s](const LNode& n, SceneWriter& w) { Hunger(*s, n, w); });
+        Reg("bubbles_renderer", [s](const LNode& n, SceneWriter& w) { Bubbles(*s, n, w); });
+        Reg("hotbar_renderer", [s](const LNode& n, SceneWriter& w) { Hotbar(*s, n, w); });
+        Reg("hotbar_slots_renderer", [s](const LNode& n, SceneWriter& w) { HotbarSlots(*s, n, w); });
+        Reg("inventory_item_renderer", [s](const LNode& n, SceneWriter& w) { InventoryItem(*s, n, w); });
+        Reg("debug_renderer", [s](const LNode& n, SceneWriter& w) { Debug(*s, n, w); });
+        Reg("chat_renderer", [s](const LNode& n, SceneWriter& w) { Chat(*s, n, w); });
+        Reg("subtitle_renderer", [s](const LNode& n, SceneWriter& w) { Subtitles(*s, n, w); });
+        Reg("fire_renderer", [s](const LNode& n, SceneWriter& w) { Fire(*s, n, w); });
+        Reg("progress_bar_renderer", [s](const LNode& n, SceneWriter& w) { ProgressBar(*s, n, w); });
+        Reg("locator_bar", [s](const LNode& n, SceneWriter& w) { LocatorBar(*s, n, w); });
+        Reg("mob_effects_renderer", [s](const LNode& n, SceneWriter& w) { MobEffects(*s, n, w); });
         for (const char* name :
              {"horse_jump_renderer", "dash_renderer", "vignette_renderer", "camera_renderer",
               "hud_player_renderer", "horse_heart_renderer", "cooldown_renderer", "editor_gizmo_renderer",
               "editor_compass_renderer", "editor_volume_highlight_renderer", "progress_indicator_renderer"})
-            emitter.Register(name, [](const LNode&, RmlWriter&) {});
+            emitter.Register(name, [](const LNode&, SceneWriter&) {});
     }
 
     namespace {

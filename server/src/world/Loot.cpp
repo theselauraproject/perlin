@@ -301,7 +301,7 @@ namespace perlin::server {
             b.java = n.substr(7);
             return b;
         }
-        if (n.find("_double_cut_copper_slab") != std::string::npos) {
+        if (n.contains("_double_cut_copper_slab")) {
             b.java = n;
             b.java.replace(b.java.find("_double_cut_copper_slab"), 23, "_cut_copper_slab");
             return b;

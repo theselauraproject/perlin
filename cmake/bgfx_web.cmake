@@ -1,4 +1,3 @@
-
 set(BGFX_WEB_SRC "${bgfx_SOURCE_DIR}")
 
 add_library(bgfxweb STATIC

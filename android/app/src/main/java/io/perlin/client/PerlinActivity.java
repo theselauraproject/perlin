@@ -71,8 +71,6 @@ public class PerlinActivity extends SDLActivity {
 
     private static final String ACTION_INSTALLED = "io.perlin.client.UPDATE_STATUS";
 
-    // called from native code (src/client/update/Updater.cpp) with a downloaded nightly apk: the system shows its
-    // own "do you want to update" sheet, after asking once to allow installs from Perlin
     public boolean installApk(String path) {
         try {
             File apk = new File(path);

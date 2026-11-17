@@ -1,5 +1,5 @@
-#include "client/player/PerlinFluidState.hpp"
-#include "client/player/PerlinEntityMembership.hpp"
+#include "world/movement/PerlinFluidState.hpp"
+#include "world/movement/PerlinEntityMembership.hpp"
 
 #include <algorithm>
 #include <array>

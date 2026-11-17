@@ -15,7 +15,7 @@
 @implementation PerlinDocumentPicker
 - (void)documentPicker:(UIDocumentPickerViewController*)controller didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls {
     for (NSURL* url in urls) {
-        // asCopy: the file is already a private copy in our inbox, but iCloud items still need the scoped access
+
         const BOOL scoped = [url startAccessingSecurityScopedResource];
         NSData* data = [NSData dataWithContentsOfURL:url];
         if (scoped)
@@ -33,7 +33,7 @@
 
 namespace perlin::ios {
     namespace {
-        // the picker's delegate is weak: keep the current one alive until the next pick
+
         PerlinDocumentPicker* gDelegate = nil;
 
         UIViewController* TopController() {
@@ -54,7 +54,7 @@ namespace perlin::ios {
         NSArray<UTType*>* TypesFor(const std::string& kind) {
             if (kind == "skin" || kind == "cape")
                 return @[ UTTypePNG ];
-            // packs (.zip .mcpack .mcaddon .mcworld), mods (.wasm) and anything else: let the game sort it out
+
             return @[ UTTypeData, UTTypeZIP ];
         }
     }

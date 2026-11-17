@@ -4,6 +4,8 @@
 #include "core/Json.hpp"
 #include "core/Log.hpp"
 #include "util/FileIo.hpp"
+#include "util/ModSocket.hpp"
+#include "util/JsonText.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -31,8 +33,10 @@ namespace perlin::server {
         std::unique_ptr<WasmInstance> instance;
         mods::GuestExports exports;
         mods::Subscriptions subscriptions = mods::AllEvents();
+        uint32_t apiRevision = mods::kDefaultApiRevision;
         std::set<std::string> commands;
         std::map<std::string, std::string> settings;
+        std::unique_ptr<util::SocketSet> sockets;
     };
 
     namespace {
@@ -43,7 +47,7 @@ namespace perlin::server {
         }
 
         bool SafePath(const std::string& root, const std::string& rel, fs::path& out) {
-            if (rel.size() > 512 || rel.find('\0') != std::string::npos)
+            if (rel.size() > 512 || rel.contains('\0'))
                 return false;
             const fs::path p = fs::path(rel).lexically_normal();
             if (p.is_absolute() || p.has_root_name())
@@ -55,8 +59,18 @@ namespace perlin::server {
             return true;
         }
 
-        std::string Escape(const std::string& s) {
-            return json::Escape(s);
+        Result<void> FromSocket(util::SocketResult r) {
+            switch (r) {
+            case util::SocketResult::Ok:
+                return {};
+            case util::SocketResult::BadArguments:
+                return std::unexpected(Status::BadArguments);
+            case util::SocketResult::Unavailable:
+                return std::unexpected(Status::Unavailable);
+            case util::SocketResult::NotFound:
+                return std::unexpected(Status::NotFound);
+            }
+            return std::unexpected(Status::Failed);
         }
     }
 
@@ -65,8 +79,7 @@ namespace perlin::server {
     }
     PluginHost::~PluginHost() {
         UnloadAll();
-        while (httpActive.load() > 0)
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        httpTasks.Shutdown();
     }
 
     PluginHost::Plugin* PluginHost::Find(const std::string& name) const {
@@ -88,6 +101,47 @@ namespace perlin::server {
             return static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                             std::chrono::system_clock::now().time_since_epoch())
                                             .count());
+        });
+        ops.Handle<Op::ApiInfo>([this](Ctx& c) {
+            abi::ApiInfoResponse r;
+            r.major = abi::kApiVersion;
+            r.revision = abi::kApiRevision;
+            r.oldest = abi::kApiOldestRevision;
+            const Plugin* p = Find(c.plugin);
+            r.plugin = p ? p->apiRevision : mods::kDefaultApiRevision;
+            return r;
+        });
+        ops.Handle<Op::Capabilities>([this](Ctx&) {
+            abi::CapabilityList list;
+            list.ops = ops.Ids();
+            return list;
+        });
+        ops.Handle<Op::SocketOpen>([this](Ctx& c, const abi::SocketOpenRequest& r) -> Result<void> {
+            Plugin* p = Find(c.plugin);
+            if (!p)
+                return std::unexpected(Status::NotFound);
+            if (!p->sockets)
+                p->sockets = std::make_unique<util::SocketSet>();
+            util::SocketOpenOptions o;
+            o.id = r.id;
+            o.webSocket = r.kind == abi::SocketKind::WebSocket;
+            o.url = r.url;
+            o.timeoutMs = r.timeoutMs;
+            o.headers = r.headers;
+            o.protocols = r.protocols;
+            return FromSocket(p->sockets->Open(std::move(o)));
+        });
+        ops.Handle<Op::SocketSend>([this](Ctx& c, const abi::SocketSendRequest& r) -> Result<void> {
+            Plugin* p = Find(c.plugin);
+            if (!p || !p->sockets)
+                return std::unexpected(Status::NotFound);
+            return FromSocket(p->sockets->Send(r.id, r.binary, r.data));
+        });
+        ops.Handle<Op::SocketClose>([this](Ctx& c, const abi::SocketCloseRequest& r) -> Result<void> {
+            Plugin* p = Find(c.plugin);
+            if (!p || !p->sockets)
+                return std::unexpected(Status::NotFound);
+            return FromSocket(p->sockets->Close(r.id, r.code, r.reason));
         });
         ops.Handle<Op::CommandRegister>([this](Ctx& c, const abi::CommandRegisterRequest& r) -> Result<void> {
             std::string name = r.name;
@@ -225,7 +279,7 @@ namespace perlin::server {
             if (httpActive.load() >= 8)
                 return std::unexpected(Status::Unavailable);
             httpActive++;
-            std::thread([this, plugin = c.plugin, r] {
+            const bool started = httpTasks.Run([this, plugin = c.plugin, r] {
                 abi::EventHttp ev;
                 ev.id = r.id;
                 const size_t schemeEnd = r.url.find("://") + 3;
@@ -266,7 +320,11 @@ namespace perlin::server {
                     httpDone.push_back({plugin, std::move(ev)});
                 }
                 httpActive--;
-            }).detach();
+            });
+            if (!started) {
+                httpActive--;
+                return std::unexpected(Status::Unavailable);
+            }
             return {};
 #else
             (void)c;
@@ -308,7 +366,7 @@ namespace perlin::server {
         std::string text = "{";
         bool first = true;
         for (const auto& [k, v] : p.settings) {
-            text += (first ? "\n  \"" : ",\n  \"") + Escape(k) + "\": \"" + Escape(v) + "\"";
+            text += (first ? "\n  \"" : ",\n  \"") + ::perlin::json::Escape(k) + "\": \"" + ::perlin::json::Escape(v) + "\"";
             first = false;
         }
         text += "\n}\n";
@@ -379,8 +437,12 @@ namespace perlin::server {
             raw->instance->Call("_initialize", {}, nullptr, ignored);
         raw->info.enabled = true;
         raw->info.arch = raw->instance->Is64() ? "wasm64" : "wasm32";
+        raw->apiRevision = mods::ReadApiRevision(*raw->instance);
         LogInfo("plugin " + raw->info.name + (raw->info.version.empty() ? "" : " " + raw->info.version) +
-                " loaded (" + raw->info.arch + " on " + raw->info.engine + ")");
+                " loaded (" + raw->info.arch + " on " + raw->info.engine + ", api revision " +
+                std::to_string(raw->apiRevision) + ")");
+        if (raw->apiRevision > abi::kApiRevision)
+            LogInfo("plugin " + raw->info.name + " is built for a newer api revision than this server provides: newer operations answer UnknownOp");
         plugins.push_back(std::move(plugin));
         uint32_t result = 0;
         CallPlugin(*raw, abi::Event::Load, {}, result);
@@ -409,6 +471,27 @@ namespace perlin::server {
                 uint32_t result = 0;
                 CallPlugin(*p, abi::Event::HttpResponse, {w.Data(), w.Size()}, result);
             }
+        for (auto& p : plugins) {
+            if (!p->sockets || !p->info.enabled)
+                continue;
+            std::vector<util::SocketEvent> batch;
+            p->sockets->Poll(batch);
+            for (util::SocketEvent& e : batch) {
+                if (!p->info.enabled)
+                    break;
+                uint32_t result = 0;
+                if (e.kind == util::SocketEvent::Kind::Open) {
+                    const abi::Writer w = abi::host::Encode<abi::Event::SocketOpen>({e.id, e.text});
+                    CallPlugin(*p, abi::Event::SocketOpen, {w.Data(), w.Size()}, result);
+                } else if (e.kind == util::SocketEvent::Kind::Data) {
+                    const abi::Writer w = abi::host::Encode<abi::Event::SocketData>({e.id, e.binary, std::move(e.data)});
+                    CallPlugin(*p, abi::Event::SocketData, {w.Data(), w.Size()}, result);
+                } else {
+                    const abi::Writer w = abi::host::Encode<abi::Event::SocketClose>({e.id, e.code, e.text, e.error});
+                    CallPlugin(*p, abi::Event::SocketClose, {w.Data(), w.Size()}, result);
+                }
+            }
+        }
         auto letters = std::move(mail);
         mail.clear();
         for (auto& [from, m] : letters) {

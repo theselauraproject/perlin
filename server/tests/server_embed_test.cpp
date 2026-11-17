@@ -1,5 +1,3 @@
-// the client's singleplayer path without the client: EmbeddedServer starts the linked-in server as a loopback-only
-// world and hands out a perlin::Transport, which is what BedrockSession gets
 #include "test_util.hpp"
 #include "test_auth.hpp"
 
@@ -91,7 +89,7 @@ int main() {
     done.responseStatus = proto::ResourcePackClientResponsePacketResponseStatus::Completed;
     CHECK(SendPacket(*transport, codec, done));
     CHECK(WaitFor(*transport, codec, proto::StartGamePacket::kId, seen));
-    // the singleplayer player owns the world: she gets operator rights (the start game packet says so)
+
     CHECK(WaitFor(*transport, codec, proto::CreativeContentPacket::kId, seen));
 
     transport->Disconnect();
