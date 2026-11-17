@@ -155,7 +155,7 @@ namespace perlin {
         const std::string name = "block atlas " + std::to_string(page);
         if (!MakeTexture(grown, static_cast<uint32_t>(tileSize), static_cast<uint32_t>(tileSize),
                          static_cast<uint32_t>(layers), static_cast<uint32_t>(MipCount(tileSize)),
-                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipClamp, name.c_str()))
+                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipRepeat, name.c_str()))
             return false;
         if (have > 0 && atlasSource.size() >= static_cast<size_t>(first + have) * tileSize * tileSize * 4) {
             const auto built = BuildMipsParallel(atlasSource.data(), tileSize, first, have);
@@ -178,7 +178,7 @@ namespace perlin {
         const std::string name = "block atlas " + std::to_string(page);
         if (!MakeTexture(rec, static_cast<uint32_t>(tilePx), static_cast<uint32_t>(tilePx),
                          static_cast<uint32_t>(layers), static_cast<uint32_t>(MipCount(tilePx)),
-                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipClamp, name.c_str())) {
+                         conduit::format::rgba8_unorm, gpu::SamplerKind::PointMipRepeat, name.c_str())) {
             Log("render", "atlas page {} failed ({} layers of {}px)", page, layers, tilePx);
             return false;
         }
@@ -194,7 +194,7 @@ namespace perlin {
         static constexpr const char* names[kAtlasMaxPages] = {"s_atlas", "s_atlas2", "s_atlas3", "s_atlas4"};
         for (int page = 0; page < kAtlasMaxPages; page++) {
             const TexRec& rec = AtlasPage(page);
-            BindTexture(names[page], rec.used ? rec.handle : gpu.WhiteArray(), gpu::SamplerKind::PointMipClamp);
+            BindTexture(names[page], rec.used ? rec.handle : gpu.WhiteArray(), gpu::SamplerKind::PointMipRepeat);
         }
     }
 

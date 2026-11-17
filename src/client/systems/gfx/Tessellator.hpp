@@ -72,6 +72,9 @@ namespace perlin {
     public:
         static void SetCaptureQuadInfo(bool on) { capture.store(on, std::memory_order_relaxed); }
         static bool CaptureQuadInfo() { return capture.load(std::memory_order_relaxed); }
+        static void SetMergeFaces(bool on) { mergeFaces.store(on, std::memory_order_relaxed); }
+        static bool MergeFaces() { return mergeFaces.load(std::memory_order_relaxed); }
+        size_t MergedAway() const { return mergedAway; }
         void SetBlock(uint16_t id, float x, float y, float z) {
             curBlock = id;
             curX = x;
@@ -137,6 +140,12 @@ namespace perlin {
         std::vector<QuadInfo> quads;
         std::array<std::array<std::vector<uint32_t>, kFaceGroups>, kSplitLayers> pending;
         void FlushFaces();
+        void MergeGroup(std::vector<uint32_t>& group, int normalGroup);
+        void Compact();
+        std::vector<uint8_t> dead;
+        size_t mergedAway = 0;
+        bool merging = false;
+        static inline std::atomic<bool> mergeFaces{true};
         uint16_t curBlock = 0;
         float curX = 0, curY = 0, curZ = 0;
         static inline std::atomic<bool> capture{false};

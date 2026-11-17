@@ -80,6 +80,7 @@ namespace perlin::gpu {
         LinearMipRepeat,
         PointMipClamp,
         LinearMipClamp,
+        PointMipRepeat,
         Count
     };
 

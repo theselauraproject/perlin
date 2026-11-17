@@ -176,6 +176,7 @@ namespace perlin {
     }
 
     void LevelRenderer::ReloadAssetsIfNeeded() {
+        ServerBlocks& serverBlocks = ServerBlocks::Instance();
         if (retiredBlocks && std::chrono::steady_clock::now() - retiredAt > std::chrono::seconds(10)) {
             std::shared_ptr<BlockLibrary> oldBlocks;
             std::shared_ptr<BiomeTints> oldTints;
@@ -207,7 +208,7 @@ namespace perlin {
             const auto now = std::chrono::steady_clock::now();
 
             const bool packsSettling = serverPackReloadPending || ServerPacks::Instance().Mounting();
-            if (!packsSettling && ServerBlocks::Instance().Pending() &&
+            if (!packsSettling && serverBlocks.Pending() &&
                 (fastBuild || now - lastCustomBuild >= std::chrono::milliseconds(60))) {
                 lastCustomBuild = now;
                 if (blocks->ApplyCustom(options.bedrockSamplesDir + "/repo/resource_pack", fastBuild ? 40.0 : 6.0) &&
@@ -240,6 +241,8 @@ namespace perlin {
                     stagedBlocks.reset();
                     stagedTints.reset();
                 }
+                serverBlocks.Requeue();
+                lastAssetAttempt = {};
                 return;
             }
             {
@@ -251,7 +254,7 @@ namespace perlin {
             BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
             builtForPacks = stagedPacks;
 
-            ServerBlocks::Instance().TakeWaitingChunks();
+            serverBlocks.TakeWaitingChunks();
             if (onLibrarySwap)
                 onLibrarySwap(blocks.get());
             assetsStale = false;
@@ -294,6 +297,7 @@ namespace perlin {
                 stagedTints = std::make_shared<BiomeTints>();
                 stagedEpoch = assetEpoch;
                 stagedPacks = ServerPacks::Instance().Generation();
+                serverBlocks.Requeue();
             }
 
             assetJob = std::async(std::launch::async, [lib = stagedBlocks, tints = stagedTints, packDir, vanillaDir] {

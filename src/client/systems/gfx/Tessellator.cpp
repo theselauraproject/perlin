@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstring>
 #include <cstdlib>
 #include "client/systems/gfx/Tessellator.hpp"
 #include "client/systems/blocks/BlockLibrary.hpp"
@@ -25,6 +26,193 @@ namespace perlin {
         layer = RenderLayer::Solid;
         building = true;
         backSealed = false;
+        static const bool noMerge = std::getenv("PERLIN_NO_MERGE") != nullptr;
+        merging = MergeFaces() && !CaptureQuadInfo() && !noMerge;
+        dead.clear();
+        mergedAway = 0;
+    }
+
+    namespace {
+        struct MergeScratch {
+            int32_t grid[16][256];
+            uint8_t code[16][256];
+            std::vector<uint32_t> keep;
+            MergeScratch() {
+                std::memset(grid, 0, sizeof(grid));
+                std::memset(code, 0, sizeof(code));
+            }
+        };
+
+        bool SameSurface(const Vertex& a, const Vertex& b) {
+            return a.rgba == b.rgba && a.light == b.light && a.normal == b.normal && a.entity == b.entity &&
+                   a.tangent == b.tangent && a.midU == b.midU && a.midV == b.midV;
+        }
+
+        int UnitBit(float value) {
+            if (std::fabs(value) < 2e-3f)
+                return 0;
+            if (std::fabs(value - 1.0f) < 2e-3f)
+                return 1;
+            return -1;
+        }
+    }
+
+    void Tessellator::MergeGroup(std::vector<uint32_t>& group, int normalGroup) {
+        static constexpr int kNormalAxis[kFaceGroups] = {0, 1, 2, -1, 2, 1, 0};
+        const int n = kNormalAxis[normalGroup];
+        const size_t quadCount = group.size() / 6;
+        if (n < 0 || quadCount < 2)
+            return;
+        const int a = n == 0 ? 1 : 0, b = n == 2 ? 1 : 2;
+        const bool positive = normalGroup < 3;
+        static thread_local MergeScratch scratch;
+        std::vector<uint32_t>& keep = scratch.keep;
+        keep.clear();
+        uint32_t planes = 0;
+        size_t candidates = 0;
+        for (size_t k = 0; k < quadCount; k++) {
+            const uint32_t* idx = &group[k * 6];
+            const uint32_t base = idx[0] & ~3u;
+            const Vertex* q = &vertices[base];
+            bool ok = SameSurface(q[0], q[1]) && SameSurface(q[0], q[2]) && SameSurface(q[0], q[3]);
+            int plane = 0, la = 0, lb = 0;
+            uint8_t code = 0;
+            if (ok) {
+                const float* p0 = &q[0].x;
+                float minA = p0[a], minB = p0[b];
+                for (int i = 1; i < 4; i++) {
+                    const float* p = &q[i].x;
+                    ok = ok && p[n] == p0[n];
+                    minA = std::min(minA, p[a]);
+                    minB = std::min(minB, p[b]);
+                }
+                ok = ok && minA == std::floor(minA) && minB == std::floor(minB) && p0[n] == std::floor(p0[n]);
+                int seen = 0, ub[4] = {0, 0, 0, 0}, vb[4] = {0, 0, 0, 0};
+                for (int i = 0; i < 4 && ok; i++) {
+                    const float* p = &q[i].x;
+                    const float da = p[a] - minA, db = p[b] - minB;
+                    if ((da != 0.0f && da != 1.0f) || (db != 0.0f && db != 1.0f)) {
+                        ok = false;
+                        break;
+                    }
+                    const int corner = (da != 0.0f ? 1 : 0) | (db != 0.0f ? 2 : 0);
+                    const int u = UnitBit(q[i].u), v = UnitBit(q[i].v);
+                    if (u < 0 || v < 0) {
+                        ok = false;
+                        break;
+                    }
+                    seen |= 1 << corner;
+                    ub[corner] = u;
+                    vb[corner] = v;
+                }
+                ok = ok && seen == 15 && ub[3] == ub[1] + ub[2] - ub[0] && vb[3] == vb[1] + vb[2] - vb[0];
+                if (ok) {
+                    code = static_cast<uint8_t>(ub[0] | (ub[1] << 1) | (ub[2] << 2) | (vb[0] << 3) | (vb[1] << 4) |
+                                                (vb[2] << 5) | 0x80);
+                    const int along = static_cast<int>(p0[n]);
+                    plane = (positive ? along - 1 : along) & 15;
+                    la = static_cast<int>(minA) & 15;
+                    lb = static_cast<int>(minB) & 15;
+                    ok = scratch.grid[plane][lb * 16 + la] == 0;
+                }
+            }
+            if (!ok) {
+                keep.insert(keep.end(), idx, idx + 6);
+                continue;
+            }
+            scratch.grid[plane][lb * 16 + la] = static_cast<int32_t>(k) + 1;
+            scratch.code[plane][lb * 16 + la] = code;
+            planes |= 1u << plane;
+            candidates++;
+        }
+        if (!candidates)
+            return;
+        if (dead.size() < vertices.size() / 4)
+            dead.resize(vertices.size() / 4, 0);
+        for (int plane = 0; plane < 16; plane++) {
+            if (!(planes & (1u << plane)))
+                continue;
+            int32_t* grid = scratch.grid[plane];
+            const uint8_t* codes = scratch.code[plane];
+            for (int lb = 0; lb < 16; lb++)
+                for (int la = 0; la < 16; la++) {
+                    const int cell = lb * 16 + la;
+                    if (!grid[cell])
+                        continue;
+                    const size_t k = static_cast<size_t>(grid[cell] - 1);
+                    const uint32_t* idx = &group[k * 6];
+                    const uint32_t base = idx[0] & ~3u;
+                    const uint8_t code = codes[cell];
+                    const auto matches = [&](int other) {
+                        if (!grid[other] || codes[other] != code)
+                            return false;
+                        const uint32_t otherBase = group[static_cast<size_t>(grid[other] - 1) * 6] & ~3u;
+                        return SameSurface(vertices[base], vertices[otherBase]);
+                    };
+                    int w = 1, h = 1;
+                    while (la + w < 16 && matches(cell + w))
+                        w++;
+                    while (lb + h < 16) {
+                        bool row = true;
+                        for (int x = 0; x < w && row; x++)
+                            row = matches(cell + h * 16 + x);
+                        if (!row)
+                            break;
+                        h++;
+                    }
+                    for (int y = 0; y < h; y++)
+                        for (int x = 0; x < w; x++) {
+                            const int other = cell + y * 16 + x;
+                            if (other != cell) {
+                                dead[(group[static_cast<size_t>(grid[other] - 1) * 6] & ~3u) >> 2] = 1;
+                                mergedAway++;
+                            }
+                            grid[other] = 0;
+                        }
+                    if (w > 1 || h > 1) {
+                        Vertex* q = &vertices[base];
+                        float minA = (&q[0].x)[a], minB = (&q[0].x)[b];
+                        for (int i = 1; i < 4; i++) {
+                            minA = std::min(minA, (&q[i].x)[a]);
+                            minB = std::min(minB, (&q[i].x)[b]);
+                        }
+                        const int u0 = code & 1, u1 = (code >> 1) & 1, u2 = (code >> 2) & 1;
+                        const int v0 = (code >> 3) & 1, v1 = (code >> 4) & 1, v2 = (code >> 5) & 1;
+                        for (int i = 0; i < 4; i++) {
+                            float* p = &q[i].x;
+                            const int da = p[a] != minA ? w : 0, db = p[b] != minB ? h : 0;
+                            p[a] = minA + static_cast<float>(da);
+                            p[b] = minB + static_cast<float>(db);
+                            q[i].u = static_cast<float>(u0 + da * (u1 - u0) + db * (u2 - u0));
+                            q[i].v = static_cast<float>(v0 + da * (v1 - v0) + db * (v2 - v0));
+                        }
+                    }
+                    keep.insert(keep.end(), idx, idx + 6);
+                }
+        }
+        group.swap(keep);
+    }
+
+    void Tessellator::Compact() {
+        if (!mergedAway)
+            return;
+        const size_t quadCount = vertices.size() / 4;
+        dead.resize(quadCount, 0);
+        std::vector<uint32_t> remap(quadCount);
+        uint32_t live = 0;
+        for (size_t qi = 0; qi < quadCount; qi++) {
+            remap[qi] = live;
+            if (dead[qi])
+                continue;
+            if (live != qi)
+                std::memcpy(&vertices[static_cast<size_t>(live) * 4], &vertices[qi * 4], sizeof(Vertex) * 4);
+            live++;
+        }
+        vertices.resize(static_cast<size_t>(live) * 4);
+        for (auto& list : indices)
+            for (uint32_t& index : list)
+                index = remap[index >> 2] * 4 + (index & 3u);
+        dead.clear();
     }
 
     void Tessellator::Reserve(size_t quads) {
@@ -185,6 +373,8 @@ namespace perlin {
                 indices[static_cast<size_t>(s == 0 ? RenderLayer::Solid : RenderLayer::CutoutCull)];
             for (int g = 0; g < kFaceGroups; g++) {
                 std::vector<uint32_t>& group = pending[static_cast<size_t>(s)][static_cast<size_t>(g)];
+                if (merging)
+                    MergeGroup(group, g);
                 cur.faces[static_cast<size_t>(s)][static_cast<size_t>(g)] = static_cast<uint32_t>(group.size());
                 out.insert(out.end(), group.begin(), group.end());
                 group.clear();
@@ -210,6 +400,7 @@ namespace perlin {
             return;
         FlushFaces();
         building = false;
+        Compact();
 
         const size_t n = sections.size();
         for (size_t i = 0; i < n; i++)

@@ -361,6 +361,8 @@ namespace perlin::gpu {
             sd.mip = filter::linear;
             sd.u = sd.v = sd.w = address_mode::clamp;
             samplers[static_cast<size_t>(SamplerKind::PointMipClamp)] = device->create_sampler(sd);
+            sd.u = sd.v = address_mode::repeat;
+            samplers[static_cast<size_t>(SamplerKind::PointMipRepeat)] = device->create_sampler(sd);
         }
     }
 
