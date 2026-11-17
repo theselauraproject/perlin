@@ -152,7 +152,7 @@ namespace perlin {
         if (!StartControl())
             return false;
 
-        workers = std::make_unique<ThreadPool>(4);
+        workers = std::make_unique<ThreadPool>(4, false, "perlin-work");
         if (args.server.empty() && !PERLIN_ENV("PERLIN_PREVIEW")) {
             Accounts().BackfillGamertags(Clock::now());
             serverBrowser.RefreshFeatured(false);
@@ -465,7 +465,7 @@ namespace perlin {
             if (gameMode >= 0)
                 extra += ",\"gamemode\":" + std::to_string(gameMode);
             const std::string config =
-                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 1024)) + threads + extra +
+                "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 128)) + threads + extra +
                 ",\"block_data_dir\":\"" + dir + "\"}";
             std::string error;
             if (!singleplayerServer->Start(dir, config, error)) {

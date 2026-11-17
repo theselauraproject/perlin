@@ -330,6 +330,7 @@ namespace perlin {
         std::vector<int8_t> water = std::vector<int8_t>(65536, -1);
         std::vector<int8_t> translucent = std::vector<int8_t>(65536, -1);
         std::vector<int8_t> ao = std::vector<int8_t>(65536, -1);
+        std::vector<int8_t> leaves = std::vector<int8_t>(65536, -1);
         std::vector<const ModelEntry*> model = std::vector<const ModelEntry*>(65536, nullptr);
         std::vector<int8_t> modelKnown = std::vector<int8_t>(65536, 0);
         std::vector<uint8_t> opacity = std::vector<uint8_t>(65536, 0);
@@ -353,6 +354,7 @@ namespace perlin {
             water[id] = -1;
             translucent[id] = -1;
             ao[id] = -1;
+            leaves[id] = -1;
             modelKnown[id] = 0;
             model[id] = nullptr;
             opacityKnown[id] = 0;
@@ -792,6 +794,19 @@ namespace perlin {
     }
 
     static float AoShadeUncached(const BlockCache& cache, BlockLibrary* library, int x, int y, int z);
+    static std::atomic<bool> gCullInnerLeaves{false};
+    void MesherSetCullInnerLeaves(bool on) {
+        gCullInnerLeaves.store(on, std::memory_order_relaxed);
+    }
+    static bool IsLeafBlock(uint16_t id) {
+        if (id == 0)
+            return false;
+        IdMemo& m = Memo();
+        m.Touch(id);
+        if (m.leaves[id] < 0)
+            m.leaves[id] = BlockPalette::Instance().Name(id).contains("leaves") ? 1 : 0;
+        return m.leaves[id] == 1;
+    }
     PERLIN_HOT static float AoShade(const BlockCache& cache, BlockLibrary* library, int x, int y, int z) {
         if (!cache.InRange(x, y, z))
             return 1.0f;
@@ -1656,6 +1671,9 @@ namespace perlin {
                     const uint16_t neighbour = NeighbourId(nb[0], nb[1], nb[2]);
                     if (neighbour != 0 && m.cache.Occ(blk.x + nb[0], blk.y + nb[1], blk.z + nb[2]))
                         return true;
+                    if (neighbour != 0 && gCullInnerLeaves.load(std::memory_order_relaxed) && IsLeafBlock(blk.id) &&
+                        IsLeafBlock(neighbour))
+                        return true;
                     const bool same =
                         neighbour == blk.id ||
                         (glassMode && neighbour != 0 && m.library->Look(neighbour).side == tex.baseTile);
@@ -2408,6 +2426,9 @@ namespace perlin {
                 const uint16_t neighbour = cache().Get(x + f.nx, y + f.ny, z + f.nz);
                 if (neighbour != 0 && cache().Occ(x + f.nx, y + f.ny, z + f.nz))
                     return true;
+                if (neighbour != 0 && gCullInnerLeaves.load(std::memory_order_relaxed) && IsLeafBlock(blk.id) &&
+                    IsLeafBlock(neighbour))
+                    return true;
                 if (neighbour != 0 && (translucent || IsGlassTile(f.tile)) &&
                     (neighbour == blk.id || (library() && library()->GlassMode() && IsGlassTile(f.tile) &&
                                              library()->Look(neighbour).side == f.tile)))
@@ -2552,8 +2573,10 @@ namespace perlin {
                                                       : RenderLayer::Solid;
                 tess().SetLayer(layer);
                 tess().AddQuad(f.verts, col, uv, flip, lt, ao, f.shade);
-                if (overlay.tile && f.ny == 0)
+                if (overlay.tile && f.ny == 0) {
+                    tess().PinLastQuad();
                     EmitOverlay(f, fu, fv, kv, lt, ao, flip, layer);
+                }
             }
 
             void EmitOverlay(const Face& f, const float (&fu)[4], const float (&fv)[4], const float (&kv)[4],

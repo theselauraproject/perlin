@@ -64,6 +64,7 @@ namespace perlin {
             std::vector<std::string> approvedMods;
             bool hotReload = true;
             bool betterGrass = false;
+            bool cullInnerLeaves = false;
             bool skins3d = false;
             std::string upscaler = "off";
             std::string upscaleQuality = "quality";
@@ -213,6 +214,7 @@ namespace perlin {
                       o.approvedMods,
                       o.hotReload,
                       o.betterGrass,
+                      o.cullInnerLeaves,
                       o.skins3d,
                       o.upscaler,
                       o.upscaleQuality,
@@ -236,7 +238,7 @@ namespace perlin {
         o.maxFps = stored.maxFps;
         o.vsync = stored.vsync;
         o.eulaAccepted = stored.eulaAccepted;
-        o.renderDistance = std::clamp(stored.renderDistance, 2, 1024);
+        o.renderDistance = std::clamp(stored.renderDistance, 2, 128);
         o.fov = std::clamp(stored.fov, 30.0f, 110.0f);
         o.gamma = std::clamp(stored.gamma, 0.0f, 1.0f);
         o.shaderPack = stored.shaderPack;
@@ -272,6 +274,7 @@ namespace perlin {
         o.approvedMods = stored.approvedMods;
         o.hotReload = stored.hotReload;
         o.betterGrass = stored.betterGrass;
+        o.cullInnerLeaves = stored.cullInnerLeaves;
         o.skins3d = stored.skins3d;
         o.upscaler = stored.upscaler;
         o.upscaleQuality = stored.upscaleQuality;
@@ -438,6 +441,7 @@ namespace perlin {
                       approvedMods,
                       hotReload,
                       betterGrass,
+                      cullInnerLeaves,
                       skins3d,
                       upscaler,
                       upscaleQuality,

@@ -93,6 +93,7 @@ namespace perlin {
         void SetNearRadius(int r) { nearRadius = r; }
         int NearRadius() const { return nearRadius; }
         void SetMaxViewDistance(int r) { maxViewDistance = r; }
+        int GrantedRadius() const { return grantedRadius.load(); }
 
         bool Connect(const std::string& host, uint16_t port);
         void Disconnect();
@@ -1114,7 +1115,6 @@ namespace perlin {
         void FinishColumns(const std::vector<std::pair<int, int>>& columns);
         std::map<std::pair<int, int>, int> colPending;
 
-        // a column or sub-chunk the server sent as blob hashes, parked until every blob is on hand
         struct BlobWait {
             std::vector<uint64_t> hashes;
             std::vector<std::vector<uint8_t>> parts;

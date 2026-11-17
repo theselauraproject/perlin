@@ -68,6 +68,7 @@ namespace perlin::ui {
              "Grass block sides blend with the grass next to them so there are no visible edges between "
              "blocks.",
              1},
+            {"Cull Inner Leaves", "", "", "Skips leaf faces hidden between neighbouring leaf blocks. Much faster in forests; trees look less dense inside.", 1},
             {"Glass", "", "",
              "Choose how glass panes and blocks join: Normal keeps borders, Connected merges neighbouring "
              "glass, Clear removes the frame.",

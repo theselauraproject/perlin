@@ -15,10 +15,12 @@ __declspec(dllimport) void* __stdcall GetCurrentThread(void);
 __declspec(dllimport) int __stdcall SetThreadPriority(void*, int);
 }
 #elif defined(__linux__) || defined(__ANDROID__)
+#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #elif defined(__APPLE__)
+#include <pthread.h>
 #include <pthread/qos.h>
 #endif
 
@@ -30,6 +32,19 @@ namespace perlin {
         setpriority(PRIO_PROCESS, static_cast<id_t>(syscall(SYS_gettid)), 5);
 #elif defined(__APPLE__)
         pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
+#endif
+    }
+
+    inline void NameThisThread(const char* name) {
+#if defined(__linux__) || defined(__ANDROID__)
+        char shortName[16] = {};
+        for (int i = 0; i < 15 && name[i]; i++)
+            shortName[i] = name[i];
+        pthread_setname_np(pthread_self(), shortName);
+#elif defined(__APPLE__)
+        pthread_setname_np(name);
+#else
+        (void)name;
 #endif
     }
 
@@ -47,7 +62,8 @@ namespace perlin {
 
     class ThreadPool {
     public:
-        explicit ThreadPool(size_t count, bool background = false) : background(background) {
+        explicit ThreadPool(size_t count, bool background = false, const char* name = "perlin-pool")
+            : background(background), name(name) {
             for (size_t i = 0; i < count; ++i)
                 workers.emplace_back([this] { Run(); });
         }
@@ -114,6 +130,7 @@ namespace perlin {
         void Run() {
             if (background)
                 LowerThreadPriority();
+            NameThisThread(name);
             for (;;) {
                 std::function<void()> job;
                 {
@@ -134,5 +151,6 @@ namespace perlin {
         std::condition_variable cv;
         bool stopping = false;
         bool background = false;
+        const char* name;
     };
 }

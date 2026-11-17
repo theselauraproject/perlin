@@ -112,15 +112,18 @@ namespace perlin::server::vanilla {
                 const BiomeNode& a = nodes[static_cast<size_t>(n.left)];
                 const BiomeNode& b = nodes[static_cast<size_t>(n.right)];
                 const uint64_t ba = Bound(a, t), bb = Bound(b, t);
+                const auto worth = [&](uint64_t bound) {
+                    return bound < best || (bound == best && foundIndex != hint);
+                };
                 if (ba <= bb) {
-                    if (ba <= best)
+                    if (worth(ba))
                         Search(n.left, t, best, foundIndex, hint);
-                    if (bb <= best)
+                    if (worth(bb))
                         Search(n.right, t, best, foundIndex, hint);
                 } else {
-                    if (bb <= best)
+                    if (worth(bb))
                         Search(n.right, t, best, foundIndex, hint);
-                    if (ba <= best)
+                    if (worth(ba))
                         Search(n.left, t, best, foundIndex, hint);
                 }
             }

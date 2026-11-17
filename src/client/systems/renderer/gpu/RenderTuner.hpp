@@ -83,7 +83,7 @@ namespace perlin::gpu {
             uint32_t used = 2;
             std::vector<const char*> labels;
         };
-        static constexpr uint32_t kQueriesPerSlot = 48;
+        static constexpr uint32_t kQueriesPerSlot = 256;
         uint32_t used = 0;
         std::vector<const char*> frameLabels;
         std::vector<std::pair<const char*, double>> passTotals;

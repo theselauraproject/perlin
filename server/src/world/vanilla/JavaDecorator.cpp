@@ -13,6 +13,7 @@
 #include <cmath>
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <mutex>
 #include <shared_mutex>
 #include <string_view>
@@ -192,7 +193,12 @@ namespace perlin::server::vanilla {
         }
     }
 
+    namespace {
+        std::atomic<uint64_t> gImplSerial{0};
+    }
+
     struct JavaDecorator::Impl {
+        const uint64_t serial = gImplSerial.fetch_add(1, std::memory_order_relaxed) + 1;
         json::Value doc;
         std::vector<JavaBiome> biomes;
         std::vector<int> tableToBiome;
@@ -274,8 +280,9 @@ namespace perlin::server::vanilla {
             return slot.get();
         }
 
-        bool InTag(std::string_view tag, uint16_t id) const {
-            const TagMask* mask = MaskFor(tag);
+        bool InTag(std::string_view tag, uint16_t id) const { return MaskHas(MaskFor(tag), id); }
+
+        bool MaskHas(const TagMask* mask, uint16_t id) const {
             if (!mask->names)
                 return false;
             auto& cell = const_cast<TagMask*>(mask)->state[id];
@@ -881,6 +888,33 @@ namespace perlin::server::vanilla {
             }
 
             bool RuleTest(const json::Value& t, uint16_t id, const Pos& p) {
+                struct RuleMemo {
+                    uint64_t serial = 0;
+                    std::unordered_map<const json::Value*, std::pair<uint8_t, const JavaDecorator::Impl::TagMask*>> map;
+                };
+                thread_local RuleMemo memo;
+                if (memo.serial != d.serial) {
+                    memo.map.clear();
+                    memo.serial = d.serial;
+                }
+                auto [slot, fresh] = memo.map.try_emplace(&t, uint8_t{0}, nullptr);
+                if (fresh) {
+                    const json::Value& kind = t["predicate_type"];
+                    const std::string_view k = kind.IsString() ? std::string_view(kind.text) : std::string_view();
+                    const std::string_view bare = k.substr(k.starts_with("minecraft:") ? 10 : 0);
+                    if (bare == "always_true") {
+                        slot->second.first = 2;
+                    } else if (bare == "tag_match" && t["tag"].IsString()) {
+                        slot->second.first = 1;
+                        slot->second.second = d.MaskFor(t["tag"].text);
+                    } else {
+                        slot->second.first = 3;
+                    }
+                }
+                if (slot->second.first == 2)
+                    return true;
+                if (slot->second.first == 1)
+                    return d.MaskHas(slot->second.second, id);
                 const json::Value& typeValue = t["predicate_type"];
                 const std::string_view type = typeValue.IsString() ? std::string_view(typeValue.text) : std::string_view();
                 const std::string_view name = type.substr(type.starts_with("minecraft:") ? 10 : 0);

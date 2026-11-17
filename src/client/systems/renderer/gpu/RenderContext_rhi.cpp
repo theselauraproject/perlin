@@ -202,6 +202,27 @@ namespace perlin {
         std::vector<conduit::known_failure> failures = debugger ? std::vector<conduit::known_failure>{} : ReadFailures();
         if (debugger)
             Log("gpu", "{} attached: probing without throwaway devices", debugger);
+        if (!debugger) {
+            const std::string early = paths::DataDir() + "/gpu-early-crash";
+            std::error_code ec;
+            const auto crashes = std::filesystem::file_size(early, ec);
+            if (!ec && crashes >= 2) {
+                std::ifstream last(paths::DataDir() + "/gpu-session.txt");
+                std::string id;
+                conduit::adapter_info crashed;
+                if (last >> id >> crashed.vendor_id >> crashed.device_id >> crashed.driver_version) {
+                    crashed.api = conduit::api_from_id(id);
+                    if (crashed.api != conduit::api::none) {
+                        conduit::record_failure(failures, crashed);
+                        conduit::record_failure(failures, crashed);
+                        WriteFailures(failures);
+                        Log("gpu", "the last {} launches crashed early on {}: trying another renderer", crashes,
+                            conduit::api_name(crashed.api));
+                    }
+                }
+                std::filesystem::remove(early, ec);
+            }
+        }
         const conduit::render_profile profile = conduit::choose_profile(probe, user, failures, kWindows, kApple);
         for (const std::string& reason : profile.reasons)
             Log("gpu", "{}", reason);
@@ -247,6 +268,12 @@ namespace perlin {
             settings = s;
             if (gpu.Init(s, pack, &error)) {
                 settings = gpu.Settings();
+                {
+                    const conduit::adapter_info& used = gpu.Caps().adapter;
+                    std::ofstream session(paths::DataDir() + "/gpu-session.txt", std::ios::trunc);
+                    session << conduit::api_id(used.api) << ' ' << used.vendor_id << ' ' << used.device_id << ' '
+                            << used.driver_version << '\n';
+                }
                 deviceTier = profile.tier;
                 if (api != profile.api || adapter != profile.adapter_index)
                     for (const conduit::candidate& c : probe.candidates)
@@ -286,6 +313,10 @@ namespace perlin {
     void RenderContext_rhi::Shutdown() {
         if (!initialized && !gpu.Chain() && !gpu.OffscreenTexture())
             return;
+        {
+            std::error_code ec;
+            std::filesystem::remove(paths::DataDir() + "/gpu-early-crash", ec);
+        }
         if (cloudJobRunning) {
             cloudJob.wait();
             cloudJobRunning = false;
@@ -908,9 +939,15 @@ namespace perlin {
         uint32_t chunk = ~0u;
         uint32_t boundOffset = ~0u;
         bool scissored = false;
+        static const char* skipPipe = std::getenv("PERLIN_SKIP_PIPE");
         for (const DrawCall& dc : draws) {
+            if (skipPipe && std::strcmp(gpu.PipelineName(dc.pipeline), skipPipe) == 0)
+                continue;
             bool pipelineChanged = false;
             if (dc.pipeline != pipeline) {
+                static const bool pipeMarks = std::getenv("PERLIN_PROFILE_VIEWS") != nullptr;
+                if (pipeMarks)
+                    tuner.Mark(list, gpu.PipelineName(dc.pipeline));
                 list.set_pipeline(dc.pipeline);
                 pipeline = dc.pipeline;
                 pipelineChanged = true;
@@ -1053,6 +1090,46 @@ namespace perlin {
         uni.Set("u_dynParams", dyn, 4);
         uni.Set("u_dynLights", &params.dynLights[0][0], 32);
         uni.Set("u_packSettings", &params.packSettings[0], 32);
+        {
+            const auto smooth = [](float e0, float e1, float x) {
+                const float t = std::clamp((x - e0) / (e1 - e0), 0.0f, 1.0f);
+                return t * t * (3.0f - 2.0f * t);
+            };
+            const auto mixf = [](float a, float b, float t) { return a + (b - a) * t; };
+            const float h = sunY;
+            const float sSun = params.packSettings[3], sAmbient = params.packSettings[4],
+                        sNight = params.packSettings[27];
+            const float rain = std::clamp((1.0f - params.sky.rainBrightness) * 2.0f, 0.0f, 1.0f);
+            float mainLight[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            if (h >= 0.0f) {
+                const float airmass = 1.0f / (std::max(h, 0.0f) + 0.075f);
+                const float k = 2.7f * smooth(-0.04f, 0.10f, h) * sSun;
+                const float ext[3] = {0.19f, 0.46f, 1.05f};
+                for (int i = 0; i < 3; i++)
+                    mainLight[i] = std::exp(-ext[i] * airmass * 0.17f) * k;
+            } else {
+                const float moon[3] = {0.42f, 0.55f, 0.95f};
+                const float k = 0.30f * smooth(-0.02f, 0.12f, -h) * sSun * sNight;
+                for (int i = 0; i < 3; i++)
+                    mainLight[i] = moon[i] * k;
+            }
+            for (int i = 0; i < 3; i++)
+                mainLight[i] *= mixf(1.0f, 0.18f, rain);
+            uni.Set("u_lightMain", mainLight, 4);
+            const float day = smooth(-0.18f, 0.12f, h);
+            const float twilight = smooth(-0.24f, 0.0f, h) * (1.0f - smooth(0.02f, 0.40f, h));
+            const float noon[3] = {0.42f * 1.45f, 0.57f * 1.45f, 0.90f * 1.45f};
+            const float dusk[3] = {0.56f * 0.6f, 0.44f * 0.6f, 0.66f * 0.6f};
+            const float night[3] = {0.045f * sNight, 0.06f * sNight, 0.12f * sNight};
+            float sky[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            for (int i = 0; i < 3; i++)
+                sky[i] = mixf(mixf(night[i], noon[i], day), dusk[i], twilight * 0.75f);
+            const float luma = sky[0] * 0.2126f + sky[1] * 0.7152f + sky[2] * 0.0722f;
+            const float grey[3] = {luma * 0.88f * 0.8f, luma * 0.92f * 0.8f, luma * 1.0f * 0.8f};
+            for (int i = 0; i < 3; i++)
+                sky[i] = mixf(sky[i], grey[i], rain) * sAmbient;
+            uni.Set("u_lightSky", sky, 4);
+        }
         const float tiles[4] = {params.waterTile, params.lavaTile, params.waterFlowTile, 0.0f};
         uni.Set("u_tiles", tiles, 4);
         uni.Vec4("u_chunk", 1.0f, 0.0f, 0.0f, 0.0f);
@@ -1261,6 +1338,12 @@ namespace perlin {
             v.draws.clear();
     }
 
+    const char* ViewName(View v) {
+        static constexpr const char* kViewNames[] = {"shadow", "shadow_glass", "shadow_entity", "world", "world_late", "entities", "late", "hand", "gui", "doll", "top", "export_ui", "blur", "post_out", "bloom0", "bloom1", "bloom2", "bloom3", "bloom4", "bloom5", "bloom6", "upscale", "sharpen", "java_deferred", "java_composite", "java_composite1", "java_composite3", "java_composite4", "java_composite5", "java_composite6", "java_composite7", "java_final"};
+        static_assert(std::size(kViewNames) == static_cast<size_t>(View::Count));
+        return kViewNames[static_cast<size_t>(v)];
+    }
+
     void RenderContext_rhi::ExecuteFrame() {
         conduit::swapchain::image image;
         if (!offscreen && surface && surface->WindowMinimized()) {
@@ -1432,12 +1515,10 @@ namespace perlin {
                     s.discardDepth = true;
             }
         }
-        static constexpr const char* kViewNames[] = {"shadow", "shadow_glass", "shadow_entity", "world", "world_late", "entities", "late", "hand", "gui", "doll", "top", "export_ui", "blur", "post_out", "bloom0", "bloom1", "bloom2", "bloom3", "bloom4", "bloom5", "bloom6", "upscale", "sharpen", "java_deferred", "java_composite", "java_composite1", "java_composite3", "java_composite4", "java_composite5", "java_composite6", "java_composite7", "java_final"};
-        static_assert(std::size(kViewNames) == static_cast<size_t>(View::Count));
         const auto stageLabel = [](const Stage& s) -> const char* {
             if (s.kind == Stage::Kind::Copy)
                 return "copy";
-            return s.views.empty() ? "pass" : kViewNames[static_cast<size_t>(s.views.front())];
+            return s.views.empty() ? "pass" : ViewName(s.views.front());
         };
         for (const Stage& stage : shadowStages) {
             tuner.Mark(*list, stageLabel(stage));

@@ -72,6 +72,8 @@ namespace perlin::ui {
 
     void UiAssets::Configure(const std::string& vanillaRoot, const BlockLibrary* blockLibrary) {
         std::lock_guard lock(mutex);
+        if (root != vanillaRoot)
+            RootGeneration().fetch_add(1, std::memory_order_release);
         root = vanillaRoot;
         blocks = blockLibrary;
         items.clear();

@@ -2,7 +2,10 @@
 #include "client/systems/renderer/chunk/ChunkMesher.hpp"
 #include "client/application/PerlinFrame.hpp"
 #include "util/Log.hpp"
+#include <filesystem>
 #include <algorithm>
+#include <ctime>
+#include <vector>
 
 namespace perlin {
     Perlin::Perlin(LaunchArgs args) : args(std::move(args)) {}
@@ -16,6 +19,7 @@ namespace perlin {
     }
 
     void Perlin::RenderThreadMain() {
+        NameThisThread("perlin-render");
         if (!renderer->Initialize(*platform, options)) {
             Log("render", "renderer initialisation failed");
             platform->isRunning = false;
@@ -41,10 +45,17 @@ namespace perlin {
         renderReady = true;
         StartSampleProfiler();
         levelRenderer = std::make_unique<LevelRenderer>(*renderer, options);
-        levelRenderer->OnLibrarySwap([](const BlockLibrary* library) {
+        levelRenderer->OnLibrarySwap([samples = options.bedrockSamplesDir](const BlockLibrary* library) {
             auto& assets = ui::UiAssets::Instance();
-            if (!assets.VanillaRoot().empty())
-                assets.Configure(assets.VanillaRoot(), library);
+            std::string root = assets.VanillaRoot();
+            if (root.empty()) {
+                std::error_code ec;
+                const std::string candidate = samples + "/repo/resource_pack";
+                if (std::filesystem::exists(candidate + "/textures/ui", ec))
+                    root = candidate;
+            }
+            if (!root.empty())
+                assets.Configure(root, library);
         });
         handRenderer.Initialize(*renderer);
         entityRenderer.Initialize(*renderer);
@@ -187,7 +198,63 @@ namespace perlin {
         UpdateHudAndScreens(f);
         UpdateTouch(f);
         EndFrame(f);
+        RecordFrameStats();
         PaceFrame(f);
+    }
+
+    void Perlin::RecordFrameStats() {
+        static const double every = [] {
+            const char* v = PERLIN_ENV("PERLIN_FRAME_STATS");
+            return v ? std::max(1.0, std::atof(v)) : 0.0;
+        }();
+        if (every <= 0.0)
+            return;
+        struct Stats {
+            std::vector<double> frameMs;
+            std::chrono::steady_clock::time_point last{}, windowStart{};
+            double cpuStart = 0;
+        };
+        static Stats st;
+        const auto threadCpuMs = [] {
+#if defined(__linux__) || defined(__APPLE__)
+            timespec ts{};
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts);
+            return static_cast<double>(ts.tv_sec) * 1000.0 + static_cast<double>(ts.tv_nsec) / 1e6;
+#else
+            return 0.0;
+#endif
+        };
+        const auto now = std::chrono::steady_clock::now();
+        if (st.last.time_since_epoch().count() != 0)
+            st.frameMs.push_back(std::chrono::duration<double, std::milli>(now - st.last).count());
+        else {
+            st.windowStart = now;
+            st.cpuStart = threadCpuMs();
+        }
+        st.last = now;
+        const double window = std::chrono::duration<double>(now - st.windowStart).count();
+        if (window < every || st.frameMs.size() < 2)
+            return;
+        std::vector<double> sorted = st.frameMs;
+        std::sort(sorted.begin(), sorted.end());
+        const auto pct = [&](double q) {
+            return sorted[std::min(sorted.size() - 1, static_cast<size_t>(q * static_cast<double>(sorted.size())))];
+        };
+        double sum = 0;
+        for (double v : sorted)
+            sum += v;
+        const double cpuNow = threadCpuMs();
+        char line[256];
+        std::snprintf(line, sizeof(line),
+                      "%zu frames in %.1f s: %.2f fps, frame ms avg %.2f p50 %.2f p95 %.2f p99 %.2f max %.2f, "
+                      "render thread cpu %.2f ms/frame",
+                      sorted.size(), window, static_cast<double>(sorted.size()) / window,
+                      sum / static_cast<double>(sorted.size()), pct(0.5), pct(0.95), pct(0.99), sorted.back(),
+                      (cpuNow - st.cpuStart) / static_cast<double>(sorted.size()));
+        Log("framestats", "{}", line);
+        st.frameMs.clear();
+        st.windowStart = now;
+        st.cpuStart = cpuNow;
     }
 
     void Perlin::BeginFrame(FrameContext& f) {
@@ -631,6 +698,7 @@ namespace perlin {
                                     : options.glass == "connectedClear" ? 2
                                     : options.glass == "clear"          ? 3
                                                                         : 0);
+        levelRenderer->SetServerRadius(live ? live->GrantedRadius() : 0);
         levelRenderer->ReloadAssetsIfNeeded();
         packManager.PollJavaPack(live);
     }

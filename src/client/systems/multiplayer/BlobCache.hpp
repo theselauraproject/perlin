@@ -9,11 +9,9 @@
 
 namespace perlin {
 
-    // chunk blobs keyed by the server's content hash, kept on disk so revisits and rejoins skip the transfer
     class BlobCache {
     public:
         static BlobCache& Instance();
-        // an empty path keeps the cache off: every lookup misses and nothing is stored
         explicit BlobCache(std::string path);
 
         bool Usable();

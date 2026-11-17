@@ -154,6 +154,7 @@ namespace perlin {
 
         void RenderThreadMain();
         void InitRenderThread();
+        void RecordFrameStats();
         void FrameStep();
         void TearDownRenderThread();
         void BeginFrame(FrameContext& f);

@@ -75,6 +75,14 @@ namespace perlin {
         static void SetMergeFaces(bool on) { mergeFaces.store(on, std::memory_order_relaxed); }
         static bool MergeFaces() { return mergeFaces.load(std::memory_order_relaxed); }
         size_t MergedAway() const { return mergedAway; }
+        void PinLastQuad() {
+            if (!merging || vertices.size() < 4)
+                return;
+            const size_t quad = vertices.size() / 4 - 1;
+            if (pinned.size() <= quad)
+                pinned.resize(quad + 1, 0);
+            pinned[quad] = 1;
+        }
         void SetBlock(uint16_t id, float x, float y, float z) {
             curBlock = id;
             curX = x;
@@ -143,6 +151,7 @@ namespace perlin {
         void MergeGroup(std::vector<uint32_t>& group, int normalGroup);
         void Compact();
         std::vector<uint8_t> dead;
+        std::vector<uint8_t> pinned;
         size_t mergedAway = 0;
         bool merging = false;
         static inline std::atomic<bool> mergeFaces{true};

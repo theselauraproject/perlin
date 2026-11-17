@@ -169,6 +169,10 @@ namespace perlin::gpu {
         }
         bool PipelineReady(const PipelineKey& key);
         conduit::pipeline_handle Pipeline(const PipelineKey& key);
+        const char* PipelineName(conduit::pipeline_handle h) const {
+            const auto it = pipelineNames.find(h.value);
+            return it == pipelineNames.end() ? "pipeline" : it->second;
+        }
 
         std::vector<PipelineKey> PipelineKeys() const;
 
@@ -217,6 +221,11 @@ namespace perlin::gpu {
         }
         void WriteBuffer(conduit::buffer_handle buffer, conduit::state resting, uint64_t byteOffset,
                          const void* data, uint64_t bytes);
+        void* StageBuffer(conduit::buffer_handle buffer, conduit::state resting, uint64_t byteOffset,
+                          uint64_t bytes);
+        void* StageBuffer(const Arena& arena, uint64_t byteOffset, uint64_t bytes) {
+            return StageBuffer(arena.Buffer(), arena.BarrierState(), byteOffset, bytes);
+        }
 
         void ForgetBuffer(conduit::buffer_handle buffer) { bufferStates.erase(buffer.value); }
         conduit::buffer_handle CreateStatic(const void* data, uint64_t bytes, conduit::buffer_usage usage,
@@ -266,6 +275,7 @@ namespace perlin::gpu {
             conduit::buffer_handle buffer;
             conduit::state state;
             uint64_t offset, bytes, source;
+            conduit::buffer_handle staged{};
         };
 
         bool CreateRing(uint32_t slot, uint64_t minimum);
@@ -284,6 +294,7 @@ namespace perlin::gpu {
 
         conduit::bind_layout_handle uniformLayout, textureLayout;
         conduit::pipeline_layout_handle pipelineLayout;
+        std::unordered_map<uint32_t, const char*> pipelineNames;
         std::array<conduit::sampler_handle, static_cast<size_t>(SamplerKind::Count)> samplers{};
         uint32_t uniformRangeBytes = 4096;
         bool ringStorage = true;
@@ -301,6 +312,7 @@ namespace perlin::gpu {
             RawByte() {}
         };
         std::vector<RawByte> pendingBytes;
+        bool frameOpen = false;
         std::vector<BufferWrite> bufferWrites;
         std::vector<ImageWrite> imageWrites;
         std::unordered_map<uint32_t, conduit::state> textureStates;

@@ -604,7 +604,7 @@ namespace perlin::screen {
 
         void AddVideoWorld(OptionsModel& m, Options& options, BedrockSession* live) {
         m.Header("World");
-        const int maxDistance = 1024;
+        const int maxDistance = 128;
         const auto distanceToSlider = [maxDistance](int d) {
             const float t = static_cast<float>(d - 2) / static_cast<float>(maxDistance - 2);
             return std::sqrt(std::clamp(t, 0.0f, 1.0f));
@@ -626,6 +626,7 @@ namespace perlin::screen {
             });
         m.Toggle(i18n::TrOr("options.graphics.fancy", "Fancy Graphics"), options.fancyGraphics);
         m.Toggle("Better Grass", options.betterGrass);
+        m.Toggle("Cull Inner Leaves", options.cullInnerLeaves);
         m.Toggle(i18n::TrOr("perlin.options.customSkies", "Custom Skies"), options.customSkies);
         m.Choice("Glass", options.glass,
                  {{"normal", "Normal"},

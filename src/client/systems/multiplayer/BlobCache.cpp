@@ -11,7 +11,6 @@ namespace perlin {
     namespace {
         constexpr char kMagic[8] = {'P', 'B', 'L', 'O', 'B', 'S', '0', '1'};
         constexpr size_t kRecordHeader = 16;
-        // a full world's worth of terrain around a few hubs; past it the file starts over
         constexpr uint64_t kCapBytes = 256ull << 20;
         constexpr uint32_t kMaxBlob = 1u << 20;
 
@@ -81,7 +80,6 @@ namespace perlin {
             ResetLocked();
             return;
         }
-        // records are appended; a torn tail from a crash ends the scan and gets overwritten
         end = sizeof(kMagic);
         uint8_t head[kRecordHeader];
         std::vector<uint8_t> body;

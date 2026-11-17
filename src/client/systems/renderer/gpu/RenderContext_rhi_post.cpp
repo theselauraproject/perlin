@@ -1136,10 +1136,15 @@ namespace perlin {
         }
         rd.name = "pass";
         list.begin_rendering(rd);
+        static const bool viewMarks = std::getenv("PERLIN_PROFILE_VIEWS") != nullptr;
+        bool first = true;
         for (View v : stage.views) {
             ViewData& vd = views[static_cast<size_t>(v)];
             if (vd.draws.empty())
                 continue;
+            if (viewMarks && !first)
+                tuner.Mark(list, ViewName(v));
+            first = false;
             list.set_viewport({static_cast<float>(vd.x), static_cast<float>(vd.y), static_cast<float>(vd.w),
                               static_cast<float>(vd.h), 0.0f, 1.0f});
             list.set_scissor({static_cast<int32_t>(vd.x), static_cast<int32_t>(vd.y), vd.w, vd.h});

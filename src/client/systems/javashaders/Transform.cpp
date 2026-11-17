@@ -892,6 +892,8 @@ namespace perlin::jshader {
     namespace {
         std::string RenameGlMacros(const std::string& text) {
             static const std::regex define(R"(#\s*define\s+(GL_[A-Za-z0-9_]*))");
+            if (!text.contains("GL_"))
+                return text;
             std::set<std::string> names;
             for (auto it = std::sregex_iterator(text.begin(), text.end(), define); it != std::sregex_iterator(); ++it)
                 names.insert((*it)[1].str());
@@ -1548,17 +1550,63 @@ namespace perlin::jshader {
     }
 
     namespace {
+        bool DeclaresGlobal(std::string_view line, std::string_view name) {
+            const auto blank = [](char c) { return c == ' ' || c == '\t'; };
+            size_t i = 0;
+            while (i < line.size() && blank(line[i]))
+                i++;
+            const auto token = [&](size_t from) {
+                size_t end = from;
+                while (end < line.size() && !blank(line[end]))
+                    end++;
+                return line.substr(from, end - from);
+            };
+            const auto isType = [](std::string_view t) {
+                if (t == "float" || t == "int" || t == "uint" || t == "bool")
+                    return true;
+                if (t.size() == 5 && (t[0] == 'i' || t[0] == 'u' || t[0] == 'b') && t.substr(1, 3) == "vec")
+                    return t[4] >= '2' && t[4] <= '4';
+                if (t.size() == 4 && (t.starts_with("vec") || t.starts_with("mat")))
+                    return t[3] >= '2' && t[3] <= '4';
+                return false;
+            };
+            std::string_view type = token(i);
+            if (type == "const" && i + 5 < line.size() && blank(line[i + 5])) {
+                size_t j = i + 5;
+                while (j < line.size() && blank(line[j]))
+                    j++;
+                if (isType(token(j))) {
+                    i = j;
+                    type = token(j);
+                }
+            }
+            if (!isType(type))
+                return false;
+            i += type.size();
+            if (i >= line.size() || !blank(line[i]))
+                return false;
+            while (i < line.size() && blank(line[i]))
+                i++;
+            if (line.substr(i, name.size()) != name)
+                return false;
+            i += name.size();
+            while (i < line.size() && blank(line[i]))
+                i++;
+            return i < line.size() && (line[i] == '=' || line[i] == ';');
+        }
+
         bool RedeclaredAsGlobal(const std::string& glsl, const std::string& name) {
-            const std::regex pattern("^[ \\t]*(const[ \\t]+)?(float|int|uint|bool|[iub]?vec[234]|mat[234])[ \\t]+" +
-                                     name + "[ \\t]*(=|;)");
+            if (name.empty() || glsl.find(name) == std::string::npos)
+                return false;
             int depth = 0;
             size_t pos = 0;
-            while (pos < glsl.size()) {
-                size_t end = glsl.find('\n', pos);
+            const std::string_view text(glsl);
+            while (pos < text.size()) {
+                size_t end = text.find('\n', pos);
                 if (end == std::string::npos)
-                    end = glsl.size();
-                const std::string line = glsl.substr(pos, end - pos);
-                if (depth == 0 && std::regex_search(line, pattern))
+                    end = text.size();
+                const std::string_view line = text.substr(pos, end - pos);
+                if (depth == 0 && DeclaresGlobal(line, name))
                     return true;
                 for (char c : line) {
                     if (c == '{')
@@ -1577,7 +1625,15 @@ namespace perlin::jshader {
         std::string AssignBufferSets(const std::string& glsl) {
             static const std::regex re(
                 R"(layout\s*\(([^)]*)\)((?:\s+(?:readonly|writeonly|coherent|volatile|restrict))*)\s+buffer\b)");
-            if (!glsl.contains("buffer"))
+            const auto mayMatch = [&] {
+                const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+                for (size_t at = glsl.find("buffer"); at != std::string::npos; at = glsl.find("buffer", at + 1))
+                    if (at > 0 && std::isspace(static_cast<unsigned char>(glsl[at - 1])) &&
+                        (at + 6 >= glsl.size() || !word(glsl[at + 6])))
+                        return true;
+                return false;
+            };
+            if (!mayMatch())
                 return glsl;
             std::string out;
             size_t last = 0;
@@ -1731,6 +1787,8 @@ namespace perlin::jshader {
                     if (dim != "1D" && dim != "2D" && dim != "3D")
                         continue;
                     const std::string t = smp.name + "_iris_t, " + smp.name + "_iris_s, ";
+                    if (!glsl.contains(smp.name))
+                        continue;
                     const std::regex call("\\b(texture|textureLod)\\s*\\(\\s*" + smp.name + "\\s*,");
                     std::string replaced;
                     size_t last = 0;
@@ -1772,7 +1830,8 @@ namespace perlin::jshader {
         std::string vs = vertexSource.text.empty() ? kDefaultVertex : vertexSource.text;
         {
             static const std::regex instanceUniform(R"(uniform\s+(?:highp\s+|mediump\s+|lowp\s+)?int\s+instanceId\s*;)");
-            vs = std::regex_replace(vs, instanceUniform, "#define instanceId gl_InstanceID\n");
+            if (vs.contains("instanceId"))
+                vs = std::regex_replace(vs, instanceUniform, "#define instanceId gl_InstanceID\n");
         }
         const std::string fs = fragmentSource.text.empty() ? kDefaultFragment : fragmentSource.text;
         program.vertex = TransformStage(Stage::Vertex, vs, options);

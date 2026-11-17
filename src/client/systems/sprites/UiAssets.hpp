@@ -1,4 +1,6 @@
 #pragma once
+#include <atomic>
+#include <cstdint>
 #include "client/systems/resources/TextureLoader.hpp"
 #include "client/systems/model/HudState.hpp"
 
@@ -39,6 +41,10 @@ namespace perlin::ui {
         static UiAssets& Instance();
 
         void Configure(const std::string& vanillaRoot, const BlockLibrary* blocks);
+        static std::atomic<uint32_t>& RootGeneration() {
+            static std::atomic<uint32_t> generation{0};
+            return generation;
+        }
         const std::string& VanillaRoot() const { return root; }
 
         bool Image(const std::string& rel, Texture& out);

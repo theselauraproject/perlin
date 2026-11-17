@@ -84,8 +84,11 @@ namespace perlin {
         bool TexturesLoaded() const { return atlasUploaded; }
         void CollectSpecials(float camX, float camZ, float range, std::vector<SpecialBlock>& out) const;
 
+        void SetServerRadius(int chunks) { serverRadius = chunks; }
         int EffectiveDistance() const {
-            const int base = options.renderDistance;
+            int base = options.renderDistance;
+            if (serverRadius > 0)
+                base = std::min(base, std::max(2, serverRadius));
             if (base <= 8)
                 return base;
             return std::max(8, static_cast<int>(std::lround(static_cast<double>(base) * distanceScale)));
@@ -195,7 +198,6 @@ namespace perlin {
         void KeepReuse(const ChunkPos& pos, std::shared_ptr<MeshReuse> reuse);
         void DropReuse(const ChunkPos* pos);
         PosSet inFlight;
-        // columns with a mesh on the gpu, for the fill probe
         PosSet shown;
         PosMap<ChunkInfo> info;
         PosMap<uint64_t> meshKey;
@@ -206,6 +208,12 @@ namespace perlin {
         size_t queueHead = 0;
         std::chrono::steady_clock::time_point queueBuilt{};
         int queueCamX = 0x7fffffff, queueCamZ = 0;
+        int serverRadius = 0;
+        bool cullLeavesApplied = false;
+        int viewChunkX = 0, viewChunkZ = 0;
+        bool viewKnown = false;
+        std::chrono::steady_clock::time_point lastEvict{};
+        void EvictFarMeshes();
         bool queueForce = true;
         void RebuildQueue(float camX, float camZ, const Frustum& frustum);
         struct LoadProfile {

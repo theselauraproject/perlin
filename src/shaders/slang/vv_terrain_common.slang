@@ -108,6 +108,12 @@ vec3 vvLit(vec3 texRgb, vec3 tint, vec3 n, vec3 rel, vec2 light, float backlight
     float shade = vanillaShade(n);
     vec3 tintAo = vvVibrantTint(clamp(tint / max(shade, 0.01), 0.0, 1.5));
     vec3 albedo = vvPow(clamp(texRgb * tintAo, 0.0, 1.0), vec3_splat(2.2));
+    VV_BRANCH if (u_skyParams.z <= 0.5)
+    {
+        vec3 lmOnly = vvPow(sampleLightmap(light * 240.0), vec3_splat(2.2));
+        return vvTonemap(albedo * (lmOnly * 2.4 + vec3(0.05, 0.035, 0.04) * S_AMBIENT) * mix(shade, 1.0, 0.4) +
+                         albedo * emissive * 2.5);
+    }
     vec3 hdr;
     {
         vec3 viewDir = normalize(rel);
@@ -157,9 +163,7 @@ vec3 vvLit(vec3 texRgb, vec3 tint, vec3 n, vec3 rel, vec2 light, float backlight
         vec3 minLight = vec3(0.008, 0.010, 0.016) * (1.0 - skyl * skyl);
         hdr = albedo * ((sunLight * sunTint * direct + ambient) * VV_TERRAIN_EXPOSURE + block + minLight) + albedo * emissive * 3.0;
     }
-    vec3 lm = vvPow(sampleLightmap(light * 240.0), vec3_splat(2.2));
-    vec3 hdrOther = albedo * (lm * 2.4 + vec3(0.05, 0.035, 0.04) * S_AMBIENT) * mix(shade, 1.0, 0.4) + albedo * emissive * 2.5;
-    return vvTonemap(u_skyParams.z > 0.5 ? hdr : hdrOther);
+    return vvTonemap(hdr);
 }
 
 vec3 vvFogColor(vec4 haze)

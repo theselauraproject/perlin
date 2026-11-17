@@ -541,7 +541,8 @@ namespace perlin::ui {
             const assets::Job& samples = assets::Samples();
             const assets::Job& client = assets::Client();
             const bool busy = assets::Busy(samples) || assets::Busy(client);
-            const uint64_t signature = (static_cast<uint64_t>(samples.stage.load()) << 56) ^
+            const uint64_t signature = (static_cast<uint64_t>(UiAssets::RootGeneration().load()) << 40) ^
+                                       (static_cast<uint64_t>(samples.stage.load()) << 56) ^
                                        (static_cast<uint64_t>(client.stage.load()) << 48) ^
                                        (samples.filesDone.load() << 16) ^ client.filesDone.load();
             sinceRetry++;

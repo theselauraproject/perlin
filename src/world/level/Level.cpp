@@ -672,6 +672,18 @@ namespace perlin {
         return it != chunks.end() && !it->second.lodOnly && it->second.HasSection(y);
     }
 
+    uint64_t Level::AreaVersion(int cx, int cz) const {
+        std::lock_guard lock(mutex);
+        uint64_t h = 1469598103934665603ull;
+        for (int dz = -1; dz <= 1; dz++)
+            for (int dx = -1; dx <= 1; dx++) {
+                const auto it = chunks.find({cx + dx, cz + dz});
+                const uint64_t v = it == chunks.end() ? 0x9e3779b97f4a7c15ull : it->second.version + 1;
+                h = (h ^ v) * 1099511628211ull;
+            }
+        return h;
+    }
+
     bool Level::HasChunk(int cx, int cz) const {
         std::lock_guard lock(mutex);
         return chunks.contains({cx, cz});

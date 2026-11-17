@@ -29,6 +29,7 @@ namespace perlin {
         static const bool noMerge = std::getenv("PERLIN_NO_MERGE") != nullptr;
         merging = MergeFaces() && !CaptureQuadInfo() && !noMerge;
         dead.clear();
+        pinned.clear();
         mergedAway = 0;
     }
 
@@ -74,7 +75,9 @@ namespace perlin {
             const uint32_t* idx = &group[k * 6];
             const uint32_t base = idx[0] & ~3u;
             const Vertex* q = &vertices[base];
-            bool ok = SameSurface(q[0], q[1]) && SameSurface(q[0], q[2]) && SameSurface(q[0], q[3]);
+            const size_t quadIndex = base >> 2;
+            bool ok = (quadIndex >= pinned.size() || !pinned[quadIndex]) && SameSurface(q[0], q[1]) &&
+                      SameSurface(q[0], q[2]) && SameSurface(q[0], q[3]);
             int plane = 0, la = 0, lb = 0;
             uint8_t code = 0;
             if (ok) {
@@ -209,6 +212,7 @@ namespace perlin {
             live++;
         }
         vertices.resize(static_cast<size_t>(live) * 4);
+        pinned.clear();
         for (auto& list : indices)
             for (uint32_t& index : list)
                 index = remap[index >> 2] * 4 + (index & 3u);

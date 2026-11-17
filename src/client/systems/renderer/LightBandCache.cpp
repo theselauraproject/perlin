@@ -15,9 +15,9 @@ namespace perlin {
                              (static_cast<uint64_t>(cz & 0xFFFFF) << 8) |
                              static_cast<uint64_t>((band + 128) & 0xFF);
         Band& b = bands[key];
-        const uint64_t counter = level.changeCounter.load(std::memory_order_relaxed);
         const auto age = now - b.at;
         const bool fresh = b.at == TimePoint{};
+        const uint64_t counter = level.changeCounter.load(std::memory_order_relaxed);
         if (fresh && budget <= 0)
             return 0xF0;
         if (fresh || (budget > 0 && ((counter != b.counter && age > std::chrono::milliseconds(400)) ||

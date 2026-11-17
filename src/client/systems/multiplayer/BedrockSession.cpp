@@ -125,8 +125,11 @@ namespace perlin {
     void BedrockSession::StartChunkWorker() {
         chunkStop = false;
         if (!decodePool)
-            decodePool = std::make_unique<ThreadPool>(std::max(1u, HardwareThreads() / 2), true);
-        chunkThread = std::thread([this] { ChunkWorkerMain(); });
+            decodePool = std::make_unique<ThreadPool>(std::max(1u, HardwareThreads() / 2), true, "perlin-decode");
+        chunkThread = std::thread([this] {
+            NameThisThread("perlin-chunknet");
+            ChunkWorkerMain();
+        });
     }
 
     void BedrockSession::StopChunkWorker() {
@@ -1880,8 +1883,14 @@ namespace perlin {
                     }
                 }
             }
-            for (auto& [absY, sc] : parsed)
-                ApplySubChunk(pkt.x, pkt.z, absY, sc);
+            if (parsed.size() >= 4 && decodePool) {
+                decodePool->ParallelFor(parsed.size(), [this, &parsed, &pkt](size_t i) {
+                    ApplySubChunk(pkt.x, pkt.z, parsed[i].first, parsed[i].second);
+                });
+            } else {
+                for (auto& [absY, sc] : parsed)
+                    ApplySubChunk(pkt.x, pkt.z, absY, sc);
+            }
             if (left > 0)
                 ParseBlockEntities(p, left, true);
             netLevel.MarkComplete(pkt.x, pkt.z);
@@ -2067,7 +2076,6 @@ namespace perlin {
                 bodies.emplace_back(key, body);
                 continue;
             }
-            // the blob carries the blocks, the payload only what follows them (block entities)
             BlobWait wait;
             wait.hashes = {*e.blobId};
             wait.slot = key;
@@ -2126,7 +2134,6 @@ namespace perlin {
             if (wait.filled[i])
                 continue;
             auto& waiters = blobWaiters[wait.hashes[i]];
-            // one ask per hash: later waiters ride on the request already out
             if (waiters.empty())
                 missing.push_back(wait.hashes[i]);
             waiters.push_back(id);
@@ -2149,7 +2156,6 @@ namespace perlin {
     }
 
     void BedrockSession::SendBlobStatus(const std::vector<uint64_t>& missing, const std::vector<uint64_t>& have) {
-        // the server holds every blob it named until it hears back, so hits are acked too
         constexpr size_t kMaxPerList = 0xFFF;
         size_t m = 0, h = 0;
         while (m < missing.size() || h < have.size()) {
@@ -2265,7 +2271,6 @@ namespace perlin {
         std::sort(missing.begin(), missing.end());
         missing.erase(std::unique(missing.begin(), missing.end()), missing.end());
         SendBlobStatus(missing, {});
-        // a sub-chunk whose blob never came is asked for again from scratch
         for (const auto& key : dropped)
             CompleteRequest(key, true);
     }

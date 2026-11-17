@@ -41,7 +41,7 @@ namespace perlin {
         BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
         const unsigned cores = HardwareThreads();
         const unsigned threads = std::clamp(cores > 3 ? cores - 2 : 2u, 2u, 16u);
-        meshPool = std::make_unique<ThreadPool>(threads, true);
+        meshPool = std::make_unique<ThreadPool>(threads, true, "perlin-mesh");
         maxInFlight = threads * 6;
     }
 
@@ -492,6 +492,10 @@ namespace perlin {
                 wantKey.erase(d.pos);
                 shown.erase(d.pos);
             }
+            const bool farRemoval = !d.exists && viewKnown &&
+                                    std::max(std::abs(d.pos.x - viewChunkX), std::abs(d.pos.z - viewChunkZ)) > 2;
+            if (farRemoval)
+                continue;
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++)
                     touched.insert(ChunkPos{d.pos.x + dx, d.pos.z + dz});
@@ -519,12 +523,35 @@ namespace perlin {
         return true;
     }
 
+    void LevelRenderer::EvictFarMeshes() {
+        const auto now = std::chrono::steady_clock::now();
+        if (now - lastEvict < std::chrono::milliseconds(750))
+            return;
+        lastEvict = now;
+        const int keep = std::max(2, EffectiveDistance()) + 4;
+        std::vector<ChunkPos> far;
+        for (const auto& [pos, key] : meshKey)
+            if (std::max(std::abs(pos.x - viewChunkX), std::abs(pos.z - viewChunkZ)) > keep && !inFlight.contains(pos))
+                far.push_back(pos);
+        for (const ChunkPos& pos : far) {
+            meshKey.erase(pos);
+            specials.erase(pos);
+            shown.erase(pos);
+            context.RemoveChunkMesh(pos.x, pos.z);
+            DropReuse(&pos);
+            if (info.contains(pos))
+                Recompute(pos);
+        }
+        if (!far.empty())
+            queueForce = true;
+    }
+
     void LevelRenderer::RebuildQueue(float camX, float camZ, const Frustum& frustum) {
         const auto t0 = std::chrono::steady_clock::now();
         const uint64_t now = Level::NowMs();
         queue.clear();
         queueHead = 0;
-        const int meshRadius = std::max(3, options.renderDistance) + 3;
+        const int meshRadius = std::max(2, EffectiveDistance()) + 1;
         const int camChunkX = static_cast<int>(std::floor(camX / 16.0f)),
                   camChunkZ = static_cast<int>(std::floor(camZ / 16.0f));
         queueCamX = camChunkX;
@@ -693,7 +720,6 @@ namespace perlin {
     void LevelRenderer::FillProbe(int radius, float camX, float camZ) {
         const auto now = std::chrono::steady_clock::now();
         const int ccx = static_cast<int>(std::floor(camX / 16.0f)), ccz = static_cast<int>(std::floor(camZ / 16.0f));
-        // clock starts at the first column known: asset downloads and the login handshake stay out
         if (info.empty() || probe.start.time_since_epoch().count() == 0 ||
             std::max(std::abs(ccx - probe.cx), std::abs(ccz - probe.cz)) > radius) {
             probe = {};
@@ -722,7 +748,6 @@ namespace perlin {
             std::printf("[fill] r=%d %d columns: all visible %.0f ms, all settled %.0f ms%s\n", radius, total,
                         probe.visibleMs, probe.settledMs, probe.remesh ? " (remesh)" : "");
             std::fflush(stdout);
-            // PERLIN_FILL_REMESH: once loaded, mesh it all again with every column already here (client floor)
             static int rounds = PERLIN_ENV("PERLIN_FILL_REMESH") ? std::atoi(PERLIN_ENV("PERLIN_FILL_REMESH")) : 0;
             if (rounds > 0) {
                 rounds--;
@@ -740,7 +765,6 @@ namespace perlin {
                 finished = done.size();
             }
             const uint64_t jobs = probeJobs.load();
-            // why the hidden columns inside the radius are not meshing yet
             int unknown = 0, streaming = 0, gapWait = 0, nbrStreaming = 0;
             const uint64_t nowMs = Level::NowMs();
             for (int dz = -radius; dz <= radius; dz++)
@@ -760,10 +784,10 @@ namespace perlin {
                     for (int ny = -1; ny <= 1; ny++)
                         for (int nx = -1; nx <= 1; nx++) {
                             const auto n = info.find(ChunkPos{p.x + nx, p.z + ny});
-                            if (n == info.end() && nowMs - self->second.readyAt < 200) {
+                            if (n == info.end() && nowMs - self->second.readyAt < 80) {
                                 gapWait++;
                                 nx = ny = 2;
-                            } else if (n != info.end() && n->second.streaming && nowMs - n->second.firstSeen < 900) {
+                            } else if (n != info.end() && n->second.streaming && nowMs - n->second.firstSeen < 400) {
                                 nbrStreaming++;
                                 nx = ny = 2;
                             }
@@ -783,6 +807,11 @@ namespace perlin {
     void LevelRenderer::Update(Level* level, float camX, float camZ, const Frustum& frustum) {
         if (!level)
             return;
+        if (options.cullInnerLeaves != cullLeavesApplied) {
+            cullLeavesApplied = options.cullInnerLeaves;
+            MesherSetCullInnerLeaves(cullLeavesApplied);
+            InvalidateMeshes();
+        }
         {
             const auto now = std::chrono::steady_clock::now();
             if (lastUpdate.time_since_epoch().count() != 0) {
@@ -815,7 +844,11 @@ namespace perlin {
             uploadBudgetMs = std::max(0.4, budget * 0.55);
         }
 
+        viewChunkX = static_cast<int>(std::floor(camX / 16.0f));
+        viewChunkZ = static_cast<int>(std::floor(camZ / 16.0f));
+        viewKnown = true;
         UploadFinishedMeshes();
+        EvictFarMeshes();
 
         if (level != lastLevel || level->clearCounter.load() != lastClear) {
             lastLevel = level;
@@ -824,7 +857,6 @@ namespace perlin {
             context.ClearChunkMeshes();
         }
         ApplyDirty(*level);
-        // PERLIN_FILL_PROBE=R: time until every column within R chunks has a settled mesh; restarts on a jump past R
         if (static const int probeRadius = PERLIN_ENV("PERLIN_FILL_PROBE") ? std::atoi(PERLIN_ENV("PERLIN_FILL_PROBE")) : 0;
             probeRadius > 0)
             FillProbe(probeRadius, camX, camZ);
@@ -845,8 +877,7 @@ namespace perlin {
     }
 
     void LevelRenderer::Render(const Frustum& frustum, float camX, float camZ) {
-        context.SetChunkCullRadius(
-            std::max(3, EffectiveDistance()) + 2);
+        context.SetChunkCullRadius(std::max(2, EffectiveDistance()));
         context.DrawChunkMeshes(frustum, camX, camZ);
     }
 

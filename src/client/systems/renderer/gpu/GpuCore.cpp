@@ -444,6 +444,8 @@ namespace perlin::gpu {
             if (std::getenv("PERLIN_JAVA_DBG") && !std::strncmp(gd.name, "java_", 5))
                 std::fprintf(stderr, "[gpu] pipeline %s colors=%u\n", gd.name, gd.color_count);
             handle = device->create_graphics_pipeline(gd);
+            if (handle)
+                pipelineNames[handle.value] = gd.name;
         }
         pipelines.emplace(key, handle);
         return handle;
@@ -504,6 +506,7 @@ namespace perlin::gpu {
         }
         rings.clear();
         ringGroups.clear();
+        frameOpen = false;
     }
 
     RingSlice Gpu::Ring(uint64_t bytes, uint64_t align) {
@@ -527,6 +530,7 @@ namespace perlin::gpu {
     }
 
     void Gpu::FlushRings() {
+        frameOpen = false;
         if (rings.empty())
             return;
         for (RingChunk& r : rings[FrameSlot()])
@@ -567,6 +571,7 @@ namespace perlin::gpu {
         for (RingChunk& r : chunks)
             r.used = 0;
         ringCursor[slot] = 0;
+        frameOpen = true;
     }
 
     bool Gpu::AcquireImage(swapchain::image& out) {
@@ -717,12 +722,24 @@ namespace perlin::gpu {
 
     void Gpu::WriteBuffer(buffer_handle buffer, state resting, uint64_t byteOffset, const void* data,
                           uint64_t bytes) {
+        if (void* out = StageBuffer(buffer, resting, byteOffset, bytes))
+            std::memcpy(out, data, bytes);
+    }
+
+    void* Gpu::StageBuffer(buffer_handle buffer, state resting, uint64_t byteOffset, uint64_t bytes) {
         if (!bytes || !buffer)
-            return;
+            return nullptr;
+        if (frameOpen && bytes >= (16u << 10) && FrameSlot() < rings.size()) {
+            const RingSlice slice = Ring(bytes, std::max<uint64_t>(256, Caps().limits.copy_offset_alignment));
+            if (slice.data) {
+                bufferWrites.push_back({buffer, resting, byteOffset, bytes, slice.offset, slice.buffer});
+                return slice.data;
+            }
+        }
         const uint64_t at = AlignUp(pendingBytes.size(), 16);
         pendingBytes.resize(at + bytes);
-        std::memcpy(&pendingBytes[at], data, bytes);
         bufferWrites.push_back({buffer, resting, byteOffset, bytes, at});
+        return &pendingBytes[at];
     }
 
     buffer_handle Gpu::CreateStatic(const void* data, uint64_t bytes, buffer_usage usage, const char* name) {
@@ -796,7 +813,8 @@ namespace perlin::gpu {
             std::vector<std::pair<uint64_t, uint64_t>> ranges;
             ranges.reserve(bufferWrites.size() + imageWrites.size());
             for (const BufferWrite& w : bufferWrites)
-                ranges.emplace_back(w.source, w.source + w.bytes);
+                if (!w.staged)
+                    ranges.emplace_back(w.source, w.source + w.bytes);
             for (const ImageWrite& w : imageWrites)
                 ranges.emplace_back(w.source, w.source + static_cast<uint64_t>(w.rowBytes) * w.height);
             std::ranges::sort(ranges);
@@ -835,7 +853,7 @@ namespace perlin::gpu {
                                               [&](const BufferWrite& w) {
                                                   conduit::buffer_handle b;
                                                   uint64_t o = 0;
-                                                  return !stagingFor(w.source, b, o);
+                                                  return !w.staged && !stagingFor(w.source, b, o);
                                               }),
                                bufferWrites.end());
             imageWrites.erase(std::remove_if(imageWrites.begin(), imageWrites.end(),
@@ -887,6 +905,10 @@ namespace perlin::gpu {
         }
         list.barrier(texToCopy, toCopy);
         for (const BufferWrite& w : bufferWrites) {
+            if (w.staged) {
+                list.copy_buffer(w.buffer, w.offset, w.staged, w.source, w.bytes);
+                continue;
+            }
             conduit::buffer_handle from;
             uint64_t at = 0;
             if (stagingFor(w.source, from, at))

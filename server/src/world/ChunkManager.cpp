@@ -11,6 +11,7 @@ __declspec(dllimport) void* __stdcall GetCurrentThread(void);
 __declspec(dllimport) int __stdcall SetThreadPriority(void*, int);
 }
 #elif defined(__linux__) || defined(__ANDROID__)
+#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -54,6 +55,9 @@ namespace perlin::server {
     }
 
     void ChunkManager::Worker() {
+#if defined(__linux__)
+        pthread_setname_np(pthread_self(), "server-chunkgen");
+#endif
         YieldToTick();
         for (;;) {
             std::vector<ChunkPos> batch;

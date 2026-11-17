@@ -223,7 +223,7 @@ namespace perlin::worldview {
         params.shadowEntities = options.shadowEntities;
         params.cameraMedium = view.headUnderwater ? 1 : (view.headInLava ? 2 : 0);
         params.waterSurfaceAbove = view.waterSurfaceAbove;
-        params.renderDistance = options.renderDistance;
+        params.renderDistance = levelRenderer ? levelRenderer->EffectiveDistance() : options.renderDistance;
         params.eyeSkyLight = loop->handSky;
         params.eyeBlockLight = loop->handBlock;
         std::snprintf(params.biome, sizeof(params.biome), "%s", f.eyeBiome.c_str());

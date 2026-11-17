@@ -15,6 +15,7 @@ namespace perlin {
 
     void MeshProfilePrint();
     void MesherInvalidateCaches();
+    void MesherSetCullInnerLeaves(bool on);
     struct MeshReuse {
         std::shared_ptr<const Tessellator> mesh;
         uint64_t generation = 0;

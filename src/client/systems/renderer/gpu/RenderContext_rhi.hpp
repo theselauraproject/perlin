@@ -105,6 +105,7 @@ namespace perlin {
         JavaFinal,
         Count
     };
+    const char* ViewName(View v);
 
     struct RendererChoice {
         conduit::api api = conduit::api::vulkan;

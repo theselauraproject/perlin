@@ -42,7 +42,6 @@ int main() {
         cache.Flush();
     }
 
-    // survives a restart, and a torn record at the tail is dropped instead of poisoning the file
     const auto intact = std::filesystem::file_size(path);
     {
         std::ofstream torn(path, std::ios::binary | std::ios::app);
@@ -61,7 +60,6 @@ int main() {
         CHECK(cache.Get(3, out) && out == c);
     }
 
-    // a flipped byte fails the record check and reads as a miss
     {
         std::fstream f(path, std::ios::in | std::ios::out | std::ios::binary);
         f.seekp(8 + 16 + 10);

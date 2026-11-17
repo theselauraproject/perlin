@@ -30,6 +30,8 @@ UNIFORMS_BEGIN
     vec4 u_sceneInfo;
     mat4 u_invMvp;
     vec4 u_viewTexel;
+    vec4 u_lightMain;
+    vec4 u_lightSky;
 #ifdef PERLIN_JAVA_UNIFORMS
     PERLIN_JAVA_UNIFORMS
 #endif

@@ -132,6 +132,7 @@ namespace perlin {
         std::vector<std::string> approvedMods;
         bool hotReload = true;
         bool betterGrass = false;
+    bool cullInnerLeaves = false;
         std::string upscaler = "off";
         std::string upscaleQuality = "quality";
         int upscaleSharpness = 50;

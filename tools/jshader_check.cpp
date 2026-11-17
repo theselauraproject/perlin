@@ -425,6 +425,10 @@ int main(int argc, char** argv) {
                     if (!opts.explicitLod)
                         opts.alphaTest = "> 0.1";
                     const ProgramResult result = TransformProgram(src->vertex, src->fragment, opts);
+                    if (std::getenv("JSHADER_HASHES"))
+                        std::printf("HASH %s %zx\n", tag.c_str(),
+                                    std::hash<std::string>{}(result.vertex.glsl + "\x02" + result.fragment.glsl +
+                                                             "\x02" + result.vertex.error + result.fragment.error));
                     if (const char* dump = std::getenv("JSHADER_DUMP"); dump && name == dump)
                         std::printf("%s\n----\n%s\n", result.vertex.glsl.c_str(),
                                     result.fragment.glsl.c_str());

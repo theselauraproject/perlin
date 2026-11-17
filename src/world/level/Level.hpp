@@ -142,6 +142,7 @@ namespace perlin {
         bool RemoveLodOnly(int cx, int cz);
         void MarkComplete(int cx, int cz);
         bool HasChunk(int cx, int cz) const;
+        uint64_t AreaVersion(int cx, int cz) const;
         bool HasSectionAt(int x, int y, int z) const;
         bool RemoveChunk(int cx, int cz);
         void SetSubChunk(int cx, int cz, int absSubY, const uint16_t* cells,
