@@ -333,12 +333,6 @@ class Generator:
         self.by_name[name] = decl
         return name
 
-    def switch_cases(self, args):
-        cases = []
-        for key, body in args["fields"].items():
-            cases.append((key, body))
-        return cases
-
     def switch_type(self, args, hint):
         distinct = []
         for key, body in args["fields"].items():
@@ -1333,8 +1327,6 @@ inline void SetMask(std::array<uint64_t, 2>& v, uint64_t lo, uint64_t hi) { v[0]
 """
 
 def emit_bridge(bridge, cur, legacy, version, cur_ns, old_ns, out_dir, packets):
-    lines_up = []
-    lines_down = []
     entry = []
     for name in packets:
         nd = cur.by_packet[name]
@@ -1375,7 +1367,6 @@ def main():
     spec = json.load(open(opts.spec))
     overrides = json.load(open(opts.overrides)) if opts.overrides else {}
     cur = generate(spec, overrides)
-    cur_types = spec["types"]
 
     legacies = []
     for item in opts.legacy:

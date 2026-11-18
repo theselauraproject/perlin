@@ -1,5 +1,5 @@
 """Maps Java block texture ids to Bedrock resource pack texture paths by pixel content."""
-import json, os, sys
+import json, os
 import numpy as np
 from PIL import Image
 

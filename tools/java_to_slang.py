@@ -207,7 +207,6 @@ DECL_RE = re.compile(
 LEGACY_BUILTINS = ["gl_Vertex", "gl_Normal", "gl_Color", "gl_MultiTexCoord0", "gl_MultiTexCoord1",
                    "gl_ModelViewMatrix", "gl_ProjectionMatrix", "gl_NormalMatrix",
                    "gl_TextureMatrix", "gl_FragCoord", "gl_FragDepth"]
-FIXED_DECL = re.compile(r"\b(attribute|varying)\b")
 GL_FRAGDATA_RE = re.compile(r"gl_FragData\s*\[\s*(\d+)\s*\]")
 TEXTURE_FN_RE = re.compile(r"\b(texture2DProj|texture2DLod|texture2D|textureProj|texelFetch|shadow2D|shadow2DProj|textureLod)\b")
 SAMPLER_DECL_RE = re.compile(r"uniform\s+sampler\w+\s+(\w+)")
@@ -1024,10 +1023,8 @@ def emit_program(pack: Path, program: str, world: str, out: Path,
     for name in sorted(uni):
         ty, arr = uni[name]
         st = GLSL_TO_SLANG_TYPE.get(ty, f"/* UNKNOWN:{ty} */ float4")
-        lines.append(f"    {st} u_j{name};{f' // [{arr}]' if arr else ''}" if False else
-                     f"    {st} u_j{name}" + (f"[{arr}]" if arr else "") + "; " + "\\")
-    for java, member in sorted(needed_matrices.values() and needed_matrices.items()):
-        _ = java
+        lines.append(f"    {st} u_j{name}" + (f"[{arr}]" if arr else "") + "; " + "\\")
+    for _, member in sorted(needed_matrices.items()):
         mty = "float3x3" if "Normal" in member else "float4x4"
         lines.append(f"    {mty} {member}; " + "\\")
     lines.append("")
@@ -1209,7 +1206,6 @@ GLSL_TYPE = {"bool": "bool", "int": "int", "uint": "uint", "float": "float",
              "ivec2": "ivec2", "ivec3": "ivec3", "mat4": "mat4"}
 
 def _harness(program: str, world: str, pack: Path, stage: str) -> tuple[str, dict]:
-    from collections import OrderedDict
     src, _pp = preprocess_stage(pack, world, program, stage)
     body, uniforms, samplers, ios = rewrite_stage(src, SAMPLER_SLOTS)
     IRIS = ["tex", "lightmap", "normals", "specular", "shadowtex0", "shadowtex1",
@@ -1248,7 +1244,7 @@ def _harness(program: str, world: str, pack: Path, stage: str) -> tuple[str, dic
     for name in sorted(uniforms):
         ty, arr = uniforms[name]
         decls.append(f"uniform {GLSL_TYPE.get(ty, 'vec4')} {name}{f'[{arr}]' if arr else ''};")
-    for java, member in sorted(needed.items()):
+    for _, member in sorted(needed.items()):
         mty = "mat3" if "Normal" in member else "mat4"
         decls.append(f"uniform {mty} {member};")
     for s in sorted(samplers):

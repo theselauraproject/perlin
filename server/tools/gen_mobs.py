@@ -4,9 +4,7 @@ gen_mobs.py <bedrock-samples dir> <out.cpp>
 From behavior_pack/entities: size, health, movement speed, attack damage, families, the behaviours that pick an ai, tempt items;
 from behavior_pack/loot_tables/entities: the item drops (first matching entries of each pool).
 """
-import json
 import os
-import re
 import sys
 
 samples, out = sys.argv[1:3]

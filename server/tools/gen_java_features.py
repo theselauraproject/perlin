@@ -6,7 +6,6 @@ temperature and mob spawns are converted to Bedrock block names with minecraft-d
 """
 import json
 import os
-import re
 import sys
 import zlib
 

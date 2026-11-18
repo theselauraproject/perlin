@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""Writes the bedrock-samples file manifest the build downloads from, split into core and sound files.
+
+    gen_manifest.py --repo <bedrock-samples checkout> --out manifest.json
+"""
 import argparse
 import json
 import os
