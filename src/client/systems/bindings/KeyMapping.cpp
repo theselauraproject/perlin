@@ -140,6 +140,8 @@ namespace perlin {
             return "key.fullscreen";
         case Action::SwapOffhand:
             return "key.swapOffhand";
+        case Action::MenuBack:
+            return "key.menuBack";
         default:
             return "";
         }
@@ -174,6 +176,7 @@ namespace perlin {
         set(Action::PlayerList, Binding::KeyboardKey(Key::Tab));
         set(Action::Fullscreen, Binding::KeyboardKey(Key::F1 + 10));
         set(Action::SwapOffhand, Binding::KeyboardKey('F'));
+        set(Action::MenuBack, Binding::MouseButton(Mouse::Back));
         return b;
     }
 

@@ -254,6 +254,13 @@ namespace perlin::ui {
         lastIncomingSignature = incomingSignature;
         if (stateChanged)
             state = incoming;
+        if (incoming.itemNameSerial != lastItemNameSerial) {
+            lastItemNameSerial = incoming.itemNameSerial;
+            for (auto it = animHost.recs.begin(); it != animHost.recs.end();)
+                it = it->first.contains("item_name") || it->first.contains("item_text") ? animHost.recs.erase(it)
+                                                                                       : std::next(it);
+            lastSignature = 0;
+        }
 
         scale = JavaGuiScale(fbW, fbH, guiScaleOption);
         const float newW = std::floor(static_cast<float>(fbW) / scale),

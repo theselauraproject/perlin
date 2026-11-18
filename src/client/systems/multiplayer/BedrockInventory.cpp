@@ -682,22 +682,58 @@ namespace perlin {
     }
 
     void BedrockSession::InvHotbarKey(int addr, int hotbar) {
-        if (addr < 0 || (addr >= 36 && addr < kInvChest0) || addr >= kInvTotal || hotbar < 0 || hotbar > 8 ||
-            addr == hotbar)
+        if (addr < 0 || addr >= kInvTotal || addr == kInvCursor || hotbar < 0 || hotbar > 8 || addr == hotbar)
             return;
         InvEnqueue([this, addr, hotbar](ItemStackRequest& r) {
             Mover m{*this, r, [this](int a) -> ItemStackInfo& { return InvInfoLocked(a); },
                     [this](int a) -> ItemV4& { return InvRawLocked(a); }};
-            const bool addrEmpty = InvInfoLocked(addr).Empty(), hotbarEmpty = InvInfoLocked(hotbar).Empty();
+            const ItemStackInfo A = InvInfoLocked(addr), H = InvInfoLocked(hotbar);
+            const bool addrEmpty = A.Empty(), hotbarEmpty = H.Empty();
             if (addrEmpty && hotbarEmpty)
                 return false;
-
+            if (addr == kInvOutput) {
+                if (addrEmpty || craftedRecipe < 0 || craftedRecipe >= static_cast<int>(recipes.size()))
+                    return false;
+                if (!hotbarEmpty && !SameStack(InvRawLocked(hotbar), InvRawLocked(kInvOutput)))
+                    return false;
+                const ItemStackInfo outInfo = A;
+                ItemV4 outRaw = InvRawLocked(addr);
+                CraftPrelude(m, outInfo, outRaw, recipes[static_cast<size_t>(craftedRecipe)].netId);
+                inventory.output = outInfo;
+                extraRaw[kInvOutput - 36] = outRaw;
+                extraRaw[kInvOutput - 36].stackId = r.requestId;
+                extraRaw[kInvOutput - 36].hasStackId = true;
+                const bool ok = QuickMove(m, kInvOutput, {{hotbar, hotbar}});
+                inventory.output = ItemStackInfo{};
+                extraRaw[kInvOutput - 36] = ItemV4{};
+                InvRecomputeOutputLocked();
+                return ok;
+            }
+            const auto fits = [&](const ItemStackInfo& item) {
+                if (item.Empty())
+                    return true;
+                if (addr >= kInvArmor0 && addr < kInvOffhand)
+                    return ArmorSlotOf(item.name) == addr - kInvArmor0;
+                if (addr == kInvOffhand)
+                    return OffhandAllowed(item.name);
+                if (addr == kInvHorse0)
+                    return item.name.contains("saddle");
+                if (addr == kInvHorse0 + 1)
+                    return item.name.contains("horse_armor") || item.name.contains("carpet");
+                if (inventory.furnaceKind >= 0 && addr == kInvChest0 + 2)
+                    return false;
+                return true;
+            };
+            if (!fits(H))
+                return false;
             if (hotbarEmpty)
-                m.Move(addr, hotbar, InvInfoLocked(addr).count);
+                m.Move(addr, hotbar, A.count);
             else if (addrEmpty)
-                m.Move(hotbar, addr, InvInfoLocked(hotbar).count);
+                m.Move(hotbar, addr, H.count);
             else
                 m.Swap(hotbar, addr);
+            if (IsCraftAddr(addr))
+                InvRecomputeOutputLocked();
             return true;
         });
     }

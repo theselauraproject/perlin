@@ -15,8 +15,9 @@ perlin.true=true
 perlin.false=false
 
 ## --- F3 debug screen ---
-perlin.debug.fps=%1$s fps T: %2$s%3$s%4$s%5$s B: %6$s
+perlin.debug.fps=%1$s fps T: %2$s%3$s %4$s%5$s B: %6$s
 perlin.debug.inf=inf
+perlin.debug.low=1%% low %s
 perlin.debug.vsync= vsync
 perlin.debug.fancy= fancy
 perlin.debug.fast= fast

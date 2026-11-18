@@ -1,3 +1,6 @@
+#include "client/systems/model/DialFrames.hpp"
+#include <numbers>
+#include <cmath>
 #include "client/features/worldview/GameTick.hpp"
 #include "client/systems/sprites/ItemData.hpp"
 #include "util/Env.hpp"
@@ -29,6 +32,38 @@ namespace perlin::worldview {
             modHost.TickMods(live);
             if (live || preview) {
                 tickHud();
+                {
+                    static uint32_t spin = 0;
+                    spin++;
+                    const auto wrap = [](double v) { return v - std::floor(v); };
+                    const bool overworld = !live || live->DimensionId() == 0;
+                    const int spinning32 = static_cast<int>((spin * 3u) % 32u);
+                    double ticks = preview ? loop->previewTicks : 6000.0;
+                    if (live)
+                        live->GetWorldTicks(ticks);
+                    if (overworld) {
+                        const double d0 = wrap(ticks / 24000.0 - 0.25);
+                        const double angle = (d0 * 2.0 + (0.5 - std::cos(d0 * std::numbers::pi) / 2.0)) / 3.0;
+                        ui::DialFrames::clock.store(static_cast<int>(std::floor(angle * 64.0 + 0.5)) % 64);
+                    } else {
+                        ui::DialFrames::clock.store(static_cast<int>((spin * 5u) % 64u));
+                    }
+                    int compass = spinning32;
+                    if (overworld && live && live->HaveWorldSpawn()) {
+                        int spawn[3];
+                        live->GetWorldSpawn(spawn);
+                        const double dx = spawn[0] + 0.5 - camera.x, dz = spawn[2] + 0.5 - camera.z;
+                        if (dx * dx + dz * dz > 1e-6) {
+                            const double rot = wrap((camera.yaw - 90.0) / 360.0);
+                            const double toward = std::atan2(dz, dx) / (2.0 * std::numbers::pi);
+                            const double a = wrap(0.5 - (rot - 0.25 - toward));
+                            compass = (16 + static_cast<int>(std::floor(a * 32.0 + 0.5))) % 32;
+                        }
+                    }
+                    ui::DialFrames::compass.store(compass);
+                    ui::DialFrames::recovery.store(spinning32);
+                    ui::DialFrames::lodestone.store(spinning32);
+                }
                 HandRenderer::TickIn handIn;
                 handIn.yaw = camera.yaw - 90.0f;
                 handIn.pitch = -camera.pitch;
@@ -57,8 +92,8 @@ namespace perlin::worldview {
                     const bool always =
                         mn == "minecraft:golden_apple" || mn == "minecraft:enchanted_golden_apple" ||
                         mn == "minecraft:chorus_fruit" || drink || mn == "minecraft:suspicious_stew";
-                    handIn.eating = handIn.survival && handIn.useHeld && ui::IsFood(mn);
-                    (void)always;
+                    handIn.eating = handIn.survival && handIn.useHeld && ui::IsFood(mn) &&
+                                    (always || ui::CanEatNow(mn, hudState.food));
                 }
                 handRenderer.Tick(handIn, modHost.ModHand());
                 {

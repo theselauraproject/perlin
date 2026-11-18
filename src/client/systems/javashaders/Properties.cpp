@@ -79,6 +79,25 @@ namespace perlin::jshader {
                 value.pop_back();
             if (key.empty())
                 return;
+            if (preprocess && !macros.empty() && (key.starts_with("uniform.") || key.starts_with("variable."))) {
+                std::string expanded;
+                for (size_t i = 0; i < value.size();) {
+                    const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+                    if (!word(value[i]) || std::isdigit(static_cast<unsigned char>(value[i])) ||
+                        (i > 0 && (word(value[i - 1]) || value[i - 1] == '.'))) {
+                        expanded += value[i++];
+                        continue;
+                    }
+                    size_t e = i;
+                    while (e < value.size() && word(value[e]))
+                        e++;
+                    const std::string name = value.substr(i, e - i);
+                    const auto it = macros.find(name);
+                    expanded += it != macros.end() && !it->second.empty() ? "(" + it->second + ")" : name;
+                    i = e;
+                }
+                value = std::move(expanded);
+            }
             props.entries.emplace_back(key, value);
             props.map[key] = value;
         };

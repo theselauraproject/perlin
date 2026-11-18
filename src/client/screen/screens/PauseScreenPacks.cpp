@@ -556,7 +556,7 @@ namespace perlin::screen {
             }
             if (!info.error.empty())
                 body += "\n\n" + i18n::TrOr("perlin.mods.errorLabel", "Error") + ": " + info.error;
-            body += "\n\n" + i18n::TrOr("perlin.mods.file", "File") + ": " + info.name + ".wasm (" +
+            body += "\n\n" + i18n::TrOr("perlin.mods.file", "File") + ": " + info.name + "/" + std::filesystem::path(info.path).filename().string() + " (" +
                     std::to_string(info.size) + " bytes" +
                     (info.arch.empty()       ? std::string()
                      : info.arch == "wasm64" ? ", 64-bit"

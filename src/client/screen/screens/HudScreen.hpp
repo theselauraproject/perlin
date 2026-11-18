@@ -96,6 +96,7 @@ namespace perlin::screen {
         std::unique_ptr<RenderContext>& renderer;
         std::unique_ptr<LevelRenderer>& levelRenderer;
         entity::EntityRenderer& entityRenderer;
+        int lastGuiW = 0;
         std::optional<entity::Entity>& dollSelf;
         screen::Manager& screens;
         replay::ReplayController& replayCtl;

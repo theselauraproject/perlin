@@ -109,6 +109,17 @@ namespace perlin::ui {
         return 0;
     }
 
+    bool CanEatNow(const std::string& full, int food) {
+        if (!IsFood(full))
+            return false;
+        if (food < 20)
+            return true;
+        return full == "minecraft:golden_apple" || full == "minecraft:enchanted_golden_apple" ||
+               full == "minecraft:chorus_fruit" || full == "minecraft:suspicious_stew" ||
+               full == "minecraft:potion" || full == "minecraft:milk_bucket" ||
+               full == "minecraft:honey_bottle" || full == "minecraft:ominous_bottle";
+    }
+
     bool IsFood(const std::string& full) {
         static const char* kFood[] = {"apple",
                                       "golden_apple",

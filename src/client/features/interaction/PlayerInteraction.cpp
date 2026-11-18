@@ -639,8 +639,7 @@ namespace perlin::interaction {
         const bool always = drink || name == "minecraft:golden_apple" ||
                             name == "minecraft:enchanted_golden_apple" || name == "minecraft:chorus_fruit" ||
                             name == "minecraft:suspicious_stew";
-        const bool eating = hudState.Survival() && ui::IsFood(name);
-        (void)always;
+        const bool eating = hudState.Survival() && ui::IsFood(name) && (always || ui::CanEatNow(name, hudState.food));
         blockedFoodUse = ui::IsFood(name) && !eating;
         bool aimInteracts = false;
         if (aimHit.kind == AimHit::Kind::Block) {

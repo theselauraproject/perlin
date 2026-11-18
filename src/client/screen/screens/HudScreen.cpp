@@ -142,7 +142,10 @@ namespace perlin::screen {
         : uiAssets(d.uiAssets), headUnderwater(d.headUnderwater), hudAnim(d.hudAnim), options(d.options), inputManager(d.inputManager), hud(d.hud), hudState(d.hudState), camera(d.camera), loop(d.loop), hudPartial(d.hudPartial), previewSlot(d.previewSlot), chat(d.chat), form(d.form), inventory(d.inventory), pause(d.pause), session(d.session), applyModSlotOverlays(std::move(d.applyModSlotOverlays)), applyModHud(std::move(d.applyModHud)), worldCovered(std::move(d.worldCovered)), replayHidesHud(std::move(d.replayHidesHud)), renderer(d.renderer), levelRenderer(d.levelRenderer), entityRenderer(d.entityRenderer), dollSelf(d.dollSelf), screens(d.screens), replayCtl(d.replayCtl), drawModTint(std::move(d.drawModTint)), drawModGfx(std::move(d.drawModGfx)) {}
 
     void HudScreen::FillHudChat(ui::HudState& s) {
-        chat.SetLayout(ui::ChatLayoutFor(options.chat));
+        ui::ChatLog::Layout layout = ui::ChatLayoutFor(options.chat);
+        if (lastGuiW > 0)
+            layout.width = std::min(layout.width, std::max(40, static_cast<int>((lastGuiW - 8) / layout.scale)));
+        chat.SetLayout(layout);
         chat.Fill(s, hudAnim.ticks, detail::MsNow());
     }
 
@@ -326,6 +329,7 @@ namespace perlin::screen {
             customNamed ? held.customName : uiAssets.ItemName(held.name, held.aux);
         s.itemName = ui::RarityItemName(ui::ItemRarity(shortName, held.enchanted), customNamed, display);
         s.itemNameAlpha = ui::ItemNameAlpha(hudAnim.toolTimer);
+        s.itemNameSerial = hudAnim.toolSerial;
     }
 
     void HudScreen::FillHudTitleText(ui::HudState& s, BedrockSession& live) {
@@ -413,6 +417,7 @@ namespace perlin::screen {
                 a.toolTimer--;
         } else {
             a.toolTimer = 40;
+            a.toolSerial++;
         }
         a.lastTool = held;
 
@@ -519,6 +524,7 @@ namespace perlin::screen {
         auto& dt = f.dt;
         auto& live = f.live;
         auto& startedAt = loop->startedAt;
+        lastGuiW = ui::OverlayViewport(*hud, fbW, fbH).w;
         drawModTint(fbW, fbH);
         drawModGfx(fbW, fbH, true);
         hud->Render();

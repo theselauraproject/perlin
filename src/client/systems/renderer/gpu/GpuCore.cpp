@@ -924,6 +924,10 @@ namespace perlin::gpu {
             c.buffer_row_pitch = w.rowBytes;
             c.mip = w.mip;
             c.layer = w.layer;
+            if (const texture_desc* td = device->get_desc(w.texture); td && td->dim == conduit::texture_dim::tex3d) {
+                c.z = w.layer;
+                c.layer = 0;
+            }
             c.x = w.x;
             c.y = w.y;
             c.width = w.width;

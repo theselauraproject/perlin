@@ -60,7 +60,7 @@ namespace perlin::ui {
     };
     struct KeybindLayout {
         float listTop = 32, listBottom = 0, pitch = 24, labelX = 0, keyX = 0, keyW = 75, resetX = 0,
-              resetW = 50, doneX = 0, doneY = 0, doneW = 200;
+              resetW = 50, doneX = 0, doneY = 0, doneW = 200, undoX = 0, undoW = 0;
         float contentH = 0, maxScroll = 0;
         float RowY(int i, float scroll) const {
             return listTop + 6.0f + static_cast<float>(i) * pitch - scroll;
@@ -69,8 +69,9 @@ namespace perlin::ui {
     KeybindLayout ComputeKeybindLayout(int rows, int guiW, int guiH);
     ui::SceneDoc BuildKeybindsScreen(const std::vector<KeybindRow>& rows, const std::string& title,
                                        const std::string& done, const std::string& reset, float scroll,
-                                       int guiW, int guiH);
+                                       int guiW, int guiH, const std::string& undo = {}, bool canUndo = false);
     inline constexpr const char* kKeybindDoneId = "kbdone";
+    inline constexpr const char* kKeybindUndoId = "kbundo";
 
     struct OptionsRow {
         std::string label;
@@ -310,11 +311,23 @@ namespace perlin::screen {
         int bindCapture = -1, controlsTab = 0, bindDevice = 0;
         bool bindWasCapturing = false;
         bool bindLeftArmed = false;
+        struct BindUndo {
+            int target = -1;
+            int device = 0;
+            std::string plugin, id;
+            Binding previous;
+        };
+        std::vector<BindUndo> bindUndo;
         TimePoint bindStartedAt;
         bool touchEditing = false, touchEditHidden = false;
         float kbScroll = 0.0f, scroll = 0.0f;
         int scrollKey = -1;
         int hoverRow = -1;
+        int typingRow = -1;
+        int typingKey = -1;
+        std::string typingText;
+        bool typingCommit = false;
+        bool rightDown = false;
         TimePoint hoverSince;
         std::map<std::string, std::pair<int, double>> worldOverride;
         std::string signature;
@@ -373,6 +386,11 @@ namespace perlin::screen {
             return optionsUi.bindDevice == 1 ? services.options.GetPadKey(a) : services.options.GetKey(a);
         }
         void SetBindingOf(Action a, const Binding& b) {
+            if (!(BindingOf(a) == b)) {
+                optionsUi.bindUndo.push_back({static_cast<int>(a), optionsUi.bindDevice, {}, {}, BindingOf(a)});
+                if (optionsUi.bindUndo.size() > 64)
+                    optionsUi.bindUndo.erase(optionsUi.bindUndo.begin());
+            }
             if (optionsUi.bindDevice == 1)
                 services.options.SetPadKey(a, b);
             else

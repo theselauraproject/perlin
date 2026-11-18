@@ -86,7 +86,9 @@ namespace perlin::screen {
         }
         const auto typedIs = [&](const InputManager::Typed& t, Action a) {
             const Binding& b = host.options.GetKey(a);
-            return t.character && b.device == Binding::Device::Keyboard && std::toupper(t.key) == b.code;
+            if (t.mouse >= 0)
+                return b.device == Binding::Device::Mouse && b.code == t.mouse;
+            return !t.character && b.device == Binding::Device::Keyboard && t.key == b.code;
         };
         for (const auto& t : host.inputManager.TakeTyped()) {
             if (now - this->openedAt < std::chrono::milliseconds(150))
@@ -314,7 +316,8 @@ namespace perlin::screen {
         const auto sig = [&](const ui::HudItem& it) {
             signature += it.name + ":" + std::to_string(it.count) + ":" + std::to_string(it.aux) +
                          (it.enchanted ? "g" : "") + std::to_string(it.enchants.size()) +
-                         (it.hasColor ? std::to_string(it.color) : "") + ";";
+                         (it.hasColor ? std::to_string(it.color) : "") + "d" + std::to_string(ui::DialFrame(it.name)) +
+                         ";";
         };
         for (const auto& it : v.slots)
             sig(it);

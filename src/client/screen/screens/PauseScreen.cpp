@@ -200,8 +200,10 @@ namespace perlin::ui {
         l.labelX = cx - 160.0f;
         l.keyX = cx + 20.0f;
         l.resetX = cx + 100.0f;
-        l.doneW = 200.0f;
-        l.doneX = cx - 100.0f;
+        l.doneW = 150.0f;
+        l.doneX = cx - 155.0f;
+        l.undoW = 150.0f;
+        l.undoX = cx + 5.0f;
         l.doneY = static_cast<float>(guiH) - 26.0f;
         l.contentH = static_cast<float>(rows) * l.pitch + 12.0f;
         l.maxScroll = std::max(0.0f, l.contentH - (l.listBottom - l.listTop));
@@ -210,7 +212,7 @@ namespace perlin::ui {
 
     SceneDoc BuildKeybindsScreen(const std::vector<KeybindRow>& rows, const std::string& title,
                                  const std::string& done, const std::string& reset, float scroll, int guiW,
-                                 int guiH) {
+                                 int guiH, const std::string& undo, bool canUndo) {
         const KeybindLayout l = ComputeKeybindLayout(static_cast<int>(rows.size()), guiW, guiH);
         const float listH = l.listBottom - l.listTop;
         SceneDoc doc;
@@ -259,6 +261,8 @@ namespace perlin::ui {
             kit::Box(b, sx, ty, 6, th, "thumb");
         }
         kit::Button(b, kKeybindDoneId, l.doneX, l.doneY, l.doneW, kit::Plain(done));
+        kit::Button(b, kKeybindUndoId, l.undoX, l.doneY, l.undoW, kit::Plain(undo.empty() ? std::string("Undo") : undo),
+                    !canUndo);
         return doc;
     }
 

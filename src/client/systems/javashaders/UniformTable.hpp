@@ -85,6 +85,8 @@ namespace perlin::jshader {
         int viewHeight = 720;
         float alphaTestRef = 0.0f;
         bool overrideEntity = false;
+        bool chunked = false;
+        float chunkBase[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
     };
 
     class UniformTable;

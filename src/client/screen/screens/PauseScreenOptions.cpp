@@ -97,36 +97,112 @@ namespace perlin::screen {
             optionsUi.signature.clear();
             optionsUi.bindCapture = -1;
         };
-        if (this->view == 3)
-            BuildWorldOptions(m, f);
-        else if (this->view == 4)
-            BuildModsOptions(m, f);
-        else if (optionsUi.page == 0)
-            BuildMainOptions(m, f);
-        else if (optionsUi.page == 1)
-            BuildVideoOptions(m, f);
-        else if (optionsUi.page == 7)
-            BuildResourcePacksOptions(m, f);
-        else if (optionsUi.page == 8)
-            BuildShaderPacksOptions(m, f);
-        else if (optionsUi.page == 2)
-            BuildSoundOptions(m, f);
-        else if (optionsUi.page == 3)
-            BuildControlsOptions(m, f);
-        else if (optionsUi.page == 11)
-            BuildModSettingsOptions(m, f);
-        else if (optionsUi.page == 10 && services.renderer && services.renderer->JavaShaderPackActive())
-            BuildJavaShaderSettingsOptions(m, f);
-        else if (optionsUi.page == 10)
-            BuildShaderSettingsOptions(m, f);
-        else if (optionsUi.page == 9)
-            BuildSkinOptions(m, f);
-        else if (optionsUi.page == 4)
-            BuildPerlinOptions(m, f);
-        else if (optionsUi.page == 12)
-            BuildChatOptions(m, f);
-        else
-            BuildKeyBindsOptions(m, f);
+        const auto buildModel = [&](OptionsModel& m) {
+            if (this->view == 3)
+                BuildWorldOptions(m, f);
+            else if (this->view == 4)
+                BuildModsOptions(m, f);
+            else if (optionsUi.page == 0)
+                BuildMainOptions(m, f);
+            else if (optionsUi.page == 1)
+                BuildVideoOptions(m, f);
+            else if (optionsUi.page == 7)
+                BuildResourcePacksOptions(m, f);
+            else if (optionsUi.page == 8)
+                BuildShaderPacksOptions(m, f);
+            else if (optionsUi.page == 2)
+                BuildSoundOptions(m, f);
+            else if (optionsUi.page == 3)
+                BuildControlsOptions(m, f);
+            else if (optionsUi.page == 11)
+                BuildModSettingsOptions(m, f);
+            else if (optionsUi.page == 10 && services.renderer && services.renderer->JavaShaderPackActive())
+                BuildJavaShaderSettingsOptions(m, f);
+            else if (optionsUi.page == 10)
+                BuildShaderSettingsOptions(m, f);
+            else if (optionsUi.page == 9)
+                BuildSkinOptions(m, f);
+            else if (optionsUi.page == 4)
+                BuildPerlinOptions(m, f);
+            else if (optionsUi.page == 12)
+                BuildChatOptions(m, f);
+            else
+                BuildKeyBindsOptions(m, f);
+        };
+        buildModel(m);
+        const int typingKey = this->view * 100 + optionsUi.page;
+        if (optionsUi.typingRow >= 0 &&
+            (optionsUi.typingKey != typingKey || optionsUi.typingRow >= static_cast<int>(m.rows.size()) ||
+             m.rows[static_cast<size_t>(optionsUi.typingRow)].fraction < 0.0f)) {
+            optionsUi.typingRow = -1;
+            optionsUi.typingCommit = false;
+        }
+        if (optionsUi.typingRow >= 0 && optionsUi.typingCommit) {
+            optionsUi.typingCommit = false;
+            const size_t row = static_cast<size_t>(optionsUi.typingRow);
+            optionsUi.typingRow = -1;
+            const auto numberIn = [](const std::string& text, double& out) {
+                for (size_t i = 0; i < text.size(); i++) {
+                    const bool digit = std::isdigit(static_cast<unsigned char>(text[i])) != 0;
+                    const bool sign = text[i] == '-' && i + 1 < text.size() &&
+                                      std::isdigit(static_cast<unsigned char>(text[i + 1])) != 0;
+                    const bool dot = text[i] == '.' && i + 1 < text.size() &&
+                                     std::isdigit(static_cast<unsigned char>(text[i + 1])) != 0;
+                    if (digit || sign || dot) {
+                        char* end = nullptr;
+                        out = std::strtod(text.c_str() + i, &end);
+                        return end != text.c_str() + i;
+                    }
+                }
+                return false;
+            };
+            double target = 0.0;
+            if (numberIn(optionsUi.typingText, target)) {
+                const float original = m.rows[row].fraction;
+                const auto valueAt = [&](float fraction, double& out) {
+                    m.rows[row].apply(fraction, false);
+                    OptionsModel probe;
+                    buildModel(probe);
+                    if (row >= probe.rows.size())
+                        return false;
+                    if (!numberIn(probe.rows[row].value, out))
+                        out = 0.0;
+                    return true;
+                };
+                double low = 0.0, high = 0.0;
+                if (valueAt(0.0f, low) && valueAt(1.0f, high)) {
+                    const bool rising = high >= low;
+                    float lo = 0.0f, hi = 1.0f;
+                    for (int step = 0; step < 32; step++) {
+                        const float mid = (lo + hi) * 0.5f;
+                        double v = 0.0;
+                        valueAt(mid, v);
+                        if ((v < target) == rising)
+                            lo = mid;
+                        else
+                            hi = mid;
+                    }
+                    double vLo = 0.0, vHi = 0.0;
+                    valueAt(lo, vLo);
+                    valueAt(hi, vHi);
+                    const float best = std::abs(vHi - target) <= std::abs(vLo - target) ? hi : lo;
+                    m.rows[row].apply(best, false);
+                    services.options.Save();
+                } else {
+                    m.rows[row].apply(original, false);
+                }
+                m = OptionsModel{};
+                m.navigate = [this](int page) {
+                    optionsUi.page = page;
+                    optionsUi.sub = 0;
+                    optionsUi.signature.clear();
+                    optionsUi.bindCapture = -1;
+                };
+                buildModel(m);
+            }
+        }
+        if (optionsUi.typingRow >= 0)
+            m.rows[static_cast<size_t>(optionsUi.typingRow)].value = "> " + optionsUi.typingText + "_ <";
 
         std::vector<ui::OptionsRow> view;
         for (const OptRow& r : m.rows) {
@@ -212,11 +288,14 @@ namespace perlin::screen {
                         captured = true;
                     }
             for (const auto& t : host.inputManager.TakeTyped()) {
-                if (t.character || Clock::now() - optionsUi.bindStartedAt < std::chrono::milliseconds(120))
+                if (t.character || t.mouse >= 0 ||
+                    Clock::now() - optionsUi.bindStartedAt < std::chrono::milliseconds(120))
                     continue;
                 if (captured)
                     continue;
-                if (t.key != Key::Escape && optionsUi.bindDevice == 0)
+                if (t.key == Key::Escape)
+                    SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding{});
+                else if (optionsUi.bindDevice == 0)
                     SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::KeyboardKey(t.key));
                 captured = true;
             }
@@ -241,7 +320,26 @@ namespace perlin::screen {
             return;
         }
         optionsUi.bindWasCapturing = false;
-        if (down && !this->leftDown && clickReady) {
+        {
+            const bool right = host.input.IsMouseDown(Mouse::Right);
+            if (right && !optionsUi.rightDown && hoverRow >= 0 &&
+                m.rows[static_cast<size_t>(hoverRow)].fraction >= 0.0f &&
+                !m.rows[static_cast<size_t>(hoverRow)].locked) {
+                optionsUi.typingRow = hoverRow;
+                optionsUi.typingKey = typingKey;
+                optionsUi.typingText.clear();
+                optionsUi.typingCommit = false;
+                optionsUi.signature.clear();
+            }
+            optionsUi.rightDown = right;
+        }
+        if (down && !this->leftDown && clickReady && optionsUi.typingRow >= 0) {
+            optionsUi.typingCommit = !optionsUi.typingText.empty();
+            if (!optionsUi.typingCommit)
+                optionsUi.typingRow = -1;
+            optionsUi.signature.clear();
+        }
+        if (down && !this->leftDown && clickReady && optionsUi.typingRow < 0) {
             for (int i = 0; i < layout.count; i++)
                 if (layout.visible[static_cast<size_t>(i)] && !m.rows[static_cast<size_t>(i)].header &&
                     inside(layout.x[i], layout.y[i], layout.rowW[static_cast<size_t>(i)], layout.h)) {
@@ -431,7 +529,7 @@ namespace perlin::screen {
         m.Toggle("Hot Reload On Save", services.options.hotReload);
         const auto infos = mm.List();
         if (infos.empty())
-            m.rows.push_back({"No .wasm mods in", mm.Directory(), -1.0f, [](float, bool) {}});
+            m.rows.push_back({"No mods (folders or .zip files) in", mm.Directory(), -1.0f, [](float, bool) {}});
         for (const mods::ModInfo& info : infos) {
             const std::string name = info.name;
             std::string state = info.enabled ? info.state : std::string("disabled");
@@ -477,12 +575,19 @@ namespace perlin::screen {
         fraction("options.accessibility.text_background_opacity", "Text Background Opacity", c.backgroundOpacity,
                  Percent(c.backgroundOpacity));
         m.Slider(i18n::TrOr("options.chat.scale", "Chat Text Size"), Percent(std::max(0.1f, c.scale)),
-                 (c.scale - 0.1f) / 0.9f, [&c](float f) { c.scale = 0.1f + Snap(f, 90.0f) * 0.9f; });
+                 (c.scale - 0.1f) / (kChatMaxScale - 0.1f),
+                 [&c](float f) { c.scale = 0.1f + Snap(f, (kChatMaxScale - 0.1f) * 100.0f) * (kChatMaxScale - 0.1f); });
         fraction("options.chat.line_spacing", "Line Spacing", c.lineSpacing, Percent(c.lineSpacing));
-        fraction("options.chat.width", "Width", c.width, px(c.width, 280.0f, 40.0f));
-        fraction("options.chat.height.focused", "Focused Height", c.focusedHeight, px(c.focusedHeight, 160.0f, 20.0f));
-        fraction("options.chat.height.unfocused", "Unfocused Height", c.unfocusedHeight,
-                 px(c.unfocusedHeight, 160.0f, 20.0f));
+        const auto pixels = [&](const char* key, const char* fallback, float& ref, float range, float min,
+                                float maxFraction) {
+            m.Slider(i18n::TrOr(key, fallback), px(ref, range, min), ref / maxFraction, [&ref, range, min, maxFraction](float f) {
+                const float pxValue = std::round(std::clamp(f, 0.0f, 1.0f) * maxFraction * range + min);
+                ref = (pxValue - min) / range;
+            });
+        };
+        pixels("options.chat.width", "Width", c.width, 280.0f, 40.0f, kChatMaxWidth);
+        pixels("options.chat.height.focused", "Focused Height", c.focusedHeight, 160.0f, 20.0f, kChatMaxHeight);
+        pixels("options.chat.height.unfocused", "Unfocused Height", c.unfocusedHeight, 160.0f, 20.0f, kChatMaxHeight);
         OptRow reset{i18n::TrOr("controls.reset", "Reset"), "", -1.0f, [this](float, bool click) {
                          if (click)
                              services.options.chat = ChatSettings{};
@@ -1563,7 +1668,8 @@ namespace perlin::screen {
                                                                 {Action::CyclePerspective, "Perspective"},
                                                                 {Action::ToggleHud, "Hide GUI"},
                                                                 {Action::DebugScreen, "Debug Screen"},
-                                                                {Action::Zoom, "Zoom"}};
+                                                                {Action::Zoom, "Zoom"},
+                                                                {Action::MenuBack, "Menu Back"}};
         constexpr int kPerPage = 12;
         const int total = static_cast<int>(std::size(kBinds));
         const int pages = (total + kPerPage - 1) / kPerPage;

@@ -10,13 +10,15 @@
 #include <vector>
 
 namespace perlin::gpu::program_cache {
-    inline constexpr int kCacheVersion = 6;
+    inline constexpr int kCacheVersion = 8;
 
     struct Program {
         std::vector<jshader::UniformDecl> uniforms;
         std::vector<int> drawBuffers;
+        std::vector<int> silentOutputs;
         std::vector<jshader::RhiSampler> samplers;
         std::vector<std::string> images;
+        std::vector<jshader::SamplerDecl> imageDecls;
         int uniformRegs = 0;
         std::vector<uint8_t> vertex, fragment;
     };

@@ -24,6 +24,7 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -137,7 +138,10 @@ namespace perlin::gpu {
                 {"rg32ui", {conduit::format::rg32_uint, true}},
                 {"rgba32ui", {conduit::format::rgba32_uint, true}},
                 {"r32i", {conduit::format::r32_uint, true}},
-                {"rgba32i", {conduit::format::rgba32_uint, true}}};
+                {"rgba32i", {conduit::format::rgba32_uint, true}},
+                {"rg32i", {conduit::format::rg32_uint, true}},
+                {"r16i", {conduit::format::r16_uint, true}},
+                {"r8i", {conduit::format::r8_uint, true}}};
             const auto it = formats.find(jshader::ImageFormatQualifier(internal));
             if (it == formats.end()) {
                 integer = false;
@@ -483,6 +487,8 @@ namespace perlin::gpu {
         white = flatNormal = blackTex = noise = {};
         customTextures.clear();
         customSamplers.clear();
+        customDims.clear();
+        customAtlasKeys.clear();
     }
 
     conduit::texture_handle JavaPack::MakeTexture(uint32_t w, uint32_t h, conduit::format format,
@@ -619,6 +625,146 @@ namespace perlin::gpu {
         return t;
     }
 
+    conduit::texture_handle JavaPack::LoadRawTexture(const jshader::CustomTexture& ct, conduit::texture_dim& dim) {
+        std::string bytes;
+        if (!instance->Source().Read(jshader::StripLeadingSlashes(ct.path), bytes))
+            return {};
+        const auto channelsOf = [](const std::string& f) {
+            if (f.starts_with("rgba") || f.starts_with("bgra"))
+                return 4;
+            if (f.starts_with("rgb") || f.starts_with("bgr"))
+                return 3;
+            if (f.starts_with("rg"))
+                return 2;
+            return 1;
+        };
+        const int srcChannels = channelsOf(ct.pixelFormat);
+        const bool bgr = ct.pixelFormat.starts_with("bgr");
+        const std::string& type = ct.pixelType;
+        const int srcBytes = type == "float" || type == "int" || type == "unsigned_int"       ? 4
+                             : type == "half_float" || type == "short" || type == "unsigned_short" ? 2
+                                                                                                    : 1;
+        const uint64_t texels = static_cast<uint64_t>(ct.width) * ct.height * ct.depth;
+        if (texels == 0 || texels > (1ull << 26) || bytes.size() < texels * srcChannels * srcBytes)
+            return {};
+        const auto fromHalf = [](uint16_t h) {
+            const uint32_t sign = (h >> 15) & 1u, exp = (h >> 10) & 0x1fu, mant = h & 0x3ffu;
+            float v;
+            if (exp == 0)
+                v = std::ldexp(static_cast<float>(mant), -24);
+            else if (exp == 31)
+                v = mant ? std::numeric_limits<float>::quiet_NaN() : std::numeric_limits<float>::infinity();
+            else
+                v = std::ldexp(static_cast<float>(mant | 0x400u), static_cast<int>(exp) - 25);
+            return sign ? -v : v;
+        };
+        const auto* src = reinterpret_cast<const uint8_t*>(bytes.data());
+        const auto read = [&](uint64_t index) -> float {
+            const uint8_t* p = src + index * srcBytes;
+            if (type == "float") {
+                float f;
+                std::memcpy(&f, p, 4);
+                return f;
+            }
+            if (type == "half_float") {
+                uint16_t h;
+                std::memcpy(&h, p, 2);
+                return fromHalf(h);
+            }
+            if (type == "unsigned_short") {
+                uint16_t v;
+                std::memcpy(&v, p, 2);
+                return static_cast<float>(v) / 65535.0f;
+            }
+            if (type == "short") {
+                int16_t v;
+                std::memcpy(&v, p, 2);
+                return std::max(-1.0f, static_cast<float>(v) / 32767.0f);
+            }
+            if (type == "unsigned_int") {
+                uint32_t v;
+                std::memcpy(&v, p, 4);
+                return static_cast<float>(v);
+            }
+            if (type == "int") {
+                int32_t v;
+                std::memcpy(&v, p, 4);
+                return static_cast<float>(v);
+            }
+            if (type == "byte")
+                return std::max(-1.0f, static_cast<float>(static_cast<int8_t>(*p)) / 127.0f);
+            return static_cast<float>(*p) / 255.0f;
+        };
+        const std::string& internal = ct.internalFormat;
+        const int dstChannels = channelsOf(internal) == 3 ? 4 : channelsOf(internal);
+        const bool isFloat32 = internal.contains("32f");
+        const bool isFloat16 = internal.contains("16f") || internal.contains("11f");
+        const bool isUnorm16 = !isFloat16 && internal.contains("16") && !internal.contains("16i") &&
+                               !internal.contains("16u");
+        conduit::format fmt;
+        int dstBytes;
+        if (isFloat32) {
+            fmt = dstChannels == 1 ? conduit::format::r32_float
+                  : dstChannels == 2 ? conduit::format::rg32_float
+                                     : conduit::format::rgba32_float;
+            dstBytes = 4;
+        } else if (isFloat16) {
+            fmt = dstChannels == 1 ? conduit::format::r16_float
+                  : dstChannels == 2 ? conduit::format::rg16_float
+                                     : conduit::format::rgba16_float;
+            dstBytes = 2;
+        } else if (isUnorm16 && dstChannels >= 2) {
+            fmt = dstChannels == 2 ? conduit::format::rg16_unorm : conduit::format::rgba16_unorm;
+            dstBytes = 2;
+        } else {
+            fmt = dstChannels == 1 ? conduit::format::r8_unorm
+                  : dstChannels == 2 ? conduit::format::rg8_unorm
+                                     : conduit::format::rgba8_unorm;
+            dstBytes = 1;
+        }
+        std::vector<uint8_t> out(texels * dstChannels * dstBytes);
+        for (uint64_t t = 0; t < texels; t++) {
+            float v[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+            for (int c = 0; c < srcChannels && c < 4; c++)
+                v[c] = read(t * srcChannels + c);
+            if (bgr)
+                std::swap(v[0], v[2]);
+            if (srcChannels == 1 && dstChannels == 4)
+                v[1] = v[2] = v[0];
+            for (int c = 0; c < dstChannels; c++) {
+                uint8_t* d = out.data() + (t * dstChannels + c) * dstBytes;
+                if (dstBytes == 4) {
+                    std::memcpy(d, &v[c], 4);
+                } else if (isFloat16) {
+                    const uint16_t h = ToHalf(v[c]);
+                    std::memcpy(d, &h, 2);
+                } else if (dstBytes == 2) {
+                    const uint16_t u = static_cast<uint16_t>(std::lround(std::clamp(v[c], 0.0f, 1.0f) * 65535.0f));
+                    std::memcpy(d, &u, 2);
+                } else {
+                    *d = static_cast<uint8_t>(std::lround(std::clamp(v[c], 0.0f, 1.0f) * 255.0f));
+                }
+            }
+        }
+        conduit::texture_desc td;
+        td.format = fmt;
+        td.width = static_cast<uint32_t>(ct.width);
+        td.height = static_cast<uint32_t>(ct.height);
+        td.depth_or_layers = static_cast<uint32_t>(ct.depth);
+        td.dim = ct.dims == 3 ? conduit::texture_dim::tex3d : conduit::texture_dim::tex2d;
+        td.name = "pack raw texture";
+        const conduit::texture_handle t = gpu.CreateSampled(td);
+        if (!t)
+            return {};
+        const uint64_t slice = static_cast<uint64_t>(ct.width) * ct.height * dstChannels * dstBytes;
+        for (int z = 0; z < ct.depth; z++)
+            gpu.WriteTexture(t, static_cast<uint32_t>(z), 0, 0, td.width, td.height, out.data() + slice * z);
+        owned.push_back(t);
+        staticTextures.push_back(t);
+        dim = td.dim;
+        return t;
+    }
+
     int JavaPack::SamplerForPackTexture(const std::string& file) {
         std::string meta;
         jshader::SamplerFlags flags;
@@ -651,12 +797,30 @@ namespace perlin::gpu {
                 noiseSampler = SamplerForPackTexture(config.noiseTexture);
             }
         for (const jshader::CustomTexture& ct : config.textures) {
-            const std::string key = ct.stage + ":" + CanonicalSamplerName(ct.sampler);
+            const std::string key =
+                (ct.program.empty() ? ct.stage : "@" + ct.program) + ":" + CanonicalSamplerName(ct.sampler);
             if (customTextures.contains(key))
                 continue;
+            if (ct.raw) {
+                conduit::texture_dim dim = conduit::texture_dim::tex2d;
+                if (const conduit::texture_handle t = LoadRawTexture(ct, dim)) {
+                    customTextures[key] = t;
+                    customSamplers[key] = SamplerForPackTexture(ct.path);
+                    customDims[key] = dim;
+                } else {
+                    Log("jshader", "texture {}: raw data {} could not be loaded", ct.sampler.c_str(), ct.path.c_str());
+                }
+                continue;
+            }
+            if (ct.path.starts_with("minecraft:") && ct.path.contains("atlas/blocks")) {
+                customAtlasKeys.insert(key);
+                continue;
+            }
             if (const conduit::texture_handle t = LoadPackTexture(ct.path)) {
                 customTextures[key] = t;
                 customSamplers[key] = SamplerForPackTexture(ct.path);
+            } else {
+                Log("jshader", "texture {}: {} could not be loaded", ct.sampler.c_str(), ct.path.c_str());
             }
         }
     }
@@ -938,6 +1102,61 @@ namespace perlin::gpu {
         }
     }
 
+    bool JavaPack::EnsurePlaceholderImage(const std::string& name, const std::string& type, const std::string& format) {
+        if (imageSlotOf.contains(name))
+            return true;
+        if (images.size() >= 31)
+            return false;
+        Image img;
+        img.info.name = name;
+        img.info.clear = true;
+        img.info.relative = false;
+        img.info.dims = type.contains("3D") ? 3 : 2;
+        img.info.width = img.info.height = img.info.depth = 1;
+        std::string internal = format;
+        if (internal.empty())
+            internal = type.starts_with("uimage") ? "r32ui" : type.starts_with("iimage") ? "r32i" : "rgba16f";
+        img.info.internalFormat = internal;
+        img.format = ImageFormat(internal, img.integer);
+        if (img.format == conduit::format::unknown)
+            img.format = ImageFormat(type.starts_with("uimage") ? "r32ui" : type.starts_with("iimage") ? "r32i" : "rgba16f",
+                                     img.integer);
+        img.dim = img.info.dims == 3 ? conduit::texture_dim::tex3d : conduit::texture_dim::tex2d;
+        conduit::texture_desc td;
+        td.dim = img.dim;
+        td.format = img.format;
+        td.width = td.height = 1;
+        td.depth_or_layers = 1;
+        td.usage = conduit::texture_usage::sampled | conduit::texture_usage::storage | conduit::texture_usage::copy_dst;
+        td.name = name.c_str();
+        img.tex = gpu.Dev().create_texture(td);
+        if (!img.tex)
+            return false;
+        gpu.SetState(img.tex, conduit::state::undefined);
+        owned.push_back(img.tex);
+        Log("jshader", "image {} is used by the pack but not declared for these settings; using a 1x1 placeholder",
+            name.c_str());
+        imageSlotOf[name] = static_cast<int>(images.size());
+        images.push_back(std::move(img));
+        return true;
+    }
+
+    void JavaPack::PlaceholdersForUndeclaredImages(const std::string& text) {
+        if (!text.contains("image"))
+            return;
+        static const std::regex kDecl(
+            R"((layout\s*\(\s*([A-Za-z0-9_]+)[^)]*\)\s*)?(?:\b(?:readonly|writeonly|coherent|volatile|restrict|uniform)\s+)+([iu]?image(?:2D|3D|2DArray))\s+([A-Za-z_][A-Za-z0-9_]*)\s*;)");
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), kDecl); it != std::sregex_iterator(); ++it) {
+            const std::string name = (*it)[4].str();
+            if (imageSlotOf.contains(name))
+                continue;
+            std::string format = (*it)[2].matched ? (*it)[2].str() : std::string();
+            if (format == "binding" || format == "set" || format == "location")
+                format.clear();
+            EnsurePlaceholderImage(name, (*it)[3].str(), format);
+        }
+    }
+
     void JavaPack::RegisterConfiguredImages() {
         images.clear();
         imageSlotOf.clear();
@@ -945,7 +1164,18 @@ namespace perlin::gpu {
         for (const jshader::CustomImage& info : config.images) {
             Image img;
             img.info = info;
-            img.format = ImageFormat(info.internalFormat, img.integer);
+            {
+                const std::string q = jshader::ImageFormatQualifier(info.internalFormat);
+                if (q == "rgba16i" || q == "rgba8i")
+                    img.info.internalFormat = "rgba32i";
+                else if (q == "rgba16ui" || q == "rgba8ui")
+                    img.info.internalFormat = "rgba32ui";
+                else if (q == "rg16i" || q == "rg8i")
+                    img.info.internalFormat = "rg32i";
+                else if (q == "rg16ui" || q == "rg8ui")
+                    img.info.internalFormat = "rg32ui";
+            }
+            img.format = ImageFormat(img.info.internalFormat, img.integer);
             img.dim = info.dims == 3 ? conduit::texture_dim::tex3d : conduit::texture_dim::tex2d;
             if (img.format == conduit::format::unknown || info.dims == 1) {
                 Log("jshader", "image {}: format {} / {}D is not supported", info.name.c_str(),
@@ -980,7 +1210,8 @@ namespace perlin::gpu {
 
         RegisterConfiguredImages();
         setupDone = false;
-        custom.Load(config.customUniformProps);
+        for (const std::string& problem : custom.Load(config.customUniformProps))
+            Log("jshader", "custom uniform: {}", problem.c_str());
         table.SetCustom(&custom);
         pool.Start(WorkerCount());
         if (!CreateLayouts())
@@ -1264,6 +1495,21 @@ namespace perlin::gpu {
         };
         int idx = 0;
 
+        for (const std::string& prefix : {"@" + resolvingProgram, resolvingStage, std::string("*")})
+            if (customAtlasKeys.contains(prefix + ":" + CanonicalSamplerName(n))) {
+                b.kind = Kind::Atlas;
+                return b;
+            }
+        if (const std::string key = "*:" + n; customTextures.contains(key)) {
+            b.kind = Kind::Custom;
+            b.customKey = key;
+            return b;
+        }
+        if (const std::string key = "@" + resolvingProgram + ":" + CanonicalSamplerName(n); customTextures.contains(key)) {
+            b.kind = Kind::Custom;
+            b.customKey = key;
+            return b;
+        }
         if (const std::string key = resolvingStage + ":" + CanonicalSamplerName(n);
             customTextures.contains(key) && !(resolvingChain && CanonicalSamplerName(n) == "colortex0")) {
             b.kind = Kind::Custom;
@@ -1274,7 +1520,7 @@ namespace perlin::gpu {
             b.kind = Kind::Color;
             b.index = idx;
         } else if (n == "gcolor") {
-            b.kind = Kind::Color;
+            b.kind = resolvingFullscreen ? Kind::Color : Kind::Atlas;
             b.index = 0;
         } else if (n == "gdepth") {
             b.kind = Kind::Color;
@@ -1336,6 +1582,7 @@ namespace perlin::gpu {
                                                             const std::vector<jshader::RhiSampler>& samplerList) {
         resolvingWaterShadow = false;
         resolvingStage = TextureStageOf(progName);
+        resolvingProgram = progName;
         resolvingChain = resolvingStage == "composite" && progName != "composite";
         resolvingFullscreen = IsFullscreenPass(progName);
         for (const jshader::RhiSampler& s : samplerList)
@@ -1353,6 +1600,7 @@ namespace perlin::gpu {
         p.regs = regs;
         resolvingWaterShadow = false;
         resolvingStage = TextureStageOf(progName);
+        resolvingProgram = progName;
         resolvingChain = resolvingStage == "composite" && progName != "composite";
         resolvingFullscreen = IsFullscreenPass(progName);
         for (const jshader::RhiSampler& s : samplerList)
@@ -1368,7 +1616,7 @@ namespace perlin::gpu {
         }
         for (const std::string& img : imageNames) {
             const auto it = imageSlotOf.find(img);
-            if (it == imageSlotOf.end() || !images[static_cast<size_t>(it->second)].tex) {
+            if (it == imageSlotOf.end()) {
                 Log("jshader", "{}: image '{}' has no texture", progName.c_str(), img.c_str());
                 p.valid = false;
                 continue;
@@ -1386,7 +1634,10 @@ namespace perlin::gpu {
             slot.known = table.Known(d.name);
             static const std::set<std::string> perDraw = {"entityColor",   "entityId",
                                                           "blockEntityId", "currentRenderedItemId",
-                                                          "renderStage",   "alphaTestRef"};
+                                                          "renderStage",   "alphaTestRef",
+                                                          "modelViewMatrix", "modelViewMatrixInverse",
+                                                          "projectionMatrix", "projectionMatrixInverse",
+                                                          "normalMatrix",  "textureMatrix"};
             slot.perDraw = d.name.starts_with("iris_") || perDraw.contains(d.name);
             if (!slot.known && loggedMissing.insert(progName + ":" + d.name).second)
                 Log("jshader", "{}: unknown uniform '{}' (left at 0)", progName.c_str(), d.name.c_str());
@@ -1429,6 +1680,12 @@ namespace perlin::gpu {
         sd.code = fsCode;
         p->fs = gpu.Dev().create_shader(sd);
         p->valid = p->vs && p->fs;
+        for (const std::string& img : rp.images)
+            if (!imageSlotOf.contains(img))
+                for (const jshader::StageResult* stage : {&c.transform.vertex, &c.transform.fragment})
+                    for (const jshader::SamplerDecl& s : stage->samplers)
+                        if (s.image && s.name == img)
+                            EnsurePlaceholderImage(img, s.type, s.imageFormat);
         FillProgramResources(*p, progName, rp.samplers, rp.images, c.transform.uniforms, rp.uniformRegs);
         int maxLoc = -1;
         for (int l : c.transform.fragment.drawBuffers)
@@ -1437,6 +1694,9 @@ namespace perlin::gpu {
         const std::vector<int>& tag = p->source ? p->source->drawBuffers : none;
         for (int l = 0; l <= maxLoc; l++)
             p->attachments.push_back(l < static_cast<int>(tag.size()) ? tag[static_cast<size_t>(l)] : l);
+        for (int l : c.transform.fragment.silentOutputs)
+            if (l >= 0 && l < 32)
+                p->silentMask |= 1u << l;
         Program* raw = p.get();
         programs[key] = std::move(p);
         return raw;
@@ -1498,6 +1758,9 @@ namespace perlin::gpu {
                                             const jshader::ExpandedSource* vs,
                                             const jshader::ExpandedSource* fs, conduit::format,
                                             const std::string& alpha) {
+        static const char* const skip = std::getenv("JSHADER_SKIP");
+        if (skip && (" " + std::string(skip) + " ").contains(" " + progName + " "))
+            return nullptr;
         const std::string key = KeyFor(progName, toBackbuffer) + (alpha.empty() ? "" : "@" + alpha);
         const auto ready = programs.find(key);
         if (ready != programs.end())
@@ -1539,6 +1802,8 @@ namespace perlin::gpu {
 
             opts.flipVertexY = !toBackbuffer;
             opts.flipFragCoordY = toBackbuffer;
+            PlaceholdersForUndeclaredImages(vertex.text);
+            PlaceholdersForUndeclaredImages(fragment.text);
             for (const auto& [imgName, slot] : imageSlotOf) {
                 opts.imageSlots[imgName] = slot;
                 opts.imageFormats[imgName] =
@@ -1589,12 +1854,14 @@ namespace perlin::gpu {
                 if (auto cached = via ? std::nullopt : program_cache::Load(cacheFile)) {
                     c->transform.uniforms = std::move(cached->uniforms);
                     c->transform.fragment.drawBuffers = std::move(cached->drawBuffers);
+                    c->transform.fragment.silentOutputs = std::move(cached->silentOutputs);
                     c->program.ok = true;
                     c->program.kind = kind;
                     c->program.vertex = std::move(cached->vertex);
                     c->program.fragment = std::move(cached->fragment);
                     c->program.samplers = std::move(cached->samplers);
                     c->program.images = std::move(cached->images);
+                    c->transform.fragment.samplers = std::move(cached->imageDecls);
                     c->program.uniformRegs = cached->uniformRegs;
                     c->ok = true;
                     if (std::getenv("JSHADER_TRACE"))
@@ -1646,8 +1913,13 @@ namespace perlin::gpu {
                     program_cache::Program save;
                     save.uniforms = c->transform.uniforms;
                     save.drawBuffers = c->transform.fragment.drawBuffers;
+                    save.silentOutputs = c->transform.fragment.silentOutputs;
                     save.samplers = c->program.samplers;
                     save.images = c->program.images;
+                    for (const jshader::StageResult* stage : {&c->transform.vertex, &c->transform.fragment})
+                        for (const jshader::SamplerDecl& s : stage->samplers)
+                            if (s.image)
+                                save.imageDecls.push_back(s);
                     save.uniformRegs = c->program.uniformRegs;
                     save.vertex = c->program.vertex;
                     save.fragment = c->program.fragment;
@@ -1851,7 +2123,7 @@ namespace perlin::gpu {
             bt.dst_color = st.dst;
             bt.src_alpha = st.srcA;
             bt.dst_alpha = st.dstA;
-            bt.write_mask = st.mask;
+            bt.write_mask = (p.silentMask >> i) & 1u ? conduit::color_mask::none : st.mask;
         }
 
         if (p.source) {
@@ -2046,9 +2318,13 @@ namespace perlin::gpu {
             case Kind::Overlay:
                 t = blackTex;
                 break;
-            case Kind::Custom:
+            case Kind::Custom: {
                 t = customTextures[s.customKey];
+                const auto dim = customDims.find(s.customKey);
+                set.dim[static_cast<size_t>(s.slot)] =
+                    dim != customDims.end() ? dim->second : conduit::texture_dim::tex2d;
                 break;
+            }
             case Kind::Image: {
                 const Image& img = images[static_cast<size_t>(s.index)];
                 t = img.tex;
@@ -2083,7 +2359,8 @@ namespace perlin::gpu {
             if (set.texture[i] && !stored(set.texture[i]))
                 gpu.Transition(list, set.texture[i], conduit::state::shader_read);
         for (int slot : p.imageSlots)
-            gpu.Transition(list, images[static_cast<size_t>(slot)].tex, conduit::state::shader_write);
+            if (images[static_cast<size_t>(slot)].tex)
+                gpu.Transition(list, images[static_cast<size_t>(slot)].tex, conduit::state::shader_write);
         return GroupFor(set);
     }
 
@@ -2242,7 +2519,8 @@ namespace perlin::gpu {
 
     void JavaPack::StorageBarrier(conduit::command_list& list, const Program& p) {
         for (int slot : p.imageSlots)
-            list.uav_barrier(images[static_cast<size_t>(slot)].tex);
+            if (images[static_cast<size_t>(slot)].tex)
+                list.uav_barrier(images[static_cast<size_t>(slot)].tex);
         if (!config.bufferObjects.empty())
             for (conduit::buffer_handle b : ssbo)
                 if (b)
@@ -2250,6 +2528,9 @@ namespace perlin::gpu {
     }
 
     JavaPack::Program* JavaPack::GetCompute(const std::string& progName, size_t index) {
+        static const char* const skip = std::getenv("JSHADER_SKIP");
+        if (skip && (" " + std::string(skip) + " ").contains(" " + progName + ":" + std::to_string(index) + " "))
+            return nullptr;
         const std::string key = "cs:" + progName + ":" + std::to_string(index);
         const auto ready = programs.find(key);
         if (ready != programs.end())
@@ -2267,6 +2548,7 @@ namespace perlin::gpu {
             opts.zeroToOneDepth = true;
             opts.splitSamplers = true;
             opts.explicitLod = true;
+            PlaceholdersForUndeclaredImages(source->compute[index].text);
             for (const auto& [imgName, slot] : imageSlotOf) {
                 opts.imageSlots[imgName] = slot;
                 opts.imageFormats[imgName] =
@@ -2308,6 +2590,9 @@ namespace perlin::gpu {
             programs[key] = std::make_unique<Program>();
             return nullptr;
         }
+        if (const char* dump = std::getenv("JSHADER_DUMP"))
+            if (progName == dump)
+                std::fprintf(stderr, "---- %s compute\n%s\n", progName.c_str(), c->computeTransform.stage.glsl.c_str());
         return FinishCompute(key, progName, *c);
     }
 
@@ -2335,6 +2620,11 @@ namespace perlin::gpu {
         sd.code = csCode;
         p->cs = gpu.Dev().create_shader(sd);
         p->valid = static_cast<bool>(p->cs);
+        for (const std::string& img : rc.images)
+            if (!imageSlotOf.contains(img))
+                for (const jshader::SamplerDecl& s : c.computeTransform.stage.samplers)
+                    if (s.image && s.name == img)
+                        EnsurePlaceholderImage(img, s.type, s.imageFormat);
         FillProgramResources(*p, progName, rc.samplers, rc.images, c.computeTransform.stage.uniforms,
                              rc.uniformRegs);
         if (p->valid) {
@@ -2752,6 +3042,8 @@ namespace perlin::gpu {
         const jshader::ProgramConfig* pc = BlendConfigFor(programName);
 
         jshader::PackDrawState draw = TerrainDraw();
+        draw.chunked = true;
+        std::memcpy(draw.chunkBase, shadow ? frameState.shadowModelView : frameState.modelView, sizeof(draw.chunkBase));
         if (shadow) {
             std::memcpy(draw.modelView, shadowDrawView, sizeof(draw.modelView));
             std::memcpy(draw.projection, shadowProjection, sizeof(draw.projection));

@@ -142,7 +142,7 @@ namespace perlin {
         skyTexturesLoaded = true;
     }
 
-    void LevelRenderer::InvalidateMeshes() {
+    void LevelRenderer::InvalidateMeshes(bool keepVisible) {
         LightRegistry::Instance().Invalidate();
         MesherInvalidateCaches();
         meshKey.clear();
@@ -153,11 +153,14 @@ namespace perlin {
             std::lock_guard lock(doneMutex);
             done.clear();
         }
-        context.ClearChunkMeshes();
-        shown.clear();
+        if (!keepVisible) {
+            context.ClearChunkMeshes();
+            shown.clear();
+        }
         wantKey.clear();
         for (const auto& entry : info)
             Recompute(entry.first);
+        queueForce = true;
     }
 
     bool LevelRenderer::AssetsCurrent() const {
@@ -332,7 +335,7 @@ namespace perlin {
         uploadedTiles = blocks->TilesLoaded();
         context.UploadAtlas(blocks->AtlasPixels().data(), BlockLibrary::TilePx(), blocks->TilesLoaded());
         atlasUploaded = true;
-        InvalidateMeshes();
+        InvalidateMeshes(true);
     }
 
     void LevelRenderer::UploadFinishedMeshes() {
@@ -810,7 +813,7 @@ namespace perlin {
         if (options.cullInnerLeaves != cullLeavesApplied) {
             cullLeavesApplied = options.cullInnerLeaves;
             MesherSetCullInnerLeaves(cullLeavesApplied);
-            InvalidateMeshes();
+            InvalidateMeshes(true);
         }
         {
             const auto now = std::chrono::steady_clock::now();

@@ -4,6 +4,7 @@
 #include "util/Log.hpp"
 #include <filesystem>
 #include <algorithm>
+#include <functional>
 #include <ctime>
 #include <vector>
 
@@ -323,19 +324,22 @@ namespace perlin {
             const std::string ext = str::Lower(src.extension().string());
             const bool onShaders = pause.IsOpen() && pause.view == 1 && pause.optionsUi.page == 8;
             const bool onWardrobe = pause.IsOpen() && pause.view == 5 && ext == ".png";
+            const bool onMods = pause.IsOpen() && pause.view == 4;
             const bool dropIsCape = str::Lower(src.filename().string()).contains("cape");
             const char* sub = onWardrobe       ? (dropIsCape ? "capes" : "skins")
-                              : ext == ".wasm" ? "mods"
+                              : ext == ".wasm" || ext == ".perlinmod" || onMods ? "mods"
                               : onShaders      ? "shaderpacks"
                                                : "texturepacks";
             if (ext == ".perlinreplay") {
                 replayLibrary.Import(dropped);
                 continue;
             }
-            if (!onWardrobe && ext != ".wasm" && ext != ".zip" && ext != ".mcpack" &&
+            if (!onWardrobe && ext != ".wasm" && ext != ".zip" && ext != ".mcpack" && ext != ".perlinmod" &&
                 !fsys::is_directory(src, e))
                 continue;
-            const fsys::path destDir = fsys::path(paths::DataDir()) / sub;
+            fsys::path destDir = fsys::path(paths::DataDir()) / sub;
+            if (ext == ".wasm")
+                destDir /= src.stem();
             fsys::create_directories(destDir, e);
             fsys::copy(src, destDir / src.filename(),
                        fsys::copy_options::overwrite_existing | fsys::copy_options::recursive, e);
@@ -802,9 +806,37 @@ namespace perlin {
 
         frames++;
         const auto now = Clock::now();
+        {
+            const float ms = std::chrono::duration<float, std::milli>(now - loop->lastFrameEnd).count();
+            loop->lastFrameEnd = now;
+            if (ms > 0.0f && ms < 10000.0f) {
+                loop->frameMs[loop->frameMsHead] = ms;
+                loop->frameMsHead = (loop->frameMsHead + 1) % loop->frameMs.size();
+                loop->frameMsCount = std::min(loop->frameMsCount + 1, loop->frameMs.size());
+            }
+        }
         if (now - titleAt >= frame::kTitleInterval) {
             const double seconds = std::chrono::duration<double>(now - titleAt).count();
             debugOverlay.state.fps = static_cast<int>(frames / seconds + 0.5);
+            if (loop->frameMsCount > 0) {
+                std::vector<float> recent;
+                recent.reserve(loop->frameMsCount);
+                float span = 0.0f;
+                for (size_t i = 0; i < loop->frameMsCount && span < 10000.0f; i++) {
+                    const float ms =
+                        loop->frameMs[(loop->frameMsHead + loop->frameMs.size() - 1 - i) % loop->frameMs.size()];
+                    recent.push_back(ms);
+                    span += ms;
+                }
+                const size_t worst = std::max<size_t>(1, recent.size() / 100);
+                std::partial_sort(recent.begin(), recent.begin() + static_cast<std::ptrdiff_t>(worst), recent.end(),
+                                  std::greater<float>());
+                double sum = 0.0;
+                for (size_t i = 0; i < worst; i++)
+                    sum += recent[i];
+                const double avg = sum / static_cast<double>(worst);
+                debugOverlay.state.lowFps = avg > 0.0 ? static_cast<int>(1000.0 / avg + 0.5) : 0;
+            }
             UpdateTitle(debugOverlay.state.fps);
             titleAt = now;
             frames = 0;

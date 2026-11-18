@@ -40,6 +40,7 @@ namespace perlin {
         Pause,
         Fullscreen,
         SwapOffhand,
+        MenuBack,
         Count
     };
 

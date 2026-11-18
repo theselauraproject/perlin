@@ -375,6 +375,7 @@ namespace perlin::ui {
         mix(static_cast<uint64_t>(s.selectedSlot));
         for (const HudItem& it : s.hotbar) {
             mixs(it.name);
+            mix(static_cast<uint64_t>(DialFrame(it.name) + 1));
             mix(static_cast<uint64_t>(it.count));
             mix(static_cast<uint64_t>(it.aux));
             mix(it.blockRuntimeId);
@@ -386,6 +387,7 @@ namespace perlin::ui {
         if (s.burning)
             mix(static_cast<uint64_t>(s.fireFrame));
         mixq(s.itemNameAlpha);
+        mix(s.itemNameSerial);
         mixs(s.actionBar);
         mixq(s.actionBarAlpha);
         mixs(s.title);

@@ -41,6 +41,7 @@ namespace perlin {
             int key = 0;
             bool ctrl = false;
             bool shift = false;
+            int mouse = -1;
         };
         std::vector<Typed> TakeTyped() { return std::move(typed); }
 

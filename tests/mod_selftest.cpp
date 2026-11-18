@@ -1,5 +1,7 @@
 #include "client/systems/mods/ModManager.hpp"
 
+#include <miniz.h>
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -48,7 +50,9 @@ int main(int argc, char** argv) {
     fs::remove_all(dir);
     fs::create_directories(dir);
     const auto write = [&](const std::string& name, const std::vector<unsigned char>& data) {
-        std::ofstream out(dir / name, std::ios::binary | std::ios::trunc);
+        const fs::path folder = dir / fs::path(name).stem();
+        fs::create_directories(folder);
+        std::ofstream out(folder / name, std::ios::binary | std::ios::trunc);
         out.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     };
     std::vector<std::string> names;
@@ -78,7 +82,20 @@ int main(int argc, char** argv) {
         messages.push_back(ctx.plugin + ": " + text);
         return abi::Status::Ok;
     });
+    {
+        mz_zip_archive zip{};
+        CHECK(mz_zip_writer_init_file(&zip, (dir / "zipped.zip").string().c_str(), 0));
+        const std::string manifest = "{\"name\":\"Zipped Mod\",\"main\":\"code/main.wasm\"}";
+        CHECK(mz_zip_writer_add_mem(&zip, "zipped_mod/manifest.json", manifest.data(), manifest.size(),
+                                    MZ_DEFAULT_COMPRESSION));
+        CHECK(mz_zip_writer_add_mem(&zip, "zipped_mod/code/main.wasm", first.data(), first.size(),
+                                    MZ_DEFAULT_COMPRESSION));
+        CHECK(mz_zip_writer_finalize_archive(&zip));
+        mz_zip_writer_end(&zip);
+    }
     mm.Start(dir.string());
+    CHECK(WaitFor([&] { return Find("zipped").state == "running"; }));
+    CHECK(Find("zipped").displayName == "Zipped Mod");
 
     for (const std::string& name : names) {
         CHECK(WaitFor([&] { return Find(name).state == "running"; }));
@@ -128,7 +145,7 @@ int main(int argc, char** argv) {
         mm.SetDisabled({});
         CHECK(WaitFor([&] { return Find(reloaded).state == "running"; }));
 
-        fs::remove(dir / (reloaded + ".wasm"));
+        fs::remove_all(dir / reloaded);
         CHECK(WaitFor([&] { return Find(reloaded).name.empty(); }));
     }
 

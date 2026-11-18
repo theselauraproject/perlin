@@ -46,6 +46,9 @@ namespace perlin {
         bool subtitles = false;
     };
 
+    inline constexpr float kChatMaxScale = 4.0f, kChatMaxWidth = (3840.0f - 40.0f) / 280.0f,
+                           kChatMaxHeight = (2160.0f - 20.0f) / 160.0f;
+
     struct ChatSettings {
         float scale = 1.0f;
         float width = 1.0f;

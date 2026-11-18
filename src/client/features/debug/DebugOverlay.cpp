@@ -117,6 +117,7 @@ namespace perlin::debug {
         ui::DebugInfo d;
         d.version = std::string("Perlin ") + kVersion + " (bedrock " + kBedrockVersion + "/vanilla)";
         d.fps = state.fps;
+        d.lowFps = state.lowFps;
         d.maxFps = options.maxFps;
         d.vsync = options.vsync;
         d.fancyGraphics = options.fancyGraphics;

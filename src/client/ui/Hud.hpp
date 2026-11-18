@@ -86,6 +86,7 @@ namespace perlin::ui {
         SceneDoc lastDoc;
         uint64_t lastSignature = 0;
         uint64_t lastIncomingSignature = 0;
+        uint32_t lastItemNameSerial = 0;
         int scale = 1;
         float guiW = 0, guiH = 0;
         int lastFbW = 0, lastFbH = 0;

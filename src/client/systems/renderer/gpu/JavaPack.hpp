@@ -213,6 +213,7 @@ namespace perlin::gpu {
             std::vector<SamplerBind> samplers;
             std::vector<UniformSlot> slots;
             std::vector<int> attachments;
+            uint32_t silentMask = 0;
             std::shared_ptr<jshader::ProgramSource> source;
             std::vector<float> frameRegs, drawRegs;
             int frameStamp = -1;
@@ -362,11 +363,14 @@ namespace perlin::gpu {
         void CreateImplicitImages();
         conduit::texture_handle UploadStaticTexture(const char* name, uint32_t w, uint32_t h, const uint8_t* rgba);
         conduit::texture_handle LoadPackTexture(const std::string& file);
+        conduit::texture_handle LoadRawTexture(const jshader::CustomTexture& ct, conduit::texture_dim& dim);
         int SamplerForPackTexture(const std::string& file);
         bool Fail(std::string& error, std::string message);
         bool OpenInstance(const Config& cfg, std::string& error);
         void ResetShadowState(const Config& cfg);
         void RegisterConfiguredImages();
+        bool EnsurePlaceholderImage(const std::string& name, const std::string& type, const std::string& format);
+        void PlaceholdersForUndeclaredImages(const std::string& text);
         void DrawSky(conduit::command_list& list);
         bool PrepareFrame(const FrameParams& params, const Output& out);
         bool SetupProgramsCompiled();
@@ -520,6 +524,9 @@ namespace perlin::gpu {
         conduit::texture_handle white, flatNormal, blackTex, noise;
         std::map<std::string, conduit::texture_handle> customTextures;
         std::map<std::string, int> customSamplers;
+        std::map<std::string, conduit::texture_dim> customDims;
+        std::set<std::string> customAtlasKeys;
+        std::string resolvingProgram;
         int noiseSampler = 2;
         std::string resolvingStage;
         bool resolvingChain = false;

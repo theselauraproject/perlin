@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include "client/systems/camera/CameraEffects.hpp"
 #include "client/systems/config/Options.hpp"
 #include "client/systems/input/Zoom.hpp"
@@ -25,6 +26,9 @@ namespace perlin {
         uint64_t frameCounter = 0;
         int frames = 0;
         std::chrono::steady_clock::time_point titleAt = previous, animationAt = previous;
+        std::chrono::steady_clock::time_point lastFrameEnd = previous;
+        std::array<float, 4096> frameMs{};
+        size_t frameMsHead = 0, frameMsCount = 0;
         uint64_t animationStep = 0;
         bool appliedVsync;
 

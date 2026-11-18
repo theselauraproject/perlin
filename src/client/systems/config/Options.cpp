@@ -374,9 +374,13 @@ namespace perlin {
         o.touchLayout = stored.touchLayout;
         o.fullscreen = stored.fullscreen;
         o.chat = stored.chat;
-        for (float* v : {&o.chat.scale, &o.chat.width, &o.chat.focusedHeight, &o.chat.unfocusedHeight,
-                         &o.chat.textOpacity, &o.chat.backgroundOpacity, &o.chat.lineSpacing})
+        for (float* v : {&o.chat.textOpacity, &o.chat.backgroundOpacity, &o.chat.lineSpacing})
             *v = std::isfinite(*v) ? std::clamp(*v, 0.0f, 1.0f) : 0.0f;
+        const auto limit = [](float& v, float hi) { v = std::isfinite(v) ? std::clamp(v, 0.0f, hi) : 0.0f; };
+        limit(o.chat.scale, kChatMaxScale);
+        limit(o.chat.width, kChatMaxWidth);
+        limit(o.chat.focusedHeight, kChatMaxHeight);
+        limit(o.chat.unfocusedHeight, kChatMaxHeight);
         o.centerCursor = stored.centerCursor;
         o.autoUpdate = stored.autoUpdate;
         o.versionMismatchNoAsk = stored.versionMismatchNoAsk;

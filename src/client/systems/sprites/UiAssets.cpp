@@ -1,3 +1,4 @@
+#include "client/systems/model/DialFrames.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/resources/ServerBlocks.hpp"
@@ -729,6 +730,25 @@ namespace perlin::ui {
         std::string name = std::string(str::StripAnyNamespace(id));
         if (name == "tallgrass")
             name = "short_grass";
+
+        if (const size_t dialAt = key.find("!d"); dialAt != std::string::npos) {
+            const int count = DialFrameCount(id);
+            Texture atlas;
+            if (count > 0 && FindImage(std::string(DialAtlas(id)), atlas) && atlas.width > 0 &&
+                atlas.height >= atlas.width &&
+                atlas.pixels.size() >= static_cast<size_t>(atlas.width) * atlas.height * 4) {
+                const int frames = atlas.height / atlas.width;
+                const int wanted = std::clamp(std::atoi(key.c_str() + dialAt + 2), 0, count - 1);
+                const int frame = std::clamp(wanted * frames / count, 0, frames - 1);
+                const size_t frameBytes = static_cast<size_t>(atlas.width) * atlas.width * 4;
+                sprite.ok = true;
+                sprite.w = sprite.h = atlas.width;
+                sprite.rgba.assign(atlas.pixels.begin() + static_cast<std::ptrdiff_t>(frameBytes * frame),
+                                   atlas.pixels.begin() + static_cast<std::ptrdiff_t>(frameBytes * (frame + 1)));
+                auto inserted = items.emplace(key, std::move(sprite)).first;
+                return &inserted->second;
+            }
+        }
 
         CustomItemDef custom;
         const bool customItem = ServerBlocks::Instance().Item(id, custom);

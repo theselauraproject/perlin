@@ -62,6 +62,11 @@ namespace perlin::jshader {
         std::string sampler;
         std::string path;
         std::string type = "texture2D";
+        std::string program;
+        bool raw = false;
+        int dims = 2;
+        int width = 1, height = 1, depth = 1;
+        std::string internalFormat, pixelFormat, pixelType;
     };
 
     struct CustomImage {

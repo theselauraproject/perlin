@@ -8,6 +8,7 @@ namespace perlin::ui {
     struct DebugInfo {
         std::string version;
         int fps = 0;
+        int lowFps = 0;
         int maxFps = 0;
         bool vsync = false;
         bool fancyGraphics = true;

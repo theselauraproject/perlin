@@ -24,7 +24,7 @@ namespace perlin::mods {
     struct ModManager::Plugin {
         ModManager* owner = nullptr;
 
-        std::string name, path, storage;
+        std::string name, path, storage, root, manifest;
         fs::file_time_type stamp = fs::file_time_type::min();
         uintmax_t size = 0;
         bool enabled = true;

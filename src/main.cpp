@@ -302,7 +302,118 @@ namespace {
 }
 
 #if defined(__GLIBC__)
+#include <atomic>
+#include <dlfcn.h>
+#include <elf.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 namespace {
+    struct CrashSymbol {
+        uintptr_t addr;
+        uintptr_t size;
+        const char* name;
+    };
+    std::atomic<std::vector<CrashSymbol>*> gCrashSymbols{nullptr};
+    uintptr_t gImageBase = 0;
+
+    void LoadCrashSymbols() {
+        Dl_info info{};
+        if (!dladdr(reinterpret_cast<void*>(&LoadCrashSymbols), &info) || !info.dli_fbase)
+            return;
+        gImageBase = reinterpret_cast<uintptr_t>(info.dli_fbase);
+        const int fd = open("/proc/self/exe", O_RDONLY | O_CLOEXEC);
+        if (fd < 0)
+            return;
+        struct stat st{};
+        if (fstat(fd, &st) != 0 || st.st_size < static_cast<off_t>(sizeof(Elf64_Ehdr))) {
+            close(fd);
+            return;
+        }
+        void* map = mmap(nullptr, static_cast<size_t>(st.st_size), PROT_READ, MAP_PRIVATE, fd, 0);
+        close(fd);
+        if (map == MAP_FAILED)
+            return;
+        const auto* base = static_cast<const uint8_t*>(map);
+        const size_t fileSize = static_cast<size_t>(st.st_size);
+        const auto* eh = reinterpret_cast<const Elf64_Ehdr*>(base);
+        if (std::memcmp(eh->e_ident, ELFMAG, SELFMAG) != 0 || eh->e_ident[EI_CLASS] != ELFCLASS64 ||
+            eh->e_shoff == 0 || eh->e_shoff + static_cast<size_t>(eh->e_shnum) * sizeof(Elf64_Shdr) > fileSize) {
+            munmap(map, fileSize);
+            return;
+        }
+        const auto* sh = reinterpret_cast<const Elf64_Shdr*>(base + eh->e_shoff);
+        auto symbols = std::make_unique<std::vector<CrashSymbol>>();
+        for (int i = 0; i < eh->e_shnum; i++) {
+            if (sh[i].sh_type != SHT_SYMTAB || sh[i].sh_link >= eh->e_shnum)
+                continue;
+            const Elf64_Shdr& strs = sh[sh[i].sh_link];
+            if (sh[i].sh_offset + sh[i].sh_size > fileSize || strs.sh_offset + strs.sh_size > fileSize)
+                continue;
+            const auto* syms = reinterpret_cast<const Elf64_Sym*>(base + sh[i].sh_offset);
+            const size_t count = sh[i].sh_size / sizeof(Elf64_Sym);
+            const char* names = reinterpret_cast<const char*>(base + strs.sh_offset);
+            for (size_t k = 0; k < count; k++)
+                if (ELF64_ST_TYPE(syms[k].st_info) == STT_FUNC && syms[k].st_value != 0 &&
+                    syms[k].st_name < strs.sh_size)
+                    symbols->push_back({static_cast<uintptr_t>(syms[k].st_value),
+                                        static_cast<uintptr_t>(syms[k].st_size), names + syms[k].st_name});
+        }
+        if (symbols->empty()) {
+            munmap(map, fileSize);
+            return;
+        }
+        std::sort(symbols->begin(), symbols->end(),
+                  [](const CrashSymbol& a, const CrashSymbol& b) { return a.addr < b.addr; });
+        gCrashSymbols.store(symbols.release(), std::memory_order_release);
+    }
+
+    void WriteHex(int fd, uintptr_t v) {
+        char buf[20];
+        int n = 0;
+        do {
+            const int d = static_cast<int>(v & 15u);
+            buf[n++] = static_cast<char>(d < 10 ? '0' + d : 'a' + d - 10);
+            v >>= 4;
+        } while (v && n < 18);
+        (void)!write(fd, "0x", 2);
+        while (n > 0)
+            (void)!write(fd, &buf[--n], 1);
+    }
+
+    void WriteSymbolizedFrames(int fd, void* const* frames, int depth) {
+        const std::vector<CrashSymbol>* symbols = gCrashSymbols.load(std::memory_order_acquire);
+        if (!symbols || !gImageBase)
+            return;
+        static const char head[] = "[crash] symbols:\n";
+        (void)!write(fd, head, sizeof(head) - 1);
+        for (int i = 0; i < depth; i++) {
+            const uintptr_t at = reinterpret_cast<uintptr_t>(frames[i]);
+            if (at < gImageBase)
+                continue;
+            const uintptr_t offset = at - gImageBase;
+            size_t lo = 0, hi = symbols->size();
+            while (lo < hi) {
+                const size_t mid = (lo + hi) / 2;
+                if ((*symbols)[mid].addr <= offset)
+                    lo = mid + 1;
+                else
+                    hi = mid;
+            }
+            if (lo == 0)
+                continue;
+            const CrashSymbol& s = (*symbols)[lo - 1];
+            if (!s.size || offset >= s.addr + s.size + 64)
+                continue;
+            (void)!write(fd, "  ", 2);
+            WriteHex(fd, offset);
+            (void)!write(fd, " ", 1);
+            (void)!write(fd, s.name, std::strlen(s.name));
+            (void)!write(fd, "+", 1);
+            WriteHex(fd, offset - s.addr);
+            (void)!write(fd, "\n", 1);
+        }
+    }
+
     char gCrashLogPath[1024];
     char gEarlyCrashPath[1024];
     time_t gStartSeconds = 0;
@@ -335,6 +446,7 @@ namespace {
                 (void)!write(fd, name, std::strlen(name));
                 (void)!write(fd, "; stack:\n", 9);
                 backtrace_symbols_fd(frames, depth, fd);
+                WriteSymbolizedFrames(fd, frames, depth);
                 if (pass == 0)
                     close(fd);
             }
@@ -382,6 +494,7 @@ int main(int argc, char** argv) {
     }
     for (int sig : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL})
         std::signal(sig, OnFatalSignal);
+    std::thread(LoadCrashSymbols).detach();
 #endif
     std::printf("[boot] exe dir %s\n", perlin::paths::ExeDir().c_str());
     if (perlin::gfxdebug::WantsRenderDoc(argc, argv)) {

@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <fstream>
 #include <cstring>
 #include <cstdlib>
 #include <map>
@@ -166,7 +168,7 @@ namespace perlin::jshader {
                  fogScale = false, colorMod = false;
             bool fogCoord = false, fragCoord = false, shadow2D = false, shadow2DLod = false,
                  shadow2DProj = false;
-            bool vertexIndex = false;
+            bool vertexIndex = false, frontColorIn = false;
             int fragData = 0;
             bool fragColor = false;
         };
@@ -386,14 +388,26 @@ namespace perlin::jshader {
                 std::vector<std::pair<size_t, size_t>> params;
             };
             std::vector<Def> defs;
+            const auto returnType = [&](size_t i) {
+                if (i == 0)
+                    return false;
+                size_t j = i - 1;
+                if (t[j].text == "]") {
+                    while (j > 0 && t[j].text != "[")
+                        j--;
+                    if (j == 0)
+                        return false;
+                    j--;
+                }
+                return IsType(t[j].text) || t[j].text == "void";
+            };
             int brace = 0;
             for (size_t i = 0; i + 1 < t.size(); i++) {
                 if (t[i].text == "{")
                     brace++;
                 else if (t[i].text == "}")
                     brace--;
-                if (brace != 0 || t[i].kind != Tok::Ident || t[i + 1].text != "(" || i == 0 ||
-                    !(IsType(t[i - 1].text) || t[i - 1].text == "void"))
+                if (brace != 0 || t[i].kind != Tok::Ident || t[i + 1].text != "(" || !returnType(i))
                     continue;
 
                 Def d{i + 1, 0, 0, {}};
@@ -446,7 +460,7 @@ namespace perlin::jshader {
                 if (t[i].kind != Tok::Ident || t[i + 1].text != "(")
                     continue;
                 const auto it = fns.find(t[i].text);
-                if (it == fns.end() || (i > 0 && (IsType(t[i - 1].text) || t[i - 1].text == "void")))
+                if (it == fns.end() || returnType(i))
                     continue;
                 int depth = 0, index = 0;
                 size_t argStart = i + 2;
@@ -489,9 +503,29 @@ namespace perlin::jshader {
                         texture.erase(texture.size() - 6);
                     texture.replace(texture.find("sampler"), 7, "texture");
 
-                    for (size_t k = d.close; k < d.bodyEnd; k++)
-                        if (t[k].kind == Tok::Ident && t[k].text == name)
-                            t[k].text = type + "(" + name + "_iris_t, " + name + "_iris_s)";
+                    int depth = 0, shadowedFrom = -1, pendingShadow = -1;
+                    for (size_t k = d.close; k < d.bodyEnd; k++) {
+                        if (t[k].text == "{") {
+                            depth++;
+                        } else if (t[k].text == "}") {
+                            depth--;
+                            if (shadowedFrom >= 0 && depth < shadowedFrom)
+                                shadowedFrom = -1;
+                        } else if (t[k].text == ";" && pendingShadow >= 0 && depth == pendingShadow) {
+                            shadowedFrom = pendingShadow;
+                            pendingShadow = -1;
+                        }
+                        if (t[k].kind != Tok::Ident || t[k].text != name)
+                            continue;
+                        if (shadowedFrom < 0 && pendingShadow < 0 && depth > 0 && k > 0 &&
+                            t[k - 1].kind == Tok::Ident && IsType(t[k - 1].text) && !samplerType(t[k - 1].text)) {
+                            pendingShadow = depth;
+                            continue;
+                        }
+                        if (shadowedFrom >= 0)
+                            continue;
+                        t[k].text = type + "(" + name + "_iris_t, " + name + "_iris_s)";
+                    }
                     t[pr.first].text = texture;
                     t[pr.second].text = name + "_iris_t, " +
                                         std::string(shadow ? "samplerShadow " : "sampler ") + name +
@@ -655,11 +689,18 @@ namespace perlin::jshader {
                 return d;
             d.type = t[i].text;
             i++;
+            std::string typeArray;
+            if (i < end && t[i].text == "[") {
+                const size_t close = MatchClose(t, i);
+                typeArray = StripSpace(Join(t, i + 1, close));
+                i = close + 1;
+            }
             while (i < end) {
                 if (t[i].kind != Tok::Ident)
                     return d;
                 DeclInfo::Name n;
                 n.name = t[i].text;
+                n.arraySize = typeArray;
                 i++;
                 while (i < end && t[i].text == "[") {
                     const size_t close = MatchClose(t, i);
@@ -754,6 +795,39 @@ namespace perlin::jshader {
             return out;
         }
 
+        bool UnsupportedExtension(std::string_view name) {
+            static constexpr std::string_view kPrefixes[] = {
+                "GL_EXT_shader_explicit_arithmetic_types", "GL_EXT_shader_16bit_storage",
+                "GL_EXT_shader_8bit_storage",              "GL_EXT_shader_atomic_float",
+                "GL_NV_",                                  "GL_AMD_",
+                "GL_INTEL_",                               "GL_ARB_gpu_shader_int64"};
+            for (const std::string_view prefix : kPrefixes)
+                if (name.starts_with(prefix))
+                    return true;
+            return false;
+        }
+
+        std::string HideUnsupportedExtensions(const std::string& line) {
+            std::string out;
+            out.reserve(line.size() + 32);
+            for (size_t i = 0; i < line.size();) {
+                if (line.compare(i, 3, "GL_") == 0 &&
+                    (i == 0 || !(std::isalnum(static_cast<unsigned char>(line[i - 1])) || line[i - 1] == '_'))) {
+                    size_t e = i;
+                    while (e < line.size() && (std::isalnum(static_cast<unsigned char>(line[e])) || line[e] == '_'))
+                        e++;
+                    const std::string_view word(line.data() + i, e - i);
+                    if (UnsupportedExtension(word))
+                        out += "PERLIN_NO_";
+                    out += word;
+                    i = e;
+                    continue;
+                }
+                out += line[i++];
+            }
+            return out;
+        }
+
         bool ExtractVersion(const std::string& src, int& version, bool& compat, std::string& body) {
             std::istringstream in(src);
             std::string line;
@@ -777,6 +851,9 @@ namespace perlin::jshader {
                         body += "\n";
                         continue;
                     }
+                    if (b != std::string::npos && (line.compare(b, 2, "if") == 0 || line.compare(b, 4, "elif") == 0) &&
+                        line.find("GL_") != std::string::npos)
+                        line = HideUnsupportedExtensions(line);
                 }
                 body += line;
                 body += '\n';
@@ -845,7 +922,411 @@ namespace perlin::jshader {
     }
 
     namespace {
+        std::string DropRepeatedGlobalConsts(const std::string& text) {
+            if (!text.contains("const"))
+                return text;
+            std::set<std::string> seen;
+            std::string out;
+            out.reserve(text.size());
+            int depth = 0;
+            size_t pos = 0;
+            while (pos < text.size()) {
+                size_t end = text.find('\n', pos);
+                if (end == std::string::npos)
+                    end = text.size();
+                const std::string_view line(text.data() + pos, end - pos);
+                pos = end + 1;
+                bool drop = false;
+                if (depth == 0) {
+                    size_t i = line.find_first_not_of(" \t");
+                    if (i != std::string_view::npos && line.substr(i, 6) == "const " && line.find('{') == std::string_view::npos &&
+                        line.find('(') == std::string_view::npos && !line.empty() &&
+                        line.find_last_not_of(" \t\r") != std::string_view::npos &&
+                        line[line.find_last_not_of(" \t\r")] == ';' && line.find(',') == std::string_view::npos) {
+                        const size_t eq = line.find('=');
+                        if (eq != std::string_view::npos) {
+                            size_t e = line.find_last_not_of(" \t", eq - 1);
+                            size_t n = e;
+                            while (n > 0 && (std::isalnum(static_cast<unsigned char>(line[n - 1])) || line[n - 1] == '_'))
+                                n--;
+                            if (e != std::string_view::npos && n <= e) {
+                                const std::string name(line.substr(n, e - n + 1));
+                                drop = !seen.insert(name).second;
+                            }
+                        }
+                    }
+                }
+                for (char c : line) {
+                    if (c == '{')
+                        depth++;
+                    else if (c == '}' && depth > 0)
+                        depth--;
+                }
+                if (!drop)
+                    out += line;
+                out += '\n';
+            }
+            return out;
+        }
+
+        bool KnownEngineSampler(std::string_view n) {
+            const auto numbered = [&](std::string_view prefix, int count) {
+                if (!n.starts_with(prefix) || n.size() == prefix.size())
+                    return false;
+                const std::string_view rest = n.substr(prefix.size());
+                if (rest.size() > 2 || !std::all_of(rest.begin(), rest.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
+                    return false;
+                return std::atoi(std::string(rest).c_str()) < count;
+            };
+            return numbered("colortex", 16) || numbered("depthtex", 3) || numbered("shadowtex", 2) ||
+                   numbered("shadowcolor", 2) || numbered("gaux", 5) || n == "noisetex" || n == "gcolor" ||
+                   n == "gdepth" || n == "gnormal" || n == "gdepthtex" || n == "composite" || n == "gtexture";
+        }
+
+        bool IsDeclaredIn(const std::string& text, const std::string& name) {
+            static const std::set<std::string, std::less<>> kDeclarers = {
+                "uniform", "float", "int", "uint", "bool", "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4",
+                "uvec2", "uvec3", "uvec4", "bvec2", "bvec3", "bvec4", "mat2", "mat3", "mat4", "double",
+                "sampler2D", "sampler2DShadow", "sampler3D", "usampler2D", "isampler2D", "define", "in", "out",
+                "varying", "attribute", "highp", "mediump", "lowp", "const", "flat", "smooth", "noperspective"};
+            const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+            for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1)) {
+                if ((at > 0 && word(text[at - 1])) || (at + name.size() < text.size() && word(text[at + name.size()])))
+                    continue;
+                size_t e = at;
+                while (e > 0 && (text[e - 1] == ' ' || text[e - 1] == '\t'))
+                    e--;
+                size_t b = e;
+                while (b > 0 && word(text[b - 1]))
+                    b--;
+                if (b < e && kDeclarers.contains(std::string_view(text.data() + b, e - b)))
+                    return true;
+            }
+            return false;
+        }
+
+        bool UsesWord(const std::string& text, const std::string& name) {
+            const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+            for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1))
+                if (!(at > 0 && word(text[at - 1])) && !(at + name.size() < text.size() && word(text[at + name.size()])))
+                    return true;
+            return false;
+        }
+
+        std::string DeclareMissingBuiltins(const std::string& text) {
+            static const char* const kCalls[] = {"texture",      "textureLod",  "texelFetch",     "texture2D",
+                                                 "texture2DLod", "textureSize", "textureGather", "textureGrad",
+                                                 "textureOffset", "texelFetchOffset", "textureLodOffset"};
+            static const std::pair<const char*, const char*> kUniforms[] = {
+                {"frameTimeCounter", "float"}, {"frameTime", "float"}, {"rainStrength", "float"},
+                {"wetness", "float"}, {"thunderStrength", "float"}, {"sunAngle", "float"}, {"shadowAngle", "float"},
+                {"near", "float"}, {"far", "float"}, {"aspectRatio", "float"}, {"viewWidth", "float"},
+                {"viewHeight", "float"}, {"eyeAltitude", "float"}, {"blindness", "float"}, {"nightVision", "float"},
+                {"screenBrightness", "float"}, {"centerDepthSmooth", "float"}, {"darknessFactor", "float"},
+                {"playerMood", "float"}, {"worldTime", "int"}, {"worldDay", "int"}, {"moonPhase", "int"},
+                {"frameCounter", "int"}, {"isEyeInWater", "int"}, {"heldItemId", "int"}, {"heldItemId2", "int"},
+                {"heldBlockLightValue", "int"}, {"heldBlockLightValue2", "int"}, {"eyeBrightness", "ivec2"},
+                {"eyeBrightnessSmooth", "ivec2"}, {"atlasSize", "ivec2"}, {"cameraPosition", "vec3"},
+                {"previousCameraPosition", "vec3"}, {"sunPosition", "vec3"}, {"moonPosition", "vec3"},
+                {"shadowLightPosition", "vec3"}, {"upPosition", "vec3"}, {"fogColor", "vec3"}, {"skyColor", "vec3"},
+                {"gbufferModelView", "mat4"}, {"gbufferModelViewInverse", "mat4"}, {"gbufferProjection", "mat4"},
+                {"gbufferProjectionInverse", "mat4"}, {"gbufferPreviousModelView", "mat4"},
+                {"gbufferPreviousProjection", "mat4"}, {"shadowModelView", "mat4"},
+                {"shadowModelViewInverse", "mat4"}, {"shadowProjection", "mat4"}, {"shadowProjectionInverse", "mat4"},
+                {"entityId", "int"}, {"blockEntityId", "int"}, {"currentRenderedItemId", "int"}, {"renderStage", "int"},
+                {"fogMode", "int"}, {"fogStart", "float"}, {"fogEnd", "float"}, {"fogDensity", "float"},
+                {"entityColor", "vec4"}, {"lightningBoltPosition", "vec4"}, {"hideGUI", "int"}};
+            std::set<std::string> samplers;
+            for (const char* call : kCalls) {
+                const std::string needle = std::string(call) + "(";
+                for (size_t at = text.find(needle); at != std::string::npos; at = text.find(needle, at + 1)) {
+                    if (at > 0 && (std::isalnum(static_cast<unsigned char>(text[at - 1])) || text[at - 1] == '_'))
+                        continue;
+                    size_t i = text.find_first_not_of(" \t\n", at + needle.size());
+                    size_t e = i;
+                    while (e < text.size() && (std::isalnum(static_cast<unsigned char>(text[e])) || text[e] == '_'))
+                        e++;
+                    if (i == std::string::npos || e == i)
+                        continue;
+                    const std::string name = text.substr(i, e - i);
+                    if (KnownEngineSampler(name))
+                        samplers.insert(name);
+                }
+            }
+            std::string declarations;
+            for (const std::string& name : samplers)
+                if (!IsDeclaredIn(text, name))
+                    declarations += "uniform sampler2D " + name + ";\n";
+            for (const auto& [name, type] : kUniforms)
+                if (UsesWord(text, name) && !IsDeclaredIn(text, name))
+                    declarations += std::string("uniform ") + type + " " + name + ";\n";
+            if (declarations.empty())
+                return text;
+            const size_t first = text.find_first_not_of(" \t\n");
+            size_t insertAt = 0;
+            if (first != std::string::npos && text.compare(first, 8, "#version") == 0)
+                insertAt = text.find('\n', first) + 1;
+            return text.substr(0, insertAt) + declarations + text.substr(insertAt);
+        }
+
+        std::string ReplaceWord(const std::string& text, std::string_view from, std::string_view to) {
+            std::string out;
+            out.reserve(text.size());
+            const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+            size_t pos = 0;
+            for (size_t at = text.find(from); at != std::string::npos; at = text.find(from, at + from.size())) {
+                if ((at > 0 && word(text[at - 1])) || (at + from.size() < text.size() && word(text[at + from.size()])))
+                    continue;
+                out.append(text, pos, at - pos);
+                out += to;
+                pos = at + from.size();
+            }
+            out.append(text, pos);
+            return out;
+        }
+
+        std::string ChunkOffsetSemantics(std::string text) {
+            if (!UsesWord(text, "chunkOffset"))
+                return text;
+            text = ReplaceWord(text, "chunkOffset", "iris_ChunkOffset");
+            text = ReplaceWord(text, "modelViewMatrixInverse", "iris_ChunkModelViewInverse");
+            text = ReplaceWord(text, "modelViewMatrix", "iris_ChunkModelView");
+            std::string decls;
+            for (const auto& [name, type] : {std::pair<const char*, const char*>{"iris_ChunkOffset", "vec3"},
+                                             {"iris_ChunkModelView", "mat4"},
+                                             {"iris_ChunkModelViewInverse", "mat4"}})
+                if (UsesWord(text, name) && !IsDeclaredIn(text, name))
+                    decls += std::string("uniform ") + type + " " + name + ";\n";
+            if (decls.empty())
+                return text;
+            size_t at = 0;
+            if (text.starts_with("#version")) {
+                at = text.find('\n');
+                at = at == std::string::npos ? text.size() : at + 1;
+            }
+            while (true) {
+                const size_t lineEnd = text.find('\n', at);
+                const std::string line = text.substr(at, lineEnd == std::string::npos ? std::string::npos : lineEnd - at);
+                const size_t first = line.find_first_not_of(" \t");
+                if (first == std::string::npos || !line.substr(first).starts_with("#extension") || lineEnd == std::string::npos)
+                    break;
+                at = lineEnd + 1;
+            }
+            return text.insert(at, decls);
+        }
+
+        std::string PolyfillExtensions(std::string text) {
+            std::string defines;
+            if (text.contains("max3(") || text.contains("min3(") || text.contains("mid3(")) {
+                defines += "#define max3(a, b, c) max(a, max(b, c))\n";
+                defines += "#define min3(a, b, c) min(a, min(b, c))\n";
+                defines += "#define mid3(a, b, c) max(min(a, b), min(max(a, b), c))\n";
+            }
+            if (text.contains("subgroup") || text.contains("gl_Subgroup") || text.contains("gl_NumSubgroups")) {
+                static const char* const kIdentity[] = {
+                    "subgroupBroadcastFirst", "subgroupAdd", "subgroupMul", "subgroupMin", "subgroupMax",
+                    "subgroupAnd", "subgroupOr", "subgroupXor", "subgroupInclusiveAdd", "subgroupInclusiveMul",
+                    "subgroupInclusiveMin", "subgroupInclusiveMax", "subgroupInclusiveAnd", "subgroupInclusiveOr",
+                    "subgroupInclusiveXor", "subgroupAll", "subgroupAny", "subgroupClusteredAdd",
+                    "subgroupClusteredMin", "subgroupClusteredMax"};
+                for (const char* fn : kIdentity)
+                    if (text.contains(fn))
+                        defines += std::string("#define ") + fn + "(x) (x)\n";
+                static const char* const kSecondArg[] = {"subgroupBroadcast", "subgroupShuffle", "subgroupShuffleXor",
+                                                         "subgroupShuffleUp", "subgroupShuffleDown"};
+                for (const char* fn : kSecondArg)
+                    if (text.contains(fn))
+                        defines += std::string("#define ") + fn + "(x, y) (x)\n";
+                if (text.contains("subgroupExclusiveAdd"))
+                    defines += "#define subgroupExclusiveAdd(x) ((x) - (x))\n";
+                if (text.contains("subgroupAllEqual"))
+                    defines += "#define subgroupAllEqual(x) true\n";
+                if (text.contains("subgroupElect"))
+                    defines += "#define subgroupElect() true\n";
+                if (text.contains("subgroupBallotExclusiveBitCount"))
+                    defines += "#define subgroupBallotExclusiveBitCount(v) 0u\n";
+                if (text.contains("subgroupBallotInclusiveBitCount"))
+                    defines += "#define subgroupBallotInclusiveBitCount(v) ((v).x & 1u)\n";
+                if (text.contains("subgroupBallotFindLSB"))
+                    defines += "#define subgroupBallotFindLSB(v) 0u\n";
+                if (text.contains("subgroupBallotFindMSB"))
+                    defines += "#define subgroupBallotFindMSB(v) 0u\n";
+                if (text.contains("subgroupBallotBitExtract"))
+                    defines += "#define subgroupBallotBitExtract(v, i) ((((v).x >> (i)) & 1u) != 0u)\n";
+                if (text.contains("subgroupInverseBallot"))
+                    defines += "#define subgroupInverseBallot(v) (((v).x & 1u) != 0u)\n";
+                if (text.contains("subgroupBallotBitCount"))
+                    defines += "#define subgroupBallotBitCount(v) uint(bitCount((v).x))\n";
+                if (text.contains("subgroupBallot"))
+                    defines += "#define subgroupBallot(b) uvec4((b) ? 1u : 0u, 0u, 0u, 0u)\n";
+                if (text.contains("subgroupBarrier"))
+                    defines += "#define subgroupBarrier() memoryBarrierShared()\n";
+                if (text.contains("subgroupMemoryBarrier"))
+                    defines += "#define subgroupMemoryBarrierShared() memoryBarrierShared()\n"
+                               "#define subgroupMemoryBarrier() memoryBarrier()\n";
+                text = ReplaceWord(text, "gl_SubgroupSize", "1u");
+                text = ReplaceWord(text, "gl_SubgroupInvocationID", "0u");
+                text = ReplaceWord(text, "gl_SubgroupEqMask", "uvec4(1u, 0u, 0u, 0u)");
+                text = ReplaceWord(text, "gl_SubgroupLtMask", "uvec4(0u)");
+                text = ReplaceWord(text, "gl_SubgroupLeMask", "uvec4(1u, 0u, 0u, 0u)");
+                text = ReplaceWord(text, "gl_SubgroupID", "gl_LocalInvocationIndex");
+                text = ReplaceWord(text, "gl_NumSubgroups",
+                                   "(gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z)");
+            }
+            if (defines.empty())
+                return text;
+            return defines + text;
+        }
+
+        std::string BalanceConditionals(const std::string& text) {
+            std::string out;
+            out.reserve(text.size());
+            int depth = 0;
+            size_t pos = 0;
+            while (pos < text.size()) {
+                size_t end = text.find('\n', pos);
+                if (end == std::string::npos)
+                    end = text.size();
+                const std::string line = text.substr(pos, end - pos);
+                pos = end + 1;
+                const size_t a = line.find_first_not_of(" \t");
+                if (a != std::string::npos && line[a] == '#') {
+                    const size_t b = line.find_first_not_of(" \t", a + 1);
+                    const auto is = [&](const char* word) {
+                        const size_t n = std::strlen(word);
+                        return b != std::string::npos && line.compare(b, n, word) == 0 &&
+                               (b + n >= line.size() || !std::isalnum(static_cast<unsigned char>(line[b + n])));
+                    };
+                    if (is("if") || is("ifdef") || is("ifndef")) {
+                        depth++;
+                    } else if (is("endif")) {
+                        if (depth == 0) {
+                            out += '\n';
+                            continue;
+                        }
+                        depth--;
+                    } else if ((is("else") || is("elif")) && depth == 0) {
+                        out += '\n';
+                        continue;
+                    }
+                }
+                out += line;
+                out += '\n';
+            }
+            while (depth-- > 0)
+                out += "#endif\n";
+            return out;
+        }
+
         std::string RepairConditionals(const std::string& text) {
+            std::set<std::string> empty;
+            {
+                size_t at = 0;
+                while (at < text.size()) {
+                    size_t end = text.find('\n', at);
+                    if (end == std::string::npos)
+                        end = text.size();
+                    const std::string_view line(text.data() + at, end - at);
+                    const size_t h = line.find_first_not_of(" \t");
+                    if (h != std::string_view::npos && line[h] == '#') {
+                        const size_t d = line.find_first_not_of(" \t", h + 1);
+                        if (d != std::string_view::npos && line.substr(d, 6) == "define") {
+                            size_t n = line.find_first_not_of(" \t", d + 6);
+                            size_t e = n;
+                            while (e < line.size() && (std::isalnum(static_cast<unsigned char>(line[e])) || line[e] == '_'))
+                                e++;
+                            if (n != std::string_view::npos && e > n &&
+                                line.find_first_not_of(" \t\r", e) == std::string_view::npos)
+                                empty.insert(std::string(line.substr(n, e - n)));
+                        }
+                    }
+                    at = end + 1;
+                }
+            }
+            const auto fillEmpty = [&](const std::string& expr) {
+                std::string result;
+                bool afterDefined = false;
+                for (size_t i = 0; i < expr.size();) {
+                    if (std::isalpha(static_cast<unsigned char>(expr[i])) || expr[i] == '_') {
+                        size_t e = i;
+                        while (e < expr.size() && (std::isalnum(static_cast<unsigned char>(expr[e])) || expr[e] == '_'))
+                            e++;
+                        const std::string word = expr.substr(i, e - i);
+                        result += !afterDefined && empty.contains(word) ? std::string("1") : word;
+                        afterDefined = word == "defined";
+                        i = e;
+                        continue;
+                    }
+                    if (expr[i] != ' ' && expr[i] != '\t' && expr[i] != '(')
+                        afterDefined = false;
+                    result += expr[i++];
+                }
+                return result;
+            };
+            std::map<std::string, std::string> numeric;
+            const auto numberLiteral = [](std::string_view v) {
+                size_t i = 0;
+                if (i < v.size() && (v[i] == '-' || v[i] == '+'))
+                    i++;
+                size_t digits = 0;
+                while (i < v.size() && std::isdigit(static_cast<unsigned char>(v[i]))) {
+                    i++;
+                    digits++;
+                }
+                if (i < v.size() && v[i] == '.') {
+                    i++;
+                    while (i < v.size() && std::isdigit(static_cast<unsigned char>(v[i]))) {
+                        i++;
+                        digits++;
+                    }
+                }
+                if (i < v.size() && (v[i] == 'f' || v[i] == 'F'))
+                    i++;
+                return digits > 0 && i == v.size();
+            };
+            const auto scaleFloats = [&](const std::string& expr) {
+                std::string sub;
+                bool afterDefined = false, anyFloat = false;
+                for (size_t i = 0; i < expr.size();) {
+                    if (std::isalpha(static_cast<unsigned char>(expr[i])) || expr[i] == '_') {
+                        size_t e = i;
+                        while (e < expr.size() && (std::isalnum(static_cast<unsigned char>(expr[e])) || expr[e] == '_'))
+                            e++;
+                        const std::string word = expr.substr(i, e - i);
+                        const auto it = afterDefined ? numeric.end() : numeric.find(word);
+                        sub += it != numeric.end() ? "(" + it->second + ")" : word;
+                        afterDefined = word == "defined";
+                        i = e;
+                        continue;
+                    }
+                    if (expr[i] != ' ' && expr[i] != '\t' && expr[i] != '(')
+                        afterDefined = false;
+                    sub += expr[i++];
+                }
+                std::string scaled;
+                for (size_t i = 0; i < sub.size();) {
+                    const bool startsNumber =
+                        std::isdigit(static_cast<unsigned char>(sub[i])) ||
+                        (sub[i] == '.' && i + 1 < sub.size() && std::isdigit(static_cast<unsigned char>(sub[i + 1])));
+                    const bool partOfWord =
+                        i > 0 && (std::isalnum(static_cast<unsigned char>(sub[i - 1])) || sub[i - 1] == '_');
+                    if (!startsNumber || partOfWord || (sub.compare(i, 2, "0x") == 0 || sub.compare(i, 2, "0X") == 0)) {
+                        scaled += sub[i++];
+                        continue;
+                    }
+                    size_t e = i;
+                    while (e < sub.size() && (std::isdigit(static_cast<unsigned char>(sub[e])) || sub[e] == '.'))
+                        e++;
+                    const std::string number = sub.substr(i, e - i);
+                    if (number.contains('.'))
+                        anyFloat = true;
+                    while (e < sub.size() && (sub[e] == 'f' || sub[e] == 'F' || sub[e] == 'u' || sub[e] == 'U'))
+                        e++;
+                    scaled += std::to_string(std::llround(std::strtod(number.c_str(), nullptr) * 1000.0));
+                    i = e;
+                }
+                return anyFloat ? scaled : expr;
+            };
             std::string out;
             out.reserve(text.size());
             size_t pos = 0;
@@ -857,11 +1338,40 @@ namespace perlin::jshader {
                 size_t a = line.find_first_not_of(" \t");
                 if (a != std::string::npos && line[a] == '#') {
                     size_t b = line.find_first_not_of(" \t", a + 1);
+                    if (b != std::string::npos && (line.compare(b, 6, "define") == 0 || line.compare(b, 5, "undef") == 0)) {
+                        const bool define = line.compare(b, 6, "define") == 0;
+                        size_t n = line.find_first_not_of(" \t", b + (define ? 6 : 5));
+                        size_t e = n;
+                        while (e < line.size() && (std::isalnum(static_cast<unsigned char>(line[e])) || line[e] == '_'))
+                            e++;
+                        if (n != std::string::npos && e > n) {
+                            const std::string name = line.substr(n, e - n);
+                            std::string value = define && (e >= line.size() || line[e] != '(') ? line.substr(e) : std::string();
+                            if (const size_t c = value.find("//"); c != std::string::npos)
+                                value.resize(c);
+                            const size_t v0 = value.find_first_not_of(" \t\r");
+                            const size_t v1 = value.find_last_not_of(" \t\r");
+                            value = v0 == std::string::npos ? std::string() : value.substr(v0, v1 - v0 + 1);
+                            if (define && numberLiteral(value))
+                                numeric[name] = value;
+                            else
+                                numeric.erase(name);
+                        }
+                    }
                     const bool isIf = b != std::string::npos && line.compare(b, 2, "if") == 0 &&
                                       (b + 2 >= line.size() || !std::isalpha(static_cast<unsigned char>(line[b + 2])) ||
                                        line.compare(b, 5, "ifdef") == 0 || line.compare(b, 6, "ifndef") == 0);
                     const bool isElif = b != std::string::npos && line.compare(b, 4, "elif") == 0;
                     if ((isIf && line.compare(b, 5, "ifdef") != 0 && line.compare(b, 6, "ifndef") != 0) || isElif) {
+                        {
+                            const size_t kw = b + (isElif ? 4 : 2);
+                            std::string expr = line.substr(kw);
+                            if (const size_t c = expr.find("//"); c != std::string::npos)
+                                expr.resize(c);
+                            if (!empty.empty())
+                                expr = fillEmpty(expr);
+                            line = line.substr(0, kw) + scaleFloats(expr);
+                        }
                         int depth = 0;
                         bool bad = false;
                         for (char c : line.substr(b)) {
@@ -991,17 +1501,32 @@ namespace perlin::jshader {
             ExtractVersion(rawSource, version, compat, body);
 
             std::string error;
-            std::string pre = options.preprocess(BuildPrefix(options) + body, stage, error);
-            if (pre.empty() && error.find("Macro redefined") != std::string::npos) {
-                pre = options.preprocess(AllowRedefinition(BuildPrefix(options) + body), stage, error);
-            }
-            if (pre.empty() && error.find("names beginning with \"GL_\"") != std::string::npos) {
-                pre = options.preprocess(RenameGlMacros(BuildPrefix(options) + body), stage, error);
-            }
-            if (pre.empty() && error.find("preprocessor evaluation") != std::string::npos) {
-                pre = options.preprocess(RepairConditionals(BuildPrefix(options) + body), stage, error);
+            std::string source = BuildPrefix(options) + body;
+            std::string pre = options.preprocess(source, stage, error);
+            bool redefined = false, glRenamed = false, repaired = false, balanced = false;
+            while (pre.empty() && !error.empty()) {
+                if (!redefined && error.find("Macro redefined") != std::string::npos) {
+                    redefined = true;
+                    source = AllowRedefinition(source);
+                } else if (!glRenamed && error.find("names beginning with \"GL_\"") != std::string::npos) {
+                    glRenamed = true;
+                    source = RenameGlMacros(source);
+                } else if (!repaired && error.find("preprocessor evaluation") != std::string::npos) {
+                    repaired = true;
+                    source = RepairConditionals(source);
+                } else if (!balanced && (error.find("mismatched statements") != std::string::npos ||
+                                         error.find("missing #endif") != std::string::npos ||
+                                         error.find("#else after #else") != std::string::npos)) {
+                    balanced = true;
+                    source = BalanceConditionals(source);
+                } else {
+                    break;
+                }
+                pre = options.preprocess(source, stage, error);
             }
             if (pre.empty() && !error.empty()) {
+                if (const char* dumpTo = std::getenv("JSHADER_PRE_DUMP"))
+                    std::ofstream(dumpTo, std::ios::binary) << source;
                 result.ok = false;
                 result.error = "preprocess: " + error;
                 return result;
@@ -1009,6 +1534,10 @@ namespace perlin::jshader {
 
             pre = AttributesToUniforms(pre);
             pre = StripFunctionSemicolons(pre);
+            pre = DropRepeatedGlobalConsts(pre);
+            pre = DeclareMissingBuiltins(pre);
+            pre = ChunkOffsetSemantics(std::move(pre));
+            pre = PolyfillExtensions(std::move(pre));
             std::vector<Tok> tokens = Lex(pre);
             for (Tok& tk : tokens) {
                 if (tk.kind == Tok::Directive) {
@@ -1021,6 +1550,44 @@ namespace perlin::jshader {
                         tk.kind = Tok::Punct;
                     }
                 }
+            }
+            for (size_t k = 0; k < tokens.size(); k++) {
+                if (tokens[k].kind != Tok::Ident)
+                    continue;
+                if (tokens[k].text == "highp" || tokens[k].text == "mediump" || tokens[k].text == "lowp") {
+                    tokens[k].text.clear();
+                    tokens[k].kind = Tok::Punct;
+                } else if (tokens[k].text == "precision") {
+                    size_t e = k;
+                    while (e < tokens.size() && tokens[e].text != ";")
+                        e++;
+                    for (size_t q = k; q <= e && q < tokens.size(); q++) {
+                        tokens[q].text.clear();
+                        tokens[q].kind = Tok::Punct;
+                    }
+                    k = e;
+                }
+            }
+            {
+                static const std::set<std::string, std::less<>> kLateBuiltins = {
+                    "packSnorm4x8",  "unpackSnorm4x8",  "packUnorm4x8",  "unpackUnorm4x8",  "packSnorm2x16",
+                    "unpackSnorm2x16", "packUnorm2x16", "unpackUnorm2x16", "packHalf2x16",    "unpackHalf2x16"};
+                std::set<std::string> userDefined;
+                int depth = 0;
+                for (size_t k = 0; k + 1 < tokens.size(); k++) {
+                    if (tokens[k].text == "{")
+                        depth++;
+                    else if (tokens[k].text == "}")
+                        depth--;
+                    if (depth == 0 && tokens[k].kind == Tok::Ident && tokens[k + 1].text == "(" && k > 0 &&
+                        (IsType(tokens[k - 1].text) || tokens[k - 1].text == "void") &&
+                        kLateBuiltins.contains(tokens[k].text))
+                        userDefined.insert(tokens[k].text);
+                }
+                if (!userDefined.empty())
+                    for (Tok& tk : tokens)
+                        if (tk.kind == Tok::Ident && userDefined.contains(tk.text))
+                            tk.text = "iris_user_" + tk.text;
             }
             RenameShadowedSamplers(tokens);
             if (options.splitSamplers)
@@ -1149,8 +1716,10 @@ namespace perlin::jshader {
                 } else if (id == "gl_Vertex") {
                     ctx.vin.position = true;
                     rep = "vec4(iris_Position, 1.0)";
+                } else if (id == "gl_Color" && stage == Stage::Fragment) {
+                    ctx.use.frontColorIn = true;
+                    rep = "iris_FrontColorIn";
                 } else if (id == "gl_Color") {
-
                     ctx.vin.color = true;
                     ctx.use.colorMod = true;
                     rep = "(iris_Color * iris_ColorModulator)";
@@ -1511,6 +2080,8 @@ namespace perlin::jshader {
             std::string flags;
             if (ctx.use.fogCoord)
                 flags += "FOGCOORD;";
+            if (ctx.use.frontColorIn)
+                flags += "FRONTCOLOR;";
             if (ctx.use.fragCoord)
                 flags += "FRAGCOORD;";
             if (ctx.use.shadow2D)
@@ -1818,6 +2389,58 @@ namespace perlin::jshader {
         }
     }
 
+    namespace {
+        std::string RepackBlockComponents(const std::string& text) {
+            if (!text.contains("component"))
+                return text;
+            static const std::regex kBlock(R"(\b(in|out)(\s+)(\w+)\s*\{)");
+            static const std::regex kMemberLayout(R"(layout\s*\(([^)]*)\)\s*)");
+            static const std::regex kLocation(R"(location\s*=\s*(\d+))");
+            std::string out;
+            size_t pos = 0;
+            for (auto it = std::sregex_iterator(text.begin(), text.end(), kBlock); it != std::sregex_iterator(); ++it) {
+                const size_t start = static_cast<size_t>(it->position(0));
+                if (start < pos)
+                    continue;
+                const size_t open = start + static_cast<size_t>(it->length(0)) - 1;
+                const size_t close = text.find('}', open);
+                if (close == std::string::npos)
+                    break;
+                const std::string body = text.substr(open + 1, close - open - 1);
+                if (!body.contains("component"))
+                    continue;
+                int lowest = -1;
+                std::string cleaned;
+                size_t at = 0;
+                for (auto m = std::sregex_iterator(body.begin(), body.end(), kMemberLayout); m != std::sregex_iterator(); ++m) {
+                    const std::string args = (*m)[1].str();
+                    std::smatch loc;
+                    if (!std::regex_search(args, loc, kLocation))
+                        continue;
+                    const int l = std::atoi(loc[1].str().c_str());
+                    lowest = lowest < 0 ? l : std::min(lowest, l);
+                    cleaned += body.substr(at, static_cast<size_t>(m->position(0)) - at);
+                    at = static_cast<size_t>(m->position(0) + m->length(0));
+                }
+                cleaned += body.substr(at);
+                if (lowest < 0)
+                    continue;
+                size_t lineStart = text.rfind('\n', start);
+                lineStart = lineStart == std::string::npos ? 0 : lineStart + 1;
+                const std::string before = text.substr(lineStart, start - lineStart);
+                out += text.substr(pos, start - pos);
+                if (!before.contains("layout"))
+                    out += "layout(location = " + std::to_string(lowest) + ") ";
+                out += text.substr(start, open + 1 - start) + cleaned + "}";
+                pos = close + 1;
+            }
+            if (pos == 0)
+                return text;
+            out += text.substr(pos);
+            return out;
+        }
+    }
+
     ProgramResult TransformProgram(const ExpandedSource& vertexSource, const ExpandedSource& fragmentSource,
                                    const TransformOptions& options) {
         ProgramResult program;
@@ -1914,6 +2537,12 @@ namespace perlin::jshader {
             l.inFragmentIn = true;
             if (v.location >= 0 && l.location < 0)
                 l.location = v.location;
+        }
+        const bool frontColor = HasFlag(program.fragment.glsl, "FRONTCOLOR");
+        if (frontColor) {
+            Link& l = links["iris_FrontColorIn"];
+            l.type = "vec4";
+            l.inVertexOut = l.inFragmentIn = true;
         }
         if (fogCoord) {
             Link& l = links["iris_FogFragCoord"];
@@ -2085,6 +2714,8 @@ namespace perlin::jshader {
             }
             if (fogCoord)
                 varyings += varyingDecl("iris_FogFragCoord", links["iris_FogFragCoord"], true);
+            if (frontColor)
+                varyings += varyingDecl("iris_FrontColorIn", links["iris_FrontColorIn"], true);
 
             std::string zeroFill;
             for (const auto& [linkName, l] : links) {
@@ -2118,6 +2749,9 @@ namespace perlin::jshader {
             if (body.contains("mc_chunkFade") && !attrs.contains("mc_chunkFade"))
                 prelude += "const float mc_chunkFade = 1.0;\n";
             std::string footer = "\nvoid main() {\n" + zeroFill + "    iris_user_main();\n" + flatCopy;
+            if (frontColor)
+                footer += std::string("    iris_FrontColorIn = ") +
+                          (body.contains("iris_FrontColorSink") ? "iris_FrontColorSink" : "vec4(1.0)") + ";\n";
             if (options.flipVertexY)
                 footer += "    gl_Position.y = -gl_Position.y;\n";
             if (options.zeroToOneDepth)
@@ -2140,6 +2774,8 @@ namespace perlin::jshader {
             }
             if (fogCoord)
                 varyings += varyingDecl("iris_FogFragCoord", links["iris_FogFragCoord"], false);
+            if (frontColor)
+                varyings += varyingDecl("iris_FrontColorIn", links["iris_FrontColorIn"], false);
             body = str::ReplaceAll(body, "/*VARYING_IN*/", "");
             std::string outs;
             std::set<int> usedLoc;
@@ -2179,9 +2815,16 @@ namespace perlin::jshader {
                     outs += "[" + std::to_string(p.second.arrayCount) + "]";
                 outs += ";\n";
                 r.drawBuffers.push_back(p.first);
+                if (!UsesWord(body, p.second.name))
+                    r.silentOutputs.push_back(p.first);
             }
-            for (int i = 0; i < fragData; i++)
+            for (int i = 0; i < fragData; i++) {
                 r.drawBuffers.push_back(i);
+                if (!usedLoc.contains(i) || std::ranges::any_of(placed, [&](const auto& p) { return p.first == i; }))
+                    continue;
+                if (!UsesWord(body, "iris_FragData" + std::to_string(i)) && !body.contains("iris_FragData["))
+                    r.silentOutputs.push_back(i);
+            }
             std::ranges::sort(r.drawBuffers);
             r.drawBuffers.erase(std::unique(r.drawBuffers.begin(), r.drawBuffers.end()), r.drawBuffers.end());
             body = str::ReplaceAll(body, "/*FRAGOUT*/", "");
@@ -2214,11 +2857,92 @@ namespace perlin::jshader {
                 r.error = "internal: iris_ViewHeight requested without uniform block";
             }
         }
+        program.vertex.glsl = RepackBlockComponents(program.vertex.glsl);
+        program.fragment.glsl = RepackBlockComponents(program.fragment.glsl);
         program.uniforms = program.vertex.uniforms;
         program.uniformRegs = 0;
         for (const UniformDecl& u : program.uniforms)
             program.uniformRegs += u.regs;
         return program;
+    }
+
+    namespace {
+        std::string ClampSubscripts(const std::string& text, const std::map<std::string, int>& arrays,
+                                    size_t skipFrom, size_t skipTo, int depth) {
+            if (depth > 8)
+                return text;
+            const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+            std::string out;
+            size_t i = 0;
+            while (i < text.size()) {
+                if (!word(text[i]) || (i > 0 && word(text[i - 1]))) {
+                    out += text[i++];
+                    continue;
+                }
+                size_t e = i;
+                while (e < text.size() && word(text[e]))
+                    e++;
+                const std::string name = text.substr(i, e - i);
+                const auto it = arrays.find(name);
+                out += name;
+                if (it == arrays.end() || (i >= skipFrom && i < skipTo) || (i > 0 && text[i - 1] == '.')) {
+                    i = e;
+                    continue;
+                }
+                size_t at = e;
+                for (int dim = 0; dim < it->second; dim++) {
+                    size_t open = at;
+                    while (open < text.size() && std::isspace(static_cast<unsigned char>(text[open])))
+                        open++;
+                    if (open >= text.size() || text[open] != '[')
+                        break;
+                    int level = 0;
+                    size_t close = open;
+                    for (; close < text.size(); close++) {
+                        if (text[close] == '[')
+                            level++;
+                        else if (text[close] == ']' && --level == 0)
+                            break;
+                    }
+                    if (close >= text.size())
+                        break;
+                    const std::string inner = ClampSubscripts(text.substr(open + 1, close - open - 1), arrays,
+                                                              std::string::npos, std::string::npos, depth + 1);
+                    std::string len = name;
+                    for (int k = 0; k < dim; k++)
+                        len += "[0]";
+                    out += text.substr(at, open - at) + "[clamp(int(" + inner + "), 0, " + len + ".length() - 1)]";
+                    at = close + 1;
+                }
+                i = at;
+            }
+            return out;
+        }
+
+        std::string ClampSharedIndices(const std::string& body) {
+            if (!body.contains("shared"))
+                return body;
+            static const std::regex decl(R"(\bshared\s+(?:(?:highp|mediump|lowp|precise)\s+)*\w+\s+(\w+)\s*((?:\[[^\]\[;]*\]\s*)+);)");
+            std::map<std::string, int> arrays;
+            std::vector<std::pair<size_t, size_t>> decls;
+            for (auto it = std::sregex_iterator(body.begin(), body.end(), decl); it != std::sregex_iterator(); ++it) {
+                const std::string dims = (*it)[2].str();
+                arrays[(*it)[1].str()] = static_cast<int>(std::ranges::count(dims, '['));
+                decls.emplace_back(static_cast<size_t>(it->position(0)),
+                                   static_cast<size_t>(it->position(0) + it->length(0)));
+            }
+            if (arrays.empty())
+                return body;
+            std::string out;
+            size_t last = 0;
+            for (const auto& [from, to] : decls) {
+                out += ClampSubscripts(body.substr(last, from - last), arrays, std::string::npos, std::string::npos, 0);
+                out += body.substr(from, to - from);
+                last = to;
+            }
+            out += ClampSubscripts(body.substr(last), arrays, std::string::npos, std::string::npos, 0);
+            return out;
+        }
     }
 
     ComputeResult TransformCompute(const ExpandedSource& source, const TransformOptions& options) {
@@ -2271,7 +2995,7 @@ namespace perlin::jshader {
         for (const UniformDecl& u : r.uniforms)
             out.uniformRegs = std::max(out.uniformRegs, u.reg + u.regs);
         const size_t sep = prelude.find('\x01');
-        std::string samplerText = prelude.substr(0, sep), body = prelude.substr(sep + 1);
+        std::string samplerText = prelude.substr(0, sep), body = ClampSharedIndices(prelude.substr(sep + 1));
         const std::string structs = HoistStructs(body);
         std::string shadowPrelude;
         if (HasFlag(text, "SHADOW2D"))

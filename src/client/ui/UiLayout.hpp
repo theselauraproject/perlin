@@ -42,6 +42,7 @@ namespace perlin::ui {
         std::unordered_map<std::string, Rec> recs;
         std::unordered_map<std::string, double> events;
         std::unordered_set<std::string> destroyed;
+        std::unordered_set<std::string> destroyedSeen;
         void Fire(const std::string& name) { events[name] = now; }
     };
 

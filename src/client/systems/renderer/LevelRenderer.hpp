@@ -141,7 +141,7 @@ namespace perlin {
         void Recompute(const ChunkPos& pos);
         bool Ready(const ChunkPos& pos, uint64_t now) const;
         void Schedule(Level& level, float camX, float camZ, const Frustum& frustum);
-        void InvalidateMeshes();
+        void InvalidateMeshes(bool keepVisible = false);
         void RemeshWaiting();
         bool fastBuild = false;
         PosSet remeshOutstanding;

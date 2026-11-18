@@ -54,6 +54,7 @@ namespace perlin::jshader {
         std::vector<InterfaceVar> inputs, outputs;
         VertexInputs vertexInputs;
         std::vector<int> drawBuffers;
+        std::vector<int> silentOutputs;
         std::string error;
         bool ok = true;
     };

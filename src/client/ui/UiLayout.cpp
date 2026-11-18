@@ -365,8 +365,10 @@ namespace perlin::ui {
                 if (const json::Value* v = n->bag.Find("#visible"))
                     visible = Truthy(*v);
                 n->visible = visible;
-                if (services.anim && services.anim->destroyed.contains(n->id))
+                if (services.anim && services.anim->destroyed.contains(n->id)) {
+                    services.anim->destroyedSeen.insert(n->id);
                     return nullptr;
+                }
                 if (visible)
                     ApplyAnimations(*n, AnimKey(*n));
 
@@ -1609,6 +1611,7 @@ namespace perlin::ui {
             host->epoch++;
             host->animating = false;
             host->destroyed.clear();
+            host->destroyedSeen.clear();
             for (const auto& rec : host->recs)
                 if (rec.second.finished && !rec.second.destroyName.empty())
                     host->destroyed.insert(rec.second.destroyName);
@@ -1616,8 +1619,10 @@ namespace perlin::ui {
         auto tree = evaluator.Instantiate(root, {}, nullptr, 0, 1.0f, false);
         if (AnimHost* host = services.anim)
             for (auto it = host->recs.begin(); it != host->recs.end();)
-                it = (it->second.seen != host->epoch && it->second.destroyName.empty()) ? host->recs.erase(it)
-                                                                                        : std::next(it);
+                it = (it->second.seen != host->epoch &&
+                      (it->second.destroyName.empty() || !host->destroyedSeen.contains(it->second.destroyName)))
+                         ? host->recs.erase(it)
+                         : std::next(it);
         if (!tree)
             return nullptr;
         evaluator.Measure(*tree, guiW, guiH, kUnknown, kUnknown, kUnknown, kUnknown);

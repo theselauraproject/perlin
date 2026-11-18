@@ -80,6 +80,24 @@ namespace perlin::screen {
         bool resume = host.screens.IsOpen(Id::Death) || host.screens.IsOpen(Id::Inventory) || host.chat.IsOpen();
         if (optionsUi.bindCapture < 0)
             for (const auto& t : host.inputManager.TakeTyped()) {
+                if (optionsUi.typingRow >= 0) {
+                    if (t.character) {
+                        if (optionsUi.typingText.size() < 16 && t.key > 0 && t.key < 128 &&
+                            (std::isdigit(t.key) || t.key == '.' || t.key == '-'))
+                            optionsUi.typingText += static_cast<char>(t.key);
+                    } else if (t.key == Key::Backspace) {
+                        if (!optionsUi.typingText.empty())
+                            optionsUi.typingText.pop_back();
+                    } else if (t.key == Key::Enter) {
+                        optionsUi.typingCommit = !optionsUi.typingText.empty();
+                        if (!optionsUi.typingCommit)
+                            optionsUi.typingRow = -1;
+                    } else if (t.key == Key::Escape && t.mouse < 0) {
+                        optionsUi.typingRow = -1;
+                    }
+                    optionsUi.signature.clear();
+                    continue;
+                }
                 if (this->view == 4) {
                     ui::TextEdit::Focused().Apply(t, packUi.modSearch, ui::TextLimits{.maxBytes = 40});
                 }
@@ -307,7 +325,8 @@ namespace perlin::screen {
                                       {Action::Screenshot, "Take Screenshot"},
                                       {Action::CyclePerspective, "Toggle Perspective"},
                                       {Action::Zoom, "Zoom"},
-                                      {Action::Fullscreen, "Toggle Fullscreen"}}}};
+                                      {Action::Fullscreen, "Toggle Fullscreen"},
+                                      {Action::MenuBack, "Menu Back"}}}};
         const auto keyText = [](const Binding& b) {
             std::string v = b.Serialize();
             for (const char* prefix : {"key.keyboard.", "key.mouse.", "pad."}) {
@@ -401,6 +420,19 @@ namespace perlin::screen {
                                 std::to_string(static_cast<int>(optionsUi.kbScroll));
         for (const ui::KeybindRow& r : rows)
             signature += "|" + r.value + (r.canReset ? "r" : "");
+        const auto undoable = [&] {
+            return std::any_of(optionsUi.bindUndo.begin(), optionsUi.bindUndo.end(),
+                               [&](const OptionsMenu::BindUndo& u) { return u.device == optionsUi.bindDevice; });
+        };
+        signature += undoable() ? "|u" : "|n";
+        const auto setPlugin = [&](size_t k, const Binding& b) {
+            if (k >= pluginKeys.size())
+                return;
+            const Binding before = Binding::Parse(pluginKeys[k].binding);
+            if (!(before == b))
+                optionsUi.bindUndo.push_back({-1, optionsUi.bindDevice, pluginKeys[k].plugin, pluginKeys[k].id, before});
+            services.manager.SetKeyBinding(pluginKeys[k].plugin, pluginKeys[k].id, b.Serialize());
+        };
         if (signature != optionsUi.signature || !hud.Overlay().HasOverlay()) {
             optionsUi.signature = signature;
             std::string error;
@@ -410,7 +442,7 @@ namespace perlin::screen {
                         optionsUi.bindDevice == 1 ? std::string("Controller Binds")
                                                   : i18n::TrOr("controls.keybinds.title", "Key Binds"),
                         i18n::TrOr("gui.done", "Done"), i18n::TrOr("controls.reset", "Reset"),
-                        optionsUi.kbScroll, guiW, guiH),
+                        optionsUi.kbScroll, guiW, guiH, i18n::TrOr("gui.undo", "Undo"), undoable()),
                     error))
                 Log("ui", "keybinds screen: {}", error);
         }
@@ -428,7 +460,8 @@ namespace perlin::screen {
                         captured = true;
                     }
             for (const auto& t : host.inputManager.TakeTyped()) {
-                if (t.character || Clock::now() - optionsUi.bindStartedAt < std::chrono::milliseconds(120))
+                if (t.character || t.mouse >= 0 ||
+                    Clock::now() - optionsUi.bindStartedAt < std::chrono::milliseconds(120))
                     continue;
                 if (captured)
                     continue;
@@ -436,16 +469,11 @@ namespace perlin::screen {
                     captured = true;
                     continue;
                 }
-                if (t.key != Key::Escape) {
-                    if (optionsUi.bindCapture >= 1000) {
-                        if (const size_t k = static_cast<size_t>(optionsUi.bindCapture - 1000);
-                            k < pluginKeys.size())
-                            services.manager.SetKeyBinding(
-                                pluginKeys[k].plugin, pluginKeys[k].id,
-                                Binding::KeyboardKey(t.key).Serialize());
-                    } else
-                        SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::KeyboardKey(t.key));
-                }
+                const Binding chosen = t.key == Key::Escape ? Binding{} : Binding::KeyboardKey(t.key);
+                if (optionsUi.bindCapture >= 1000)
+                    setPlugin(static_cast<size_t>(optionsUi.bindCapture - 1000), chosen);
+                else
+                    SetBindingOf(static_cast<Action>(optionsUi.bindCapture), chosen);
                 captured = true;
             }
             if (!host.input.IsMouseDown(Mouse::Left))
@@ -453,12 +481,9 @@ namespace perlin::screen {
             for (int b = 0; b <= Mouse::Forward && !captured && optionsUi.bindDevice == 0; b++)
                 if ((b != Mouse::Left || optionsUi.bindLeftArmed) && host.input.IsMouseDown(b) &&
                     Clock::now() - optionsUi.bindStartedAt > std::chrono::milliseconds(120)) {
-                    if (optionsUi.bindCapture >= 1000) {
-                        if (const size_t k = static_cast<size_t>(optionsUi.bindCapture - 1000);
-                            k < pluginKeys.size())
-                            services.manager.SetKeyBinding(pluginKeys[k].plugin, pluginKeys[k].id,
-                                                                       Binding::MouseButton(b).Serialize());
-                    } else
+                    if (optionsUi.bindCapture >= 1000)
+                        setPlugin(static_cast<size_t>(optionsUi.bindCapture - 1000), Binding::MouseButton(b));
+                    else
                         SetBindingOf(static_cast<Action>(optionsUi.bindCapture), Binding::MouseButton(b));
                     captured = true;
                 }
@@ -474,7 +499,25 @@ namespace perlin::screen {
             return gx >= x && gx < x + w && gy >= y && gy < y + h;
         };
         if (down && !this->leftDown && clickReady) {
-            if (inside(kl.doneX, kl.doneY, kl.doneW, 20.0f)) {
+            if (inside(kl.undoX, kl.doneY, kl.undoW, 20.0f) && undoable()) {
+                for (size_t i = optionsUi.bindUndo.size(); i-- > 0;) {
+                    const OptionsMenu::BindUndo u = optionsUi.bindUndo[i];
+                    if (u.device != optionsUi.bindDevice)
+                        continue;
+                    optionsUi.bindUndo.erase(optionsUi.bindUndo.begin() + static_cast<std::ptrdiff_t>(i));
+                    if (u.target >= 0) {
+                        if (optionsUi.bindDevice == 1)
+                            services.options.SetPadKey(static_cast<Action>(u.target), u.previous);
+                        else
+                            services.options.SetKey(static_cast<Action>(u.target), u.previous);
+                    } else {
+                        services.manager.SetKeyBinding(u.plugin, u.id, u.previous.Serialize());
+                    }
+                    break;
+                }
+                services.options.Save();
+                optionsUi.signature.clear();
+            } else if (inside(kl.doneX, kl.doneY, kl.doneW, 20.0f)) {
                 services.options.Save();
                 optionsUi.page = 3;
                 optionsUi.kbScroll = 0;

@@ -8,7 +8,9 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <initializer_list>
 #include <iostream>
+#include <string_view>
 #include "util/Log.hpp"
 
 namespace perlin::i18n {
@@ -68,6 +70,9 @@ namespace perlin::i18n {
             std::string value = line.substr(eq + 1);
             if (const size_t tab = value.find("\t#"); tab != std::string::npos)
                 value.resize(tab);
+            for (const std::string_view token : {std::string_view("~LINEBREAK~"), std::string_view("\\n")})
+                for (size_t at = value.find(token); at != std::string::npos; at = value.find(token, at + 1))
+                    value.replace(at, token.size(), "\n");
             out[line.substr(0, eq)] = std::move(value);
         }
     }

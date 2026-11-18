@@ -13,7 +13,7 @@ Ship wasm32 modules if the plugin should run everywhere.
 
 ## Lifecycle
 
-`ModManager::Start(dir)` scans `dir` for `*.wasm`. Each module gets its own worker thread and instance; a manifest `<name>.json` and icon `<name>.png` beside it are optional.
+`ModManager::Start(dir)` scans `dir` for mods. Each mod is a folder (`mods/<name>/`) or a zip (`mods/<name>.zip` or `.perlinmod`), the same way texture packs and shader packs are laid out. A zip may hold the files at its top level or inside one folder; it is unpacked into `mods/.unpacked/<name>/`. Inside, the module is the `.wasm` named by `main` in `manifest.json` (or `mod.json`), or else the first `.wasm` in the folder; `manifest.json` and `pack_icon.png`/`icon.png` (or the manifest's `icon`) are optional. A loose `<name>.wasm` left directly in `mods/` is moved into `mods/<name>/` together with its `<name>.json` (which becomes `manifest.json`) and `<name>.png`. Each module gets its own worker thread and instance.
 
 A plugin is in exactly one of these states (`ModInfo::state`):
 

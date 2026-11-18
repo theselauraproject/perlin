@@ -402,20 +402,45 @@ namespace perlin::jshader {
                         b.fixedHeight = std::atoi(w[1].c_str());
                     }
                 }
-            } else if (key.starts_with("texture.") && key != "texture.noise") {
-                const std::string rest = key.substr(8);
+            } else if ((key.starts_with("texture.") && key != "texture.noise") ||
+                       (key.starts_with("customTexture.") && key.size() > 14)) {
+                const bool anyStage = key.starts_with("customTexture.");
+                const std::string rest = anyStage ? "*." + key.substr(14) : key.substr(8);
                 const size_t d1 = rest.find('.');
                 if (d1 == std::string::npos)
                     continue;
                 CustomTexture t;
                 t.stage = rest.substr(0, d1);
                 t.sampler = rest.substr(d1 + 1);
+                if (anyStage && t.sampler.contains('.'))
+                    continue;
                 const auto w = SplitWords(val);
                 if (w.empty())
                     continue;
                 t.path = w[0];
                 if (w.size() > 1)
                     t.type = w[1];
+                if (const size_t d2 = t.sampler.find('.'); d2 != std::string::npos) {
+                    const std::string index = t.sampler.substr(d2 + 1);
+                    t.sampler = t.sampler.substr(0, d2);
+                    if (index.empty() || !std::all_of(index.begin(), index.end(),
+                                                      [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
+                        continue;
+                    t.program = index == "0" ? t.stage : t.stage + index;
+                }
+                if (w.size() > 1 && w[1].starts_with("TEXTURE_")) {
+                    const std::string kind = w[1];
+                    t.raw = true;
+                    t.dims = kind == "TEXTURE_1D" ? 1 : kind == "TEXTURE_3D" ? 3 : 2;
+                    if (w.size() < static_cast<size_t>(5 + t.dims))
+                        continue;
+                    t.internalFormat = str::Lower(w[2]);
+                    t.width = std::max(1, std::atoi(w[3].c_str()));
+                    t.height = t.dims >= 2 ? std::max(1, std::atoi(w[4].c_str())) : 1;
+                    t.depth = t.dims == 3 ? std::max(1, std::atoi(w[5].c_str())) : 1;
+                    t.pixelFormat = str::Lower(w[static_cast<size_t>(3 + t.dims)]);
+                    t.pixelType = str::Lower(w[static_cast<size_t>(4 + t.dims)]);
+                }
                 cfg.textures.push_back(std::move(t));
             }
         }

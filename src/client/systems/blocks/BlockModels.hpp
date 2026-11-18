@@ -44,7 +44,10 @@ namespace perlin {
             auto it = byHash.find(hash);
             return it == byHash.end() ? nullptr : &entries[it->second];
         }
-        const std::vector<ModelQuad>& Variant(uint32_t id) const { return variants[id]; }
+        const std::vector<ModelQuad>& Variant(uint32_t id) const {
+            static const std::vector<ModelQuad> none;
+            return id < variants.size() ? variants[id] : none;
+        }
         size_t BlockCount() const { return byHash.size(); }
 
         std::vector<int> tiles;

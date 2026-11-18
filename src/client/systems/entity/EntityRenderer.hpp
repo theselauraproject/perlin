@@ -67,6 +67,7 @@ namespace perlin::entity {
             bool chunkBorders = false;
             bool hitboxes = false;
             bool ownNametag = false;
+            bool ownLeftHanded = false;
             bool nametagBackground = true;
             bool nametagShadow = false;
             bool perlinBadges = true;

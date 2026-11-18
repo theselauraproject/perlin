@@ -1,4 +1,5 @@
 #pragma once
+#include "client/systems/model/DialFrames.hpp"
 #include "client/systems/model/EffectData.hpp"
 #include <cstdint>
 #include <string>
@@ -27,6 +28,8 @@ namespace perlin::ui {
                 k += "#" + std::to_string(blockRuntimeId);
             if (hasColor)
                 k += "@" + std::to_string(static_cast<uint32_t>(color) & 0xFFFFFFu);
+            if (const int dial = DialFrame(name); dial >= 0)
+                k += "!d" + std::to_string(dial);
             return k;
         }
         bool operator==(const HudItem& o) const {
@@ -111,6 +114,7 @@ namespace perlin::ui {
 
         std::string itemName;
         float itemNameAlpha = 0.0f;
+        uint32_t itemNameSerial = 0;
         std::string actionBar;
         float actionBarAlpha = 0.0f;
         std::string title;

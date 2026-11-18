@@ -32,6 +32,7 @@ namespace perlin::debug {
         bool advancedTooltips = false;
         int switcherIndex = -1;
         int fps = 0;
+        int lowFps = 0;
         uint64_t rateTx = 0, rateRx = 0;
         int txRate = 0, rxRate = 0;
         std::chrono::steady_clock::time_point rateAt;

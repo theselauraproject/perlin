@@ -74,7 +74,7 @@ namespace perlin::ui {
         left.push_back(d.version);
         left.push_back(
             T("perlin.debug.fps",
-              {N(d.fps), d.maxFps > 0 ? N(d.maxFps) : T("perlin.debug.inf"),
+              {N(d.fps) + " (" + T("perlin.debug.low", {N(d.lowFps)}) + ")", d.maxFps > 0 ? N(d.maxFps) : T("perlin.debug.inf"),
                d.vsync ? T("perlin.debug.vsync") : std::string(),
                T(d.fancyGraphics ? "options.graphics.fancy" : "options.graphics.fast"),
                d.clouds ? T(d.fancyClouds ? "perlin.debug.clouds_fancy" : "perlin.debug.clouds_fast")

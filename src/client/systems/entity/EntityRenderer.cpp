@@ -206,6 +206,7 @@ namespace perlin::entity {
         glm::mat4 armR{1.0f}, armL{1.0f};
         bool hasArmR = false, hasArmL = false;
         java::PlayerBodyClock body;
+        double bodyTickAt = -1.0;
         CapeChain cape;
         bool headTickInit = false;
         float headTickPrev = 0, headTickCur = 0;
@@ -444,8 +445,16 @@ namespace perlin::entity {
 
     void EntityRenderer::TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw) {
         v.body.classic = ClassicAnimations();
-        v.yaw =
+        if (v.fp && v.bodyTickAt == v.now)
+            return;
+        if (v.bodyTickAt >= 0.0 && v.now - v.bodyTickAt > 0.5)
+            v.body.Reset(v.pos.x, v.pos.z, v.headYaw);
+        v.bodyTickAt = v.now;
+        const float body =
             v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
+        if (v.fp)
+            return;
+        v.yaw = body;
         v.yawSpeed = math::WrapDegrees(v.yaw - prevYaw) / std::max(dt, 0.001f);
     }
 
@@ -540,7 +549,7 @@ namespace perlin::entity {
             v.yawSpeed = 0.0f;
         }
 
-        if (e.isPlayer && !v.fp)
+        if (e.isPlayer)
             TickPlayerBody(e, v, dt, prevYaw);
 
         const glm::dvec3 step = v.pos - v.lastPos;
@@ -1006,10 +1015,12 @@ namespace perlin::entity {
                     return ArmPose::Brush;
                 return ArmPose::Item;
             };
-            ps.right = armPose(e.mainHand, false);
-            ps.left = armPose(e.offHand, true);
+            const bool leftMain = e.isSelf && in.ownLeftHanded;
+            ps.mainLeft = ps.attackLeft = ps.useLeft = leftMain;
+            (leftMain ? ps.left : ps.right) = armPose(e.mainHand, false);
+            (leftMain ? ps.right : ps.left) = armPose(e.offHand, true);
             if (e.AimingBow())
-                ps.right = java::ArmPose::Bow;
+                (leftMain ? ps.left : ps.right) = java::ArmPose::Bow;
             const java::PlayerPose jp = java::AnimatePlayerClassic(ps);
             v.classicLimbs = jp;
             const attachable::BoneXform root = pose.count("root") ? pose["root"] : attachable::BoneXform{};
@@ -1377,10 +1388,11 @@ namespace perlin::entity {
                 v.attachedItem[left ? 1 : 0] = true;
             };
             v.attachedItem[0] = v.attachedItem[1] = false;
+            const bool swapHands = e.isSelf && in.ownLeftHanded && !v.fp;
             if (v.hasItemR)
-                bind(e.mainHand, v.itemR, false);
+                bind(swapHands ? e.offHand : e.mainHand, v.itemR, false);
             if (v.hasItemL)
-                bind(e.offHand, v.itemL, true);
+                bind(swapHands ? e.mainHand : e.offHand, v.itemL, true);
         }
         if (itemRenderer && !layers.empty() && !v.fp) {
             static const int kOrder[4] = {0, 1, 2, 3};
@@ -1710,6 +1722,7 @@ namespace perlin::entity {
             renderer->UiSubmit(dollModel ? UiLayer::Doll : fpModel ? UiLayer::Hand : UiLayer::World, draw);
         }
         if (itemRenderer && !fpModel && (!dollModel || dollClip)) {
+            const bool leftMain = e.isSelf && in.ownLeftHanded;
             const auto held = [&](const std::string& name, const glm::mat4& arm, bool left) {
                 if (name.empty())
                     return;
@@ -1717,8 +1730,9 @@ namespace perlin::entity {
                 item.name = name;
                 item.count = 1;
                 item.maxDamage = ui::MaxDurability(name);
+                const bool main = left == leftMain;
                 const float bowTicks =
-                    !left && e.AimingBow() ? static_cast<float>((v.now - v.usingSince) * 20.0) : -1.0f;
+                    main && e.AimingBow() ? static_cast<float>((v.now - v.usingSince) * 20.0) : -1.0f;
                 itemRenderer->DrawHeldItem(item, model * arm, left, light, bowTicks);
             };
             itemRenderer->SetWorldShadowOnly(shadowOnlyPass);
@@ -1726,9 +1740,9 @@ namespace perlin::entity {
             itemRenderer->SetPackLight(levels.x, levels.y);
             itemRenderer->SetPackEntity(e.type.c_str());
             if (v.hasArmR && !v.attachedItem[0])
-                held(e.mainHand, v.armR, false);
+                held(leftMain ? e.offHand : e.mainHand, v.armR, false);
             if (v.hasArmL && !v.attachedItem[1])
-                held(e.offHand, v.armL, true);
+                held(leftMain ? e.mainHand : e.offHand, v.armL, true);
             itemRenderer->SetPackLight(-1, -1);
             itemRenderer->SetPackEntity(nullptr);
             itemRenderer->SetDollClip(nullptr);

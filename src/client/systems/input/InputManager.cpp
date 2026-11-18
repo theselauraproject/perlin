@@ -91,6 +91,16 @@ namespace perlin {
                 else if (ev.type == InputEvent::KeyDown || ev.type == InputEvent::KeyRepeat)
                     typed.push_back(
                         {false, ev.key, input.IsKeyDown(Key::Control), input.IsKeyDown(Key::Shift)});
+                if (ev.type == InputEvent::MouseDown && ev.key >= Mouse::Middle) {
+                    if (ev.key != Mouse::Middle)
+                        typed.push_back({false, 0, input.IsKeyDown(Key::Control), input.IsKeyDown(Key::Shift),
+                                         ev.key});
+                    if (options.GetKey(Action::MenuBack) == Binding::MouseButton(ev.key))
+                        typed.push_back({false, Key::Escape, false, false, ev.key});
+                } else if (ev.type == InputEvent::KeyDown && ev.key != Key::Escape &&
+                           options.GetKey(Action::MenuBack) == Binding::KeyboardKey(ev.key)) {
+                    typed.push_back({false, Key::Escape, false, false});
+                }
                 continue;
             }
             if (ev.type == InputEvent::KeyDown) {

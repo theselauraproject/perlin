@@ -14,6 +14,7 @@
 #include <set>
 #include "util/Log.hpp"
 #include "util/FileIo.hpp"
+#include "util/ZipFile.hpp"
 
 namespace perlin::mods {
     namespace fs = std::filesystem;
@@ -23,6 +24,147 @@ namespace perlin::mods {
     using support::EmbeddedManifest;
     using support::ReadFile;
     using support::SafeRelative;
+
+    namespace {
+        struct FoundMod {
+            std::string name;
+            fs::path wasm, root, manifest;
+            fs::file_time_type stamp = fs::file_time_type::min();
+            uintmax_t size = 0;
+        };
+
+        bool IsArchive(const fs::path& p) {
+            std::string ext = p.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+            return ext == ".zip" || ext == ".perlinmod";
+        }
+
+        bool ResolveModFolder(fs::path dir, FoundMod& out) {
+            std::error_code ec;
+            for (int depth = 0; depth < 3; depth++) {
+                std::vector<fs::path> wasms, subdirs;
+                bool manifestHere = false;
+                for (const auto& e : fs::directory_iterator(dir, ec)) {
+                    const std::string fn = e.path().filename().string();
+                    if (fn.starts_with(".") || fn == "__MACOSX")
+                        continue;
+                    if (e.is_directory(ec))
+                        subdirs.push_back(e.path());
+                    else if (e.path().extension() == ".wasm")
+                        wasms.push_back(e.path());
+                    else if (fn == "manifest.json" || fn == "mod.json")
+                        manifestHere = true;
+                }
+                if (wasms.empty() && !manifestHere && subdirs.size() == 1) {
+                    dir = subdirs.front();
+                    continue;
+                }
+                std::sort(wasms.begin(), wasms.end());
+                fs::path manifest;
+                for (const char* candidate : {"manifest.json", "mod.json"})
+                    if (fs::is_regular_file(dir / candidate, ec)) {
+                        manifest = dir / candidate;
+                        break;
+                    }
+                fs::path wasm;
+                if (!manifest.empty()) {
+                    std::ifstream in(manifest, std::ios::binary);
+                    std::string text;
+                    file::ReadRest(in, text);
+                    json::Value doc;
+                    std::string error;
+                    if (json::Value::Parse(text, doc, error) && doc.IsObject())
+                        for (const char* key : {"main", "entry", "wasm"})
+                            if (const json::Value* v = doc.Find(key); v && v->IsString()) {
+                                fs::path rel;
+                                if (SafeRelative(v->string, rel) && fs::is_regular_file(dir / rel, ec)) {
+                                    wasm = dir / rel;
+                                    break;
+                                }
+                            }
+                }
+                if (wasm.empty() && !wasms.empty())
+                    wasm = wasms.front();
+                if (wasm.empty())
+                    return false;
+                if (manifest.empty() && fs::is_regular_file(fs::path(wasm).replace_extension(".json"), ec))
+                    manifest = fs::path(wasm).replace_extension(".json");
+                out.root = dir;
+                out.wasm = wasm;
+                out.manifest = manifest;
+                out.size = fs::file_size(wasm, ec);
+                out.stamp = fs::last_write_time(wasm, ec);
+                if (!manifest.empty())
+                    out.stamp = std::max(out.stamp, fs::last_write_time(manifest, ec));
+                return true;
+            }
+            return false;
+        }
+
+        bool UnpackModArchive(const fs::path& archive, const fs::path& dest) {
+            std::error_code ec;
+            const auto stamp = fs::last_write_time(archive, ec);
+            const uintmax_t size = fs::file_size(archive, ec);
+            const std::string signature =
+                std::to_string(stamp.time_since_epoch().count()) + ":" + std::to_string(size);
+            {
+                std::ifstream in(dest / ".source", std::ios::binary);
+                std::string have;
+                file::ReadRest(in, have);
+                if (have == signature)
+                    return true;
+            }
+            fs::remove_all(dest, ec);
+            fs::create_directories(dest, ec);
+            mz_zip_archive zip{};
+            FILE* handle = nullptr;
+            if (!OpenZipReader(zip, archive, handle)) {
+                Log("mods", "{}: not a readable zip", archive.filename().string());
+                return false;
+            }
+            bool ok = true;
+            const mz_uint count = mz_zip_reader_get_num_files(&zip);
+            for (mz_uint i = 0; i < count && ok; i++) {
+                mz_zip_archive_file_stat st;
+                if (!mz_zip_reader_file_stat(&zip, i, &st) || mz_zip_reader_is_file_a_directory(&zip, i))
+                    continue;
+                fs::path rel;
+                if (!SafeRelative(st.m_filename, rel))
+                    continue;
+                const fs::path target = dest / rel;
+                fs::create_directories(target.parent_path(), ec);
+                ok = mz_zip_reader_extract_to_file(&zip, i, target.string().c_str(), 0) != 0;
+            }
+            mz_zip_reader_end(&zip);
+            if (handle)
+                std::fclose(handle);
+            if (!ok) {
+                Log("mods", "{}: could not unpack", archive.filename().string());
+                return false;
+            }
+            std::ofstream(dest / ".source", std::ios::binary) << signature;
+            return true;
+        }
+
+        void MoveLooseWasm(const fs::path& directory, const fs::path& wasm) {
+            std::error_code ec;
+            const std::string stem = wasm.stem().string();
+            const fs::path folder = directory / stem;
+            if (fs::exists(folder, ec))
+                return;
+            fs::create_directories(folder, ec);
+            if (ec)
+                return;
+            for (const char* ext : {".wasm", ".json", ".png"}) {
+                const fs::path from = directory / (stem + ext);
+                if (!fs::is_regular_file(from, ec))
+                    continue;
+                const fs::path to = folder / (std::string(ext) == ".json" ? std::string("manifest.json") : stem + ext);
+                fs::rename(from, to, ec);
+            }
+            Log("mods", "moved {} into its own folder, mods/{}/", wasm.filename().string(), stem);
+        }
+    }
 
     ModManager& ModManager::Instance() {
         static ModManager* instance = new ModManager();
@@ -361,12 +503,13 @@ namespace perlin::mods {
         meta.displayName = mod.name;
         uint32_t permissions = static_cast<uint32_t>(abi::Permission::Storage);
         const fs::path base = fs::path(mod.path).replace_extension("");
+        const fs::path root = mod.root.empty() ? fs::path(directory) : fs::path(mod.root);
         std::error_code ec;
         std::string manifestIcon;
         std::vector<abi::SettingDef> manifestSettings;
         std::string manifestText;
         {
-            std::ifstream in(base.string() + ".json", std::ios::binary);
+            std::ifstream in(mod.manifest.empty() ? base.string() + ".json" : mod.manifest, std::ios::binary);
             if (in)
                 file::ReadRest(in, manifestText);
             else
@@ -411,8 +554,10 @@ namespace perlin::mods {
             std::vector<fs::path> candidates;
             fs::path rel;
             if (!manifestIcon.empty() && SafeRelative(manifestIcon, rel))
-                candidates.push_back(fs::path(directory) / rel);
+                candidates.push_back(root / rel);
             candidates.push_back(base.string() + ".png");
+            candidates.push_back(root / "pack_icon.png");
+            candidates.push_back(root / "icon.png");
             candidates.push_back(fs::path(directory) / (mod.name + ".data") / "pack_icon.png");
             candidates.push_back(fs::path(directory) / (mod.name + ".data") / "icon.png");
             for (const fs::path& c : candidates)
@@ -493,22 +638,54 @@ namespace perlin::mods {
             reloadAll = false;
             off = disabled;
         }
+        std::vector<fs::path> loose;
+        for (const auto& entry : fs::directory_iterator(directory, ec))
+            if (entry.is_regular_file(ec) && entry.path().extension() == ".wasm")
+                loose.push_back(entry.path());
+        for (const fs::path& wasm : loose)
+            MoveLooseWasm(directory, wasm);
+        std::vector<FoundMod> found;
         for (const auto& entry : fs::directory_iterator(directory, ec)) {
-            if (!entry.is_regular_file(ec) || entry.path().extension() != ".wasm")
+            const std::string fn = entry.path().filename().string();
+            if (fn.starts_with(".") || fn.ends_with(".data"))
                 continue;
-            const std::string name = entry.path().stem().string();
+            FoundMod f;
+            if (entry.is_directory(ec)) {
+                f.name = fn;
+                if (ResolveModFolder(entry.path(), f))
+                    found.push_back(std::move(f));
+            } else if (entry.is_regular_file(ec) && IsArchive(entry.path())) {
+                f.name = entry.path().stem().string();
+                const fs::path unpacked = fs::path(directory) / ".unpacked" / f.name;
+                if (std::ranges::any_of(found, [&](const FoundMod& o) { return o.name == f.name; }))
+                    continue;
+                if (UnpackModArchive(entry.path(), unpacked) && ResolveModFolder(unpacked, f))
+                    found.push_back(std::move(f));
+            }
+        }
+        std::sort(found.begin(), found.end(), [](const FoundMod& a, const FoundMod& b) { return a.name < b.name; });
+        found.erase(std::unique(found.begin(), found.end(),
+                                [](const FoundMod& a, const FoundMod& b) { return a.name == b.name; }),
+                    found.end());
+        for (const FoundMod& entry : found) {
+            const std::string name = entry.name;
             present.push_back(name);
-            const auto stamp = entry.last_write_time(ec);
-            const uintmax_t size = entry.file_size(ec);
+            const auto stamp = entry.stamp;
+            const uintmax_t size = entry.size;
             Plugin* mod = Find(name);
             if (!mod) {
                 auto created = std::make_unique<Plugin>();
                 created->owner = this;
                 created->name = name;
-                created->path = entry.path().string();
                 mod = created.get();
                 std::lock_guard lock(mutex);
                 mods.push_back(std::move(created));
+            }
+            if (mod->path != entry.wasm.string() || mod->root != entry.root.string()) {
+                mod->path = entry.wasm.string();
+                mod->root = entry.root.string();
+                mod->manifest = entry.manifest.string();
+                mod->meta.path.clear();
             }
             if (mod->meta.path.empty())
                 ReadMeta(*mod);
@@ -555,6 +732,8 @@ namespace perlin::mods {
                             fresh->owner = this;
                             fresh->name = mod->name;
                             fresh->path = mod->path;
+                            fresh->root = mod->root;
+                            fresh->manifest = mod->manifest;
                             fresh->loads = mod->loads;
                             fresh->enabled = mod->enabled;
                             graveyard.push_back(std::move(*it));

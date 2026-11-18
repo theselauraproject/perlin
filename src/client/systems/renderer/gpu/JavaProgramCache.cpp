@@ -127,6 +127,9 @@ void Store(const std::filesystem::path& file, const Program& c) {
         Put<uint32_t>(out, static_cast<uint32_t>(c.drawBuffers.size()));
         for (int b : c.drawBuffers)
             Put<int32_t>(out, b);
+        Put<uint32_t>(out, static_cast<uint32_t>(c.silentOutputs.size()));
+        for (int b : c.silentOutputs)
+            Put<int32_t>(out, b);
         Put<uint32_t>(out, static_cast<uint32_t>(c.samplers.size()));
         for (const auto& s : c.samplers) {
             PutString(out, s.name);
@@ -136,6 +139,12 @@ void Store(const std::filesystem::path& file, const Program& c) {
         Put<uint32_t>(out, static_cast<uint32_t>(c.images.size()));
         for (const auto& img : c.images)
             PutString(out, img);
+        Put<uint32_t>(out, static_cast<uint32_t>(c.imageDecls.size()));
+        for (const auto& d : c.imageDecls) {
+            PutString(out, d.name);
+            PutString(out, d.type);
+            PutString(out, d.imageFormat);
+        }
         PutString(out, std::string(c.vertex.begin(), c.vertex.end()));
         PutString(out, std::string(c.fragment.begin(), c.fragment.end()));
         const std::filesystem::path tmp =
@@ -179,6 +188,8 @@ void Store(const std::filesystem::path& file, const Program& c) {
         }
         for (uint32_t i = 0, n = r.Count(sizeof(int32_t)); i < n && r.ok; i++)
             c.drawBuffers.push_back(r.Get<int32_t>());
+        for (uint32_t i = 0, n = r.Count(sizeof(int32_t)); i < n && r.ok; i++)
+            c.silentOutputs.push_back(r.Get<int32_t>());
         for (uint32_t i = 0, n = r.Count(5); i < n && r.ok; i++) {
             jshader::RhiSampler s;
             s.name = r.Str();
@@ -188,6 +199,14 @@ void Store(const std::filesystem::path& file, const Program& c) {
         }
         for (uint32_t i = 0, n = r.Count(sizeof(uint32_t)); i < n && r.ok; i++)
             c.images.push_back(r.Str());
+        for (uint32_t i = 0, n = r.Count(sizeof(uint32_t) * 3); i < n && r.ok; i++) {
+            jshader::SamplerDecl d;
+            d.name = r.Str();
+            d.type = r.Str();
+            d.imageFormat = r.Str();
+            d.image = true;
+            c.imageDecls.push_back(std::move(d));
+        }
         const std::string vs = r.Str(), fs = r.Str();
         c.vertex.assign(vs.begin(), vs.end());
         c.fragment.assign(fs.begin(), fs.end());

@@ -376,6 +376,17 @@ namespace perlin::jshader {
             }
             return c.value;
         }
+        if (const size_t dot = name.find('.'); dot != std::string::npos && dot + 2 == name.size() &&
+                                               byName.contains(name.substr(0, dot))) {
+            const Value whole = Resolve(name.substr(0, dot));
+            const char c = name[dot + 1];
+            const int idx = (c == 'x' || c == 'r' || c == 's')   ? 0
+                            : (c == 'y' || c == 'g' || c == 't') ? 1
+                            : (c == 'z' || c == 'b' || c == 'p') ? 2
+                                                                 : 3;
+            out.v[0] = idx < whole.n ? whole.v[idx] : 0.0;
+            return out;
+        }
         if (name == "true") {
             out.v[0] = 1;
             return out;
@@ -406,6 +417,12 @@ namespace perlin::jshader {
                 for (int i = 1; i < std::min(comps, 4); i++)
                     out.v[i] = tmp[i];
                 out.n = std::min(comps, 4);
+            } else if (swizzle.size() == 3 && std::isdigit(static_cast<unsigned char>(swizzle[0])) &&
+                       swizzle[1] == '.' && std::isdigit(static_cast<unsigned char>(swizzle[2]))) {
+                const int dim = comps >= 16 ? 4 : comps >= 9 ? 3 : 2;
+                const int col = swizzle[0] - '0', row = swizzle[2] - '0';
+                const int idx = col * dim + row;
+                out.v[0] = col < dim && row < dim && idx < comps ? tmp[idx] : 0.0;
             } else {
                 const char c = swizzle[0];
                 const int idx = (c == 'x' || c == 'r' || c == 's')   ? 0
@@ -665,6 +682,31 @@ namespace perlin::jshader {
         Add("iris_ModelViewMatInverse", 16, [=](C c, float* o) { Invert(D(c).modelView, o); });
         Add("modelViewMatrix", 16, [=](C c, float* o) { CopyMat(D(c).modelView, o); });
         Add("projectionMatrix", 16, [=](C c, float* o) { CopyMat(D(c).projection, o); });
+        Add("modelViewMatrixInverse", 16, [=](C c, float* o) { Invert(D(c).modelView, o); });
+        Add("projectionMatrixInverse", 16, [=](C c, float* o) { Invert(D(c).projection, o); });
+        Add("textureMatrix", 16, [=](C c, float* o) { CopyMat(D(c).textureMatrix0, o); });
+        Add("normalMatrix", 9, [=](C c, float* o) { std::memcpy(o, D(c).normalMatrix, 9 * sizeof(float)); });
+        Add("gbufferPreviousModelViewInverse", 16, [=](C c, float* o) { Invert(F(c).prevModelView, o); });
+        Add("gbufferPreviousProjectionInverse", 16, [=](C c, float* o) { Invert(F(c).prevProjection, o); });
+        Add("redPrimary", 2, [=](C, float* o) {
+            o[0] = 0.64f;
+            o[1] = 0.33f;
+        });
+        Add("greenPrimary", 2, [=](C, float* o) {
+            o[0] = 0.30f;
+            o[1] = 0.60f;
+        });
+        Add("bluePrimary", 2, [=](C, float* o) {
+            o[0] = 0.15f;
+            o[1] = 0.06f;
+        });
+        Add("whitePoint", 2, [=](C, float* o) {
+            o[0] = 0.3127f;
+            o[1] = 0.3290f;
+        });
+        Add("maxLuminance", 1, [=](C, float* o) { o[0] = 80.0f; });
+        Add("maxFrameLuminance", 1, [=](C, float* o) { o[0] = 80.0f; });
+        Add("minLuminance", 1, [=](C, float* o) { o[0] = 0.0f; });
         Add("iris_ProjMat", 16, [=](C c, float* o) { CopyMat(D(c).projection, o); });
         Add("iris_ProjMatInverse", 16, [=](C c, float* o) { Invert(D(c).projection, o); });
         Add("iris_TextureMat", 32, [=](C c, float* o) {
@@ -788,6 +830,22 @@ namespace perlin::jshader {
         Add("hasSkylight", 1, [=](C c, float* o) {
             o[0] = F(c).dimensionNether || F(c).dimensionEnd ? 0.0f : 1.0f;
         });
+        Add("hasSkyLight", 1, [=](C c, float* o) { o[0] = F(c).dimensionId == 0 ? 1.0f : 0.0f; });
+        Add("chunkOffset", 3, [=](C, float* o) { o[0] = o[1] = o[2] = 0.0f; });
+        Add("iris_ChunkOffset", 3, [=](C c, float* o) {
+            o[0] = o[1] = o[2] = 0.0f;
+            if (!D(c).chunked)
+                return;
+            float inv[16];
+            Invert(D(c).chunkBase, inv);
+            const float* m = D(c).modelView;
+            for (int r = 0; r < 3; r++)
+                o[r] = inv[r] * m[12] + inv[4 + r] * m[13] + inv[8 + r] * m[14] + inv[12 + r] * m[15];
+        });
+        Add("iris_ChunkModelView", 16,
+            [=](C c, float* o) { CopyMat(D(c).chunked ? D(c).chunkBase : D(c).modelView, o); });
+        Add("iris_ChunkModelViewInverse", 16,
+            [=](C c, float* o) { Invert(D(c).chunked ? D(c).chunkBase : D(c).modelView, o); });
         Add("hasCeiling", 1, [=](C c, float* o) { o[0] = F(c).dimensionNether ? 1.0f : 0.0f; });
         Add("ambientLight", 1, [=](C c, float* o) { o[0] = F(c).dimensionNether ? 0.1f : 0.0f; });
         Add("constantMood", 1, [=](C, float* o) { o[0] = 0.0f; });

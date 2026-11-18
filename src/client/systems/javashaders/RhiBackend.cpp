@@ -54,6 +54,8 @@ namespace perlin::jshader {
                 h.flatten_matrix_vertex_input_semantics = false;
                 c.set_hlsl_options(h);
                 out = c.compile();
+                for (size_t at = out.find("IsHelperLane()"); at != std::string::npos; at = out.find("IsHelperLane()", at))
+                    out.replace(at, 14, "false");
                 return true;
             } catch (const std::exception& e) {
                 error = e.what();

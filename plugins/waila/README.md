@@ -6,7 +6,7 @@ What Am I Looking At: a tooltip for the block or entity under your crosshair, st
 * Entity: name, health as hearts (or a number for bosses), armor, owner, baby/sheared/saddled/charged and other states, horse speed and jump height, dropped items, held items.
 * Appearance: three frames (Dark, Waila, Create) taken from Jade's own tooltip sprites, scale, opacity, position, fade in and out.
 
-Install: put `waila.wasm`, `waila.json` and `waila.png` in `<data dir>/mods/`, then press **Allow & Enable** in **Pause → Mods**. WAILA asks for no permissions. Open its settings from the Mods screen; F8 toggles it.
+Install: put `waila.wasm`, `waila.json` and `waila.png` in a folder `<data dir>/mods/waila/` (or zip that folder and put the zip in `<data dir>/mods/`), then press **Allow & Enable** in **Pause → Mods**. WAILA asks for no permissions. Open its settings from the Mods screen; F8 toggles it.
 
 Build: `plugins/build.sh --wasm32 waila/waila.cpp` (wasi-sdk), or `plugins/build.sh waila/waila.cpp` (Emscripten, 64-bit).
 

@@ -167,6 +167,13 @@ namespace perlin::selftest {
             t.Check(f.blockedFoodUse, "food cannot be eaten in creative mode");
 
             r.hudState.mode = ui::GameMode::Survival;
+            r.hudState.food = 20;
+            f = FrameContext{};
+            f.live = &session;
+            r.interactionPlayer.UpdateEatingAndDrinking(f, session);
+            t.Check(f.blockedFoodUse, "food cannot be eaten while the hunger bar is full");
+
+            r.hudState.food = 12;
             f = FrameContext{};
             f.live = &session;
             r.interactionPlayer.UpdateEatingAndDrinking(f, session);

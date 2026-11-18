@@ -1,6 +1,8 @@
 #include "client/features/worldview/EntityPass.hpp"
 #include "client/systems/diagnostics/FrameProfiler.hpp"
 #include "client/systems/entity/BlockEntityView.hpp"
+
+#include <array>
 #include "util/Clock.hpp"
 #include "util/Log.hpp"
 #include "util/Env.hpp"
@@ -244,6 +246,8 @@ namespace perlin::worldview {
             ein.selfShadow = packShadows;
         }
         ein.ownNametag = options.thirdPersonNametag;
+        ein.ownLeftHanded = options.hand.leftHanded;
+        ein.nametags = options.showHud || replayCtl.Playing();
         ein.nametagBackground = options.nametagBackground;
         ein.nametagShadow = options.nametagShadow;
         ein.perlinBadges = options.perlinBadges;
@@ -303,6 +307,27 @@ namespace perlin::worldview {
         auto& live = f.live;
         const auto crackAt = [&](int x, int y, int z, int stage) {
             entity::EntityRenderer::FrameIn::Crack crack{x, y, z, stage, {}};
+            if (live) {
+                bool loaded = false;
+                const std::string_view name = blockPalette.Name(live->NetLevel().GetBlock(x, y, z, loaded));
+                if (loaded && name.starts_with("minecraft:") && name.ends_with("chest")) {
+                    std::array<float, 6> box{1.0f / 16, 0.0f, 1.0f / 16, 15.0f / 16, 14.0f / 16, 15.0f / 16};
+                    BlockEntity be;
+                    if (live->BlockEntities().Get(x, y, z, be) && be.paired && be.pairX - x >= -1 &&
+                        be.pairX - x <= 1 && be.pairZ - z >= -1 && be.pairZ - z <= 1) {
+                        if (be.pairX == x + 1)
+                            box[3] = 1.0f;
+                        else if (be.pairX == x - 1)
+                            box[0] = 0.0f;
+                        if (be.pairZ == z + 1)
+                            box[5] = 1.0f;
+                        else if (be.pairZ == z - 1)
+                            box[2] = 0.0f;
+                    }
+                    crack.boxes.push_back(box);
+                    return crack;
+                }
+            }
             if (live && levelRenderer) {
                 std::vector<physics::Box> boxes;
                 if (LevelCollision(live->NetLevel(), &levelRenderer->Blocks()).Selection(x, y, z, boxes))

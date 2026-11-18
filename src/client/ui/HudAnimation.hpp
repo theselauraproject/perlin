@@ -10,6 +10,7 @@ namespace perlin::ui {
 
         uint64_t ticks = 0;
         int toolTimer = 0;
+        uint32_t toolSerial = 0;
         HudItem lastTool;
         TimePoint titleAtSeen, actionAtSeen;
         int overlayTime = 0, actionSincePush = 1000, titleTime = 0, titleFadeIn = 10, titleStay = 70, titleFadeOut = 20;
