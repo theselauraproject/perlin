@@ -143,6 +143,7 @@ namespace perlin {
         int upscaleTargetFps = 0;
         std::string frameGen = "off";
         bool skins3d = false;
+        bool paperDoll = false; // Bedrock-style player doll in the HUD's top-left corner
         std::string renderer = "auto";
         std::string capePhysics = "off";
         SkinParts skinParts;

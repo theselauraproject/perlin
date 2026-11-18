@@ -26,6 +26,7 @@ namespace perlin::ui {
 
     std::optional<LocatorMarker> ProjectLocator(const LocatorView& view, double x, double y, double z);
 
+    inline constexpr int kActionBarTicks = 60; // 3 s, anim_actionbar_text_alpha_out
     float ActionBarAlpha(int overlayTime, float partial);
     float TitleAlpha(const TitleTimes& times, float partial);
 

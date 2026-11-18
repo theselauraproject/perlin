@@ -69,24 +69,30 @@ namespace perlin::ui {
         return m;
     }
 
+    // Bedrock parity (hud_screen.json): the actionbar control lives 3 s after each SetTitle packet and
+    // fades with "in_expo", so it stays solid and drops off at the very end.
     float ActionBarAlpha(int overlayTime, float partial) {
-        const float f = static_cast<float>(overlayTime) - partial;
-        return std::clamp(static_cast<int>(f * 255.0f / 20.0f), 0, 255) > 8
-                   ? std::min(255, static_cast<int>(f * 255.0f / 20.0f)) / 255.0f
-                   : 0.0f;
+        const float remaining = static_cast<float>(overlayTime) - partial;
+        if (remaining <= 0.0f)
+            return 0.0f;
+        const float x = std::clamp(1.0f - remaining / static_cast<float>(kActionBarTicks), 0.0f, 1.0f);
+        const float eased = x <= 0.0f ? 0.0f : std::pow(2.0f, 10.0f * x - 10.0f);
+        return std::clamp(1.0f - eased, 0.0f, 1.0f);
     }
 
+    // Bedrock parity: linear fade in / wait / linear fade out, with the server's tick counts as seconds / 20.
+    // Unlike Java there is no "alpha under 8/255 hides it" cutoff.
     float TitleAlpha(const TitleTimes& t, float partial) {
-        const float f = static_cast<float>(t.remaining) - partial;
-        int alpha = 255;
-        if (t.remaining > t.fadeOut + t.stay) {
-            const float f1 = static_cast<float>(t.fadeIn + t.stay + t.fadeOut) - f;
-            alpha = static_cast<int>(f1 * 255.0f / std::max(1, t.fadeIn));
-        }
-        if (t.remaining <= t.fadeOut)
-            alpha = static_cast<int>(f * 255.0f / std::max(1, t.fadeOut));
-        alpha = std::clamp(alpha, 0, 255);
-        return alpha > 8 ? static_cast<float>(alpha) / 255.0f : 0.0f;
+        const float remaining = static_cast<float>(t.remaining) - partial;
+        if (remaining <= 0.0f)
+            return 0.0f;
+        const float total = static_cast<float>(t.fadeIn + t.stay + t.fadeOut);
+        const float elapsed = total - remaining;
+        if (t.fadeIn > 0 && elapsed < static_cast<float>(t.fadeIn))
+            return std::clamp(elapsed / static_cast<float>(t.fadeIn), 0.0f, 1.0f);
+        if (remaining < static_cast<float>(t.fadeOut))
+            return std::clamp(remaining / static_cast<float>(std::max(1, t.fadeOut)), 0.0f, 1.0f);
+        return 1.0f;
     }
 
     int ItemRarity(std::string_view shortName, bool enchanted) {

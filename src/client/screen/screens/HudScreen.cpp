@@ -3,6 +3,7 @@
 #include "client/systems/multiplayer/HudItemConvert.hpp"
 #include "client/systems/sprites/ItemData.hpp"
 #include "client/ui/HudFeed.hpp"
+#include "client/ui/HudRenderers.hpp"
 #include "client/systems/resources/AssetJobs.hpp"
 #include "client/ui/GuiViewport.hpp"
 #include "util/Clock.hpp"
@@ -377,6 +378,7 @@ namespace perlin::screen {
         FillHudTabList(s, *live);
         FillHudHeldName(s);
         FillHudTitleText(s, *live);
+        s.paperDoll = options.paperDoll && PaperDollActive(*live);
     }
 
     void HudScreen::TickHud() {
@@ -432,9 +434,9 @@ namespace perlin::screen {
             if (text.actionAt != a.actionAtSeen) {
                 a.actionAtSeen = text.actionAt;
                 if (!text.actionBar.empty()) {
-                    const int gap = a.actionSincePush;
+                    // Every actionbar packet recreates the control in Bedrock, restarting its 3 s fade.
                     a.actionSincePush = 0;
-                    a.overlayTime = gap < 400 ? std::clamp(gap * 5 / 4 + 20, 60, 400) : 60;
+                    a.overlayTime = ui::kActionBarTicks;
                 }
             }
             if (text.titleAt != a.titleAtSeen) {
@@ -519,6 +521,68 @@ namespace perlin::screen {
         }
     }
 
+    // Bedrock's HUD paperdoll is not always on screen: a hold timer is refreshed while the player sneaks,
+    // sprints out of water, swims or crawls (1 s), flies or glides (0.35 s), or when armor changes (3 s),
+    // and the model disappears when it runs out, without fading.
+    bool HudScreen::PaperDollActive(BedrockSession& live) {
+        if (!dollSelf) {
+            paperDollTimer = {};
+            return false;
+        }
+        const entity::Entity& self = *dollSelf;
+        const auto inv = live.GetInventory();
+        uint64_t armor = 1469598103934665603ull;
+        for (const auto& piece : inv.armor) {
+            for (const char c : piece.name)
+                armor = (armor ^ static_cast<uint8_t>(c)) * 1099511628211ull;
+            armor = (armor ^ static_cast<uint64_t>(piece.aux + 1)) * 1099511628211ull;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        const double elapsed =
+            paperDollTimer.started ? std::chrono::duration<double>(now - paperDollTimer.last).count() : 0.0;
+        paperDollTimer.last = now;
+        const bool sneaking = self.Has(entity::flag::Sneaking);
+        const bool swimming = self.Has(entity::flag::Swimming);
+        const bool sprinting = self.Has(entity::flag::Sprinting) && !headUnderwater;
+        if (sneaking || swimming || sprinting)
+            paperDollTimer.remaining = 1.0;
+        else if (live.IsFlying() || self.Has(entity::flag::Gliding))
+            paperDollTimer.remaining = 0.35;
+        else if (!paperDollTimer.started || paperDollTimer.armor != armor)
+            paperDollTimer.remaining = 3.0;
+        else
+            paperDollTimer.remaining = std::max(0.0, paperDollTimer.remaining - elapsed);
+        paperDollTimer.started = true;
+        paperDollTimer.armor = armor;
+        return paperDollTimer.remaining > 0.0;
+    }
+
+    // The live player model, drawn through the inventory doll path so the animated pose, armor and held
+    // items match the world. It sits on the hud_player control (15 GUI px per block, the player's 0.9375
+    // render scale, the model's 24 px origin on the control's centre) with the body turned to -22.5 deg.
+    void HudScreen::DrawPaperDoll(FrameContext& f, int fbW, int fbH) {
+        const ui::HudControlRect& r = ui::HudPlayerRect();
+        if (!hudState.paperDoll || !hudState.visible || !dollSelf || !r.valid || screens.AnyCoveringOpen() ||
+            pause.IsOpen() || hudState.mode == ui::GameMode::Spectator)
+            return;
+        const auto [scale, guiW, guiH] = ui::OverlayViewport(*hud, fbW, fbH);
+        (void)guiW;
+        (void)guiH;
+        const float block = r.w * 0.9375f;
+        const float cx = r.x + r.w * 0.5f, cy = r.y + r.h * 0.5f;
+        const float feetY = cy + 1.5f * block;
+        entity::Entity doll = *dollSelf;
+        doll.runtimeId = 0xFFFFFFFFFFFF0004ull;
+        doll.isSelf = true;
+        entity::EntityRenderer::FrameIn din;
+        din.time = std::chrono::duration<double>(f.frameStart - loop->startedAt).count();
+        din.dt = f.dt;
+        din.firstPerson = false;
+        din.camera = doll.pos;
+        const int clip[4] = {0, 0, fbW, static_cast<int>((feetY + block * 0.5f) * scale)};
+        entityRenderer.RenderDoll(doll, din, cx * scale, feetY * scale, block * scale, clip, 22.5f);
+    }
+
     void HudScreen::Present(FrameContext& f, int fbW, int fbH) {
         auto& frameStart = f.frameStart;
         auto& dt = f.dt;
@@ -529,6 +593,7 @@ namespace perlin::screen {
         drawModGfx(fbW, fbH, true);
         hud->Render();
         drawModGfx(fbW, fbH, false);
+        DrawPaperDoll(f, fbW, fbH);
         const bool creativeUi =
             hudState.mode == ui::GameMode::Creative || PERLIN_ENV("PERLIN_PREVIEW_CREATIVE");
         if (inventory.IsOpen() && dollSelf && !inventory.workbench && !inventory.horse && !inventory.chest &&

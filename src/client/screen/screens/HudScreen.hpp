@@ -106,6 +106,14 @@ namespace perlin::screen {
         bool hudBootstrap = false;
 
         BedrockSession::ScreenAnimation screenAnimation;
+        void DrawPaperDoll(FrameContext& f, int fbW, int fbH);
+        bool PaperDollActive(BedrockSession& live);
+        struct {
+            std::chrono::steady_clock::time_point last;
+            double remaining = 0.0;
+            uint64_t armor = 0;
+            bool started = false;
+        } paperDollTimer;
         std::unordered_set<std::string> logged;
     };
 }
