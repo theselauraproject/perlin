@@ -125,8 +125,8 @@ namespace perlin::worldview {
                     if (end == std::string::npos)
                         end = list.size();
                     int dx = 0, dy = 0, dz = 0;
-                    char name[128] = {0};
-                    if (std::sscanf(list.substr(start, end - start).c_str(), "%d,%d,%d,%127s", &dx, &dy, &dz,
+                    char name[512] = {0};
+                    if (std::sscanf(list.substr(start, end - start).c_str(), "%d,%d,%d,%511s", &dx, &dy, &dz,
                                     name) == 4) {
                         BlockPalette& palette = blockPalette;
                         std::string full = name;

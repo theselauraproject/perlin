@@ -884,6 +884,7 @@ namespace perlin {
         if (!pack)
             DrawSky();
         meshes.ReleaseEmptyPages();
+        meshes.ResortTranslucent(camX, frame.cameraPosition[1], camZ);
         if (meshes.Empty()) {
             if (pack) {
                 jpack->ClearGeometry();
@@ -907,8 +908,7 @@ namespace perlin {
         }
         gpu::LastFrameNote().width = static_cast<int>(post.worldW);
         gpu::LastFrameNote().height = static_cast<int>(post.worldH);
-        const bool wantGpu = !pack && terrain.Ready() && UseMultiDraw() && tuner.On(gpu::RenderTuner::GpuCull);
-        tuneWorldFrame = !pack;
+        const bool wantGpu = !pack && terrain.Ready() && UseMultiDraw() && features.On(gpu::GpuFeatures::GpuCull);
         meshes.Select(frustum, camX, frame.cameraPosition[1], camZ, chunkCullRadius, caveCulling,
                       frame.timeSeconds, wantGpu);
         if (pack) {
@@ -932,8 +932,8 @@ namespace perlin {
             in.cullRadius = chunkCullRadius;
             in.caveCulling = caveCulling;
             uint32_t dw = 0, dh = 0;
-            in.occlusion = tuner.On(gpu::RenderTuner::Occlusion) && OcclusionTarget(dw, dh);
-            in.faceCull = tuner.On(gpu::RenderTuner::FaceCull);
+            in.occlusion = features.On(gpu::GpuFeatures::Occlusion) && OcclusionTarget(dw, dh);
+            in.faceCull = features.On(gpu::GpuFeatures::FaceCull);
             in.depthWidth = dw;
             in.depthHeight = dh;
             gpuCullFrame = terrain.Prepare(in);

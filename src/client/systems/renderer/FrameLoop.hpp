@@ -31,6 +31,7 @@ namespace perlin {
         size_t frameMsHead = 0, frameMsCount = 0;
         size_t frameStatsKey = 0;
         int frameStatsCounted = 0;
+        bool frameStatsAway = false;
         std::chrono::steady_clock::time_point frameStatsSettle{};
         std::chrono::steady_clock::time_point paceDeadline{};
         uint64_t animationStep = 0;

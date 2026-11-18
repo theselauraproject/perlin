@@ -164,8 +164,8 @@ namespace perlin {
         rendererName = conduit::api_name(gpu.Api());
         caveCulling = !PERLIN_ENV("PERLIN_NO_CAVECULL");
         Log("render", "{} on {}", rendererName, adapterName);
-        tuner.Init(gpu.Caps().adapter, paths::DataDir() + "/render-tune.txt");
-        tuner.TimeEveryFrame(PERLIN_ENV("PERLIN_PROFILE") != nullptr);
+        features.Init(gpu.Caps().adapter, gpu.Caps().features, paths::DataDir());
+        features.TimeEveryFrame(PERLIN_ENV("PERLIN_PROFILE") != nullptr);
         meshes.Init(gpu);
         if (!CreateStaticResources())
             return false;
@@ -306,6 +306,7 @@ namespace perlin {
         height = static_cast<int>(settings.height);
         rendererName = conduit::api_name(gpu.Api());
         adapterName = gpu.Caps().adapter.name;
+        features.Init(gpu.Caps().adapter, gpu.Caps().features, paths::DataDir());
         meshes.Init(gpu);
         return CreateStaticResources();
     }
@@ -515,7 +516,7 @@ namespace perlin {
     void RenderContext_rhi::DestroyStaticResources() {
         terrain.Shutdown();
         auto& dev = gpu.Dev();
-        tuner.Release(dev);
+        features.Release(dev);
         dev.destroy(uiCull.pipeline);
         dev.destroy(uiCull.layout);
         dev.destroy(uiCull.bindLayout);
@@ -968,7 +969,7 @@ namespace perlin {
             if (dc.pipeline != pipeline) {
                 static const bool pipeMarks = std::getenv("PERLIN_PROFILE_VIEWS") != nullptr;
                 if (pipeMarks)
-                    tuner.Mark(list, gpu.PipelineName(dc.pipeline));
+                    features.Mark(list, gpu.PipelineName(dc.pipeline));
                 list.set_pipeline(dc.pipeline);
                 pipeline = dc.pipeline;
                 pipelineChanged = true;
@@ -1408,7 +1409,7 @@ namespace perlin {
         conduit::command_list* list = dev.acquire_command_list(conduit::queue_type::graphics);
         if (!list)
             return;
-        tuner.GpuBegin(dev, *list, gpu.FrameSlot(), gpu.Frames());
+        features.GpuBegin(dev, *list, gpu.FrameSlot(), gpu.Frames());
         gpu.SetState(image.texture, conduit::state::undefined);
         if (!modGpu)
             modGpu = std::make_unique<gpu::ModGpu>(gpu);
@@ -1426,8 +1427,8 @@ namespace perlin {
         if (gpuCullFrame)
             terrain.RecordEarly(*list);
         {
-            const bool noBatch = !tuner.On(gpu::RenderTuner::GpuUi);
-            const bool noCull = !tuner.On(gpu::RenderTuner::EntityCull);
+            const bool noBatch = !features.On(gpu::GpuFeatures::GpuUi);
+            const bool noCull = !features.On(gpu::GpuFeatures::EntityCull);
             if (!noBatch && UseMultiDraw() && gpu.Caps().features.draw_indirect_first_instance) {
                 size_t worldDraws = views[static_cast<size_t>(View::Entity)].draws.size() +
                                     views[static_cast<size_t>(View::Late)].draws.size();
@@ -1554,7 +1555,7 @@ namespace perlin {
             return s.views.empty() ? "pass" : ViewName(s.views.front());
         };
         for (const Stage& stage : shadowStages) {
-            tuner.Mark(*list, stageLabel(stage));
+            features.Mark(*list, stageLabel(stage));
             RunStage(*list, stage);
         }
         fgen.valid = false;
@@ -1563,7 +1564,7 @@ namespace perlin {
         conduit::texture_handle passDepth;
         for (const Stage& stage : stages) {
             if (stage.kind == Stage::Kind::Occlusion) {
-                tuner.Mark(*list, "occlusion");
+                features.Mark(*list, "occlusion");
                 terrain.RecordLate(*list, passDepth);
                 continue;
             }
@@ -1579,10 +1580,10 @@ namespace perlin {
                 modGpu->Record(*list, gpu::ModStage::UnderHud, &modScreen);
                 underHudDone = true;
             }
-            tuner.Mark(*list, stageLabel(stage));
+            features.Mark(*list, stageLabel(stage));
             RunStage(*list, stage);
         }
-        tuner.Mark(*list, "mods_overlay");
+        features.Mark(*list, "mods_overlay");
         if (!underHudDone)
             modGpu->Record(*list, gpu::ModStage::UnderHud, &modScreen);
         modGpu->Record(*list, gpu::ModStage::Overlay, &modScreen);
@@ -1591,15 +1592,13 @@ namespace perlin {
 
         if (!pendingSinks.empty() || !pendingShots.empty())
             ResolveCapture(*list, screen);
-        tuner.GpuEnd(*list);
+        features.GpuEnd(*list);
         gpu.Transition(*list, image.texture, offscreen ? conduit::state::copy_src : conduit::state::present);
         gpuCullFrame = false;
         gpu.FlushRings();
         dev.submit(conduit::queue_type::graphics, list);
         gpu.PresentImage();
         modGpu->EndFrame();
-        tuner.EndFrame(tuneWorldFrame);
-        tuneWorldFrame = false;
     }
 
     void RenderContext_rhi::UploadLightmap(const uint8_t* pixels) {
@@ -1926,6 +1925,7 @@ namespace perlin {
                 return false;
             }
             initialized = true;
+            features.Init(gpu.Caps().adapter, gpu.Caps().features, paths::DataDir());
             meshes.Init(gpu);
             if (!CreateStaticResources()) {
                 gpu.Shutdown();

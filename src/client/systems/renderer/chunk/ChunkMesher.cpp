@@ -73,6 +73,8 @@ namespace perlin {
         bool wallPost = false;
         int cakeBites = -1;
         bool fire = false;
+        bool fireConnKnown = false;
+        uint8_t fireConn = 0;
         bool kelp = false;
         bool flammable = false;
     };
@@ -97,7 +99,16 @@ namespace perlin {
             auto& pal = BlockPalette::Instance();
             {
                 const std::string nm = pal.Name(id);
-                g.fire = nm == "minecraft:fire";
+                g.fire = nm == "minecraft:fire" || nm == "minecraft:soul_fire";
+                if (g.fire && pal.HasState(id, "minecraft:connection_north")) {
+                    g.fireConnKnown = true;
+                    static const char* kConn[5] = {"minecraft:connection_north", "minecraft:connection_east",
+                                                   "minecraft:connection_south", "minecraft:connection_west",
+                                                   "minecraft:connection_up"};
+                    for (int c = 0; c < 5; c++)
+                        if (pal.StateInt(id, kConn[c], 0) != 0)
+                            g.fireConn |= static_cast<uint8_t>(1u << c);
+                }
                 g.kelp = nm == "minecraft:kelp" || nm == "minecraft:kelp_plant";
                 static const char* kBurn[] = {
                     "planks",        "_log",        "_wood",          "leaves",
@@ -1285,6 +1296,10 @@ namespace perlin {
 
             BlockCtx blk{x,  y,  z,  pass,    id,         app, modelEntry, cellLight,
                          bx, by, bz, biomeId, &biomeName, &gi, bhash};
+            if (gi.fire && app) {
+                EmitFire(blk);
+                return;
+            }
             if (app && !modelEntry && (gi.stair || gi.fence || gi.wall || gi.cakeBites >= 0)) {
                 EmitStairLike(blk);
                 return;
@@ -1299,10 +1314,6 @@ namespace perlin {
             }
             if (app && app->shape == BlockAppearance::Shape::Wall) {
                 EmitWall(blk);
-                return;
-            }
-            if (gi.fire && app) {
-                EmitFire(blk);
                 return;
             }
             if (app && app->shape == BlockAppearance::Shape::Cross) {
@@ -2013,6 +2024,19 @@ namespace perlin {
                 flag[i] = nIds[i] != 0 && GeomFor(nIds[i]).flammable;
                 any = any || flag[i];
             }
+            const uint16_t belowId = cache.Get(x, y - 1, z);
+            const bool grounded = belowId != 0 && (cache.Occ(x, y - 1, z) || GeomFor(belowId).flammable);
+            if (blk.gi->fireConnKnown) {
+                any = false;
+                for (int i = 0; i < 5; i++) {
+                    flag[i] = (blk.gi->fireConn >> i) & 1u;
+                    any = any || flag[i];
+                }
+            } else if (grounded || !any) {
+                any = false;
+                for (bool& f : flag)
+                    f = false;
+            }
             const float white[4][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
             const float fireBlock = 15.0f;
             auto tileFor = [&](int variant) {
@@ -2059,7 +2083,7 @@ namespace perlin {
                 float uv[4][2] = {{u0, v1}, {u0, v0}, {u1, v0}, {u1, v1}};
                 tess.AddQuad(flipped, white, uv, false, fireBlock, cellLight.sky);
             };
-            tess.SetLayer(RenderLayer::CutoutCull);
+            tess.SetLayer(RenderLayer::Cutout);
             const int pick0 = static_cast<int>(bhash & 1), pick1 = static_cast<int>((bhash >> 1) & 1);
             const float none[3] = {0, 0, 0}, o8[3] = {8, 8, 8};
             const float up224[3] = {0, 22.4f, 0};
@@ -2132,8 +2156,10 @@ namespace perlin {
                     R2[2] = -16;
                 }
                 const bool alt = ((bhash >> (2 + d)) & 1) != 0;
+                tess.SetLayer(RenderLayer::CutoutCull);
                 plane(A1, R1, up224, -1, 0, none, pick0, alt);
                 plane(A2, R2, up224, -1, 0, none, pick1, alt);
+                tess.SetLayer(RenderLayer::Cutout);
             }
             if (flag[4]) {
                 const float uvec[3] = {0, 0, 16}, rvec[3] = {16, 0, 0};
@@ -2222,7 +2248,7 @@ namespace perlin {
             void Emit() {
                 BuildShape();
                 ChooseSurfaces();
-                tess().SetLayer(translucent ? RenderLayer::Translucent : RenderLayer::Solid);
+                tess().SetLayer(translucent ? RenderLayer::TranslucentCull : RenderLayer::Solid);
                 if (water)
                     EmitWaterFaces();
                 else
@@ -2568,11 +2594,28 @@ namespace perlin {
                 }
                 const bool flip = f.nx != 0;
                 const bool holes = library() && library()->AlphaOf(tile).holes;
-                const RenderLayer layer = translucent ? RenderLayer::Translucent
+                const RenderLayer layer = translucent ? RenderLayer::TranslucentCull
                                           : holes     ? RenderLayer::CutoutCull
                                                       : RenderLayer::Solid;
                 tess().SetLayer(layer);
                 tess().AddQuad(f.verts, col, uv, flip, lt, ao, f.shade);
+                if (water) {
+                    static constexpr int kBack[4] = {0, 3, 2, 1};
+                    float bv[4][3], bc[4][3], bu[4][2], bl[4][2], ba[4];
+                    for (int i = 0; i < 4; i++) {
+                        const int j = kBack[i];
+                        for (int k = 0; k < 3; k++) {
+                            bv[i][k] = f.verts[j][k];
+                            bc[i][k] = col[j][k];
+                        }
+                        bu[i][0] = uv[j][0];
+                        bu[i][1] = uv[j][1];
+                        bl[i][0] = lt[j][0];
+                        bl[i][1] = lt[j][1];
+                        ba[i] = ao[j];
+                    }
+                    tess().AddQuad(bv, bc, bu, flip, bl, ba, f.shade);
+                }
                 if (overlay.tile && f.ny == 0) {
                     tess().PinLastQuad();
                     EmitOverlay(f, fu, fv, kv, lt, ao, flip, layer);

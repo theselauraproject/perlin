@@ -14,7 +14,7 @@ namespace perlin::ui {
         bool fancyGraphics = true;
         bool clouds = true, fancyClouds = true;
         int biomeBlend = 2;
-        std::string serverBrand = "vanilla";
+        std::string serverBrand;
         int tx = 0, rx = 0;
         int chunksRendered = 0, chunksLoaded = 0, renderDistance = 8;
         int pendingChunks = 0, pendingUploads = 0, availableBuffers = 0;

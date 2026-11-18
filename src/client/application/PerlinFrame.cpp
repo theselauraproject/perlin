@@ -819,7 +819,8 @@ namespace perlin {
                 loop->frameMsHead = 0;
                 loop->frameStatsSettle = now + std::chrono::seconds(3);
             }
-            const bool busy = !sessionReady.load() || (levelRenderer && levelRenderer->AssetsBusy());
+            const bool busy = !sessionReady.load() || (levelRenderer && levelRenderer->AssetsBusy()) ||
+                              loop->frameStatsAway;
             if (busy)
                 loop->frameStatsSettle = std::max(loop->frameStatsSettle, now + std::chrono::seconds(1));
             const float ms = std::chrono::duration<float, std::milli>(now - loop->lastFrameEnd).count();
@@ -925,6 +926,7 @@ namespace perlin {
                 trimmed = true;
                 tasks.Run([] { TrimMemory(true); });
             }
+            loop->frameStatsAway = background || minimized;
             const int cap = minimized ? 5 : background ? options.backgroundFps : 0;
             if (cap > 0) {
                 const auto target = frameStart + std::chrono::microseconds(1000000 / cap);

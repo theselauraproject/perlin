@@ -18,6 +18,7 @@ namespace perlin {
             ChunkLighting::Result lit;
             TimePoint at;
             uint64_t counter = 0;
+            uint64_t area = 0;
         };
 
         std::unordered_map<uint64_t, Band> bands;

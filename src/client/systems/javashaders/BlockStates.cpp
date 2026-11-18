@@ -237,7 +237,10 @@ namespace perlin::jshader {
                     out.name = "redstone_wall_torch";
                 else if (out.name == "copper_torch")
                     out.name = "copper_wall_torch";
-                Set(p, "facing", f);
+                Set(p, "facing", f == "west"    ? "east"
+                                 : f == "east"  ? "west"
+                                 : f == "north" ? "south"
+                                                : "north");
             }
         }
 

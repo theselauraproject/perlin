@@ -145,7 +145,7 @@ def translate(bname, st, jb):
             jnm = base
         else:
             jnm = base.replace("torch", "wall_torch")
-            props["facing"] = d
+            props["facing"] = {"west": "east", "east": "west", "north": "south", "south": "north"}.get(d, d)
         if base == "redstone_torch":
             props["lit"] = b(n != "unlit_redstone_torch")
         return jnm, props, search

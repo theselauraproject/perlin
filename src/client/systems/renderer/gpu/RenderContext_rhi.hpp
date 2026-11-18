@@ -5,7 +5,7 @@
 #include "client/systems/gfx/Tessellator.hpp"
 #include "client/systems/renderer/gpu/ChunkMeshStore.hpp"
 #include "client/systems/renderer/gpu/GpuTerrain.hpp"
-#include "client/systems/renderer/gpu/RenderTuner.hpp"
+#include "client/systems/renderer/gpu/GpuFeatures.hpp"
 #include "client/systems/renderer/gpu/JavaPack.hpp"
 #include "client/systems/renderer/gpu/GpuCore.hpp"
 #include "client/systems/renderer/gpu/ModGpu.hpp"
@@ -168,7 +168,7 @@ namespace perlin {
 
         void BeginFrame(const FrameParams& params) override;
         void EndFrame() override;
-        double LastGpuMs() const override { return tuner.LastGpuMs(); }
+        double LastGpuMs() const override { return features.LastGpuMs(); }
         bool PresentGenerated(int index, int total) override;
         bool CanGenerateFrames() const override {
             return initialized && !offscreen && !fgenBlocked && ProgramIndex(Program::FrameGen) >= 0;
@@ -668,8 +668,7 @@ namespace perlin {
         std::vector<gpu::ChunkMeshStore::Run> runs;
         gpu::GpuTerrain terrain;
         bool gpuCullFrame = false;
-        gpu::RenderTuner tuner;
-        bool tuneWorldFrame = false;
+        gpu::GpuFeatures features;
         std::vector<gpu::GpuTerrain::Draw> terrainDraws;
         gpu::PipelineKey KeyFor(const ViewData& view, const DrawState& state) const;
 

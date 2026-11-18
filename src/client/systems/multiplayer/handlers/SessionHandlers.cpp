@@ -4,6 +4,39 @@ namespace perlin {
     using namespace proto;
     using namespace handlers;
 
+    std::string BedrockSession::BrandFrom(const std::string& engine, const std::string& gameVersion) {
+        const auto trim = [](const std::string& v) {
+            const size_t a = v.find_first_not_of(" \t\r\n");
+            if (a == std::string::npos)
+                return std::string();
+            return v.substr(a, v.find_last_not_of(" \t\r\n") - a + 1);
+        };
+        const auto numeric = [](const std::string& v) {
+            if (v.empty())
+                return false;
+            for (char c : v)
+                if (!((c >= '0' && c <= '9') || c == '.'))
+                    return false;
+            return true;
+        };
+        const std::string e = trim(engine);
+        bool letters = false;
+        for (char c : e)
+            letters = letters || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+        if (letters) {
+            std::string lower;
+            for (char c : e)
+                lower += static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+            if (lower == "vanilla" || lower == "bedrock" || lower == "bds" || lower == "minecraft" ||
+                lower == "bedrock dedicated server")
+                return "vanilla";
+            return e;
+        }
+        if (numeric(trim(gameVersion)) && (e.empty() || numeric(e)))
+            return "vanilla";
+        return "custom";
+    }
+
     void BedrockSession::RegisterSessionHandlers() {
         On<NetworkSettingsPacket>([this](const NetworkSettingsPacket& p) {
             compressThreshold = p.compressionThreshold;
@@ -277,6 +310,10 @@ namespace perlin {
             Log("bedrock", "blockNetworkIdsAreHashes={}", (p.blockNetworkIdsAreHashes ? "true" : "false"));
             Log("bedrock", "StartGame gameVersion={} engine={} paletteChecksum={} blockProperties={}",
                 p.gameVersion, p.engine, p.blockPalletteChecksum, p.blockProperties.size());
+            {
+                std::lock_guard lock(brandMutex);
+                serverBrand = BrandFrom(p.engine, p.gameVersion);
+            }
             Log("bedrock", "client_side_generation={} (requested chunk radius {}, max view distance {})",
                 (clientGen ? "true" : "false"), chunkRadius, maxViewDistance);
             gotSpawn = true;

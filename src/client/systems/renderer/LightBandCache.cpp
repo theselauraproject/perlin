@@ -20,12 +20,21 @@ namespace perlin {
         const uint64_t counter = level.changeCounter.load(std::memory_order_relaxed);
         if (fresh && budget <= 0)
             return 0xF0;
+        if (!fresh && counter != b.counter && age > std::chrono::milliseconds(400)) {
+            const uint64_t area = level.AreaVersion(cx, cz);
+            if (area == b.area) {
+                b.counter = counter;
+                b.at = now;
+            }
+        }
         if (fresh || (budget > 0 && ((counter != b.counter && age > std::chrono::milliseconds(400)) ||
                                           age > std::chrono::seconds(20)))) {
             budget--;
+            const uint64_t area = level.AreaVersion(cx, cz);
             if (ChunkLighting::Compute(level, {cx, cz}, band * 16 - 8, band * 16 + 23, b.lit, true)) {
                 b.at = now;
                 b.counter = counter;
+                b.area = area;
             } else if (fresh) {
                 return 0xF0;
             }

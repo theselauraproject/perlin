@@ -22,8 +22,21 @@ namespace perlin::gpu {
             bool split = false;
             std::array<std::array<uint32_t, kFaceGroups>, kSplitLayers> faces{};
         };
+        struct SortCache {
+            struct Range {
+                uint32_t quad, quads;
+            };
+            std::vector<uint8_t> vertices;
+            std::vector<uint8_t> ext;
+            std::vector<float> centers;
+            std::vector<Range> ranges;
+            std::array<uint32_t, 2> layerQuads{};
+            std::array<uint32_t, 2> firstVertex{};
+            float x = 1e30f, y = 1e30f, z = 1e30f;
+        };
         struct Chunk {
             int page = -1;
+            std::shared_ptr<SortCache> sort;
             uint32_t vOff = 0, vCount = 0;
             std::array<uint32_t, kRenderLayerCount> iOff{};
             std::array<uint32_t, kRenderLayerCount> layerCount{};
@@ -96,6 +109,7 @@ namespace perlin::gpu {
             return pattern.Buffer();
         }
         uint32_t PatternIndices() const { return patternQuads * 6; }
+        void ResortTranslucent(float x, float y, float z);
         size_t Pages() const { return pages.size(); }
         size_t Chunks() const { return chunks.size(); }
         size_t LodTiles() const { return lods.size(); }
@@ -137,6 +151,7 @@ namespace perlin::gpu {
         }
         int CreatePage(uint32_t minVerts);
         bool EnsurePattern(uint32_t quads);
+        bool SortQuads(SortCache& sc, float x, float y, float z) const;
         static bool BuildPage(conduit::device& dev, uint32_t vCap, uint32_t extBytes,
                               uint32_t vertexStride, Page& out);
         static void DestroyPage(conduit::device& dev, Page& p);
@@ -176,6 +191,8 @@ namespace perlin::gpu {
         Gpu* gpu = nullptr;
         std::vector<Page> pages;
         Arena pattern;
+        float sortX = 0, sortY = 0, sortZ = 0;
+        bool sortKnown = false;
         uint32_t patternQuads = 0;
         std::vector<std::pair<Arena, int>> retiredPatterns;
         std::unordered_map<int64_t, Chunk> chunks;

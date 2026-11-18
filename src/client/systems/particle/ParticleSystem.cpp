@@ -584,8 +584,8 @@ namespace perlin::particle {
                 const std::string facing = pal.StateString(id, "torch_facing_direction", "top");
                 if (facing != "top" && facing != "unknown") {
                     oy = 0.92;
-                    ox = facing == "east" ? -0.27 : facing == "west" ? 0.27 : 0;
-                    oz = facing == "south" ? -0.27 : facing == "north" ? 0.27 : 0;
+                    ox = facing == "east" ? 0.27 : facing == "west" ? -0.27 : 0;
+                    oz = facing == "south" ? 0.27 : facing == "north" ? -0.27 : 0;
                 }
                 const glm::dvec3 at(bx + ox, y + oy, bz + oz);
                 Spawn(Kind::Smoke, at);

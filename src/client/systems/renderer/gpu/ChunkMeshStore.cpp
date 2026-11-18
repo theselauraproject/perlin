@@ -440,6 +440,34 @@ namespace perlin::gpu {
             }
         }
 
+        static constexpr size_t kSortLayers[2] = {static_cast<size_t>(RenderLayer::Translucent),
+                                                  static_cast<size_t>(RenderLayer::TranslucentCull)};
+        std::shared_ptr<SortCache> sortCache;
+        if (g.layerCount[kSortLayers[0]] || g.layerCount[kSortLayers[1]]) {
+            sortCache = std::make_shared<SortCache>();
+            const auto& secs = tess.Sections();
+            uint32_t cacheQuad = 0;
+            for (int s = 0; s < 2; s++) {
+                const size_t l = kSortLayers[s];
+                const uint32_t layerQuads = g.layerCount[l] / 6;
+                sortCache->layerQuads[s] = layerQuads;
+                sortCache->firstVertex[s] = g.iOff[l] / 6 * 4;
+                if (!layerQuads)
+                    continue;
+                if (secs.empty()) {
+                    sortCache->ranges.push_back({cacheQuad, layerQuads});
+                } else {
+                    for (const MeshSection& ms : secs) {
+                        const uint32_t first = std::min(ms.start[l] / 6, layerQuads);
+                        const uint32_t n = std::min(ms.count[l] / 6, layerQuads - first);
+                        if (n)
+                            sortCache->ranges.push_back({cacheQuad + first, n});
+                    }
+                }
+                cacheQuad += layerQuads;
+            }
+        }
+
         static thread_local std::vector<uint8_t> packed;
         packed.resize(static_cast<size_t>(g.vCount) * vertexStride);
         {
@@ -450,10 +478,10 @@ namespace perlin::gpu {
                 out += vertexStride;
             }
         }
-        gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, packed.data(), packed.size());
+        static thread_local std::vector<uint8_t> extraOrdered;
+        extraOrdered.clear();
         if (extBytes && extConvert && pg.ext.Buffer()) {
             static thread_local std::vector<uint8_t> extra;
-            static thread_local std::vector<uint8_t> extraOrdered;
             extra.clear();
             extConvert(tess, extra);
             if (extra.size() == static_cast<size_t>(vertexLimit) * extBytes) {
@@ -463,10 +491,67 @@ namespace perlin::gpu {
                     std::memcpy(out, extra.data() + static_cast<size_t>(index) * extBytes, extBytes);
                     out += extBytes;
                 }
-                gpu->WriteBuffer(pg.ext, static_cast<uint64_t>(g.vOff) * extBytes, extraOrdered.data(),
-                                 extraOrdered.size());
+            } else {
+                extraOrdered.clear();
             }
         }
+        if (sortCache) {
+            SortCache& sc = *sortCache;
+            const uint32_t cacheVerts = (sc.layerQuads[0] + sc.layerQuads[1]) * 4;
+            sc.vertices.resize(static_cast<size_t>(cacheVerts) * vertexStride);
+            if (!extraOrdered.empty())
+                sc.ext.resize(static_cast<size_t>(cacheVerts) * extBytes);
+            uint32_t at = 0;
+            for (int s = 0; s < 2; s++) {
+                const uint32_t local = sc.firstVertex[s] - g.vOff;
+                const uint32_t n = sc.layerQuads[s] * 4;
+                if (!n)
+                    continue;
+                std::memcpy(sc.vertices.data() + static_cast<size_t>(at) * vertexStride,
+                            packed.data() + static_cast<size_t>(local) * vertexStride,
+                            static_cast<size_t>(n) * vertexStride);
+                if (!sc.ext.empty())
+                    std::memcpy(sc.ext.data() + static_cast<size_t>(at) * extBytes,
+                                extraOrdered.data() + static_cast<size_t>(local) * extBytes,
+                                static_cast<size_t>(n) * extBytes);
+                at += n;
+            }
+            sc.centers.resize(static_cast<size_t>(cacheVerts / 4) * 3);
+            for (uint32_t q = 0; q < cacheVerts / 4; q++) {
+                float c[3] = {0, 0, 0};
+                for (uint32_t k = 0; k < 4; k++) {
+                    float p[3];
+                    std::memcpy(p, sc.vertices.data() + static_cast<size_t>(q * 4 + k) * vertexStride, sizeof(p));
+                    c[0] += p[0];
+                    c[1] += p[1];
+                    c[2] += p[2];
+                }
+                sc.centers[q * 3 + 0] = c[0] * 0.25f;
+                sc.centers[q * 3 + 1] = c[1] * 0.25f;
+                sc.centers[q * 3 + 2] = c[2] * 0.25f;
+            }
+            if (sortKnown && SortQuads(sc, sortX, sortY, sortZ)) {
+                at = 0;
+                for (int s = 0; s < 2; s++) {
+                    const uint32_t local = sc.firstVertex[s] - g.vOff;
+                    const uint32_t n = sc.layerQuads[s] * 4;
+                    if (!n)
+                        continue;
+                    std::memcpy(packed.data() + static_cast<size_t>(local) * vertexStride,
+                                sc.vertices.data() + static_cast<size_t>(at) * vertexStride,
+                                static_cast<size_t>(n) * vertexStride);
+                    if (!sc.ext.empty())
+                        std::memcpy(extraOrdered.data() + static_cast<size_t>(local) * extBytes,
+                                    sc.ext.data() + static_cast<size_t>(at) * extBytes,
+                                    static_cast<size_t>(n) * extBytes);
+                    at += n;
+                }
+            }
+        }
+        gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, packed.data(), packed.size());
+        if (!extraOrdered.empty())
+            gpu->WriteBuffer(pg.ext, static_cast<uint64_t>(g.vOff) * extBytes, extraOrdered.data(),
+                             extraOrdered.size());
 
         float lo = tess.boundsLo, hi = tess.boundsHi;
         if (!tess.boundsKnown) {
@@ -505,6 +590,8 @@ namespace perlin::gpu {
         g.cz = cz;
         g.size = size;
         g.version = version;
+        if (!lod)
+            g.sort = std::move(sortCache);
         {
             const auto& vis = tess.Visibility();
             if (!vis.empty() && vis.size() <= 32) {
@@ -521,6 +608,116 @@ namespace perlin::gpu {
             blended.insert(&stored);
         if (lod)
             LodAdd(stored);
+    }
+
+    bool ChunkMeshStore::SortQuads(SortCache& sc, float x, float y, float z) const {
+        const size_t stride = vertexStride;
+        const size_t quadBytes = stride * 4;
+        const size_t extQuad = sc.ext.empty() ? 0 : static_cast<size_t>(extBytes) * 4;
+        static thread_local std::vector<std::pair<float, uint32_t>> keys;
+        static thread_local std::vector<uint8_t> scratch;
+        static thread_local std::vector<uint8_t> extScratch;
+        static thread_local std::vector<float> centreScratch;
+        bool changed = false;
+        for (const SortCache::Range& r : sc.ranges) {
+            if (r.quads < 2)
+                continue;
+            keys.resize(r.quads);
+            for (uint32_t i = 0; i < r.quads; i++) {
+                const float* c = &sc.centers[static_cast<size_t>(r.quad + i) * 3];
+                const float dx = c[0] - x, dy = c[1] - y, dz = c[2] - z;
+                keys[i] = {dx * dx + dy * dy + dz * dz, i};
+            }
+            bool sorted = true;
+            for (uint32_t i = 1; i < r.quads && sorted; i++)
+                sorted = keys[i - 1].first >= keys[i].first;
+            if (sorted)
+                continue;
+            std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+                return a.first > b.first || (a.first == b.first && a.second < b.second);
+            });
+            changed = true;
+            uint8_t* base = sc.vertices.data() + static_cast<size_t>(r.quad) * quadBytes;
+            scratch.assign(base, base + static_cast<size_t>(r.quads) * quadBytes);
+            float* centres = &sc.centers[static_cast<size_t>(r.quad) * 3];
+            centreScratch.assign(centres, centres + static_cast<size_t>(r.quads) * 3);
+            uint8_t* extBase = extQuad ? sc.ext.data() + static_cast<size_t>(r.quad) * extQuad : nullptr;
+            if (extBase)
+                extScratch.assign(extBase, extBase + static_cast<size_t>(r.quads) * extQuad);
+            for (uint32_t i = 0; i < r.quads; i++) {
+                const uint32_t from = keys[i].second;
+                std::memcpy(base + static_cast<size_t>(i) * quadBytes, scratch.data() + static_cast<size_t>(from) * quadBytes,
+                            quadBytes);
+                std::memcpy(centres + static_cast<size_t>(i) * 3, centreScratch.data() + static_cast<size_t>(from) * 3,
+                            sizeof(float) * 3);
+                if (extBase)
+                    std::memcpy(extBase + static_cast<size_t>(i) * extQuad,
+                                extScratch.data() + static_cast<size_t>(from) * extQuad, extQuad);
+            }
+        }
+        sc.x = x;
+        sc.y = y;
+        sc.z = z;
+        return changed;
+    }
+
+    void ChunkMeshStore::ResortTranslucent(float x, float y, float z) {
+        sortX = x;
+        sortY = y;
+        sortZ = z;
+        sortKnown = true;
+        if (!gpu)
+            return;
+        static constexpr float kRadius = 80.0f;
+        static constexpr float kMove = 1.0f;
+        static constexpr size_t kBudgetBytes = 512u << 10;
+        static thread_local std::vector<std::pair<float, const Chunk*>> due;
+        due.clear();
+        for (const Chunk* c : blended) {
+            if (!c->sort || c->page < 0)
+                continue;
+            const SortCache& sc = *c->sort;
+            const float mx = sc.x - x, my = sc.y - y, mz = sc.z - z;
+            if (mx * mx + my * my + mz * mz < kMove * kMove)
+                continue;
+            const float half = static_cast<float>(c->size) * 0.5f;
+            const float dx = static_cast<float>(c->cx * c->size) + half - x;
+            const float dz = static_cast<float>(c->cz * c->size) + half - z;
+            const float dy = std::clamp(y, c->minY, c->maxY) - y;
+            const float d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 > kRadius * kRadius)
+                continue;
+            due.push_back({d2, c});
+        }
+        if (due.empty())
+            return;
+        std::sort(due.begin(), due.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        size_t spent = 0;
+        for (const auto& [d2, c] : due) {
+            if (spent >= kBudgetBytes)
+                break;
+            SortCache& sc = *c->sort;
+            if (!SortQuads(sc, x, y, z))
+                continue;
+            Page& pg = pages[static_cast<size_t>(c->page)];
+            uint32_t at = 0;
+            for (int s = 0; s < 2; s++) {
+                const uint32_t n = sc.layerQuads[s] * 4;
+                if (!n)
+                    continue;
+                const size_t bytes = static_cast<size_t>(n) * vertexStride;
+                gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(sc.firstVertex[s]) * vertexStride,
+                                 sc.vertices.data() + static_cast<size_t>(at) * vertexStride, bytes);
+                spent += bytes;
+                if (!sc.ext.empty() && pg.ext.Buffer()) {
+                    const size_t extSize = static_cast<size_t>(n) * extBytes;
+                    gpu->WriteBuffer(pg.ext, static_cast<uint64_t>(sc.firstVertex[s]) * extBytes,
+                                     sc.ext.data() + static_cast<size_t>(at) * extBytes, extSize);
+                    spent += extSize;
+                }
+                at += n;
+            }
+        }
     }
 
     uint64_t ChunkMeshStore::VertexBytes() const {

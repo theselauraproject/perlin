@@ -177,7 +177,7 @@ namespace perlin {
         std::memcpy(m.raster, matrices.raster, sizeof(m.raster));
         std::memcpy(m.info, matrices.info, sizeof(m.info));
 
-        const bool cpuCasters = !tuner.On(gpu::RenderTuner::ShadowCull);
+        const bool cpuCasters = !features.On(gpu::GpuFeatures::ShadowCull);
         shadow.gpuCasters = !cpuCasters && gpuCullFrame;
         gpu::shadow::CasterPlanes(eb, centre, volume, shadow.casterPlanes);
         CollectShadowCasters(eb, centre, volume);

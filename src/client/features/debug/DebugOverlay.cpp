@@ -115,7 +115,11 @@ namespace perlin::debug {
             state.rateAt = now;
         }
         ui::DebugInfo d;
-        d.version = std::string("Perlin ") + kVersion + " (bedrock " + kBedrockVersion + "/vanilla)";
+        std::string brand = live ? live->ServerBrand() : std::string();
+        if (brand.empty())
+            brand = live ? "unknown" : "none";
+        d.version = std::string("Perlin ") + kVersion + " (bedrock " + kBedrockVersion + "/" + brand + ")";
+        d.serverBrand = brand;
         d.fps = state.fps;
         d.lowFps = state.lowFps;
         d.maxFps = options.maxFps;

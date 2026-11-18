@@ -273,10 +273,10 @@ namespace perlin {
                 set(x, 29, z, lava);
         for (int y = 30; y <= 33; y++)
             set(20, y, 0, stone);
-        set(19, 32, 0, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"west\"]"));
-        set(21, 32, 0, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"east\"]"));
-        set(20, 32, -1, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"north\"]"));
-        set(20, 32, 1, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"south\"]"));
+        set(19, 32, 0, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"east\"]"));
+        set(21, 32, 0, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"west\"]"));
+        set(20, 32, -1, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"south\"]"));
+        set(20, 32, 1, ids.Get("torch", "\"torch_facing_direction\":[\"s\",\"north\"]"));
 
         for (int x = -span + 4; x < span - 4; x += 3)
             for (int z = -span + 4; z < span - 4; z += 3) {

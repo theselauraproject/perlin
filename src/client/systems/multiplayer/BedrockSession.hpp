@@ -140,6 +140,11 @@ namespace perlin {
         void EndItemUseOn();
         bool TakeBlockNamesLearned() { return blockNamesLearned.exchange(false); }
         bool ServerAuthoritativeBlockBreaking() const { return serverAuthBreaking.load(); }
+        std::string ServerBrand() const {
+            std::lock_guard lock(brandMutex);
+            return serverBrand;
+        }
+        static std::string BrandFrom(const std::string& engine, const std::string& gameVersion);
 
         struct ServerForm {
             uint32_t id = 0;
@@ -176,6 +181,8 @@ namespace perlin {
         uint32_t InputLocks() const { return inputLocks.load() | (immobile.load() ? 4u | 64u : 0u); }
         uint32_t HiddenHud() const { return hiddenHud.load(); }
         std::atomic<bool> serverAuthBreaking{true};
+        mutable std::mutex brandMutex;
+        std::string serverBrand;
 
         struct BlockActionData {
             uint32_t action = 0;

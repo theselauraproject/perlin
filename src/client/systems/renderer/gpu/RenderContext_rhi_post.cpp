@@ -1143,7 +1143,7 @@ namespace perlin {
             if (vd.draws.empty())
                 continue;
             if (viewMarks && !first)
-                tuner.Mark(list, ViewName(v));
+                features.Mark(list, ViewName(v));
             first = false;
             list.set_viewport({static_cast<float>(vd.x), static_cast<float>(vd.y), static_cast<float>(vd.w),
                               static_cast<float>(vd.h), 0.0f, 1.0f});
