@@ -309,7 +309,37 @@ namespace perlin::entity {
         return {0.6f * scale, 1.8f * scale};
     }
 
+    std::shared_ptr<EntityRenderer::SkinCache> EntityRenderer::SkinFor(const attachable::Geometry& geometry,
+                                                                       bool mirror) {
+        auto& slot = skinCache[mirror ? 1 : 0][&geometry];
+        if (slot && (slot->bones != geometry.bones.size() || slot->textureWidth != geometry.textureWidth ||
+                     slot->textureHeight != geometry.textureHeight)) {
+            if (renderer && slot->gpu)
+                renderer->UiDestroySkin(slot->gpu);
+            slot.reset();
+        }
+        if (!slot) {
+            slot = std::make_shared<SkinCache>();
+            attachable::BuildSkin(geometry, mirror, slot->vertices, slot->boxes);
+            slot->bones = geometry.bones.size();
+            slot->textureWidth = geometry.textureWidth;
+            slot->textureHeight = geometry.textureHeight;
+        }
+        return slot;
+    }
+
+    void EntityRenderer::DropSkins() {
+        skinUnsupported = false;
+        for (auto& map : skinCache) {
+            for (auto& [geometry, skin] : map)
+                if (renderer && skin && skin->gpu)
+                    renderer->UiDestroySkin(skin->gpu);
+            map.clear();
+        }
+    }
+
     void EntityRenderer::ClearCaches() {
+        DropSkins();
         if (renderer) {
             for (auto& [path, id] : textures)
                 if (id)
@@ -1319,15 +1349,17 @@ namespace perlin::entity {
                     single ? filter : attachable::BoneFilter([&](const std::string& bone) {
                         return materialOf(bone) == group && (!filter || filter(bone));
                     });
-                attachable::BuiltMesh mesh;
-                attachable::BuildMesh(*geometry, *layerPose, nullptr, mesh, groupFilter, nullptr, true);
-                if (mesh.body.empty())
+                std::vector<glm::mat4> bones;
+                if (!attachable::SkinBones(*geometry, *layerPose, groupFilter, nullptr, nullptr, bones))
+                    continue;
+                std::shared_ptr<SkinCache> skin = SkinFor(*geometry, true);
+                if (skin->vertices.empty())
                     continue;
                 static const bool debug = PERLIN_ENV("PERLIN_ENTITY_DEBUG") != nullptr;
                 if (debug && !warned["dbg:" + e.type + controllerId + group]) {
                     warned["dbg:" + e.type + controllerId + group] = true;
                     Log("entity", "{} controller {} geometry {} texture {} material {} quads {} (bones {})",
-                        e.type, controllerId, geometryId, layer.texture, group, mesh.body.size(),
+                        e.type, controllerId, geometryId, layer.texture, group, skin->vertices.size() / 4,
                         geometry->bones.size());
                 }
                 Layer copy = layer;
@@ -1336,7 +1368,8 @@ namespace perlin::entity {
                     assets.materialLibrary.Find(named != def->materials.end() ? named->second : group);
                 if (copy.material.colorMask)
                     copy.maskRgb = DyeColorRgb(e.color);
-                copy.quads = std::move(mesh.body);
+                copy.skin = std::move(skin);
+                copy.bones = std::move(bones);
                 layers.push_back(std::move(copy));
             }
         };
@@ -1449,7 +1482,6 @@ namespace perlin::entity {
                     elytraPose["right_wing"] = {pr, rr, glm::vec3(1.0f, 1.0f, 2.0f)};
                     meshPose = &elytraPose;
                 }
-                attachable::BuiltMesh mesh;
                 glm::mat4 rootWorld(1.0f);
                 glm::vec3 rootPivot(0.0f);
                 bool haveRoot = false;
@@ -1458,26 +1490,23 @@ namespace perlin::entity {
                 if (bindGeometry && e.isPlayer && wornBones.empty())
                     attachable::ComputeBoneWorlds(*bindGeometry, pose, wornBones);
                 const bool attach = !wornBones.empty() && item != "minecraft:elytra";
-                attachable::BuildMesh(*geometry, *meshPose, nullptr, mesh, attachable::BoneFilter(),
-                                      haveRoot ? &rootWorld : nullptr, true, attach ? &wornBones : nullptr);
-                if (PERLIN_ENV("PERLIN_ARMOR_DEBUG")) {
-                    glm::vec3 lo(1e9f), hi(-1e9f);
-                    for (const auto& q : mesh.body)
-                        for (const auto& pt : q.p) {
-                            lo = glm::min(lo, pt);
-                            hi = glm::max(hi, pt);
-                        }
-                    Log("armor", "  quads={} bones={} lo={},{},{} hi={},{},{}", mesh.body.size(),
-                        geometry->bones.size(), lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
-                }
-                if (mesh.body.empty())
+                std::vector<glm::mat4> bones;
+                const size_t shownBones =
+                    attachable::SkinBones(*geometry, *meshPose, attachable::BoneFilter(), haveRoot ? &rootWorld : nullptr,
+                                          attach ? &wornBones : nullptr, bones);
+                std::shared_ptr<SkinCache> skin = SkinFor(*geometry, true);
+                if (PERLIN_ENV("PERLIN_ARMOR_DEBUG"))
+                    Log("armor", "  quads={} bones={} shown={}", skin->vertices.size() / 4, geometry->bones.size(),
+                        shownBones);
+                if (!shownBones || skin->vertices.empty())
                     continue;
                 Layer layer;
                 layer.texture = (item == "minecraft:elytra" && e.isPlayer && e.skin && e.skin->capeWidth > 0)
                                     ? std::string("#cape")
                                     : texture;
                 layer.material = assets.materialLibrary.Find("entity_alphatest");
-                layer.quads = std::move(mesh.body);
+                layer.skin = std::move(skin);
+                layer.bones = std::move(bones);
                 layer.body = false;
                 layers.push_back(std::move(layer));
             }
@@ -1624,35 +1653,115 @@ namespace perlin::entity {
             }
             if (!texture)
                 continue;
-            std::vector<UiVertex> vertices;
-            std::vector<uint32_t> indices;
-            vertices.reserve(layer.quads.size() * 4);
-            indices.reserve(layer.quads.size() * 6);
+            static thread_local std::vector<UiVertex> vertices;
+            static thread_local std::vector<uint32_t> indices;
+            vertices.clear();
+            indices.clear();
             const float layerHurt = layer.material.hurtTint ? hurt : 0.0f;
             const bool fullbright = layer.material.emissive == 2;
             const glm::vec3 tint(layer.tint[0], layer.tint[1], layer.tint[2]);
             const glm::vec3 layerLight = layer.ignoreLighting ? glm::vec3(layer.lightMultiplier) : light;
-            for (const attachable::Quad& q : layer.quads) {
-                const glm::vec3 n = rot * q.n;
+            const auto colorFor = [&](const glm::vec3& normal) {
+                const glm::vec3 n = rot * normal;
                 const float lit =
                     !layer.material.faceShading
                         ? 1.0f
                         : std::min(1.0f, (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f +
                                              0.4f);
-                const uint32_t color = fullbright || packLit ? PackColor(tint, layer.tint[3])
-                                                             : PackColor(layerLight * lit * tint, layer.tint[3]);
-                const uint32_t base = static_cast<uint32_t>(vertices.size());
-                for (int i = 0; i < 4; i++)
-                    vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color,
-                                        q.uv[i].x * layer.uvScale[0] + layer.uvOffset[0],
-                                        q.uv[i].y * layer.uvScale[1] + layer.uvOffset[1]});
-                for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
-                    indices.push_back(base + i);
+                return fullbright || packLit ? PackColor(tint, layer.tint[3])
+                                             : PackColor(layerLight * lit * tint, layer.tint[3]);
+            };
+            uint32_t mesh = 0;
+            if (layer.skin && !layer.bones.empty()) {
+                SkinCache& skin = *layer.skin;
+                if (skin.gpu && !renderer->UiSkinValid(skin.gpu))
+                    skin.gpu = 0;
+                if (!skin.gpu && !skinUnsupported)
+                    skin.gpu = renderer->UiCreateSkin(skin.vertices.data(), static_cast<uint32_t>(skin.vertices.size()));
+                if (skin.gpu) {
+                    SkinDraw sd;
+                    sd.bones = &layer.bones[0][0][0];
+                    sd.boneCount = static_cast<uint32_t>(layer.bones.size());
+                    std::memcpy(sd.rot, &rot[0][0], sizeof(sd.rot));
+                    sd.light[0] = layerLight.x;
+                    sd.light[1] = layerLight.y;
+                    sd.light[2] = layerLight.z;
+                    std::memcpy(sd.tint, layer.tint, sizeof(sd.tint));
+                    sd.uvScale[0] = layer.uvScale[0];
+                    sd.uvScale[1] = layer.uvScale[1];
+                    sd.uvOffset[0] = layer.uvOffset[0];
+                    sd.uvOffset[1] = layer.uvOffset[1];
+                    sd.shade = layer.material.faceShading;
+                    sd.flat = fullbright || packLit;
+                    glm::vec3 lo(0.0f), hi(0.0f);
+                    bool any = false;
+                    for (size_t b = 0; b < skin.boxes.size() && b < layer.bones.size(); b++) {
+                        const attachable::SkinBox& box = skin.boxes[b];
+                        const glm::mat4& m = layer.bones[b];
+                        if (!box.used || m[3][3] == 0.0f)
+                            continue;
+                        for (int c = 0; c < 8; c++) {
+                            const glm::vec3 corner((c & 1) ? box.hi.x : box.lo.x, (c & 2) ? box.hi.y : box.lo.y,
+                                                   (c & 4) ? box.hi.z : box.lo.z);
+                            const glm::vec3 w = glm::vec3(m * glm::vec4(corner, 1.0f));
+                            lo = any ? glm::min(lo, w) : w;
+                            hi = any ? glm::max(hi, w) : w;
+                            any = true;
+                        }
+                    }
+                    if (any) {
+                        const glm::vec3 centre = (lo + hi) * 0.5f;
+                        sd.bounds[0] = centre.x;
+                        sd.bounds[1] = centre.y;
+                        sd.bounds[2] = centre.z;
+                        sd.bounds[3] = glm::length(hi - centre);
+                    }
+                    mesh = renderer->UiCreateSkinnedFrameMesh(skin.gpu, sd);
+                } else {
+                    skinUnsupported = true;
+                }
+                if (!mesh) {
+                    const size_t quadCount = skin.vertices.size() / 4;
+                    vertices.reserve(skin.vertices.size());
+                    indices.reserve(quadCount * 6);
+                    for (size_t qi = 0; qi < quadCount; qi++) {
+                        const SkinVertex* sv = &skin.vertices[qi * 4];
+                        if (sv->bone >= layer.bones.size())
+                            continue;
+                        const glm::mat4& m = layer.bones[sv->bone];
+                        if (m[3][3] == 0.0f && m[0][0] == 0.0f && m[1][1] == 0.0f && m[2][2] == 0.0f)
+                            continue;
+                        const glm::vec3 posed = glm::mat3(m) * glm::vec3(sv->nx, sv->ny, sv->nz);
+                        const float len = glm::length(posed);
+                        const uint32_t color = colorFor(len > 1e-6f ? posed / len : glm::vec3(0.0f, 1.0f, 0.0f));
+                        const uint32_t base = static_cast<uint32_t>(vertices.size());
+                        for (int k = 0; k < 4; k++) {
+                            const glm::vec3 p = glm::vec3(m * glm::vec4(sv[k].x, sv[k].y, sv[k].z, 1.0f));
+                            vertices.push_back({p.x, p.y, p.z, color, sv[k].u * layer.uvScale[0] + layer.uvOffset[0],
+                                                sv[k].v * layer.uvScale[1] + layer.uvOffset[1]});
+                        }
+                        for (uint32_t k : {0u, 1u, 2u, 0u, 2u, 3u})
+                            indices.push_back(base + k);
+                    }
+                }
+            } else {
+                vertices.reserve(layer.quads.size() * 4);
+                indices.reserve(layer.quads.size() * 6);
+                for (const attachable::Quad& q : layer.quads) {
+                    const uint32_t color = colorFor(q.n);
+                    const uint32_t base = static_cast<uint32_t>(vertices.size());
+                    for (int i = 0; i < 4; i++)
+                        vertices.push_back({q.p[i].x, q.p[i].y, q.p[i].z, color,
+                                            q.uv[i].x * layer.uvScale[0] + layer.uvOffset[0],
+                                            q.uv[i].y * layer.uvScale[1] + layer.uvOffset[1]});
+                    for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
+                        indices.push_back(base + i);
+                }
             }
-            const uint32_t mesh =
-                renderer->UiCreateFrameMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
-                                            indices.data(), static_cast<uint32_t>(indices.size()));
-            if (PERLIN_ENV("PERLIN_ENTITY_DEBUG") && !warned["mesh:" + e.type]) {
+            if (!mesh && !vertices.empty())
+                mesh = renderer->UiCreateFrameMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
+                                                   indices.data(), static_cast<uint32_t>(indices.size()));
+            if (PERLIN_ENV("PERLIN_ENTITY_DEBUG") && !warned["mesh:" + e.type] && !vertices.empty()) {
                 warned["mesh:" + e.type] = true;
                 std::cout << "[entity]   mesh " << mesh << " verts " << vertices.size() << " v0 "
                           << vertices[0].x << "," << vertices[0].y << "," << vertices[0].z << " uv "
@@ -1713,8 +1822,7 @@ namespace perlin::entity {
             }
             if (fpModel && PERLIN_ENV("PERLIN_FP_DEBUG"))
                 std::cout << "[fp] submit mesh=" << mesh << " tex=" << texture << " blend=" << draw.blend
-                          << " cutoff=" << draw.alphaCutoff << " verts=" << vertices.size()
-                          << " c=" << std::hex << vertices[0].abgr << std::dec << std::endl;
+                          << " cutoff=" << draw.alphaCutoff << " verts=" << vertices.size() << std::endl;
             if (dollModel && dollClip) {
                 draw.scissor = true;
                 std::copy_n(dollClip, 4, draw.scissorRect);

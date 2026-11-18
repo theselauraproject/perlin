@@ -515,7 +515,7 @@ namespace perlin {
             std::memcpy(mesh.tv.data, mesh.cpuVertices->data(), mesh.cpuVertices->size() * sizeof(UiVertex));
             std::memcpy(mesh.ti.data, mesh.cpuIndices->data(), mesh.cpuIndices->size() * sizeof(uint32_t));
         }
-        if (mesh.transient && !mesh.tv.data)
+        if (mesh.transient && !mesh.tv.data && !mesh.skinned)
             return;
         Source vertices, indices;
         if (mesh.transient) {

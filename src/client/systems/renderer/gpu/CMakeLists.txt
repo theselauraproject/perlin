@@ -48,6 +48,7 @@ if(NOT TARGET perlin_gpu)
         RenderContext_rhi_post.cpp
         RenderContext_rhi_shadow.cpp
         RenderContext_rhi_ui.cpp
+        RenderContext_rhi_skin.cpp
         RenderContext_rhi_world.cpp
         ../../../../util/GraphicsDebugger.cpp)
     target_include_directories(perlin_gpu PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")

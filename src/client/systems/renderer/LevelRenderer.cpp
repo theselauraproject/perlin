@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <thread>
 #include <utility>
 #include "util/Log.hpp"
 
@@ -168,9 +169,9 @@ namespace perlin {
                builtForPacks == ServerPacks::Instance().Generation();
     }
 
-    void LevelRenderer::ReloadResources() {
-
+    void LevelRenderer::ReloadResources(bool packsOpened) {
         assetsStale = true;
+        texturePackOpened = packsOpened;
         assetEpoch++;
         ServerBlocks::Instance().Requeue();
         texturePackResolved = false;
@@ -189,6 +190,11 @@ namespace perlin {
                 oldBlocks = std::move(retiredBlocks);
                 oldTints = std::move(retiredTints);
             }
+            std::thread([blocksGone = std::move(oldBlocks), tintsGone = std::move(oldTints)]() mutable {
+                LowerThreadPriority();
+                blocksGone.reset();
+                tintsGone.reset();
+            }).detach();
         }
         if (const uint32_t packs = ServerPacks::Instance().Generation(); !serverPackGenerationKnown) {
             serverPackGeneration = packs;
@@ -257,6 +263,7 @@ namespace perlin {
             }
             BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
             builtForPacks = stagedPacks;
+            atlasLayoutChanged = true;
 
             serverBlocks.TakeWaitingChunks();
             if (onLibrarySwap)
@@ -283,11 +290,14 @@ namespace perlin {
             }
             if (!texturePackResolved) {
                 texturePackResolved = true;
-                std::string error;
-                TexturePack::Instance().OpenStack(paths::DataDir() + "/texturepacks", options.texturePacks,
-                                                  error);
-                if (!error.empty())
-                    Log("textures", "{} (using default textures)", error);
+                if (!texturePackOpened) {
+                    std::string error;
+                    TexturePack::Instance().OpenStack(paths::DataDir() + "/texturepacks", options.texturePacks,
+                                                      error);
+                    if (!error.empty())
+                        Log("textures", "{} (using default textures)", error);
+                }
+                texturePackOpened = false;
                 BlockLibrary::SetMaxTiles(context.MaxAtlasLayers(BlockLibrary::TilePx()));
                 stagedBlocks.reset();
             }
@@ -335,7 +345,7 @@ namespace perlin {
         uploadedTiles = blocks->TilesLoaded();
         context.UploadAtlas(blocks->AtlasPixels().data(), BlockLibrary::TilePx(), blocks->TilesLoaded());
         atlasUploaded = true;
-        InvalidateMeshes(true);
+        InvalidateMeshes(!std::exchange(atlasLayoutChanged, false));
     }
 
     void LevelRenderer::UploadFinishedMeshes() {

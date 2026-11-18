@@ -204,6 +204,10 @@ namespace perlin {
         uint32_t UiCreateFrameMesh(const UiVertex* vertices, uint32_t vertexCount, const uint32_t* indices,
                                    uint32_t indexCount) override;
         void UiDestroyMesh(uint32_t mesh) override;
+        uint32_t UiCreateSkin(const SkinVertex* vertices, uint32_t vertexCount) override;
+        void UiDestroySkin(uint32_t skin) override;
+        bool UiSkinValid(uint32_t skin) const override;
+        uint32_t UiCreateSkinnedFrameMesh(uint32_t skin, const SkinDraw& draw) override;
         uint32_t UiLiveMeshes() const override { return staticUiMeshes; }
         void UiSubmit(UiLayer layer, const UiDraw& draw) override;
         void FramebufferSize(int& w, int& h) const override {
@@ -279,6 +283,44 @@ namespace perlin {
             std::vector<UiCullEntry> entries;
             bool failed = false;
         } uiCull;
+        struct SkinParams {
+            float rot[3][4];
+            float light[4];
+            float tint[4];
+            float uv[4];
+            uint32_t count, flat, outBase, pad;
+        };
+        static_assert(sizeof(SkinParams) == 112);
+        struct SkinJob {
+            conduit::buffer_handle skin;
+            gpu::RingSlice bones;
+            uint64_t bonesBytes = 0;
+            SkinParams params{};
+        };
+        struct SkinGpu {
+            conduit::buffer_handle buffer;
+            uint32_t count = 0;
+            uint32_t generation = 0;
+            bool used = false;
+        };
+        struct Skinning {
+            conduit::shader_handle shader;
+            conduit::bind_layout_handle bindLayout;
+            conduit::pipeline_layout_handle layout;
+            conduit::pipeline_handle pipeline;
+            conduit::buffer_handle out;
+            uint64_t capacity = 0, used = 0, wanted = 0;
+            std::vector<SkinJob> jobs;
+            std::vector<SkinGpu> skins;
+            std::vector<uint32_t> freeSlots;
+            std::vector<uint32_t> quadIndices;
+            bool failed = false;
+        } skinning;
+        bool EnsureSkinning();
+        void BeginSkinFrame();
+        void RecordSkins(conduit::command_list& list);
+        void DestroySkinning();
+        bool CountedIndirect() const;
         bool PushRuns(View view, const DrawCall& templ, conduit::buffer_handle vertexBuffer, conduit::buffer_handle indexBuffer,
                       const std::vector<gpu::ChunkMeshStore::Run>& list, size_t begin, size_t end);
         bool UseMultiDraw() const;
@@ -406,6 +448,7 @@ namespace perlin {
             bool used = false;
             bool transient = false;
             bool lazyRing = false;
+            bool skinned = false;
             gpu::RingSlice tv, ti;
             float bounds[4] = {0, 0, 0, -1};
         };
@@ -739,7 +782,7 @@ namespace perlin {
         std::array<TexRec, kAtlasMaxPages - 1> atlasMore;
         int atlasPageCap = kAtlasPageLayers;
         int tileSize = 16;
-        std::unordered_map<const uint8_t*, std::vector<std::vector<uint8_t>>> animatedTiles;
+        std::unordered_map<uint64_t, std::vector<std::vector<uint8_t>>> animatedTiles;
         uint8_t lastLightmap[kLightmapBytes] = {};
         bool lightmapValid = false;
         int crosshairPx = 0;

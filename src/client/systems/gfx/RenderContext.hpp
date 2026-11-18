@@ -5,6 +5,7 @@
 #include "client/systems/gfx/Frustum.hpp"
 #include "client/systems/gfx/Lightmap.hpp"
 #include "client/systems/gfx/SkyGeometry.hpp"
+#include "client/systems/gfx/SkinVertex.hpp"
 #include "client/systems/resources/TextureLoader.hpp"
 
 #include <cstdint>
@@ -262,6 +263,21 @@ namespace perlin {
             return UiCreateMesh(vertices, vertexCount, indices, indexCount);
         }
         virtual void UiDestroyMesh(uint32_t mesh) = 0;
+        virtual uint32_t UiCreateSkin(const SkinVertex* vertices, uint32_t vertexCount) {
+            (void)vertices;
+            (void)vertexCount;
+            return 0;
+        }
+        virtual void UiDestroySkin(uint32_t skin) { (void)skin; }
+        virtual bool UiSkinValid(uint32_t skin) const {
+            (void)skin;
+            return false;
+        }
+        virtual uint32_t UiCreateSkinnedFrameMesh(uint32_t skin, const SkinDraw& draw) {
+            (void)skin;
+            (void)draw;
+            return 0;
+        }
         virtual uint32_t UiLiveMeshes() const { return 0; }
         virtual void UiSubmit(UiLayer layer, const UiDraw& draw) = 0;
         virtual void FramebufferSize(int& width, int& height) const = 0;

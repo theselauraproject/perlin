@@ -306,13 +306,25 @@ namespace perlin {
         const TexRec& page = AtlasPage(pageIndex);
         if (!page.used || tile % atlasPageCap >= static_cast<int>(page.layers))
             return;
-        auto it = animatedTiles.find(rgba);
+        const size_t tileBytes = static_cast<size_t>(tileSize) * tileSize * 4;
+        uint64_t key = 1469598103934665603ull ^ static_cast<uint64_t>(tileSize);
+        {
+            const uint8_t* end = rgba + tileBytes;
+            for (const uint8_t* at = rgba; at + 8 <= end; at += 8) {
+                uint64_t word;
+                std::memcpy(&word, at, 8);
+                key = (key ^ word) * 1099511628211ull;
+                key ^= key >> 29;
+            }
+        }
+        auto it = animatedTiles.find(key);
         if (it == animatedTiles.end()) {
             if (animatedTiles.size() > 4096)
                 animatedTiles.clear();
-            it = animatedTiles.emplace(rgba, BuildTileMips(tileSize, rgba, static_cast<size_t>(tileSize) * 4))
-                     .first;
+            it = animatedTiles.emplace(key, BuildTileMips(tileSize, rgba, static_cast<size_t>(tileSize) * 4)).first;
         }
+        if (it->second.empty() || it->second[0].size() != tileBytes)
+            return;
         const auto& mips = it->second;
         if (tile < atlasTiles)
             std::memcpy(atlasSource.data() + static_cast<size_t>(tile) * tileSize * tileSize * 4,

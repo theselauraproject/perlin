@@ -752,6 +752,79 @@ namespace perlin::attachable {
         }
     }
 
+    void BuildSkin(const Geometry& g, bool mirrorTextures, std::vector<SkinVertex>& out, std::vector<SkinBox>& boxes) {
+        out.clear();
+        boxes.assign(g.bones.size(), SkinBox{});
+        std::vector<Quad> quads;
+        const glm::mat4 identity(1.0f);
+        for (size_t i = 0; i < g.bones.size(); i++) {
+            const Bone& b = g.bones[i];
+            if (b.neverRender)
+                continue;
+            quads.clear();
+            for (const Cube& c : b.cubes)
+                AddCube(c, g, identity, quads, mirrorTextures);
+            for (const Quad& pq : b.polys) {
+                Quad q = pq;
+                for (int k = 0; k < 4; k++) {
+                    const glm::vec2 uv =
+                        b.polyNormalized ? q.uv[k] : q.uv[k] / glm::vec2(g.textureWidth, g.textureHeight);
+                    q.uv[k] = {uv.x, 1.0f - uv.y};
+                }
+                quads.push_back(q);
+            }
+            for (const Quad& vq : b.voxels)
+                quads.push_back(vq);
+            SkinBox& box = boxes[i];
+            for (const Quad& q : quads)
+                for (int k = 0; k < 4; k++) {
+                    out.push_back({q.p[k].x, q.p[k].y, q.p[k].z, q.uv[k].x, q.uv[k].y, q.n.x, q.n.y, q.n.z,
+                                   static_cast<uint32_t>(i)});
+                    if (!box.used) {
+                        box.lo = box.hi = q.p[k];
+                        box.used = true;
+                    } else {
+                        box.lo = glm::min(box.lo, q.p[k]);
+                        box.hi = glm::max(box.hi, q.p[k]);
+                    }
+                }
+        }
+    }
+
+    size_t SkinBones(const Geometry& g, const Pose& pose, const BoneFilter& visible, const glm::mat4* rootParent,
+                     const BoneWorlds* attach, std::vector<glm::mat4>& out) {
+        out.assign(g.bones.size(), glm::mat4(1.0f));
+        size_t shown = 0;
+        for (size_t i = 0; i < g.bones.size(); i++) {
+            const Bone& b = g.bones[i];
+            const auto worn = attach ? attach->find(b.name) : BoneWorlds::const_iterator();
+            if (attach && worn != attach->end()) {
+                out[i] = worn->second;
+            } else {
+                BoneXform x;
+                if (const auto it = pose.find(b.name); it != pose.end())
+                    x = it->second;
+                const glm::mat4 local =
+                    glm::translate(glm::mat4(1.0f), x.position) * glm::translate(glm::mat4(1.0f), b.pivot) *
+                    EulerZYX(b.rotation + x.rotation) * glm::scale(glm::mat4(1.0f), x.scale) *
+                    glm::translate(glm::mat4(1.0f), -b.pivot);
+                out[i] = (b.parent >= 0 ? out[static_cast<size_t>(b.parent)]
+                                        : (rootParent ? *rootParent : glm::mat4(1.0f))) *
+                         local;
+            }
+        }
+        for (size_t i = 0; i < g.bones.size(); i++) {
+            const Bone& b = g.bones[i];
+            const bool content = !b.cubes.empty() || !b.polys.empty() || !b.voxels.empty();
+            if (b.neverRender || !content || (visible && !visible(b.name))) {
+                out[i] = glm::mat4(0.0f);
+                continue;
+            }
+            shown++;
+        }
+        return shown;
+    }
+
     bool BoneWorld(const Geometry& g, const Pose& pose, const std::string& name, glm::mat4& out,
                    glm::vec3& pivot) {
         std::vector<glm::mat4> world(g.bones.size(), glm::mat4(1.0f));

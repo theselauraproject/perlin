@@ -91,9 +91,11 @@ namespace perlin::gpu {
 
         conduit::buffer_handle Vertices(uint32_t page) const { return pages[page].vb.Buffer(); }
         conduit::buffer_handle Indices(uint32_t page, RenderLayer layer) const {
+            (void)page;
             (void)layer;
-            return pages[page].ib.Buffer();
+            return pattern.Buffer();
         }
+        uint32_t PatternIndices() const { return patternQuads * 6; }
         size_t Pages() const { return pages.size(); }
         size_t Chunks() const { return chunks.size(); }
         size_t LodTiles() const { return lods.size(); }
@@ -127,18 +129,18 @@ namespace perlin::gpu {
         struct Page {
             Arena vb;
             Arena ext;
-            Arena ib;
             int emptyFrames = 0;
             bool live = false;
         };
         static int64_t Key(int cx, int cz) {
             return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
         }
-        int CreatePage(uint32_t minVerts, uint32_t minIndices);
-        static bool BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes,
+        int CreatePage(uint32_t minVerts);
+        bool EnsurePattern(uint32_t quads);
+        static bool BuildPage(conduit::device& dev, uint32_t vCap, uint32_t extBytes,
                               uint32_t vertexStride, Page& out);
         static void DestroyPage(conduit::device& dev, Page& p);
-        bool Alloc(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need, Chunk& out);
+        bool Alloc(uint32_t v, Chunk& out);
         void Free(Chunk& c);
         void Upload(std::unordered_map<int64_t, Chunk>& target, bool lod, int cx, int cz, int size,
                     const Tessellator& tess, uint64_t version);
@@ -173,6 +175,9 @@ namespace perlin::gpu {
         ExtendFn extConvert;
         Gpu* gpu = nullptr;
         std::vector<Page> pages;
+        Arena pattern;
+        uint32_t patternQuads = 0;
+        std::vector<std::pair<Arena, int>> retiredPatterns;
         std::unordered_map<int64_t, Chunk> chunks;
         std::unordered_set<const Chunk*> blended;
         std::unordered_map<int64_t, Chunk> lods;

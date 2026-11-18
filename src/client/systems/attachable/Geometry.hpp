@@ -1,6 +1,7 @@
 #pragma once
 #include "client/systems/attachable/Animation.hpp"
 #include "client/systems/resources/TextureLoader.hpp"
+#include "client/systems/gfx/SkinVertex.hpp"
 
 #include <glm/glm.hpp>
 
@@ -93,6 +94,15 @@ namespace perlin::attachable {
                    const BoneFilter& visible = nullptr, const glm::mat4* rootParent = nullptr,
                    bool mirrorTextures = false, const BoneWorlds* attach = nullptr);
     void ComputeBoneWorlds(const Geometry& geometry, const Pose& pose, BoneWorlds& out);
+
+    struct SkinBox {
+        glm::vec3 lo{0.0f}, hi{0.0f};
+        bool used = false;
+    };
+    void BuildSkin(const Geometry& geometry, bool mirrorTextures, std::vector<SkinVertex>& out,
+                   std::vector<SkinBox>& boxes);
+    size_t SkinBones(const Geometry& geometry, const Pose& pose, const BoneFilter& visible,
+                     const glm::mat4* rootParent, const BoneWorlds* attach, std::vector<glm::mat4>& out);
 
     Geometry VoxelizeSkinLayers(const Geometry& source, const uint8_t* rgba, int width, int height);
     std::vector<Quad> ExtrudeSprite(const Texture& atlas, int tileX, int tileY, int tileWidth, int tileHeight,

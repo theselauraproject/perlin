@@ -22,9 +22,42 @@ namespace perlin::gpu {
         for (Page& p : pages) {
             p.vb.Destroy(gpu->Dev());
             p.ext.Destroy(gpu->Dev());
-            p.ib.Destroy(gpu->Dev());
         }
         pages.clear();
+        pattern.Destroy(gpu->Dev());
+        patternQuads = 0;
+        for (auto& [old, frames] : retiredPatterns)
+            old.Destroy(gpu->Dev());
+        retiredPatterns.clear();
+    }
+
+    bool ChunkMeshStore::EnsurePattern(uint32_t quads) {
+        if (quads <= patternQuads && pattern.Buffer())
+            return true;
+        const uint32_t want = std::max<uint32_t>((quads + 4095u) & ~4095u, 4096u);
+        conduit::device& dev = gpu->Dev();
+        if (pattern.Buffer())
+            retiredPatterns.push_back({std::move(pattern), 0});
+        pattern = Arena{};
+        patternQuads = 0;
+        if (!pattern.Create(dev, want * 6, sizeof(uint32_t),
+                            conduit::buffer_usage::index | conduit::buffer_usage::storage, "terrain quad indices"))
+            return false;
+        std::vector<uint32_t> data(static_cast<size_t>(want) * 6);
+        for (uint32_t q = 0; q < want; q++) {
+            uint32_t* o = &data[static_cast<size_t>(q) * 6];
+            const uint32_t b = q * 4;
+            o[0] = b;
+            o[1] = b + 1;
+            o[2] = b + 2;
+            o[3] = b;
+            o[4] = b + 2;
+            o[5] = b + 3;
+        }
+        gpu->WriteBuffer(pattern, 0, data.data(), data.size() * sizeof(uint32_t));
+        patternQuads = want;
+        meshEpoch++;
+        return true;
     }
 
     void ChunkMeshStore::SetVertexStride(uint32_t bytes) {
@@ -59,7 +92,6 @@ namespace perlin::gpu {
                     continue;
                 p.vb.Destroy(gpu->Dev());
                 p.ext.Destroy(gpu->Dev());
-                p.ib.Destroy(gpu->Dev());
                 p.live = false;
             }
         }
@@ -83,7 +115,6 @@ namespace perlin::gpu {
             if (!p.live)
                 continue;
             p.vb.Reset();
-            p.ib.Reset();
         }
         generation++;
     }
@@ -96,7 +127,6 @@ namespace perlin::gpu {
             sources.push_back({p.vb.Buffer(), p.vb.BarrierState(), p.vb.Bytes()});
             if (extBytes)
                 sources.push_back({p.ext.Buffer(), p.ext.BarrierState(), p.ext.Bytes()});
-            sources.push_back({p.ib.Buffer(), p.ib.BarrierState(), p.ib.Bytes()});
         }
         Backup out;
         out.blobs = gpu->ReadBuffers(sources);
@@ -118,8 +148,15 @@ namespace perlin::gpu {
             drop(p.vb);
             if (extBytes)
                 drop(p.ext);
-            drop(p.ib);
         }
+        if (pattern.Buffer()) {
+            gpu->ForgetBuffer(pattern.Buffer());
+            gpu->Dev().destroy(pattern.Buffer());
+        }
+        pattern.Detach();
+        for (auto& [old, frames] : retiredPatterns)
+            old.Destroy(gpu->Dev());
+        retiredPatterns.clear();
     }
 
     bool ChunkMeshStore::Load(Backup&& backup) {
@@ -142,21 +179,23 @@ namespace perlin::gpu {
             restore(p.vb);
             if (extBytes)
                 restore(p.ext);
-            restore(p.ib);
+        }
+        if (patternQuads) {
+            const uint32_t quads = patternQuads;
+            pattern = Arena{};
+            patternQuads = 0;
+            ok = EnsurePattern(quads) && ok;
         }
         return ok;
     }
 
-    bool ChunkMeshStore::BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes,
+    bool ChunkMeshStore::BuildPage(conduit::device& dev, uint32_t vCap, uint32_t extBytes,
                                    uint32_t vertexStride, Page& p) {
         bool ok =
             p.vb.Create(dev, vCap, vertexStride,
                         conduit::buffer_usage::vertex | conduit::buffer_usage::storage, "chunk vertices");
         if (ok && extBytes)
             ok = p.ext.Create(dev, vCap, extBytes, conduit::buffer_usage::vertex, "chunk vertex extras");
-        if (ok)
-            ok = p.ib.Create(dev, std::max(1u, iCap), sizeof(uint32_t),
-                             conduit::buffer_usage::index | conduit::buffer_usage::storage, "chunk indices");
         if (!ok)
             DestroyPage(dev, p);
         return ok;
@@ -165,10 +204,9 @@ namespace perlin::gpu {
     void ChunkMeshStore::DestroyPage(conduit::device& dev, Page& p) {
         p.vb.Destroy(dev);
         p.ext.Destroy(dev);
-        p.ib.Destroy(dev);
     }
 
-    int ChunkMeshStore::CreatePage(uint32_t minVerts, uint32_t minIndices) {
+    int ChunkMeshStore::CreatePage(uint32_t minVerts) {
         uint64_t block = kBlockBytes;
         {
             conduit::device& dev = gpu->Dev();
@@ -184,19 +222,22 @@ namespace perlin::gpu {
         }
         Page p;
         for (;;) {
-            const uint64_t perVertex = vertexStride + extBytes + sizeof(uint32_t) * 3 / 2;
-            const uint32_t verts = static_cast<uint32_t>(std::min<uint64_t>(block / perVertex, 0xffffffffu));
-            const uint32_t vCap = std::max(verts, minVerts);
-            const uint32_t iCap = std::max<uint32_t>(static_cast<uint32_t>(static_cast<uint64_t>(vCap) * 3 / 2), minIndices);
-            if (BuildPage(gpu->Dev(), vCap, iCap, extBytes, vertexStride, p))
+            const uint64_t perVertex = vertexStride + extBytes;
+            const uint32_t verts = static_cast<uint32_t>(std::min<uint64_t>(block / perVertex, 0x7ffffffcu)) & ~3u;
+            const uint32_t vCap = std::max(verts, (minVerts + 3u) & ~3u);
+            if (BuildPage(gpu->Dev(), vCap, extBytes, vertexStride, p))
                 break;
             if (block <= kMinBlockBytes)
                 return -1;
             block /= 2;
         }
+        if (!EnsurePattern(p.vb.Capacity() / 4)) {
+            DestroyPage(gpu->Dev(), p);
+            return -1;
+        }
         p.live = true;
         if (PERLIN_ENV("PERLIN_STATS"))
-            std::printf("[gpu] chunk block: %u vertices, %u indices\n", p.vb.Capacity(), p.ib.Capacity());
+            std::printf("[gpu] chunk block: %u vertices\n", p.vb.Capacity());
         for (size_t i = 0; i < pages.size(); i++)
             if (!pages[i].live) {
                 pages[i] = std::move(p);
@@ -206,10 +247,7 @@ namespace perlin::gpu {
         return static_cast<int>(pages.size()) - 1;
     }
 
-    bool ChunkMeshStore::Alloc(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need, Chunk& out) {
-        uint32_t total = 0;
-        for (uint32_t n : need)
-            total += n;
+    bool ChunkMeshStore::Alloc(uint32_t v, Chunk& out) {
         const auto tryPage = [&](Page& pg, int index) {
             if (!pg.live)
                 return false;
@@ -217,36 +255,33 @@ namespace perlin::gpu {
             uint32_t vo = 0;
             if (!pg.vb.Alloc(v, vo))
                 return false;
-            std::array<uint32_t, kRenderLayerCount> io{};
-            for (size_t l = 0; l < kRenderLayerCount; l++) {
-                if (need[l] && !pg.ib.Alloc(need[l], io[l])) {
-                    for (size_t k = 0; k < l; k++)
-                        if (need[k])
-                            pg.ib.Free(io[k], need[k]);
-                    pg.vb.Free(vo, v);
-                    return false;
-                }
-            }
             out.page = index;
             out.vOff = vo;
-            out.iOff = io;
             return true;
         };
         for (size_t pi = 0; pi < pages.size(); pi++)
             if (tryPage(pages[pi], static_cast<int>(pi)))
                 return true;
-        const int created = CreatePage(v, total);
+        const int created = CreatePage(v);
         return created >= 0 && tryPage(pages[static_cast<size_t>(created)], created);
     }
 
     void ChunkMeshStore::ReleaseEmptyPages() {
+        for (size_t i = 0; i < retiredPatterns.size();) {
+            if (++retiredPatterns[i].second < 8) {
+                i++;
+                continue;
+            }
+            retiredPatterns[i].first.Destroy(gpu->Dev());
+            retiredPatterns.erase(retiredPatterns.begin() + static_cast<std::ptrdiff_t>(i));
+        }
         size_t liveCount = 0;
         for (const Page& p : pages)
             liveCount += p.live ? 1 : 0;
         for (Page& p : pages) {
             if (!p.live)
                 continue;
-            bool unused = p.vb.Unused() && p.ib.Unused();
+            bool unused = p.vb.Unused();
             if (liveCount <= 1)
                 unused = false;
             if (!unused) {
@@ -257,7 +292,6 @@ namespace perlin::gpu {
                 continue;
             p.vb.Destroy(gpu->Dev());
             p.ext.Destroy(gpu->Dev());
-            p.ib.Destroy(gpu->Dev());
             p.live = false;
             liveCount--;
             meshEpoch++;
@@ -269,9 +303,6 @@ namespace perlin::gpu {
             pages[static_cast<size_t>(c.page)].live) {
             Page& pg = pages[static_cast<size_t>(c.page)];
             pg.vb.Free(c.vOff, c.vCount);
-            for (size_t l = 0; l < kRenderLayerCount; l++)
-                if (c.layerCount[l])
-                    pg.ib.Free(c.iOff[l], c.layerCount[l]);
         }
         c.page = -1;
     }
@@ -374,44 +405,67 @@ namespace perlin::gpu {
         }
 
         Chunk g;
-        g.vCount = static_cast<uint32_t>(verts.size());
-        for (size_t l = 0; l < kRenderLayerCount; l++)
-            g.layerCount[l] = static_cast<uint32_t>(tess.Indices(static_cast<RenderLayer>(l)).size());
-        if (!Alloc(g.vCount, g.layerCount, g))
+        uint32_t quads = 0;
+        for (size_t l = 0; l < kRenderLayerCount; l++) {
+            g.layerCount[l] = static_cast<uint32_t>(tess.Indices(static_cast<RenderLayer>(l)).size() / 6 * 6);
+            quads += g.layerCount[l] / 6;
+        }
+        if (!quads)
+            return;
+        g.vCount = quads * 4;
+        if (!Alloc(g.vCount, g))
             return;
         Page& pg = pages[static_cast<size_t>(g.page)];
-
-        if (vertexStride == sizeof(Vertex)) {
-            gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * sizeof(Vertex), verts.data(),
-                             static_cast<uint64_t>(g.vCount) * sizeof(Vertex));
-        } else {
-            static thread_local std::vector<uint8_t> packed;
-            packed.resize(static_cast<size_t>(g.vCount) * vertexStride);
-            uint8_t* out = packed.data();
-            for (const Vertex& v : verts) {
-                std::memcpy(out, &v, vertexStride);
-                out += vertexStride;
+        {
+            uint32_t q = g.vOff / 4;
+            for (size_t l = 0; l < kRenderLayerCount; l++) {
+                g.iOff[l] = q * 6;
+                q += g.layerCount[l] / 6;
             }
-            gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, packed.data(), packed.size());
         }
-        if (extBytes && extConvert && pg.ext.Buffer()) {
-            static thread_local std::vector<uint8_t> extra;
-            extra.clear();
-            extConvert(tess, extra);
-            if (extra.size() == static_cast<size_t>(g.vCount) * extBytes)
-                gpu->WriteBuffer(pg.ext, static_cast<uint64_t>(g.vOff) * extBytes, extra.data(),
-                                 extra.size());
-        }
-        static thread_local std::vector<uint32_t> shifted;
+
+        static thread_local std::vector<uint32_t> order;
+        order.clear();
+        order.reserve(g.vCount);
+        const uint32_t vertexLimit = static_cast<uint32_t>(verts.size());
         for (size_t l = 0; l < kRenderLayerCount; l++) {
             const auto& list = tess.Indices(static_cast<RenderLayer>(l));
-            if (list.empty())
-                continue;
-            shifted.resize(list.size());
-            for (size_t i = 0; i < list.size(); i++)
-                shifted[i] = list[i] + g.vOff;
-            gpu->WriteBuffer(pg.ib, static_cast<uint64_t>(g.iOff[l]) * sizeof(uint32_t), shifted.data(),
-                             shifted.size() * sizeof(uint32_t));
+            const size_t n = g.layerCount[l];
+            for (size_t i = 0; i < n; i += 6) {
+                const uint32_t* q = &list[i];
+                order.push_back(std::min(q[0], vertexLimit - 1));
+                order.push_back(std::min(q[1], vertexLimit - 1));
+                order.push_back(std::min(q[2], vertexLimit - 1));
+                order.push_back(std::min(q[5], vertexLimit - 1));
+            }
+        }
+
+        static thread_local std::vector<uint8_t> packed;
+        packed.resize(static_cast<size_t>(g.vCount) * vertexStride);
+        {
+            uint8_t* out = packed.data();
+            const uint8_t* src = reinterpret_cast<const uint8_t*>(verts.data());
+            for (uint32_t index : order) {
+                std::memcpy(out, src + static_cast<size_t>(index) * sizeof(Vertex), vertexStride);
+                out += vertexStride;
+            }
+        }
+        gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, packed.data(), packed.size());
+        if (extBytes && extConvert && pg.ext.Buffer()) {
+            static thread_local std::vector<uint8_t> extra;
+            static thread_local std::vector<uint8_t> extraOrdered;
+            extra.clear();
+            extConvert(tess, extra);
+            if (extra.size() == static_cast<size_t>(vertexLimit) * extBytes) {
+                extraOrdered.resize(static_cast<size_t>(g.vCount) * extBytes);
+                uint8_t* out = extraOrdered.data();
+                for (uint32_t index : order) {
+                    std::memcpy(out, extra.data() + static_cast<size_t>(index) * extBytes, extBytes);
+                    out += extBytes;
+                }
+                gpu->WriteBuffer(pg.ext, static_cast<uint64_t>(g.vOff) * extBytes, extraOrdered.data(),
+                                 extraOrdered.size());
+            }
         }
 
         float lo = tess.boundsLo, hi = tess.boundsHi;
@@ -478,11 +532,7 @@ namespace perlin::gpu {
     }
 
     uint64_t ChunkMeshStore::IndexBytes() const {
-        uint64_t total = 0;
-        for (const Page& p : pages)
-            if (p.live)
-                total += static_cast<uint64_t>(p.ib.Capacity()) * sizeof(uint32_t);
-        return total;
+        return static_cast<uint64_t>(patternQuads) * 6 * sizeof(uint32_t);
     }
 
     bool ChunkMeshStore::SectionReached(int sx, int sy, int sz, bool caveCulling) const {

@@ -807,55 +807,70 @@ namespace perlin {
         frames++;
         const auto now = Clock::now();
         {
+            size_t key = std::hash<std::string>{}(options.shaderPack);
+            for (const std::string& pack : options.texturePacks)
+                key = key * 31 + std::hash<std::string>{}(pack);
+            key = key * 31 + static_cast<size_t>(options.renderDistance);
+            key = key * 31 + (renderer ? static_cast<size_t>(renderer->MeshFormatEpoch()) : 0);
+            key = key * 31 + (renderer && renderer->JavaShaderPackActive() ? 1 : 0);
+            if (key != loop->frameStatsKey) {
+                loop->frameStatsKey = key;
+                loop->frameMsCount = 0;
+                loop->frameMsHead = 0;
+                loop->frameStatsSettle = now + std::chrono::seconds(3);
+            }
+            const bool busy = !sessionReady.load() || (levelRenderer && levelRenderer->AssetsBusy());
+            if (busy)
+                loop->frameStatsSettle = std::max(loop->frameStatsSettle, now + std::chrono::seconds(1));
             const float ms = std::chrono::duration<float, std::milli>(now - loop->lastFrameEnd).count();
             loop->lastFrameEnd = now;
-            if (ms > 0.0f && ms < 10000.0f) {
-                loop->frameMs[loop->frameMsHead] = ms;
-                loop->frameMsHead = (loop->frameMsHead + 1) % loop->frameMs.size();
-                loop->frameMsCount = std::min(loop->frameMsCount + 1, loop->frameMs.size());
+            const int produced = std::max(1, frames - loop->frameStatsCounted);
+            loop->frameStatsCounted = frames;
+            if (!busy && now >= loop->frameStatsSettle && ms > 0.0f && ms < 2000.0f) {
+                const float each = ms / static_cast<float>(produced);
+                for (int k = 0; k < produced; k++) {
+                    loop->frameMs[loop->frameMsHead] = each;
+                    loop->frameMsHead = (loop->frameMsHead + 1) % loop->frameMs.size();
+                    loop->frameMsCount = std::min(loop->frameMsCount + 1, loop->frameMs.size());
+                }
             }
         }
         if (now - titleAt >= frame::kTitleInterval) {
             const double seconds = std::chrono::duration<double>(now - titleAt).count();
             debugOverlay.state.fps = static_cast<int>(frames / seconds + 0.5);
-            {
-                size_t key = std::hash<std::string>{}(options.shaderPack);
-                for (const std::string& pack : options.texturePacks)
-                    key = key * 31 + std::hash<std::string>{}(pack);
-                key = key * 31 + static_cast<size_t>(options.renderDistance);
-                key = key * 31 + (renderer ? static_cast<size_t>(renderer->MeshFormatEpoch()) : 0);
-                key = key * 31 + (renderer && renderer->JavaShaderPackActive() ? 1 : 0);
-                key = key * 31 + (levelRenderer ? static_cast<size_t>(levelRenderer->AssetsBusy()) : 0);
-                key = key * 31 + static_cast<size_t>(sessionReady.load());
-                if (key != loop->frameStatsKey) {
-                    loop->frameStatsKey = key;
-                    loop->frameMsCount = 0;
-                    loop->frameMsHead = 0;
-                    debugOverlay.state.lowFps = debugOverlay.state.fps;
-                }
-            }
-            if (loop->frameMsCount > 0) {
-                std::vector<float> recent;
-                recent.reserve(loop->frameMsCount);
+            int low = debugOverlay.state.fps;
+            if (loop->frameMsCount >= 120) {
+                static thread_local std::vector<float> recent;
+                recent.clear();
                 float span = 0.0f;
-                for (size_t i = 0; i < loop->frameMsCount && span < 10000.0f; i++) {
+                for (size_t i = 0; i < loop->frameMsCount && span < 20000.0f; i++) {
                     const float ms =
                         loop->frameMs[(loop->frameMsHead + loop->frameMs.size() - 1 - i) % loop->frameMs.size()];
                     recent.push_back(ms);
                     span += ms;
                 }
-                const size_t worst = std::max<size_t>(1, recent.size() / 100);
-                std::partial_sort(recent.begin(), recent.begin() + static_cast<std::ptrdiff_t>(worst), recent.end(),
-                                  std::greater<float>());
-                double sum = 0.0;
-                for (size_t i = 0; i < worst; i++)
-                    sum += recent[i];
-                const double avg = sum / static_cast<double>(worst);
-                debugOverlay.state.lowFps = avg > 0.0 ? static_cast<int>(1000.0 / avg + 0.5) : 0;
+                if (recent.size() >= 120) {
+                    const double share = static_cast<double>(recent.size()) / 100.0;
+                    const size_t whole = static_cast<size_t>(share);
+                    const size_t take = std::min(recent.size(), whole + 1);
+                    std::partial_sort(recent.begin(), recent.begin() + static_cast<std::ptrdiff_t>(take), recent.end(),
+                                      std::greater<float>());
+                    double sum = 0.0;
+                    for (size_t i = 0; i < whole; i++)
+                        sum += recent[i];
+                    const double fraction = share - static_cast<double>(whole);
+                    if (take > whole)
+                        sum += recent[whole] * fraction;
+                    const double avg = sum / share;
+                    if (avg > 0.0)
+                        low = std::min(low, static_cast<int>(1000.0 / avg + 0.5));
+                }
             }
+            debugOverlay.state.lowFps = low;
             UpdateTitle(debugOverlay.state.fps);
             titleAt = now;
             frames = 0;
+            loop->frameStatsCounted = 0;
         }
     }
 

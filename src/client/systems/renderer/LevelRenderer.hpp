@@ -35,7 +35,7 @@ namespace perlin {
             if (assetJob.valid())
                 assetJob.wait();
         }
-        void ReloadResources();
+        void ReloadResources(bool packsOpened = false);
         void RemeshAll() { InvalidateMeshes(); }
         sky::Set& CustomSky() { return customSky; }
 
@@ -231,6 +231,8 @@ namespace perlin {
         bool skyTexturesLoaded = false;
         sky::Set customSky;
         bool texturePackResolved = false;
+        bool texturePackOpened = false;
+        bool atlasLayoutChanged = false;
 
         uint32_t serverPackGeneration = 0;
         bool serverPackGenerationKnown = false, serverPackReloadPending = false;

@@ -67,7 +67,7 @@ namespace perlin::packs {
                 Log("textures", "{} (using default textures)", error);
         }
         if (levelRenderer)
-            levelRenderer->ReloadResources();
+            levelRenderer->ReloadResources(true);
         entityRenderer.ClearCaches();
         uiAssets.ClearItemCache();
         if (hud)

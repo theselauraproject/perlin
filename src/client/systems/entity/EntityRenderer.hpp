@@ -160,8 +160,21 @@ namespace perlin::entity {
         std::vector<ParticleRequest> particleRequests;
         HandRenderer* itemRenderer = nullptr;
         struct View;
+        struct SkinCache {
+            std::vector<SkinVertex> vertices;
+            std::vector<attachable::SkinBox> boxes;
+            size_t bones = 0;
+            float textureWidth = 0, textureHeight = 0;
+            uint32_t gpu = 0;
+        };
+        std::unordered_map<const attachable::Geometry*, std::shared_ptr<SkinCache>> skinCache[2];
+        std::shared_ptr<SkinCache> SkinFor(const attachable::Geometry& geometry, bool mirror);
+        void DropSkins();
+        bool skinUnsupported = false;
         struct Layer {
             std::vector<attachable::Quad> quads;
+            std::shared_ptr<SkinCache> skin;
+            std::vector<glm::mat4> bones;
             std::string texture;
             bool translucent = false;
             float tint[4] = {1, 1, 1, 1};

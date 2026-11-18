@@ -522,6 +522,7 @@ namespace perlin {
         dev.destroy(uiCull.shader);
         dev.destroy(uiCull.output);
         uiCull = UiCull{};
+        DestroySkinning();
         DestroyPostTargets();
         DestroyFrameGenTargets();
         fgenBlocked = false;
@@ -736,6 +737,17 @@ namespace perlin {
             dc.rect = *scissor;
         }
         views[static_cast<size_t>(view)].draws.push_back(dc);
+    }
+
+    bool RenderContext_rhi::CountedIndirect() const {
+        static const int forced = PERLIN_ENV("PERLIN_COUNTED_INDIRECT") ? std::atoi(PERLIN_ENV("PERLIN_COUNTED_INDIRECT")) : -1;
+        if (forced >= 0)
+            return forced > 0;
+        const auto& caps = const_cast<gpu::Gpu&>(gpu).Caps();
+        if (!caps.features.draw_indirect_count)
+            return false;
+        const std::string& name = caps.adapter.name;
+        return name.find("llvmpipe") != std::string::npos || name.find("lavapipe") != std::string::npos;
     }
 
     bool RenderContext_rhi::UseMultiDraw() const {
@@ -999,7 +1011,17 @@ namespace perlin {
             if (dc.indirectDraws && dc.countBuffer)
                 list.draw_indexed_indirect_count(dc.indirect, dc.indirectOffset, dc.countBuffer, dc.countOffset,
                                                  dc.indirectDraws, sizeof(conduit::draw_indexed_indirect_command));
-            else if (dc.indirectDraws)
+            else if (dc.indirectDraws && dc.indirectDraws > 1 && CountedIndirect()) {
+                const gpu::RingSlice slice = gpu.Ring(sizeof(uint32_t), 4);
+                if (slice.data) {
+                    std::memcpy(slice.data, &dc.indirectDraws, sizeof(uint32_t));
+                    list.draw_indexed_indirect_count(dc.indirect, dc.indirectOffset, slice.buffer, slice.offset,
+                                                     dc.indirectDraws, sizeof(conduit::draw_indexed_indirect_command));
+                } else {
+                    list.draw_indexed_indirect(dc.indirect, dc.indirectOffset, dc.indirectDraws,
+                                             sizeof(conduit::draw_indexed_indirect_command));
+                }
+            } else if (dc.indirectDraws)
                 list.draw_indexed_indirect(dc.indirect, dc.indirectOffset, dc.indirectDraws,
                                          sizeof(conduit::draw_indexed_indirect_command));
             else if (dc.indices)
@@ -1254,6 +1276,7 @@ namespace perlin {
         gpu.BeginFrame();
         FinishReadbacks();
         ReleaseFrameMeshes();
+        BeginSkinFrame();
         uniformCache.assign(uniformCache.size(), {});
         gpuCullFrame = false;
         frameOpen = true;
@@ -1393,6 +1416,7 @@ namespace perlin {
             modGpu->Start(rendererName);
         modGpu->BeginFrame(gpu.TargetWidth(), gpu.TargetHeight());
         gpu.Flush(*list);
+        RecordSkins(*list);
         gpu::ModGpu::Screen modScreen;
         modScreen.color = image.texture;
         modScreen.width = gpu.TargetWidth();
