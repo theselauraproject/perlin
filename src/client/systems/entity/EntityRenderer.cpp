@@ -1599,7 +1599,8 @@ namespace perlin::entity {
                 light = fp->light;
         }
         if (dollModel) {
-            model = *dollModel * glm::rotate(glm::mat4(1.0f), rotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ *
+            const float dollRotation = dollFacing ? *dollFacing : rotation;
+            model = *dollModel * glm::rotate(glm::mat4(1.0f), dollRotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ *
                     glm::scale(glm::mat4(1.0f), glm::vec3(scale / 16.0f));
             light = glm::vec3(1.0f);
         }
@@ -1915,7 +1916,7 @@ namespace perlin::entity {
     }
 
     void EntityRenderer::RenderDoll(const Entity& e, const FrameIn& in, float cx, float feetY,
-                                    float pxPerBlock, const int clip[4]) {
+                                    float pxPerBlock, const int clip[4], std::optional<float> facing) {
         if (!renderer)
             return;
         const std::string& root = ui::UiAssets::Instance().VanillaRoot();
@@ -1936,9 +1937,11 @@ namespace perlin::entity {
                           glm::scale(glm::mat4(1.0f), glm::vec3(pxPerBlock, -pxPerBlock, pxPerBlock));
             dollModel = &m;
             dollClip = clip;
+            dollFacing = facing;
             Draw(e, v, layers, scale, in);
             dollModel = nullptr;
             dollClip = nullptr;
+            dollFacing.reset();
         }
     }
 

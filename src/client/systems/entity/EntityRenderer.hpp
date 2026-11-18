@@ -1,5 +1,6 @@
 #pragma once
 #include "client/systems/text/FontTexture.hpp"
+#include <optional>
 #include "client/systems/particle/DataParticles.hpp"
 #include "client/systems/config/Options.hpp"
 #include "client/systems/particle/ParticleSystem.hpp"
@@ -148,8 +149,10 @@ namespace perlin::entity {
             glm::vec3 light{1.0f};
         };
         void RenderFirstPerson(const Entity& self, const FrameIn& in, const FpState& fp);
+        // facing: when set, the body is drawn at this fixed turn (degrees off a front view) while the
+        // pose, limb swing and head look relative to the body stay live. Used by the HUD paperdoll.
         void RenderDoll(const Entity& doll, const FrameIn& in, float cx, float feetY, float pxPerBlock,
-                        const int clip[4]);
+                        const int clip[4], std::optional<float> facing = std::nullopt);
 
         size_t Drawn() const { return drawn; }
         size_t Considered() const { return considered; }
@@ -206,6 +209,7 @@ namespace perlin::entity {
         const glm::mat4* fpModel = nullptr;
         const glm::mat4* dollModel = nullptr;
         const int* dollClip = nullptr;
+        std::optional<float> dollFacing;
         uint32_t TextureFor(const Entity& e, const std::string& key);
         void Track(const Entity& e, View& v, const FrameIn& in);
         bool BeginFrame();

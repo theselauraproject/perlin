@@ -466,10 +466,12 @@ namespace perlin::ui {
                         if (const json::Value* fn = f->Find("name"); fn && fn->IsString())
                             name = fn->string;
 
+                    bool expanded = false;
                     if (const json::Value* count = n->bag.Find("#collection_length");
                         count && count->IsNumber() && node.factoryControls.size() == 1) {
                         const std::string c = n->Str("collection_name");
                         const int total = std::clamp(static_cast<int>(count->number), 0, 1000);
+                        expanded = true;
                         for (int i = 0; i < total; i++) {
                             std::vector<Collection> inner = collections;
                             if (!inner.empty() && inner.back().name == c && inner.back().index < 0)
@@ -484,6 +486,7 @@ namespace perlin::ui {
                         }
                     }
                     if (const json::Value* ids = n->bag.Find("#collection_length"); ids && ids->IsArray()) {
+                        expanded = true;
                         int index = 0;
                         for (const json::Value& id : ids->array) {
                             if (id.IsString())
@@ -501,6 +504,9 @@ namespace perlin::ui {
                             index++;
                         }
                     }
+                    // A factory already filled from its #collection_length binding must not also be
+                    // filled from the data provider, or every row shows twice (e.g. the sidebar).
+                    if (!expanded)
                     for (const FactoryItem& item : data.Factory(name))
                         for (const auto& entry : node.factoryControls)
                             if (entry.first == item.id) {

@@ -736,9 +736,13 @@ namespace perlin::ui {
         Reg("progress_bar_renderer", [s](const LNode& n, SceneWriter& w) { ProgressBar(*s, n, w); });
         Reg("locator_bar", [s](const LNode& n, SceneWriter& w) { LocatorBar(*s, n, w); });
         Reg("mob_effects_renderer", [s](const LNode& n, SceneWriter& w) { MobEffects(*s, n, w); });
+        // The model itself is drawn by HudScreen; this only records where hud_screen.json placed it.
+        emitter.Register("hud_player_renderer", [](const LNode& n, SceneWriter&) {
+            HudPlayerRect() = {n.ax, n.ay, n.w, n.h, true};
+        });
         for (const char* name :
              {"horse_jump_renderer", "dash_renderer", "vignette_renderer", "camera_renderer",
-              "hud_player_renderer", "horse_heart_renderer", "cooldown_renderer", "editor_gizmo_renderer",
+              "horse_heart_renderer", "cooldown_renderer", "editor_gizmo_renderer",
               "editor_compass_renderer", "editor_volume_highlight_renderer", "progress_indicator_renderer"})
             emitter.Register(name, [](const LNode&, SceneWriter&) {});
     }
@@ -760,6 +764,11 @@ namespace perlin::ui {
 
     void SetHudElementFilter(HudElementFilter filter) {
         ElementFilter() = std::move(filter);
+    }
+
+    HudControlRect& HudPlayerRect() {
+        static HudControlRect rect;
+        return rect;
     }
 
     bool FilterHudElement(std::string_view renderer, float& dx, float& dy) {

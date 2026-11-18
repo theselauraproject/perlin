@@ -7,6 +7,8 @@
 
 namespace perlin::ui {
     namespace {
+        // Bedrock's "Text Background Opacity" default; drives $title_alpha, $title_shadow and the actionbar.
+        constexpr double kTextBackgroundOpacity = 0.5;
         json::Value B(bool v) {
             return json::Value(v);
         }
@@ -178,7 +180,7 @@ namespace perlin::ui {
         if (name == "#is_spectator_mode")
             return set(B(spectator));
         if (name == "#paper_doll_visible")
-            return set(B(false));
+            return set(B(hud && s.paperDoll));
         if (name == "#exp_progress")
             return set(N(std::clamp(s.xpProgress, 0.0f, 1.0f)));
         if (name == "#level_number")
@@ -228,7 +230,7 @@ namespace perlin::ui {
         if (name == "#interact_visible")
             return set(B(false));
         if (name == "#hud_text_background_alpha")
-            return set(N(0.5));
+            return set(N(kTextBackgroundOpacity));
         return false;
     }
 
@@ -314,12 +316,15 @@ namespace perlin::ui {
             if (s.visible && !s.actionBar.empty() && s.actionBarAlpha > 0.0f) {
                 FactoryItem f{"hud_actionbar_text", {}};
                 f.vars["$actionbar_text"] = json::Value(s.actionBar);
+                f.vars["$actionbar_text_background_alpha"] = json::Value(kTextBackgroundOpacity);
                 items.push_back(std::move(f));
             }
         } else if (name == "hud_title_text_factory") {
             if (s.visible && !s.title.empty() && s.titleAlpha > 0.0f) {
+                // Same variables the Bedrock client sets when it creates hud_title_text.
                 FactoryItem f{"hud_title_text", {}};
-                f.vars["$title_alpha"] = json::Value(0.6);
+                f.vars["$title_alpha"] = json::Value(kTextBackgroundOpacity);
+                f.vars["$title_shadow"] = B(kTextBackgroundOpacity < 0.5);
                 items.push_back(std::move(f));
             }
         }
@@ -341,6 +346,7 @@ namespace perlin::ui {
             mix(0xff);
         };
         mix(i18n::Lang::Get().Version());
+        mix(s.paperDoll);
         mix(s.bossBars.size());
         for (const auto& bar : s.bossBars) {
             mixs(bar.title);

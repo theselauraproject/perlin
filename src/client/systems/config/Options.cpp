@@ -66,6 +66,7 @@ namespace perlin {
             bool betterGrass = false;
             bool cullInnerLeaves = false;
             bool skins3d = false;
+            bool paperDoll = false;
             std::string upscaler = "off";
             std::string upscaleQuality = "quality";
             int upscaleSharpness = 50;
@@ -216,6 +217,7 @@ namespace perlin {
                       o.betterGrass,
                       o.cullInnerLeaves,
                       o.skins3d,
+                      o.paperDoll,
                       o.upscaler,
                       o.upscaleQuality,
                       o.upscaleSharpness,
@@ -276,6 +278,7 @@ namespace perlin {
         o.betterGrass = stored.betterGrass;
         o.cullInnerLeaves = stored.cullInnerLeaves;
         o.skins3d = stored.skins3d;
+        o.paperDoll = stored.paperDoll;
         o.upscaler = stored.upscaler;
         o.upscaleQuality = stored.upscaleQuality;
         o.upscaleSharpness = std::clamp(stored.upscaleSharpness, 0, 100);
@@ -447,6 +450,7 @@ namespace perlin {
                       betterGrass,
                       cullInnerLeaves,
                       skins3d,
+                      paperDoll,
                       upscaler,
                       upscaleQuality,
                       upscaleSharpness,
