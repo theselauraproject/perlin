@@ -1,3 +1,4 @@
+"""Bakes resources/block_selection.bin from a PREG1002 dump: per-block pick shape, selection boxes and outline."""
 import os
 import struct
 import sys
@@ -5,7 +6,6 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "..", "resources", "data", "blocks", "block_selection.bin")
 SRC = sys.argv[1]
-S = 1e8
 data = open(SRC, "rb").read()
 body = data[:-32]
 assert body[:8] == b"PREG1002"

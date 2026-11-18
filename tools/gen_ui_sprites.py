@@ -1,15 +1,27 @@
-import sys, zipfile, io
+#!/usr/bin/env python3
+"""Extracts the vanilla UI sprites from a Java client jar into a directory of PNGs.
+
+    gen_ui_sprites.py client.jar out_dir
+"""
+import io
+import os
+import sys
+import zipfile
+
 from PIL import Image
 
 jar, out = sys.argv[1], sys.argv[2]
 z = zipfile.ZipFile(jar)
 base = "assets/minecraft/textures/gui/"
 
+
 def load(path):
     return Image.open(io.BytesIO(z.read(base + path))).convert("RGBA")
 
+
 def save(name, img):
     img.save(out + "/" + name)
+
 
 save("ui_inventory.png", load("container/inventory.png").crop((0, 0, 176, 166)))
 for src, dst in (("tab_items", "ui_creative_items"), ("tab_item_search", "ui_creative_search"), ("tab_inventory", "ui_creative_survival")):
@@ -48,7 +60,6 @@ slots.paste(load("sprites/recipe_book/slot_uncraftable.png"), (25, 0))
 save("ui_recipe_slots.png", slots)
 for name in ("effect_background", "effect_background_ambient"):
     save("ui_inv_" + name + ".png", load("sprites/container/inventory/" + name + ".png"))
-import os
 for f in sorted(z.namelist()):
     if f.startswith("assets/minecraft/textures/mob_effect/") and f.endswith(".png"):
         save("effect_" + os.path.basename(f), Image.open(io.BytesIO(z.read(f))).convert("RGBA"))

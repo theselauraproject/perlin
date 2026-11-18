@@ -3,7 +3,6 @@
 import argparse
 import json
 import random
-import struct
 from pathlib import Path
 
 import unicorn
