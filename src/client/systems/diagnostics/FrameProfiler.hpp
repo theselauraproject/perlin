@@ -50,6 +50,18 @@ namespace perlin::frame {
                         .count();
                 total[Frame] += frameMs;
                 last[Frame] = frameMs;
+                if (typical > 0.0 && frameMs > typical * 2.0 && frameMs > typical + 6.0) {
+                    std::string line = "hitch " + std::to_string(static_cast<int>(frameMs)) + " ms (typical " +
+                                       std::to_string(static_cast<int>(typical)) + "):";
+                    char buf[64];
+                    for (int i = 0; i < kStages; i++)
+                        if (i != Frame && last[i] >= 1.0) {
+                            std::snprintf(buf, sizeof(buf), " %s=%.1f", kNames[i], last[i]);
+                            line += buf;
+                        }
+                    Log("profile", "{}", line);
+                }
+                typical = typical <= 0.0 ? frameMs : typical * 0.95 + std::min(frameMs, typical * 3.0) * 0.05;
                 for (int i = 0; i < kStages; i++) {
                     worst[i] = std::max(worst[i], last[i]);
                     last[i] = 0;
@@ -94,6 +106,7 @@ namespace perlin::frame {
             double total[kStages] = {};
             double worst[kStages] = {};
             double last[kStages] = {};
+            double typical = 0.0;
             std::vector<double> frameTimes;
             int frames = 0;
         };

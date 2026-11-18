@@ -84,6 +84,9 @@ namespace perlin::gpu {
         using ExtendFn = std::function<void(const Tessellator&, std::vector<uint8_t>&)>;
         void SetExtension(uint32_t bytesPerVertex, ExtendFn convert);
         uint32_t ExtensionBytes() const { return extBytes; }
+        void SetVertexStride(uint32_t bytes);
+        uint32_t VertexStride() const { return vertexStride; }
+        uint64_t FormatEpoch() const { return formatEpoch; }
         conduit::buffer_handle Extension(uint32_t page) const { return pages[page].ext.Buffer(); }
 
         conduit::buffer_handle Vertices(uint32_t page) const { return pages[page].vb.Buffer(); }
@@ -132,7 +135,8 @@ namespace perlin::gpu {
             return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cz);
         }
         int CreatePage(uint32_t minVerts, uint32_t minIndices);
-        static bool BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes, Page& out);
+        static bool BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes,
+                              uint32_t vertexStride, Page& out);
         static void DestroyPage(conduit::device& dev, Page& p);
         bool Alloc(uint32_t v, const std::array<uint32_t, kRenderLayerCount>& need, Chunk& out);
         void Free(Chunk& c);
@@ -163,6 +167,9 @@ namespace perlin::gpu {
         std::vector<Change> changes;
 
         uint32_t extBytes = 0;
+        uint32_t vertexStride = sizeof(Vertex);
+        uint64_t formatEpoch = 0;
+        void DropPages();
         ExtendFn extConvert;
         Gpu* gpu = nullptr;
         std::vector<Page> pages;

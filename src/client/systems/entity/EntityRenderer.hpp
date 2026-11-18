@@ -1,4 +1,5 @@
 #pragma once
+#include "client/systems/text/FontTexture.hpp"
 #include "client/systems/particle/DataParticles.hpp"
 #include "client/systems/config/Options.hpp"
 #include "client/systems/particle/ParticleSystem.hpp"
@@ -237,7 +238,7 @@ namespace perlin::entity {
         uint32_t fontTexture = 0;
         uint32_t badgeTexture = 0;
         bool badgeTried = false;
-        uint32_t fontTextureVersion = 0;
+        ui::FontTexture fontSync;
 
         RenderContext* renderer = nullptr;
         EntityAssets assets;

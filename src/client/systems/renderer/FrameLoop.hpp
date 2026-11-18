@@ -29,6 +29,8 @@ namespace perlin {
         std::chrono::steady_clock::time_point lastFrameEnd = previous;
         std::array<float, 4096> frameMs{};
         size_t frameMsHead = 0, frameMsCount = 0;
+        size_t frameStatsKey = 0;
+        std::chrono::steady_clock::time_point paceDeadline{};
         uint64_t animationStep = 0;
         bool appliedVsync;
 

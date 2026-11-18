@@ -810,6 +810,10 @@ namespace perlin {
     void LevelRenderer::Update(Level* level, float camX, float camZ, const Frustum& frustum) {
         if (!level)
             return;
+        if (const uint64_t format = context.MeshFormatEpoch(); format != meshFormatSeen) {
+            meshFormatSeen = format;
+            InvalidateMeshes();
+        }
         if (options.cullInnerLeaves != cullLeavesApplied) {
             cullLeavesApplied = options.cullInnerLeaves;
             MesherSetCullInnerLeaves(cullLeavesApplied);

@@ -52,6 +52,8 @@ namespace perlin::ui {
         int AtlasWidth() const { return atlasWidth; }
         int AtlasHeight() const { return atlasHeight; }
         uint32_t Version() const { return version; }
+        uint32_t Revision() const { return revision; }
+        bool DirtySince(uint32_t seen, int& x, int& y, int& w, int& h) const;
         bool Builtin() const { return builtin; }
 
         static bool Next(const std::string& s, size_t& i, uint32_t& cp);
@@ -95,6 +97,13 @@ namespace perlin::ui {
         std::vector<Glyph> glyphs;
         Glyph fallback;
         mutable uint32_t version = 1;
+        struct DirtyRect {
+            uint32_t revision;
+            int x, y, w, h;
+        };
+        mutable uint32_t revision = 0;
+        mutable std::vector<DirtyRect> dirty;
+        void Touch(int x, int y, int w, int h) const;
         bool builtin = true;
     };
 }

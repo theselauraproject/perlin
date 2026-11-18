@@ -1,4 +1,5 @@
 #include "client/systems/input/TouchControls.hpp"
+#include "client/systems/text/FontTexture.hpp"
 #include "client/systems/input/TouchLayout.hpp"
 #include "client/systems/gfx/RenderContext.hpp"
 #include "client/systems/text/McFont.hpp"
@@ -119,20 +120,8 @@ namespace perlin {
             discTexture = renderer.UiCreateTexture(kDiscTile * 2, kDiscTile, pixels.data(), true);
         }
         const ui::McFont& font = ui::McFont::Instance();
-        if (!fontTexture || fontVersion != font.Version()) {
-            if (fontTexture)
-                renderer.UiDestroyTexture(fontTexture);
-            std::vector<uint8_t> atlas = font.Atlas();
-            for (size_t i = 0; i + 3 < atlas.size(); i += 4) {
-                const unsigned a = atlas[i + 3];
-                atlas[i] = static_cast<uint8_t>((atlas[i] * a + 127) / 255);
-                atlas[i + 1] = static_cast<uint8_t>((atlas[i + 1] * a + 127) / 255);
-                atlas[i + 2] = static_cast<uint8_t>((atlas[i + 2] * a + 127) / 255);
-            }
-            fontTexture =
-                renderer.UiCreateTexture(font.AtlasWidth(), font.AtlasHeight(), atlas.data(), false);
-            fontVersion = font.Version();
-        }
+        ui::SyncFontTexture(renderer, font, fontSync, true);
+        fontTexture = fontSync.handle;
 
         if (sprites.empty())
             sprites.resize(SpriteCount);

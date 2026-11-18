@@ -54,6 +54,12 @@ namespace perlin::gpu {
                {15, 1, format::rgba32_float, 112}}},
              11,
              sizeof(UiInstance)},
+            {kCompactVertexBytes,
+             {{{0, 0, format::rgb32_float, 0},
+               {2, 0, format::rgba8_unorm, 12},
+               {4, 0, format::rg32_float, 16},
+               {5, 0, format::rgba8_unorm, 24}}},
+             4},
         };
     }
 

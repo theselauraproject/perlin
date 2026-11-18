@@ -27,13 +27,14 @@ vec4 sampleBlock(vec2 uv, float layer)
     vec2 dv = dFdy(uv);
     vec2 texelScreenSize = sqrt(du * du + dv * dv);
     float lod = atlasLod(du, dv, pixelSize);
-    vec4 nearest = sampleNearest(uv, layer, pixelSize, du, dv, texelScreenSize, lod);
     if (u_textureInfo.y < 0.5)
-        return nearest;
+        return sampleNearest(uv, layer, pixelSize, du, dv, texelScreenSize, lod);
 
     float maxTexelSize = max(texelScreenSize.x, texelScreenSize.y);
     float minPixelSize = min(pixelSize.x, pixelSize.y);
     float blendFactor = smoothstep(minPixelSize, minPixelSize * 2.0, maxTexelSize);
+    [branch] if (blendFactor <= 0.0)
+        return sampleNearest(uv, layer, pixelSize, du, dv, texelScreenSize, lod);
 
     float duLength = length(du);
     float dvLength = length(dv);
@@ -57,5 +58,7 @@ vec4 sampleBlock(vec2 uv, float layer)
         high += perlinAtlasLod(coord, mipHigh);
     }
     vec4 rgss = mix(low * 0.25, high * 0.25, mipBlend);
-    return mix(nearest, rgss, blendFactor);
+    [branch] if (blendFactor >= 1.0)
+        return rgss;
+    return mix(sampleNearest(uv, layer, pixelSize, du, dv, texelScreenSize, lod), rgss, blendFactor);
 }

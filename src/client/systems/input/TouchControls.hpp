@@ -1,6 +1,7 @@
 #pragma once
 #include "client/systems/bindings/KeyMapping.hpp"
 #include "client/systems/bindings/TouchState.hpp"
+#include "client/systems/text/FontTexture.hpp"
 
 #include <array>
 #include <chrono>
@@ -127,6 +128,6 @@ namespace perlin {
 
         std::vector<Sprite> sprites;
         uint32_t discTexture = 0, fontTexture = 0;
-        uint32_t fontVersion = 0;
+        ui::FontTexture fontSync;
     };
 }

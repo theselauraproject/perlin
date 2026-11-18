@@ -106,7 +106,7 @@ namespace perlin::mods {
             const auto stamp = fs::last_write_time(archive, ec);
             const uintmax_t size = fs::file_size(archive, ec);
             const std::string signature =
-                std::to_string(stamp.time_since_epoch().count()) + ":" + std::to_string(size);
+                std::to_string(static_cast<long long>(stamp.time_since_epoch().count())) + ":" + std::to_string(size);
             {
                 std::ifstream in(dest / ".source", std::ios::binary);
                 std::string have;

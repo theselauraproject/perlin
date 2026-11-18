@@ -65,16 +65,56 @@ namespace perlin::ui {
         float mx = 0, my = 0;
         bool mouse = false;
         uint32_t glintTexture = 0;
+        std::string fontKey;
+        uint32_t fontRevision = 0;
+        std::vector<uint8_t> fontScratch;
 
         int Device() const override { return scale; }
 
         draw::TexInfo Get(const std::string& key) override {
             const auto it = textures.find(key);
-            if (it != textures.end())
+            if (it != textures.end()) {
+                if (it->second.handle && key == fontKey)
+                    SyncFontRevision(it->second.handle);
                 return it->second;
+            }
             draw::TexInfo info = Load(key);
+            if (key.starts_with("mcfont:")) {
+                fontKey = key;
+                fontRevision = Font().Revision();
+            }
             textures.emplace(key, info);
             return info;
+        }
+
+        void SyncFontRevision(uint32_t handle) {
+            const McFont& f = Font();
+            if (fontRevision == f.Revision())
+                return;
+            int x = 0, y = 0, w = 0, h = 0;
+            if (!f.DirtySince(fontRevision, x, y, w, h)) {
+                x = y = 0;
+                w = f.AtlasWidth();
+                h = f.AtlasHeight();
+            }
+            if (w > 0 && h > 0) {
+                const std::vector<uint8_t>& atlas = f.Atlas();
+                fontScratch.resize(static_cast<size_t>(w) * static_cast<size_t>(h) * 4);
+                for (int row = 0; row < h; row++) {
+                    const uint8_t* src =
+                        atlas.data() + (static_cast<size_t>(y + row) * static_cast<size_t>(f.AtlasWidth()) + x) * 4;
+                    uint8_t* dst = fontScratch.data() + static_cast<size_t>(row) * static_cast<size_t>(w) * 4;
+                    for (int i = 0; i < w * 4; i += 4) {
+                        const unsigned a = src[i + 3];
+                        dst[i] = static_cast<uint8_t>((src[i] * a + 127) / 255);
+                        dst[i + 1] = static_cast<uint8_t>((src[i + 1] * a + 127) / 255);
+                        dst[i + 2] = static_cast<uint8_t>((src[i + 2] * a + 127) / 255);
+                        dst[i + 3] = static_cast<uint8_t>(a);
+                    }
+                }
+                renderer->UiUpdateTexture(handle, x, y, w, h, fontScratch.data(), w * 4);
+            }
+            fontRevision = f.Revision();
         }
 
         draw::TexInfo Upload(const Texture& t) {
@@ -259,7 +299,8 @@ namespace perlin::ui {
             UploadDoc(d);
         }
 
-        static uint32_t FontStampNow() { return McFont::Instance().Version(); }
+        static const McFont& Font() { return McFont::Instance(); }
+        static uint32_t FontStampNow() { return Font().Version(); }
 
         void UpdateAll() {
             bool claimed = false;

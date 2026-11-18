@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 namespace perlin::gpu {
     namespace {
@@ -26,11 +27,24 @@ namespace perlin::gpu {
         pages.clear();
     }
 
+    void ChunkMeshStore::SetVertexStride(uint32_t bytes) {
+        if (bytes == vertexStride)
+            return;
+        DropPages();
+        vertexStride = bytes;
+    }
+
     void ChunkMeshStore::SetExtension(uint32_t bytesPerVertex, ExtendFn convert) {
         if (bytesPerVertex == extBytes && static_cast<bool>(convert) == static_cast<bool>(extConvert)) {
             extConvert = std::move(convert);
             return;
         }
+        DropPages();
+        extBytes = bytesPerVertex;
+        extConvert = std::move(convert);
+    }
+
+    void ChunkMeshStore::DropPages() {
         chunks.clear();
         blended.clear();
         lods.clear();
@@ -50,9 +64,9 @@ namespace perlin::gpu {
             }
         }
         pages.clear();
-        extBytes = bytesPerVertex;
-        extConvert = std::move(convert);
         generation++;
+        meshEpoch++;
+        formatEpoch++;
     }
 
     void ChunkMeshStore::Clear() {
@@ -134,9 +148,9 @@ namespace perlin::gpu {
     }
 
     bool ChunkMeshStore::BuildPage(conduit::device& dev, uint32_t vCap, uint32_t iCap, uint32_t extBytes,
-                                   Page& p) {
+                                   uint32_t vertexStride, Page& p) {
         bool ok =
-            p.vb.Create(dev, vCap, sizeof(Vertex),
+            p.vb.Create(dev, vCap, vertexStride,
                         conduit::buffer_usage::vertex | conduit::buffer_usage::storage, "chunk vertices");
         if (ok && extBytes)
             ok = p.ext.Create(dev, vCap, extBytes, conduit::buffer_usage::vertex, "chunk vertex extras");
@@ -170,11 +184,11 @@ namespace perlin::gpu {
         }
         Page p;
         for (;;) {
-            const uint64_t perVertex = sizeof(Vertex) + extBytes + sizeof(uint32_t) * 3 / 2;
+            const uint64_t perVertex = vertexStride + extBytes + sizeof(uint32_t) * 3 / 2;
             const uint32_t verts = static_cast<uint32_t>(std::min<uint64_t>(block / perVertex, 0xffffffffu));
             const uint32_t vCap = std::max(verts, minVerts);
             const uint32_t iCap = std::max<uint32_t>(static_cast<uint32_t>(static_cast<uint64_t>(vCap) * 3 / 2), minIndices);
-            if (BuildPage(gpu->Dev(), vCap, iCap, extBytes, p))
+            if (BuildPage(gpu->Dev(), vCap, iCap, extBytes, vertexStride, p))
                 break;
             if (block <= kMinBlockBytes)
                 return -1;
@@ -367,8 +381,19 @@ namespace perlin::gpu {
             return;
         Page& pg = pages[static_cast<size_t>(g.page)];
 
-        gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * sizeof(Vertex), verts.data(),
-                         static_cast<uint64_t>(g.vCount) * sizeof(Vertex));
+        if (vertexStride == sizeof(Vertex)) {
+            gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * sizeof(Vertex), verts.data(),
+                             static_cast<uint64_t>(g.vCount) * sizeof(Vertex));
+        } else {
+            static thread_local std::vector<uint8_t> packed;
+            packed.resize(static_cast<size_t>(g.vCount) * vertexStride);
+            uint8_t* out = packed.data();
+            for (const Vertex& v : verts) {
+                std::memcpy(out, &v, vertexStride);
+                out += vertexStride;
+            }
+            gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, packed.data(), packed.size());
+        }
         if (extBytes && extConvert && pg.ext.Buffer()) {
             static thread_local std::vector<uint8_t> extra;
             extra.clear();
@@ -448,7 +473,7 @@ namespace perlin::gpu {
         uint64_t total = 0;
         for (const Page& p : pages)
             if (p.live)
-                total += static_cast<uint64_t>(p.vb.Capacity()) * sizeof(Vertex);
+                total += static_cast<uint64_t>(p.vb.Capacity()) * vertexStride;
         return total;
     }
 

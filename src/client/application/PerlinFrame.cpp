@@ -818,6 +818,22 @@ namespace perlin {
         if (now - titleAt >= frame::kTitleInterval) {
             const double seconds = std::chrono::duration<double>(now - titleAt).count();
             debugOverlay.state.fps = static_cast<int>(frames / seconds + 0.5);
+            {
+                size_t key = std::hash<std::string>{}(options.shaderPack);
+                for (const std::string& pack : options.texturePacks)
+                    key = key * 31 + std::hash<std::string>{}(pack);
+                key = key * 31 + static_cast<size_t>(options.renderDistance);
+                key = key * 31 + (renderer ? static_cast<size_t>(renderer->MeshFormatEpoch()) : 0);
+                key = key * 31 + (renderer && renderer->JavaShaderPackActive() ? 1 : 0);
+                key = key * 31 + (levelRenderer ? static_cast<size_t>(levelRenderer->AssetsBusy()) : 0);
+                key = key * 31 + static_cast<size_t>(sessionReady.load());
+                if (key != loop->frameStatsKey) {
+                    loop->frameStatsKey = key;
+                    loop->frameMsCount = 0;
+                    loop->frameMsHead = 0;
+                    debugOverlay.state.lowFps = debugOverlay.state.fps;
+                }
+            }
             if (loop->frameMsCount > 0) {
                 std::vector<float> recent;
                 recent.reserve(loop->frameMsCount);
@@ -903,9 +919,17 @@ namespace perlin {
             }
         }
         const int fpsCap = modHost.ModFrameLimit(options.maxFps);
-        if (fpsCap > 0 && !replayStudio.Exporting())
-            FrameGenPacer::SleepUntil(frameStart +
-                                      std::chrono::microseconds(1000000LL * std::max(1, fgActive) / fpsCap));
+        if (fpsCap > 0 && !replayStudio.Exporting()) {
+            const auto period = std::chrono::microseconds(1000000LL * std::max(1, fgActive) / fpsCap);
+            auto& deadline = loop->paceDeadline;
+            const auto now = Clock::now();
+            deadline += period;
+            if (deadline < now - period || deadline > now + period * 2 || deadline < frameStart)
+                deadline = std::max(now, frameStart + period);
+            FrameGenPacer::SleepUntil(deadline);
+        } else {
+            loop->paceDeadline = Clock::now();
+        }
 #endif
     }
 }

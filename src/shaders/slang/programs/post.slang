@@ -71,9 +71,9 @@ void stageMain()
         float fade = smoothstep(0.0, 0.04, min(edge.x, edge.y));
         uv += wobble * 0.0021 * u_postFx.x * fade;
     }
-    vec3 cur = texture2D(s_cur, uv).rgb;
-    vec3 hist = texture2D(s_hist, uv).rgb;
-    vec3 color = mix(cur, hist, u_post.x);
+    vec3 color = texture2D(s_cur, uv).rgb;
+    [branch] if (u_post.x > 0.0)
+        color = mix(color, texture2D(s_hist, uv).rgb, u_post.x);
     if (u_bloom.x > 0.0)
     {
         vec3 glow = texture2D(s_bloom, uv).rgb * u_bloom.x;

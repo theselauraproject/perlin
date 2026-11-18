@@ -392,7 +392,16 @@ namespace perlin {
                 return false;
             }
         }
+        UpdateTerrainFormat();
         return true;
+    }
+
+    void RenderContext_rhi::UpdateTerrainFormat() {
+        const bool compact = !packActive && !javaActive && !jpack && !PERLIN_ENV("PERLIN_FULL_TERRAIN_VERTICES");
+        terrainLayout = compact ? gpu::VertexLayout::TerrainCompact : gpu::VertexLayout::Terrain;
+        for (Program p : {Program::TerrainSolid, Program::TerrainCutout, Program::TerrainTranslucent})
+            programLayouts[static_cast<size_t>(p)] = terrainLayout;
+        meshes.SetVertexStride(compact ? gpu::kCompactVertexBytes : static_cast<uint32_t>(sizeof(Vertex)));
     }
 
     bool RenderContext_rhi::ReloadShaders() {

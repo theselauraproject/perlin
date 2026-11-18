@@ -51,6 +51,7 @@ namespace perlin {
             });
         Tessellator::SetCaptureQuadInfo(true);
         jpackReady = false;
+        UpdateTerrainFormat();
         return true;
     }
 
@@ -113,8 +114,10 @@ namespace perlin {
         jpackPath.clear();
         Tessellator::SetCaptureQuadInfo(false);
 
-        if (initialized && had)
+        if (initialized && had) {
             meshes.SetExtension(0, {});
+            UpdateTerrainFormat();
+        }
     }
 
     void RenderContext_rhi::SetJavaShaderPackDimension(const std::string& folder) {

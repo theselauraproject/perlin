@@ -416,6 +416,23 @@ namespace perlin {
         std::erase_if(sections, [](const MeshSection& s) {
             return !s.count[0] && !s.count[1] && !s.count[2] && !s.count[3] && !s.count[4];
         });
+        const auto trim = [](auto& list) {
+            if (list.capacity() > list.size() + list.size() / 8 + 256)
+                list.shrink_to_fit();
+        };
+        trim(vertices);
+        for (auto& list : indices)
+            trim(list);
+        trim(quads);
+        for (auto& layer : pending)
+            for (auto& group : layer) {
+                group.clear();
+                group.shrink_to_fit();
+            }
+        dead.clear();
+        dead.shrink_to_fit();
+        pinned.clear();
+        pinned.shrink_to_fit();
     }
 
     void Tessellator::AppendSection(const Tessellator& from, int sy) {

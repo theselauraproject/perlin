@@ -645,7 +645,7 @@ namespace perlin {
 
     RenderContext_rhi::DrawState RenderContext_rhi::PassState(RenderLayer layer) const {
         DrawState s = Base(Program::TerrainSolid, true, true, conduit::compare_op::less);
-        s.layout = gpu::VertexLayout::Terrain;
+        s.layout = terrainLayout;
         s.mask = conduit::color_mask::rgb;
         const auto blend = [&] {
             s.blend = true;
@@ -705,7 +705,7 @@ namespace perlin {
             return;
         DrawState state = PassState(layer);
         state.program = program;
-        state.layout = gpu::VertexLayout::Terrain;
+        state.layout = terrainLayout;
 
         SetMatrix(mvp);
         BindAtlas();

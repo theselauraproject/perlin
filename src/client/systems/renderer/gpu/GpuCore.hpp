@@ -18,7 +18,8 @@ namespace perlin::gpu {
         return handler;
     }
 
-    enum class VertexLayout : uint8_t { Terrain, Position, Color, Texture, Ui, UiInstanced, Count };
+    enum class VertexLayout : uint8_t { Terrain, Position, Color, Texture, Ui, UiInstanced, TerrainCompact, Count };
+    constexpr uint32_t kCompactVertexBytes = 28;
 
     struct VertexLayoutInfo {
         uint32_t stride;

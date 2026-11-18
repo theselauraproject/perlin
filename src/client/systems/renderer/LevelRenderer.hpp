@@ -210,6 +210,7 @@ namespace perlin {
         int queueCamX = 0x7fffffff, queueCamZ = 0;
         int serverRadius = 0;
         bool cullLeavesApplied = false;
+        uint64_t meshFormatSeen = 0;
         int viewChunkX = 0, viewChunkZ = 0;
         bool viewKnown = false;
         std::chrono::steady_clock::time_point lastEvict{};

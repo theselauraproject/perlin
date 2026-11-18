@@ -217,6 +217,7 @@ namespace perlin {
         void UnloadLevelResources() override;
         void DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) override;
         void SetChunkCullRadius(int chunks) override { chunkCullRadius = chunks; }
+        uint64_t MeshFormatEpoch() const override { return meshes.FormatEpoch(); }
         bool SectionReached(int sx, int sy, int sz) const override {
             return meshes.SectionReached(sx, sy, sz, caveCulling);
         }
@@ -715,6 +716,8 @@ namespace perlin {
         bool ResolvePrograms();
         std::array<int, static_cast<size_t>(Program::Count)> programIds{};
         std::array<gpu::VertexLayout, static_cast<size_t>(Program::Count)> programLayouts{};
+        gpu::VertexLayout terrainLayout = gpu::VertexLayout::Terrain;
+        void UpdateTerrainFormat();
 
         std::array<ViewData, static_cast<size_t>(View::Count)> views;
         glm::mat4 model{1.0f};

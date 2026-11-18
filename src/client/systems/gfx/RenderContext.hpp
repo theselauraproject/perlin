@@ -273,6 +273,7 @@ namespace perlin {
         virtual void UnloadLevelResources() { ClearChunkMeshes(); }
         virtual void DrawChunkMeshes(const Frustum& frustum, float camX, float camZ) = 0;
         virtual void SetChunkCullRadius(int) {}
+        virtual uint64_t MeshFormatEpoch() const { return 0; }
         virtual bool SectionReached(int sx, int sy, int sz) const { return true; }
     };
 }

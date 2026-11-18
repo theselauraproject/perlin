@@ -1,4 +1,5 @@
 #include "client/systems/entity/EntityRenderer.hpp"
+#include "client/systems/text/FontTexture.hpp"
 #include "client/systems/entity/EntityColor.hpp"
 #include "world/level/block/BlockPalette.hpp"
 #include "client/systems/entity/CapeGeometry.hpp"
@@ -2149,13 +2150,8 @@ namespace perlin::entity {
         if (tags.empty() || !renderer)
             return;
         ui::McFont& font = ui::McFont::Instance();
-        if (!fontTexture || fontTextureVersion != font.Version()) {
-            if (fontTexture)
-                renderer->UiDestroyTexture(fontTexture);
-            fontTexture =
-                renderer->UiCreateTexture(font.AtlasWidth(), font.AtlasHeight(), font.Atlas().data(), false);
-            fontTextureVersion = font.Version();
-        }
+        ui::SyncFontTexture(*renderer, font, fontSync, false);
+        fontTexture = fontSync.handle;
         if (!fontTexture)
             return;
         if (!badgeTried) {
@@ -3296,13 +3292,8 @@ namespace perlin::entity {
         if (ui::UiAssets::Instance().VanillaRoot().empty())
             return;
         ui::McFont& font = ui::McFont::Instance();
-        if (!fontTexture || fontTextureVersion != font.Version()) {
-            if (fontTexture)
-                renderer->UiDestroyTexture(fontTexture);
-            fontTexture =
-                renderer->UiCreateTexture(font.AtlasWidth(), font.AtlasHeight(), font.Atlas().data(), false);
-            fontTextureVersion = font.Version();
-        }
+        ui::SyncFontTexture(*renderer, font, fontSync, false);
+        fontTexture = fontSync.handle;
         const bool packLit = renderer->JavaPackDrawing();
         BlockEntityScene scene;
         scene.camera = in.camera;

@@ -296,7 +296,7 @@ namespace perlin::ui {
         g.v0 = static_cast<float>(cy) / static_cast<float>(atlasHeight);
         g.u1 = static_cast<float>(cx + ink) / static_cast<float>(atlasWidth);
         g.v1 = static_cast<float>(cy + sheet.cellH) / static_cast<float>(atlasHeight);
-        version++;
+        Touch(cx, cy, sheet.cellW, sheet.cellH);
         return &dyn.emplace(cp, g).first->second;
     }
 
@@ -531,7 +531,7 @@ namespace perlin::ui {
         g.v0 = static_cast<float>(cy) / static_cast<float>(atlasHeight);
         g.u1 = static_cast<float>(cx + cellW) / static_cast<float>(atlasWidth);
         g.v1 = static_cast<float>(cy + cellH) / static_cast<float>(atlasHeight);
-        version++;
+        Touch(cx, cy, cellW, cellH);
         return &dyn.emplace(cp, g).first->second;
     }
 
@@ -555,7 +555,7 @@ namespace perlin::ui {
                     g.v0 = static_cast<float>(cy) / static_cast<float>(atlasHeight);
                     g.u1 = static_cast<float>(cx + g.width * 2) / static_cast<float>(atlasWidth);
                     g.v1 = static_cast<float>(cy + 16) / static_cast<float>(atlasHeight);
-                    version++;
+                    Touch(cx, cy, 16, 16);
                     return &dyn.emplace(cp, g).first->second;
                 }
             }
@@ -597,8 +597,42 @@ namespace perlin::ui {
         g.v0 = static_cast<float>(cy) / static_cast<float>(atlasHeight);
         g.u1 = static_cast<float>(cx + g.width * 2) / static_cast<float>(atlasWidth);
         g.v1 = static_cast<float>(cy + 16) / static_cast<float>(atlasHeight);
-        version++;
+        Touch(cx, cy, 16, 16);
         return &dyn.emplace(cp, g).first->second;
+    }
+
+    void McFont::Touch(int x, int y, int w, int h) const {
+        revision++;
+        if (dirty.size() >= 256)
+            dirty.erase(dirty.begin(), dirty.begin() + 128);
+        dirty.push_back({revision, x, y, w, h});
+    }
+
+    bool McFont::DirtySince(uint32_t seen, int& x, int& y, int& w, int& h) const {
+        x = y = w = h = 0;
+        if (seen == revision)
+            return true;
+        if (dirty.empty() || dirty.front().revision > seen + 1)
+            return false;
+        int x0 = atlasWidth, y0 = atlasHeight, x1 = 0, y1 = 0;
+        for (const DirtyRect& r : dirty)
+            if (r.revision > seen) {
+                x0 = std::min(x0, r.x);
+                y0 = std::min(y0, r.y);
+                x1 = std::max(x1, r.x + r.w);
+                y1 = std::max(y1, r.y + r.h);
+            }
+        x0 = std::max(0, x0);
+        y0 = std::max(0, y0);
+        x1 = std::min(atlasWidth, x1);
+        y1 = std::min(atlasHeight, y1);
+        if (x1 <= x0 || y1 <= y0)
+            return true;
+        x = x0;
+        y = y0;
+        w = x1 - x0;
+        h = y1 - y0;
+        return true;
     }
 
     const McFont::Glyph& McFont::Get(uint32_t cp) const {
