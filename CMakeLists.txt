@@ -921,6 +921,15 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(ui_library_selftest PRIVATE src)
     target_compile_features(ui_library_selftest PRIVATE cxx_std_23)
     add_test(NAME ui_library_selftest COMMAND ui_library_selftest)
+    add_executable(ui_label_selftest tests/ui_label_selftest.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp
+        src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp
+        src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/systems/text/FormatCodes.cpp
+        src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp
+        src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    target_include_directories(ui_label_selftest PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}")
+    target_compile_features(ui_label_selftest PRIVATE cxx_std_23)
+    add_test(NAME ui_label_selftest COMMAND ui_label_selftest)
+
     add_executable(ui_conformance tests/ui_conformance.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
         src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/SceneKit.cpp src/client/ui/Scene.cpp
         src/client/ui/HudData.cpp src/client/systems/text/FormatCodes.cpp src/client/systems/i18n/Lang.cpp
