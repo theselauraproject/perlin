@@ -489,8 +489,14 @@ namespace perlin::entity {
         if (v.bodyTickAt >= 0.0 && v.now - v.bodyTickAt > 0.5)
             v.body.Reset(v.pos.x, v.pos.z, v.headYaw);
         v.bodyTickAt = v.now;
-        const float body =
+        float body =
             v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
+        if (!e.Has(flag::Riding)) {
+            // the body is ticked at 20 Hz but the head follows every frame: during a fast spin the sampled body
+            // can trail far past the per-tick limit and then snap back, so the drawn body keeps that limit too
+            const float limit = v.body.classic ? 75.0f : 50.0f;
+            body = v.headYaw - std::clamp(math::WrapDegrees(v.headYaw - body), -limit, limit);
+        }
         if (v.fp)
             return;
         v.yaw = body;
