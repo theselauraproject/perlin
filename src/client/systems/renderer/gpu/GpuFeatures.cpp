@@ -74,6 +74,8 @@ namespace perlin::gpu {
 
     GpuFeatures::Level GpuFeatures::Choose(const Profile& p, std::array<bool, kFeatureCount>& out) {
         out.fill(false);
+        if (TileBased(p) && !Software(p))
+            return Level::Basic;
         const bool software = Software(p);
         const bool driven = p.gpuDriven && p.compute && p.multiDraw && p.safeMode == 0;
         out[GpuUi] = p.multiDraw && p.firstInstance && p.safeMode < 2;

@@ -44,6 +44,10 @@ public class PerlinActivity extends SDLActivity {
         File data = PerlinStorage.chosenDir(this);
         try {
             Os.setenv("PERLIN_DATA_DIR", data.getAbsolutePath(), true);
+            if (new File(data, "profile.txt").exists()) {
+                Os.setenv("PERLIN_PROFILE", "1", true);
+                Os.setenv("PERLIN_FRAME_STATS", "10", true);
+            }
         } catch (ErrnoException e) {
             Log.w("Perlin", "could not set the data directory", e);
         }

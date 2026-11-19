@@ -231,7 +231,7 @@ namespace perlin {
             Texture t;
             if (!ui::UiAssets::Instance().Image(kSpriteNames[i], t) || t.width <= 0 || t.height <= 0 ||
                 t.pixels.size() < static_cast<size_t>(t.width) * t.height * 4) {
-                sp.nextTry = 120;
+                sp.nextTry = ++sp.tries >= 3 ? 1 << 30 : 600;
                 continue;
             }
             for (size_t k = 0; k + 3 < t.pixels.size(); k += 4) {

@@ -156,9 +156,9 @@ namespace perlin {
             o.cloudRange = 64;
             o.menuBlur = 0;
             o.dynamicLights = "off";
-            o.upscaler = "bilinear";
-            o.upscaleCustom = 70;
-            o.mobileTune = 1;
+            o.upscaler = "off";
+            o.fancyGraphics = false;
+            o.mobileTune = 3;
             o.webTuned = true;
         }
     }
@@ -322,7 +322,7 @@ namespace perlin {
         o.menuBlur = std::clamp(stored.menuBlur, 0, 10);
         o.renderer = stored.renderer == "d3d12" || stored.renderer == "d3d11" ||
                              stored.renderer == "vulkan" || stored.renderer == "metal" ||
-                             stored.renderer == "webgpu"
+                             stored.renderer == "webgpu" || stored.renderer == "gles"
                          ? stored.renderer
                          : std::string("auto");
         o.capePhysics = stored.capePhysics == "off" || stored.capePhysics == "shoulder" ? stored.capePhysics
@@ -383,11 +383,14 @@ namespace perlin {
         if (o.upscaler == "fsr1" && o.upscaleCustom == 75)
             o.upscaler = "off";
         o.mobileTune = stored.mobileTune;
-        if (o.mobileTune < 1) {
-            o.upscaler = "bilinear";
-            o.upscaleCustom = 70;
-            o.mobileTune = 1;
+        if (o.mobileTune >= 1 && o.mobileTune < 3 && o.upscaler == "bilinear" && o.upscaleCustom == 70)
+            o.upscaler = "off";
+        if (o.mobileTune < 2) {
+            o.fancyGraphics = false;
+            o.renderDistance = std::min(o.renderDistance, 8);
+            o.cloudRange = std::min(o.cloudRange, 64);
         }
+        o.mobileTune = 3;
 #endif
         o.padSensitivity = std::clamp(stored.padSensitivity, 0.1f, 3.0f);
         o.padDeadzone = std::clamp(stored.padDeadzone, 0.0f, 0.6f);

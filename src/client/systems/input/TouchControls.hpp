@@ -80,6 +80,7 @@ namespace perlin {
             uint32_t id = 0;
             int w = 0, h = 0;
             int nextTry = 0;
+            int tries = 0;
         };
 
         void BuildLayout();

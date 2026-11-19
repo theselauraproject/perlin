@@ -42,8 +42,9 @@ int main() {
     p.vendor = 0x5143;
     p.api = conduit::api::vulkan;
     p.name = "Adreno (TM) 740";
-    GpuFeatures::Choose(p, on);
-    Check(on[GpuFeatures::GpuCull] && !on[GpuFeatures::Occlusion], "tile-based mobile gpu skips occlusion");
+    Check(GpuFeatures::Choose(p, on) == GpuFeatures::Level::Basic, "tile-based mobile gpu draws directly");
+    Check(!on[GpuFeatures::GpuCull] && !on[GpuFeatures::Occlusion] && !on[GpuFeatures::GpuUi],
+          "tile-based mobile gpu skips gpu-driven work");
 
     p = Desktop();
     p.type = conduit::adapter_type::cpu;
