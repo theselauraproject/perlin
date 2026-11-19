@@ -7,7 +7,6 @@
 
 namespace perlin::ui {
     namespace {
-        // Bedrock's "Text Background Opacity" default; drives $title_alpha, $title_shadow and the actionbar.
         constexpr double kTextBackgroundOpacity = 0.5;
         json::Value B(bool v) {
             return json::Value(v);
@@ -321,7 +320,6 @@ namespace perlin::ui {
             }
         } else if (name == "hud_title_text_factory") {
             if (s.visible && !s.title.empty() && s.titleAlpha > 0.0f) {
-                // Same variables the Bedrock client sets when it creates hud_title_text.
                 FactoryItem f{"hud_title_text", {}};
                 f.vars["$title_alpha"] = json::Value(kTextBackgroundOpacity);
                 f.vars["$title_shadow"] = B(kTextBackgroundOpacity < 0.5);

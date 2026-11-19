@@ -1136,6 +1136,13 @@ namespace perlin {
                 cloudCpu = mesh;
             else
                 cloudCpu = {};
+            cloudSerial++;
+            cloudMinY = cloudMaxY = 0.0f;
+            for (size_t i = 0; i < cloudCpu.vertices.size(); i++) {
+                const float y = cloudCpu.vertices[i].y;
+                cloudMinY = i ? std::min(cloudMinY, y) : y;
+                cloudMaxY = i ? std::max(cloudMaxY, y) : y;
+            }
             cloudBuiltFrame = builtFor;
             cloudBuiltFancy = fancy;
             cloudBuiltRange = range;
@@ -1187,30 +1194,53 @@ namespace perlin {
             if (cloudCpu.vertices.empty())
                 return;
 
-            std::vector<UiVertex> verts;
-            verts.reserve(cloudCpu.vertices.size());
-            for (const TextureVertex& v : cloudCpu.vertices) {
-                const float shade = v.u;
-                const auto ch = [&](int i) {
-                    return static_cast<uint32_t>(
-                        std::lround(std::clamp(clouds.color[i] * shade, 0.0f, 1.0f) * 255.0f));
-                };
-                const uint32_t a =
-                    static_cast<uint32_t>(std::lround(std::clamp(clouds.color[3], 0.0f, 1.0f) * 255.0f));
-                verts.push_back(
-                    {v.x, v.y, v.z, ch(0) | (ch(1) << 8) | (ch(2) << 16) | (a << 24), 0.0f, 0.0f});
+            const float offset[3] = {-(now.xInCell + cellDx) + frame.cameraPosition[0],
+                                     now.relativeBottomY + frame.cameraPosition[1],
+                                     -(now.zInCell + cellDz) + frame.cameraPosition[2]};
+            const float local[3] = {frame.cameraPosition[0] - offset[0], frame.cameraPosition[1] - offset[1],
+                                    frame.cameraPosition[2] - offset[2]};
+            const std::array<int, 3> side = {static_cast<int>(std::floor(local[0] / kCloudCellSize)),
+                                             local[1] < cloudMinY ? 0 : local[1] <= cloudMaxY ? 1 : 2,
+                                             static_cast<int>(std::floor(local[2] / kCloudCellSize))};
+            const std::array<float, 4> color = {clouds.color[0], clouds.color[1], clouds.color[2], clouds.color[3]};
+            if (cloudPackSerial != cloudSerial || cloudPackSide != side || cloudPackColor != color ||
+                !cloudPackVb.Buffer()) {
+                static thread_local std::vector<UiVertex> verts;
+                static thread_local std::vector<uint8_t> packed;
+                verts.clear();
+                verts.reserve(cloudCpu.vertices.size());
+                const uint32_t a = static_cast<uint32_t>(std::clamp(color[3], 0.0f, 1.0f) * 255.0f + 0.5f);
+                for (const TextureVertex& v : cloudCpu.vertices) {
+                    const auto ch = [&](int i) {
+                        return static_cast<uint32_t>(std::clamp(color[i] * v.u, 0.0f, 1.0f) * 255.0f + 0.5f);
+                    };
+                    verts.push_back({v.x, v.y, v.z, ch(0) | (ch(1) << 8) | (ch(2) << 16) | (a << 24), 0.0f, 0.0f});
+                }
+                const float identity[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+                gpu::JavaPack::BuildVertices(verts.data(), verts.size(), cloudCpu.indices.data(),
+                                             cloudCpu.indices.size(), identity, 0, 15, packed, nullptr, local);
+                cloudPackCount = static_cast<uint32_t>(packed.size() / gpu::kPackVertexBytes);
+                if (cloudPackCount > cloudPackCapacity || !cloudPackVb.Buffer()) {
+                    cloudPackVb.Destroy(gpu.Dev());
+                    cloudPackCapacity = std::max(cloudPackCount + cloudPackCount / 4, 64u);
+                    cloudPackVb.Create(gpu.Dev(), cloudPackCapacity, gpu::kPackVertexBytes,
+                                       conduit::buffer_usage::vertex, "pack cloud vertices");
+                }
+                if (cloudPackCount && cloudPackVb.Buffer())
+                    gpu.WriteBuffer(cloudPackVb, 0, packed.data(), packed.size());
+                cloudPackSerial = cloudSerial;
+                cloudPackSide = side;
+                cloudPackColor = color;
             }
-            float model[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-            model[12] = -(now.xInCell + cellDx) + frame.cameraPosition[0];
-            model[13] = now.relativeBottomY + frame.cameraPosition[1];
-            model[14] = -(now.zInCell + cellDz) + frame.cameraPosition[2];
+            if (!cloudPackCount || !cloudPackVb.Buffer())
+                return;
             gpu::JavaPack::ExternalDraw d;
             d.kind = gpu::JavaPack::ExternalDraw::Kind::Clouds;
             d.alphaRef = 0.1f;
-            gpu::JavaPack::BuildVertices(verts.data(), verts.size(), cloudCpu.indices.data(),
-                                         cloudCpu.indices.size(), model, 0, 15, d.vertices, nullptr,
-                                         frame.cameraPosition);
-            d.count = static_cast<uint32_t>(d.vertices.size() / gpu::kPackVertexBytes);
+            d.buffer = cloudPackVb.Buffer();
+            d.count = cloudPackCount;
+            d.hasOffset = true;
+            std::copy_n(offset, 3, d.offset);
             d.depthTest = true;
             d.depthWrite = clouds.fancy;
             d.blend = true;

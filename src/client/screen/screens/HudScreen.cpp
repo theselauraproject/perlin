@@ -378,7 +378,7 @@ namespace perlin::screen {
         FillHudTabList(s, *live);
         FillHudHeldName(s);
         FillHudTitleText(s, *live);
-        s.paperDoll = options.paperDoll && PaperDollActive(*live);
+        s.paperDoll = options.paperDoll && (PaperDollActive(*live) || options.paperDollAlways);
     }
 
     void HudScreen::TickHud() {
@@ -434,7 +434,6 @@ namespace perlin::screen {
             if (text.actionAt != a.actionAtSeen) {
                 a.actionAtSeen = text.actionAt;
                 if (!text.actionBar.empty()) {
-                    // Every actionbar packet recreates the control in Bedrock, restarting its 3 s fade.
                     a.actionSincePush = 0;
                     a.overlayTime = ui::kActionBarTicks;
                 }
@@ -521,9 +520,6 @@ namespace perlin::screen {
         }
     }
 
-    // Bedrock's HUD paperdoll is not always on screen: a hold timer is refreshed while the player sneaks,
-    // sprints out of water, swims or crawls (1 s), flies or glides (0.35 s), or when armor changes (3 s),
-    // and the model disappears when it runs out, without fading.
     bool HudScreen::PaperDollActive(BedrockSession& live) {
         if (!dollSelf) {
             paperDollTimer = {};
@@ -557,9 +553,6 @@ namespace perlin::screen {
         return paperDollTimer.remaining > 0.0;
     }
 
-    // The live player model, drawn through the inventory doll path so the animated pose, armor and held
-    // items match the world. It sits on the hud_player control (15 GUI px per block, the player's 0.9375
-    // render scale, the model's 24 px origin on the control's centre) with the body turned to -22.5 deg.
     void HudScreen::DrawPaperDoll(FrameContext& f, int fbW, int fbH) {
         const ui::HudControlRect& r = ui::HudPlayerRect();
         if (!hudState.paperDoll || !hudState.visible || !dollSelf || !r.valid || screens.AnyCoveringOpen() ||

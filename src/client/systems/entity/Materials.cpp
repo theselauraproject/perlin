@@ -46,9 +46,13 @@ namespace perlin::entity {
         m.skinning = def.Define("USE_SKINNING");
         m.glint = def.Define("GLINT");
         m.hurtTint = def.Define("USE_OVERLAY") && !additive;
-        m.emissive = def.Define("USE_ONLY_EMISSIVE") || additive ? 2 : def.Define("USE_EMISSIVE") ? 1 : 0;
+        const bool layer = def.Define("PERLIN_EMISSIVE_LAYER");
+        m.emissive = layer || additive                ? 2
+                     : def.Define("USE_ONLY_EMISSIVE") ? 3
+                     : def.Define("USE_EMISSIVE")      ? 1
+                                                       : 0;
         m.faceShading = !def.removedDefines.contains("FANCY");
-        if (def.Define("USE_COLOR_MASK") || str::Lower(def.name) == "sheep") {
+        if (!layer && (def.Define("USE_COLOR_MASK") || str::Lower(def.name) == "sheep")) {
             m.colorMask = true;
             if (!blending)
                 m.blend = MaterialInfo::Blend::AlphaTest;

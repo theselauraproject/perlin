@@ -26,7 +26,6 @@ namespace perlin::ui {
     void SetHudElementFilter(HudElementFilter filter);
     bool FilterHudElement(std::string_view renderer, float& dx, float& dy);
 
-    // GUI-space rect of the hud_player control from the last HUD layout.
     struct HudControlRect {
         float x = 0, y = 0, w = 0, h = 0;
         bool valid = false;

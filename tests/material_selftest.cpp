@@ -115,6 +115,53 @@ int main() {
     Expect(entity::MaterialLibrary::Builtin("entity_glint").glint, "fallback uses source glint pass");
     Expect(entity::MaterialLibrary::Builtin("creeper").resolved,
            "legacy entity alias resolves through upstream");
+    using Info = entity::MaterialInfo;
+    for (const char* mob : {"spider", "enderman", "phantom", "ghast", "magma_cube", "drowned", "blaze_head"}) {
+        const Info m = entity::MaterialLibrary::Builtin(mob);
+        Expect(m.blend == Info::Blend::AlphaTest && m.emissive == 1 && m.noCull && m.depthWrite,
+               "vanilla emissive_alpha mobs are lit cutouts with glowing eyes");
+    }
+    for (const char* mob : {"spider_invisible", "enderman_invisible", "phantom_invisible"})
+        Expect(entity::MaterialLibrary::Builtin(mob).emissive == 3, "invisible variants draw only emissive texels");
+    Expect(entity::MaterialLibrary::Builtin("blaze_body").emissive == 1 &&
+               entity::MaterialLibrary::Builtin("blaze_body").blend == Info::Blend::Opaque,
+           "entity_emissive stays opaque");
+    Expect(entity::MaterialLibrary::Builtin("cow").blend == Info::Blend::Opaque &&
+               entity::MaterialLibrary::Builtin("cow").emissive == 0,
+           "plain entity is opaque");
+    Expect(entity::MaterialLibrary::Builtin("zombie").blend == Info::Blend::AlphaTest &&
+               entity::MaterialLibrary::Builtin("zombie").noCull,
+           "entity_alphatest is a double sided cutout");
+    Expect(entity::MaterialLibrary::Builtin("creaking_eyes").emissive == 2 &&
+               entity::MaterialLibrary::Builtin("creaking_eyes").depthFunc == DepthFunc::Equal &&
+               !entity::MaterialLibrary::Builtin("creaking_eyes").colorMask,
+           "emissive layers are fullbright overlays");
+    Expect(entity::MaterialLibrary::Builtin("warden_bioluminescent_layer").blend == Info::Blend::Alpha &&
+               entity::MaterialLibrary::Builtin("warden_bioluminescent_layer").emissive == 2,
+           "warden glow layer blends");
+    Expect(entity::MaterialLibrary::Builtin("charged_creeper").blend == Info::Blend::Additive,
+           "charged creeper is additive");
+    Expect(entity::MaterialLibrary::Builtin("cat").colorMask && entity::MaterialLibrary::Builtin("wolf").colorMask,
+           "change_color mobs use the color mask");
+    {
+        material::Db vanilla;
+        vanilla.Load(material::Mode::Fancy, "");
+        vanilla.Resolve();
+        vanilla.InstallBuiltins();
+        const material::Def* spider = vanilla.Find("spider");
+        Expect(spider && spider->sourceFamily == "Entity" && spider->sourcePass == "AlphaTestEmissive" &&
+                   !spider->Blending(),
+               "spider maps to Entity.AlphaTestEmissive");
+        const material::Def* invisible = vanilla.Find("enderman_invisible");
+        Expect(invisible && invisible->sourcePass == "AlphaTestEmissiveOnly", "invisible maps to EmissiveOnly");
+        vanilla.AddText(R"MAT({"materials":{"my_glow:spider":{"+states":["Blending"]}}})MAT", {});
+        vanilla.Resolve();
+        vanilla.InstallBuiltins();
+        const material::Def* glow = vanilla.Find("my_glow");
+        Expect(glow && glow->sourcePass == "AlphaTestEmissive" && glow->Blending() &&
+                   entity::InfoFromDef(*glow).emissive == 1,
+               "pack materials inherit builtin entity semantics");
+    }
     Expect(entity::MaterialLibrary::Builtin("unknown_pack_material").blend ==
                entity::MaterialInfo::Blend::AlphaTest,
            "unknown entities have a source-backed cutout fallback");

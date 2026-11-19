@@ -131,6 +131,9 @@ namespace perlin::gpu {
 
             float textureMatrix[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
             bool glintBlend = false;
+            conduit::buffer_handle buffer;
+            bool hasOffset = false;
+            float offset[3] = {0, 0, 0};
             mutable RingSlice ring;
             mutable int ringStamp = -1;
         };
@@ -147,7 +150,21 @@ namespace perlin::gpu {
             fluidTiles[2] = lava;
             fluidTiles[3] = lavaFlow;
         }
-        void DropQueued() { queued.clear(); }
+        void DropQueued() {
+            for (ExternalDraw& d : queued)
+                if (d.vertices.capacity() && spareVertices.size() < 1024) {
+                    d.vertices.clear();
+                    spareVertices.push_back(std::move(d.vertices));
+                }
+            queued.clear();
+        }
+        std::vector<uint8_t> TakeVertexBuffer() {
+            if (spareVertices.empty())
+                return {};
+            std::vector<uint8_t> v = std::move(spareVertices.back());
+            spareVertices.pop_back();
+            return v;
+        }
         void WriteEngineDepth(conduit::command_list& list, const Output& out) { DepthToEngine(list, out); }
 
         struct WarmProgress {
@@ -253,6 +270,7 @@ namespace perlin::gpu {
             conduit::blend_factor src = conduit::blend_factor::one, dst = conduit::blend_factor::zero,
                              srcA = conduit::blend_factor::one, dstA = conduit::blend_factor::zero;
             conduit::color_mask mask = conduit::color_mask::all;
+            bool firstTargetOnly = false;
         };
         struct PackSet {
             std::array<conduit::texture_handle, kTextureSlots> texture{};
@@ -468,6 +486,7 @@ namespace perlin::gpu {
         std::unordered_map<uint32_t, conduit::bind_group_handle> imageGroups;
         bool setupDone = false;
         std::vector<ExternalDraw> queued;
+        std::vector<std::vector<uint8_t>> spareVertices;
 
         std::array<std::atomic<int>, 4> fluidTiles{-1, -1, -1, -1};
         void DrawExternal(conduit::command_list& list, std::initializer_list<ExternalDraw::Kind> kinds,

@@ -93,7 +93,7 @@ namespace perlin::ui {
         bool burning = false;
         int fireFrame = 0;
 
-        bool paperDoll = false; // HUD paperdoll on (drawn live by HudScreen::Present)
+        bool paperDoll = false;
         int screenAnimation = -1;
         float screenAnimationT = 0;
         int air = 300;

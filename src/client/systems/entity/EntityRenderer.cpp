@@ -418,6 +418,14 @@ namespace perlin::entity {
                 p[3] = 255;
             }
         }
+
+        void SplitEmissive(Texture& t, bool eyes) {
+            for (size_t i = 3; i < t.pixels.size(); i += 4) {
+                uint8_t& a = t.pixels[i];
+                const bool glow = a > 0 && a < 255;
+                a = glow ? 255 : eyes ? 0 : a;
+            }
+        }
     }
 
     uint32_t EntityRenderer::TextureFor(const Entity& e, const std::string& key) {
@@ -1616,9 +1624,11 @@ namespace perlin::entity {
         const bool hideBody = e.Has(flag::Invisible) && !v.fp && !dollModel;
         for (const Layer* layerPtr : ordered) {
             const Layer& layer = *layerPtr;
-            if (hideBody && layer.body)
+            if (hideBody && layer.body && layer.material.emissive != 3)
                 continue;
+            const bool packSplit = packLit && (layer.material.emissive == 1 || layer.material.emissive == 3);
             uint32_t texture = 0;
+            uint32_t eyesTexture = 0;
             if (layer.texture == "#skin")
                 texture = TextureFor(e, "default");
             else if (layer.texture == "#cape")
@@ -1630,27 +1640,43 @@ namespace perlin::entity {
                 if (layer.material.colorMask)
                     std::snprintf(maskKey, sizeof(maskKey), "#mask%06x", layer.maskRgb & 0xFFFFFFu);
 
-                const std::string key = layer.texture + maskKey + (layer.uvAnim ? "#repeat" : "");
-                auto it = textures.find(key);
-                if (it == textures.end()) {
-                    Texture t;
-                    uint32_t id = 0;
-                    if (ui::UiAssets::Instance().Image(layer.texture, t) && t.width > 0) {
-                        if (layer.material.colorMask)
-                            BakeColorMask(t, layer.maskRgb);
-                        id = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), false, layer.uvAnim);
-                    } else if (!warned[layer.texture]) {
-                        warned[layer.texture] = true;
-                        Log("entity", "texture {} not found", layer.texture);
+                const auto fetch = [&](const char* split) {
+                    const std::string key = layer.texture + maskKey + (layer.uvAnim ? "#repeat" : "") + split;
+                    auto it = textures.find(key);
+                    if (it == textures.end()) {
+                        Texture t;
+                        uint32_t id = 0;
+                        if (ui::UiAssets::Instance().Image(layer.texture, t) && t.width > 0) {
+                            if (layer.material.colorMask)
+                                BakeColorMask(t, layer.maskRgb);
+                            bool glow = !*split;
+                            for (size_t i = 3; !glow && i < t.pixels.size(); i += 4)
+                                glow = t.pixels[i] > 0 && t.pixels[i] < 255;
+                            if (*split)
+                                SplitEmissive(t, split[1] == 'e');
+                            if (glow || split[1] != 'e')
+                                id = renderer->UiCreateTexture(t.width, t.height, t.pixels.data(), false,
+                                                               layer.uvAnim);
+                        } else if (!warned[layer.texture]) {
+                            warned[layer.texture] = true;
+                            Log("entity", "texture {} not found", layer.texture);
+                        }
+                        it = textures.emplace(key, id).first;
                     }
-                    it = textures.emplace(key, id).first;
-                }
-                texture = it->second;
+                    return it->second;
+                };
+                texture = fetch(packSplit ? "#body" : "");
+                if (packSplit)
+                    eyesTexture = fetch("#eyes");
             }
             if (PERLIN_ENV("PERLIN_ENTITY_DEBUG") && !warned["draw:" + e.type + layer.texture]) {
                 warned["draw:" + e.type + layer.texture] = true;
                 Log("entity", "  draw {} tex {} id {} scale {} pos {},{},{} quads {}", e.type, layer.texture,
                     texture, scale, v.pos.x, v.pos.y, v.pos.z, layer.quads.size());
+            }
+            if (packSplit && layer.material.emissive == 3) {
+                texture = eyesTexture;
+                eyesTexture = 0;
             }
             if (!texture)
                 continue;
@@ -1778,10 +1804,11 @@ namespace perlin::entity {
             std::copy_n(&model[0][0], 16, draw.model);
             draw.premultiplied = false;
             using Blend = MaterialInfo::Blend;
-            draw.alphaCutoff = layer.material.blend == Blend::AlphaTest                                ? 0.1f
-                               : layer.material.blend == Blend::Opaque && layer.material.emissive == 0 ? 0.0f
-                               : layer.material.blend == Blend::Opaque                                 ? 0.0f
-                                                                       : 0.01f;
+            const bool emissiveTexture = layer.material.emissive == 1 || layer.material.emissive == 3;
+            draw.alphaCutoff = layer.material.blend == Blend::AlphaTest && emissiveTexture && !packSplit ? 0.5f / 255.0f
+                               : layer.material.blend == Blend::AlphaTest                               ? 0.1f
+                               : layer.material.blend == Blend::Opaque                                  ? 0.0f
+                                                                                                        : 0.01f;
             if (layer.material.blend == Blend::AlphaTest || layer.material.blend == Blend::Opaque)
                 draw.blend = 0;
             else
@@ -1797,7 +1824,7 @@ namespace perlin::entity {
                 draw.skyLight = static_cast<int8_t>(levels.y);
             }
             draw.colorMask = layer.material.colorMask;
-            draw.emissive = layer.material.emissive;
+            draw.emissive = packSplit ? (layer.material.emissive == 3 ? 3 : 0) : layer.material.emissive;
 
             const float* overlay = layerHurt > 0.0f && layer.hurtColor[3] > 0.0f    ? layer.hurtColor
                                    : layer.hasFireColor && e.Has(flag::Onfire)        ? layer.fireColor
@@ -1829,7 +1856,18 @@ namespace perlin::entity {
                 std::copy_n(dollClip, 4, draw.scissorRect);
             }
             draw.shadowOnly = shadowOnlyPass;
-            renderer->UiSubmit(dollModel ? UiLayer::Doll : fpModel ? UiLayer::Hand : UiLayer::World, draw);
+            const UiLayer target = dollModel ? UiLayer::Doll : fpModel ? UiLayer::Hand : UiLayer::World;
+            renderer->UiSubmit(target, draw);
+            if (eyesTexture && !shadowOnlyPass) {
+                UiDraw eyes = draw;
+                eyes.texture = eyesTexture;
+                eyes.emissive = 3;
+                eyes.blend = 2;
+                eyes.depthWrite = false;
+                eyes.blockLight = 15;
+                eyes.skyLight = 15;
+                renderer->UiSubmit(target, eyes);
+            }
         }
         if (itemRenderer && !fpModel && (!dollModel || dollClip)) {
             const bool leftMain = e.isSelf && in.ownLeftHanded;

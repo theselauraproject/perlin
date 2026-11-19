@@ -206,7 +206,7 @@ namespace perlin::jshader {
             out.files.insert(path);
             std::istringstream in(text);
             std::string line;
-            int number = 0, condDepth = 0;
+            int number = 0;
             while (std::getline(in, line)) {
                 number++;
                 if (!line.empty() && line.back() == '\r')
@@ -238,16 +238,14 @@ namespace perlin::jshader {
                         continue;
                     }
                 }
-                const bool topLevel = condDepth == 0;
-                TrackConditionalDepth(line, condDepth);
-                out.text += topLevel ? ApplyOptions(ctx, path, line) : line;
+                out.text += ApplyOptions(ctx, path, line);
                 out.text += '\n';
                 out.origins.push_back({path, number});
             }
         }
     }
 
-    void ScanOptionsInText(IncludeContext& ctx, const std::string& path, const std::string& text) {
+    void ScanOptionsInText(IncludeContext& ctx, const std::string& path, const std::string& text, bool nested) {
         std::istringstream in(text);
         std::string line;
         int condDepth = 0;
@@ -256,7 +254,7 @@ namespace perlin::jshader {
                 line.pop_back();
             const bool topLevel = condDepth == 0;
             TrackConditionalDepth(line, condDepth);
-            if (topLevel)
+            if (topLevel != nested)
                 ApplyOptions(ctx, path, line);
         }
     }

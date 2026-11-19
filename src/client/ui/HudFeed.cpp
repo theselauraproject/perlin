@@ -69,8 +69,6 @@ namespace perlin::ui {
         return m;
     }
 
-    // Bedrock parity (hud_screen.json): the actionbar control lives 3 s after each SetTitle packet and
-    // fades with "in_expo", so it stays solid and drops off at the very end.
     float ActionBarAlpha(int overlayTime, float partial) {
         const float remaining = static_cast<float>(overlayTime) - partial;
         if (remaining <= 0.0f)
@@ -80,8 +78,6 @@ namespace perlin::ui {
         return std::clamp(1.0f - eased, 0.0f, 1.0f);
     }
 
-    // Bedrock parity: linear fade in / wait / linear fade out, with the server's tick counts as seconds / 20.
-    // Unlike Java there is no "alpha under 8/255 hides it" cutoff.
     float TitleAlpha(const TitleTimes& t, float partial) {
         const float remaining = static_cast<float>(t.remaining) - partial;
         if (remaining <= 0.0f)

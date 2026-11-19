@@ -1567,7 +1567,7 @@ namespace perlin::screen {
         m.Toggle(i18n::TrOr("options.modelPart.hat", "Hat"), services.options.skinParts.hat);
         m.Toggle("3D Skins", services.options.skins3d);
         m.Toggle("Show Paperdoll", services.options.paperDoll);
-        m.rows.back().wide = true;
+        m.Toggle("Always Show Paperdoll", services.options.paperDollAlways);
         m.Header("Hand");
         m.Toggle(i18n::TrOr("options.showHand", "Show Hand"), services.options.hand.show);
         m.Toggle(i18n::TrOr("perlin.options.bobHand", "Hand Bobbing"), services.options.hand.bobHand);

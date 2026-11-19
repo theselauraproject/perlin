@@ -418,6 +418,7 @@ namespace perlin::jshader {
         IncludeContext ctx;
         ctx.pack = pack.get();
         ctx.options = &options;
+        std::vector<std::pair<std::string, std::string>> sources;
         for (const std::string& file : pack->List("")) {
             const size_t dot = file.find_last_of('.');
             if (dot == std::string::npos)
@@ -430,8 +431,11 @@ namespace perlin::jshader {
             if (pack->Read(file, text)) {
                 ScanOptionsInText(ctx, file, text);
                 CollectEngineGuardedDefines(text, engineAll, guardedDefines);
+                sources.emplace_back(file, std::move(text));
             }
         }
+        for (const auto& [file, text] : sources)
+            ScanOptionsInText(ctx, file, text, true);
         engineMacros = engineAll;
         macros = engineAll;
         for (const auto& [name, value] : guardedDefines)

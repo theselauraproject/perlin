@@ -504,8 +504,6 @@ namespace perlin::ui {
                             index++;
                         }
                     }
-                    // A factory already filled from its #collection_length binding must not also be
-                    // filled from the data provider, or every row shows twice (e.g. the sidebar).
                     if (!expanded)
                     for (const FactoryItem& item : data.Factory(name))
                         for (const auto& entry : node.factoryControls)

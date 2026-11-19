@@ -2069,7 +2069,7 @@ namespace perlin::gpu {
         *b++ = static_cast<uint8_t>(st.colorCount);
         *b++ = static_cast<uint8_t>(st.depth);
         *b++ = static_cast<uint8_t>((st.depthTest ? 1 : 0) | (st.depthWrite ? 2 : 0) | (st.blend ? 4 : 0) |
-                                    (st.cull ? 8 : 0));
+                                    (st.cull ? 8 : 0) | (st.firstTargetOnly ? 16 : 0));
         *b++ = static_cast<uint8_t>(st.depthOp);
         *b++ = static_cast<uint8_t>(st.src);
         *b++ = static_cast<uint8_t>(st.dst);
@@ -2123,7 +2123,7 @@ namespace perlin::gpu {
             bt.dst_color = st.dst;
             bt.src_alpha = st.srcA;
             bt.dst_alpha = st.dstA;
-            bt.write_mask = (p.silentMask >> i) & 1u ? conduit::color_mask::none : st.mask;
+            bt.write_mask = (p.silentMask >> i) & 1u || (st.firstTargetOnly && i > 0) ? conduit::color_mask::none : st.mask;
         }
 
         if (p.source) {
@@ -3278,9 +3278,13 @@ namespace perlin::gpu {
         const glm::mat4 m = glm::make_mat4(model);
         const glm::mat3 nm = glm::mat3(m);
 
+        static thread_local std::vector<glm::vec3> world;
+        world.resize(vertexCount);
         glm::vec3 centre(0.0f);
-        for (size_t i = 0; i < vertexCount; i++)
-            centre += glm::vec3(m * glm::vec4(v[i].x, v[i].y, v[i].z, 1.0f));
+        for (size_t i = 0; i < vertexCount; i++) {
+            world[i] = glm::vec3(m * glm::vec4(v[i].x, v[i].y, v[i].z, 1.0f));
+            centre += world[i];
+        }
         if (vertexCount)
             centre /= static_cast<float>(vertexCount);
         const size_t tris = indexCount / 3;
@@ -3294,9 +3298,7 @@ namespace perlin::gpu {
             if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount)
                 continue;
             const UiVertex* tv[3] = {&v[i0], &v[i1], &v[i2]};
-            glm::vec3 p[3];
-            for (int k = 0; k < 3; k++)
-                p[k] = glm::vec3(m * glm::vec4(tv[k]->x, tv[k]->y, tv[k]->z, 1.0f));
+            const glm::vec3 p[3] = {world[i0], world[i1], world[i2]};
             glm::vec3 n = glm::cross(p[1] - p[0], p[2] - p[0]);
             const float len = glm::length(n);
             if (len < 1e-10f)
@@ -3562,7 +3564,7 @@ namespace perlin::gpu {
                 st.srcA = conduit::blend_factor::one;
                 st.dstA = conduit::blend_factor::inv_src_alpha;
                 if (!shadowPass && kind == K::Eyes) {
-
+                    st.firstTargetOnly = true;
                     st.blend = true;
                     st.src = conduit::blend_factor::src_alpha;
                     st.dst = conduit::blend_factor::one;
@@ -3600,16 +3602,21 @@ namespace perlin::gpu {
                             !r.textures ? "texture bind group" : "pipeline");
                     continue;
                 }
-                if (d->ringStamp != frameStamp || !d->ring.data) {
-                    d->ring = gpu.Ring(d->vertices.size(), 16);
-                    if (d->ring.data) {
-                        std::memcpy(d->ring.data, d->vertices.data(), d->vertices.size());
-                        d->ringStamp = frameStamp;
+                if (d->buffer) {
+                    r.slice = {};
+                    r.slice.buffer = d->buffer;
+                } else {
+                    if (d->ringStamp != frameStamp || !d->ring.data) {
+                        d->ring = gpu.Ring(d->vertices.size(), 16);
+                        if (d->ring.data) {
+                            std::memcpy(d->ring.data, d->vertices.data(), d->vertices.size());
+                            d->ringStamp = frameStamp;
+                        }
                     }
+                    r.slice = d->ring;
+                    if (!r.slice.data)
+                        continue;
                 }
-                r.slice = d->ring;
-                if (!r.slice.data)
-                    continue;
                 r.count = d->count;
                 r.state = baseState;
                 if (shadowPass) {
@@ -3625,6 +3632,11 @@ namespace perlin::gpu {
                     std::memcpy(r.state.projection, handProjection, sizeof(handProjection));
                     const float n3[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
                     std::memcpy(r.state.normalMatrix, n3, sizeof(n3));
+                }
+                if (d->hasOffset) {
+                    float* mv = r.state.modelView;
+                    for (int rr = 0; rr < 3; rr++)
+                        mv[12 + rr] += mv[rr] * d->offset[0] + mv[4 + rr] * d->offset[1] + mv[8 + rr] * d->offset[2];
                 }
                 r.state.renderStage = stage;
                 r.state.overrideEntity = true;

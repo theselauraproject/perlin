@@ -38,23 +38,24 @@ namespace {
     }
 
     float RefActionBar(int overlayTime, float partial) {
-        const float f = static_cast<float>(overlayTime) - partial;
-        return std::clamp(static_cast<int>(f * 255.0f / 20.0f), 0, 255) > 8
-                   ? std::min(255, static_cast<int>(f * 255.0f / 20.0f)) / 255.0f
-                   : 0.0f;
+        const double remaining = static_cast<double>(overlayTime) - partial;
+        if (remaining <= 0.0)
+            return 0.0f;
+        const double x = std::clamp(1.0 - remaining / 60.0, 0.0, 1.0);
+        const double eased = x == 0.0 ? 0.0 : std::exp2(10.0 * x - 10.0);
+        return static_cast<float>(std::clamp(1.0 - eased, 0.0, 1.0));
     }
 
     float RefTitle(int titleTime, int fadeIn, int stay, int fadeOut, float partial) {
-        const float f = static_cast<float>(titleTime) - partial;
-        int alpha = 255;
-        if (titleTime > fadeOut + stay) {
-            const float f1 = static_cast<float>(fadeIn + stay + fadeOut) - f;
-            alpha = static_cast<int>(f1 * 255.0f / std::max(1, fadeIn));
-        }
-        if (titleTime <= fadeOut)
-            alpha = static_cast<int>(f * 255.0f / std::max(1, fadeOut));
-        alpha = std::clamp(alpha, 0, 255);
-        return alpha > 8 ? static_cast<float>(alpha) / 255.0f : 0.0f;
+        const double remaining = static_cast<double>(titleTime) - partial;
+        if (remaining <= 0.0)
+            return 0.0f;
+        const double elapsed = static_cast<double>(fadeIn + stay + fadeOut) - remaining;
+        if (fadeIn > 0 && elapsed < fadeIn)
+            return static_cast<float>(std::clamp(elapsed / fadeIn, 0.0, 1.0));
+        if (remaining < fadeOut)
+            return static_cast<float>(std::clamp(remaining / std::max(1, fadeOut), 0.0, 1.0));
+        return 1.0f;
     }
 
     int RefRarity(const std::string& shortName, bool enchanted) {
@@ -146,11 +147,11 @@ int main() {
     for (int time = -5; time <= 400; time++)
         for (int k = 0; k < 40; k++) {
             const float partial = static_cast<float>(real(0, 1));
-            CHECK(RefActionBar(time, partial) == ActionBarAlpha(time, partial));
+            CHECK(std::fabs(RefActionBar(time, partial) - ActionBarAlpha(time, partial)) < 1e-4f);
             const int fadeIn = static_cast<int>(rng() % 30), stay = static_cast<int>(rng() % 100),
                       fadeOut = static_cast<int>(rng() % 30);
-            CHECK(RefTitle(time, fadeIn, stay, fadeOut, partial) ==
-                  TitleAlpha({time, fadeIn, stay, fadeOut}, partial));
+            CHECK(std::fabs(RefTitle(time, fadeIn, stay, fadeOut, partial) -
+                            TitleAlpha({time, fadeIn, stay, fadeOut}, partial)) < 1e-4f);
         }
 
     const char* const names[] = {"diamond",          "experience_bottle",

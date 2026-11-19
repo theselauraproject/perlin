@@ -736,7 +736,6 @@ namespace perlin::ui {
         Reg("progress_bar_renderer", [s](const LNode& n, SceneWriter& w) { ProgressBar(*s, n, w); });
         Reg("locator_bar", [s](const LNode& n, SceneWriter& w) { LocatorBar(*s, n, w); });
         Reg("mob_effects_renderer", [s](const LNode& n, SceneWriter& w) { MobEffects(*s, n, w); });
-        // The model itself is drawn by HudScreen; this only records where hud_screen.json placed it.
         emitter.Register("hud_player_renderer", [](const LNode& n, SceneWriter&) {
             HudPlayerRect() = {n.ax, n.ay, n.w, n.h, true};
         });

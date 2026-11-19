@@ -52,6 +52,7 @@ namespace perlin {
         Entity,
         EntityMask,
         EntityEmissive,
+        EntityEmissiveOnly,
         EntityGlint,
         Particle,
         ParticleCutout,
@@ -812,6 +813,11 @@ namespace perlin {
         bool cloudBuiltFancy = false;
         int cloudBuiltRange = 0;
         bool cloudBuilt = false;
+        gpu::Arena cloudPackVb;
+        uint32_t cloudPackCapacity = 0, cloudPackCount = 0, cloudSerial = 0, cloudPackSerial = ~0u;
+        std::array<int, 3> cloudPackSide{};
+        std::array<float, 4> cloudPackColor{-1.0f, -1.0f, -1.0f, -1.0f};
+        float cloudMinY = 0.0f, cloudMaxY = 0.0f;
         std::future<CloudMesh> cloudJob;
         bool cloudJobRunning = false;
         CloudFrame cloudJobFrame;

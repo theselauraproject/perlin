@@ -125,6 +125,7 @@ PROGRAMS = {
     'entity': ('vs_ui', 'fs_entity', 'varying_ui'),
     'entity_mask': ('vs_ui', 'fs_entity_mask', 'varying_ui'),
     'entity_emissive': ('vs_ui', 'fs_entity_emissive', 'varying_ui'),
+    'entity_emissive_only': ('vs_ui', 'fs_entity_emissive_only', 'varying_ui'),
     'entity_glint': ('vs_ui', 'fs_entity_glint', 'varying_ui'),
     'particle': ('vs_ui', 'fs_particle', 'varying_ui'),
     'particle_cutout': ('vs_ui', 'fs_particle_cutout', 'varying_ui'),
@@ -181,9 +182,12 @@ void main()
     functions = ''
     fragment('fs_ui', 'UIText', 'Transparent', UI_IO, UI_ARGS, UI_UNIFORMS + functions,
              UI_IO, 'if (u_uiParams.x > 0.0 && color.a < u_uiParams.x) discard;', samples)
-    for name, render_pass in [('fs_entity', 'AlphaTest'), ('fs_entity_mask', 'AlphaTestColorMask'), ('fs_entity_emissive', 'Emissive')]:
+    for name, render_pass in [('fs_entity', 'AlphaTest'), ('fs_entity_mask', 'AlphaTestColorMask')]:
         fragment(name, 'Entity', render_pass, UI_IO, UI_ARGS, UI_UNIFORMS + functions, UI_IO,
                  'color.a *= v_color0.a;\nif (u_uiParams.x > 0.0 && color.a < u_uiParams.x) discard;', samples)
+    for name, render_pass in [('fs_entity_emissive', 'AlphaTestEmissive'), ('fs_entity_emissive_only', 'AlphaTestEmissiveOnly')]:
+        fragment(name, 'Entity', render_pass, UI_IO, UI_ARGS, UI_UNIFORMS + functions, UI_IO,
+                 'if (u_uiParams.x > 0.0 && color.a < u_uiParams.x) discard;\ncolor.a = v_color0.a;', samples)
     prefix = UI_UNIFORMS + functions + '#undef SOURCE_INPUT_TYPE0__SAMPLED\n#define SOURCE_INPUT_TYPE0__CONSTANT 1\n#define MatColor0 vec4_splat(0.0)\n#undef OverlayColor\n#define OverlayColor vec4_splat(0.0)\n'
     fragment('fs_entity_glint', 'Entity', 'Glint', UI_IO, UI_ARGS, prefix,
              'v_color0, v_texcoord0, vec4_splat(0.0), v_light, v_layerUv',

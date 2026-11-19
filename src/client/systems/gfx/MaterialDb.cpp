@@ -96,6 +96,34 @@ namespace perlin::material {
     }
 
     namespace {
+        void MapEntityPass(Def& d, const std::unordered_map<std::string, Def>& builtins) {
+            if (d.sourceFamily == "Actor" || d.sourceFamily == "Entity") {
+                const bool test = d.Define("ALPHA_TEST");
+                const char* pass = nullptr;
+                if (d.Define("GLINT"))
+                    pass = test && d.Define("USE_COLOR_MASK") ? "AlphaTestColorMaskGlint" : test ? "AlphaTestGlint" : "Glint";
+                else if (d.Define("USE_ONLY_EMISSIVE"))
+                    pass = "AlphaTestEmissiveOnly";
+                else if (d.Define("USE_EMISSIVE"))
+                    pass = test ? "AlphaTestEmissive" : "Emissive";
+                else if (d.Define("USE_COLOR_MASK"))
+                    pass = !test                              ? "ColorMask"
+                           : d.Define("MULTIPLICATIVE_TINT") ? "AlphaTestColorMaskMultiplicativeTint"
+                                                               : "AlphaTestColorMask";
+                else if (d.Define("MULTI_COLOR_TINT"))
+                    pass = test ? "AlphaTestMultiColor" : "MultiColor";
+                else if (test)
+                    pass = "AlphaTest";
+                if (pass)
+                    if (const auto b = builtins.find(str::Lower(std::string("Entity.") + pass)); b != builtins.end()) {
+                        d.sourceFamily = b->second.sourceFamily;
+                        d.sourcePass = b->second.sourcePass;
+                        d.vertexShader = b->second.vertexShader;
+                        d.fragmentShader = b->second.fragmentShader;
+                    }
+            }
+        }
+
         void StringList(const Json* arr, std::vector<std::string>& out) {
             if (!arr || !arr->IsArray())
                 return;
@@ -272,15 +300,14 @@ namespace perlin::material {
         rawIndex.clear();
         resolved.clear();
         resolving.clear();
-        if (root.empty())
-            return;
         const bool fancy = mode == Mode::Fancy;
         const std::set<std::string> fancyDefine = {"FANCY"};
         std::error_code ec;
         std::vector<fs::path> files;
-        for (const auto& e : fs::directory_iterator(fs::path(root) / "materials", ec))
-            if (e.is_regular_file() && e.path().extension() == ".material")
-                files.push_back(e.path());
+        if (!root.empty())
+            for (const auto& e : fs::directory_iterator(fs::path(root) / "materials", ec))
+                if (e.is_regular_file() && e.path().extension() == ".material")
+                    files.push_back(e.path());
         std::ranges::sort(files);
         for (const fs::path& p : files) {
             const std::string stem = p.stem().string();
@@ -317,7 +344,14 @@ namespace perlin::material {
             return nullptr;
         const Raw& r = raws[raw->second];
         Def def;
-        if (!r.parent.empty()) {
+        bool seeded = false;
+        if (r.parent.empty()) {
+            if (const auto b = builtins.find(str::Lower(r.name)); b != builtins.end()) {
+                def = b->second;
+                def.variants.clear();
+                seeded = true;
+            }
+        } else {
             const Def* parent = ResolveOne(r.parent);
             if (!parent)
                 parent = ResolveOne(str::Lower(r.parent));
@@ -329,8 +363,17 @@ namespace perlin::material {
             }
         }
         def.name = r.name;
+        const std::string seededVertex = def.vertexShader;
+        const std::string seededFragment = def.fragmentShader;
         Apply(def, *r.json);
+        if (seeded) {
+            def.vertexShader = seededVertex;
+            def.fragmentShader = seededFragment;
+        }
         def.defines.insert(r.extraDefines.begin(), r.extraDefines.end());
+        if (str::Lower(r.name).starts_with("entity_emissive_layer"))
+            def.defines.insert("PERLIN_EMISSIVE_LAYER");
+        MapEntityPass(def, builtins);
         std::map<std::string, const Json*> collected;
         std::vector<const Raw*> chain;
         for (const Raw* cur = &r; cur;) {
@@ -369,6 +412,18 @@ namespace perlin::material {
     }
 
     namespace {
+        struct EntityMaterial {
+            const char* name;
+            const char* parent;
+            const char* defines;
+            const char* removeDefines;
+            const char* states;
+            const char* removeStates;
+            const char* depth;
+            const char* blendSrc;
+            const char* blendDst;
+        };
+
         struct Builtin {
             const char* name;
             const char* states;
@@ -464,20 +519,6 @@ namespace perlin::material {
             {"precipitation", "DisableCulling,DisableDepthWrite,Blending", B::SrcAlpha, B::InvSrcAlpha,
              DepthFunc::LessEqual, "COMFORT_MODE"},
             {"lightning", "DisableCulling,Blending", B::SrcAlpha, B::One, DepthFunc::LessEqual, ""},
-            {"entity", "", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual, "USE_OVERLAY"},
-            {"entity_alphatest", "DisableCulling", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual,
-             "USE_OVERLAY,ALPHA_TEST"},
-            {"entity_alphablend", "Blending", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual,
-             "USE_OVERLAY"},
-            {"slime_outer", "Blending", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual, "USE_OVERLAY"},
-            {"entity_multitexture", "", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual,
-             "USE_OVERLAY,MULTI_COLOR_TINT"},
-            {"entity_emissive_alpha_one_sided", "Blending", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual,
-             "USE_OVERLAY,USE_EMISSIVE,ALPHA_TEST"},
-            {"entity_emissive", "", B::SrcAlpha, B::InvSrcAlpha, DepthFunc::LessEqual,
-             "USE_OVERLAY,USE_EMISSIVE"},
-            {"entity_emissive_alpha", "DisableCulling,Blending", B::SrcAlpha, B::InvSrcAlpha,
-             DepthFunc::LessEqual, "USE_OVERLAY,USE_EMISSIVE,ALPHA_TEST"},
         };
         for (const Builtin& b : table) {
             const std::string name = b.name;
@@ -488,14 +529,10 @@ namespace perlin::material {
                                  : name.starts_with("particles_") ? "Particle"
                                  : name == "cracks_overlay"       ? "Cracks"
                                  : name.starts_with("name_")      ? "NameTag"
-                                 : name == "precipitation"        ? "Weather"
-                                                                  : "Actor";
-            const char* pass =
-                name == "ui_crosshair" ? "Transparent"
-                : name == "entity" || name == "entity_multitexture" || name == "entity_emissive" ? "Opaque"
-                : name == "particles_alpha" || name == "particles_opaque" || name == "entity_alphatest"
-                    ? "AlphaTest"
-                    : "Transparent";
+                                                                  : "Weather";
+            const char* pass = name == "ui_crosshair"                                       ? "Transparent"
+                               : name == "particles_alpha" || name == "particles_opaque" ? "AlphaTest"
+                                                                                         : "Transparent";
             Def& d = alias(b.name, family, pass);
             d.states = Split(b.states);
             d.defines = Split(b.defines);
@@ -521,13 +558,7 @@ namespace perlin::material {
             {"terrain_alpha_single_side", "RenderChunk", "AlphaTest"},
             {"terrain_alpha_seasons", "RenderChunk", "AlphaTest"},
             {"entity_static", "Actor", "Opaque"},
-            {"entity_glint", "Entity", "AlphaTestGlint"},
             {"entity_emissive_layer", "Entity", "Emissive"},
-            {"entity_emissive_layer_alpha_test", "Entity", "AlphaTestEmissiveOnly"},
-            {"spider", "Entity", "AlphaTestEmissiveOnly"},
-            {"enderman", "Entity", "AlphaTestEmissiveOnly"},
-            {"sheep", "Entity", "AlphaTestColorMask"},
-            {"arrow", "Actor", "AlphaTest"},
             {"skyplane", "Sky", "Opaque"},
             {"end_sky", "EndSky", "Opaque"},
             {"portal", "EndPortal", "Opaque"},
@@ -545,235 +576,288 @@ namespace perlin::material {
                 if (d.name.contains("seasons"))
                     d.defines.insert("SEASONS");
             }
-            if (d.name == "terrain_blend_no_culling" || d.name == "arrow")
+            if (d.name == "terrain_blend_no_culling")
                 d.states.insert("DisableCulling");
             if (d.name == "skyplane" || d.name == "end_sky") {
                 d.states.insert("DisableDepthWrite");
                 d.states.insert("DisableAlphaWrite");
             }
         }
-        const std::pair<const char*, const char*> entityAliases[] = {
-            {"agent", "entity"},
-            {"allay", "entity_alphatest"},
-            {"alpha_block", "entity_static"},
-            {"alpha_block_color", "entity_static"},
-            {"armadillo", "entity_alphatest"},
-            {"armor", "entity_alphatest"},
-            {"armor_enchanted", "entity_alphatest"},
-            {"armor_leather", "entity"},
-            {"armor_leather_enchanted", "entity"},
-            {"armor_stand", "entity_alphatest"},
-            {"axolotl", "entity_alphatest"},
-            {"axolotl_limbs", "entity"},
-            {"banner", "entity_alphatest"},
-            {"banner_pole", "entity_alphatest"},
-            {"bat", "entity_alphatest"},
-            {"bat_v2", "entity_alphatest"},
-            {"beacon_beam", "entity"},
-            {"beacon_beam_transparent", "entity"},
-            {"bed", "entity_alphatest"},
-            {"bee", "entity_alphatest"},
-            {"bell", "entity"},
-            {"blaze_body", "entity_emissive"},
-            {"blaze_head", "entity_emissive_alpha"},
-            {"boat", "entity"},
-            {"bogged", "entity_alphatest"},
-            {"bogged_clothes", "entity_alphatest"},
-            {"breeze", "entity_alphatest"},
-            {"breeze_eyes", "entity_emissive_layer_alpha_test"},
-            {"breeze_wind", "entity_static"},
-            {"breeze_wind_charge", "entity_static"},
-            {"camel", "entity_alphatest"},
-            {"camera", "entity"},
-            {"cat", "entity"},
-            {"chalkboard", "entity"},
-            {"charged_creeper", "entity_static"},
-            {"chest", "entity"},
-            {"chest_boat", "entity"},
-            {"chicken", "entity"},
-            {"chicken_cold", "entity_alphatest"},
-            {"chicken_legs", "entity_alphatest"},
-            {"clownfish", "entity_alphatest"},
-            {"cod", "entity_alphatest"},
-            {"conduit", "entity_alphatest"},
-            {"conduit_wind", "entity_alphatest"},
-            {"copper_golem", "entity"},
-            {"copper_golem_eyes", "entity_emissive_layer_alpha_test"},
-            {"copper_golem_flower", "entity_alphatest"},
-            {"cow", "entity"},
-            {"cow_cold", "entity_alphatest"},
-            {"creaking", "entity_alphatest"},
-            {"creaking_eyes", "entity_emissive_layer_alpha_test"},
-            {"creeper", "entity"},
-            {"cushion", "entity"},
-            {"dolphin", "entity"},
-            {"dragon_head", "entity_alphatest"},
-            {"dragon_head_glint", "entity_glint"},
-            {"drowned", "entity_emissive_alpha"},
-            {"egg", "entity_alphatest"},
-            {"elytra", "entity_alphatest"},
-            {"elytra_glint", "entity_alphatest"},
-            {"enchanting_table_book", "entity"},
-            {"ender_crystal", "entity_alphatest"},
-            {"ender_dragon", "entity_emissive_alpha_one_sided"},
-            {"ender_pearl", "entity_alphatest"},
-            {"enderman_invisible", "entity_emissive_alpha"},
-            {"endermite", "entity_alphatest"},
-            {"entity_alphablend_nocolor", "entity_alphablend"},
-            {"entity_alphatest_change_color", "entity"},
-            {"entity_alphatest_change_color_glint", "entity"},
-            {"entity_alphatest_glint", "entity_alphatest"},
-            {"entity_alphatest_glint_item", "entity_alphatest"},
-            {"entity_alphatest_multicolor_tint", "entity"},
-            {"entity_alphatest_one_sided", "entity"},
-            {"entity_beam", "entity"},
-            {"entity_beam_additive", "entity_alphablend"},
-            {"entity_change_color", "entity"},
-            {"entity_change_color_glint", "entity_glint"},
-            {"entity_custom", "entity"},
-            {"entity_dissolve_layer0", "entity"},
-            {"entity_dissolve_layer1", "entity"},
-            {"entity_emissive_layer_alpha_blend", "entity"},
-            {"entity_flat_color_line", "entity_alphatest"},
-            {"entity_lead_base", "entity"},
-            {"entity_loyalty_rope", "entity_glint"},
-            {"entity_multitexture_alpha_test", "entity_multitexture"},
-            {"entity_multitexture_alpha_test_color_mask", "entity_multitexture"},
-            {"entity_multitexture_color_mask", "entity_multitexture"},
-            {"entity_multitexture_masked", "entity_alphatest"},
-            {"entity_multitexture_multiplicative_blend", "entity"},
-            {"entity_nocull", "entity"},
-            {"evoker", "entity_alphatest"},
-            {"experience_orb", "entity"},
-            {"eye_of_ender_signal", "entity_alphatest"},
-            {"fang", "entity_alphatest"},
-            {"fireball", "entity_alphatest"},
-            {"fireworks_rocket", "entity_alphatest"},
-            {"fishing_hook", "entity_alphatest"},
-            {"fox", "entity"},
-            {"frog", "entity_alphatest"},
-            {"ghast", "entity_emissive_alpha"},
-            {"glow_squid", "entity_emissive"},
-            {"goat", "entity_alphatest"},
-            {"guardian", "entity_alphatest"},
-            {"guardian_ghost", "entity_alphablend"},
-            {"harness", "entity_alphatest"},
-            {"hoglin", "entity_alphatest"},
-            {"horse", "entity_alphatest"},
-            {"horse_leather_armor", "entity_multitexture"},
-            {"husk", "entity_alphatest"},
-            {"husk_clothes", "entity_alphatest"},
-            {"iron_golem", "entity_alphatest"},
-            {"item_in_hand", "entity"},
-            {"item_in_hand_entity_alphatest", "entity_alphatest"},
-            {"item_in_hand_entity_alphatest_color", "entity_alphatest"},
-            {"item_in_hand_entity_alphatest_one_sided_color", "entity"},
-            {"item_in_hand_glint", "entity"},
-            {"item_in_hand_multicolor_tint", "entity"},
-            {"leash_knot", "entity"},
-            {"lingering_potion_enchanted", "entity_alphatest"},
-            {"llama", "entity_multitexture"},
-            {"llama_spit", "entity"},
-            {"magma_cube", "entity_emissive_alpha"},
-            {"map", "entity_alphatest"},
-            {"map_decoration", "entity_alphatest"},
-            {"map_marker", "entity_alphatest"},
-            {"minecart", "entity_alphatest"},
-            {"mob_head", "entity_alphatest"},
-            {"mob_head_glint", "entity_glint"},
-            {"mooshroom", "entity"},
-            {"mooshroom_mushrooms", "entity_alphatest"},
-            {"moving_block", "entity_alphatest"},
-            {"moving_block_alpha", "entity_alphatest"},
-            {"moving_block_alpha_seasons", "entity_alphatest"},
-            {"moving_block_alpha_single_side", "entity_alphatest"},
-            {"moving_block_blend", "entity_alphatest"},
-            {"moving_block_double_side", "entity_alphatest"},
-            {"moving_block_seasons", "entity_alphatest"},
-            {"nautilus", "entity_alphatest"},
-            {"nautilus_armor", "entity_alphatest"},
-            {"npc", "entity_alphatest"},
-            {"ocelot", "entity_alphatest"},
-            {"on_screen_effect", "entity_alphatest"},
-            {"opaque_block", "entity_static"},
-            {"opaque_block_color", "entity_static"},
-            {"opaque_block_color_uv2", "entity_static"},
-            {"panda", "entity"},
-            {"parrot", "entity_alphatest"},
-            {"pattern", "entity_alphatest"},
-            {"pattern_glint", "entity_alphatest"},
-            {"phantom", "entity_emissive_alpha"},
-            {"phantom_invisible", "entity_emissive_alpha"},
-            {"pig", "entity"},
-            {"pig_v3", "entity_alphatest"},
-            {"piglin", "entity_alphatest"},
-            {"piglin_brute", "entity_alphatest"},
-            {"pillager", "entity_alphatest"},
-            {"piston_arm", "entity"},
-            {"player", "entity"},
-            {"player_alphatest", "entity_alphatest"},
-            {"player_animated", "entity_alphatest"},
-            {"player_spectator", "entity_alphablend"},
-            {"polar_bear", "entity"},
-            {"pufferfish", "entity_alphatest"},
-            {"rabbit", "entity"},
-            {"ravager", "entity_alphatest"},
-            {"saddle", "entity_alphatest"},
-            {"salmon", "entity_alphatest"},
-            {"shield", "entity"},
-            {"shield_glint", "entity_glint"},
-            {"shulker", "entity_alphatest"},
-            {"shulker_box", "entity_alphatest"},
-            {"shulker_bullet", "entity_alphatest"},
-            {"sign", "entity_static"},
-            {"silverfish", "entity"},
-            {"silverfish_layers", "entity_alphatest"},
-            {"skeleton", "entity_alphatest"},
-            {"slime", "entity_alphatest"},
-            {"sniffer", "entity_alphatest"},
-            {"snow_golem", "entity"},
-            {"snow_golem_pumpkin", "entity"},
-            {"snowball", "entity_alphatest"},
-            {"spider_invisible", "entity_emissive_alpha"},
-            {"splash_potion_enchanted", "entity_alphatest"},
-            {"squid", "entity"},
-            {"stray", "entity_alphatest"},
-            {"stray_clothes", "entity_alphatest"},
-            {"strider", "entity_alphatest"},
-            {"sulfur_cube", "entity_alphatest"},
-            {"sulfur_cube_outer", "entity"},
-            {"tadpole", "entity_alphatest"},
-            {"trial_spawner", "entity_alphatest"},
-            {"trident", "entity"},
-            {"trident_glint", "entity_glint"},
-            {"trident_riptide", "entity_alphatest"},
-            {"tropicalfish", "entity"},
-            {"turtle", "entity"},
-            {"vex", "entity_alphatest"},
-            {"villager", "entity_alphatest"},
-            {"villager_v2", "entity_alphatest"},
-            {"villager_v2_masked", "entity_alphatest"},
-            {"vindicator", "entity_alphatest"},
-            {"wandering_trader", "entity_alphatest"},
-            {"warden", "entity_alphatest"},
-            {"warden_bioluminescent_layer", "entity"},
-            {"witch", "entity_alphatest"},
-            {"wither_boss", "entity_alphatest"},
-            {"wither_boss_armor", "entity_static"},
-            {"wither_skull", "entity_alphatest"},
-            {"wolf", "entity"},
-            {"wolf_armor", "entity"},
-            {"xp_bottle", "entity_alphatest"},
-            {"zoglin", "entity_alphatest"},
-            {"zombie", "entity_alphatest"},
-            {"zombie_villager", "entity_alphatest"},
-            {"zombie_villager_v2", "entity_alphatest"},
-            {"zombie_villager_v2_masked", "entity_alphatest"},
+        const EntityMaterial entityMaterials[] = {
+            {"entity_flat_color_line", "entity_static", "LINE_STRIP", "", "", "", "", "", ""},
+            {"entity_loyalty_rope", "entity_glint", "", "", "DisableCulling", "", "", "", ""},
+            {"entity", "entity_static", "USE_OVERLAY", "", "", "", "", "", ""},
+            {"opaque_block", "entity_static", "", "", "", "", "", "", ""},
+            {"opaque_block_color", "opaque_block", "", "", "", "", "", "", ""},
+            {"opaque_block_color_uv2", "opaque_block", "", "", "", "", "", "", ""},
+            {"alpha_block", "entity_static", "", "", "", "", "", "", ""},
+            {"alpha_block_color", "alpha_block", "ALPHA_TEST", "", "", "", "", "", ""},
+            {"entity_nocull", "entity", "", "", "DisableCulling", "", "", "", ""},
+            {"entity_change_color", "entity_nocull", "USE_OVERLAY,USE_COLOR_MASK", "", "", "", "", "", ""},
+            {"entity_alphatest", "entity_nocull", "ALPHA_TEST", "", "", "", "", "", ""},
+            {"entity_alphatest_one_sided", "entity", "ALPHA_TEST", "", "", "", "", "", ""},
+            {"map", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"on_screen_effect", "entity_alphatest", "COLOR_BASED", "", "Blending", "", "", "", ""},
+            {"item_in_hand_entity_alphatest", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"item_in_hand_entity_alphatest_color", "item_in_hand_entity_alphatest", "", "", "", "", "", "", ""},
+            {"item_in_hand_entity_alphatest_one_sided_color", "entity_alphatest_one_sided", "", "", "", "", "", "", ""},
+            {"entity_alphablend", "entity", "", "", "Blending", "", "", "", ""},
+            {"entity_alphablend_nocolor", "entity_alphablend", "", "", "", "", "", "", ""},
+            {"guardian_ghost", "entity_alphablend_nocolor", "USE_COLOR_MASK", "", "", "", "", "", ""},
+            {"player_spectator", "entity_alphablend_nocolor", "USE_COLOR_MASK,USE_UV_ANIM", "", "", "", "", "", ""},
+            {"entity_emissive", "entity", "USE_EMISSIVE", "", "", "", "", "", ""},
+            {"glow_squid", "entity_emissive", "", "", "", "", "", "", ""},
+            {"entity_emissive_alpha", "entity_nocull", "ALPHA_TEST,USE_EMISSIVE", "", "", "", "", "", ""},
+            {"entity_emissive_alpha_one_sided", "entity", "ALPHA_TEST,USE_EMISSIVE", "", "", "", "", "", ""},
+            {"entity_emissive_layer_alpha_blend", "entity_nocull", "USE_COLOR_MASK,ALPHA_TEST", "", "Blending", "", "Equal", "SourceAlpha", "OneMinusSrcAlpha"},
+            {"entity_emissive_layer_alpha_test", "entity_nocull", "USE_COLOR_MASK,ALPHA_TEST", "", "", "", "Equal", "", ""},
+            {"entity_custom", "entity", "ALPHA_TEST,Blending,USE_OVERLAY,USE_MASK", "", "Blending", "", "", "", ""},
+            {"item_in_hand", "entity", "COLOR_BASED,NO_TEXTURE,ITEM_IN_HAND", "", "", "", "", "", ""},
+            {"item_in_hand_multicolor_tint", "item_in_hand", "COLOR_BASED,NO_TEXTURE,ITEM_IN_HAND,MULTI_COLOR_TINT", "USE_OVERLAY", "", "", "", "", ""},
+            {"map_decoration", "entity_static", "ALPHA_TEST,TINTED", "", "", "", "", "", ""},
+            {"map_marker", "entity_static", "ALPHA_TEST", "", "", "", "", "", ""},
+            {"charged_creeper", "entity_static", "USE_UV_ANIM,ALPHA_TEST", "", "Blending,DisableCulling", "", "", "One", "One"},
+            {"item_in_hand_glint", "item_in_hand", "GLINT", "", "", "", "", "", ""},
+            {"entity_glint", "entity", "GLINT", "", "", "", "", "", ""},
+            {"entity_alphatest_glint", "entity_alphatest", "GLINT", "", "", "", "", "", ""},
+            {"entity_alphatest_glint_item", "entity_alphatest", "GLINT", "", "", "", "", "", ""},
+            {"entity_change_color_glint", "entity_glint", "USE_COLOR_MASK", "", "", "", "", "", ""},
+            {"entity_alphatest_change_color", "entity_change_color", "ALPHA_TEST,USE_COLOR_MASK", "", "DisableAlphaWrite", "", "", "", ""},
+            {"entity_alphatest_change_color_glint", "entity_change_color", "ALPHA_TEST,USE_COLOR_MASK,GLINT", "", "", "", "", "", ""},
+            {"entity_alphatest_multicolor_tint", "entity", "ALPHA_TEST,MULTI_COLOR_TINT", "", "DisableAlphaWrite", "", "", "", ""},
+            {"beacon_beam", "entity_nocull", "COLOR_BASED,USE_COLOR_BLEND,USE_UV_ANIM", "", "", "", "", "", ""},
+            {"beacon_beam_transparent", "entity", "", "", "Blending,DisableCulling,DisableDepthWrite,DisableAlphaWrite", "", "", "SourceAlpha", "OneMinusSrcAlpha"},
+            {"conduit_wind", "entity_alphatest", "USE_UV_ANIM", "", "", "", "", "", ""},
+            {"entity_multitexture", "entity", "USE_MULTITEXTURE", "", "", "", "", "", ""},
+            {"entity_multitexture_color_mask", "entity_multitexture", "COLOR_SECOND_TEXTURE", "", "", "", "", "", ""},
+            {"entity_multitexture_alpha_test", "entity_multitexture", "ALPHA_TEST", "", "DisableCulling", "", "", "", ""},
+            {"entity_multitexture_multiplicative_blend", "entity", "ALPHA_TEST,USE_COLOR_MASK,MULTIPLICATIVE_TINT,MULTIPLICATIVE_TINT_COLOR,USE_OVERLAY", "", "DisableCulling", "", "", "", ""},
+            {"entity_multitexture_alpha_test_color_mask", "entity_multitexture_color_mask", "ALPHA_TEST", "", "DisableCulling", "", "", "", ""},
+            {"entity_lead_base", "entity", "", "", "DisableCulling", "", "", "", ""},
+            {"entity_multitexture_masked", "entity_alphatest", "MASKED_MULTITEXTURE", "", "", "", "", "", ""},
+            {"moving_block", "entity_static", "LOW_PRECISION,TEXEL_AA,ATLAS_TEXTURE,AS_ENTITY_RENDERER", "", "", "", "", "", ""},
+            {"moving_block_seasons", "moving_block", "SEASONS", "", "", "", "", "", ""},
+            {"moving_block_alpha_seasons", "moving_block_seasons", "ALPHA_TEST", "", "DisableCulling,EnableAlphaToCoverage", "", "", "", ""},
+            {"moving_block_alpha_single_side", "moving_block", "ALPHA_TEST", "", "EnableAlphaToCoverage", "", "", "", ""},
+            {"moving_block_alpha", "moving_block_alpha_single_side", "", "", "DisableCulling", "", "", "", ""},
+            {"moving_block_double_side", "moving_block", "", "", "DisableCulling", "", "", "", ""},
+            {"moving_block_blend", "moving_block", "BLEND", "", "Blending", "", "", "", ""},
+            {"entity_beam", "entity_nocull", "USE_UV_ANIM,ALPHA_TEST,COLOR_BASED", "", "", "", "", "", ""},
+            {"entity_beam_additive", "entity_alphablend", "COLOR_BASED,NO_TEXTURE", "USE_OVERLAY", "Blending,DisableDepthWrite", "", "", "SourceAlpha", "One"},
+            {"entity_dissolve_layer0", "entity", "TINTED_ALPHA_TEST", "", "DisableColorWrite", "", "", "", ""},
+            {"entity_dissolve_layer1", "entity", "ALPHA_TEST", "USE_OVERLAY", "", "", "Equal", "", ""},
+            {"banner", "entity_static", "ENABLE_FOG,ENABLE_LIGHT", "", "Blending", "", "LessEqual", "", ""},
+            {"banner_pole", "banner", "ENABLE_FOG,ENABLE_LIGHT,DISABLE_TINTING", "", "", "Blending", "", "", ""},
+            {"agent", "entity", "", "", "", "", "", "", ""},
+            {"armadillo", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"armor", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"armor_leather", "entity_alphatest_change_color", "", "", "", "", "", "", ""},
+            {"armor_enchanted", "entity_alphatest_glint", "", "", "", "", "", "", ""},
+            {"armor_leather_enchanted", "entity_alphatest_change_color_glint", "", "", "", "", "", "", ""},
+            {"armor_stand", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"arrow", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"axolotl", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"axolotl_limbs", "entity_alphatest_one_sided", "", "", "", "", "", "", ""},
+            {"bat", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"bat_v2", "bat", "", "", "", "DisableCulling", "", "", ""},
+            {"bed", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"bee", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"bell", "entity", "", "", "", "", "", "", ""},
+            {"blaze_head", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"blaze_body", "entity_emissive", "", "", "", "", "", "", ""},
+            {"boat", "entity", "", "", "", "", "", "", ""},
+            {"chalkboard", "entity", "", "", "", "", "", "", ""},
+            {"chest", "entity", "", "", "", "", "", "", ""},
+            {"chicken", "entity", "", "", "", "", "", "", ""},
+            {"chicken_cold", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"chicken_legs", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"cow", "entity", "", "", "", "", "", "", ""},
+            {"cow_cold", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"creaking", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"creaking_eyes", "entity_emissive_layer_alpha_test", "", "", "", "", "", "", ""},
+            {"creeper", "entity", "", "", "", "", "", "", ""},
+            {"dragon_head", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"dragon_head_glint", "entity_glint", "", "", "", "", "", "", ""},
+            {"drowned", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"egg", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"elytra", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"elytra_glint", "entity_alphatest_glint", "", "", "", "", "", "", ""},
+            {"enchanting_table_book", "entity", "", "", "", "", "", "", ""},
+            {"ender_crystal", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"ender_dragon", "entity_emissive_alpha_one_sided", "", "", "", "", "", "", ""},
+            {"enderman", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"enderman_invisible", "entity_emissive_alpha", "USE_ONLY_EMISSIVE", "", "", "", "", "", ""},
+            {"endermite", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"eye_of_ender_signal", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"ender_pearl", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"evoker", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"fang", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"fireball", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"fireworks_rocket", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"fishing_hook", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"fox", "entity", "", "", "", "", "", "", ""},
+            {"frog", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"cat", "entity_alphatest_change_color", "", "", "", "", "", "", ""},
+            {"clownfish", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"cod", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"conduit", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"pufferfish", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"salmon", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"tropicalfish", "entity_multitexture_multiplicative_blend", "", "", "", "", "", "", ""},
+            {"ghast", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"guardian", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"harness", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"horse", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"horse_leather_armor", "entity_multitexture_alpha_test_color_mask", "", "", "", "", "", "", ""},
+            {"husk", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"husk_clothes", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"ravager", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"iron_golem", "entity_alphatest", "", "", "", "", "LessEqual", "", ""},
+            {"magma_cube", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"leash_knot", "entity", "", "", "", "", "", "", ""},
+            {"lingering_potion_enchanted", "entity_alphatest_glint", "", "", "", "", "", "", ""},
+            {"llama", "entity_multitexture", "", "", "", "", "", "", ""},
+            {"llama_spit", "entity", "", "", "", "", "", "", ""},
+            {"minecart", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"mob_head", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"mob_head_glint", "entity_glint", "", "", "", "", "", "", ""},
+            {"mooshroom", "entity", "", "", "", "", "", "", ""},
+            {"mooshroom_mushrooms", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"nautilus_armor", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"npc", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"ocelot", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"parrot", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"pig", "entity", "", "", "", "", "", "", ""},
+            {"pig_v3", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"hoglin", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"zoglin", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"shield", "entity", "", "", "", "", "", "", ""},
+            {"shield_glint", "entity_glint", "", "", "", "", "", "", ""},
+            {"trident", "entity", "", "", "", "", "", "", ""},
+            {"trident_riptide", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"trident_glint", "entity_glint", "", "", "", "", "", "", ""},
+            {"piston_arm", "entity", "", "", "", "", "", "", ""},
+            {"player", "entity", "", "", "", "", "", "", ""},
+            {"player_alphatest", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"polar_bear", "entity", "", "", "", "", "", "", ""},
+            {"panda", "entity", "", "", "", "", "", "", ""},
+            {"rabbit", "entity", "", "", "", "", "", "", ""},
+            {"sheep", "entity_change_color", "", "", "", "", "", "", ""},
+            {"shulker", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"shulker_box", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"shulker_bullet", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"sign", "entity_static", "", "", "", "", "", "", ""},
+            {"silverfish", "entity", "", "", "", "", "", "", ""},
+            {"silverfish_layers", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"skeleton", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"pillager", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"piglin", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"piglin_brute", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"goat", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"allay", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"warden", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"warden_bioluminescent_layer", "entity_emissive_layer_alpha_blend", "", "", "", "", "", "", ""},
+            {"chest_boat", "entity", "", "", "", "", "", "", ""},
+            {"slime", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"slime_outer", "entity", "", "", "Blending", "", "", "", ""},
+            {"snowball", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"snow_golem", "entity", "", "", "", "", "", "", ""},
+            {"snow_golem_pumpkin", "entity", "", "", "", "", "", "", ""},
+            {"spider", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"spider_invisible", "entity_emissive_alpha", "USE_ONLY_EMISSIVE", "", "", "", "", "", ""},
+            {"splash_potion_enchanted", "entity_alphatest_glint", "", "", "", "", "", "", ""},
+            {"squid", "entity", "", "", "", "", "", "", ""},
+            {"dolphin", "entity", "", "", "", "", "", "", ""},
+            {"phantom", "entity_emissive_alpha", "", "", "", "", "", "", ""},
+            {"phantom_invisible", "entity_emissive_alpha", "USE_ONLY_EMISSIVE", "", "", "", "", "", ""},
+            {"stray", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"stray_clothes", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"strider", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"tadpole", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"turtle", "entity", "", "", "", "", "", "", ""},
+            {"camera", "entity", "", "", "", "", "", "", ""},
+            {"trial_spawner", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"vex", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"villager", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"villager_v2", "entity_alphatest", "", "", "", "", "LessEqual", "", ""},
+            {"villager_v2_masked", "entity_multitexture_masked", "", "", "", "", "LessEqual", "", ""},
+            {"vindicator", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"wandering_trader", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"witch", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"wither_boss", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"wither_boss_armor", "charged_creeper", "", "", "", "", "", "", ""},
+            {"wither_skull", "mob_head", "", "", "", "", "", "", ""},
+            {"wolf", "entity_change_color", "", "", "", "", "", "", ""},
+            {"wolf_armor", "entity_multitexture_multiplicative_blend", "", "", "", "", "", "", ""},
+            {"xp_bottle", "entity_alphatest_glint", "", "", "", "", "", "", ""},
+            {"zombie", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"zombie_villager", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"zombie_villager_v2", "entity_alphatest", "", "", "", "", "LessEqual", "", ""},
+            {"zombie_villager_v2_masked", "entity_multitexture_masked", "", "", "", "", "LessEqual", "", ""},
+            {"player_animated", "entity_alphatest", "USE_UV_ANIM", "", "", "", "", "", ""},
+            {"experience_orb", "entity", "USE_UV_ANIM,ALPHA_TEST,Blending,USE_OVERLAY,USE_MASK", "", "", "", "", "", ""},
+            {"sniffer", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"camel", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"pattern", "entity_static", "ENABLE_FOG,ENABLE_LIGHT", "", "", "", "LessEqual", "", ""},
+            {"pattern_glint", "pattern", "GLINT", "", "", "", "", "", ""},
+            {"breeze", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"breeze_eyes", "entity_emissive_layer_alpha_test", "", "", "", "", "", "", ""},
+            {"breeze_wind", "entity_static", "USE_UV_ANIM,ALPHA_TEST", "", "Blending,DisableCulling,DisableDepthWrite", "", "", "", ""},
+            {"breeze_wind_charge", "entity_static", "USE_UV_ANIM,ALPHA_TEST", "", "Blending,DisableCulling,DisableDepthWrite", "", "", "SourceAlpha", "One"},
+            {"bogged", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"bogged_clothes", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"saddle", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"copper_golem", "entity", "", "", "", "", "", "", ""},
+            {"copper_golem_eyes", "entity_emissive_layer_alpha_test", "", "", "", "", "", "", ""},
+            {"copper_golem_flower", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"nautilus", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"sulfur_cube", "entity_alphatest", "", "", "", "", "", "", ""},
+            {"sulfur_cube_outer", "entity", "", "", "Blending", "", "", "", ""},
+            {"cushion", "entity", "", "", "", "", "", "", ""},
+
         };
-        for (const auto& [name, target] : entityAliases) {
-            Def d = builtins.at(target);
-            d.name = name;
-            builtins.emplace(name, std::move(d));
+        std::vector<const EntityMaterial*> pending;
+        for (const EntityMaterial& m : entityMaterials)
+            pending.push_back(&m);
+        while (!pending.empty()) {
+            const size_t before = pending.size();
+            std::erase_if(pending, [&](const EntityMaterial* m) {
+                const auto parent = builtins.find(m->parent);
+                if (parent == builtins.end())
+                    return false;
+                Def d = parent->second;
+                d.name = m->name;
+                for (const std::string& v : Split(m->defines)) {
+                    d.defines.insert(v);
+                    d.removedDefines.erase(v);
+                }
+                for (const std::string& v : Split(m->removeDefines)) {
+                    d.defines.erase(v);
+                    d.removedDefines.insert(v);
+                }
+                for (const std::string& v : Split(m->states))
+                    d.states.insert(v);
+                for (const std::string& v : Split(m->removeStates))
+                    d.states.erase(v);
+                if (*m->depth)
+                    d.depthFunc = ParseDepthFunc(m->depth);
+                if (*m->blendSrc) {
+                    d.blendSrc = ParseBlendFactor(m->blendSrc, d.blendSrc);
+                    d.blendSet = true;
+                }
+                if (*m->blendDst) {
+                    d.blendDst = ParseBlendFactor(m->blendDst, d.blendDst);
+                    d.blendSet = true;
+                }
+                if (std::string_view(m->name).starts_with("entity_emissive_layer"))
+                    d.defines.insert("PERLIN_EMISSIVE_LAYER");
+                MapEntityPass(d, builtins);
+                builtins.insert_or_assign(m->name, std::move(d));
+                return true;
+            });
+            if (pending.size() == before)
+                throw std::runtime_error(std::string("Unresolved builtin entity material parent: ") +
+                                         pending.front()->parent);
         }
     }
 

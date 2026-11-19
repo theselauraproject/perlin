@@ -63,6 +63,7 @@ namespace perlin {
             {"entity", nullptr, gpu::VertexLayout::UiInstanced},
             {"entity_mask", nullptr, gpu::VertexLayout::UiInstanced},
             {"entity_emissive", nullptr, gpu::VertexLayout::UiInstanced},
+            {"entity_emissive_only", nullptr, gpu::VertexLayout::UiInstanced},
             {"entity_glint", nullptr, gpu::VertexLayout::UiInstanced},
             {"particle", nullptr, gpu::VertexLayout::UiInstanced},
             {"particle_cutout", nullptr, gpu::VertexLayout::UiInstanced},
@@ -539,6 +540,9 @@ namespace perlin {
             *b = {};
         }
         cloudVb.Destroy(dev);
+        cloudPackVb.Destroy(dev);
+        cloudPackCapacity = 0;
+        cloudPackSerial = ~0u;
         cloudIb.Destroy(dev);
         cloudVertexCapacity = cloudIndexCapacity = 0;
         cloudBuilt = false;

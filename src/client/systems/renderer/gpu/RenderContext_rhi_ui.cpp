@@ -43,6 +43,7 @@ namespace perlin {
             case P::Entity:
             case P::EntityMask:
             case P::EntityEmissive:
+            case P::EntityEmissiveOnly:
             case P::EntityGlint:
             case P::Particle:
             case P::ParticleCutout:
@@ -437,7 +438,7 @@ namespace perlin {
         } else if (draw.material == DrawMaterial::Cracks) {
             d.kind = K::Cracks;
             d.alphaRef = kTenth;
-        } else if (draw.emissive == 1 || draw.blend == 2) {
+        } else if (draw.emissive == 3 || draw.blend == 2) {
             d.kind = K::Eyes;
             d.alphaRef = kNonZero;
         } else {
@@ -446,6 +447,7 @@ namespace perlin {
         }
         const int blockLevel = draw.blockLight >= 0 ? draw.blockLight : frame.eyeBlockLight;
         const int skyLevel = draw.skyLight >= 0 ? draw.skyLight : frame.eyeSkyLight;
+        d.vertices = jpack->TakeVertexBuffer();
         gpu::JavaPack::BuildVertices(mesh.cpuVertices->data(), mesh.cpuVertices->size(),
                                      mesh.cpuIndices->data(), mesh.cpuIndices->size(), draw.model, blockLevel,
                                      skyLevel, d.vertices, draw.vertexLight, nullptr,
@@ -578,6 +580,7 @@ namespace perlin {
         else if (domain == DrawMaterial::Entity)
             program = draw.colorMask       ? Program::EntityMask
                       : draw.emissive == 1 ? Program::EntityEmissive
+                      : draw.emissive == 3 ? Program::EntityEmissiveOnly
                                            : Program::Entity;
 
         DrawState state = Base(program, draw.depth && !glint, draw.depthWrite, ToRhi(draw.depthFunc));

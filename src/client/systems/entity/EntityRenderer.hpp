@@ -149,8 +149,6 @@ namespace perlin::entity {
             glm::vec3 light{1.0f};
         };
         void RenderFirstPerson(const Entity& self, const FrameIn& in, const FpState& fp);
-        // facing: when set, the body is drawn at this fixed turn (degrees off a front view) while the
-        // pose, limb swing and head look relative to the body stay live. Used by the HUD paperdoll.
         void RenderDoll(const Entity& doll, const FrameIn& in, float cx, float feetY, float pxPerBlock,
                         const int clip[4], std::optional<float> facing = std::nullopt);
 

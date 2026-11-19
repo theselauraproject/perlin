@@ -42,6 +42,7 @@ namespace perlin::jshader {
     };
 
     ExpandedSource ExpandIncludes(IncludeContext& ctx, const std::string& path);
-    void ScanOptionsInText(IncludeContext& ctx, const std::string& path, const std::string& text);
+    void ScanOptionsInText(IncludeContext& ctx, const std::string& path, const std::string& text,
+                           bool nested = false);
     ExpandedSource ExpandIncludesText(IncludeContext& ctx, const std::string& path, const std::string& text);
 }
