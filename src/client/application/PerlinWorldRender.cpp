@@ -6,6 +6,7 @@
 #include "util/Log.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <unordered_set>
 
 namespace perlin {
@@ -73,6 +74,18 @@ namespace perlin {
         touchState.hudScale = hud ? hud->Scale() : 0;
         touchState.scale = options.touchScale;
         touchState.opacity = options.touchOpacity;
+        touchState.dpad =
+            PERLIN_ENV("PERLIN_PREVIEW_JOYSTICK") ? false : (options.touchInteraction == 2 || options.touchDpad);
+        touchState.interaction = options.touchInteraction;
+        if (const char* m = PERLIN_ENV("PERLIN_PREVIEW_INTERACTION"))
+            touchState.interaction = std::clamp(std::atoi(m), 0, 2);
+        touchState.circleSize = options.touchCircleSize;
+        touchState.holdDelay = options.touchHoldDelay;
+        touchState.dpadGap = options.touchDpadGap;
+        touchState.debugButtons = options.touchDebugButtons;
+        touchState.leftHanded = options.touchLeftHanded;
+        touchState.invertY = options.touchInvertY;
+        touchState.circle = options.touchCircle;
         touchState.sensitivity = options.touchSensitivity;
         touchState.layout = options.touchLayout;
         for (size_t a = 0; a < kActionCount; a++)
@@ -83,13 +96,34 @@ namespace perlin {
             options.touchLayout = edited;
             options.Save();
             pause.optionsUi.touchEditing = false;
+            pause.optionsUi.touchEditSeen = false;
             pause.optionsUi.signature.clear();
+        } else if (pause.optionsUi.touchEditing) {
+            if (platform->TouchEditing()) {
+                pause.optionsUi.touchEditSeen = true;
+            } else if (pause.optionsUi.touchEditSeen) {
+                pause.optionsUi.touchEditing = false;
+                pause.optionsUi.touchEditSeen = false;
+                pause.optionsUi.signature.clear();
+            }
         }
         const bool previewTouch = preview && PERLIN_ENV("PERLIN_PREVIEW_TOUCH");
         if (previewTouch) {
             static TouchControls previewControls;
             previewControls.SetViewport(width, height);
             previewControls.SetState(touchState);
+            if (PERLIN_ENV("PERLIN_PREVIEW_CIRCLE")) {
+                static Input previewInput;
+                static bool pressed = false;
+                if (!pressed) {
+                    pressed = true;
+                    previewInput.SetCaptured(true);
+                    previewControls.Update(previewInput);
+                    previewControls.FingerDown(previewInput, 1, static_cast<float>(width) * 0.62f,
+                                               static_cast<float>(height) * 0.45f);
+                }
+                previewControls.Update(previewInput);
+            }
             previewControls.Draw(*renderer, true);
         } else if (pause.optionsUi.touchEditing || (live && hud && !asset.IsOpen() && !death.IsOpen() && !pause.IsOpen() &&
                                               !inventory.IsOpen() && !WorldCovered())) {

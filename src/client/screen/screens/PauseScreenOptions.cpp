@@ -1089,6 +1089,45 @@ namespace perlin::screen {
                          services.options.touchOpacity =
                              std::round((0.2f + std::clamp(f, 0.0f, 1.0f) * 0.8f) * 20.0f) / 20.0f;
                      });
+            {
+                static const char* kModes[3] = {"Touch", "Crosshair", "Classic"};
+                int& mode = services.options.touchInteraction;
+                m.rows.push_back({"Interaction Model", kModes[std::clamp(mode, 0, 2)], -1.0f, [&mode](float, bool click) {
+                                      if (click)
+                                          mode = (std::clamp(mode, 0, 2) + 1) % 3;
+                                  }});
+            }
+            if (services.options.touchInteraction == 2) {
+                m.rows.push_back({"Movement", "D-Pad", -1.0f, [](float, bool) {}});
+                m.rows.back().locked = true;
+            } else {
+                bool& dpad = services.options.touchDpad;
+                m.rows.push_back({"Movement", dpad ? "D-Pad" : "Joystick", -1.0f, [&dpad](float, bool click) {
+                                      if (click)
+                                          dpad = !dpad;
+                                  }});
+            }
+            if (services.options.touchInteraction != 1) {
+                m.Toggle("Touch Circle", services.options.touchCircle);
+                m.Slider("Touch Circle Size", Percent(services.options.touchCircleSize),
+                         (services.options.touchCircleSize - 0.3f) / 2.7f, [this](float f) {
+                             services.options.touchCircleSize =
+                                 std::round((0.3f + std::clamp(f, 0.0f, 1.0f) * 2.7f) * 20.0f) / 20.0f;
+                         });
+                m.Slider("Hold To Break", std::to_string(static_cast<int>(std::lround(services.options.touchHoldDelay * 1000.0f))) + " ms",
+                         (services.options.touchHoldDelay - 0.1f) / 0.9f, [this](float f) {
+                             services.options.touchHoldDelay =
+                                 std::round((0.1f + std::clamp(f, 0.0f, 1.0f) * 0.9f) * 20.0f) / 20.0f;
+                         });
+            }
+            if (services.options.touchInteraction == 2 || services.options.touchDpad)
+                m.Slider("D-Pad Spacing", Percent(services.options.touchDpadGap / 0.12f),
+                         services.options.touchDpadGap / 0.5f, [this](float f) {
+                             services.options.touchDpadGap = std::round(std::clamp(f, 0.0f, 1.0f) * 50.0f) / 100.0f;
+                         });
+            m.Toggle("F1 / F3 Buttons", services.options.touchDebugButtons);
+            m.Toggle("Left Handed", services.options.touchLeftHanded);
+            m.Toggle("Invert Look Y", services.options.touchInvertY);
             OptRow edit{"Edit Touch Layout...", "", -1.0f, [this](float, bool click) {
                             if (click) {
                                 optionsUi.touchEditing = true;

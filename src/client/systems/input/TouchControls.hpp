@@ -44,6 +44,7 @@ namespace perlin {
         bool Gameplay(const Input& input) const;
         bool TakeEditResult(std::map<std::string, TouchPlace>& out);
         bool Editing() const { return editing; }
+        bool TouchInteraction() const { return state.interaction != 1; }
 
     private:
         enum class Role { None, Stick, Button, Look, Pointer, Scroll, Drag, EditorButton };
@@ -58,6 +59,9 @@ namespace perlin {
             std::chrono::steady_clock::time_point restoreAt;
             bool pointerParked = false;
             float grabX = 0, grabY = 0;
+            bool aim = false;
+            bool holding = false;
+            std::chrono::steady_clock::time_point downAt;
         };
 
         enum class Kind { Hold, Tap, SneakKey, SprintToggle };
@@ -68,6 +72,7 @@ namespace perlin {
             Kind kind = Kind::Hold;
             const char* label = "";
             bool system = false;
+            bool hidden = false;
             bool visible = false;
         };
 
@@ -82,6 +87,7 @@ namespace perlin {
         float BaseScale(const char* name) const;
         int EditorHit(float x, float y) const;
         void EditorPress(int which);
+        const char* SelectedName() const;
         void FlushReleases(Input& input, bool all);
         int HitButton(float x, float y) const;
         void PressButton(Input& input, int index);
@@ -127,7 +133,17 @@ namespace perlin {
         std::array<Binding, ButtonCount> pressedBinding{};
 
         std::vector<Sprite> sprites;
-        uint32_t discTexture = 0, fontTexture = 0;
+        uint32_t discTexture = 0, fontTexture = 0, topTexture = 0, guiTexture = 0;
+        int topW = 18, topH = 18;
+        float dpadCell = 0, dpadPitch = 0;
+        bool stickHidden = false;
+        bool lastStateEditing = false;
+        int64_t aimFinger = -1;
+        void EndAim(Input& input, bool tap);
+        int dpadDir = 0;
+        std::chrono::steady_clock::time_point lastForwardTap{};
+        bool dpadSprint = false;
+        void UpdateDpad(Input& input, float x, float y);
         ui::FontTexture fontSync;
     };
 }

@@ -159,6 +159,15 @@ namespace perlin {
         float touchSensitivity = 1.0f;
         float touchScale = 1.0f;
         float touchOpacity = 0.85f;
+        bool touchDpad = true;
+        int touchInteraction = 0;
+        float touchCircleSize = 1.0f;
+        float touchHoldDelay = 0.3f;
+        float touchDpadGap = 0.12f;
+        bool touchDebugButtons = true;
+        bool touchLeftHanded = false;
+        bool touchInvertY = false;
+        bool touchCircle = true;
         std::map<std::string, TouchPlace> touchLayout;
 
         const Binding& GetKey(Action action) const { return keys[static_cast<size_t>(action)]; }

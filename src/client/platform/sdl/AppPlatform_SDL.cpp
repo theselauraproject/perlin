@@ -9,6 +9,9 @@
 #include "client/systems/bindings/KeyMapping.hpp"
 
 #include <SDL3/SDL.h>
+#if defined(__ANDROID__)
+#include <jni.h>
+#endif
 
 #ifdef _WIN32
 #include <windows.h>
@@ -222,6 +225,36 @@ void AppPlatform_SDL::SetTitle(const std::string& title) {
     titleDirty = true;
 }
 
+#if defined(__ANDROID__)
+namespace {
+    bool CallActivity(const char* name, const std::string* arg) {
+        auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+        auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
+        if (!env || !activity)
+            return false;
+        jclass cls = env->GetObjectClass(activity);
+        jmethodID method = env->GetMethodID(cls, name, arg ? "(Ljava/lang/String;)Z" : "()Z");
+        bool ok = false;
+        if (method) {
+            if (arg) {
+                jstring s = env->NewStringUTF(arg->c_str());
+                ok = env->CallBooleanMethod(activity, method, s);
+                env->DeleteLocalRef(s);
+            } else {
+                ok = env->CallBooleanMethod(activity, method);
+            }
+        }
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            ok = false;
+        }
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(activity);
+        return ok;
+    }
+}
+#endif
+
 void AppPlatform_SDL::ShowSignInCode(const std::string& url, const std::string& code) {
     struct Job {
         std::string url, code;
@@ -230,9 +263,19 @@ void AppPlatform_SDL::ShowSignInCode(const std::string& url, const std::string& 
         [](void* data) {
             std::unique_ptr<Job> job(static_cast<Job*>(data));
             SDL_SetClipboardText(job->code.c_str());
+#if defined(__ANDROID__)
+            if (CallActivity("showSignIn", &job->url))
+                return;
+#endif
             SDL_OpenURL(job->url.c_str());
         },
         new Job{url + (!url.contains('?') ? "?otc=" : "&otc=") + code, code}, false);
+}
+
+void AppPlatform_SDL::CloseSignIn() {
+#if defined(__ANDROID__)
+    SDL_RunOnMainThread([](void*) { CallActivity("closeSignIn", nullptr); }, nullptr, false);
+#endif
 }
 
 void AppPlatform_SDL::SetClipboard(const std::string& text) {
@@ -517,8 +560,7 @@ bool AppPlatform_SDL::ConfirmDialog(const std::string& title, const std::string&
 }
 
 void AppPlatform_SDL::SetTouchState(const perlin::TouchState& state) {
-    if (touchMode || state.editing || touch.Editing())
-        touch.SetState(state);
+    touch.SetState(state);
 }
 
 bool AppPlatform_SDL::TakeTouchLayout(std::map<std::string, perlin::TouchPlace>& out) {
@@ -1261,8 +1303,10 @@ void AppPlatform_SDL::PumpFrame() {
         }
     }
 
-    if (game)
+    if (game) {
         touch.Update(game->GetInput());
+        game->GetInput().SetTouchInteract(touchMode && touch.TouchInteraction());
+    }
 
     if (game) {
         perlin::Input& in = game->GetInput();

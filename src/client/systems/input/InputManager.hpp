@@ -66,6 +66,8 @@ namespace perlin {
         void Hold(Action action, std::chrono::steady_clock::time_point until) {
             holds[static_cast<size_t>(action)] = until;
         }
+        const Input& Raw() const { return input; }
+        void Inject(Action action) { pressed.set(static_cast<size_t>(action)); }
         void SetBlocked(bool b) { blocked = b; }
         void SetServerLocks(uint32_t value) { locks = value; }
         bool Blocked() const { return blocked; }

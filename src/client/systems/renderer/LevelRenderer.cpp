@@ -1,6 +1,7 @@
 #include <cstdio>
 #include "util/Env.hpp"
 #include "util/ThreadPool.hpp"
+#include "util/Platform.hpp"
 #include "client/systems/renderer/LevelRenderer.hpp"
 #include "client/systems/renderer/gpu/SafeMode.hpp"
 #include "client/systems/resources/BedrockSamples.hpp"
@@ -41,9 +42,14 @@ namespace perlin {
         blocks->SetFancy(options.fancyGraphics);
         BlockLibrary::SetLiveTilePx(blocks->OwnTilePx());
         const unsigned cores = HardwareThreads();
+#ifdef PERLIN_MOBILE
+        const unsigned threads = std::clamp(cores / 2 > 1 ? cores / 2 - 1 : 1u, 2u, 3u);
+        maxInFlight = threads * 4;
+#else
         const unsigned threads = std::clamp(cores > 3 ? cores - 2 : 2u, 2u, 16u);
-        meshPool = std::make_unique<ThreadPool>(threads, true, "perlin-mesh");
         maxInFlight = threads * 6;
+#endif
+        meshPool = std::make_unique<ThreadPool>(threads, true, "perlin-mesh");
     }
 
     LevelRenderer::~LevelRenderer() {

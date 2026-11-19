@@ -1,6 +1,18 @@
 package io.perlin.client;
 
+import android.app.Dialog;
 import android.app.PendingIntent;
+import android.graphics.Color;
+import android.net.Uri;
+import android.view.Gravity;
+import android.webkit.CookieManager;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.content.Intent;
 import android.content.pm.PackageInstaller;
 import android.graphics.Rect;
@@ -89,6 +101,123 @@ public class PerlinActivity extends SDLActivity {
                             | View.SYSTEM_UI_FLAG_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
+    }
+
+    private Dialog signIn;
+
+    public boolean showSignIn(final String url) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    openSignIn(url);
+                } catch (Throwable t) {
+                    Log.w("Perlin", "in-app sign-in unavailable", t);
+                    openBrowser(url);
+                }
+            }
+        });
+        return true;
+    }
+
+    public boolean closeSignIn() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (signIn != null) {
+                    try {
+                        signIn.dismiss();
+                    } catch (Throwable ignored) {
+                    }
+                    signIn = null;
+                }
+            }
+        });
+        return true;
+    }
+
+    private void openBrowser(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Throwable t) {
+            Log.w("Perlin", "no browser for sign-in", t);
+        }
+    }
+
+    private void openSignIn(final String url) {
+        if (signIn != null) {
+            try {
+                signIn.dismiss();
+            } catch (Throwable ignored) {
+            }
+        }
+        final Dialog dialog = new Dialog(this, android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.rgb(32, 32, 32));
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        int pad = (int) (8 * getResources().getDisplayMetrics().density);
+        bar.setPadding(pad, pad / 2, pad, pad / 2);
+        TextView title = new TextView(this);
+        title.setText("Sign in to Microsoft. Perlin returns here when you finish.");
+        title.setTextColor(Color.WHITE);
+        bar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        Button browser = new Button(this);
+        browser.setText("Use browser");
+        browser.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                openBrowser(url);
+            }
+        });
+        bar.addView(browser);
+        Button close = new Button(this);
+        close.setText("Close");
+        close.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+        bar.addView(close);
+        root.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        final WebView web = new WebView(this);
+        WebSettings settings = web.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                String scheme = request.getUrl().getScheme();
+                if ("http".equals(scheme) || "https".equals(scheme))
+                    return false;
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl()));
+                } catch (Throwable ignored) {
+                }
+                return true;
+            }
+        });
+        root.addView(web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        dialog.setContentView(root);
+        dialog.setOnDismissListener(new android.content.DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(android.content.DialogInterface d) {
+                web.stopLoading();
+                web.destroy();
+                if (signIn == dialog)
+                    signIn = null;
+            }
+        });
+        signIn = dialog;
+        web.loadUrl(url);
+        dialog.show();
     }
 
     private static final String ACTION_INSTALLED = "io.perlin.client.UPDATE_STATUS";

@@ -319,7 +319,7 @@ namespace perlin::screen {
         };
         std::vector<BindUndo> bindUndo;
         TimePoint bindStartedAt;
-        bool touchEditing = false, touchEditHidden = false;
+        bool touchEditing = false, touchEditHidden = false, touchEditSeen = false;
         float kbScroll = 0.0f, scroll = 0.0f;
         int scrollKey = -1;
         int hoverRow = -1;

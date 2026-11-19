@@ -36,6 +36,7 @@ namespace perlin {
             platform->ShowSignInCode(url, code);
         };
         hooks.log = [](const std::string& message) { Log("auth", "{}", message); };
+        hooks.signInEnded = [this] { platform->CloseSignIn(); };
         appServices.accounts = std::make_unique<services::AccountService>(std::move(config), std::move(hooks));
         if (args.playerName.empty() && !args.login && !args.logout)
             ApplyActiveAccount();

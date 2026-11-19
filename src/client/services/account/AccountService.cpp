@@ -84,6 +84,8 @@ namespace perlin::services {
         if (!connect.login)
             return outcome;
         outcome.signedIn = connect.login->SignIn(prompt, outcome.error);
+        if (hooks.signInEnded)
+            hooks.signInEnded();
         if (outcome.signedIn && !connect.nameAccountId.empty()) {
             std::string tag, why;
             if (connect.login->FetchGamertag(tag, why))
@@ -140,6 +142,8 @@ namespace perlin::services {
                         hooks.showSignInCode(u, c);
                 },
                 error);
+            if (hooks.signInEnded)
+                hooks.signInEnded();
             const bool named = ok && flow->FetchGamertag(tag, error);
             std::lock_guard lock(mutex);
             if (login != flow)
@@ -160,6 +164,8 @@ namespace perlin::services {
             return;
         login->Cancel();
         login.reset();
+        if (hooks.signInEnded)
+            hooks.signInEnded();
         if (!authFile.empty()) {
             if (config.forgetLogin) {
                 config.forgetLogin(config.dataDir + "/" + authFile);

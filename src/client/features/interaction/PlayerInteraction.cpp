@@ -81,6 +81,50 @@ namespace perlin::interaction {
         }
     }
 
+    glm::dvec3 Player::AimDirection(const FrameContext& f) const {
+        glm::dvec3 forward(targeting::ViewVector(camera.yaw, camera.pitch));
+        float nx = 0.5f, ny = 0.5f;
+        const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now().time_since_epoch())
+                                .count();
+        if (f.width <= 0 || f.height <= 0 || !input.TouchAim(now, nx, ny))
+            return forward;
+        const double len = glm::length(forward);
+        if (len < 1e-9)
+            return forward;
+        forward /= len;
+        glm::dvec3 right = glm::cross(forward, glm::dvec3(0.0, 1.0, 0.0));
+        if (glm::length(right) < 1e-6) {
+            const double yaw = glm::radians(static_cast<double>(camera.yaw));
+            right = glm::dvec3(-std::cos(yaw), 0.0, -std::sin(yaw));
+        }
+        right = glm::normalize(right);
+        const glm::dvec3 up = glm::cross(right, forward);
+        const double th = std::tan(glm::radians(static_cast<double>(camera.fov)) * 0.5);
+        const double aspect = static_cast<double>(f.width) / static_cast<double>(f.height);
+        const double sx = (static_cast<double>(nx) * 2.0 - 1.0) * th * aspect;
+        const double sy = (1.0 - static_cast<double>(ny) * 2.0) * th;
+        return glm::normalize(forward + right * sx + up * sy);
+    }
+
+    void Player::ApplyTouchActions() {
+        const auto now = std::chrono::steady_clock::now();
+        if (input.TakeTouchTaps() > 0) {
+            const Action a = aimHit.kind == AimHit::Kind::Entity ? Action::Attack : Action::Use;
+            inputManager.Inject(a);
+            inputManager.Hold(a, now + std::chrono::milliseconds(60));
+        }
+        if (input.TouchHold()) {
+            if (touchHoldAction == Action::Count) {
+                touchHoldAction = aimHit.kind == AimHit::Kind::None ? Action::Use : Action::Attack;
+                inputManager.Inject(touchHoldAction);
+            }
+            inputManager.Hold(touchHoldAction, now + std::chrono::milliseconds(120));
+        } else {
+            touchHoldAction = Action::Count;
+        }
+    }
+
     void Player::UpdateAim(FrameContext& f, bool spectator, bool creative) {
         auto& live = f.live;
         auto& previewLevel = *view.previewLevel;
@@ -114,7 +158,7 @@ namespace perlin::interaction {
                     const auto hb = entityRenderer.HitBox(e);
                     return glm::vec2(hb.first, hb.second);
                 },
-                {camera.x, camera.y, camera.z}, glm::dvec3(targeting::ViewVector(camera.yaw, camera.pitch)), PickRange(creative, 1),
+                {camera.x, camera.y, camera.z}, AimDirection(f), PickRange(creative, 1),
                 EntityPickRange(creative),
                 FluidAimFor(hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)].name));
 
@@ -609,6 +653,7 @@ namespace perlin::interaction {
         if (levelRenderer)
             UpdateTechnicalBlocks(held, creative, live);
         UpdateAim(f, spectator, creative);
+        ApplyTouchActions();
         if (live && live->TakeBlockNamesLearned()) {
             MesherInvalidateCaches();
             live->NetLevel().MarkAllDirty();

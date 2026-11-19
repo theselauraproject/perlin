@@ -960,9 +960,9 @@ namespace perlin {
             DrawLayer(RenderLayer::Cutout, Program::TerrainCutout, View::WorldLate, true);
             DrawLayer(RenderLayer::CutoutCull, Program::TerrainCutout, View::WorldLate, true);
         }
+        DrawClouds();
         DrawLayer(RenderLayer::Translucent, Program::TerrainTranslucent, View::Late);
         DrawLayer(RenderLayer::TranslucentCull, Program::TerrainTranslucent, View::Late);
-        DrawClouds();
         DrawScreenTint();
     }
 

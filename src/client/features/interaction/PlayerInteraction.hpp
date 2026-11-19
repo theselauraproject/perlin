@@ -100,6 +100,9 @@ namespace perlin::interaction {
         void UpdateHotbar(FrameContext& f);
         void UpdateTechnicalBlocks(const ui::HudItem& held, bool creative, BedrockSession* live);
         void UpdateAim(FrameContext& f, bool spectator, bool creative);
+        glm::dvec3 AimDirection(const FrameContext& f) const;
+        void ApplyTouchActions();
+        Action touchHoldAction = Action::Count;
         void UpdateBlockBreaking(FrameContext& f, const ui::HudItem& held, bool creative);
         void UpdateBlockUse(FrameContext& f, const ui::HudItem& held, bool creative);
         void ReleaseHeldItem(BedrockSession* live, const ui::HudItem& held, const float eye[3]);

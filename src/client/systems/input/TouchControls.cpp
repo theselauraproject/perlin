@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string_view>
 
 namespace perlin {
     using namespace touchlayout;
@@ -20,6 +21,11 @@ namespace perlin {
         constexpr float kLookScale = 0.55f;
         constexpr float kTapSlop = 18.0f;
         constexpr float kScrollStep = 36.0f;
+        constexpr int64_t kAimForever = INT64_MAX / 2;
+
+        int64_t NowMs() {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count();
+        }
         constexpr const char* kButtonNames[] = {"jump", "sneak", "attack", "use", "sprint", "pause",
                                                 "chat", "f5",    "f3",     "tab", "f1",     "inventory"};
     }
@@ -40,8 +46,12 @@ namespace perlin {
     void TouchControls::SetState(const TouchState& s) {
         std::lock_guard lock(mutex);
         const bool relayout =
-            s.hudScale != state.hudScale || s.scale != state.scale || (!editing && s.layout != state.layout);
-        const bool startEditing = s.editing && !editing && !editDone;
+            s.hudScale != state.hudScale || s.scale != state.scale || s.dpad != state.dpad ||
+            s.interaction != state.interaction || s.dpadGap != state.dpadGap ||
+            s.debugButtons != state.debugButtons || s.leftHanded != state.leftHanded ||
+            (!editing && s.layout != state.layout);
+        const bool startEditing = s.editing && !lastStateEditing && !editing;
+        lastStateEditing = s.editing;
         const bool stopEditing = !s.editing && editing;
         if (startEditing || stopEditing)
             cancelPending = true;
@@ -78,6 +88,7 @@ namespace perlin {
         const float W = static_cast<float>(width);
         const float H = static_cast<float>(height);
         const float global = state.scale;
+        const auto mx = [&](float x) { return state.leftHanded ? W - x : x; };
         layout = {};
         auto set = [&](Button b, float cx, float cy, float r, Action action, Kind kind, const char* label,
                        bool system) {
@@ -90,17 +101,74 @@ namespace perlin {
             l.kind = kind;
             l.label = label;
             l.system = system;
+            l.hidden = p.hidden;
             l.visible = true;
         };
-        set(Jump, W - 0.14f * u, H - 0.17f * u, 0.095f * u, Action::Jump, Kind::Hold, "^", false);
-        set(Sneak, W - 0.36f * u, H - 0.13f * u, 0.07f * u, Action::Sneak, Kind::SneakKey, "v", false);
-        set(Use, W - 0.14f * u, H - 0.42f * u, 0.08f * u, Action::Use, Kind::Hold, "+", false);
-        set(Attack, W - 0.36f * u, H - 0.36f * u, 0.085f * u, Action::Attack, Kind::Hold, "X", false);
-        set(Sprint, 0.20f * u, H - 0.52f * u, 0.058f * u, Action::Sprint, Kind::SprintToggle, ">>", false);
+        const TouchPlace sp = Place("stick");
+        stickHidden = sp.hidden;
+        if (state.dpad) {
+            dpadCell = 0.105f * u * global * std::max(0.4f, sp.scale);
+            dpadPitch = dpadCell * (1.0f + std::clamp(state.dpadGap, 0.0f, 0.5f));
+            stickR = dpadPitch * 1.5f;
+            stickCX = sp.x >= 0.0f ? sp.x * W : mx(0.04f * u + stickR);
+            stickCY = sp.y >= 0.0f ? sp.y * H : H - 0.04f * u - stickR;
+        } else {
+            stickR = kStickRadius * u * global * std::max(0.4f, sp.scale);
+            stickCX = sp.x >= 0.0f ? sp.x * W : mx(0.20f * u);
+            stickCY = sp.y >= 0.0f ? sp.y * H : H - 0.20f * u;
+        }
 
-        const float r = 0.043f * u, pitch = 0.112f * u;
-        set(Pause, W * 0.5f - pitch * 0.5f, r + 0.02f * u, r, Action::Pause, Kind::Tap, "II", true);
-        set(Chat, W * 0.5f + pitch * 0.5f, r + 0.02f * u, r, Action::Chat, Kind::Tap, "T", true);
+        const bool crosshair = state.interaction == 1;
+        set(Jump, mx(W - 0.14f * u), crosshair ? H - 0.17f * u : H - 0.16f * u, 0.095f * u, Action::Jump,
+            Kind::Hold, "^", false);
+        if (state.dpad) {
+            set(Sneak, stickCX, stickCY, 0.0f, Action::Sneak, Kind::SneakKey, "v", false);
+            layout[Sneak].cx = stickCX;
+            layout[Sneak].cy = stickCY;
+            layout[Sneak].r = dpadCell * 0.5f;
+            layout[Sneak].hidden = stickHidden;
+        } else {
+            set(Sneak, mx(crosshair ? W - 0.36f * u : W - 0.14f * u), crosshair ? H - 0.13f * u : H - 0.40f * u,
+                0.07f * u, Action::Sneak, Kind::SneakKey, "v", false);
+            set(Sprint, mx(0.20f * u), H - 0.52f * u, 0.058f * u, Action::Sprint, Kind::SprintToggle, ">>", false);
+        }
+        set(Use, mx(W - 0.14f * u), H - 0.42f * u, 0.08f * u, Action::Use, Kind::Hold, "+", false);
+        set(Attack, mx(W - 0.36f * u), H - 0.36f * u, 0.085f * u, Action::Attack, Kind::Hold, "X", false);
+        if (!crosshair) {
+            layout[Use].visible = false;
+            layout[Attack].visible = false;
+            if (!state.dpad && Place(kButtonNames[Sneak]).x < 0.0f)
+                layout[Sneak].cy = layout[Jump].cy - layout[Jump].r - layout[Sneak].r - 0.03f * u;
+        }
+
+        const float px = std::max(1.0f, std::floor(0.09f * u * global / 18.0f));
+        const float r = 9.0f * px, pitch = 2.0f * r + 2.0f * px;
+        const float topY = r + 0.02f * u;
+        std::vector<Button> row;
+        if (state.debugButtons)
+            row = {HideHud, Perspective, Chat, Pause, Debug};
+        else
+            row = {Perspective, Chat, Pause};
+        const auto actionFor = [](Button b) {
+            switch (b) {
+            case HideHud:
+                return Action::ToggleHud;
+            case Perspective:
+                return Action::CyclePerspective;
+            case Chat:
+                return Action::Chat;
+            case Pause:
+                return Action::Pause;
+            default:
+                return Action::DebugScreen;
+            }
+        };
+        const float mid = (static_cast<float>(row.size()) - 1.0f) * 0.5f;
+        for (size_t k = 0; k < row.size(); k++) {
+            set(row[k], W * 0.5f + (static_cast<float>(k) - mid) * pitch, topY, 0.0f, actionFor(row[k]), Kind::Tap,
+                "", true);
+            layout[row[k]].r = r * std::max(0.4f, Place(kButtonNames[row[k]]).scale);
+        }
 
         const float scale =
             state.hudScale > 0 ? static_cast<float>(state.hudScale) : std::max(1.0f, std::floor(u / 240.0f));
@@ -108,34 +176,42 @@ namespace perlin {
         hotbarH = 22.0f * scale;
         hotbarX = W * 0.5f - hotbarW * 0.5f;
         hotbarY = H - hotbarH;
-        const float ir = std::max(0.035f * u, 10.0f * scale);
-        set(Inventory, hotbarX + hotbarW + ir * 1.3f, H - hotbarH * 0.5f - 2.0f * scale, ir,
-            Action::Inventory, Kind::Tap, "...", true);
-
-        const TouchPlace sp = Place("stick");
-        stickR = kStickRadius * u * global * std::max(0.4f, sp.scale);
-        stickCX = sp.x >= 0.0f ? sp.x * W : 0.20f * u;
-        stickCY = sp.y >= 0.0f ? sp.y * H : H - 0.20f * u;
+        set(Inventory, hotbarX + hotbarW + 9.0f * scale, H - hotbarH * 0.5f, 0.0f, Action::Inventory, Kind::Tap,
+            "...", true);
+        layout[Inventory].cx = hotbarX + hotbarW + 9.0f * scale;
+        layout[Inventory].cy = H - hotbarH * 0.5f;
+        layout[Inventory].r = 10.0f * scale;
+        layout[Inventory].hidden = false;
+        if (!editing)
+            for (Layout& l : layout)
+                if (l.hidden)
+                    l.visible = false;
     }
 
     int TouchControls::EditorHit(float x, float y) const {
-        ToolBox boxes[4];
+        ToolBox boxes[kToolCount];
         ToolBoxes(width, height, boxes);
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < kToolCount; i++)
             if (x >= boxes[i].x && x < boxes[i].x + boxes[i].w && y >= boxes[i].y &&
                 y < boxes[i].y + boxes[i].h)
                 return i;
         return -1;
     }
 
+    const char* TouchControls::SelectedName() const {
+        if (editSelected == ButtonCount || (editSelected == Sneak && state.dpad))
+            return "stick";
+        return editSelected >= 0 && editSelected < ButtonCount ? kButtonNames[editSelected] : nullptr;
+    }
+
     void TouchControls::EditorPress(int which) {
+        const char* name = SelectedName();
         if (which == 0 || which == 1) {
-            if (editSelected < 0)
+            if (!name)
                 return;
-            const char* name = editSelected == ButtonCount ? "stick" : kButtonNames[editSelected];
             TouchPlace p = editLayout.contains(name) ? editLayout[name] : TouchPlace{};
             p.scale = std::clamp(p.scale * (which == 1 ? 1.12f : 1.0f / 1.12f), 0.4f, 2.5f);
-            if (p.x < 0.0f && editSelected != ButtonCount) {
+            if (p.x < 0.0f && std::string_view(name) != "stick") {
                 p.x = layout[editSelected].cx / static_cast<float>(width);
                 p.y = layout[editSelected].cy / static_cast<float>(height);
             } else if (p.x < 0.0f) {
@@ -145,13 +221,23 @@ namespace perlin {
             editLayout[name] = p;
             BuildLayout();
         } else if (which == 2) {
+            if (!name)
+                return;
+            TouchPlace p = editLayout.contains(name) ? editLayout[name] : TouchPlace{};
+            p.hidden = !p.hidden;
+            editLayout[name] = p;
+            BuildLayout();
+        } else if (which == 3) {
             editLayout.clear();
             editSelected = -1;
             BuildLayout();
-        } else if (which == 3) {
+        } else if (which == 4) {
             editDone = true;
             editing = false;
+            editSelected = -1;
+            state.layout = editLayout;
             cancelPending = true;
+            BuildLayout();
         }
     }
 
@@ -297,9 +383,32 @@ namespace perlin {
         }
     }
 
+    void TouchControls::UpdateDpad(Input& input, float x, float y) {
+        const float c = std::max(1.0f, dpadPitch);
+        const int col = std::clamp(static_cast<int>(std::floor((x - stickCX) / c + 1.5f)), 0, 2);
+        const int row = std::clamp(static_cast<int>(std::floor((y - stickCY) / c + 1.5f)), 0, 2);
+        static constexpr int kDirs[3][3] = {{1 | 4, 1, 1 | 8}, {4, 0, 8}, {4, 2, 8}};
+        const int dir = kDirs[row][col];
+        const bool wasForward = (dpadDir & 1) != 0, forward = (dir & 1) != 0;
+        if (forward && !wasForward)
+            dpadSprint = Clock::now() - lastForwardTap < std::chrono::milliseconds(300);
+        if (!forward && wasForward) {
+            lastForwardTap = Clock::now();
+            dpadSprint = false;
+        }
+        dpadDir = dir;
+        ApplyStick(input);
+    }
+
     void TouchControls::ApplyStick(Input& input) {
         bool want[5] = {false, false, false, false, false};
-        if (stickActive) {
+        if (state.dpad) {
+            want[KeyForward] = (dpadDir & 1) != 0;
+            want[KeyBack] = (dpadDir & 2) != 0;
+            want[KeyLeft] = (dpadDir & 4) != 0;
+            want[KeyRight] = (dpadDir & 8) != 0;
+            want[KeySprint] = dpadSprint && want[KeyForward];
+        } else if (stickActive) {
             const float radius = std::max(1.0f, stickR);
             const float nx = knobX / radius, ny = knobY / radius;
             const float len = std::sqrt(nx * nx + ny * ny);
@@ -325,10 +434,34 @@ namespace perlin {
         }
     }
 
+    void TouchControls::EndAim(Input& input, bool tap) {
+        Finger* f = aimFinger >= 0 ? Find(aimFinger) : nullptr;
+        if (f) {
+            if (f->holding) {
+                input.SetTouchHold(false);
+                input.EndTouchAim(NowMs() + 150);
+            } else if (tap) {
+                input.AddTouchTap();
+                input.EndTouchAim(NowMs() + 250);
+            } else {
+                input.EndTouchAim(0);
+            }
+            f->aim = false;
+            f->holding = false;
+        } else {
+            input.SetTouchHold(false);
+            input.EndTouchAim(0);
+        }
+        aimFinger = -1;
+    }
+
     void TouchControls::ReleaseAll(Input& input) {
+        EndAim(input, false);
         FlushReleases(input, true);
         stickActive = false;
         knobX = knobY = 0.0f;
+        dpadDir = 0;
+        dpadSprint = false;
         sprintLatched = false;
         down[Sprint] = false;
         ApplyStick(input);
@@ -369,14 +502,16 @@ namespace perlin {
                 f.button = tool;
                 EditorPress(tool);
             } else {
-                const int hit = HitButton(x, y);
+                int hit = HitButton(x, y);
+                if (hit == Inventory || (hit == Sneak && state.dpad))
+                    hit = -1;
                 const float dx = x - stickCX, dy = y - stickCY;
                 if (hit >= 0) {
                     editSelected = hit;
                     f.role = Role::Drag;
                     f.grabX = layout[hit].cx - x;
                     f.grabY = layout[hit].cy - y;
-                } else if (dx * dx + dy * dy <= stickR * stickR * 2.25f) {
+                } else if (std::fabs(dx) <= stickR * 1.1f && std::fabs(dy) <= stickR * 1.1f) {
                     editSelected = ButtonCount;
                     f.role = Role::Drag;
                     f.grabX = stickCX - x;
@@ -410,7 +545,13 @@ namespace perlin {
         } else if (InHotbar(x, y, slot)) {
             Tap(input, static_cast<Action>(static_cast<int>(Action::Hotbar1) + slot));
             f.role = Role::None;
-        } else if (!stickActive &&
+        } else if (stickHidden) {
+            f.role = Role::Look;
+        } else if (state.dpad && !stickActive && std::fabs(x - stickCX) <= stickR && std::fabs(y - stickCY) <= stickR) {
+            f.role = Role::Stick;
+            stickActive = true;
+            UpdateDpad(input, x, y);
+        } else if (!state.dpad && !stickActive &&
                    (x - stickCX) * (x - stickCX) + (y - stickCY) * (y - stickCY) <= stickR * stickR * 2.56f) {
             f.role = Role::Stick;
             stickActive = true;
@@ -426,6 +567,13 @@ namespace perlin {
             ApplyStick(input);
         } else {
             f.role = Role::Look;
+        }
+        if (f.role == Role::Look && state.interaction != 1 && aimFinger < 0) {
+            f.aim = true;
+            f.downAt = Clock::now();
+            aimFinger = id;
+            input.SetTouchAim(x / static_cast<float>(std::max(1, width)), y / static_cast<float>(std::max(1, height)),
+                              kAimForever);
         }
         fingers.push_back(f);
     }
@@ -480,6 +628,10 @@ namespace perlin {
             Scroll(input, dy);
             break;
         case Role::Stick: {
+            if (state.dpad) {
+                UpdateDpad(input, x, y);
+                break;
+            }
             const float radius = std::max(1.0f, stickR);
             float ox = x - stickCX, oy = y - stickCY;
             const float len = std::sqrt(ox * ox + oy * oy);
@@ -494,15 +646,27 @@ namespace perlin {
         }
         case Role::Button:
             if (f->button == Attack || f->button == Use || f->button == Jump)
-                input.OnMouseDelta(dx * kLookScale * state.sensitivity, dy * kLookScale * state.sensitivity);
+                input.OnMouseDelta(dx * kLookScale * state.sensitivity,
+                                   (state.invertY ? -dy : dy) * kLookScale * state.sensitivity);
             break;
         case Role::Look:
-            input.OnMouseDelta(dx * kLookScale * state.sensitivity, dy * kLookScale * state.sensitivity);
+            if (f->aim) {
+                if (f->holding) {
+                    input.SetTouchAim(x / static_cast<float>(std::max(1, width)),
+                                      y / static_cast<float>(std::max(1, height)), kAimForever);
+                    break;
+                }
+                if (!f->moved)
+                    break;
+                EndAim(input, false);
+            }
+            input.OnMouseDelta(dx * kLookScale * state.sensitivity,
+                               (state.invertY ? -dy : dy) * kLookScale * state.sensitivity);
             break;
         case Role::Drag: {
             if (editSelected < 0)
                 break;
-            const char* name = editSelected == ButtonCount ? "stick" : kButtonNames[editSelected];
+            const char* name = SelectedName();
             TouchPlace p = editLayout.contains(name) ? editLayout[name] : TouchPlace{};
             p.x = std::clamp((x + f->grabX) / static_cast<float>(width), 0.02f, 0.98f);
             p.y = std::clamp((y + f->grabY) / static_cast<float>(height), 0.03f, 0.97f);
@@ -533,12 +697,20 @@ namespace perlin {
         case Role::Stick:
             stickActive = false;
             knobX = knobY = 0.0f;
+            if (state.dpad && (dpadDir & 1))
+                lastForwardTap = Clock::now();
+            dpadDir = 0;
+            dpadSprint = false;
             sprintLatched = false;
             down[Sprint] = false;
             ApplyStick(input);
             break;
         case Role::Button:
             ReleaseButton(input, f->button);
+            break;
+        case Role::Look:
+            if (f->aim && aimFinger == id)
+                EndAim(input, !f->moved);
             break;
         default:
             break;
@@ -560,6 +732,14 @@ namespace perlin {
             wasGameplay = gameplay;
             ReleaseAll(input);
             return;
+        }
+        if (gameplay && aimFinger >= 0) {
+            if (Finger* f = Find(aimFinger); f && f->aim && !f->holding && !f->moved &&
+                                              Clock::now() - f->downAt >= std::chrono::milliseconds(static_cast<int>(
+                                                                              state.holdDelay * 1000.0f))) {
+                f->holding = true;
+                input.SetTouchHold(true);
+            }
         }
         if (!gameplay) {
             const auto t = Clock::now();

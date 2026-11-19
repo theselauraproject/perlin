@@ -3,6 +3,7 @@
 #include "client/services/update/Updater.hpp"
 #include "network/Http.hpp"
 #include "util/Log.hpp"
+#include "util/Platform.hpp"
 #include "util/Resources.hpp"
 #include "util/ResourcePaths.hpp"
 #include "world/level/block/BlockPalette.hpp"
@@ -460,7 +461,11 @@ namespace perlin {
             const std::string threads = ",\"max_threads\":2";
 #else
             const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+#ifdef PERLIN_MOBILE
+            const unsigned genThreads = 2u;
+#else
             const unsigned genThreads = cores > 8 ? cores - 2 : std::max(2u, cores / 2);
+#endif
             const std::string threads = ",\"max_threads\":" + std::to_string(genThreads);
 #endif
             std::string extra;

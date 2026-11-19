@@ -45,6 +45,7 @@ namespace perlin::services {
         struct Hooks {
             std::function<void(const std::string& url, const std::string& code)> showSignInCode;
             std::function<void(const std::string& message)> log;
+            std::function<void()> signInEnded;
         };
 
         enum class SignInState { Idle, Waiting, Done, Failed };

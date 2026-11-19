@@ -31,6 +31,8 @@ public:
     void RenewRenderSurface() override;
     void SetTitle(const std::string& title) override;
     void ShowSignInCode(const std::string& url, const std::string& code) override;
+    void CloseSignIn() override;
+    bool TouchEditing() const override { return touch.Editing(); }
     bool ConfirmDialog(const std::string& title, const std::string& message) override;
     std::unique_ptr<perlin::RenderContext> CreateRenderContext() override;
     void SetTouchState(const perlin::TouchState& state) override;

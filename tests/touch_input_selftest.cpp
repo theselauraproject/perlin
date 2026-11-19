@@ -2,6 +2,8 @@
 #include "client/systems/input/Input.hpp"
 #include <cstdlib>
 #include <iostream>
+#include <chrono>
+#include <thread>
 using namespace perlin;
 static void Check(bool ok, const char* why) {
     if (!ok) {
@@ -13,6 +15,59 @@ int main() {
     TouchControls touch;
     Input input;
     TouchState state;
+    {
+        TouchControls pad;
+        Input padInput;
+        pad.SetViewport(1000, 1000);
+        pad.SetState(state);
+        padInput.SetCaptured(true);
+        pad.Update(padInput);
+        pad.FingerDown(padInput, 1, 222, 663);
+        pad.Update(padInput);
+        Check(padInput.IsKeyDown('W'), "dpad up did not move forward");
+        pad.FingerUp(padInput, 1, 222, 663);
+        pad.Update(padInput);
+        Check(!padInput.IsKeyDown('W'), "dpad release leaves forward held");
+    }
+    {
+        TouchControls t;
+        Input in;
+        TouchState ts;
+        ts.interaction = 0;
+        ts.holdDelay = 0.1f;
+        t.SetViewport(1000, 1000);
+        t.SetState(ts);
+        in.SetCaptured(true);
+        t.Update(in);
+        t.FingerDown(in, 1, 500, 300);
+        float ax = 0, ay = 0;
+        const auto now = [] {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                .count();
+        };
+        Check(in.TouchAim(now(), ax, ay) && ax == 0.5f && ay == 0.3f, "touch aim not at finger");
+        t.FingerUp(in, 1, 500, 300);
+        Check(in.TakeTouchTaps() == 1, "touch tap not reported");
+        t.FingerDown(in, 2, 500, 300);
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        t.Update(in);
+        Check(in.TouchHold(), "touch hold not reported");
+        t.FingerUp(in, 2, 500, 300);
+        Check(!in.TouchHold() && in.TakeTouchTaps() == 0, "touch hold leaks");
+        t.FingerDown(in, 3, 500, 300);
+        t.FingerMove(in, 3, 600, 300, 100, 0);
+        Check(!in.TouchAim(now(), ax, ay), "drag keeps touch aim");
+        t.FingerUp(in, 3, 600, 300);
+        Check(in.TakeTouchTaps() == 0, "drag counted as tap");
+        ts.interaction = 1;
+        t.SetState(ts);
+        t.FingerDown(in, 4, 500, 300);
+        t.FingerUp(in, 4, 500, 300);
+        Check(in.TakeTouchTaps() == 0, "crosshair mode taps world");
+    }
+    state.interaction = 1;
+    state.dpad = false;
     touch.SetViewport(1000, 1000);
     touch.SetState(state);
     input.SetCaptured(true);
@@ -61,7 +116,7 @@ int main() {
     touch.FingerDown(input, 8, 860, 830);
     touch.FingerMove(input, 8, 800, 700, -60, -130);
     touch.FingerUp(input, 8, 800, 700);
-    touch.FingerDown(input, 9, 755, 537);
+    touch.FingerDown(input, 9, 840, 500);
     touch.SetState(state);
     std::map<std::string, TouchPlace> edited;
     Check(touch.TakeEditResult(edited), "Done result lost when state refreshes");

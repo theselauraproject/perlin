@@ -38,6 +38,8 @@ public:
         return false;
     }
 
+    virtual void CloseSignIn() {}
+    virtual bool TouchEditing() const { return false; }
     virtual void ShowSignInCode(const std::string& url, const std::string& code) {
         (void)url;
         (void)code;

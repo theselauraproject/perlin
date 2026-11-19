@@ -2,6 +2,7 @@
 #include "client/systems/bindings/Keys.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <concurrentqueue.h>
 
 namespace perlin {
@@ -70,6 +71,26 @@ namespace perlin {
         float MouseX() const { return mouseX.load(std::memory_order_relaxed); }
         float MouseY() const { return mouseY.load(std::memory_order_relaxed); }
 
+        void SetTouchAim(float nx, float ny, int64_t untilMs) {
+            touchAimX.store(nx, std::memory_order_relaxed);
+            touchAimY.store(ny, std::memory_order_relaxed);
+            touchAimUntil.store(untilMs, std::memory_order_relaxed);
+        }
+        void EndTouchAim(int64_t untilMs) { touchAimUntil.store(untilMs, std::memory_order_relaxed); }
+        bool TouchAim(int64_t nowMs, float& nx, float& ny) const {
+            if (nowMs >= touchAimUntil.load(std::memory_order_relaxed))
+                return false;
+            nx = touchAimX.load(std::memory_order_relaxed);
+            ny = touchAimY.load(std::memory_order_relaxed);
+            return true;
+        }
+        void SetTouchHold(bool on) { touchHold.store(on, std::memory_order_relaxed); }
+        bool TouchHold() const { return touchHold.load(std::memory_order_relaxed); }
+        void AddTouchTap() { touchTaps.fetch_add(1, std::memory_order_relaxed); }
+        int TakeTouchTaps() { return touchTaps.exchange(0, std::memory_order_relaxed); }
+        void SetTouchInteract(bool on) { touchInteract.store(on, std::memory_order_relaxed); }
+        bool TouchInteract() const { return touchInteract.load(std::memory_order_relaxed); }
+
         moodycamel::ConcurrentQueue<InputEvent> events;
 
     private:
@@ -88,5 +109,10 @@ namespace perlin {
         std::atomic<bool> centerRequested{false};
         std::atomic<bool> textMode{false};
         std::atomic<bool> keyboard{false};
+        std::atomic<float> touchAimX{0.5f}, touchAimY{0.5f};
+        std::atomic<int64_t> touchAimUntil{0};
+        std::atomic<bool> touchHold{false};
+        std::atomic<int> touchTaps{0};
+        std::atomic<bool> touchInteract{false};
     };
 }

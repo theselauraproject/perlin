@@ -667,7 +667,8 @@ namespace perlin::screen {
         float cx, cy, cw, ch;
         if (options.showHud && !replayCtl.Playing() && !screens.AnyCoveringOpen() && !worldCovered() &&
             (camera.mode == PerspectiveMode::FirstPerson || options.thirdPersonCrosshair) &&
-            hudState.mode != ui::GameMode::Spectator && hud->Cursor(cx, cy, cw, ch))
+            hudState.mode != ui::GameMode::Spectator && !inputManager.Raw().TouchInteract() &&
+            hud->Cursor(cx, cy, cw, ch))
             renderer->DrawHudCursor(cx, cy, cw, ch);
     }
 }
