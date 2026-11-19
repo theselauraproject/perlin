@@ -80,6 +80,8 @@ namespace perlin {
         }
 
         bool OffhandAllowed(const std::string& full) {
+            if (OffhandExperiment())
+                return true;
             const std::string n = full.starts_with("minecraft:") ? full.substr(10) : full;
             static const char* const kAllowed[] = {"shield",         "totem_of_undying", "arrow",
                                                    "spectral_arrow", "tipped_arrow",     "firework_rocket",
@@ -764,6 +766,15 @@ namespace perlin {
         {
             std::lock_guard lock(statusMutex);
             slot = std::clamp(inventory.selected, 0, 8);
+        }
+        if (OffhandExperiment() && previewOffhand) {
+            {
+                std::lock_guard lock(statusMutex);
+                std::swap(InvInfoLocked(slot), InvInfoLocked(kInvOffhand));
+                std::swap(InvRawLocked(slot), InvRawLocked(kInvOffhand));
+            }
+            QueueInputFlag(InputFlag::SwapOffhand);
+            return;
         }
         InvSwapOffhand(slot);
     }

@@ -5,6 +5,7 @@
 #include "client/systems/renderer/chunk/ChunkMesher.hpp"
 #include "client/systems/sprites/ItemData.hpp"
 #include "client/systems/player/AmmoRules.hpp"
+#include "client/systems/player/OffhandRules.hpp"
 #include "client/systems/player/InteractionRules.hpp"
 #include "util/Clock.hpp"
 #include "util/Env.hpp"
@@ -240,9 +241,16 @@ namespace perlin::interaction {
         double& swingClock = mining.swingClock;
         const bool attackHeld = inputManager.IsDown(Action::Attack);
         if (inputManager.Pressed(Action::Attack)) {
-            handRenderer.Attack(options.hand, hudState.Survival());
+            const bool offAttack =
+                offhand::AttackOffhand(held, hudState.offhand) && aimHit.kind != AimHit::Kind::Block;
+            if (offAttack)
+                handRenderer.SwingOffhand();
+            else
+                handRenderer.Attack(options.hand, hudState.Survival());
             selfSwing++;
             swingClock = 0;
+            if (live)
+                live->SetAttackOffhand(offAttack);
             if (live) {
                 live->SendSwingArm(aimHit.kind == AimHit::Kind::Block ? "mine" : "attack");
                 if (aimHit.kind == AimHit::Kind::None)
@@ -257,6 +265,7 @@ namespace perlin::interaction {
                                             static_cast<float>(aimHit.point.z)};
                     live->SendAttackEntity(aimHit.entity, eyeF, click);
                 }
+                live->SetAttackOffhand(false);
             }
         }
         const bool creativeSword = creative && held.name.ends_with("_sword");
@@ -581,7 +590,10 @@ namespace perlin::interaction {
                 }
                 if (sent && !overlapsPadded && use != blockuse::Use::Nothing &&
                     (usePressed || use == blockuse::Use::Place)) {
-                    handRenderer.Swing(options.hand);
+                    if (offhandUse)
+                        handRenderer.SwingOffhand();
+                    else
+                        handRenderer.Swing(options.hand);
                     selfSwing++;
                     if (live)
                         live->SendSwingArm(use == blockuse::Use::Place ? "build" : "interact");
@@ -607,9 +619,10 @@ namespace perlin::interaction {
                 !dispatchModInteract(abi::InteractKind::UseItem, 0, 0, 0, 0, 0)) {
                 CustomItemDef custom;
                 const bool heldUse =
-                    serverBlocks.Item(held.name, custom)
-                        ? custom.useTicks > 0
-                        : blockuse::VanillaUseTicks(held.name, ui::IsFood(held.name)) > 0;
+                    (OffhandExperiment() && held.name == "minecraft:shield") ||
+                    (serverBlocks.Item(held.name, custom)
+                         ? custom.useTicks > 0
+                         : blockuse::VanillaUseTicks(held.name, ui::IsFood(held.name)) > 0);
                 live->SendUseItemInAir(eyeF, heldUse);
                 if (held.name == "minecraft:firework_rocket")
                     player.UseFirework();
@@ -646,6 +659,8 @@ namespace perlin::interaction {
         if (inputManager.Pressed(Action::ToggleHud))
             options.showHud = !options.showHud;
         if (!(live || preview) || !input.Captured() || input.TextMode() || replayPlaying()) {
+            if (live)
+                live->SetUseOffhand(false);
             aimHit = AimHit{};
             heldBuild.Stop();
             if (live)
@@ -676,13 +691,19 @@ namespace perlin::interaction {
             return;
         }
         UpdateBlockBreaking(f, held, creative);
-        UpdateBlockUse(f, held, creative);
+        offhandUse = offhand::UseOffhand(held, hudState.offhand);
+        if (live)
+            live->SetUseOffhand(offhandUse);
+        UpdateBlockUse(f, offhandUse ? hudState.offhand : held, creative);
     }
 
     void Player::UpdateEatingAndDrinking(FrameContext& f, BedrockSession& live) {
         auto& earlyItemUse = f.earlyItemUse;
         auto& blockedFoodUse = f.blockedFoodUse;
-        const auto& held = hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)];
+        const auto& mainHeld = hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)];
+        offhandUse = offhand::UseOffhand(mainHeld, hudState.offhand);
+        live.SetUseOffhand(offhandUse);
+        const auto& held = offhandUse ? hudState.offhand : mainHeld;
         const auto& name = held.name;
         const bool use =
             input.Captured() && inputManager.IsDown(Action::Use) && detail::HasAmmo(hudState, &live, name);
@@ -751,8 +772,9 @@ namespace perlin::interaction {
             if (!use)
                 useWasHeld = false;
         }
+        const bool shieldSlow = OffhandExperiment() && live.previewOffhand && name == "minecraft:shield";
         player.SetItemSlow(use && (eating || name == "minecraft:bow" || name == "minecraft:trident" ||
-                                   name == "minecraft:spyglass"),
+                                   name == "minecraft:spyglass" || shieldSlow),
                            useTicks, inputManager.Pressed(Action::Use));
     }
 

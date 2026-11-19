@@ -314,6 +314,7 @@ namespace perlin {
                 std::lock_guard lock(brandMutex);
                 serverBrand = BrandFrom(p.engine, p.gameVersion);
             }
+            previewOffhand = p.engine.find("Perlin Server") != std::string::npos;
             Log("bedrock", "client_side_generation={} (requested chunk radius {}, max view distance {})",
                 (clientGen ? "true" : "false"), chunkRadius, maxViewDistance);
             gotSpawn = true;

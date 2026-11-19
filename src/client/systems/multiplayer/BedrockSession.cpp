@@ -9,7 +9,6 @@
 #include "client/systems/multiplayer/NbtJson.hpp"
 #include "client/systems/multiplayer/PacketLog.hpp"
 #include "client/systems/multiplayer/BlobCache.hpp"
-#include "client/systems/input/PlayDevice.hpp"
 #include "client/systems/multiplayer/DeviceProfile.hpp"
 #include "client/systems/multiplayer/DefaultSkinGeometry.hpp"
 
@@ -430,7 +429,7 @@ namespace perlin {
             skin.DeviceOS = 1;
             skin.DeviceModel = device.model;
             skin.PlatformType = 1;
-            skin.CurrentInputMode = playdevice::Current();
+            skin.CurrentInputMode = 1;
             skin.DefaultInputMode = 2;
             {
                 const uint64_t gib = sysinfo::TotalMemory() >> 20;
@@ -1433,9 +1432,9 @@ namespace perlin {
         f.inputData.reserve(inputFlags.size());
         for (uint32_t id : inputFlags)
             f.inputData.push_back(static_cast<proto::InputData>(id));
-        f.inputMode = static_cast<proto::PlayerAuthInputPacketInputMode>(playdevice::Current());
+        f.inputMode = proto::PlayerAuthInputPacketInputMode::Mouse;
         f.playMode = proto::PlayerAuthInputPacketPlayMode::Normal;
-        f.interactionModel = static_cast<proto::PlayerAuthInputPacketInteractionModel>(playdevice::CurrentInteraction());
+        f.interactionModel = proto::PlayerAuthInputPacketInteractionModel::Crosshair;
         f.interactRotation = {input.pitch, input.yaw};
         f.tick = ++authTick;
         f.delta = {input.delta[0], input.delta[1], input.delta[2]};

@@ -14,9 +14,20 @@ namespace perlin::server {
         uint16_t count = 0;
         int32_t stackId = 0;
         uint16_t damage = 0;
+        std::vector<std::pair<int16_t, int16_t>> enchants;
         bool Empty() const { return networkId == 0 || count == 0; }
-        bool Same(const ItemStack& o) const { return networkId == o.networkId && damage == o.damage; }
+        bool Same(const ItemStack& o) const {
+            return networkId == o.networkId && damage == o.damage && enchants == o.enchants;
+        }
+        int Enchant(int id) const {
+            for (const auto& [e, level] : enchants)
+                if (e == id)
+                    return level;
+            return 0;
+        }
     };
+
+    int EnchantId(const std::string& name);
 
     int MaxStack(int16_t networkId);
     int ArmorSlotFor(int16_t networkId);
@@ -39,10 +50,13 @@ namespace perlin::server {
         std::vector<ItemStack> container;
         int containerKind = -1;
         int selected = 0;
+        bool offActive = false;
 
         ItemStack* Resolve(proto2225::ContainerSlotType type, int slot);
 
-        const ItemStack& Held() const { return main[static_cast<size_t>(selected)]; }
+        const ItemStack& Held() const { return offActive ? offhand : main[static_cast<size_t>(selected)]; }
+        ItemStack& HeldRef() { return offActive ? offhand : main[static_cast<size_t>(selected)]; }
+        const ItemStack& MainHeld() const { return main[static_cast<size_t>(selected)]; }
         ItemStack MakeStack(int16_t networkId, int count);
         int Give(int16_t networkId, int count);
         int Give(const ItemStack& stack);

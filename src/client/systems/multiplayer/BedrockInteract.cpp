@@ -29,7 +29,7 @@ namespace perlin {
         {
             std::lock_guard lock(statusMutex);
             selected = std::clamp(inventory.selected, 0, 8);
-            u.heldItem = inventoryRaw[selected];
+            u.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[selected];
         }
         if (use == 2 && (u.heldItem.count == 0 || u.heldItem.blockRuntimeId == 0))
             return false;
@@ -51,7 +51,7 @@ namespace perlin {
         u.blockPosition = {bx, by, bz};
         u.face = static_cast<uint8_t>(face);
         u.hotbarSlot = selected;
-        u.hand = TransactionUseItemHand::MainHand;
+        u.hand = useOffhand ? TransactionUseItemHand::OffHand : TransactionUseItemHand::MainHand;
         u.playerPos = haveLastAuthPos ? Vec3F{lastAuthPos[0], lastAuthPos[1] + kPlayerEyeHeight, lastAuthPos[2]} : V(eye);
         u.clickPos = V(click);
         {
@@ -99,7 +99,7 @@ namespace perlin {
             const bool creative = mode == 1 || mode == 6;
             if (!creative) {
                 std::lock_guard lock(statusMutex);
-                const int held = std::clamp(inventory.selected, 0, 8);
+                const int held = useOffhand ? kInvOffhand : std::clamp(inventory.selected, 0, 8);
                 if (InvInfoLocked(held).count > 0) {
                     InvInfoLocked(held).count--;
                     if (InvRawLocked(held).count > 0)
@@ -126,7 +126,7 @@ namespace perlin {
         {
             std::lock_guard lock(statusMutex);
             selected = std::clamp(inventory.selected, 0, 8);
-            u.heldItem = inventoryRaw[selected];
+            u.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[selected];
         }
         if (held)
             QueueInputFlag(InputFlag::StartUsingItem);
@@ -136,7 +136,7 @@ namespace perlin {
         u.blockPosition = {0, 0, 0};
         u.face = 255;
         u.hotbarSlot = selected;
-        u.hand = TransactionUseItemHand::MainHand;
+        u.hand = useOffhand ? TransactionUseItemHand::OffHand : TransactionUseItemHand::MainHand;
         u.playerPos = V(eye);
         u.clickPos = {0, 0, 0};
         u.blockRuntimeId = 0;
@@ -151,8 +151,9 @@ namespace perlin {
         {
             std::lock_guard lock(statusMutex);
             r.hotbarSlot = std::clamp(inventory.selected, 0, 8);
-            r.heldItem = inventoryRaw[r.hotbarSlot];
+            r.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[r.hotbarSlot];
         }
+        r.hand = useOffhand ? 1 : 0;
         r.actionType = consume ? TransactionTransactionDataCase2ActionType::Consume
                                : TransactionTransactionDataCase2ActionType::Release;
         r.headPos = V(eye);
@@ -168,8 +169,9 @@ namespace perlin {
         {
             std::lock_guard lock(statusMutex);
             a.hotbarSlot = std::clamp(inventory.selected, 0, 8);
-            a.heldItem = inventoryRaw[a.hotbarSlot];
+            a.heldItem = attackOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[a.hotbarSlot];
         }
+        a.hand = attackOffhand ? 1 : 0;
         a.entityRuntimeId = targetRuntimeId;
         a.actionType = TransactionTransactionDataCase1ActionType::Attack;
         a.playerPos = V(eye);
@@ -186,8 +188,9 @@ namespace perlin {
         {
             std::lock_guard lock(statusMutex);
             a.hotbarSlot = std::clamp(inventory.selected, 0, 8);
-            a.heldItem = inventoryRaw[a.hotbarSlot];
+            a.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[a.hotbarSlot];
         }
+        a.hand = useOffhand ? 1 : 0;
         a.entityRuntimeId = targetRuntimeId;
         a.actionType = TransactionTransactionDataCase1ActionType::Interact;
         a.playerPos = V(eye);

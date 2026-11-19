@@ -95,6 +95,7 @@ namespace perlin::interaction {
         LocalCrack localCrack;
         RecentBreak lastLocalBreak;
         bool usingItem = false;
+        bool offhandUse = false;
 
     private:
         void UpdateHotbar(FrameContext& f);

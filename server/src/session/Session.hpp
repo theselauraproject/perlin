@@ -166,6 +166,8 @@ namespace perlin::server {
         void SetGameMode(int mode);
         void SetOperator(bool op);
         void SendInventory();
+        void SwapOffhand();
+        const ItemStack& LastAttackItem() const { return lastAttackItem; }
         void SendSlot(int slot);
         void SendHeldSelection();
         void CorrectBlock(int x, int y, int z);
@@ -291,6 +293,19 @@ namespace perlin::server {
         int useTicks = -1;
         int useSlot = -1;
         int16_t useItem = 0;
+        struct HandScope {
+            HandScope(Session& s, bool off);
+            ~HandScope();
+            HandScope(const HandScope&) = delete;
+            HandScope& operator=(const HandScope&) = delete;
+            Session& self;
+            bool was;
+            bool on;
+        };
+        bool useOff = false;
+        bool shieldUp = false;
+        bool shieldOff = false;
+        ItemStack lastAttackItem;
         bool attributesDirty = false;
         bool dataDirty = false;
         int lastAirSent = 300;

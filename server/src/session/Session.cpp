@@ -911,7 +911,7 @@ namespace perlin::server {
     void Session::SendHeldSelection() {
         proto::MobEquipmentPacket m;
         m.runtimeEntityId = runtimeId;
-        m.item = ToWire(inventory.Held());
+        m.item = ToWire(inventory.MainHeld());
         m.slot = static_cast<uint8_t>(inventory.selected);
         m.selectedSlot = static_cast<uint8_t>(inventory.selected);
         m.windowId = proto::WindowID::Inventory;
@@ -1062,6 +1062,25 @@ namespace perlin::server {
         SendHeldSelection();
     }
 
+    Session::HandScope::HandScope(Session& s, bool off)
+        : self(s), was(s.inventory.offActive), on(off && !s.inventory.offhand.Empty()) {
+        self.inventory.offActive = on;
+    }
+
+    Session::HandScope::~HandScope() {
+        self.inventory.offActive = was;
+        if (on && !was)
+            self.SendInventory();
+    }
+
+    void Session::SwapOffhand() {
+        if (isVisitor || gameMode == 6)
+            return;
+        std::swap(inventory.main[static_cast<size_t>(inventory.selected)], inventory.offhand);
+        SendInventory();
+        server.BroadcastArmor(*this);
+    }
+
     void Session::OnPlayerAction(std::span<const uint8_t> body) {
         proto::PlayerActionPacket a;
         if (!Decode(body, a) || state != State::InGame)
@@ -1072,6 +1091,9 @@ namespace perlin::server {
             return;
         }
         switch (a.action) {
+        case proto::Action::SwapOffhand:
+            SwapOffhand();
+            break;
         case proto::Action::StartSprint:
         case proto::Action::StopSprint:
             sprinting = a.action == proto::Action::StartSprint && (food > 6 || gameMode == 1);
@@ -1117,10 +1139,12 @@ namespace perlin::server {
             if (!on || isVisitor || gameMode == 6 || dead)
                 return;
             lastActive = std::chrono::steady_clock::now();
+            if (on->hotbarSlot >= 0 && on->hotbarSlot < PlayerInventory::kHotbar)
+                inventory.selected = on->hotbarSlot;
+            HandScope hand(*this, on->hand == 1);
             if (on->actionType == proto::TransactionTransactionDataCase1ActionType::Attack) {
-                if (on->hotbarSlot >= 0 && on->hotbarSlot < PlayerInventory::kHotbar)
-                    inventory.selected = on->hotbarSlot;
                 const ItemStack held = inventory.Held();
+                lastAttackItem = held;
                 float damage = AttackDamage(held);
                 if (server.HookPlayerAttack(*this, on->entityRuntimeId, damage))
                     return;
@@ -1153,6 +1177,11 @@ namespace perlin::server {
             const auto* release = std::get_if<proto::TransactionTransactionDataCase2>(&t.transaction.transactionData);
             if (!release || dead)
                 return;
+            if (shieldUp) {
+                shieldUp = false;
+                dataDirty = true;
+            }
+            HandScope hand(*this, useTicks >= 0 ? useOff : release->hand == 1);
             if (useTicks >= 0 && ItemNameOf(useItem) == "minecraft:bow") {
                 ReleaseBow();
             } else if (release->actionType == proto::TransactionTransactionDataCase2ActionType::Consume && useTicks >= 0) {
@@ -1177,6 +1206,8 @@ namespace perlin::server {
         if (isVisitor || gameMode == 6)
             return;
         lastActive = std::chrono::steady_clock::now();
+        HandScope hand(*this, use->hand == proto::TransactionUseItemHand::OffHand &&
+                                  use->actionType != proto::TransactionUseItemActionType::BreakBlock);
         switch (use->actionType) {
         case proto::TransactionUseItemActionType::BreakBlock:
             server.PlayerBreak(*this, at.x, at.y, at.z);
@@ -1201,6 +1232,12 @@ namespace perlin::server {
             }
             break;
         case proto::TransactionUseItemActionType::ClickAir:
+            if (!inventory.Held().Empty() && ItemNameOf(inventory.Held().networkId) == "minecraft:shield") {
+                shieldUp = true;
+                shieldOff = inventory.offActive;
+                dataDirty = true;
+                break;
+            }
             if (!EquipHeldArmor() && useTicks < 0)
                 StartUsing();
             break;
@@ -1476,6 +1513,8 @@ namespace perlin::server {
             dataDirty = true;
         if (state != State::InGame)
             return;
+        if (std::ranges::find(in.inputData, proto::InputData::SwapOffhand) != in.inputData.end())
+            SwapOffhand();
         if (std::abs(posX - lastHookX) + std::abs(posY - lastHookY) + std::abs(posZ - lastHookZ) > 0.1) {
             lastHookX = posX;
             lastHookY = posY;
@@ -1951,7 +1990,7 @@ namespace perlin::server {
     void Session::DamageHeld(int amount) {
         if (gameMode == 1 || gameMode == 6)
             return;
-        ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
+        ItemStack& held = inventory.HeldRef();
         if (held.Empty())
             return;
         const int max = MaxDurability(held.networkId);
@@ -2008,12 +2047,13 @@ namespace perlin::server {
     }
 
     bool Session::Shielding(double fromX, double fromZ) const {
-        if (!sneaking)
-            return false;
         const auto isShield = [](const ItemStack& s) {
             return !s.Empty() && ItemNameOf(s.networkId) == "minecraft:shield";
         };
-        if (!isShield(inventory.offhand) && !isShield(inventory.Held()))
+        const bool raised = shieldUp && isShield(shieldOff ? inventory.offhand : inventory.MainHeld());
+        if (!sneaking && !raised)
+            return false;
+        if (!isShield(inventory.offhand) && !isShield(inventory.MainHeld()))
             return false;
         const double yawRad = static_cast<double>(yaw) * 3.14159265358979323846 / 180.0;
         const double lookX = -std::sin(yawRad), lookZ = std::cos(yawRad);
@@ -2320,6 +2360,8 @@ namespace perlin::server {
                 }
             }
         }
+        if (const int sharp = held.Enchant(9); sharp > 0)
+            damage += 1.25f * static_cast<float>(sharp);
         damage += 3.0f * static_cast<float>(EffectLevel(5));
         damage -= 4.0f * static_cast<float>(EffectLevel(18));
         const bool falling = !onGround && fallDistance > 0.0f && !swimming && !gliding && !flying;
@@ -2362,6 +2404,7 @@ namespace perlin::server {
             return;
         }
         const std::string n = ItemNameOf(held.networkId);
+        useOff = inventory.offActive;
         if (n == "minecraft:bow") {
             bool ammo = gameMode == 1;
             for (const ItemStack& s : inventory.main)
@@ -2453,7 +2496,8 @@ namespace perlin::server {
     }
 
     void Session::FinishUsing() {
-        ItemStack& held = inventory.main[static_cast<size_t>(inventory.selected)];
+        HandScope hand(*this, useOff);
+        ItemStack& held = inventory.HeldRef();
         if (held.Empty() || held.networkId != useItem) {
             StopUsing();
             return;
@@ -2558,6 +2602,8 @@ namespace perlin::server {
             flags |= F::Onfire;
         if (sneaking)
             flags |= F::Sneaking;
+        if (shieldUp || useTicks >= 0)
+            flags |= F::Action;
         if (sprinting)
             flags |= F::Sprinting;
         if (swimming)
@@ -2834,7 +2880,8 @@ namespace perlin::server {
             FoodTick();
             EnvironmentTick();
             if (useTicks >= 0) {
-                if (inventory.selected != useSlot || inventory.Held().networkId != useItem) {
+                const ItemStack& usedNow = useOff ? inventory.offhand : inventory.MainHeld();
+                if (inventory.selected != useSlot || usedNow.networkId != useItem) {
                     StopUsing();
                 } else {
                     useTicks++;

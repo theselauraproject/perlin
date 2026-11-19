@@ -242,7 +242,7 @@ namespace perlin::screen {
         s.selectedSlot = std::clamp(inv.selected, 0, 8);
         for (int i = 0; i < 9; i++)
             s.hotbar[i] = ToHudItem(inv.hotbar[i]);
-        s.offhand = options.hand.showOffhand ? ToHudItem(inv.offhand) : ui::HudItem{};
+        s.offhand = options.hand.showOffhand || OffhandExperiment() ? ToHudItem(inv.offhand) : ui::HudItem{};
         s.offhandRight = options.hand.leftHanded;
         int armor = 0;
         for (int i = 0; i < 4; i++) {
@@ -544,17 +544,8 @@ namespace perlin::screen {
         const bool sneaking = self.Has(entity::flag::Sneaking);
         const bool swimming = self.Has(entity::flag::Swimming);
         const bool sprinting = self.Has(entity::flag::Sprinting) && !headUnderwater;
-        const bool hurt = paperDollTimer.started && self.hurtSerial != paperDollTimer.hurtSeen;
-        if (self.hurtSerial != paperDollTimer.hurtSeen) {
-            paperDollTimer.hurtSeen = self.hurtSerial;
-            paperDollTimer.hurtAt = now;
-        }
-        if (!paperDollTimer.started)
-            paperDollTimer.hurtShown = self.hurtSerial;
         if (sneaking || swimming || sprinting)
             paperDollTimer.remaining = 1.0;
-        else if (hurt)
-            paperDollTimer.remaining = std::max(paperDollTimer.remaining, 1.0);
         else if (live.IsFlying() || self.Has(entity::flag::Gliding))
             paperDollTimer.remaining = 0.35;
         else if (!paperDollTimer.started || paperDollTimer.armor != armor)
@@ -580,10 +571,6 @@ namespace perlin::screen {
         entity::Entity doll = *dollSelf;
         doll.runtimeId = 0xFFFFFFFFFFFF0004ull;
         doll.isSelf = true;
-        // a hit taken while the doll was hidden must not flash once it shows up
-        if (f.frameStart - paperDollTimer.hurtAt < std::chrono::milliseconds(500))
-            paperDollTimer.hurtShown = paperDollTimer.hurtSeen;
-        doll.hurtSerial = paperDollTimer.hurtShown;
         entity::EntityRenderer::FrameIn din;
         din.time = std::chrono::duration<double>(f.frameStart - loop->startedAt).count();
         din.dt = f.dt;

@@ -21,6 +21,7 @@ namespace perlin {
         constexpr uint32_t StopFlying = static_cast<uint32_t>(proto::InputData::StopFlying);
         constexpr uint32_t MissedSwing = static_cast<uint32_t>(proto::InputData::MissedSwing);
         constexpr uint32_t StartUsingItem = static_cast<uint32_t>(proto::InputData::StartUsingItem);
+        constexpr uint32_t SwapOffhand = static_cast<uint32_t>(proto::InputData::SwapOffhand);
     }
 
 }

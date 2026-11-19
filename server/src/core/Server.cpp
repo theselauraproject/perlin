@@ -936,7 +936,8 @@ namespace perlin::server {
         if (!by.Creative() && RuleValue("dotiledrops")) {
             const ItemStack& held = by.Inventory().Held();
             const CatalogItem* tool = held.Empty() ? nullptr : BlockCatalog::Instance().ItemById(held.networkId);
-            DropBlockLoot(dim, x, y, z, current, tool ? tool->name : std::string(), 0.0f, &by);
+            DropBlockLoot(dim, x, y, z, current, tool ? tool->name : std::string(), 0.0f, &by, held.Enchant(18),
+                          held.Enchant(16));
         }
         ApplyBlock(dim, x, y, z, BlockRegistry::kAir);
         OnBlockRemoved(by, dim, x, y, z, name);
@@ -946,7 +947,7 @@ namespace perlin::server {
     }
 
     void Server::DropBlockLoot(int dim, int x, int y, int z, uint16_t block, const std::string& tool,
-                               float explosionRadius, Session* by) {
+                               float explosionRadius, Session* by, int fortune, int silkTouch) {
         static std::mt19937 rng{std::random_device{}()};
         const std::string name = BlockRegistry::Instance().Name(block);
         const LootBlock view = LootTables::ViewOf(name, BlockRegistry::Instance().States(block));
@@ -959,6 +960,8 @@ namespace perlin::server {
             LootContext ctx;
             ctx.rng = &rng;
             ctx.tool = tool;
+            ctx.fortune = fortune;
+            ctx.silkTouch = silkTouch;
             ctx.explosionRadius = explosionRadius;
             ctx.block = view;
             ctx.attackerType = by ? "minecraft:player" : "";

@@ -2472,7 +2472,8 @@
           "34": "start_flying",
           "35": "stop_flying",
           "36": "received_server_data",
-          "37": "start_using_item"
+          "37": "start_using_item",
+          "38": "swap_offhand"
         }
       }
     ],
@@ -13216,7 +13217,7 @@
           "62": "sneak_released_raw",
           "63": "sneak_pressed_raw",
           "64": "sneak_current_raw",
-          "65": "internal_update"
+          "65": "swap_offhand"
         }
       }
     ],

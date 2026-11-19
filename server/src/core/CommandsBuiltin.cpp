@@ -381,6 +381,39 @@ namespace perlin::server {
                                       (left ? " (inventory full)" : ""));
                 }
             });
+        add({"enchant"}, "Adds an enchantment to a player's selected item", true,
+            {"<player:targets> <enchantmentName:enum(protection|fire_protection|feather_falling|blast_protection|"
+             "projectile_protection|thorns|respiration|depth_strider|aqua_affinity|sharpness|smite|"
+             "bane_of_arthropods|knockback|fire_aspect|looting|efficiency|silk_touch|unbreaking|fortune|power|"
+             "punch|flame|infinity|luck_of_the_sea|lure|frost_walker|mending|binding|vanishing|impaling|riptide|"
+             "loyalty|channeling|multishot|piercing|quick_charge|soul_speed|swift_sneak|wind_burst|density|"
+             "breach)> [level:int]"},
+            [say, fail](CommandCtx& c) {
+                const int id = EnchantId(c["enchantmentName"].text);
+                const int64_t level = c.Has("level") ? c["level"].integer : 1;
+                if (id < 0 || level < 1 || level > 255) {
+                    fail(c.source, "Invalid enchantment or level");
+                    return;
+                }
+                for (Session* s : c["player"].players) {
+                    ItemStack& held = s->Inventory().main[static_cast<size_t>(s->Inventory().selected)];
+                    if (held.Empty()) {
+                        fail(c.source, s->Name() + " is not holding an item");
+                        continue;
+                    }
+                    bool replaced = false;
+                    for (auto& [e, l] : held.enchants)
+                        if (e == id) {
+                            l = static_cast<int16_t>(level);
+                            replaced = true;
+                        }
+                    if (!replaced)
+                        held.enchants.emplace_back(static_cast<int16_t>(id), static_cast<int16_t>(level));
+                    held.stackId = s->Inventory().NewStackId();
+                    s->SendInventory();
+                    say(c.source, "Enchanting succeeded for " + s->Name());
+                }
+            });
         std::string mobNames;
         for (int i = 0; i < kMobDefCount; i++) {
             const std::string id = kMobDefs[i].id;

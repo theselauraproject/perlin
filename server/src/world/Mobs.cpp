@@ -366,9 +366,10 @@ namespace perlin::server {
             ctx.cubeSize = java == "magma_cube" ? 2 : 1;
             ctx.attackerType = killer ? "minecraft:player" : "";
             if (killer) {
-                const ItemStack& held = killer->Inventory().Held();
+                const ItemStack& held = killer->LastAttackItem();
                 if (const CatalogItem* item = held.Empty() ? nullptr : BlockCatalog::Instance().ItemById(held.networkId))
                     ctx.tool = item->name;
+                ctx.looting = held.Enchant(14);
             }
             drops = loot.Roll("entities/" + java, ctx);
         } else {

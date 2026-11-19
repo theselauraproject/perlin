@@ -252,9 +252,11 @@ namespace perlin {
     }
 
     void HandRenderer::Tick(const TickIn& in, const HandSettings& s) {
-        armSwing.Tick(s.swingSpeed == 1.0f ? in.swingTicks
-                                           : static_cast<int>(std::lround(static_cast<float>(in.swingTicks) /
-                                                                          std::max(0.1f, s.swingSpeed))));
+        const int swingTicks = s.swingSpeed == 1.0f ? in.swingTicks
+                                                    : static_cast<int>(std::lround(static_cast<float>(in.swingTicks) /
+                                                                                   std::max(0.1f, s.swingSpeed)));
+        armSwing.Tick(swingTicks);
+        offSwing.Tick(swingTicks);
         showSwing = s.swing;
         attackStrengthTicker++;
 
@@ -270,14 +272,17 @@ namespace perlin {
         }
         {
             const auto is = [](const ui::HudItem& i, const char* n) { return i.name == n; };
-            const bool drawable = is(in.main, "minecraft:bow") || is(in.main, "minecraft:crossbow") ||
-                                  is(in.main, "minecraft:trident");
+            useOffhandAnim = in.useOff;
+            const ui::HudItem& user = in.useOff ? in.off : in.main;
+            const bool drawable = is(user, "minecraft:bow") || is(user, "minecraft:crossbow") ||
+                                  is(user, "minecraft:trident");
             const bool shield = is(in.main, "minecraft:shield") || is(in.off, "minecraft:shield");
             useHeld = in.useHeld && drawable;
             usedTicks = useHeld ? usedTicks + 1 : 0;
-            blocking =
-                shield && (in.sneaking || (in.useHeld && (is(in.main, "minecraft:shield") || !drawable)));
-            scoping = in.useHeld && is(in.main, "minecraft:spyglass");
+            blocking = OffhandExperiment()
+                           ? shield && (in.sneaking || (in.useHeld && is(user, "minecraft:shield")))
+                           : shield && (in.sneaking || (in.useHeld && (is(in.main, "minecraft:shield") || !drawable)));
+            scoping = in.useHeld && is(user, "minecraft:spyglass");
             oScopeScale = scopeScale;
             scopeScale = scoping ? scopeScale + (1.125f - scopeScale) * 0.5f : 0.5f;
             if (!scoping)
@@ -1189,7 +1194,7 @@ namespace perlin {
         m = m * Custom(s.itemX, s.itemY, s.itemZ, s.itemRotX, s.itemRotY, s.itemRotZ, s.itemScale, side);
         if (!rightArm)
             m = m * kMirrorX;
-        const bool isMain = &item == &mainShown;
+        const bool isMain = (&item == &mainShown) != useOffhandAnim;
         const bool drawing = isMain && useHeld && item.name == "minecraft:bow";
         const float sq = std::sqrt(swing);
         if (!drawing)
@@ -1227,7 +1232,7 @@ namespace perlin {
         const float side = rightArm ? 1.0f : -1.0f;
         glm::mat4 m = in.viewEffect;
         m = m * Custom(s.itemX, s.itemY, s.itemZ, s.itemRotX, s.itemRotY, s.itemRotZ, s.itemScale, side);
-        const bool isMain = &item == &mainShown;
+        const bool isMain = (&item == &mainShown) != useOffhandAnim;
         const bool isBow = item.name == "minecraft:bow", isTrident = item.name == "minecraft:trident",
                    isCrossbow = item.name == "minecraft:crossbow";
         const bool useAnim = isMain && useHeld && !blocking && (isBow || isTrident || isCrossbow);
@@ -1597,7 +1602,7 @@ namespace perlin {
         } else if (!(rig && RigItem(mainShown.name))) {
             item(mainShown, mainRight, swing, mainEquip);
         }
-        if (s.showOffhand && !offShown.Empty() && !(rig && RigItem(offShown.name)))
-            item(offShown, !mainRight, 0.0f, offEquip);
+        if ((s.showOffhand || OffhandExperiment()) && !offShown.Empty() && !(rig && RigItem(offShown.name)))
+            item(offShown, !mainRight, showSwing ? offSwing.Progress(in.partial) : 0.0f, offEquip);
     }
 }

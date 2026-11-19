@@ -715,6 +715,9 @@ namespace perlin {
         void InvHotbarKey(int addr, int hotbar);
         void InvSwapOffhand(int addr);
         void SwapOffhand();
+        std::atomic<bool> useOffhand{false};
+        std::atomic<bool> previewOffhand{false};
+        std::atomic<bool> attackOffhand{false};
         void InvDropCursor(bool whole);
         void InvDropSlot(int addr, bool whole);
         void InvReturnCursor();
@@ -755,6 +758,8 @@ namespace perlin {
         bool PredictBridgePlace(int x, int y, int z, int32_t heldRuntimeId, int face, const float click[3]);
         bool SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3], int use, const int dest[3], bool repeat = false);
         bool SendUseItemInAir(const float eye[3], bool held);
+        void SetUseOffhand(bool v) { useOffhand = v; }
+        void SetAttackOffhand(bool v) { attackOffhand = v; }
         bool SendReleaseItem(const float eye[3], bool consume = false);
         bool SendAttackEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendInteractEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
@@ -1189,8 +1194,6 @@ namespace perlin {
         std::array<bool, 2> ownFlagWordsKnown{};
         std::optional<proto::PlayerAttributesEntry> movementAttribute;
         std::vector<proto::PlayerAttributesEntryModifiersEntry> movementModifiers;
-        // speed/slowness modifiers we added because the server's attribute left them out
-        std::array<bool, 2> ownEffectModifier{};
         std::array<float, 3> movementBase{};
         std::array<float, 2> movementLimits{};
         float movementValue = 0.1f;

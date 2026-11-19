@@ -1,7 +1,6 @@
 #pragma once
 #include "client/platform/Application.hpp"
 #include "client/systems/input/TouchControls.hpp"
-#include "client/systems/input/PlayDevice.hpp"
 #include "client/platform/AppPlatform.hpp"
 
 #include <atomic>
@@ -86,7 +85,6 @@ private:
     std::atomic<bool> backgrounded{false};
     bool recaptureAfterText = false;
     bool touchMode = false;
-    bool padPlaying = false;
 
     bool adaptiveInput = true;
 

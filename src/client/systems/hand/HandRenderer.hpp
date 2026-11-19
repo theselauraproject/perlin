@@ -38,6 +38,7 @@ namespace perlin {
             bool sneaking = false;
             bool useHeld = false;
             bool eating = false;
+            bool useOff = false;
             int slot = 0;
             int swingTicks = 6;
         };
@@ -47,6 +48,7 @@ namespace perlin {
         void RenderScope(int width, int height, float partial);
         void Tick(const TickIn& in, const HandSettings& settings);
         void Swing(const HandSettings& settings);
+        void SwingOffhand() { offSwing.Start(); }
         void Attack(const HandSettings& settings, bool resetsCooldown);
         float SwingProgress(float partial) const;
         void ForceSwingProgress(float progress) { forcedSwing = progress; }
@@ -151,6 +153,8 @@ namespace perlin {
         RenderContext* renderer = nullptr;
 
         hand::Swing armSwing;
+        hand::Swing offSwing;
+        bool useOffhandAnim = false;
         bool showSwing = true;
         int attackStrengthTicker = 100;
         float forcedSwing = -1.0f;

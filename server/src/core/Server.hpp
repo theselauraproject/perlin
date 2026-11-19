@@ -124,7 +124,7 @@ namespace perlin::server {
 
         bool PlayerBreak(Session& by, int x, int y, int z);
         void DropBlockLoot(int dimension, int x, int y, int z, uint16_t block, const std::string& tool,
-                           float explosionRadius, Session* by);
+                           float explosionRadius, Session* by, int fortune = 0, int silkTouch = 0);
         void SpawnXp(int dimension, double x, double y, double z, int amount);
         bool PlayerPlace(Session& by, int x, int y, int z, int face);
         void SendBlockTo(Session& to, int x, int y, int z);

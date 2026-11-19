@@ -6,7 +6,9 @@
 #include "world/BlockCatalog.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
+#include <string>
 
 namespace perlin::server {
     namespace proto = proto2225;
@@ -157,7 +159,7 @@ namespace perlin::server {
     int PlayerInventory::Give(const ItemStack& stack) {
         if (stack.Empty())
             return 0;
-        if (stack.damage == 0)
+        if (stack.damage == 0 && stack.enchants.empty())
             return Give(stack.networkId, stack.count);
         int left = stack.count;
         for (ItemStack& s : main) {
@@ -166,6 +168,7 @@ namespace perlin::server {
             if (s.Empty()) {
                 s = MakeStack(stack.networkId, 1);
                 s.damage = stack.damage;
+                s.enchants = stack.enchants;
                 left--;
             }
         }
@@ -173,7 +176,7 @@ namespace perlin::server {
     }
 
     bool PlayerInventory::TakeHeld(int count) {
-        ItemStack& s = main[static_cast<size_t>(selected)];
+        ItemStack& s = HeldRef();
         if (s.Empty() || s.count < count)
             return false;
         s.count = static_cast<uint16_t>(s.count - count);
@@ -216,11 +219,35 @@ namespace perlin::server {
         out.stackId = stack.stackId;
         if (const CatalogItem* item = BlockCatalog::Instance().ItemById(stack.networkId); item && item->block)
             out.blockRuntimeId = static_cast<uint32_t>(item->blockHash);
-        if (stack.damage > 0) {
-            std::vector<uint8_t> nbt = {0x0A, 0x00, 0x00, 0x03, 0x06, 0x00, 'D', 'a', 'm', 'a', 'g', 'e'};
-            const uint32_t d = stack.damage;
-            for (int i = 0; i < 4; i++)
-                nbt.push_back(static_cast<uint8_t>(d >> (8 * i)));
+        if (stack.damage > 0 || !stack.enchants.empty()) {
+            std::vector<uint8_t> nbt = {0x0A, 0x00, 0x00};
+            const auto name = [&](uint8_t type, const char* n) {
+                nbt.push_back(type);
+                const size_t len = std::char_traits<char>::length(n);
+                nbt.push_back(static_cast<uint8_t>(len));
+                nbt.push_back(0x00);
+                nbt.insert(nbt.end(), n, n + len);
+            };
+            const auto le = [&](uint32_t v, int bytes) {
+                for (int i = 0; i < bytes; i++)
+                    nbt.push_back(static_cast<uint8_t>(v >> (8 * i)));
+            };
+            if (stack.damage > 0) {
+                name(0x03, "Damage");
+                le(stack.damage, 4);
+            }
+            if (!stack.enchants.empty()) {
+                name(0x09, "ench");
+                nbt.push_back(0x0A);
+                le(static_cast<uint32_t>(stack.enchants.size()), 4);
+                for (const auto& [id, level] : stack.enchants) {
+                    name(0x02, "id");
+                    le(static_cast<uint16_t>(id), 2);
+                    name(0x02, "lvl");
+                    le(static_cast<uint16_t>(level), 2);
+                    nbt.push_back(0x00);
+                }
+            }
             nbt.push_back(0x00);
             const auto fill = [&](auto& extra) {
                 extra.hasNbt = decltype(extra.hasNbt)::True;
@@ -234,6 +261,24 @@ namespace perlin::server {
                 fill(out.extra.emplace<2>());
         }
         return out;
+    }
+
+    int EnchantId(const std::string& name) {
+        static const char* const kNames[] = {
+            "protection",    "fire_protection", "feather_falling", "blast_protection", "projectile_protection",
+            "thorns",        "respiration",     "depth_strider",   "aqua_affinity",    "sharpness",
+            "smite",         "bane_of_arthropods", "knockback",    "fire_aspect",      "looting",
+            "efficiency",    "silk_touch",      "unbreaking",      "fortune",          "power",
+            "punch",         "flame",           "infinity",        "luck_of_the_sea",  "lure",
+            "frost_walker",  "mending",         "binding",         "vanishing",        "impaling",
+            "riptide",       "loyalty",         "channeling",      "multishot",        "piercing",
+            "quick_charge",  "soul_speed",      "swift_sneak",     "wind_burst",       "density",
+            "breach"};
+        const std::string n = name.starts_with("minecraft:") ? name.substr(10) : name;
+        for (int i = 0; i < static_cast<int>(std::size(kNames)); i++)
+            if (n == kNames[i])
+                return i;
+        return -1;
     }
 
     int MaxDurability(int16_t networkId) {
@@ -358,6 +403,7 @@ namespace perlin::server {
             } else {
                 dst.networkId = src.networkId;
                 dst.damage = src.damage;
+                dst.enchants = src.enchants;
                 dst.count = static_cast<uint16_t>(count);
             }
             src.count = static_cast<uint16_t>(src.count - count);

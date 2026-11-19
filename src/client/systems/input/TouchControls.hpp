@@ -45,7 +45,6 @@ namespace perlin {
         bool TakeEditResult(std::map<std::string, TouchPlace>& out);
         bool Editing() const { return editing; }
         bool TouchInteraction() const { return state.interaction != 1; }
-        int Interaction() const { return state.interaction; }
 
     private:
         enum class Role { None, Stick, Button, Look, Pointer, Scroll, Drag, EditorButton };

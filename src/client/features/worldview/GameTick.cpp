@@ -1,3 +1,4 @@
+#include "client/systems/player/OffhandRules.hpp"
 #include "client/systems/model/DialFrames.hpp"
 #include <numbers>
 #include <cmath>
@@ -82,11 +83,13 @@ namespace perlin::worldview {
                 }
                 handIn.survival = hudState.Survival();
                 handIn.sneaking = player.Sneaking();
+                handIn.useOff = offhand::UseOffhand(handIn.main, handIn.off);
+                const ui::HudItem& userItem = handIn.useOff ? handIn.off : handIn.main;
                 handIn.useHeld = ((input.Captured() && inputManager.IsDown(Action::Use)) ||
                                   PERLIN_ENV("PERLIN_PREVIEW_USE") != nullptr) &&
-                                 detail::HasAmmo(hudState, live, handIn.main.name);
+                                 detail::HasAmmo(hudState, live, userItem.name);
                 {
-                    const std::string& mn = handIn.main.name;
+                    const std::string& mn = userItem.name;
                     const bool drink = mn == "minecraft:potion" || mn == "minecraft:milk_bucket" ||
                                        mn == "minecraft:honey_bottle" || mn == "minecraft:ominous_bottle";
                     const bool always =
@@ -99,7 +102,7 @@ namespace perlin::worldview {
                 {
                     const int et = handRenderer.EatTicks();
                     if (et >= 7 && et % 4 == 3) {
-                        const std::string& mn = handIn.main.name;
+                        const std::string& mn = userItem.name;
                         const bool drink = mn == "minecraft:potion" || mn == "minecraft:milk_bucket" ||
                                            mn == "minecraft:honey_bottle" || mn == "minecraft:ominous_bottle";
                         sounds.PlayEntityEvent("minecraft:player", drink ? "drink" : "eat",
