@@ -220,17 +220,20 @@ namespace perlin {
                                   yLo >= Chunk::MIN_Y ? Result::kSkyOnly : uint8_t{0});
                 return true;
             }
-            grid.ids.assign(kLayer * static_cast<size_t>(grid.rows), 0);
+            // every cell is written below (absent chunks and sections as air), so no clearing pass first
+            grid.ids.resize(kLayer * static_cast<size_t>(grid.rows));
             for (int row = 0; row < grid.rows; row++) {
                 const int y = grid.yBase + row;
-                for (int z = 0; z < kSpan; z++)
-                    for (int cx = 0; cx < 3; cx++)
-                        if (const Chunk* src = around[z >> 4][cx])
-                            src->CopyRun(
-                                y, z & 15, 0, 16,
-                                &grid.ids[static_cast<size_t>(row) * kLayer + static_cast<size_t>(z) * kSpan +
-                                          static_cast<size_t>(cx) * 16],
-                                nullptr, nullptr);
+                for (int cz = 0; cz < 3; cz++)
+                    for (int cx = 0; cx < 3; cx++) {
+                        uint16_t* dst = &grid.ids[static_cast<size_t>(row) * kLayer +
+                                                  static_cast<size_t>(cz) * 16 * kSpan + static_cast<size_t>(cx) * 16];
+                        if (const Chunk* src = around[cz][cx])
+                            src->CopyRows(y, 0, 16, 0, 16, dst, kSpan);
+                        else
+                            for (int z = 0; z < 16; z++)
+                                std::fill_n(dst + static_cast<size_t>(z) * kSpan, 16, uint16_t(0));
+                    }
             }
         }
 

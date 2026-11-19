@@ -306,6 +306,18 @@ namespace perlin {
             s->liquid.CopyOut(local, n, liquid);
     }
 
+    void Chunk::CopyRows(int y, int z0, int zn, int x0, int n, uint16_t* blocks, size_t zStride) const {
+        const auto* s = y >= MIN_Y && y < MIN_Y + HEIGHT ? sections[(y - MIN_Y) >> 4].get() : nullptr;
+        if (!s || s->blocks.Empty()) {
+            const uint16_t fill = s ? s->uniform : uint16_t(0);
+            for (int i = 0; i < zn; i++)
+                std::fill_n(blocks + static_cast<size_t>(i) * zStride, n, fill);
+            return;
+        }
+        for (int i = 0; i < zn; i++)
+            s->blocks.CopyOut(Local(x0, y, z0 + i), n, blocks + static_cast<size_t>(i) * zStride);
+    }
+
     void Chunk::ReadBlocks(int x, int z, int yLo, int yHi, uint16_t* blocks, size_t stride) const {
         for (int y = yLo; y <= yHi; y++) {
             const auto& s = sections[(y - MIN_Y) >> 4];
