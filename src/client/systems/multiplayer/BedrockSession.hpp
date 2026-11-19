@@ -1189,6 +1189,8 @@ namespace perlin {
         std::array<bool, 2> ownFlagWordsKnown{};
         std::optional<proto::PlayerAttributesEntry> movementAttribute;
         std::vector<proto::PlayerAttributesEntryModifiersEntry> movementModifiers;
+        // speed/slowness modifiers we added because the server's attribute left them out
+        std::array<bool, 2> ownEffectModifier{};
         std::array<float, 3> movementBase{};
         std::array<float, 2> movementLimits{};
         float movementValue = 0.1f;
