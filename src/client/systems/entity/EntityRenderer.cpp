@@ -959,7 +959,7 @@ namespace perlin::entity {
         }
         vars["map_face_icon"] = Value::Num(0);
         vars["player_x_rotation"] = Value::Num(v.pitch);
-        vars["is_paperdoll"] = Value::Num(0);
+        vars["is_paperdoll"] = Value::Num(buildingDoll ? 1 : 0);
         vars["is_brandishing_spear"] = Value::Num(0);
         if (!v.initialised) {
             v.initialised = true;
@@ -1970,7 +1970,11 @@ namespace perlin::entity {
         Track(e, v, in);
         std::vector<Layer> layers;
         float scale = 1.0f;
-        if (Build(e, v, in, layers, scale)) {
+        // vanilla's player controllers switch to their paperdoll state on this variable
+        buildingDoll = true;
+        const bool built = Build(e, v, in, layers, scale);
+        buildingDoll = false;
+        if (built) {
             glm::mat4 m = glm::translate(glm::mat4(1.0f), glm::vec3(cx, feetY, 0.0f)) *
                           glm::scale(glm::mat4(1.0f), glm::vec3(pxPerBlock, -pxPerBlock, pxPerBlock));
             dollModel = &m;

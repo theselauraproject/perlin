@@ -113,6 +113,8 @@ namespace perlin::screen {
             double remaining = 0.0;
             uint64_t armor = 0;
             bool started = false;
+            uint32_t hurtSeen = 0, hurtShown = 0;
+            std::chrono::steady_clock::time_point hurtAt;
         } paperDollTimer;
         std::unordered_set<std::string> logged;
     };
