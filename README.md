@@ -19,6 +19,23 @@ A cross-platform Minecraft: Bedrock Edition client written in C++23. It speaks t
 
 Platforms and what each one ships are in `docs/platforms.md`. To contribute, see `CONTRIBUTING.md`.
 
+## Building
+
+| Preset | Use it for |
+|--------|------------|
+| `windows-clang-cl-fast` | everyday Windows builds: Ninja, every core busy, no link-time optimisation |
+| `windows-clang-cl` | Windows release builds with LTO and the extra optimisation flags (much slower to link) |
+| `windows-vs-clangcl`, `windows-vs2026-clangcl` | a Visual Studio 2022 or 2026 solution |
+| `unix-ninja-fast` | everyday Linux and macOS builds |
+| `unix-ninja` | Linux and macOS release builds with LTO |
+
+```sh
+cmake --preset windows-clang-cl-fast
+cmake --build build/windows-clang-cl-fast
+```
+
+Run the Windows presets from a Developer PowerShell (or let Visual Studio / VS Code set up the environment). Use the `clang-cl` that ships with Visual Studio ("C++ Clang tools for Windows" in the installer): a standalone LLVM that is older than your Visual Studio's C++ library fails during configure with "Cannot compile simple program using std::filesystem".
+
 ## Rendering
 
 Perlin renders through [conduit](https://github.com/theperlinproject/conduit). CMake fetches it automatically.

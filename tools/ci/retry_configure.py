@@ -10,6 +10,7 @@ usage: retry_configure.py [--attempts N] -- command args...
 """
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -40,6 +41,49 @@ def broken_packages(root: Path | None) -> list[Path]:
     return broken
 
 
+def remove_tree(d: Path) -> None:
+    def writable(func, path, _):
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    for _ in range(3):
+        if not d.exists():
+            return
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(d, onexc=writable)
+        else:
+            shutil.rmtree(d, onerror=writable)
+        if d.exists():
+            time.sleep(2)
+    if d.exists():
+        print(f"::warning::could not fully remove {d}")
+
+
+def build_dir(args: list[str]) -> Path:
+    for i, a in enumerate(args):
+        if a == "-B" and i + 1 < len(args):
+            return Path(args[i + 1])
+        if a.startswith("-B") and len(a) > 2:
+            return Path(a[2:])
+    return Path("build")
+
+
+def report_failed_checks(args: list[str]) -> None:
+    log = build_dir(args) / "CMakeFiles" / "CMakeConfigureLog.yaml"
+    if not log.is_file():
+        return
+    lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+    hits = [l.strip() for l in lines if "error" in l.lower() and "werror" not in l.lower()]
+    seen = []
+    for h in hits:
+        if h not in seen:
+            seen.append(h)
+    if seen:
+        print("::group::errors from CMakeConfigureLog.yaml")
+        for h in seen[:40]:
+            print(h)
+        print("::endgroup::")
+
+
 def main() -> int:
     args = sys.argv[1:]
     attempts = 3
@@ -61,11 +105,13 @@ def main() -> int:
                 return 0
             for d in bad:
                 print(f"::warning::{d} is incomplete, removing it")
-                shutil.rmtree(d, ignore_errors=True)
+                remove_tree(d)
             code = 1
         for d in package_dirs(root) - before:
             print(f"::warning::removing {d}, created by the failed attempt")
-            shutil.rmtree(d, ignore_errors=True)
+            remove_tree(d)
+        if attempt == 1:
+            report_failed_checks(args)
         if attempt < attempts:
             delay = 60 * attempt
             print(f"::warning::attempt {attempt} failed (exit {code}), retrying in {delay}s")

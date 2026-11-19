@@ -177,17 +177,34 @@ jobs:
           key: ${{ matrix.name }}
           max-size: 500M
 
+      - name: Use the clang-cl that ships with Visual Studio
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          $bin = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+          if (Test-Path (Join-Path $bin "clang-cl.exe")) {
+            $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            "PERLIN_CLANG_CL=$bin\clang-cl.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            "PERLIN_LLD_LINK=$bin\lld-link.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            & (Join-Path $bin "clang-cl.exe") --version
+          } else {
+            "PERLIN_CLANG_CL=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            "PERLIN_LLD_LINK=lld-link" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $extra = @("$env:PERLIN_UPDATE_FLAGS" -split ' ' | Where-Object { $_ })
           python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
+            "-DCMAKE_C_COMPILER=$env:PERLIN_CLANG_CL" "-DCMAKE_CXX_COMPILER=$env:PERLIN_CLANG_CL" "-DCMAKE_LINKER=$env:PERLIN_LLD_LINK" `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static" `
             -DPERLIN_WINDOWS_FFMPEG=${{ env.WINDOWS_FFMPEG }} `
             -DFFMPEG_ROOT="$env:GITHUB_WORKSPACE/ffmpeg-install/x64-windows-static" `
-            ${{ env.PERLIN_UPDATE_FLAGS }}
+            @extra
           exit $LASTEXITCODE
 
       - name: Configure (Unix)
@@ -404,6 +421,21 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_arm64
+      - name: Use the clang-cl that ships with Visual Studio
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          $bin = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+          if (Test-Path (Join-Path $bin "clang-cl.exe")) {
+            $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            "PERLIN_CLANG_CL=$bin\clang-cl.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            "PERLIN_LLD_LINK=$bin\lld-link.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            & (Join-Path $bin "clang-cl.exe") --version
+          } else {
+            "PERLIN_CLANG_CL=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            "PERLIN_LLD_LINK=lld-link" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: windows-arm64
@@ -411,14 +443,15 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
+          $extra = @("$env:PERLIN_UPDATE_FLAGS" -split ' ' | Where-Object { $_ })
           python tools/ci/retry_configure.py -- cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 `
-            -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_LINKER=lld-link `
+            "-DCMAKE_C_COMPILER=$env:PERLIN_CLANG_CL" "-DCMAKE_CXX_COMPILER=$env:PERLIN_CLANG_CL" "-DCMAKE_LINKER=$env:PERLIN_LLD_LINK" `
             -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DOPENSSL_ROOT_DIR="$env:GITHUB_WORKSPACE/openssl-arm64/arm64-windows-static" `
             -DPERLIN_WINDOWS_FFMPEG=OFF `
-            ${{ env.PERLIN_UPDATE_FLAGS }}
+            @extra
           exit $LASTEXITCODE
       - name: Build
         run: cmake --build build --config Release --parallel

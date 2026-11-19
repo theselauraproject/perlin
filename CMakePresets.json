@@ -49,6 +49,16 @@
       }
     },
     {
+      "name": "windows-clang-cl-fast",
+      "displayName": "Windows x64 (clang-cl, Ninja, Release without LTO)",
+      "description": "Same as windows-clang-cl without link-time optimisation or the extra Release flags, for much quicker local builds.",
+      "inherits": "windows-clang-cl",
+      "cacheVariables": {
+        "PERLIN_LTO": "OFF",
+        "PERLIN_MAX_OPT": "OFF"
+      }
+    },
+    {
       "name": "windows-vs-clangcl",
       "displayName": "Windows x64 (Visual Studio solution, ClangCL toolset)",
       "description": "Generates a Visual Studio solution that compiles with clang-cl.",
@@ -61,6 +71,13 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       }
+    },
+    {
+      "name": "windows-vs2026-clangcl",
+      "displayName": "Windows x64 (Visual Studio 2026 solution, ClangCL toolset)",
+      "description": "Generates a Visual Studio 2026 solution that compiles with clang-cl.",
+      "inherits": "windows-vs-clangcl",
+      "generator": "Visual Studio 18 2026"
     },
     {
       "name": "unix-ninja",
@@ -86,7 +103,8 @@
       "displayName": "Linux / macOS (Ninja, Release without LTO, self-tests)",
       "inherits": "unix-ninja",
       "cacheVariables": {
-        "PERLIN_LTO": "OFF"
+        "PERLIN_LTO": "OFF",
+        "PERLIN_MAX_OPT": "OFF"
       }
     },
     {
@@ -117,9 +135,24 @@
       "configurePreset": "windows-clang-cl-debug"
     },
     {
+      "name": "windows-clang-cl-fast",
+      "configurePreset": "windows-clang-cl-fast"
+    },
+    {
       "name": "windows-vs-clangcl",
       "configurePreset": "windows-vs-clangcl",
-      "configuration": "Release"
+      "configuration": "Release",
+      "nativeToolOptions": [
+        "/m"
+      ]
+    },
+    {
+      "name": "windows-vs2026-clangcl",
+      "configurePreset": "windows-vs2026-clangcl",
+      "configuration": "Release",
+      "nativeToolOptions": [
+        "/m"
+      ]
     },
     {
       "name": "unix-ninja",

@@ -387,9 +387,9 @@ namespace perlin {
         std::vector<std::unique_ptr<BedrockSession>> retiredSessions;
 #ifdef PERLIN_SINGLEPLAYER
         std::unique_ptr<EmbeddedServer> singleplayerServer;
+#endif
         std::unique_ptr<bench::Driver> benchmark;
         bool benchmarkCliStarted = false;
-#endif
         screen::ConnectionPorts::VersionOverride versionOverride;
         std::unique_ptr<Transport> pendingSingleplayer;
         bool inSingleplayer = false;
