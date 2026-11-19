@@ -71,6 +71,46 @@ int HandlerDispatch() {
         Inject(session, again);
         Check(session.World().difficulty == 0, "later packet supersedes earlier state");
     }
+    {
+        // a server that sends only the movement value, with no modifier list (PocketMine and most custom cores)
+        perlin::BedrockSession session;
+        perlin::proto::UpdateAttributesPacket attrs;
+        attrs.runtimeEntityId = 0;
+        perlin::proto::PlayerAttributesEntry movement;
+        movement.name = "minecraft:movement";
+        movement.min = 0.0f;
+        movement.max = 3.4028235e38f;
+        movement.current = movement.default_ = 0.1f;
+        movement.defaultMax = 3.4028235e38f;
+        movement.defaultMin = 0.0f;
+        attrs.attributes.push_back(movement);
+        Inject(session, attrs);
+        const float walk = session.PredictedMovementSpeed(false);
+        const float sprint = session.PredictedMovementSpeed(true);
+
+        perlin::proto::MobEffectPacket speed;
+        speed.runtimeEntityId = 0;
+        speed.eventId = perlin::proto::MobEffectPacketEventId::Add;
+        speed.effectId = 1;
+        speed.amplifier = 1;
+        speed.duration = 600;
+        Inject(session, speed);
+        const float speedWalk = session.PredictedMovementSpeed(false);
+        const float speedSprint = session.PredictedMovementSpeed(true);
+        Check(std::abs(speedWalk - walk * 1.4f) < 1e-5f, "speed II adds 40% to walking");
+        Check(speedSprint > sprint * 1.3f, "speed II survives sprinting");
+
+        speed.eventId = perlin::proto::MobEffectPacketEventId::Remove;
+        Inject(session, speed);
+        Check(std::abs(session.PredictedMovementSpeed(false) - walk) < 1e-6f, "removing speed restores the walk speed");
+
+        perlin::proto::MobEffectPacket slow = speed;
+        slow.eventId = perlin::proto::MobEffectPacketEventId::Add;
+        slow.effectId = 2;
+        slow.amplifier = 0;
+        Inject(session, slow);
+        Check(std::abs(session.PredictedMovementSpeed(false) - walk * 0.85f) < 1e-5f, "slowness I takes 15% off");
+    }
     if (failures == 0)
         std::puts("handler_dispatch_test: ok");
     return failures == 0 ? 0 : 1;

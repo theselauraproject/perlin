@@ -230,6 +230,7 @@ namespace perlin {
 
     void BedrockSession::ApplyMovementAttribute(const PlayerAttributesEntry& entry) {
         movementModifiers = entry.modifiers;
+        ownEffectModifier = {};
         const float baseMin = std::fmin(entry.defaultMax, entry.defaultMin);
         movementBase = {baseMin, entry.defaultMax,
                         entry.defaultMax < entry.default_ ? entry.defaultMax
@@ -240,6 +241,16 @@ namespace perlin {
     }
 
     float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength) {
+        int speedLevel = 0, slownessLevel = 0;
+        {
+            std::lock_guard status(statusMutex);
+            for (const ActiveEffect& e : activeEffects) {
+                if (e.id == 1)
+                    speedLevel = e.amplifier + 1;
+                else if (e.id == 2)
+                    slownessLevel = e.amplifier + 1;
+            }
+        }
         std::lock_guard lock(attrMutex);
 
         std::optional<float> freeze;
@@ -271,10 +282,43 @@ namespace perlin {
             std::array<float, 2> limits = movementLimits;
             return physics::RecalculateAttribute(movementBase, values, value, limits);
         };
+        // vanilla adds these itself when the effect arrives, so they hold even when a server's attribute
+        // update carries only the final value
+        bool effectsChanged = false;
+        const auto syncEffect = [&](size_t slot, std::string_view uuid, const char* name, float perLevel, int level) {
+            const auto it = std::ranges::find_if(movementModifiers, [&](const auto& m) {
+                return std::ranges::equal(m.id, uuid, [](char a, char b) {
+                    return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+                });
+            });
+            if (level > 0) {
+                const float amount = perLevel * static_cast<float>(level);
+                if (it == movementModifiers.end()) {
+                    PlayerAttributesEntryModifiersEntry m;
+                    m.id = std::string(uuid);
+                    m.name = name;
+                    m.amount = amount;
+                    m.operation = 2;
+                    m.operand = 2;
+                    m.serializable = false;
+                    movementModifiers.push_back(m);
+                    ownEffectModifier[slot] = effectsChanged = true;
+                } else if (ownEffectModifier[slot] && it->amount != amount) {
+                    it->amount = amount;
+                    effectsChanged = true;
+                }
+            } else if (ownEffectModifier[slot] && it != movementModifiers.end()) {
+                movementModifiers.erase(it);
+                ownEffectModifier[slot] = false;
+                effectsChanged = true;
+            }
+        };
+        syncEffect(0, "91aeaa56-376b-4498-935b-2f7f68070635", "MovementSpeed", 0.2f, speedLevel);
+        syncEffect(1, "7107de5e-7ce8-4030-940e-514c1f160890", "MovementSlowdown", -0.15f, slownessLevel);
         const bool present = std::ranges::any_of(movementModifiers, IsSprintModifier);
-        if (sprinting == present)
+        if (sprinting == present && !effectsChanged)
             return withFreeze(movementValue);
-        if (sprinting) {
+        if (sprinting && !present) {
             PlayerAttributesEntryModifiersEntry boost;
             boost.id = "d208fc00-42aa-4aad-9276-d5446530de43";
             boost.name = "Sprinting speed boost";
@@ -283,7 +327,7 @@ namespace perlin {
             boost.operand = 2;
             boost.serializable = false;
             movementModifiers.push_back(boost);
-        } else {
+        } else if (!sprinting) {
             std::erase_if(movementModifiers, IsSprintModifier);
         }
         movementValue = physics::RecalculateAttribute(movementBase, ModifierValues(movementModifiers),

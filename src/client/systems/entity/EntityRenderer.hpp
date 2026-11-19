@@ -208,6 +208,7 @@ namespace perlin::entity {
         const glm::mat4* dollModel = nullptr;
         const int* dollClip = nullptr;
         std::optional<float> dollFacing;
+        bool buildingDoll = false;
         uint32_t TextureFor(const Entity& e, const std::string& key);
         void Track(const Entity& e, View& v, const FrameIn& in);
         bool BeginFrame();

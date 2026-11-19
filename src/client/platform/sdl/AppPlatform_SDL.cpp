@@ -902,6 +902,8 @@ void AppPlatform_SDL::OnGamepadButton(const SDL_Event& e, perlin::Input* input) 
     const int code = e.gbutton.button;
     if (code < 0 || code >= 15)
         return;
+    if (pressed)
+        padPlaying = true;
     if (pressed && touchMode)
         SetTouchMode(false);
     if (input->TextMode() && !input->PadCapture()) {
@@ -1155,6 +1157,7 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         OnGamepadButton(e, input);
         break;
     case SDL_EVENT_KEY_DOWN:
+        padPlaying = false;
         OnKeyDown(e.key, input);
         break;
     case SDL_EVENT_KEY_UP:
@@ -1167,6 +1170,7 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         OnMouseMotion(e.motion, input);
         break;
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        padPlaying = false;
         OnMouseButtonDown(e.button, input);
         break;
     case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -1207,6 +1211,8 @@ void AppPlatform_SDL::PumpGamepad() {
     const float rx = axis(SDL_GAMEPAD_AXIS_RIGHTX), ry = axis(SDL_GAMEPAD_AXIS_RIGHTY);
     const float lt = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER), rt = axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
     const float dz = in.PadDeadzone();
+    if (std::max({std::fabs(lx), std::fabs(ly), std::fabs(rx), std::fabs(ry)}) > std::max(dz, 0.3f))
+        padPlaying = true;
     const auto shape = [&](float v) {
         const float m = std::fabs(v);
         return m <= dz ? 0.0f : std::copysign(std::min(1.0f, (m - dz) / (1.0f - dz)), v);
@@ -1318,6 +1324,11 @@ void AppPlatform_SDL::PumpFrame() {
     if (game) {
         touch.Update(game->GetInput());
         game->GetInput().SetTouchInteract(touchMode && touch.TouchInteraction());
+        perlin::playdevice::Set(touchMode    ? perlin::playdevice::Touch
+                                : padPlaying ? perlin::playdevice::Gamepad
+                                             : perlin::playdevice::Mouse,
+                                touchMode ? static_cast<perlin::playdevice::Interaction>(std::clamp(touch.Interaction(), 0, 2))
+                                          : perlin::playdevice::Crosshair);
     }
 
     if (game) {
