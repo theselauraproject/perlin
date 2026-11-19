@@ -254,14 +254,19 @@ namespace perlin {
                 topH = t.height;
             }
             if (i == GuiSheet) {
-                sp.id = guiTexture ? guiTexture : 1;
+                if (!guiSheetFull && t.width >= 256 && t.height >= 256) {
+                    guiSheetFull = renderer.UiCreateTexture(t.width, t.height, t.pixels.data(), false);
+                    guiSheetW = t.width;
+                    guiSheetH = t.height;
+                }
+                sp.id = guiSheetFull ? guiSheetFull : 1;
                 continue;
             }
             sp.id = renderer.UiCreateTexture(t.width, t.height, t.pixels.data(), false);
         }
 
         const float u = static_cast<float>(std::min(width, height));
-        Mesh discs, text, top, guiTop, ring;
+        Mesh discs, text, top, guiTop, guiFull, ring;
         std::vector<Mesh> icons(SpriteCount);
         auto icon = [&](int sprite, float cx, float cy, float halfW, float halfH, float alpha) {
             icons[sprite].Quad(cx - halfW, cy - halfH, cx + halfW, cy + halfH, 0.0f, 0.0f, 1.0f, 1.0f,
@@ -287,7 +292,7 @@ namespace perlin {
                 pen += static_cast<float>(g.advance) * scale;
             }
         };
-        auto inked = [&](const char* str, float cx, float cy, float scale, float alpha) {
+        auto inked = [&](const char* str, float cx, float cy, float scale, float alpha, float shade = 1.0f) {
             const std::string s = str;
             size_t k = 0;
             uint32_t cp = 0;
@@ -313,7 +318,7 @@ namespace perlin {
                 const ui::McFont::Glyph& g = font.Get(c);
                 if (g.width > 0)
                     text.Quad(ox + (pen + g.left) * scale, oy + g.top * scale, ox + (pen + g.left + g.width) * scale,
-                              oy + (g.top + g.height) * scale, g.u0, g.v0, g.u1, g.v1, Pack(1, 1, 1, alpha));
+                              oy + (g.top + g.height) * scale, g.u0, g.v0, g.u1, g.v1, Pack(shade, shade, shade, alpha));
                 pen += static_cast<float>(g.advance);
             }
         };
@@ -439,10 +444,10 @@ namespace perlin {
                     glyphAt(PlayersIcon);
                     break;
                 case Debug:
-                    inked("F3", l.cx, cy, k, dim(l.hidden));
+                    inked("F3", l.cx, l.cy - 0.5f * k, k, dim(l.hidden));
                     break;
                 case HideHud:
-                    inked("F1", l.cx, cy, k, dim(l.hidden));
+                    inked("F1", l.cx, l.cy - 0.5f * k, k, dim(l.hidden));
                     break;
                 default:
                     break;
@@ -572,12 +577,22 @@ namespace perlin {
             ToolBoxes(width, height, boxes, selIt != editLayout.end() && selIt->second.hidden);
             for (const ToolBox& b : boxes) {
                 const float cx = b.x + b.w * 0.5f, cy = b.y + b.h * 0.5f;
-                if (have(Knob))
-                    icons[Knob].Quad(b.x, b.y, b.x + b.w, b.y + b.h, 0.0f, 0.0f, 1.0f, 1.0f,
-                                     Pack(1, 1, 1, 0.95f));
-                else
+                const float k = b.h / 20.0f;
+                if (guiSheetFull) {
+                    const float tw = static_cast<float>(guiSheetW), th = static_cast<float>(guiSheetH);
+                    const float s = tw / 256.0f;
+                    const float v0 = 66.0f * s / th, v1 = 86.0f * s / th;
+                    const float e = std::min(3.0f * k, b.w * 0.5f);
+                    const float ue = 3.0f * s / tw, ur = 200.0f * s / tw;
+                    const uint32_t c = Pack(1, 1, 1, 1);
+                    guiFull.Quad(b.x, b.y, b.x + e, b.y + b.h, 0.0f, v0, ue, v1, c);
+                    guiFull.Quad(b.x + e, b.y, b.x + b.w - e, b.y + b.h, ue, v0, ur - ue, v1, c);
+                    guiFull.Quad(b.x + b.w - e, b.y, b.x + b.w, b.y + b.h, ur - ue, v0, ur, v1, c);
+                } else {
                     Disc(discs, cx, cy, b.h * 0.5f, Pack(0.1f, 0.1f, 0.1f, 0.7f), false);
-                label(b.label, cx, cy, std::max(1.0f, std::floor(b.h / 22.0f)), 1.0f);
+                }
+                inked(b.label, cx + k, cy + k, k, 1.0f, 0.25f);
+                inked(b.label, cx, cy, k, 1.0f);
             }
             label("Drag to move. Select a button, then - / + to resize or Hide to hide it.",
                   static_cast<float>(width) * 0.5f, static_cast<float>(height) * 0.5f - u * 0.12f,
@@ -602,6 +617,7 @@ namespace perlin {
         submit(discs, discTexture);
         submit(top, topTexture);
         submit(guiTop, guiTexture);
+        submit(guiFull, guiSheetFull);
         for (int i = 0; i < SpriteCount; i++)
             submit(icons[i], sprites[i].id);
         submit(text, fontTexture);

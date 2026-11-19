@@ -1049,7 +1049,7 @@ namespace perlin::gpu {
 
         bool SupportedBackend(conduit::api api) {
             return api == conduit::api::vulkan || api == conduit::api::d3d12 || api == conduit::api::d3d11 ||
-                   api == conduit::api::metal;
+                   api == conduit::api::metal || api == conduit::api::gles;
         }
 
         int WorkerCount() {
@@ -1210,7 +1210,7 @@ namespace perlin::gpu {
         alphaCache.clear();
         const conduit::api api = gpu.Api();
         if (!SupportedBackend(api))
-            return Fail(error, std::string("Java shader packs need the Vulkan, Direct3D 12, Direct3D 11 or Metal "
+            return Fail(error, std::string("Java shader packs need the Vulkan, Direct3D 12, Direct3D 11, Metal or OpenGL ES "
                                            "renderer (this one is ") +
                                    conduit::api_name(api) + ")");
         const LoadTimer timer;
@@ -1826,7 +1826,7 @@ namespace perlin::gpu {
                     jshader::ImageFormatQualifier(images[static_cast<size_t>(slot)].info.internalFormat);
             }
             const conduit::api api = gpu.Api();
-            const jshader::RhiShaderKind kind = api == conduit::api::vulkan  ? jshader::RhiShaderKind::SpirV
+            const jshader::RhiShaderKind kind = (api == conduit::api::vulkan || api == conduit::api::gles) ? jshader::RhiShaderKind::SpirV
                                                 : api == conduit::api::d3d12 ? jshader::RhiShaderKind::Dxbc
                                                 : api == conduit::api::metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;
@@ -2571,7 +2571,7 @@ namespace perlin::gpu {
                     jshader::ImageFormatQualifier(images[static_cast<size_t>(slot)].info.internalFormat);
             }
             const conduit::api api = gpu.Api();
-            const jshader::RhiShaderKind kind = api == conduit::api::vulkan  ? jshader::RhiShaderKind::SpirV
+            const jshader::RhiShaderKind kind = (api == conduit::api::vulkan || api == conduit::api::gles) ? jshader::RhiShaderKind::SpirV
                                                 : api == conduit::api::d3d12 ? jshader::RhiShaderKind::Dxbc
                                                 : api == conduit::api::metal ? jshader::RhiShaderKind::Msl
                                                                          : jshader::RhiShaderKind::Hlsl;

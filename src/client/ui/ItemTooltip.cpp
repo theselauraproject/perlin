@@ -11,6 +11,7 @@
 #include "util/Strings.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 
@@ -334,9 +335,59 @@ namespace perlin::ui {
         }
         if (lines.empty())
             return;
+        const McFont& font = McFont::Instance();
+        {
+            const float maxW = static_cast<float>(std::max(120, std::min(guiW - 24, std::max(200, guiW / 2))));
+            std::vector<TooltipLine> wrapped;
+            for (TooltipLine& l : lines) {
+                if (font.Width(l.text, 1.0f) <= maxW) {
+                    wrapped.push_back(std::move(l));
+                    continue;
+                }
+                std::string codes, current, carried;
+                size_t i = 0;
+                const auto flush = [&] {
+                    TooltipLine part = l;
+                    part.text = current;
+                    wrapped.push_back(std::move(part));
+                    current = carried;
+                };
+                while (i < l.text.size()) {
+                    size_t j = l.text.find(' ', i);
+                    if (j == std::string::npos)
+                        j = l.text.size();
+                    const std::string word = l.text.substr(i, j - i);
+                    const std::string trial = current.empty() || current == carried ? current + word : current + " " + word;
+                    if (!current.empty() && current != carried && font.Width(trial, 1.0f) > maxW) {
+                        carried = codes;
+                        flush();
+                        current = carried + word;
+                    } else {
+                        current = trial;
+                    }
+                    for (size_t k = 0; k + 1 < word.size(); k++) {
+                        const bool sect = static_cast<unsigned char>(word[k]) == 0xC2 && k + 2 < word.size() &&
+                                          static_cast<unsigned char>(word[k + 1]) == 0xA7;
+                        if (sect) {
+                            const char code = static_cast<char>(std::tolower(static_cast<unsigned char>(word[k + 2])));
+                            const std::string token = word.substr(k, 3);
+                            if (code == 'r' || (code >= '0' && code <= '9') || (code >= 'a' && code <= 'f'))
+                                codes = code == 'r' ? std::string() : token;
+                            else
+                                codes += token;
+                            k += 2;
+                        }
+                    }
+                    i = j + 1;
+                }
+                if (!current.empty() && current != carried)
+                    flush();
+            }
+            lines = std::move(wrapped);
+        }
         int widest = 0;
         for (const TooltipLine& l : lines)
-            widest = std::max(widest, static_cast<int>(McFont::Instance().Width(l.text, 1.0f)));
+            widest = std::max(widest, static_cast<int>(font.Width(l.text, 1.0f)));
         const int estW = widest + 10;
         const int estH = static_cast<int>(lines.size()) * 10 + (lines.size() > 1 ? 2 : 0) + 8;
         gTipW = estW;

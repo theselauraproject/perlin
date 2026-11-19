@@ -139,7 +139,7 @@ namespace perlin::ui::draw {
                     continue;
                 }
                 const float w = static_cast<float>(StringWidth(RunFace(s, a.run), a.text));
-                if (wrap && !line.frags.empty() && line.width + w > width) {
+                if (wrap && !line.frags.empty() && line.width + w > width + 1.5f) {
                     while (!line.frags.empty() && line.frags.back().text == " " && !s.pre) {
                         line.width -= line.frags.back().w;
                         line.frags.pop_back();

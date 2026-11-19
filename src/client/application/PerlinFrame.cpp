@@ -907,6 +907,8 @@ namespace perlin {
             const auto away = [&] {
 #if defined(_WIN32)
                 return ProcessInBackground();
+#elif defined(PERLIN_MOBILE)
+                return false;
 #else
                 return !platform->WindowFocused();
 #endif

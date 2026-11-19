@@ -364,6 +364,10 @@ namespace perlin::screen {
                          : hudAnim.ticks;
         s.inWater = headUnderwater;
         FillHudChat(s);
+        if (worldCovered()) {
+            s.chatLines.clear();
+            s.chatOpen = false;
+        }
         FillHudSidebar(s, live, preview);
         if (preview) {
             FillPreviewHud(s);

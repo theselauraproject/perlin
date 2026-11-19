@@ -70,15 +70,15 @@ namespace perlin {
         touchState.flying = player.Flying();
         touchState.inWater = player.InWater() && !player.State().onGround;
         touchState.riding = live && live->RidingUid() != 0;
-        touchState.editing = pause.optionsUi.touchEditing;
+        touchState.editing = pause.optionsUi.touchEditing || PERLIN_ENV("PERLIN_PREVIEW_TOUCH_EDIT") != nullptr;
         touchState.hudScale = hud ? hud->Scale() : 0;
         touchState.scale = options.touchScale;
         touchState.opacity = options.touchOpacity;
         touchState.dpad =
-            PERLIN_ENV("PERLIN_PREVIEW_JOYSTICK") ? false : (options.touchInteraction == 2 || options.touchDpad);
+            PERLIN_ENV("PERLIN_PREVIEW_JOYSTICK") ? false : options.touchDpad;
         touchState.interaction = options.touchInteraction;
         if (const char* m = PERLIN_ENV("PERLIN_PREVIEW_INTERACTION"))
-            touchState.interaction = std::clamp(std::atoi(m), 0, 2);
+            touchState.interaction = std::clamp(std::atoi(m), 0, 1);
         touchState.circleSize = options.touchCircleSize;
         touchState.holdDelay = options.touchHoldDelay;
         touchState.dpadGap = options.touchDpadGap;

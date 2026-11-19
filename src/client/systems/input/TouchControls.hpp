@@ -58,6 +58,7 @@ namespace perlin {
             bool scrolling = false;
             std::chrono::steady_clock::time_point restoreAt;
             bool pointerParked = false;
+            bool pressPending = false;
             float grabX = 0, grabY = 0;
             bool aim = false;
             bool holding = false;
@@ -134,12 +135,14 @@ namespace perlin {
         std::array<Binding, ButtonCount> pressedBinding{};
 
         std::vector<Sprite> sprites;
-        uint32_t discTexture = 0, fontTexture = 0, topTexture = 0, guiTexture = 0;
+        uint32_t discTexture = 0, fontTexture = 0, topTexture = 0, guiTexture = 0, guiSheetFull = 0;
+        int guiSheetW = 256, guiSheetH = 256;
         int topW = 18, topH = 18;
         float dpadCell = 0, dpadPitch = 0;
         bool stickHidden = false;
         bool lastStateEditing = false;
         int64_t aimFinger = -1;
+        int pendingPointerUp = 0;
         void EndAim(Input& input, bool tap);
         int dpadDir = 0;
         std::chrono::steady_clock::time_point lastForwardTap{};

@@ -96,7 +96,16 @@ int main() {
     touch.Update(input);
     input.SetCaptured(false);
     touch.Update(input);
+    touch.FingerDown(input, 6, 300, 300);
+    Check(!input.IsMouseDown(Mouse::Left), "menu scroll presses before it knows");
+    touch.FingerMove(input, 6, 300, 200, 0, -100);
+    Check(!input.IsMouseDown(Mouse::Left), "menu scroll grabbed a slider");
+    Check(input.TakeWheel() != 0.0f, "menu drag did not scroll");
+    touch.FingerUp(input, 6, 300, 200);
+    Check(!input.IsMouseDown(Mouse::Left), "menu scroll left the mouse down");
     touch.FingerDown(input, 4, 300, 300);
+    std::this_thread::sleep_for(std::chrono::milliseconds(180));
+    touch.Update(input);
     Check(input.IsMouseDown(Mouse::Left), "menu pointer did not press");
     state.editing = true;
     touch.SetState(state);

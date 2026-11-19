@@ -197,8 +197,11 @@ namespace perlin::ui {
                 if (!UiAssets::Instance().Head(source.substr(7), t))
                     return none;
             } else if (source.starts_with("mcicon:")) {
-                if (!UiAssets::Instance().ItemIcon(source.substr(7), t))
+                UiAssets& assets = UiAssets::Instance();
+                if (!assets.ItemIcon(source.substr(7), t))
                     return none;
+                if (!assets.BlocksReady())
+                    gMissingTextures++;
             } else if (!UiAssets::Instance().Image(source, t)) {
                 std::string tail = source;
                 const size_t slash = tail.find_last_of("/\\:");

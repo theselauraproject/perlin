@@ -396,7 +396,9 @@ namespace perlin {
         o.touchScale = std::clamp(stored.touchScale, 0.5f, 1.8f);
         o.touchOpacity = std::clamp(stored.touchOpacity, 0.2f, 1.0f);
         o.touchDpad = stored.touchDpad;
-        o.touchInteraction = std::clamp(stored.touchInteraction, 0, 2);
+        o.touchInteraction = stored.touchInteraction == 1 ? 1 : 0;
+        if (stored.touchInteraction == 2)
+            o.touchDpad = true;
         o.touchCircleSize = std::isfinite(stored.touchCircleSize) ? std::clamp(stored.touchCircleSize, 0.3f, 3.0f) : 1.0f;
         o.touchHoldDelay = std::isfinite(stored.touchHoldDelay) ? std::clamp(stored.touchHoldDelay, 0.1f, 1.0f) : 0.3f;
         o.touchDpadGap = std::isfinite(stored.touchDpadGap) ? std::clamp(stored.touchDpadGap, 0.0f, 0.5f) : 0.12f;

@@ -645,7 +645,7 @@ namespace perlin::interaction {
         const bool preview = view.preview;
         if (inputManager.Pressed(Action::ToggleHud))
             options.showHud = !options.showHud;
-        if (!(live || preview) || !input.Captured() || replayPlaying()) {
+        if (!(live || preview) || !input.Captured() || input.TextMode() || replayPlaying()) {
             aimHit = AimHit{};
             heldBuild.Stop();
             if (live)

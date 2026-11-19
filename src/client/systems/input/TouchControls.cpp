@@ -457,6 +457,10 @@ namespace perlin {
 
     void TouchControls::ReleaseAll(Input& input) {
         EndAim(input, false);
+        if (pendingPointerUp > 0) {
+            pendingPointerUp = 0;
+            input.OnMouseUp(Mouse::Left);
+        }
         FlushReleases(input, true);
         stickActive = false;
         knobX = knobY = 0.0f;
@@ -469,7 +473,7 @@ namespace perlin {
             if (down[i] && layout[i].kind == Kind::Hold)
                 ReleaseButton(input, i);
         for (Finger& f : fingers)
-            if (f.role == Role::Pointer && !f.scrolling)
+            if (f.role == Role::Pointer && !f.scrolling && !f.pressPending)
                 input.OnMouseUp(Mouse::Left);
         if (sneakLatched || sneakMomentary) {
             ReleaseBinding(input, pressedBinding[Sneak]);
@@ -528,8 +532,9 @@ namespace perlin {
                 std::ranges::any_of(fingers, [](const Finger& o) { return o.role == Role::Pointer; });
             if (!havePointer) {
                 f.role = Role::Pointer;
+                f.pressPending = true;
+                f.downAt = Clock::now();
                 input.OnMouseMove(x, y);
-                input.OnMouseDown(Mouse::Left);
             } else {
                 f.role = Role::Scroll;
             }
@@ -606,13 +611,18 @@ namespace perlin {
         f->lastY = y;
         switch (f->role) {
         case Role::Pointer:
-            if (!f->scrolling && f->moved && std::fabs(fromStartY) > std::fabs(fromStartX) * 1.2f) {
+            if (!f->scrolling && f->moved && f->pressPending &&
+                std::fabs(fromStartY) > std::fabs(fromStartX) * 1.2f) {
                 f->scrolling = true;
+                f->pressPending = false;
                 f->pointerParked = true;
                 f->restoreAt = Clock::now() + std::chrono::milliseconds(120);
                 scrollAccum = 0.0f;
                 input.OnMouseMove(-10000.0f, -10000.0f);
-                input.OnMouseUp(Mouse::Left);
+            } else if (!f->scrolling && f->moved && f->pressPending) {
+                f->pressPending = false;
+                input.OnMouseMove(f->startX, f->startY);
+                input.OnMouseDown(Mouse::Left);
             }
             if (f->scrolling) {
                 Scroll(input, dy);
@@ -687,8 +697,12 @@ namespace perlin {
         switch (f->role) {
         case Role::Pointer:
             input.OnMouseMove(x, y);
-            if (!f->scrolling)
+            if (f->pressPending) {
+                input.OnMouseDown(Mouse::Left);
+                pendingPointerUp = 2;
+            } else if (!f->scrolling) {
                 input.OnMouseUp(Mouse::Left);
+            }
             break;
         case Role::Stick:
             stickActive = false;
@@ -737,8 +751,18 @@ namespace perlin {
                 input.SetTouchHold(true);
             }
         }
+        if (pendingPointerUp > 0 && --pendingPointerUp == 0 &&
+            !std::ranges::any_of(fingers, [](const Finger& o) { return o.role == Role::Pointer; }))
+            input.OnMouseUp(Mouse::Left);
         if (!gameplay) {
             const auto t = Clock::now();
+            for (Finger& f : fingers) {
+                if (f.role == Role::Pointer && f.pressPending && !f.moved &&
+                    t - f.downAt >= std::chrono::milliseconds(160)) {
+                    f.pressPending = false;
+                    input.OnMouseDown(Mouse::Left);
+                }
+            }
             for (Finger& f : fingers)
                 if (f.role == Role::Pointer && f.pointerParked && t >= f.restoreAt) {
                     f.pointerParked = false;

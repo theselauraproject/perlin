@@ -429,6 +429,8 @@ namespace perlin::ui::draw {
             s.size = 16;
             s.line = 17;
         }
+        if (n.kind == SceneNode::Label && n.w > 0 && !c.Has("nowrap") && !c.Has("t"))
+            s.nowrap = false;
         if (c.Has("nowrap"))
             s.nowrap = true;
         if (n.id == "tip" || n.id == "cursor" || n.id == "top")

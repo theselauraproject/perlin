@@ -665,7 +665,9 @@ namespace perlin::screen {
     namespace {
         void AddVideoDisplay(OptionsModel& m, Options& options) {
         m.Header("Display");
+#ifndef PERLIN_MOBILE
         m.Toggle(i18n::TrOr("options.fullscreen", "Fullscreen"), options.fullscreen);
+#endif
         m.Toggle(i18n::TrOr("options.vsync", "VSync"), options.vsync);
         m.Slider(i18n::TrOr("options.framerateLimit", "Max Framerate"),
                  options.maxFps == 0 ? i18n::TrOr("options.framerateLimit.max", "Unlimited")
@@ -1090,17 +1092,14 @@ namespace perlin::screen {
                              std::round((0.2f + std::clamp(f, 0.0f, 1.0f) * 0.8f) * 20.0f) / 20.0f;
                      });
             {
-                static const char* kModes[3] = {"Touch", "Crosshair", "Classic"};
                 int& mode = services.options.touchInteraction;
-                m.rows.push_back({"Interaction Model", kModes[std::clamp(mode, 0, 2)], -1.0f, [&mode](float, bool click) {
+                m.rows.push_back({"Interaction Model", mode == 1 ? "Crosshair" : "Touch", -1.0f,
+                                  [&mode](float, bool click) {
                                       if (click)
-                                          mode = (std::clamp(mode, 0, 2) + 1) % 3;
+                                          mode = mode == 1 ? 0 : 1;
                                   }});
             }
-            if (services.options.touchInteraction == 2) {
-                m.rows.push_back({"Movement", "D-Pad", -1.0f, [](float, bool) {}});
-                m.rows.back().locked = true;
-            } else {
+            {
                 bool& dpad = services.options.touchDpad;
                 m.rows.push_back({"Movement", dpad ? "D-Pad" : "Joystick", -1.0f, [&dpad](float, bool click) {
                                       if (click)
@@ -1120,7 +1119,7 @@ namespace perlin::screen {
                                  std::round((0.1f + std::clamp(f, 0.0f, 1.0f) * 0.9f) * 20.0f) / 20.0f;
                          });
             }
-            if (services.options.touchInteraction == 2 || services.options.touchDpad)
+            if (services.options.touchDpad)
                 m.Slider("D-Pad Spacing", Percent(services.options.touchDpadGap / 0.12f),
                          services.options.touchDpadGap / 0.5f, [this](float f) {
                              services.options.touchDpadGap = std::round(std::clamp(f, 0.0f, 1.0f) * 50.0f) / 100.0f;

@@ -52,6 +52,7 @@ namespace perlin::ui {
         TextureSidecar Sidecar(const std::string& rel);
 
         const ItemSprite* Item(const std::string& key);
+        bool BlocksReady();
         bool ItemIcon(const std::string& key, Texture& out);
         bool HasHead(const std::string& key);
         void SetHead(const std::string& key, Texture head);

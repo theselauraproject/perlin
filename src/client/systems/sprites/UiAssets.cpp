@@ -699,6 +699,11 @@ namespace perlin::ui {
         }
     }
 
+    bool UiAssets::BlocksReady() {
+        std::lock_guard lock(mutex);
+        return blocks && blocks->Ready();
+    }
+
     const ItemSprite* UiAssets::Item(const std::string& key) {
         std::lock_guard lock(mutex);
         if (itemTableLoaded && itemTableGeneration != ServerPacks::Instance().Generation()) {
@@ -874,11 +879,11 @@ namespace perlin::ui {
         }
         if (!sprite.ok) {
             static std::unordered_set<std::string> reported;
-            if (reported.insert(id).second)
+            if (blocks && blocks->Ready() && reported.insert(id).second)
                 Log("items", "no texture found for {}{}, using a generic icon", id,
                     (customItem ? " (icon '" + custom.icon + "')" : std::string()));
             MakeGenericIcon(id, sprite);
-            if (id.contains(':') && !id.starts_with("minecraft:"))
+            if ((id.contains(':') && !id.starts_with("minecraft:")) || !blocks || !blocks->Ready())
                 unbuiltIcons.insert(key);
         }
         auto inserted = items.emplace(key, std::move(sprite)).first;
