@@ -198,6 +198,20 @@ int main(int argc, char** argv) {
             CHECK(mesh.extras.size() == 1 && mesh.extras[0].quads.size() > 2);
         }
     }
+    {
+        // identical text shares one parsed tree, and each scope still keeps its own state
+        const auto a = molang::Expr::Parse("variable.cache_probe = variable.cache_probe + 1; return variable.cache_probe;");
+        const auto b = molang::Expr::Parse("variable.cache_probe = variable.cache_probe + 1; return variable.cache_probe;");
+        CHECK(a == b);
+        CHECK(molang::Expr::Parse("1 + 2") != molang::Expr::Parse("1 + 3"));
+        molang::Scope first, second;
+        a->Number(first);
+        a->Number(first);
+        CHECK(b->Number(first) == 3.0);
+        CHECK(b->Number(second) == 1.0);
+        const auto bad = molang::Expr::Parse("((");
+        CHECK(!bad->Ok() && molang::Expr::Parse("((") == bad);
+    }
     std::cout << (failures == 0 ? "attachable_selftest OK" : "attachable_selftest FAILED") << std::endl;
     return failures == 0 ? 0 : 1;
 }

@@ -1,4 +1,5 @@
 #include "client/systems/attachable/Molang.hpp"
+#include <mutex>
 
 #include <algorithm>
 #include <cctype>
@@ -813,6 +814,16 @@ namespace perlin::molang {
     }
 
     std::shared_ptr<Expr> Expr::Parse(const std::string& text) {
+        // the same expressions repeat across entities, attachables, particles and packs; a tree never changes
+        // after parsing (its lazy fields depend only on the node's own text), so one tree serves every user
+        static std::mutex mutex;
+        static std::unordered_map<std::string, std::weak_ptr<Expr>> parsed;
+        {
+            std::lock_guard lock(mutex);
+            if (const auto it = parsed.find(text); it != parsed.end())
+                if (auto shared = it->second.lock())
+                    return shared;
+        }
         auto e = std::make_shared<Expr>();
         Parser parser(text);
         e->root = parser.Program();
@@ -820,6 +831,13 @@ namespace perlin::molang {
             e->ok = false;
             e->root = std::make_shared<Node>();
         }
+        std::lock_guard lock(mutex);
+        auto& slot = parsed[text];
+        if (auto existing = slot.lock())
+            return existing;
+        slot = e;
+        if (parsed.size() > 65536)
+            std::erase_if(parsed, [](const auto& entry) { return entry.second.expired(); });
         return e;
     }
 
