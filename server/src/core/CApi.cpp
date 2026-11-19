@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "perlin/server.h"
 
 #include "core/Json.hpp"
@@ -83,6 +84,11 @@ PS_API ps_server* ps_create(const ps_options* options) {
                     config.pluginDir = over["plugin_dir"].text;
                 if (over["generator"].IsString())
                     config.generator = over["generator"].text;
+                if (over["block_data_dir"].IsString())
+                    config.blockDataDir = over["block_data_dir"].text;
+                if (over["max_threads"].Int(0) > 0)
+                    config.maxThreads =
+                        static_cast<decltype(config.maxThreads)>(std::clamp<int64_t>(over["max_threads"].Int(), 1, 256));
                 if (over["seed"].kind == json::Value::Kind::Number) {
                     config.seed = static_cast<uint64_t>(over["seed"].Int());
                     config.randomSeed = false;

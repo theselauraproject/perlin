@@ -101,6 +101,7 @@ namespace perlin {
             bool touchLeftHanded = false;
             bool touchInvertY = false;
             bool touchCircle = true;
+            int mobileTune = 0;
             std::map<std::string, TouchPlace> touchLayout;
             bool fullscreen = false;
             bool centerCursor = false;
@@ -155,7 +156,9 @@ namespace perlin {
             o.cloudRange = 64;
             o.menuBlur = 0;
             o.dynamicLights = "off";
-            o.upscaler = "off";
+            o.upscaler = "bilinear";
+            o.upscaleCustom = 70;
+            o.mobileTune = 1;
             o.webTuned = true;
         }
     }
@@ -379,6 +382,12 @@ namespace perlin {
             o.webTuned = true;
         if (o.upscaler == "fsr1" && o.upscaleCustom == 75)
             o.upscaler = "off";
+        o.mobileTune = stored.mobileTune;
+        if (o.mobileTune < 1) {
+            o.upscaler = "bilinear";
+            o.upscaleCustom = 70;
+            o.mobileTune = 1;
+        }
 #endif
         o.padSensitivity = std::clamp(stored.padSensitivity, 0.1f, 3.0f);
         o.padDeadzone = std::clamp(stored.padDeadzone, 0.0f, 0.6f);
@@ -509,6 +518,7 @@ namespace perlin {
         stored.touchLeftHanded = touchLeftHanded;
         stored.touchInvertY = touchInvertY;
         stored.touchCircle = touchCircle;
+        stored.mobileTune = mobileTune;
         stored.touchLayout = touchLayout;
         stored.fullscreen = fullscreen;
         stored.centerCursor = centerCursor;

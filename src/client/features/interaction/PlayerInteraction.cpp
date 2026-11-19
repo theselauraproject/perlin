@@ -130,6 +130,13 @@ namespace perlin::interaction {
         auto& previewLevel = *view.previewLevel;
         auto& frameEntities = *view.entities;
         aimHit = AimHit{};
+        float touchX = 0.5f, touchY = 0.5f;
+        const int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::steady_clock::now().time_since_epoch())
+                                  .count();
+        const bool touchAim = input.TouchAim(nowMs, touchX, touchY);
+        if (input.TouchInteract() && !touchAim)
+            return;
         if ((live || previewLevel) && !spectator && levelRenderer) {
             const int64_t selfUid = live ? live->SelfUid() : 0;
             const auto ridesSelf = [&](const entity::Entity& e) {
@@ -163,7 +170,7 @@ namespace perlin::interaction {
                 FluidAimFor(hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)].name));
 
             const glm::dvec3 look(targeting::ViewVector(camera.yaw, camera.pitch));
-            if (aimHit.kind == AimHit::Kind::None && look.y < -0.7) {
+            if (aimHit.kind == AimHit::Kind::None && look.y < -0.7 && !touchAim) {
                 const std::vector<entity::Entity> noEntities;
                 AimHit below = Raycast(
                     live ? live->NetLevel() : *previewLevel, &levelRenderer->Blocks(), noEntities,

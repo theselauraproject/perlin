@@ -651,14 +651,10 @@ namespace perlin {
             break;
         case Role::Look:
             if (f->aim) {
-                if (f->holding) {
-                    input.SetTouchAim(x / static_cast<float>(std::max(1, width)),
-                                      y / static_cast<float>(std::max(1, height)), kAimForever);
+                input.SetTouchAim(x / static_cast<float>(std::max(1, width)),
+                                  y / static_cast<float>(std::max(1, height)), kAimForever);
+                if (f->holding || !f->moved)
                     break;
-                }
-                if (!f->moved)
-                    break;
-                EndAim(input, false);
             }
             input.OnMouseDelta(dx * kLookScale * state.sensitivity,
                                (state.invertY ? -dy : dy) * kLookScale * state.sensitivity);

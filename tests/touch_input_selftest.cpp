@@ -57,9 +57,10 @@ int main() {
         Check(!in.TouchHold() && in.TakeTouchTaps() == 0, "touch hold leaks");
         t.FingerDown(in, 3, 500, 300);
         t.FingerMove(in, 3, 600, 300, 100, 0);
-        Check(!in.TouchAim(now(), ax, ay), "drag keeps touch aim");
+        Check(in.TouchAim(now(), ax, ay) && ax == 0.6f, "drag does not move touch aim");
         t.FingerUp(in, 3, 600, 300);
         Check(in.TakeTouchTaps() == 0, "drag counted as tap");
+        Check(!in.TouchAim(now(), ax, ay), "touch aim outlives drag");
         ts.interaction = 1;
         t.SetState(ts);
         t.FingerDown(in, 4, 500, 300);

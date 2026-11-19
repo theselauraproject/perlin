@@ -119,6 +119,7 @@ namespace perlin::services {
             if (config.signInUnavailable) {
                 std::string reason = config.signInUnavailable();
                 if (!reason.empty()) {
+                    Log("sign-in unavailable: " + reason);
                     status = std::move(reason);
                     state = SignInState::Failed;
                     return;
@@ -154,6 +155,7 @@ namespace perlin::services {
             } else {
                 status = "Sign-in failed: " + error;
                 state = SignInState::Failed;
+                Log(status);
             }
         });
     }

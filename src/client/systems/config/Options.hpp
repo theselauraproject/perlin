@@ -168,6 +168,7 @@ namespace perlin {
         bool touchLeftHanded = false;
         bool touchInvertY = false;
         bool touchCircle = true;
+        int mobileTune = 0;
         std::map<std::string, TouchPlace> touchLayout;
 
         const Binding& GetKey(Action action) const { return keys[static_cast<size_t>(action)]; }

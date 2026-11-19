@@ -533,7 +533,7 @@ namespace perlin {
 
         if (!editing && state.interaction != 1 && state.circle && aimFinger >= 0) {
             for (const Finger& f : fingers) {
-                if (f.id != aimFinger || !f.aim || (f.moved && !f.holding))
+                if (f.id != aimFinger || !f.aim)
                     continue;
                 const float hold = std::max(0.05f, state.holdDelay);
                 const float progress =
@@ -545,17 +545,20 @@ namespace perlin {
                 const float R = std::max(6.0f, 0.045f * u * state.circleSize);
                 const float t = std::max(2.0f, std::round(R * 0.16f));
                 const int segments = 48;
-                const int shown = std::max(1, static_cast<int>(std::ceil(progress * segments)));
-                for (int k = 0; k < shown; k++) {
+                const float fill = f.moved && !f.holding ? 0.0f : progress;
+                const float thin = std::max(1.0f, std::round(t * 0.4f));
+                for (int k = 0; k < segments; k++) {
                     const float a0 = -1.5707963f + 6.2831853f * static_cast<float>(k) / segments;
-                    const float a1 = -1.5707963f + 6.2831853f * std::min(progress, static_cast<float>(k + 1) / segments);
+                    const float a1 = -1.5707963f + 6.2831853f * static_cast<float>(k + 1) / segments;
+                    const float mid = (static_cast<float>(k) + 0.5f) / segments;
+                    const float w = mid <= fill ? t : thin;
                     const float c0 = std::cos(a0), s0 = std::sin(a0), c1 = std::cos(a1), s1 = std::sin(a1);
                     const uint32_t base = static_cast<uint32_t>(ring.vertices.size());
                     const uint32_t white = Pack(1, 1, 1, 1);
-                    ring.vertices.push_back({f.lastX + c0 * (R - t), f.lastY + s0 * (R - t), 0.0f, white, 0.25f, 0.5f});
+                    ring.vertices.push_back({f.lastX + c0 * (R - w), f.lastY + s0 * (R - w), 0.0f, white, 0.25f, 0.5f});
                     ring.vertices.push_back({f.lastX + c0 * R, f.lastY + s0 * R, 0.0f, white, 0.25f, 0.5f});
                     ring.vertices.push_back({f.lastX + c1 * R, f.lastY + s1 * R, 0.0f, white, 0.25f, 0.5f});
-                    ring.vertices.push_back({f.lastX + c1 * (R - t), f.lastY + s1 * (R - t), 0.0f, white, 0.25f, 0.5f});
+                    ring.vertices.push_back({f.lastX + c1 * (R - w), f.lastY + s1 * (R - w), 0.0f, white, 0.25f, 0.5f});
                     for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
                         ring.indices.push_back(base + i);
                 }

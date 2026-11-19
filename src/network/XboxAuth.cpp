@@ -588,6 +588,7 @@ namespace perlin::xbox {
             auto doc = json::Document::Parse(r.body);
             if (r.status != 200 || !doc || !doc->root()["device_code"].isString()) {
                 error = NetworkError(r, "Microsoft sign-in");
+                Log("auth", "device code request failed: {}", error);
                 return false;
             }
             const json::View root = doc->root();
@@ -596,6 +597,7 @@ namespace perlin::xbox {
             std::string verify = root["verification_uri"].str("https://www.microsoft.com/link");
             int interval = std::max(1, root["interval"].integer(5));
             const int64_t deadline = store->LocalNow() + static_cast<int64_t>(root["expires_in"].number(900));
+            Log("auth", "waiting for code {} at {}", userCode, verify);
             prompt(verify, userCode);
 
             ParseUrl("https://login.live.com/oauth20_token.srf", u);
@@ -619,8 +621,11 @@ namespace perlin::xbox {
                         s.data.sisu = {};
                         s.data.xsts.clear();
                     });
+                    Log("auth", "Microsoft account linked");
                     return true;
                 }
+                if (r.status == 0)
+                    Log("auth", "sign-in poll could not reach login.live.com; retrying");
                 if (code == "authorization_pending" || (r.status == 0))
                     continue;
                 if (code == "slow_down") {
@@ -634,6 +639,7 @@ namespace perlin::xbox {
                     return false;
                 }
                 error = text;
+                Log("auth", "sign-in poll failed ({} {}): {}", r.status, code, text);
                 return false;
             }
             error = "the sign-in code expired before it was entered";
