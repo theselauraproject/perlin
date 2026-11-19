@@ -670,7 +670,11 @@ namespace perlin::screen {
 #endif
         m.Toggle(i18n::TrOr("options.vsync", "VSync"), options.vsync);
         m.Slider(i18n::TrOr("options.framerateLimit", "Max Framerate"),
+#if defined(PERLIN_MOBILE)
+                 options.maxFps == 0 ? std::string("Display rate")
+#else
                  options.maxFps == 0 ? i18n::TrOr("options.framerateLimit.max", "Unlimited")
+#endif
                                      : std::to_string(options.maxFps) + " fps",
                  options.maxFps == 0 ? 1.0f : static_cast<float>(options.maxFps - 10) / 250.0f,
                  [&options](float f) {

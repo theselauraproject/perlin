@@ -4,6 +4,8 @@
 #include "util/Log.hpp"
 #include <filesystem>
 #include <algorithm>
+#include <cmath>
+#include "util/Platform.hpp"
 #include <functional>
 #include <ctime>
 #include <vector>
@@ -935,7 +937,15 @@ namespace perlin {
                         std::min(target, Clock::now() + std::chrono::milliseconds(5)));
             }
         }
-        const int fpsCap = modHost.ModFrameLimit(options.maxFps);
+        int baseCap = options.maxFps;
+#if defined(PERLIN_MOBILE)
+        // on phones the unlimited setting means the panel's own rate: past it frames are only heat
+        if (baseCap == 0) {
+            const double hz = platform->DisplayRefreshHz();
+            baseCap = hz >= 30.0 ? static_cast<int>(std::lround(std::min(hz, 165.0))) : 60;
+        }
+#endif
+        const int fpsCap = modHost.ModFrameLimit(baseCap);
         if (fpsCap > 0 && !replayStudio.Exporting()) {
             const auto period = std::chrono::microseconds(1000000LL * std::max(1, fgActive) / fpsCap);
             auto& deadline = loop->paceDeadline;
