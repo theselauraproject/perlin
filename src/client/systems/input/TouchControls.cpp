@@ -17,7 +17,7 @@ namespace perlin {
 
         constexpr float kStickRadius = 0.14f;
         constexpr float kDeadZone = 0.22f;
-        constexpr float kSprintZone = 0.92f;
+        constexpr float kSprintZone = 0.85f;
         constexpr float kLookScale = 0.55f;
         constexpr float kTapSlop = 18.0f;
         constexpr float kScrollStep = 36.0f;
@@ -391,10 +391,11 @@ namespace perlin {
         const int dir = kDirs[row][col];
         const bool wasForward = (dpadDir & 1) != 0, forward = (dir & 1) != 0;
         if (forward && !wasForward)
-            dpadSprint = Clock::now() - lastForwardTap < std::chrono::milliseconds(300);
+            dpadSprint = Clock::now() - lastForwardTap < std::chrono::milliseconds(450);
         if (!forward && wasForward) {
             lastForwardTap = Clock::now();
             dpadSprint = false;
+            stickSprint = false;
         }
         dpadDir = dir;
         ApplyStick(input);
@@ -417,8 +418,12 @@ namespace perlin {
                 want[KeyBack] = ny > 0.38f;
                 want[KeyLeft] = nx < -0.38f;
                 want[KeyRight] = nx > 0.38f;
-                want[KeySprint] = len >= kSprintZone && ny < -0.5f;
+                if (len >= kSprintZone && ny < -0.5f)
+                    stickSprint = true;
+                want[KeySprint] = stickSprint && want[KeyForward];
             }
+            if (!want[KeyForward])
+                stickSprint = false;
         }
         want[KeySprint] = want[KeySprint] || sprintLatched;
         static constexpr Action kActions[5] = {Action::Forward, Action::Back, Action::Left, Action::Right,
@@ -699,7 +704,8 @@ namespace perlin {
             input.OnMouseMove(x, y);
             if (f->pressPending) {
                 input.OnMouseDown(Mouse::Left);
-                pendingPointerUp = 2;
+                pendingPointerUp = 1;
+                pointerUpAt = Clock::now() + std::chrono::milliseconds(90);
             } else if (!f->scrolling) {
                 input.OnMouseUp(Mouse::Left);
             }
@@ -711,6 +717,7 @@ namespace perlin {
                 lastForwardTap = Clock::now();
             dpadDir = 0;
             dpadSprint = false;
+            stickSprint = false;
             sprintLatched = false;
             down[Sprint] = false;
             ApplyStick(input);
@@ -751,9 +758,11 @@ namespace perlin {
                 input.SetTouchHold(true);
             }
         }
-        if (pendingPointerUp > 0 && --pendingPointerUp == 0 &&
-            !std::ranges::any_of(fingers, [](const Finger& o) { return o.role == Role::Pointer; }))
-            input.OnMouseUp(Mouse::Left);
+        if (pendingPointerUp > 0 && Clock::now() >= pointerUpAt) {
+            pendingPointerUp = 0;
+            if (!std::ranges::any_of(fingers, [](const Finger& o) { return o.role == Role::Pointer && !o.pressPending; }))
+                input.OnMouseUp(Mouse::Left);
+        }
         if (!gameplay) {
             const auto t = Clock::now();
             for (Finger& f : fingers) {

@@ -164,6 +164,8 @@ namespace perlin::worldview {
             self.flags |= entity::flag::Gliding;
         if (player.Swimming())
             self.flags |= entity::flag::Swimming;
+        if (player.Sprinting())
+            self.flags |= entity::flag::Sprinting;
         if (live && !replayCtl.Playing()) {
             const LoadedSkin& ls = live->Skin();
             const std::string key = ls.skinId + (ls.slimArms ? "/slim" : "/classic") + "/" + ls.capeId;

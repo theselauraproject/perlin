@@ -500,6 +500,13 @@ namespace perlin::entity {
     void EntityRenderer::Track(const Entity& e, View& v, const FrameIn& in) {
         const float dt = std::clamp(in.dt, 0.001f, 0.25f);
         v.dt = dt;
+        if (v.init && in.time - v.now > 0.25) {
+            v.init = false;
+            v.limbInit = false;
+            v.headTickInit = false;
+            v.bodyTickAt = -1.0;
+            v.body.Reset(e.pos.x, e.pos.z, e.headYaw);
+        }
         v.now = in.time;
         if (!v.init) {
             v.init = true;

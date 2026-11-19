@@ -103,6 +103,13 @@ int main() {
     Check(input.TakeWheel() != 0.0f, "menu drag did not scroll");
     touch.FingerUp(input, 6, 300, 200);
     Check(!input.IsMouseDown(Mouse::Left), "menu scroll left the mouse down");
+    touch.FingerDown(input, 7, 300, 300);
+    touch.FingerUp(input, 7, 300, 300);
+    touch.Update(input);
+    Check(input.IsMouseDown(Mouse::Left), "quick menu tap released before a frame saw it");
+    std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    touch.Update(input);
+    Check(!input.IsMouseDown(Mouse::Left), "quick menu tap never released");
     touch.FingerDown(input, 4, 300, 300);
     std::this_thread::sleep_for(std::chrono::milliseconds(180));
     touch.Update(input);

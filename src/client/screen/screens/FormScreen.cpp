@@ -812,7 +812,7 @@ namespace perlin::ui {
                                           {},
                                           "custom_form",
                                           static_cast<int>(i)});
-                } else if (name == "buttons") {
+                } else if (form.type != FormModel::Type::Custom && !name.empty()) {
                     for (size_t i = 0; i < items.size(); i++) {
                         const std::string& k = items[i].kind;
                         const std::string id = k == "label" || k == "header" || k == "divider" ? k : "button";

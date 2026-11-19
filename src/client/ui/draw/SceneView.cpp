@@ -322,26 +322,28 @@ namespace perlin::ui::draw {
                 PaintBox(c);
                 PaintContent(c);
                 if (CreatesContext(c)) {
+                    const bool clip = c.style.clip;
+                    const float ax = c.ax, ay = c.ay, cw = c.w, ch = c.h;
                     bool visible = true;
-                    if (c.style.clip) {
-                        canvas.PushClip(c.ax, c.ay, c.ax + c.w, c.ay + c.h);
+                    if (clip) {
+                        canvas.PushClip(ax, ay, ax + cw, ay + ch);
                         clipStack.push_back({clipDepth > 0 ? clipRect[0] : -1e9f, clipDepth > 0 ? clipRect[1] : -1e9f,
                                              clipDepth > 0 ? clipRect[2] : 1e9f, clipDepth > 0 ? clipRect[3] : 1e9f});
-                        clipRect[0] = clipDepth > 0 ? std::max(clipRect[0], c.ax) : c.ax;
-                        clipRect[1] = clipDepth > 0 ? std::max(clipRect[1], c.ay) : c.ay;
-                        clipRect[2] = clipDepth > 0 ? std::min(clipRect[2], c.ax + c.w) : c.ax + c.w;
-                        clipRect[3] = clipDepth > 0 ? std::min(clipRect[3], c.ay + c.h) : c.ay + c.h;
+                        clipRect[0] = clipDepth > 0 ? std::max(clipRect[0], ax) : ax;
+                        clipRect[1] = clipDepth > 0 ? std::max(clipRect[1], ay) : ay;
+                        clipRect[2] = clipDepth > 0 ? std::min(clipRect[2], ax + cw) : ax + cw;
+                        clipRect[3] = clipDepth > 0 ? std::min(clipRect[3], ay + ch) : ay + ch;
                         clipDepth++;
                         visible = !canvas.ClipEmpty();
                     }
                     if (visible) {
                         std::vector<Entry> inner;
-                        Collect(idx, n.children, c.ax, c.ay, inner);
+                        Collect(idx, n.children, ax, ay, inner);
                         Paint(inner);
                     }
-                    if (c.style.clip) {
+                    if (clip) {
                         clipDepth--;
-                        const auto& prev = clipStack.back();
+                        const auto prev = clipStack.back();
                         for (int i = 0; i < 4; i++)
                             clipRect[i] = prev[static_cast<size_t>(i)];
                         clipStack.pop_back();

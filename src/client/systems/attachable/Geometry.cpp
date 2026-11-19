@@ -260,6 +260,19 @@ namespace perlin::attachable {
             std::unordered_map<std::string, size_t> byName;
             for (size_t i = 0; i < g.bones.size(); i++)
                 byName[g.bones[i].name] = i;
+            static const std::pair<const char*, const char*> kImplicit[] = {
+                {"hat", "head"},           {"jacket", "body"},         {"leftsleeve", "leftarm"},
+                {"rightsleeve", "rightarm"}, {"leftpants", "leftleg"},  {"rightpants", "rightleg"},
+                {"leftitem", "leftarm"},   {"rightitem", "rightarm"}};
+            for (Bone& b : g.bones) {
+                if (!b.parentName.empty())
+                    continue;
+                for (const auto& [child, parent] : kImplicit)
+                    if (b.name == child && byName.contains(parent)) {
+                        b.parentName = parent;
+                        break;
+                    }
+            }
             std::vector<Bone> ordered;
             std::vector<int> state(g.bones.size(), 0);
             std::unordered_map<size_t, int> newIndex;
@@ -341,6 +354,10 @@ namespace perlin::attachable {
                     if (g.textureHeight <= 0)
                         g.textureHeight = p->second.textureHeight;
                 }
+                if (g.textureWidth <= 0)
+                    g.textureWidth = 64.0f;
+                if (g.textureHeight <= 0)
+                    g.textureHeight = 64.0f;
                 LinkBones(g);
                 changed = true;
             }
@@ -517,8 +534,8 @@ namespace perlin::attachable {
             return out;
         static const char* const kLayers[] = {"hat",         "jacket",    "leftsleeve",
                                               "rightsleeve", "leftpants", "rightpants"};
-        const float sx = static_cast<float>(width) / source.textureWidth,
-                    sy = static_cast<float>(height) / source.textureHeight;
+        const float sx = static_cast<float>(width) / (source.textureWidth > 0 ? source.textureWidth : 64.0f),
+                    sy = static_cast<float>(height) / (source.textureHeight > 0 ? source.textureHeight : 64.0f);
         const auto alphaAt = [&](int x, int y) -> int {
             if (x < 0 || y < 0 || x >= width || y >= height)
                 return 0;

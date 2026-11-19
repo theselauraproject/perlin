@@ -143,10 +143,12 @@ namespace perlin {
         bool lastStateEditing = false;
         int64_t aimFinger = -1;
         int pendingPointerUp = 0;
+        std::chrono::steady_clock::time_point pointerUpAt;
         void EndAim(Input& input, bool tap);
         int dpadDir = 0;
         std::chrono::steady_clock::time_point lastForwardTap{};
         bool dpadSprint = false;
+        bool stickSprint = false;
         void UpdateDpad(Input& input, float x, float y);
         ui::FontTexture fontSync;
     };
