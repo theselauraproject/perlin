@@ -66,6 +66,8 @@ namespace perlin {
                         size_t stride) const;
 
         void ReadBlocks(int x, int z, int yLo, int yHi, uint16_t* blocks, size_t stride) const;
+        // rows z0..z0+zn-1 of one y layer, n blocks from x0 each, written zStride apart; air where nothing is stored
+        void CopyRows(int y, int z0, int zn, int x0, int n, uint16_t* blocks, size_t zStride) const;
         void CopyRun(int y, int z, int x0, int n, uint16_t* blocks, uint8_t* biomes, uint16_t* liquid) const;
 
         void SetSection(int section, const uint16_t* cells, const uint16_t* liquidCells = nullptr);
