@@ -858,13 +858,11 @@ namespace perlin {
                                       std::greater<float>());
                     double sum = 0.0;
                     for (size_t i = 0; i < whole; i++)
-                        sum += recent[i];
+                        sum += 1000.0 / recent[i];
                     const double fraction = share - static_cast<double>(whole);
                     if (take > whole)
-                        sum += recent[whole] * fraction;
-                    const double avg = sum / share;
-                    if (avg > 0.0)
-                        low = std::min(low, static_cast<int>(1000.0 / avg + 0.5));
+                        sum += 1000.0 / recent[whole] * fraction;
+                    low = std::min(low, static_cast<int>(sum / share + 0.5));
                 }
             }
             debugOverlay.state.lowFps = low;

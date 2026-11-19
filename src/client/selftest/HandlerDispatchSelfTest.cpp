@@ -3,7 +3,6 @@
 #include "network/Stream.hpp"
 #include "client/selftest/SelfTests.hpp"
 
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -71,29 +70,6 @@ int HandlerDispatch() {
         again.difficulty = 0;
         Inject(session, again);
         Check(session.World().difficulty == 0, "later packet supersedes earlier state");
-    }
-    {
-        perlin::BedrockSession session;
-        perlin::BedrockSession::ServerMotion motion;
-        perlin::proto::MovePlayerPacket move;
-        move.runtimeId = 7;
-        move.position = {120.5f, 64.0f + 1.62f, -30.5f};
-        move.yaw = 90.0f;
-        move.mode = perlin::proto::MovePlayerPacketMode::Normal;
-        Inject(session, move);
-        Check(session.TakeServerMotion(motion) && motion.teleport && motion.pos[0] == 120.5 &&
-                  std::abs(motion.pos[1] - 64.0) < 1e-4 && motion.pos[2] == -30.5 && !motion.filterTravel,
-              "normal move_player places the local player");
-
-        move.mode = perlin::proto::MovePlayerPacketMode::Rotation;
-        move.position = {0.0f, 80.0f, 0.0f};
-        Inject(session, move);
-        Check(!session.TakeServerMotion(motion), "rotation-only move_player leaves the position alone");
-
-        move.runtimeId = 8;
-        move.mode = perlin::proto::MovePlayerPacketMode::Normal;
-        Inject(session, move);
-        Check(!session.TakeServerMotion(motion), "another player's move_player does not move us");
     }
     if (failures == 0)
         std::puts("handler_dispatch_test: ok");

@@ -6,7 +6,7 @@
 
 #define OverlayColor u_uiOverlay
 #define DiscardValue u_uiParams
-#define MatColor1 vec4(v_color0.rgb, 1.0)
+#define MatColor1 vec4_splat(1.0)
 #define TileLightColor vec4_splat(1.0)
 #define GlintColor (vec4(0.38, 0.19, 0.608, 1.0) * sqrt(max(u_uiParams.z, 0.0)))
 #define TintColor vec4_splat(1.0)

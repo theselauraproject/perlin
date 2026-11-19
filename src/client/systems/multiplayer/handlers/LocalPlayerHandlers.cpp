@@ -17,11 +17,8 @@ namespace perlin {
             gotSpawn = true;
             const bool forced =
                 p.mode == MovePlayerPacketMode::Teleport || p.mode == MovePlayerPacketMode::Reset;
-            // vanilla places the local player on a normal move too (some servers teleport pearls that way),
-            // only without the teleport acknowledgement
-            if (forced || p.mode == MovePlayerPacketMode::Normal) {
-                if (forced)
-                    pendingTeleportAck = true;
+            if (forced) {
+                pendingTeleportAck = true;
                 ServerMotion motion;
                 motion.poseChanged = true;
                 motion.teleport = true;

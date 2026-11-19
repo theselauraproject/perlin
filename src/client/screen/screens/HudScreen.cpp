@@ -571,6 +571,7 @@ namespace perlin::screen {
         din.time = std::chrono::duration<double>(f.frameStart - loop->startedAt).count();
         din.dt = f.dt;
         din.firstPerson = false;
+        din.capePhysics = options.capePhysics == "shoulder" ? 2 : options.capePhysics == "off" ? 0 : 1;
         din.camera = doll.pos;
         const int clip[4] = {0, 0, fbW, static_cast<int>((feetY + block * 0.5f) * scale)};
         entityRenderer.RenderDoll(doll, din, cx * scale, feetY * scale, block * scale, clip, 22.5f);
@@ -615,6 +616,7 @@ namespace perlin::screen {
             din.time = std::chrono::duration<double>(frameStart - startedAt).count();
             din.dt = dt;
             din.firstPerson = false;
+            din.capePhysics = options.capePhysics == "shoulder" ? 2 : options.capePhysics == "off" ? 0 : 1;
             din.camera = {0, 0, 0};
             const float dollScale = creativeDoll ? 20.0f : 30.0f;
             const int clip[4] = {static_cast<int>((creativeDoll ? px + 73 : px + 26) * scale),
@@ -654,6 +656,7 @@ namespace perlin::screen {
                 din.time = std::chrono::duration<double>(frameStart - startedAt).count();
                 din.dt = dt;
                 din.firstPerson = false;
+                din.capePhysics = options.capePhysics == "shoulder" ? 2 : options.capePhysics == "off" ? 0 : 1;
                 din.camera = {0, 0, 0};
                 const int clip[4] = {static_cast<int>((px + 26) * scale),
                                      static_cast<int>((py + 17) * scale), 52 * scale, 53 * scale};

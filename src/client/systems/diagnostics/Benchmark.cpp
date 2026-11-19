@@ -22,11 +22,10 @@ namespace perlin::bench {
             if (sortedMs.empty())
                 return 0.0;
             const size_t n = std::max<size_t>(1, static_cast<size_t>(std::ceil(sortedMs.size() * fraction)));
-            double ms = 0;
+            double fps = 0;
             for (size_t i = sortedMs.size() - n; i < sortedMs.size(); i++)
-                ms += sortedMs[i];
-            ms /= static_cast<double>(n);
-            return ms > 0 ? 1000.0 / ms : 0.0;
+                fps += sortedMs[i] > 0 ? 1000.0 / sortedMs[i] : 0.0;
+            return fps / static_cast<double>(n);
         }
         std::string Num(double v, int digits = 2) {
             char buf[64];

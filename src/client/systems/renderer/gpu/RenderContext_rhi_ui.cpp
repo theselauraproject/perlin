@@ -402,7 +402,7 @@ namespace perlin {
                                             conduit::texture_handle texture, bool glint) {
         if (layer != UiLayer::World && layer != UiLayer::WorldLate && layer != UiLayer::Hand)
             return false;
-        if (draw.material == DrawMaterial::Nametag || draw.colorMask || !mesh.cpuVertices || !mesh.cpuIndices)
+        if (draw.material == DrawMaterial::Nametag || !mesh.cpuVertices || !mesh.cpuIndices)
             return false;
         using K = gpu::JavaPack::ExternalDraw::Kind;
         gpu::JavaPack::ExternalDraw d;
