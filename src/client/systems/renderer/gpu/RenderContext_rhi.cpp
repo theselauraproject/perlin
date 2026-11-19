@@ -180,6 +180,15 @@ namespace perlin {
         user.api = forced == "auto" || forced.empty() ? conduit::api::none : conduit::api_from_id(forced);
         if (forced == "opengl" || forced == "gl")
             user.api = conduit::api::none;
+#if defined(__ANDROID__)
+        if (user.api == conduit::api::none) {
+            const auto apis = conduit::compiled_apis();
+            if (std::find(apis.begin(), apis.end(), conduit::api::gles) != apis.end()) {
+                user.api = conduit::api::gles;
+                Log("gpu", "auto renderer on Android: trying OpenGL ES first");
+            }
+        }
+#endif
 #if defined(_WIN32)
         constexpr bool kWindows = true, kApple = false;
 #elif defined(__APPLE__)

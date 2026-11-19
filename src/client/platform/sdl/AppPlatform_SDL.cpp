@@ -310,6 +310,13 @@ bool AppPlatform_SDL::WindowFocused() const {
 }
 
 bool AppPlatform_SDL::WindowMinimized() const {
+#ifdef SDL_PLATFORM_ANDROID
+    if (backgrounded.load() || surfaceLost.load())
+        return true;
+    if (window && !SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER,
+                                          nullptr))
+        return true;
+#endif
     return window && (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) != 0;
 }
 
@@ -1125,11 +1132,16 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         break;
 #elif defined(SDL_PLATFORM_ANDROID)
     case SDL_EVENT_WILL_ENTER_BACKGROUND:
+        backgrounded = true;
         if (input)
             input->ReleaseAll();
         SetCursorCaptured(false);
         if (game)
             game->OnBackground();
+        break;
+    case SDL_EVENT_DID_ENTER_FOREGROUND:
+        surfaceLost = true;
+        backgrounded = false;
         break;
 #endif
     case SDL_EVENT_GAMEPAD_ADDED:

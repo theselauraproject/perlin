@@ -92,14 +92,35 @@ namespace perlin::auth::vault {
                     return key;
                 }
                 jclass kgClass = env->FindClass("javax/crypto/KeyGenerator");
+                if (!kgClass || Failed(env)) {
+                    env->DeleteLocalRef(alias);
+                    return nullptr;
+                }
                 jmethodID kgInstance = env->GetStaticMethodID(
                     kgClass, "getInstance", "(Ljava/lang/String;Ljava/lang/String;)Ljavax/crypto/KeyGenerator;");
                 jstring aes = env->NewStringUTF("AES");
                 jstring provider = env->NewStringUTF("AndroidKeyStore");
                 Local generator(env, env->CallStaticObjectMethod(kgClass, kgInstance, aes, provider));
+                env->DeleteLocalRef(aes);
+                env->DeleteLocalRef(provider);
+                if (Failed(env) || !generator) {
+                    env->DeleteLocalRef(alias);
+                    return nullptr;
+                }
                 jclass builderClass = env->FindClass("android/security/keystore/KeyGenParameterSpec$Builder");
+                if (!builderClass || Failed(env)) {
+                    env->DeleteLocalRef(alias);
+                    return nullptr;
+                }
                 jmethodID builderInit = env->GetMethodID(builderClass, "<init>", "(Ljava/lang/String;I)V");
+                if (!builderInit || Failed(env)) {
+                    env->DeleteLocalRef(alias);
+                    return nullptr;
+                }
                 Local builder(env, env->NewObject(builderClass, builderInit, alias, 3));
+                env->DeleteLocalRef(alias);
+                if (Failed(env) || !builder)
+                    return nullptr;
                 jclass stringClass = env->FindClass("java/lang/String");
                 jobjectArray modes = env->NewObjectArray(1, stringClass, env->NewStringUTF("GCM"));
                 jobjectArray paddings = env->NewObjectArray(1, stringClass, env->NewStringUTF("NoPadding"));
@@ -115,11 +136,21 @@ namespace perlin::auth::vault {
                 if (Failed(env) || !generator || !builder)
                     return nullptr;
                 env->DeleteLocalRef(env->CallObjectMethod(builder.ref, setModes, modes));
+                if (Failed(env))
+                    return nullptr;
                 env->DeleteLocalRef(env->CallObjectMethod(builder.ref, setPaddings, paddings));
+                if (Failed(env))
+                    return nullptr;
                 env->DeleteLocalRef(env->CallObjectMethod(builder.ref, setSize, 256));
+                if (Failed(env))
+                    return nullptr;
                 Local spec(env, env->CallObjectMethod(builder.ref, build));
+                if (Failed(env) || !spec)
+                    return nullptr;
                 jmethodID init = env->GetMethodID(kgClass, "init", "(Ljava/security/spec/AlgorithmParameterSpec;)V");
                 env->CallVoidMethod(generator.ref, init, spec.ref);
+                if (Failed(env))
+                    return nullptr;
                 jmethodID generate = env->GetMethodID(kgClass, "generateKey", "()Ljavax/crypto/SecretKey;");
                 jobject made = env->CallObjectMethod(generator.ref, generate);
                 if (Failed(env))
@@ -140,8 +171,12 @@ namespace perlin::auth::vault {
                 jstring transformation = env->NewStringUTF("AES/GCM/NoPadding");
                 Local cipher(env, env->CallStaticObjectMethod(cipherClass, getInstance, transformation));
                 env->DeleteLocalRef(transformation);
+                if (Failed(env) || !cipher)
+                    return false;
                 jmethodID init = env->GetMethodID(cipherClass, "init", "(ILjava/security/Key;)V");
                 env->CallVoidMethod(cipher.ref, init, 1, key.ref);
+                if (Failed(env))
+                    return false;
                 jmethodID getIv = env->GetMethodID(cipherClass, "getIV", "()[B");
                 jmethodID doFinal = env->GetMethodID(cipherClass, "doFinal", "([B)[B");
                 if (Failed(env))
@@ -150,6 +185,10 @@ namespace perlin::auth::vault {
                 env->SetByteArrayRegion(input, 0, static_cast<jsize>(plain.size()),
                                         reinterpret_cast<const jbyte*>(plain.data()));
                 Local ivArray(env, env->CallObjectMethod(cipher.ref, getIv));
+                if (Failed(env)) {
+                    env->DeleteLocalRef(input);
+                    return false;
+                }
                 Local output(env, env->CallObjectMethod(cipher.ref, doFinal, input));
                 env->DeleteLocalRef(input);
                 if (Failed(env) || !ivArray || !output)
@@ -181,6 +220,8 @@ namespace perlin::auth::vault {
                 jstring transformation = env->NewStringUTF("AES/GCM/NoPadding");
                 Local cipher(env, env->CallStaticObjectMethod(cipherClass, getInstance, transformation));
                 env->DeleteLocalRef(transformation);
+                if (Failed(env) || !cipher)
+                    return false;
                 jclass specClass = env->FindClass("javax/crypto/spec/GCMParameterSpec");
                 jmethodID specInit = env->GetMethodID(specClass, "<init>", "(I[B)V");
                 jbyteArray iv = env->NewByteArray(static_cast<jsize>(ivSize));
@@ -188,6 +229,8 @@ namespace perlin::auth::vault {
                                         reinterpret_cast<const jbyte*>(blob.data() + 1));
                 Local spec(env, env->NewObject(specClass, specInit, 128, iv));
                 env->DeleteLocalRef(iv);
+                if (Failed(env) || !spec)
+                    return false;
                 jmethodID init = env->GetMethodID(cipherClass, "init",
                                                   "(ILjava/security/Key;Ljava/security/spec/AlgorithmParameterSpec;)V");
                 env->CallVoidMethod(cipher.ref, init, 2, key.ref, spec.ref);

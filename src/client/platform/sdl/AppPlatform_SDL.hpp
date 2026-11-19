@@ -81,8 +81,8 @@ private:
     bool editMouseDown = false;
     std::atomic<bool> surfaceChanged{false};
     void* lastNativeWindow = nullptr;
-    bool surfaceLost = false;
-    bool backgrounded = false;
+    std::atomic<bool> surfaceLost{false};
+    std::atomic<bool> backgrounded{false};
     bool recaptureAfterText = false;
     bool touchMode = false;
 

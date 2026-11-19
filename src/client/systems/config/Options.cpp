@@ -157,8 +157,7 @@ namespace perlin {
             o.menuBlur = 0;
             o.dynamicLights = "off";
             o.upscaler = "off";
-            o.fancyGraphics = false;
-            o.mobileTune = 3;
+            o.mobileTune = 4;
             o.webTuned = true;
         }
     }
@@ -385,12 +384,9 @@ namespace perlin {
         o.mobileTune = stored.mobileTune;
         if (o.mobileTune >= 1 && o.mobileTune < 3 && o.upscaler == "bilinear" && o.upscaleCustom == 70)
             o.upscaler = "off";
-        if (o.mobileTune < 2) {
-            o.fancyGraphics = false;
-            o.renderDistance = std::min(o.renderDistance, 8);
-            o.cloudRange = std::min(o.cloudRange, 64);
-        }
-        o.mobileTune = 3;
+        if (o.mobileTune == 2 || o.mobileTune == 3)
+            o.fancyGraphics = true;
+        o.mobileTune = 4;
 #endif
         o.padSensitivity = std::clamp(stored.padSensitivity, 0.1f, 3.0f);
         o.padDeadzone = std::clamp(stored.padDeadzone, 0.0f, 0.6f);
