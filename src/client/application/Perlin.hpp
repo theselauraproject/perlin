@@ -118,6 +118,7 @@ namespace perlin {
         void Shutdown() override;
 
         Input& GetInput() override { return input; }
+        void OnBackground() override;
 
     private:
         using Clock = std::chrono::steady_clock;

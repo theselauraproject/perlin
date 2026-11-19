@@ -1074,10 +1074,20 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         if (input)
             input->ReleaseAll();
         SetCursorCaptured(false);
+        if (game)
+            game->OnBackground();
         break;
     case SDL_EVENT_DID_ENTER_FOREGROUND:
         backgrounded = false;
         surfaceChanged = true;
+        break;
+#elif defined(SDL_PLATFORM_ANDROID)
+    case SDL_EVENT_WILL_ENTER_BACKGROUND:
+        if (input)
+            input->ReleaseAll();
+        SetCursorCaptured(false);
+        if (game)
+            game->OnBackground();
         break;
 #endif
     case SDL_EVENT_GAMEPAD_ADDED:

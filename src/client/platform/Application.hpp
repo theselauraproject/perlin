@@ -16,6 +16,7 @@ namespace perlin {
         virtual bool Initialize(AppPlatform* platform) = 0;
         virtual void Shutdown() = 0;
         virtual Input& GetInput() = 0;
+        virtual void OnBackground() {}
     };
 
     using ApplicationFactory = std::function<std::unique_ptr<Application>(const LaunchArgs&)>;

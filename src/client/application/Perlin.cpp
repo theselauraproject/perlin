@@ -392,6 +392,10 @@ namespace perlin {
         tasks.Shutdown();
     }
 
+    void Perlin::OnBackground() {
+        options.Save();
+    }
+
     void Perlin::Shutdown() {
         controlBridge.Stop();
         StopRenderThread();

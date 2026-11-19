@@ -36,6 +36,10 @@ cmake --build build/windows-clang-cl-fast
 
 Run the Windows presets from a Developer PowerShell (or let Visual Studio / VS Code set up the environment). Use the `clang-cl` that ships with Visual Studio ("C++ Clang tools for Windows" in the installer): a standalone LLVM that is older than your Visual Studio's C++ library fails during configure with "Cannot compile simple program using std::filesystem".
 
+## Android storage
+
+Perlin keeps all of its files in **Internal storage › games › Perlin**. On first launch it asks for "All files access", which puts worlds, texture packs, shader packs, screenshots, logs and settings where any file manager or a PC over USB can reach them, and moves anything already in the private folder there. Perlin always uses this folder and asks again on launch until the access is granted.
+
 ## Rendering
 
 Perlin renders through [conduit](https://github.com/theperlinproject/conduit). CMake fetches it automatically.

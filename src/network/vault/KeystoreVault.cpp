@@ -44,7 +44,16 @@ namespace perlin::auth::vault {
                 std::string blob;
                 if (!file::Read(id + ".key", blob))
                     return Result::Missing;
-                return Unwrap(blob, secret) ? Result::Ok : Result::Unavailable;
+                if (Unwrap(blob, secret))
+                    return Result::Ok;
+                if (auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv())) {
+                    Local key(env, Key(env, false));
+                    if (!key) {
+                        Erase(id);
+                        return Result::Missing;
+                    }
+                }
+                return Result::Unavailable;
             }
 
             bool Store(const std::string& id, const std::string& secret) override {

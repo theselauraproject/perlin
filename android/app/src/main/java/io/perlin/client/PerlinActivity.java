@@ -6,6 +6,8 @@ import android.content.pm.PackageInstaller;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.system.ErrnoException;
+import android.system.Os;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,8 +23,28 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class PerlinActivity extends SDLActivity {
+    static volatile boolean alive = false;
+
+    private boolean redirected = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        File data = PerlinStorage.chosenDir(this);
+        try {
+            Os.setenv("PERLIN_DATA_DIR", data.getAbsolutePath(), true);
+        } catch (ErrnoException e) {
+            Log.w("Perlin", "could not set the data directory", e);
+        }
+        if (!PerlinStorage.sharedUsable(this)) {
+            redirected = true;
+            startActivity(new Intent(this, LauncherActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            super.onCreate(savedInstanceState);
+            finish();
+            return;
+        }
+        alive = true;
+        data.mkdirs();
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
@@ -116,6 +138,13 @@ public class PerlinActivity extends SDLActivity {
         } else if (status != PackageInstaller.STATUS_SUCCESS) {
             Log.w("Perlin", "update not installed: " + intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (isFinishing() && !redirected)
+            alive = false;
     }
 
     @Override

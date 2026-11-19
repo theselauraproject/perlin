@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include "util/Json.hpp"
 #include "util/FileIo.hpp"
@@ -501,6 +502,20 @@ namespace perlin {
         if (glz::write<glz::opts{.prettify = true}>(stored, out))
             return;
         paths::EnsureDir(paths::DataDir());
-        std::ofstream(SettingsPath()) << out;
+        const std::string path = SettingsPath();
+        const std::string tmp = path + ".tmp";
+        {
+            std::ofstream file(tmp, std::ios::binary | std::ios::trunc);
+            file << out;
+            file.flush();
+            if (!file)
+                return;
+        }
+        std::error_code ec;
+        std::filesystem::rename(tmp, path, ec);
+        if (ec) {
+            std::filesystem::remove(path, ec);
+            std::filesystem::rename(tmp, path, ec);
+        }
     }
 }

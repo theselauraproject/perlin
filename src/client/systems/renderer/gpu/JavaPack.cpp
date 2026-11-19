@@ -902,6 +902,22 @@ namespace perlin::gpu {
     bool JavaPack::CreateTargets(uint32_t w, uint32_t h) {
         width = w;
         height = h;
+        const auto renderable = [&](jshader::BufferFormat& f) {
+            const conduit::format_use use = gpu.Caps().format_support(ToFormat(f));
+            if (use == conduit::format_use::none)
+                return;
+            if (!conduit::has(use, conduit::format_use::color_target) || !conduit::has(use, conduit::format_use::blendable) ||
+                !conduit::has(use, conduit::format_use::sampled)) {
+                Log("jshader", "buffer format {} is not a blendable render target on this GPU; using RGBA16F",
+                    static_cast<int>(f));
+                f = jshader::BufferFormat::RGBA16F;
+            }
+        };
+        for (int i = 0; i < jshader::kMaxColorTex; i++)
+            if (bufs[static_cast<size_t>(i)].used && !bufs[static_cast<size_t>(i)].asImage)
+                renderable(config.color[static_cast<size_t>(i)].format);
+        for (auto& f : config.shadowColorFormat)
+            renderable(f);
         constexpr conduit::texture_usage kColor =
             conduit::texture_usage::color_target | conduit::texture_usage::sampled | conduit::texture_usage::copy_src;
         for (int i = 0; i < jshader::kMaxColorTex; i++) {
