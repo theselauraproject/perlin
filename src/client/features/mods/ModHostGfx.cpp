@@ -56,64 +56,89 @@ namespace perlin {
 
         static std::vector<UiVertex> vertices;
         static std::vector<uint32_t> indices;
+        for (auto& [key, cached] : modGfxCache)
+            if (cached.hudBand == hudBand)
+                cached.seen = false;
+        const auto release = [this](ModGfxCached& cached) {
+            for (const ModGfxDraw& d : cached.draws)
+                if (d.mesh)
+                    deps.renderer->UiDestroyMesh(d.mesh);
+            cached.draws.clear();
+        };
+        std::string key;
         for (const mods::GfxLayer& layer : mm.GfxLayers()) {
             if ((layer.z < abi::kGfxScreenZ) != hudBand)
                 continue;
             if (!layer.data || layer.data->size() < sizeof(abi::GfxHeader))
                 continue;
-            const uint8_t* base = layer.data->data();
-            abi::GfxHeader h;
-            std::memcpy(&h, base, sizeof(h));
-            const bool wide = (h.flags & abi::kGfxIndex32) != 0;
-            const uint8_t* vtx = base + sizeof(h);
-            const uint8_t* idx = vtx + static_cast<size_t>(h.vertexCount) * sizeof(abi::GfxVertex);
-            const uint8_t* cmds = idx + static_cast<size_t>(h.indexCount) * (wide ? 4 : 2);
-            const auto indexAt = [&](uint32_t i) {
-                if (wide) {
-                    uint32_t v;
-                    std::memcpy(&v, idx + static_cast<size_t>(i) * 4, 4);
-                    return v;
+            key.assign(layer.plugin).append(1, '/').append(layer.name);
+            ModGfxCached& cached = modGfxCache[key];
+            cached.seen = true;
+            cached.hudBand = hudBand;
+            if (cached.serial != layer.serial || cached.data != layer.data.get()) {
+                release(cached);
+                cached.serial = layer.serial;
+                cached.data = layer.data.get();
+                const uint8_t* base = layer.data->data();
+                abi::GfxHeader h;
+                std::memcpy(&h, base, sizeof(h));
+                const bool wide = (h.flags & abi::kGfxIndex32) != 0;
+                const uint8_t* vtx = base + sizeof(h);
+                const uint8_t* idx = vtx + static_cast<size_t>(h.vertexCount) * sizeof(abi::GfxVertex);
+                const uint8_t* cmds = idx + static_cast<size_t>(h.indexCount) * (wide ? 4 : 2);
+                const auto indexAt = [&](uint32_t i) {
+                    if (wide) {
+                        uint32_t v;
+                        std::memcpy(&v, idx + static_cast<size_t>(i) * 4, 4);
+                        return v;
+                    }
+                    uint16_t v;
+                    std::memcpy(&v, idx + static_cast<size_t>(i) * 2, 2);
+                    return static_cast<uint32_t>(v);
+                };
+                for (uint32_t c = 0; c < h.commandCount; c++) {
+                    abi::GfxCmd cmd;
+                    std::memcpy(&cmd, cmds + static_cast<size_t>(c) * sizeof(cmd), sizeof(cmd));
+                    if (cmd.indexCount == 0)
+                        continue;
+                    uint32_t lo = UINT32_MAX, hi = 0;
+                    indices.resize(cmd.indexCount);
+                    for (uint32_t i = 0; i < cmd.indexCount; i++) {
+                        const uint32_t v = indexAt(cmd.indexOffset + i);
+                        indices[i] = v;
+                        lo = std::min(lo, v);
+                        hi = std::max(hi, v);
+                    }
+                    vertices.resize(static_cast<size_t>(hi - lo) + 1);
+                    for (uint32_t v = lo; v <= hi; v++) {
+                        abi::GfxVertex in;
+                        std::memcpy(&in, vtx + (static_cast<size_t>(cmd.vertexOffset) + v) * sizeof(in),
+                                    sizeof(in));
+                        vertices[v - lo] = {in.x, in.y, 0.0f, in.color, in.u, in.v};
+                    }
+                    for (uint32_t& i : indices)
+                        i -= lo;
+                    ModGfxDraw d;
+                    d.texture = cmd.texture;
+                    std::copy(cmd.clip.begin(), cmd.clip.end(), d.clip);
+                    d.mesh = deps.renderer->UiCreateMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
+                                                         indices.data(), static_cast<uint32_t>(indices.size()));
+                    if (d.mesh)
+                        cached.draws.push_back(d);
                 }
-                uint16_t v;
-                std::memcpy(&v, idx + static_cast<size_t>(i) * 2, 2);
-                return static_cast<uint32_t>(v);
-            };
-            for (uint32_t c = 0; c < h.commandCount; c++) {
-                abi::GfxCmd cmd;
-                std::memcpy(&cmd, cmds + static_cast<size_t>(c) * sizeof(cmd), sizeof(cmd));
-                if (cmd.indexCount == 0)
-                    continue;
-                const int x0 = std::clamp(static_cast<int>(std::floor(cmd.clip[0])), 0, fbW);
-                const int y0 = std::clamp(static_cast<int>(std::floor(cmd.clip[1])), 0, fbH);
-                const int x1 = std::clamp(static_cast<int>(std::ceil(cmd.clip[2])), 0, fbW);
-                const int y1 = std::clamp(static_cast<int>(std::ceil(cmd.clip[3])), 0, fbH);
+            }
+            for (const ModGfxDraw& d : cached.draws) {
+                const int x0 = std::clamp(static_cast<int>(std::floor(d.clip[0])), 0, fbW);
+                const int y0 = std::clamp(static_cast<int>(std::floor(d.clip[1])), 0, fbH);
+                const int x1 = std::clamp(static_cast<int>(std::ceil(d.clip[2])), 0, fbW);
+                const int y1 = std::clamp(static_cast<int>(std::ceil(d.clip[3])), 0, fbH);
                 if (x1 <= x0 || y1 <= y0)
                     continue;
-                uint32_t lo = UINT32_MAX, hi = 0;
-                for (uint32_t i = 0; i < cmd.indexCount; i++) {
-                    const uint32_t v = indexAt(cmd.indexOffset + i);
-                    lo = std::min(lo, v);
-                    hi = std::max(hi, v);
-                }
-                vertices.resize(static_cast<size_t>(hi - lo) + 1);
-                for (uint32_t v = lo; v <= hi; v++) {
-                    abi::GfxVertex in;
-                    std::memcpy(&in, vtx + (static_cast<size_t>(cmd.vertexOffset) + v) * sizeof(in),
-                                sizeof(in));
-                    vertices[v - lo] = {in.x, in.y, 0.0f, in.color, in.u, in.v};
-                }
-                indices.resize(cmd.indexCount);
-                for (uint32_t i = 0; i < cmd.indexCount; i++)
-                    indices[i] = indexAt(cmd.indexOffset + i) - lo;
-                const uint32_t mesh =
-                    deps.renderer->UiCreateFrameMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
-                                                indices.data(), static_cast<uint32_t>(indices.size()));
-                if (!mesh)
-                    continue;
                 UiDraw draw;
-                draw.mesh = mesh;
-                if (cmd.texture) {
-                    const auto it = modGfxTextures.find(layer.plugin + "/" + std::to_string(cmd.texture));
+                draw.mesh = d.mesh;
+                if (d.texture) {
+                    key.assign(layer.plugin).append(1, '/').append(std::to_string(d.texture));
+                    const auto it = modGfxTextures.find(key);
                     if (it != modGfxTextures.end())
                         draw.texture = it->second.gpu;
                 }
@@ -125,7 +150,14 @@ namespace perlin {
                 draw.scissorRect[2] = x1 - x0;
                 draw.scissorRect[3] = y1 - y0;
                 deps.renderer->UiSubmit(hudBand ? UiLayer::Gui : UiLayer::Top, draw);
-                deps.renderer->UiDestroyMesh(mesh);
+            }
+        }
+        for (auto it = modGfxCache.begin(); it != modGfxCache.end();) {
+            if (it->second.hudBand == hudBand && !it->second.seen) {
+                release(it->second);
+                it = modGfxCache.erase(it);
+            } else {
+                ++it;
             }
         }
     }

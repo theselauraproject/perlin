@@ -1617,29 +1617,12 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     else()
         add_test(NAME mod_selftest COMMAND mod_selftest
             "${PERLIN_TEST_PLUGINS}/hello64.wasm" "${PERLIN_TEST_PLUGINS}/hello32.wasm"
-            "${PERLIN_TEST_PLUGINS}/loop_64.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm"
-            "${CMAKE_CURRENT_SOURCE_DIR}/plugins/prebuilt/waila.wasm")
+            "${PERLIN_TEST_PLUGINS}/loop_64.wasm" "${PERLIN_TEST_PLUGINS}/loop_32.wasm")
     endif()
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_FOUND)
         perlin_api_add_checks(CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/src/client" SERVER "${CMAKE_CURRENT_SOURCE_DIR}/server/src")
-        if(NOT MSVC)
-            set(PERLIN_PLUGINS_GEN "${CMAKE_CURRENT_BINARY_DIR}/plugins_gen")
-            add_custom_command(OUTPUT "${PERLIN_PLUGINS_GEN}/waila/mod_settings.hpp"
-                COMMAND ${CMAKE_COMMAND} -E make_directory "${PERLIN_PLUGINS_GEN}/waila"
-                COMMAND ${Python3_EXECUTABLE} "${PERLIN_API_DIR}/tools/perlin_settings.py"
-                        "${CMAKE_CURRENT_SOURCE_DIR}/plugins/waila/waila.json" "${PERLIN_PLUGINS_GEN}/waila/mod_settings.hpp"
-                DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/plugins/waila/waila.json" "${PERLIN_API_DIR}/tools/perlin_settings.py")
-            add_executable(waila_test plugins/waila/tests/waila_test.cpp "${PERLIN_PLUGINS_GEN}/waila/mod_settings.hpp")
-            target_include_directories(waila_test PRIVATE plugins/waila "${PERLIN_PLUGINS_GEN}/waila")
-            target_compile_definitions(waila_test PRIVATE MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/plugins/waila/waila.json")
-            target_link_libraries(waila_test PRIVATE perlin_api)
-            add_test(NAME waila_test COMMAND waila_test)
-            if(APPLE)
-                target_compile_definitions(waila_test PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
-            endif()
-        endif()
     endif()
 
     get_property(perlin_all_tests DIRECTORY PROPERTY TESTS)

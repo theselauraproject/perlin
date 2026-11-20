@@ -83,6 +83,12 @@ namespace perlin::entity {
                 float width = 1.0f;
             };
             const std::vector<ModLine>* modLines = nullptr;
+            struct ModBone {
+                std::string bone;
+                bool replace = false;
+                glm::vec3 rotation{0.0f}, position{0.0f}, scale{1.0f};
+            };
+            const std::unordered_map<uint64_t, std::vector<ModBone>>* modBones = nullptr;
 
             struct ModStyle {
                 bool hidden = false;

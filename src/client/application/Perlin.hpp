@@ -246,6 +246,10 @@ namespace perlin {
 
         bool cameraDetached = false;
         bool cameraModeForced = false, cameraOverridden = false;
+        bool modDetachForced = false;
+        PerspectiveMode modDetachSavedMode = PerspectiveMode::FirstPerson;
+        std::chrono::steady_clock::time_point modDetachClock;
+        void UpdateServerCameraEffects();
         float cameraPlayerView[5] = {0, 0, 0, 0, 0};
         PerspectiveMode cameraSavedMode = PerspectiveMode::FirstPerson;
 

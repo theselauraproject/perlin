@@ -721,6 +721,7 @@ namespace perlin {
 
         PumpModHooks(live);
         PumpModExtra(live);
+        PumpModRev2();
 
         if (mm.WantsEvent(abi::Event::Frame)) {
             abi::EventFrame f;

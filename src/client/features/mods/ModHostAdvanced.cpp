@@ -33,6 +33,10 @@ namespace perlin {
         }
     }
 
+    BlockPalette& ModHost::ModPalette() {
+        return BlockPalette::Instance();
+    }
+
     void ModHost::SetupModAdvanced() {
         using abi::Op;
         using abi::Status;
@@ -168,12 +172,12 @@ namespace perlin {
             return Status::Ok;
         });
 
-        scope.Register(Op::ClientBlockGet, [](CallContext&, abi::Reader& r, abi::Writer& w) {
+        scope.Register(Op::ClientBlockGet, [this](CallContext&, abi::Reader& r, abi::Writer& w) {
             const abi::BlockQuery q = r.read<abi::BlockQuery>();
             if (!r.Ok() || q.name.empty() || q.name.size() > 128 || q.states.size() > 32)
                 return Status::BadArguments;
             const std::string name = !q.name.contains(':') ? "minecraft:" + q.name : q.name;
-            BlockPalette& palette = BlockPalette::Instance();
+            BlockPalette& palette = ModPalette();
             abi::BlockQueryResult out;
             const size_t count = palette.Count();
             for (size_t local = 1; local < count && !out.found; local++) {
@@ -216,7 +220,7 @@ namespace perlin {
             scope.PostMain([this, edits] {
                 if (!modLevel)
                     return;
-                BlockPalette& palette = BlockPalette::Instance();
+                BlockPalette& palette = ModPalette();
                 for (const abi::ClientBlockEdit& e : *edits)
                     modLevel->SetBlock(e.x, e.y, e.z,
                                        palette.InternRuntime(static_cast<int32_t>(e.runtimeId)));
@@ -257,6 +261,17 @@ namespace perlin {
 
     void ModHost::ApplyModCamera(float& fov, glm::mat4& viewEffect) {
         const auto now = Clock::now();
+        {
+            std::lock_guard detachLock(modRev2.mutex);
+            if (modRev2.detachActive && now < modRev2.detachUntil) {
+                if (modRev2.detach.fov > 0.0f)
+                    fov = std::clamp(modRev2.detach.fov, 1.0f, 170.0f);
+                if (modRev2.detach.roll != 0.0f)
+                    viewEffect = glm::rotate(glm::mat4(1.0f), glm::radians(modRev2.detach.roll),
+                                             glm::vec3(0.0f, 0.0f, 1.0f)) *
+                                 viewEffect;
+            }
+        }
         std::lock_guard lock(modAdv.mutex);
         if (now < modAdv.cameraUntil) {
             const abi::CameraControlState& c = modAdv.camera;

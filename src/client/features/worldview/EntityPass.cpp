@@ -130,11 +130,13 @@ namespace perlin::worldview {
         self.name = live ? live->PlayerName() : std::string("Perlin");
         if (live)
             self.nameTag = live->OwnNameTag();
-        self.pos = {camera.x,
-                    camera.y - (live ? static_cast<double>(player.EyeOffset()) : entity::kPlayerEye),
-                    camera.z};
-        self.yaw = self.headYaw = camera.yaw - 90.0f;
-        self.pitch = -camera.pitch;
+        glm::vec3 selfEye(camera.x, camera.y, camera.z);
+        float selfYaw = camera.yaw, selfPitch = camera.pitch;
+        modHost.DetachedPlayerView(selfEye, selfYaw, selfPitch);
+        self.pos = {selfEye.x, selfEye.y - (live ? static_cast<double>(player.EyeOffset()) : entity::kPlayerEye),
+                    selfEye.z};
+        self.yaw = self.headYaw = selfYaw - 90.0f;
+        self.pitch = -selfPitch;
         if (replayCtl.Playing()) {
             const replay::Pose rp = replayCtl.InterpolatedPose();
             if (rp.known) {

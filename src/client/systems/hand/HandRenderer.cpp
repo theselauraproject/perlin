@@ -1,3 +1,4 @@
+#include "client/systems/attachable/AnimationStyle.hpp"
 #include "client/systems/sprites/ItemData.hpp"
 #include "client/systems/hand/HandRenderer.hpp"
 #include "util/Env.hpp"
@@ -100,8 +101,7 @@ namespace perlin {
         }
 
         bool ClassicAnimations() {
-            static const bool modern = PERLIN_ENV("PERLIN_MODERN_ANIMATIONS") != nullptr;
-            return !modern;
+            return anim::ClassicFirstPerson();
         }
 
         std::string ShortName(const std::string& name) {

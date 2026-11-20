@@ -541,6 +541,7 @@ namespace perlin {
                 std::erase_if(modHooks.packs, [&](const auto& p) { return p.first == plugin; }) > 0;
         }
         DropModExtra(plugin);
+        DropModRev2(plugin);
         if (hudChanged)
             ui::BumpHudFilter();
         if (packsChanged)
@@ -683,6 +684,7 @@ namespace perlin {
             }
         }
         std::erase_if(modHooks.entities, [](const auto& p) { return p.second.empty(); });
+        PrepareModBones(in);
         if (!modFrameStyles.empty() || !modFrameTypeStyles.empty())
             in.modStyle =
                 [this](const entity::Entity& e) -> const entity::EntityRenderer::FrameIn::ModStyle* {

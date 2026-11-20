@@ -12,7 +12,6 @@ A cross-platform Minecraft: Bedrock Edition client written in C++23. It speaks t
 | `src/render`, `src/shaders` | chunk meshing and shader sources |
 | `src/util` | shared helpers: strings, paths, file I/O, logging, JSON |
 | `server/` | dedicated server and its plugin host, see `server/README.md` |
-| `plugins/` | first-party plugins and plugin examples |
 | `protocol/`, `tools/protogen` | protocol specs and the codec generator run at build time |
 | `tests/` | self-tests, built with `-DPERLIN_BUILD_TESTS=ON` |
 | `docs/` | user and platform references; `platforms.md` lists supported platforms, `plugin-host.md` describes the plugin host |
@@ -66,6 +65,6 @@ The plugin SDK, the schema it is generated from and the host core that runs plug
 cmake --preset <preset> -DPERLIN_API_SOURCE_DIR=../perlin-api
 ```
 
-Plugins declare the API revision they were built for and keep working on later games: see `docs/versioning.md` in perlin-api. The prebuilt plugin binaries in `tests/data/plugins` and `plugins/prebuilt` are loaded by `mod_selftest` (part of `PERLIN_BUILD_TESTS`).
+Plugins declare the API revision they were built for and keep working on later games: see `docs/versioning.md` in perlin-api. The prebuilt plugin binaries in `tests/data/plugins` are loaded by `mod_selftest` (part of `PERLIN_BUILD_TESTS`).
 
-The first-party plugins (waila, minimap, barrel roll) and the plugin examples are in `plugins/`; see `plugins/README.md`. How Perlin hosts plugins (lifecycle, states, permissions, engines) is in `docs/plugin-host.md`.
+How Perlin hosts plugins (lifecycle, states, permissions, engines) is in `docs/plugin-host.md`.

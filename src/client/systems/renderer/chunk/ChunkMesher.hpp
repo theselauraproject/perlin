@@ -16,6 +16,12 @@ namespace perlin {
     void MeshProfilePrint();
     void MesherInvalidateCaches();
     void MesherSetCullInnerLeaves(bool on);
+    struct BlockRemapTable {
+        std::vector<uint16_t> map;
+        bool fullbright = false;
+    };
+    void MesherSetBlockRemap(std::shared_ptr<const BlockRemapTable> table);
+    uint64_t MesherBlockRemapEpoch();
     struct MeshReuse {
         std::shared_ptr<const Tessellator> mesh;
         uint64_t generation = 0;

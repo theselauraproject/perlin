@@ -4,6 +4,8 @@
 #include "util/Log.hpp"
 #include <filesystem>
 #include <algorithm>
+#include <cmath>
+#include "util/Platform.hpp"
 #include <functional>
 #include <ctime>
 #include <vector>
@@ -415,8 +417,12 @@ namespace perlin {
                     modHost.modAdv.lookTaken = false;
                 }
             }
-            if (!lookTaken)
-                camera.Rotate(look.yaw, look.pitch);
+            if (!lookTaken) {
+                if (modHost.DetachTakesLook())
+                    modHost.DetachLook(look.yaw, look.pitch);
+                else
+                    camera.Rotate(look.yaw, look.pitch);
+            }
         }
         {
             const float target =
@@ -437,6 +443,43 @@ namespace perlin {
     }
 
     void Perlin::UpdateCameraEffects() {
+        UpdateServerCameraEffects();
+        if (cameraDetached)
+            return;
+        const glm::vec3 eye(camera.x, camera.y, camera.z);
+        const float yaw = camera.yaw, pitch = camera.pitch;
+        const float fov = camera.fov;
+        PerspectiveMode mode = camera.mode;
+        bool showSelf = true;
+        const auto now = std::chrono::steady_clock::now();
+        const float dt = modDetachClock.time_since_epoch().count() == 0
+                             ? 0.0f
+                             : std::chrono::duration<float>(now - modDetachClock).count();
+        modDetachClock = now;
+        if (!modHost.DetachCamera(dt, eye, mode, showSelf)) {
+            if (modDetachForced) {
+                camera.mode = modDetachSavedMode;
+                modDetachForced = false;
+            }
+            return;
+        }
+        cameraPlayerView[0] = eye.x;
+        cameraPlayerView[1] = eye.y;
+        cameraPlayerView[2] = eye.z;
+        cameraPlayerView[3] = yaw;
+        cameraPlayerView[4] = pitch;
+        cameraOverridden = true;
+        (void)fov;
+        if (!modDetachForced) {
+            modDetachSavedMode = camera.mode;
+            modDetachForced = true;
+        }
+        camera.mode = mode;
+        cameraDetached = true;
+        (void)showSelf;
+    }
+
+    void Perlin::UpdateServerCameraEffects() {
         cameraDetached = false;
         if (!(sessionReady && session)) {
             if (cameraModeForced) {
@@ -935,7 +978,15 @@ namespace perlin {
                         std::min(target, Clock::now() + std::chrono::milliseconds(5)));
             }
         }
-        const int fpsCap = modHost.ModFrameLimit(options.maxFps);
+        int baseCap = options.maxFps;
+#if defined(PERLIN_MOBILE)
+        // on phones the unlimited setting means the panel's own rate: past it frames are only heat
+        if (baseCap == 0) {
+            const double hz = platform->DisplayRefreshHz();
+            baseCap = hz >= 30.0 ? static_cast<int>(std::lround(std::min(hz, 165.0))) : 60;
+        }
+#endif
+        const int fpsCap = modHost.ModFrameLimit(baseCap);
         if (fpsCap > 0 && !replayStudio.Exporting()) {
             const auto period = std::chrono::microseconds(1000000LL * std::max(1, fgActive) / fpsCap);
             auto& deadline = loop->paceDeadline;

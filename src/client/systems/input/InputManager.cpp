@@ -161,6 +161,12 @@ namespace perlin {
     }
 
     bool InputManager::IsDown(Action action) const {
+        if (modFreeze && Freezable(action))
+            return false;
+        return IsDownUnfrozen(action);
+    }
+
+    bool InputManager::IsDownUnfrozen(Action action) const {
         if (blocked && action != Action::DebugScreen)
             return false;
         if (input.TextMode())

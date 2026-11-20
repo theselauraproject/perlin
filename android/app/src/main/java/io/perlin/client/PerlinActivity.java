@@ -65,7 +65,28 @@ public class PerlinActivity extends SDLActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
                 | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        preferFastestDisplayMode();
         installKeyboardResize();
+    }
+
+    // many 90/120 Hz panels keep an app at 60 Hz unless it asks for a faster mode at the same resolution
+    private void preferFastestDisplayMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
+            return;
+        android.view.Display display = getWindowManager().getDefaultDisplay();
+        android.view.Display.Mode current = display.getMode();
+        android.view.Display.Mode best = current;
+        for (android.view.Display.Mode mode : display.getSupportedModes()) {
+            if (mode.getPhysicalWidth() == current.getPhysicalWidth()
+                    && mode.getPhysicalHeight() == current.getPhysicalHeight()
+                    && mode.getRefreshRate() > best.getRefreshRate())
+                best = mode;
+        }
+        if (best.getModeId() == current.getModeId())
+            return;
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.preferredDisplayModeId = best.getModeId();
+        getWindow().setAttributes(params);
     }
 
     private void installKeyboardResize() {

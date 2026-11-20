@@ -830,6 +830,10 @@ namespace perlin {
             meshFormatSeen = format;
             InvalidateMeshes();
         }
+        if (const uint64_t remap = MesherBlockRemapEpoch(); remap != remapSeen) {
+            remapSeen = remap;
+            InvalidateMeshes(true);
+        }
         if (options.cullInnerLeaves != cullLeavesApplied) {
             cullLeavesApplied = options.cullInnerLeaves;
             MesherSetCullInnerLeaves(cullLeavesApplied);

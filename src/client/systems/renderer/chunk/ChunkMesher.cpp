@@ -806,6 +806,27 @@ namespace perlin {
 
     static float AoShadeUncached(const BlockCache& cache, BlockLibrary* library, int x, int y, int z);
     static std::atomic<bool> gCullInnerLeaves{false};
+    static std::mutex gRemapMutex;
+    static std::shared_ptr<const BlockRemapTable> gRemap;
+    static std::atomic<uint64_t> gRemapEpoch{0};
+    static thread_local bool tFullbright = false;
+
+    void MesherSetBlockRemap(std::shared_ptr<const BlockRemapTable> table) {
+        {
+            std::lock_guard lock(gRemapMutex);
+            gRemap = std::move(table);
+        }
+        gRemapEpoch.fetch_add(1, std::memory_order_acq_rel);
+    }
+
+    uint64_t MesherBlockRemapEpoch() {
+        return gRemapEpoch.load(std::memory_order_acquire);
+    }
+
+    static std::shared_ptr<const BlockRemapTable> CurrentRemap() {
+        std::lock_guard lock(gRemapMutex);
+        return gRemap;
+    }
     void MesherSetCullInnerLeaves(bool on) {
         gCullInnerLeaves.store(on, std::memory_order_relaxed);
     }
@@ -1056,6 +1077,8 @@ namespace perlin {
         const std::string kPlainsName = "minecraft:plains";
 
         std::array<int, 2> BlockMesher::Sample(int lx, int ly, int lz) const {
+            if (tFullbright)
+                return {15, 15};
             const uint8_t packed = lighting.At(lx, ly, lz);
             return {ChunkLighting::Result::Block(packed), ChunkLighting::Result::Sky(packed)};
         }
@@ -2680,6 +2703,18 @@ namespace perlin {
             int fHi = std::min(yHi + 1, static_cast<int>(Chunk::MIN_Y) + Chunk::HEIGHT - 1);
             cache.FillRaw(level, pos, fLo, fHi);
         }
+        const std::shared_ptr<const BlockRemapTable> remap = CurrentRemap();
+        tFullbright = remap && remap->fullbright;
+        if (remap && !remap->map.empty()) {
+            const std::vector<uint16_t>& map = remap->map;
+            const size_t n = map.size();
+            for (uint16_t& c : cache.cells)
+                if (c < n)
+                    c = map[c];
+            for (uint16_t& c : cache.liquid)
+                if (c < n)
+                    c = map[c];
+        }
         Memo().Reset(gMemoGlobal.load());
         if (library)
             cache.Classify(library);
@@ -2723,7 +2758,7 @@ namespace perlin {
             for (const uint64_t v :
                  {static_cast<uint64_t>(reinterpret_cast<uintptr_t>(library)),
                   static_cast<uint64_t>(reinterpret_cast<uintptr_t>(tints)),
-                  static_cast<uint64_t>(gMemoGlobal.load()),
+                  static_cast<uint64_t>(gMemoGlobal.load()), MesherBlockRemapEpoch(),
                   static_cast<uint64_t>(textured) | (static_cast<uint64_t>(haveTints) << 1)})
                 reuseKey = (reuseKey ^ v) * 1099511628211ull;
         }

@@ -51,6 +51,8 @@ namespace perlin {
         void SwingOffhand() { offSwing.Start(); }
         void Attack(const HandSettings& settings, bool resetsCooldown);
         float SwingProgress(float partial) const;
+        float OffSwingProgress(float partial) const { return offSwing.Progress(partial); }
+        bool UseOffhandAnim() const { return useOffhandAnim; }
         void ForceSwingProgress(float progress) { forcedSwing = progress; }
 
         struct FrameIn {

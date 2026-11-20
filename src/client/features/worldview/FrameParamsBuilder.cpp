@@ -38,7 +38,8 @@ namespace perlin::worldview {
         env = SampleEnvironment(envIn);
 
         glm::mat4 bobMatrix(1.0f);
-        if (live && modHost.ModHand().viewBobbing && camera.mode == PerspectiveMode::FirstPerson)
+        if (live && modHost.ModHand().viewBobbing && camera.mode == PerspectiveMode::FirstPerson &&
+            !modHost.CameraDetachActive())
             bobMatrix = BobViewMatrix(player.Bob(), player.PartialTick(), modHost.ModHand().bobStrength);
         const glm::mat4 hurtMatrix =
             sessionReady ? damage.ViewMatrix(partial, options.damageTilt) : glm::mat4(1.0f);

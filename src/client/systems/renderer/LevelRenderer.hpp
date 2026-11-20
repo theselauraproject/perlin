@@ -209,6 +209,7 @@ namespace perlin {
         std::chrono::steady_clock::time_point queueBuilt{};
         int queueCamX = 0x7fffffff, queueCamZ = 0;
         int serverRadius = 0;
+        uint64_t remapSeen = 0;
         bool cullLeavesApplied = false;
         uint64_t meshFormatSeen = 0;
         int viewChunkX = 0, viewChunkZ = 0;

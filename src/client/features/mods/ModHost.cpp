@@ -195,6 +195,7 @@ namespace perlin {
         SetupModAdvanced();
         SetupModHooks();
         SetupModExtra();
+        SetupModRev2();
         SetupModInteractionApi();
     }
 

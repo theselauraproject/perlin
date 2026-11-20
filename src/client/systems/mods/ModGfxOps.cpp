@@ -184,6 +184,8 @@ namespace perlin::mods {
             layer.plugin = ctx.plugin;
             layer.name = name;
             layer.z = z;
+            if (layer.data && *layer.data == blob)
+                return abi::Status::Ok;
             layer.data = std::make_shared<const std::vector<uint8_t>>(std::move(blob));
             layer.serial = ++mod->serial;
             return abi::Status::Ok;

@@ -1,3 +1,4 @@
+#include "client/systems/attachable/AnimationStyle.hpp"
 #include "client/systems/entity/EntityRenderer.hpp"
 #include "client/systems/text/FontTexture.hpp"
 #include "client/systems/entity/EntityColor.hpp"
@@ -131,8 +132,7 @@ namespace perlin::entity {
 
     namespace {
         bool ClassicAnimations() {
-            static const bool modern = PERLIN_ENV("PERLIN_MODERN_ANIMATIONS") != nullptr;
-            return !modern;
+            return anim::ClassicThirdPerson();
         }
     }
 
@@ -489,8 +489,14 @@ namespace perlin::entity {
         if (v.bodyTickAt >= 0.0 && v.now - v.bodyTickAt > 0.5)
             v.body.Reset(v.pos.x, v.pos.z, v.headYaw);
         v.bodyTickAt = v.now;
-        const float body =
+        float body =
             v.body.Frame(v.pos.x, v.pos.z, v.headYaw, dt, v.attackTime > 0.0f, e.Has(flag::Riding), v.yaw);
+        if (!e.Has(flag::Riding)) {
+            // the body is ticked at 20 Hz but the head follows every frame: during a fast spin the sampled body
+            // can trail far past the per-tick limit and then snap back, so the drawn body keeps that limit too
+            const float limit = v.body.classic ? 75.0f : 50.0f;
+            body = v.headYaw - std::clamp(math::WrapDegrees(v.headYaw - body), -limit, limit);
+        }
         if (v.fp)
             return;
         v.yaw = body;
@@ -1125,6 +1131,22 @@ namespace perlin::entity {
             const float turned = std::sin(math::WrapDegrees(v.yaw - v.headYaw) * 0.017453292f);
             pose["shoulders"].rotation = glm::vec3(
                 0.0f, std::clamp(v.limbAmount, 0.0f, 1.0f) * turned * turned * turned * 60.0f, 0.0f);
+        }
+        if (in.modBones && !v.fp) {
+            const auto found = in.modBones->find(e.isSelf ? 0 : e.runtimeId);
+            if (found != in.modBones->end())
+                for (const auto& b : found->second) {
+                    attachable::BoneXform& xf = pose[b.bone];
+                    if (b.replace) {
+                        xf.rotation = b.rotation;
+                        xf.position = b.position;
+                        xf.scale = b.scale;
+                    } else {
+                        xf.rotation += b.rotation;
+                        xf.position += b.position;
+                        xf.scale *= b.scale;
+                    }
+                }
         }
         if (v.fp) {
             static const float px =

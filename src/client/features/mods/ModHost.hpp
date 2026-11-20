@@ -41,6 +41,7 @@ namespace perlin::gpu {
 }
 
 namespace perlin {
+    class BlockPalette;
     struct LocalBreakState {
         bool active = false;
         int x = 0, y = 0, z = 0;
@@ -158,6 +159,17 @@ namespace perlin {
         int ModFrameLimit(int fps) const;
         void PumpModHooks(BedrockSession* live);
         void SetupModExtra();
+        void SetupModRev2();
+        void PumpModRev2();
+        void DropModRev2(const std::string& plugin);
+        void RebuildBlockRemap();
+        BlockPalette& ModPalette();
+        bool DetachCamera(float dt, glm::vec3 eye, PerspectiveMode& mode, bool& showSelf);
+        bool DetachTakesLook();
+        bool CameraDetachActive();
+        bool DetachedPlayerView(glm::vec3& eye, float& yaw, float& pitch);
+        void DetachLook(float dyaw, float dpitch);
+        void PrepareModBones(entity::EntityRenderer::FrameIn& in);
         void PumpModExtra(BedrockSession* live);
         void DropModExtra(const std::string& plugin);
         void ApplyModSlotOverlays(ui::HudState& state);
@@ -193,6 +205,27 @@ namespace perlin {
             std::array<float, 16> viewProjection{};
             std::vector<entity::EntityRenderer::FrameIn::ModLine> frameLines;
         } modAdv;
+        struct ModRev2 {
+            std::mutex mutex;
+            std::string detachPlugin;
+            abi::CameraDetachState detach;
+            TimePoint detachUntil;
+            bool detachActive = false;
+            glm::dvec3 detachPos{0.0};
+            glm::vec3 playerEye{0.0f};
+            float playerYaw = 0.0f, playerPitch = 0.0f;
+            float detachYaw = 0.0f, detachPitch = 0.0f;
+            std::map<std::string, abi::BlockRemapData> remaps;
+            size_t remapPaletteCount = 0;
+            abi::BlockRemapStateData remapState;
+            struct BoneSet {
+                TimePoint until;
+                std::vector<entity::EntityRenderer::FrameIn::ModBone> bones;
+            };
+            std::map<std::pair<std::string, uint64_t>, BoneSet> bones;
+            std::unordered_map<uint64_t, std::vector<entity::EntityRenderer::FrameIn::ModBone>> frameBones;
+            std::map<std::string, std::pair<TimePoint, abi::AnimationStyleData>> styles;
+        } modRev2;
         struct ModHooks {
             using TimePoint = std::chrono::steady_clock::time_point;
             std::mutex mutex;
@@ -289,6 +322,19 @@ namespace perlin {
             int width = 0, height = 0;
         };
         std::unordered_map<std::string, ModGfxTexture> modGfxTextures;
+        struct ModGfxDraw {
+            uint32_t mesh = 0;
+            uint32_t texture = 0;
+            float clip[4] = {0, 0, 0, 0};
+        };
+        struct ModGfxCached {
+            uint64_t serial = 0;
+            const void* data = nullptr;
+            bool hudBand = false;
+            bool seen = false;
+            std::vector<ModGfxDraw> draws;
+        };
+        std::unordered_map<std::string, ModGfxCached> modGfxCache;
         int modLastDim = 0, modLastSlot = -1;
         uint32_t modLastHurt = 0, modTitleSerial = 0;
         abi::Screen modLastScreen = abi::Screen::None;

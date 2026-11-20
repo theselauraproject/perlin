@@ -23,6 +23,8 @@ namespace perlin {
         void Poll();
 
         bool IsDown(Action action) const;
+        bool IsDownUnfrozen(Action action) const;
+        void SetModFreeze(bool on) { modFreeze = on; }
         void SetControlActions(std::bitset<kActionCount> actions, uint64_t untilTick) {
             controlPressed |=
                 actions & ~(controlTick < controlUntil ? controlActions : std::bitset<kActionCount>{});
@@ -31,7 +33,25 @@ namespace perlin {
             controlled = true;
         }
         void SetControlTick(uint64_t tick) { controlTick = tick; }
-        bool Pressed(Action action) const { return pressed.test(static_cast<size_t>(action)); }
+        static bool Freezable(Action action) {
+            switch (action) {
+            case Action::Forward:
+            case Action::Back:
+            case Action::Left:
+            case Action::Right:
+            case Action::Jump:
+            case Action::Sneak:
+            case Action::Sprint:
+            case Action::Attack:
+            case Action::Use:
+                return true;
+            default:
+                return false;
+            }
+        }
+        bool Pressed(Action action) const {
+            return pressed.test(static_cast<size_t>(action)) && !(modFreeze && Freezable(action));
+        }
         float Axis(Action positive, Action negative) const;
         LookDelta Look() const { return (locks & 2u) ? LookDelta{} : look; }
         float Scroll() const { return scroll; }
@@ -96,6 +116,7 @@ namespace perlin {
         std::vector<PluginInput> pluginEvents;
         std::array<std::chrono::steady_clock::time_point, 3> escapes{};
         uint32_t locks = 0;
+        bool modFreeze = false;
         std::array<std::chrono::steady_clock::time_point, kActionCount> holds{};
     };
 }
