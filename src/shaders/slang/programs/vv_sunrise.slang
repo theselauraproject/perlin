@@ -29,6 +29,7 @@ static vec4 v_color0;
 void stageMain()
 {
     gl_Position = mul(u_mvp, vec4(a_position, 1.0));
+    gl_Position.z = 0.0;
     v_color0 = a_color0;
 }
 }

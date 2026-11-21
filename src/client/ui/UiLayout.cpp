@@ -752,19 +752,17 @@ namespace perlin::ui {
                         text.substr(start, nl == std::string::npos ? std::string::npos : nl - start);
                     std::string line;
                     size_t i = 0;
-                    bool started = false;
                     while (i <= paragraph.size()) {
                         const size_t sp = paragraph.find(' ', i);
                         const std::string word =
                             paragraph.substr(i, sp == std::string::npos ? std::string::npos : sp - i);
-                        const std::string candidate = started ? line + " " + word : word;
+                        const std::string candidate = line.empty() ? word : line + " " + word;
                         if (!line.empty() && measure(candidate) > wrapWidth) {
                             out.push_back(line);
                             line = word;
                         } else {
                             line = candidate;
                         }
-                        started = true;
                         if (sp == std::string::npos)
                             break;
                         i = sp + 1;
@@ -1355,8 +1353,7 @@ namespace perlin::ui {
                         size_t sp = paragraph.find(' ', i);
                         std::string word =
                             paragraph.substr(i, sp == std::string::npos ? std::string::npos : sp - i);
-                        // an empty word is a space the text really has (leading or doubled): keep it
-                        const std::string candidate = any ? line + " " + word : word;
+                        const std::string candidate = line.empty() ? word : line + " " + word;
                         if (!line.empty() && measure(candidate) > wrapWidth) {
                             width = std::max(width, measure(line));
                             lines++;

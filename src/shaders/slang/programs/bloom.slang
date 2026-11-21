@@ -4,6 +4,8 @@ UNIFORMS_BEGIN
     vec4 u_post;
     vec4 u_bloomParams;
     vec4 u_bloomTexel;
+    vec4 u_rays;
+    vec4 u_raysColor;
 UNIFORMS_END
 
 SAMPLER2D(s_cur, 28, 29);
@@ -100,9 +102,31 @@ void stageMain()
     {
         color = downsample(v_texcoord0, t);
     }
-    else
+    else if (u_bloomParams.x < 2.5)
     {
         color = upsample(v_texcoord0, t);
+    }
+    else
+    {
+        vec2 toSun = u_rays.xy - v_texcoord0;
+        float aspect = u_bloomTexel.z;
+        float reach = length(vec2(toSun.x * aspect, toSun.y));
+        float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+        vec2 stepUv = toSun * (0.92 / 16.0);
+        vec2 uv = v_texcoord0 + stepUv * dither;
+        vec3 sum = vec3_splat(0.0);
+        float w = 1.0;
+        float total = 0.0;
+        for (int i = 0; i < 16; i++)
+        {
+            vec3 s = sampleSrc(uv);
+            sum += s * w;
+            total += w;
+            w *= 1.06;
+            uv += stepUv;
+        }
+        float falloff = exp(-reach * u_rays.w);
+        color = sum / total * u_raysColor.rgb * u_rays.z * falloff;
     }
     gl_FragColor = vec4(color, 1.0);
 }

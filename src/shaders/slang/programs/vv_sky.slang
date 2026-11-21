@@ -29,9 +29,14 @@ static vec3 v_dir;
 
 void stageMain()
 {
-    gl_Position = mul(u_mvp, vec4(a_position, 1.0));
-    v_fog = vec2(length(a_position), max(length(a_position.xz), abs(a_position.y)));
-    v_dir = a_position;
+    vec3 p = a_position;
+    float r = length(p.xz);
+    if (p.y > 0.0 && r > 1.0)
+        p.y = -r * 0.3;
+    gl_Position = mul(u_mvp, vec4(p, 1.0));
+    gl_Position.z = 0.0;
+    v_fog = vec2(length(p), max(length(p.xz), abs(p.y)));
+    v_dir = p;
 }
 }
 
@@ -52,13 +57,15 @@ void stageMain()
     }
     else if (u_modulator.a > 0.5 && dot(u_modulator.rgb, vec3_splat(1.0)) < 0.001 && dir.y < 0.0)
     {
-        c = vvSkyGradient(vec3(dir.x, 0.0, dir.z)) * mix(0.85, 1.0, smoothstep(-0.4, -0.08, dir.y));
-        c += vvSunGlow(normalize(vec3(dir.x, 0.0, dir.z) + vec3(0.0, 1.0e-4, 0.0)));
+        vec3 flatDir = normalize(vec3(dir.x, 1.0e-4, dir.z));
+        c = vvSky(flatDir, false) * mix(0.72, 1.0, smoothstep(-0.5, -0.04, dir.y));
     }
     else
     {
-        c = vvSky(dir, true);
-        vec4 cloud = vvClouds(u_camera.xyz, dir, 6000.0);
+        c = vvSky(dir, true) * mix(0.72, 1.0, smoothstep(-0.5, -0.04, dir.y));
+        float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+        float steps = 6.0 + 4.0 * floor(S_CLOUD_QUALITY + 0.5);
+        vec4 cloud = vvCloudMarch(u_camera.xyz, dir, 6000.0, steps, dither);
         c = c * cloud.a + cloud.rgb;
     }
     float underwater = vvUnderwater();

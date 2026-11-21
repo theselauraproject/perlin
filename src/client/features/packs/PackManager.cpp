@@ -159,6 +159,8 @@ namespace perlin::packs {
                 const std::string full = paths::DataDir() + "/shaderpacks/" + options.shaderPack;
                 if (jshader::LooksLikeJavaPack(full))
                     javaPackPending = full;
+                else if (!shaderPack.Active())
+                    ApplyShaderPack();
             }
         }
         if (!javaPackPending.empty() && levelRenderer && levelRenderer->Blocks().Complete()) {

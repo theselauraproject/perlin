@@ -85,7 +85,7 @@
 #include "util/TaskGroup.hpp"
 #include "util/ThreadPool.hpp"
 #ifdef PERLIN_SINGLEPLAYER
-#include "EmbeddedServer.hpp"
+#include "client/features/singleplayer/EmbeddedServer.hpp"
 #endif
 
 #include <array>
@@ -198,7 +198,8 @@ namespace perlin {
         services::AccountService& Accounts() { return *appServices.accounts; }
         void BuildDiscordService();
         void UpdateDiscord();
-        void JoinSingleplayer(const std::string& worldDir = {}, uint64_t seed = 0, int gameMode = -1);
+        void JoinSingleplayer(const std::string& worldDir = {}, uint64_t seed = 0, int gameMode = -1,
+                              bool persistent = true);
         void StartBenchmark(bench::Settings settings);
         void UpdateBenchmark(FrameContext& f);
         void FinishBenchmark();

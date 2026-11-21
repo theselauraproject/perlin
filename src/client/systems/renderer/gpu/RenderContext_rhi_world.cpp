@@ -739,6 +739,9 @@ namespace perlin {
         if (ordered && post.sceneValid) {
             BindTexture("s_sceneColor", post.sceneColor, gpu::SamplerKind::LinearClamp);
             BindTexture("s_sceneDepth", post.sceneDepth, gpu::SamplerKind::PointClamp);
+            uni.Vec4("u_sceneInfo", 1.0f, 0.0f, 0.0f, 0.0f);
+        } else {
+            uni.Vec4("u_sceneInfo", 0.0f, 0.0f, 0.0f, 0.0f);
         }
 
         DrawCall templ;
@@ -881,7 +884,9 @@ namespace perlin {
         if (!initialized || !frameOpen)
             return;
         const bool pack = PackRunning();
-        if (!pack)
+        static const bool skyEarly = PERLIN_ENV("PERLIN_SKY_EARLY") != nullptr;
+        const bool skyLate = !skyEarly && packActive && !javaActive && !pack && frame.sky.enabled;
+        if (!pack && !skyLate)
             DrawSky();
         meshes.ReleaseEmptyPages();
         meshes.ResortTranslucent(camX, frame.cameraPosition[1], camZ);
@@ -890,6 +895,8 @@ namespace perlin {
                 jpack->ClearGeometry();
                 jpackGathered = true;
             }
+            if (skyLate)
+                DrawSky();
             DrawClouds();
             DrawScreenTint();
             return;
@@ -960,6 +967,11 @@ namespace perlin {
             DrawLayer(RenderLayer::Cutout, Program::TerrainCutout, View::WorldLate, true);
             DrawLayer(RenderLayer::CutoutCull, Program::TerrainCutout, View::WorldLate, true);
         }
+        if (skyLate) {
+            skyView = View::Late;
+            DrawSky();
+            skyView = View::World;
+        }
         DrawClouds();
         DrawLayer(RenderLayer::Translucent, Program::TerrainTranslucent, View::Late);
         DrawLayer(RenderLayer::TranslucentCull, Program::TerrainTranslucent, View::Late);
@@ -984,8 +996,9 @@ namespace perlin {
         const glm::mat4 view = FromArray(frame.skyViewProjection);
         constexpr float kHalfPi = 1.57079632679489661923f;
         const auto matrix = [&](const glm::mat4& m) { SetMatrix(glm::value_ptr(m)); };
+        const bool skyDepth = skyView != View::World;
         const auto drawState = [&](Program program, gpu::VertexLayout layout) {
-            DrawState s = Base(program, false, false, conduit::compare_op::less_equal);
+            DrawState s = Base(program, skyDepth, false, conduit::compare_op::less_equal);
             s.layout = layout;
             s.mask = kRgbA;
             return s;
@@ -998,14 +1011,14 @@ namespace perlin {
         if (javaActive) {
             BindShadowSampling();
             BindJavaExtras();
-            Submit(View::World, drawState(Program::Sky, gpu::VertexLayout::Position), {screenTri, 0}, nullptr,
+            Submit(skyView, drawState(Program::Sky, gpu::VertexLayout::Position), {screenTri, 0}, nullptr,
                    conduit::index_type::u32, 0, 3);
             ResetBindings();
             return;
         }
         {
             const Source indices{fanIdx, 0};
-            Submit(View::World, drawState(Program::Sky, gpu::VertexLayout::Terrain), {topSky, 0}, &indices,
+            Submit(skyView, drawState(Program::Sky, gpu::VertexLayout::Terrain), {topSky, 0}, &indices,
                    conduit::index_type::u16, 0, skyFanIndexCount);
         }
 
@@ -1023,7 +1036,7 @@ namespace perlin {
             s.srcAlpha = conduit::blend_factor::one;
             s.dstAlpha = conduit::blend_factor::inv_src_alpha;
             const Source indices{sunriseIdx, 0};
-            Submit(View::World, s, {sunriseVerts, 0}, &indices, conduit::index_type::u16, 0, sunriseIndexCount);
+            Submit(skyView, s, {sunriseVerts, 0}, &indices, conduit::index_type::u16, 0, sunriseIndexCount);
         }
 
         const glm::mat4 celestial = glm::rotate(view, -kHalfPi, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -1052,7 +1065,7 @@ namespace perlin {
                 BindTexture("s_sky", sunTex.handle, gpu::SamplerKind::PointClamp);
                 ApplyMaterial(s, "sun_moon");
             }
-            Submit(View::World, s, {sunVerts, 0}, &quad, conduit::index_type::u16, 0, 6);
+            Submit(skyView, s, {sunVerts, 0}, &quad, conduit::index_type::u16, 0, 6);
         }
         if (!javaActive && (moonTex.used || sky.moonTexture >= 0)) {
             matrix(body(sky.moonAngle, 20.0f));
@@ -1062,7 +1075,7 @@ namespace perlin {
                 BindTexture("s_sky", moonTex.handle, gpu::SamplerKind::PointClamp);
                 ApplyMaterial(s, "sun_moon");
             }
-            Submit(View::World, s,
+            Submit(skyView, s,
                    {moonVerts, static_cast<uint64_t>(sky.moonPhase) * 4 * sizeof(TextureVertex)}, &quad,
                    conduit::index_type::u16, 0, 6);
         }
@@ -1073,13 +1086,13 @@ namespace perlin {
             DrawState s = drawState(Program::Star, gpu::VertexLayout::Position);
             ApplyMaterial(s, "stars");
             const Source indices{starIdx, 0};
-            Submit(View::World, s, {starVerts, 0}, &indices, conduit::index_type::u16, 0, starIndexCount);
+            Submit(skyView, s, {starVerts, 0}, &indices, conduit::index_type::u16, 0, starIndexCount);
         }
         if (sky.darkDisc && sky.customCount == 0) {
             matrix(glm::translate(view, glm::vec3(0.0f, 12.0f, 0.0f)));
             uni.Vec4("u_modulator", 0.0f, 0.0f, 0.0f, 1.0f);
             const Source indices{fanIdx, 0};
-            Submit(View::World, drawState(Program::Sky, gpu::VertexLayout::Terrain), {bottomSky, 0}, &indices,
+            Submit(skyView, drawState(Program::Sky, gpu::VertexLayout::Terrain), {bottomSky, 0}, &indices,
                    conduit::index_type::u16, 0, skyFanIndexCount);
         }
         SetMatrix(mvp);

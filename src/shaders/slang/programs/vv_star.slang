@@ -30,6 +30,7 @@ static vec3 v_dir;
 void stageMain()
 {
     gl_Position = mul(u_mvp, vec4(a_position, 1.0));
+    gl_Position.z = 0.0;
     v_fog = vec2(0.0, 0.0);
     v_dir = a_position / max(length(a_position), 0.0001);
 }

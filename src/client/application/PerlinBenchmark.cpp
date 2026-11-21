@@ -52,7 +52,7 @@ namespace perlin {
         seen.z = s.z;
         const bench::Driver::Action action = benchmark->Step(seen);
         if (action.join)
-            JoinSingleplayer(paths::DataDir() + "/benchmark-world", action.join->seed, action.join->mode);
+            JoinSingleplayer(paths::DataDir() + "/benchmark-world", action.join->seed, action.join->mode, false);
         for (const std::string& command : action.commands)
             session->SendCommand(command);
         if (action.log)

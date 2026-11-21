@@ -754,6 +754,42 @@ namespace perlin {
         pass(View::Bloom4, 2, post.bloom[3], 16.0f, 2.0f, true);
         pass(View::Bloom5, 1, post.bloom[2], 8.0f, 2.0f, true);
         pass(View::Bloom6, 0, post.bloom[1], 4.0f, 2.0f, true);
+        RecordSunRays(W, H);
+    }
+
+    void RenderContext_rhi::RecordSunRays(float W, float H) {
+        const SkyFrame& sky = frame.sky;
+        if (!packActive || javaActive || !sky.enabled || frame.cameraMedium != 0)
+            return;
+        const float sunY = std::cos(sky.sunAngle);
+        if (sunY < -0.06f)
+            return;
+        const glm::vec4 dir(-std::sin(sky.sunAngle), sunY, 0.0f, 0.0f);
+        const glm::vec4 clip = glm::make_mat4(frame.skyViewProjection) * glm::vec4(glm::vec3(dir) * 100.0f, 1.0f);
+        if (clip.w <= 0.001f)
+            return;
+        float sx = clip.x / clip.w * 0.5f + 0.5f;
+        float sy = clip.y / clip.w * 0.5f + 0.5f;
+        if (kOrigin < 0.5f)
+            sy = 1.0f - sy;
+        const float off = std::max(std::max(-sx, sx - 1.0f), std::max(-sy, sy - 1.0f));
+        const float onScreen = 1.0f - std::clamp(off / 0.6f, 0.0f, 1.0f);
+        const float low = 1.0f - std::clamp((sunY - 0.05f) / 0.6f, 0.0f, 1.0f);
+        const float rain = std::clamp((1.0f - sky.rainBrightness) * 2.0f, 0.0f, 1.0f);
+        const float strength = onScreen * (0.35f + 0.65f * low) * (1.0f - rain) *
+                               std::clamp((sunY + 0.06f) / 0.1f, 0.0f, 1.0f) * 0.7f * frame.packSettings[25];
+        if (strength < 0.01f)
+            return;
+        const float warm = low;
+        uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
+        uni.Vec4("u_bloomParams", 3.0f, 0.0f, 0.0f, 0.0f);
+        uni.Vec4("u_bloomTexel", 1.0f / std::max(1.0f, W * 0.25f), 1.0f / std::max(1.0f, H * 0.25f), W / std::max(1.0f, H),
+                 0.0f);
+        uni.Vec4("u_rays", sx, sy, strength, 2.2f);
+        uni.Vec4("u_raysColor", 1.0f, 0.92f - 0.18f * warm, 0.82f - 0.36f * warm, 1.0f);
+        BindTexture("s_cur", post.bloom[1], gpu::SamplerKind::LinearClamp);
+        FullscreenPass(View::Bloom6, Program::Bloom, kPostColor, post.bloomW[0], post.bloomH[0], true);
+        ResetBindings();
     }
 
     conduit::texture_handle RenderContext_rhi::RecordUpscale(conduit::texture_handle source, uint32_t sourceW,

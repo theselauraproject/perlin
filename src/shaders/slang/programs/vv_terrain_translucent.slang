@@ -223,12 +223,20 @@ vec4 traceReflection(vec3 origin, vec3 dir, float jitter, float quality)
     return result;
 }
 
-float waveHeight(vec2 p, float t)
+vec2 waveSet(vec2 p, float t, vec2 d0, vec2 d1, float k, float a, float w)
 {
-    float h = sin(dot(p, vec2(0.62, 0.78)) * 1.7 + t * 1.4) * 0.30;
-    h += sin(dot(p, vec2(-0.83, 0.41)) * 2.6 - t * 1.9) * 0.18;
-    h += valueNoise(p * 1.1 + vec2(t * 0.35, t * 0.22)) * 0.6;
-    return h;
+    float p0 = dot(p, d0) * k + t * w;
+    float p1 = dot(p, d1) * k * 1.37 - t * w * 1.21;
+    return d0 * (cos(p0) * a * k) + d1 * (cos(p1) * a * 0.7 * k * 1.37);
+}
+
+vec2 waveSlope(vec2 p, float t, float detail)
+{
+    vec2 q = p + vec2(sin(p.y * 0.21 + t * 0.30), sin(p.x * 0.17 - t * 0.25)) * 1.3;
+    vec2 g = waveSet(q, t, vec2(0.80, 0.60), vec2(-0.45, 0.89), 0.42, 0.55, 0.9) * 2.0;
+    g += waveSet(q * 1.0 + vec2(3.1, 7.7), t, vec2(-0.96, 0.28), vec2(0.31, -0.95), 1.35, 0.17, 1.7) * 1.7;
+    g += waveSet(q + vec2(11.3, 2.9), t, vec2(0.55, -0.83), vec2(0.99, 0.12), 3.6, 0.045, 2.9) * 0.75 * detail;
+    return g;
 }
 
 void stageMain()
@@ -269,21 +277,21 @@ void stageMain()
         bool fromAbove = top ? viewDir.y < 0.0 : envUnderwater < 0.5;
         vec2 pw = top ? world.xz : vec2(dot(world, T) * 1.6, world.y * 0.45 + t * 1.8);
 
-        float e = 0.08;
-        float h0 = waveHeight(pw, t);
-        float hx = waveHeight(pw + vec2(e, 0.0), t);
-        float hz = waveHeight(pw + vec2(0.0, e), t);
-        float strength = (top ? 0.14 : 0.3) * S_WATER_WAVES * (1.0 - smoothstep(16.0, 96.0, dist) * 0.85);
-        vec3 wn = normalize(N + (T * (h0 - hx) + B * (h0 - hz)) / e * strength);
+        float skyl = v_light.y;
+        float detail = 1.0 - smoothstep(10.0, 40.0, dist);
+        vec2 slope = waveSlope(pw, t, detail);
+        float cosN = clamp(dot(-viewDir, N), 0.0, 1.0);
+        float flatten = 1.0 - 0.7 * vvPow(1.0 - cosN, 5.0);
+        float strength = (top ? 0.17 : 0.22) * S_WATER_WAVES * flatten * mix(0.35, 1.0, smoothstep(0.3, 0.8, skyl)) * (1.0 - smoothstep(24.0, 128.0, dist) * 0.8);
+        vec3 wn = normalize(N - (T * slope.x + B * slope.y) * strength);
 
         float cosV = clamp(dot(-viewDir, wn), 0.0, 1.0);
-        float fresnel = clamp(0.04 + 0.96 * vvPow(1.0 - cosV, 4.5), 0.0, 1.0);
-        vec3 calmN = normalize(mix(N, wn, 0.2));
+        float fresnel = clamp(0.03 + 0.97 * vvPow(1.0 - cosV, 4.0), 0.0, 1.0);
+        vec3 calmN = normalize(mix(N, wn, 0.45));
         vec3 R = reflect(viewDir, calmN);
         if (top && fromAbove)
             R.y = max(abs(R.y), 0.002);
 
-        float skyl = v_light.y;
         float skyVisible = mix(0.15, 1.0, smoothstep(0.35, 0.9, skyl));
         bool scene = u_sceneInfo.x > 0.5;
 
@@ -308,7 +316,7 @@ void stageMain()
 #ifndef VV_DX_NO_CLOUDS
             if (S_REFLECTED_CLOUDS > 0.5 && R.y > 0.01 && skyl > 0.3)
             {
-                vec4 cloud = vvClouds(world, R, 4000.0);
+                vec4 cloud = vvCloudMarch(world, R, 4000.0, 4.0, 0.5);
                 reflection = reflection * cloud.a + cloud.rgb * skyVisible;
             }
 #endif
@@ -318,7 +326,8 @@ void stageMain()
         vec3 L = lightDirection();
         vec3 Rg = reflect(viewDir, normalize(mix(N, wn, 0.7)));
         float rl = max(dot(Rg, L), 0.0);
-        float core = vvPow(rl, 260.0) * 2.4 + vvPow(rl, 36.0) * 0.22;
+        float lowSun = 1.0 - smoothstep(0.08, 0.4, L.y);
+        float core = vvPow(rl, 260.0) * 2.4 + vvPow(rl, 36.0) * 0.22 + vvPow(rl, 10.0) * 0.10 * lowSun;
         vec2 cell = floor(world.xz * 8.0);
         float seed = hash12(cell);
         float twinkle = 0.5 + 0.5 * sin(t * (1.5 + seed * 2.0) + seed * 6.2831853);
@@ -333,16 +342,19 @@ void stageMain()
         float alpha;
         vec3 lightLevel = v_skyLight * skyl * skyl + v_sunLight * 0.25 * skyl;
         vec3 biomeTint = clamp(v_tint, vec3_splat(0.02), vec3_splat(1.0));
-        vec3 biomeShift = clamp(biomeTint / WATER_DEFAULT_TINT, vec3_splat(0.3), vec3_splat(3.0));
+        vec3 tintM = sqrt(biomeTint) * vec3(1.0, 0.85, 0.8);
+        tintM.g = max(tintM.g, 0.39);
         vec3 biomeExtinction = WATER_EXTINCTION * clamp(log(biomeTint) / log(WATER_DEFAULT_TINT), vec3_splat(0.3), vec3_splat(3.0));
-        vec3 scatterColor = vec3(0.02, 0.17, 0.24) * biomeShift * clamp(luma(lightLevel) * 1.6, 0.03, 1.2);
-        scatterColor = vvTonemap(scatterColor * 3.0) * 0.8;
+        float variation = valueNoise(world.xz * 0.045 + vec2(t * 0.01, 0.0)) * 0.5 + valueNoise(world.xz * 0.19) * 0.25;
+        vec3 deep = tintM * tintM * vec3(0.20, 0.52, 0.70) * (0.88 + variation * 0.3);
+        vec3 scatterColor = vvTonemap(deep * clamp(luma(lightLevel) * 1.6, 0.03, 1.2) * 1.3) * 0.9;
+        float foam = 0.0;
         VV_BRANCH if (scene)
         {
             vec2 uv = gl_FragCoord.xy * u_viewTexel.xy;
             float surfaceDist = length(v_rel);
             vec3 bend = wn - N;
-            vec2 offset = vec2(dot(bend, T), top ? dot(bend, B) : -bend.y) * 0.018 * S_REFRACTION * clamp(6.0 / max(surfaceDist, 1.0), 0.15, 1.0);
+            vec2 offset = vec2(dot(bend, T), top ? dot(bend, B) : -bend.y) * 0.03 * S_REFRACTION * clamp(6.0 / max(surfaceDist, 1.0), 0.15, 1.0);
             vec2 uvR = clamp(uv + offset, vec2_splat(0.001), vec2_splat(0.999));
             float dR = sceneDepthAt(uvR);
             vec3 behindR = sceneWorld(uvR, dR);
@@ -353,20 +365,31 @@ void stageMain()
                 behindR = sceneWorld(uv, dR);
             }
             float thickness = dR <= 0.00001 ? 48.0 : max(length(behindR - u_camera.xyz) - surfaceDist, 0.0);
+            float vertical = dR <= 0.00001 ? 48.0 : max(world.y - behindR.y, 0.0);
             if (!fromAbove)
                 thickness = min(thickness, 6.0) * 0.4;
             if (!top)
                 thickness = min(thickness, 1.5);
-            vec3 trans = exp(-biomeExtinction * thickness);
-            vec3 below = sceneColorAt(uvR) * vec3(0.82, 1.0, 0.94);
-            body = below * trans + scatterColor * (vec3_splat(1.0) - trans);
+            vec3 trans = exp(-biomeExtinction * thickness * 0.75);
+            float murk = 1.0 - exp(-0.11 * thickness / max(S_WATER_CLARITY, 0.1));
+            murk = top && fromAbove ? 0.28 + 0.72 * murk : murk;
+            vec3 below = sceneColorAt(uvR) * mix(vec3(0.86, 1.0, 0.96), tintM * tintM * 1.9, 0.6);
+            body = mix(below * trans, scatterColor, murk);
             alpha = 1.0;
+            VV_BRANCH if (top && fromAbove && vertical < 0.9)
+            {
+                float edge = 1.0 - smoothstep(0.05, 0.9, vertical);
+                float n1 = valueNoise(world.xz * 3.1 + vec2(t * 0.6, -t * 0.4));
+                float n2 = valueNoise(world.xz * 7.3 - vec2(t * 0.9, t * 0.3));
+                float breakup = n1 * 0.65 + n2 * 0.35;
+                foam = smoothstep(0.35, 0.75, edge * 0.9 + breakup * 0.6 - 0.25) * edge * (1.0 - smoothstep(16.0, 48.0, dist));
+            }
         }
         else
         {
             vec3 albedo = vvPow(clamp(tex.rgb * v_tint, 0.0, 1.0), vec3_splat(2.2));
             vec3 base = vvTonemap(albedo * (v_sunLight * 0.5 * skyl + v_skyLight * skyl * skyl + vec3_splat(0.02)));
-            body = mix(saturateColor(base, 0.9), scatterColor, 0.45);
+            body = mix(saturateColor(base, 0.9), scatterColor, 0.55);
             alpha = clamp(mix(color.a, 1.0, fresnel * 0.7), 0.0, 1.0);
         }
 
@@ -379,6 +402,8 @@ void stageMain()
             fresnel = 0.0;
 
         vec3 result = mix(body, reflection, fresnel) + glint;
+        vec3 foamCol = vvTonemap((v_sunLight * 0.55 + v_skyLight) * skyl * 1.4) * 0.9;
+        result = mix(result, foamCol, foam * 0.55);
         alpha = clamp(alpha + luma(glint), 0.0, 1.0);
         result = vvFog(result, v_fog, v_haze);
         outColor = vec4(result, alpha);

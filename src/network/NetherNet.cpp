@@ -81,6 +81,12 @@ namespace perlin {
             error = "GET /v1/join -> HTTP " + std::to_string(status) + " " + body;
             return false;
         }
+        if (body.find_first_not_of(" \t\r\n") == std::string::npos) {
+            info = {};
+            info.protocol = kBedrockProtocol;
+            info.version = kBedrockVersion;
+            return true;
+        }
         auto parsed = json::Read<NetherNetServerInfo>(body);
         if (!parsed) {
             error = "GET /v1/join returned non-JSON: " + body;

@@ -1150,11 +1150,12 @@ namespace perlin {
                 const float airmass = 1.0f / (std::max(h, 0.0f) + 0.075f);
                 const float k = 2.7f * smooth(-0.04f, 0.10f, h) * sSun;
                 const float ext[3] = {0.19f, 0.46f, 1.05f};
+                const float warm[3] = {1.0f, 0.97f, 0.91f};
                 for (int i = 0; i < 3; i++)
-                    mainLight[i] = std::exp(-ext[i] * airmass * 0.17f) * k;
+                    mainLight[i] = std::exp(-ext[i] * airmass * 0.17f) * k * warm[i];
             } else {
                 const float moon[3] = {0.42f, 0.55f, 0.95f};
-                const float k = 0.30f * smooth(-0.02f, 0.12f, -h) * sSun * sNight;
+                const float k = 0.80f * smooth(-0.02f, 0.12f, -h) * sSun * sNight;
                 for (int i = 0; i < 3; i++)
                     mainLight[i] = moon[i] * k;
             }
@@ -1163,9 +1164,9 @@ namespace perlin {
             uni.Set("u_lightMain", mainLight, 4);
             const float day = smooth(-0.18f, 0.12f, h);
             const float twilight = smooth(-0.24f, 0.0f, h) * (1.0f - smooth(0.02f, 0.40f, h));
-            const float noon[3] = {0.42f * 1.45f, 0.57f * 1.45f, 0.90f * 1.45f};
-            const float dusk[3] = {0.56f * 0.6f, 0.44f * 0.6f, 0.66f * 0.6f};
-            const float night[3] = {0.045f * sNight, 0.06f * sNight, 0.12f * sNight};
+            const float noon[3] = {0.50f * 1.45f, 0.61f * 1.45f, 0.80f * 1.45f};
+            const float dusk[3] = {0.66f * 0.72f, 0.48f * 0.72f, 0.58f * 0.72f};
+            const float night[3] = {0.135f * sNight, 0.170f * sNight, 0.265f * sNight};
             float sky[4] = {0.0f, 0.0f, 0.0f, 0.0f};
             for (int i = 0; i < 3; i++)
                 sky[i] = mixf(mixf(night[i], noon[i], day), dusk[i], twilight * 0.75f);

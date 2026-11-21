@@ -439,7 +439,7 @@ namespace perlin {
         platform->SetTitle(title);
     }
 
-    void Perlin::JoinSingleplayer(const std::string& worldDir, uint64_t seed, int gameMode) {
+    void Perlin::JoinSingleplayer(const std::string& worldDir, uint64_t seed, int gameMode, bool persistent) {
 #ifdef PERLIN_SINGLEPLAYER
         serverBrowser.ReleaseFriendLease();
         if (!singleplayerServer)
@@ -473,6 +473,8 @@ namespace perlin {
                 extra += ",\"seed\":" + std::to_string(static_cast<int64_t>(seed & 0x7FFFFFFFFFFFFFFFull));
             if (gameMode >= 0)
                 extra += ",\"gamemode\":" + std::to_string(gameMode);
+            if (!persistent)
+                extra += ",\"world_storage\":\"none\"";
             const std::string config =
                 "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 128)) + threads + extra +
                 ",\"block_data_dir\":\"" + dir + "\"}";
@@ -491,7 +493,7 @@ namespace perlin {
         titleScreen.active = false;
         Connect();
 #else
-        SetStatusHint("This build has no singleplayer: it was built without PERLIN_BUILD_SERVER.");
+        SetStatusHint("This build has no singleplayer: it was built with PERLIN_SINGLEPLAYER=OFF.");
 #endif
     }
 }

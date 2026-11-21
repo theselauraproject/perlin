@@ -280,9 +280,7 @@ include(cmake/PerlinEmbed.cmake)
 
 file(GLOB_RECURSE PERLIN_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/network/Nbt\\.cpp")
-set(PERLIN_SHARED_SOCKET_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/util/WebSocket.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/util/ModSocket.cpp")
-list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/util/(WebSocket|ModSocket)\\.cpp$")
+list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/features/singleplayer/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/rhi/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/systems/renderer/shader/")
 list(FILTER PERLIN_SOURCES EXCLUDE REGEX "/src/client/systems/renderer/gpu/")
@@ -921,15 +919,6 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(ui_library_selftest PRIVATE src)
     target_compile_features(ui_library_selftest PRIVATE cxx_std_23)
     add_test(NAME ui_library_selftest COMMAND ui_library_selftest)
-    add_executable(ui_label_selftest tests/ui_label_selftest.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp
-        src/client/ui/JsonUi.cpp src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp
-        src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/systems/text/FormatCodes.cpp
-        src/client/systems/i18n/Lang.cpp src/client/systems/resources/ServerPackRegistry.cpp
-        src/client/systems/i18n/BuiltinEnglish.cpp src/util/Resources.cpp src/util/Paths.cpp)
-    target_include_directories(ui_label_selftest PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}")
-    target_compile_features(ui_label_selftest PRIVATE cxx_std_23)
-    add_test(NAME ui_label_selftest COMMAND ui_label_selftest)
-
     add_executable(ui_conformance tests/ui_conformance.cpp src/util/JsonValue.cpp src/client/ui/UiExpr.cpp src/client/ui/JsonUi.cpp
         src/client/ui/UiLayout.cpp src/client/systems/text/McFont.cpp src/client/systems/text/FontProviderTables.cpp src/client/ui/TenFont.cpp src/client/ui/SceneEmit.cpp src/client/ui/SceneKit.cpp src/client/ui/Scene.cpp
         src/client/ui/HudData.cpp src/client/systems/text/FormatCodes.cpp src/client/systems/i18n/Lang.cpp
@@ -1631,7 +1620,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_FOUND)
-        perlin_api_add_checks(CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/src/client" SERVER "${CMAKE_CURRENT_SOURCE_DIR}/server/src")
+        perlin_api_add_checks(CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/src/client")
     endif()
 
     get_property(perlin_all_tests DIRECTORY PROPERTY TESTS)
@@ -1647,32 +1636,12 @@ foreach(PERLIN_LOCAL_TARGET IN LISTS PERLIN_LOCAL_TARGETS)
     endif()
 endforeach()
 
-option(PERLIN_BUILD_SERVER "Build the Perlin server: singleplayer in the client and the dedicated executable" ON)
-if(PERLIN_BUILD_SERVER)
-    set(PERLIN_SERVER_EMBED ON CACHE BOOL "" FORCE)
-
-    set(PERLIN_SERVER_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    if(EMSCRIPTEN OR ANDROID OR PERLIN_IOS)
-        set(PERLIN_SERVER_BUILD_EXE OFF CACHE BOOL "" FORCE)
-        set(PERLIN_SERVER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+option(PERLIN_SINGLEPLAYER "Embed Perlite, the server software, for singleplayer worlds" ON)
+if(PERLIN_SINGLEPLAYER AND TARGET Perlin)
+    include(cmake/PerlinPerlite.cmake)
+    if(TARGET perlite_embed)
+        target_sources(Perlin PRIVATE src/client/features/singleplayer/EmbeddedServer.cpp)
+        target_compile_definitions(Perlin PRIVATE PERLIN_SINGLEPLAYER=1)
+        target_link_libraries(Perlin PRIVATE perlite_embed)
     endif()
-    if(EMSCRIPTEN)
-
-        set(PERLIN_SERVER_NETHERNET OFF CACHE BOOL "" FORCE)
-    endif()
-    add_subdirectory(server)
-    if(TARGET Perlin AND TARGET perlin_server_embed)
-        target_sources(Perlin PRIVATE server/client_bridge/EmbeddedServer.cpp)
-        target_include_directories(Perlin PRIVATE server/client_bridge server/include)
-        target_compile_definitions(Perlin PRIVATE PERLIN_SINGLEPLAYER=1 PERLIN_SERVER_STATIC)
-        target_link_libraries(Perlin PRIVATE perlin_server_embed)
-    endif()
-endif()
-if(TARGET Perlin AND NOT TARGET perlin_server_embed)
-    target_sources(Perlin PRIVATE ${PERLIN_SHARED_SOCKET_SOURCES})
-endif()
-if(TARGET perlin-server)
-    install(TARGETS perlin-server RUNTIME DESTINATION .)
-    install(FILES resources/data/blocks/block_states.json resources/data/blocks/block_destroy.tsv DESTINATION resources/data/blocks)
-    install(FILES resources/data/items/extra_items.txt DESTINATION resources/data/items)
 endif()

@@ -32,9 +32,32 @@ float shadowTap(vec3 p, vec3 sc, float ndl, vec4 info, float which, float taps)
         float radius = clamp(0.07 * S_SHADOW_SOFTNESS / max(texelWorld, 1.0e-4), 1.0, 5.0) * info.x * step(1.5, taps);
         float spin = hash12(floor(p.xz * 16.0) + floor(p.y * 16.0) * 7.31) * 6.2831853;
         float sum = 0.0;
+        float start = 0.0;
+        VV_BRANCH if (taps > 4.5)
+        {
+            float probe = 0.0;
+            VV_LOOP for (int k = 0; k < 4; k++)
+            {
+                float a = spin + float(k) * 1.5707963;
+                vec2 uv = sc.xy + vec2(cos(a), sin(a)) * radius * 0.85;
+                float stored;
+                if (which < 0.5)
+                    stored = texture2DLod(s_shadow, uv, 0.0).r;
+                else if (which < 1.5)
+                    stored = texture2DLod(s_shadowB, uv, 0.0).r;
+                else
+                    stored = texture2DLod(s_shadowEnt, uv, 0.0).r;
+                probe += (sc.z - bias <= stored) ? 1.0 : 0.0;
+            }
+            if (probe < 0.5 || probe > 3.5)
+                return mix(1.0, probe * 0.25, inside);
+            sum = probe;
+            start = 4.0;
+            taps += 4.0;
+        }
         VV_LOOP for (int i = 0; i < 20; i++)
         {
-            if (float(i) >= taps)
+            if (float(i) >= taps - start)
                 break;
             float fi = float(i) + 0.5;
             float r = sqrt(fi / taps);
@@ -99,8 +122,9 @@ vec3 vvVibrantTint(vec3 tint)
     float hi = max(tint.r, max(tint.g, tint.b));
     float lo = min(tint.r, min(tint.g, tint.b));
     float sat = clamp((hi - lo) / max(hi, 0.001) * 2.5, 0.0, 1.0);
-    vec3 vivid = vec3(tint.r * 0.80, tint.g * 1.04, tint.b * 1.10);
-    return mix(tint, vivid, sat * 0.85);
+    float l = dot(tint, vec3(0.2126, 0.7152, 0.0722));
+    vec3 natural = mix(tint, vec3_splat(l), 0.16) * vec3(1.06, 1.0, 0.86);
+    return mix(tint, natural, sat);
 }
 
 vec3 vvLit(vec3 texRgb, vec3 tint, vec3 n, vec3 rel, vec2 light, float backlight, float emissive, vec3 sunLight, vec3 skyLight)
@@ -160,7 +184,7 @@ vec3 vvLit(vec3 texRgb, vec3 tint, vec3 n, vec3 rel, vec2 light, float backlight
         }
         vec3 block = vec3(1.0, 0.70, 0.42) * (bl * bl * bl * 2.2 + bl * bl * 0.25) * S_BLOCK;
 
-        vec3 minLight = vec3(0.008, 0.010, 0.016) * (1.0 - skyl * skyl);
+        vec3 minLight = vec3(0.012, 0.015, 0.022) * (1.0 - skyl * skyl) * S_NIGHT;
         hdr = albedo * ((sunLight * sunTint * direct + ambient) * VV_TERRAIN_EXPOSURE + block + minLight) + albedo * emissive * 3.0;
     }
     return vvTonemap(hdr);
@@ -175,6 +199,7 @@ vec3 vvFog(vec3 color, vec2 fogDistance, vec4 haze)
 {
     color = mix(color, haze.rgb, haze.a);
     float f = fogAmount(fogDistance.x, fogDistance.y);
+    f = f * f * (3.0 - 2.0 * f);
     vec3 fogged = mix(color, vvFogColor(haze), f);
     float range = max(u_fogEnv.y, 6.0);
     vec3 trans = exp(-vec3(3.4, 1.7, 1.4) * fogDistance.x / range);

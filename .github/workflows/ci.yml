@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-
 
       - name: Install packages
@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-tests-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
 
       - name: Build
         run: cmake --build build --parallel

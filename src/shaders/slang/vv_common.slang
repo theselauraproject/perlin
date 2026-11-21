@@ -185,35 +185,60 @@ vec3 vvWave(vec3 pos, float kind, vec2 uv)
     return offset * amp * weight * wind * gust;
 }
 
+vec3 vvSunColor()
+{
+    float h = u_sunDir.y;
+    vec3 low = vec3(1.0, 0.46, 0.16);
+    vec3 mid = vec3(1.0, 0.74, 0.44);
+    vec3 high = vec3(1.0, 0.96, 0.88);
+    vec3 c = mix(low, mid, smoothstep(-0.05, 0.12, h));
+    return mix(c, high, smoothstep(0.10, 0.45, h));
+}
+
+vec3 vvHorizonColor(vec3 dir)
+{
+    float day = vvDay();
+    float tw = vvTwilight();
+    vec2 flatDir = dir.xz / max(length(dir.xz), 0.0001);
+    vec2 sunFlat = u_sunDir.xz / max(length(u_sunDir.xz), 0.0001);
+    float sunward = clamp(dot(flatDir, sunFlat) * 0.5 + 0.5, 0.0, 1.0);
+    vec3 dayHorizon = vec3(0.70, 0.83, 0.97);
+    vec3 twHorizon = mix(vec3(0.58, 0.44, 0.66), mix(vec3(1.0, 0.62, 0.36), vec3(1.0, 0.48, 0.22), sunward), sunward * sunward);
+    vec3 nightHorizon = vec3(0.095, 0.120, 0.200) * S_NIGHT;
+    vec3 c = mix(nightHorizon, dayHorizon, day);
+    return mix(c, twHorizon, tw * mix(0.45, 1.0, day));
+}
+
 vec3 vvSkyGradient(vec3 dir)
 {
     float up = clamp(dir.y, 0.0, 1.0);
     float day = vvDay();
     float tw = vvTwilight();
 
-    vec3 dayZenith = vec3(0.47, 0.67, 0.89);
-    vec3 dayHorizon = vec3(0.80, 0.88, 0.95);
-    vec3 daySky = mix(dayHorizon, dayZenith, vvPow(up, 0.5));
+    vec3 dayZenith = vec3(0.26, 0.47, 0.86);
+    vec3 twZenith = vec3(0.24, 0.27, 0.52);
+    vec3 nightZenith = vec3(0.028, 0.040, 0.085) * S_NIGHT;
+    vec3 zenith = mix(nightZenith, dayZenith, day);
+    zenith = mix(zenith, twZenith, tw * mix(0.4, 1.0, day));
 
-    vec2 flatDir = dir.xz / max(length(dir.xz), 0.0001);
-    vec2 sunFlat = u_sunDir.xz / max(length(u_sunDir.xz), 0.0001);
-    float sunward = vvPow(clamp(dot(flatDir, sunFlat) * 0.5 + 0.5, 0.0, 1.0), 2.0);
-    vec3 twHorizon = mix(vec3(0.82, 0.68, 0.82), vec3(1.0, 0.70, 0.46), sunward);
-    vec3 twMid = vec3(0.86, 0.72, 0.86);
-    vec3 twZenith = vec3(0.60, 0.58, 0.84);
-    vec3 twSky = mix(twHorizon, twMid, smoothstep(0.0, 0.18, up));
-    twSky = mix(twSky, twZenith, smoothstep(0.12, 0.7, up));
+    vec3 horizon = vvHorizonColor(dir);
+    float band = exp(-up * mix(4.2, 7.5, tw));
+    vec3 c = mix(zenith, horizon, band);
 
-    vec3 nightSky = mix(vec3(0.035, 0.048, 0.085), vec3(0.008, 0.011, 0.026), vvPow(up, 0.4));
+    float toSun = max(dot(dir, u_sunDir.xyz), 0.0);
+    float spread = vvPow(toSun * toSun, up * 2.0 + 1.0);
+    vec3 sunTint = vvSunColor();
+    c += sunTint * spread * (0.10 + 0.55 * tw) * smoothstep(-0.20, 0.0, u_sunDir.y) * u_time.y;
 
-    vec3 c = mix(nightSky, daySky, day);
-    c = mix(c, twSky, tw * mix(0.55, 1.0, day));
+    float toMoon = max(-dot(dir, u_sunDir.xyz), 0.0);
+    c += vec3(0.10, 0.13, 0.22) * vvPow(toMoon, 6.0) * (1.0 - day) * 0.35 * S_NIGHT;
 
     float rain = vvRain();
     c = mix(c, vec3_splat(luma(c)) * vec3(0.86, 0.89, 0.93) * 0.78, rain);
 
-    return min(c * S_SKY_BRIGHTNESS, vec3_splat(1.0));
+    return min(c * S_SKY_BRIGHTNESS, vec3_splat(1.2));
 }
+
 
 vec3 vvSunDisc(vec3 dir, out float coverage)
 {
@@ -261,10 +286,11 @@ vec3 vvMoonDisc(vec3 dir, out float coverage, out vec3 moonColor)
 vec3 vvSunGlow(vec3 dir)
 {
     float toSun = max(dot(dir, u_sunDir.xyz), 0.0);
-    float glow = vvPow(toSun, 6.0) * 0.16 + vvPow(toSun, 40.0) * 0.32;
-    vec3 col = mix(vec3(1.0, 0.70, 0.45), vec3(1.0, 0.96, 0.88), smoothstep(0.0, 0.4, u_sunDir.y));
-    return col * glow * u_time.y * smoothstep(-0.12, 0.05, u_sunDir.y) * (1.0 - vvRain()) * S_SUN_GLOW;
+    float low = 1.0 - smoothstep(0.0, 0.5, u_sunDir.y);
+    float glow = vvPow(toSun, 5.0) * (0.10 + 0.22 * low) + vvPow(toSun, 36.0) * 0.30 + vvPow(toSun, 400.0) * 0.6;
+    return vvSunColor() * glow * u_time.y * smoothstep(-0.14, 0.03, u_sunDir.y) * (1.0 - vvRain()) * S_SUN_GLOW;
 }
+
 
 vec3 vvSky(vec3 dir, bool bodies)
 {
@@ -301,129 +327,92 @@ vec2 cloudCoord(vec2 xz)
     return (xz + u_cloudMap.xy) / 12.0;
 }
 
-float cloudEdgeDistance(vec2 c, out float inside)
-{
-    vec2 ci = floor(c);
-    vec2 f = c - ci;
-    inside = cloudCell(ci);
-    float l = cloudCell(ci + vec2(-1.0, 0.0));
-    float r = cloudCell(ci + vec2(1.0, 0.0));
-    float d = cloudCell(ci + vec2(0.0, -1.0));
-    float u = cloudCell(ci + vec2(0.0, 1.0));
-    float want = 1.0 - inside;
-    float dist = 1.0e3;
-    dist = min(dist, mix(1.0e3, f.x, step(0.5, 1.0 - abs(l - want))));
-    dist = min(dist, mix(1.0e3, 1.0 - f.x, step(0.5, 1.0 - abs(r - want))));
-    dist = min(dist, mix(1.0e3, f.y, step(0.5, 1.0 - abs(d - want))));
-    dist = min(dist, mix(1.0e3, 1.0 - f.y, step(0.5, 1.0 - abs(u - want))));
-    if (inside < 0.5)
-    {
-        float a = cloudCell(ci + vec2(-1.0, -1.0));
-        float b = cloudCell(ci + vec2(1.0, -1.0));
-        float e = cloudCell(ci + vec2(-1.0, 1.0));
-        float g = cloudCell(ci + vec2(1.0, 1.0));
-        dist = min(dist, mix(1.0e3, length(f), a));
-        dist = min(dist, mix(1.0e3, length(f - vec2(1.0, 0.0)), b));
-        dist = min(dist, mix(1.0e3, length(f - vec2(0.0, 1.0)), e));
-        dist = min(dist, mix(1.0e3, length(f - vec2(1.0, 1.0)), g));
-    }
-    return dist * 12.0;
-}
-
 void vvCloudColors(out vec3 body, out vec3 rim)
 {
     float day = vvDay();
     float tw = vvTwilight();
-    vec3 dayBody = vec3(0.90, 0.89, 0.97);
-    vec3 dayRim = vec3(1.0, 0.99, 1.0);
-    vec3 twBody = vec3(0.95, 0.80, 0.86);
-    vec3 twRim = vec3(1.0, 0.90, 0.92);
-    vec3 nightBody = vec3(0.17, 0.18, 0.27);
-    vec3 nightRim = vec3(0.26, 0.27, 0.38);
-    body = mix(nightBody, dayBody, day);
-    rim = mix(nightRim, dayRim, day);
-    body = mix(body, twBody, tw * day);
-    rim = mix(rim, twRim, tw * day);
+    vec3 sun = vvSunColor();
+    body = mix(vec3(0.15, 0.17, 0.27), vec3(0.80, 0.84, 0.94), day);
+    rim = mix(vec3(0.26, 0.28, 0.40), vec3(1.0, 1.0, 1.0), day);
+    body = mix(body, vec3(0.62, 0.52, 0.66), tw * day);
+    rim = mix(rim, sun * vec3(1.0, 0.86, 0.80), tw * day);
     float rain = vvRain();
     body = mix(body, vec3_splat(luma(body)) * 0.62, rain);
     rim = mix(rim, vec3_splat(luma(rim)) * 0.68, rain);
 }
 
-vec4 vvClouds(vec3 origin, vec3 dir, float maxDistance)
+vec4 vvCloudMarch(vec3 origin, vec3 dir, float maxDistance, float steps, float dither)
 {
     vec4 result = vec4(0.0, 0.0, 0.0, 1.0);
     float base = u_skyParams.x;
-    float top = base + CLOUD_THICKNESS;
-    float dy = dir.y;
-    if (abs(dy) < 1.0e-4)
-        dy = 1.0e-4;
+    float thick = CLOUD_THICKNESS;
+    float top = base + thick;
+    float dy = abs(dir.y) < 1.0e-4 ? 1.0e-4 : dir.y;
     float tA = (base - origin.y) / dy;
     float tB = (top - origin.y) / dy;
     float t0 = max(min(tA, tB), 0.0);
-    float t1 = min(max(tA, tB), maxDistance);
-    t1 = min(t1, t0 + 600.0);
-    VV_BRANCH if (u_skyParams.z > 0.5 && S_CLOUDS > 0.5 && t1 > t0)
+    float t1 = min(min(max(tA, tB), maxDistance), t0 + 240.0);
+    VV_BRANCH if (u_skyParams.z > 0.5 && S_CLOUDS > 0.5 && t1 > t0 && t0 < 2600.0)
     {
-
-    vec2 p = cloudCoord(origin.xz + dir.xz * t0);
-    vec2 d = dir.xz / 12.0;
-    vec2 cell = floor(p);
-    vec2 stepDir = vec2(d.x >= 0.0 ? 1.0 : -1.0, d.y >= 0.0 ? 1.0 : -1.0);
-    vec2 inv = vec2_splat(1.0) / max(abs(d), vec2_splat(1.0e-6));
-    vec2 next = vec2(d.x >= 0.0 ? cell.x + 1.0 - p.x : p.x - cell.x, d.y >= 0.0 ? cell.y + 1.0 - p.y : p.y - cell.y) * inv;
-    float t = t0;
-    float inCloud = 0.0;
-    float first = -1.0;
-    float maxSteps = 16.0 + 14.0 * floor(S_CLOUD_QUALITY + 0.5);
-    VV_LOOP for (int i = 0; i < 44; i++)
-    {
-        if (float(i) >= maxSteps)
-            break;
-        float segEnd = min(t0 + min(next.x, next.y), t1);
-        float filled = cloudCell(cell);
-        inCloud += filled * (segEnd - t);
-        if (filled > 0.5 && first < 0.0)
-            first = t;
-        t = segEnd;
-        if (t >= t1)
-            break;
-        if (next.x < next.y)
+        vec3 L = lightDirection();
+        float Ly = max(abs(L.y), 0.12);
+        vec2 lightShift = L.xz / Ly;
+        vec3 body, rim;
+        vvCloudColors(body, rim);
+        float day = vvDay();
+        vec3 sunCol = mix(vec3(0.42, 0.50, 0.72) * S_NIGHT, vvSunColor() * 1.35, day);
+        float low = (1.0 - smoothstep(0.0, 0.35, u_sunDir.y)) * smoothstep(-0.28, -0.02, u_sunDir.y) * u_time.y;
+        vec2 flatDir = dir.xz / max(length(dir.xz), 1.0e-4);
+        vec2 sunFlat = u_sunDir.xz / max(length(u_sunDir.xz), 1.0e-4);
+        float sunward = clamp(dot(flatDir, sunFlat) * 0.5 + 0.5, 0.0, 1.0);
+        vec3 ambientTop = mix(body, vvSkyGradient(vec3(0.0, 1.0, 0.0)) * 1.25 + body * 0.35, 0.35 * day);
+        vec3 ambientBottom = body * mix(0.42, 0.55, vvTwilight()) + vvSunColor() * low * (0.25 + 0.55 * sunward * sunward);
+        float VoL = dot(dir, L);
+        float phase = 0.55 + 1.6 * S_CLOUD_GLOW * vvPow(max(VoL, 0.0), 6.0) + 0.25 * vvPow(max(-VoL, 0.0), 2.0);
+        float rain = vvRain();
+        float sigma = mix(0.22, 0.36, rain) * S_CLOUD_OPACITY;
+        float dt = (t1 - t0) / steps;
+        float trans = 1.0;
+        vec3 scatter = vec3_splat(0.0);
+        float firstHit = -1.0;
+        VV_LOOP for (int i = 0; i < 16; i++)
         {
-            cell.x += stepDir.x;
-            next.x += inv.x;
+            if (float(i) >= steps || trans < 0.03)
+                break;
+            float t = t0 + (float(i) + dither) * dt;
+            vec3 p = origin + dir * t;
+            vec2 c = cloudCoord(p.xz);
+            float filled = cloudCell(floor(c));
+            VV_BRANCH if (filled > 0.5)
+            {
+                if (firstHit < 0.0)
+                    firstHit = t;
+                float h = clamp((p.y - base) / thick, 0.0, 1.0);
+                float toTop = (1.0 - h) * thick;
+                float shade = cloudCell(floor(cloudCoord(p.xz + lightShift * (toTop + 2.0))));
+                float lit = mix(1.0, 0.28, shade) * mix(0.42, 1.0, h * h);
+                vec3 light = sunCol * lit * phase * 0.62 + mix(ambientBottom, ambientTop, h);
+                float a = 1.0 - exp(-sigma * dt);
+                scatter += trans * a * light;
+                trans *= 1.0 - a;
+            }
         }
-        else
-        {
-            cell.y += stepDir.y;
-            next.y += inv.y;
-        }
-    }
-
-    float tm = clamp((base + CLOUD_THICKNESS * 0.5 - origin.y) / dy, t0, max(t1, t0));
-    float inside;
-    float edge = cloudEdgeDistance(cloudCoord(origin.xz + dir.xz * tm), inside);
-
-    float rim = inside * exp(-edge / 3.0) * S_CLOUD_GLOW * 0.55;
-    float halo = (1.0 - inside) * exp(-edge / 2.2) * S_CLOUD_GLOW * 0.30;
-
-    float rain = vvRain();
-    float opticalDepth = (inCloud * mix(0.24, 0.42, rain) + rim * 0.9) * S_CLOUD_OPACITY;
-    float trans = exp(-opticalDepth);
-
-    vec3 body, rimColor;
-    vvCloudColors(body, rimColor);
-    float toLight = max(dot(dir, lightDirection()), 0.0);
-    body += vvSunGlow(dir) * 0.6 + vec3_splat(vvPow(toLight, 8.0) * 0.08 * vvDay());
-    vec3 color = mix(body, rimColor, clamp(rim * 0.9, 0.0, 1.0));
-
-    float cloudDist = first >= 0.0 ? first : t0;
-    float fade = (1.0 - smoothstep(700.0, 1800.0, cloudDist)) * smoothstep(0.0, 0.035, abs(dir.y));
-    vec3 scatter = color * (1.0 - trans) + rimColor * halo * 0.20;
-    trans = mix(1.0, trans, fade);
-    result = vec4(scatter * fade, trans * (1.0 - halo * 0.20 * fade));
+        float hitDist = firstHit >= 0.0 ? firstHit : t0;
+        float fade = (1.0 - smoothstep(900.0, 2400.0, hitDist)) * smoothstep(0.0, 0.03, abs(dir.y));
+        vec3 haze = vvHorizonColor(dir) + vvSunGlow(dir) * 0.5;
+        float aerial = smoothstep(120.0, 1800.0, hitDist) * 0.75;
+        scatter = mix(scatter, haze * (1.0 - trans), aerial);
+        result = vec4(scatter * fade, mix(1.0, trans, fade));
     }
     return result;
 }
+
+vec4 vvClouds(vec3 origin, vec3 dir, float maxDistance)
+{
+    float steps = 6.0 + 4.0 * floor(S_CLOUD_QUALITY + 0.5);
+    return vvCloudMarch(origin, dir, maxDistance, steps, 0.5);
+}
+
 
 float vvCloudShadow(vec3 world)
 {
@@ -484,14 +473,42 @@ float vvCaustics(vec3 p, float t)
     return vvPow(1.0 - abs(a * b), 6.0);
 }
 
+vec3 vvHazeColor(vec3 dir)
+{
+    float tw = vvTwilight();
+    vec3 c = mix(vvHorizonColor(dir), mix(vec3(0.028, 0.040, 0.085) * S_NIGHT, vec3(0.26, 0.47, 0.86), vvDay()), 0.12);
+    float t = max(dot(dir, u_sunDir.xyz), 0.0);
+    float t2 = t * t;
+    float t4 = t2 * t2;
+    float t8 = t4 * t4;
+    float t32 = t8 * t8 * t8 * t8;
+    float low = 1.0 - smoothstep(0.0, 0.5, u_sunDir.y);
+    float sunUp = smoothstep(-0.14, 0.03, u_sunDir.y) * u_time.y;
+    float glow = t2 * (0.10 + 0.55 * tw) + (t4 * t * (0.10 + 0.22 * low) + t32 * 0.30) * 0.85 * (1.0 - vvRain()) * S_SUN_GLOW;
+    c += vvSunColor() * glow * sunUp;
+    float rain = vvRain();
+    c = mix(c, vec3_splat(luma(c)) * vec3(0.86, 0.89, 0.93) * 0.78, rain);
+    return min(c * S_SKY_BRIGHTNESS, vec3_splat(1.2));
+}
+
 vec4 vvHaze(vec3 rel)
 {
     float dist = length(rel);
     vec3 viewDir = rel / max(dist, 1.0e-4);
     float underwater = vvUnderwater();
     vec3 hazeDir = normalize(vec3(viewDir.x, max(viewDir.y, 0.0), viewDir.z) + vec3(0.0, 1.0e-4, 0.0));
-    vec3 hazeColor = vvSkyGradient(hazeDir) + vvSunGlow(hazeDir);
-    float density = 0.0028 * S_FOG * (1.0 + vvRain() * 2.0);
-    float amount = (1.0 - exp(-dist * density)) * 0.62 * step(0.5, u_skyParams.z) * (1.0 - underwater);
-    return vec4(mix(hazeColor, vvUnderwaterColor(), underwater), amount);
+    float tw = vvTwilight();
+    float day = vvDay();
+    float rain = vvRain();
+    vec3 hazeColor = vvHazeColor(hazeDir);
+    float falloff = mix(0.030, 0.055, tw) * mix(1.0, 0.55, rain);
+    float camH = u_camera.y - 62.0;
+    float k = falloff;
+    float dyk = max(viewDir.y * dist * k, -6.0);
+    float column = abs(dyk) > 1.0e-3 ? (1.0 - exp(-dyk)) / dyk : 1.0 - 0.5 * dyk;
+    float baseDensity = 0.0050 * mix(0.80, 1.0, day) * (1.0 + tw * 2.2) * (1.0 + rain * 2.5) * S_FOG;
+    float optical = baseDensity * exp(-k * clamp(camH, -40.0, 400.0)) * dist * column;
+    float aerial = dist * 0.00055 * S_FOG;
+    float amount = (1.0 - exp(-(optical + aerial))) * step(0.5, u_skyParams.z) * (1.0 - underwater);
+    return vec4(mix(hazeColor, vvUnderwaterColor(), underwater), clamp(amount, 0.0, 0.85));
 }

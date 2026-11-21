@@ -20,7 +20,8 @@ LAYERS = [
     ("presentation", ["client/ui", "client/systems/renderer"]),
     ("screens", ["client/screen/screens"]),
     ("features", ["client/features/mods", "client/features/audio", "client/features/replay",
-                 "client/features/servers", "client/features/packs", "client/features/debug", "client/features/interaction"]),
+                 "client/features/servers", "client/features/packs", "client/features/debug", "client/features/interaction",
+                 "client/features/singleplayer"]),
     ("host", ["client/platform", "client/features/worldview"]),
     ("application", ["client/application", "client/selftest", "."]),
 ]

@@ -11,12 +11,15 @@ A cross-platform Minecraft: Bedrock Edition client written in C++23. It speaks t
 | `src/world` | level, chunk and block data |
 | `src/render`, `src/shaders` | chunk meshing and shader sources |
 | `src/util` | shared helpers: strings, paths, file I/O, logging, JSON |
-| `server/` | dedicated server and its plugin host, see `server/README.md` |
 | `protocol/`, `tools/protogen` | protocol specs and the codec generator run at build time |
 | `tests/` | self-tests, built with `-DPERLIN_BUILD_TESTS=ON` |
 | `docs/` | user and platform references; `platforms.md` lists supported platforms, `plugin-host.md` describes the plugin host |
 
 Platforms and what each one ships are in `docs/platforms.md`. To contribute, see `CONTRIBUTING.md`.
+
+## Singleplayer and the server
+
+Singleplayer worlds run on [Perlite](https://github.com/theperlinproject/perlite), the Bedrock server software that lives in its own repository. The build fetches it and links its `perlite_embed` library into the client, so singleplayer needs no extra file next to the game. Set `PERLITE_SOURCE_DIR` to a local checkout to build against it instead, `PERLITE_TAG` to pin a revision, or `-DPERLIN_SINGLEPLAYER=OFF` to leave singleplayer out. Perlin no longer ships a dedicated server executable; run Perlite for that.
 
 ## Building
 

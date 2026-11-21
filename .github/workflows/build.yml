@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-
 
       - name: Cache apt packages
@@ -222,7 +222,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-${{ matrix.name }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -267,7 +267,6 @@ jobs:
             security set-key-partition-list -S apple-tool:,apple: -s -k ci "$kc"
             security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
             codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$app"
-            for exe in dist/perlin-server; do [ -f "$exe" ] && codesign --force --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$exe"; done
             if [ -n "$APPLE_ID" ]; then
               ditto -c -k --keepParent "$app" "$RUNNER_TEMP/notarize.zip"
               xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
@@ -275,7 +274,6 @@ jobs:
             fi
           else
             codesign --force --deep --sign - "$app"
-            [ -f dist/perlin-server ] && codesign --force --sign - dist/perlin-server
           fi
           codesign --verify --deep --strict --verbose=2 "$app"
 
@@ -362,7 +360,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-shader-pack-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-shader-pack-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: |
             deps-${{ env.DEPS_CACHE_VERSION }}-shader-pack-
             deps-${{ env.DEPS_CACHE_VERSION }}-linux-x64-
@@ -404,7 +402,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-windows-arm64-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-windows-arm64-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-windows-arm64-
       - name: Cache OpenSSL (arm64)
         id: openssl-cache
@@ -494,7 +492,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-freebsd-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-freebsd-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-freebsd-
       - name: Build in FreeBSD
         uses: vmactions/freebsd-vm@v1
@@ -538,7 +536,7 @@ jobs:
         with:
           bundle: Perlin.flatpak
           manifest-path: packaging/flatpak/io.perlin.client.yml
-          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           upload-artifact: false
       - uses: actions/upload-artifact@v7
         with:
@@ -556,7 +554,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-web-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-web-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-web-
       - uses: mymindstorm/setup-emsdk@v14
         with:
@@ -640,7 +638,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-android-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-android-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-android-
       - uses: actions/setup-python@v5
         with:
@@ -780,7 +778,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cpm-cache
-          key: deps-${{ env.DEPS_CACHE_VERSION }}-ios-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'server/CMakeLists.txt') }}
+          key: deps-${{ env.DEPS_CACHE_VERSION }}-ios-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: deps-${{ env.DEPS_CACHE_VERSION }}-ios-
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1

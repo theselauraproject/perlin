@@ -532,6 +532,7 @@ namespace perlin {
                             bool additive);
         conduit::texture_handle RecordUpscale(conduit::texture_handle source, uint32_t sourceW, uint32_t sourceH);
         void RecordBloom(float strength);
+        void RecordSunRays(float W, float H);
         void RunStage(conduit::command_list& list, const Stage& stage);
         struct FrameGenState {
             conduit::texture_handle final, hudless, depth;
@@ -658,6 +659,7 @@ namespace perlin {
         void DestroyUi();
 
         void DrawSky();
+        View skyView = View::World;
         void DrawClouds();
         void DrawScreenTint();
         void DrawLayer(RenderLayer layer, Program program, View view, bool late = false);
