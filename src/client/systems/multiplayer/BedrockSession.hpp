@@ -498,6 +498,12 @@ namespace perlin {
             recordTap = std::move(t);
             tapActive.store(static_cast<bool>(recordTap), std::memory_order_release);
         }
+        using SentTap = std::function<void(uint32_t id, const std::vector<uint8_t>& body)>;
+        void SetSentTap(SentTap t) {
+            std::lock_guard<std::mutex> lk(tapMutex);
+            sentTap = std::move(t);
+            sentTapActive.store(static_cast<bool>(sentTap), std::memory_order_release);
+        }
         void BeginReplayMode(const std::string& name, uint64_t localRuntimeId, int protocol) {
             replayMode = true;
             playerName = name;
@@ -760,7 +766,7 @@ namespace perlin {
         bool SendUseItemInAir(const float eye[3], bool held);
         void SetUseOffhand(bool v) { useOffhand = v; }
         void SetAttackOffhand(bool v) { attackOffhand = v; }
-        bool SendReleaseItem(const float eye[3], bool consume = false);
+        bool SendReleaseItem(const float eye[3]);
         bool SendAttackEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendInteractEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendLeaveVehicle();
@@ -1008,6 +1014,8 @@ namespace perlin {
         std::string lastError;
         PacketHandler onPacket;
         RecordTap recordTap;
+        SentTap sentTap;
+        std::atomic<bool> sentTapActive{false};
         std::mutex tapMutex;
         std::atomic<bool> tapActive{false};
         bool replayMode = false;
@@ -1172,7 +1180,13 @@ namespace perlin {
         uint64_t authTick = 0;
         uint64_t serverTick = 0;
         float lastAuthPos[3] = {0, 0, 0};
+        float lastAuthHead[3] = {0, 0, 0};
         bool haveLastAuthPos = false;
+        proto::Vec3F HeadPos(const float fallback[3]) const {
+            if (!haveLastAuthPos)
+                return {fallback[0], fallback[1], fallback[2]};
+            return {lastAuthHead[0], lastAuthHead[1], lastAuthHead[2]};
+        }
         bool pendingTeleportAck = false;
         std::vector<uint32_t> pendingInputFlags;
         std::mutex pendingInputMutex;
