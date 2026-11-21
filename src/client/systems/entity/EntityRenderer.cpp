@@ -2831,15 +2831,11 @@ namespace perlin::entity {
 
     void EntityRenderer::RenderEntity(const Entity& e, const FrameIn& in) {
         const bool shadowOnlySelf = e.isSelf && in.firstPerson;
-        if (shadowOnlySelf && !in.selfShadow) {
-            if (const auto hidden = views.find(e.runtimeId); hidden != views.end() && hidden->second) {
-                hidden->second->hurtSerial = e.hurtSerial;
-                hidden->second->hurtTimer = 0.0f;
-            }
-            return;
+        const bool hiddenSelf = shadowOnlySelf && !in.selfShadow;
+        if (!hiddenSelf) {
+            shadowOnlyPass = shadowOnlySelf;
+            considered++;
         }
-        shadowOnlyPass = shadowOnlySelf;
-        considered++;
         if (e.type == "minecraft:painting") {
             DrawPainting(e, in);
             return;
@@ -2851,7 +2847,13 @@ namespace perlin::entity {
         v.lastSeen = in.time;
         if (shadowOnlySelf)
             v.hurtTimer = 0.0f;
+        // the hidden first-person body keeps being tracked so pose transitions are current in third person
         Track(e, v, in);
+        if (hiddenSelf) {
+            v.hurtSerial = e.hurtSerial;
+            v.hurtTimer = 0.0f;
+            return;
+        }
         if (v.headingPending)
             return;
         const FrameIn::ModStyle* style = in.modStyle ? in.modStyle(e) : nullptr;
