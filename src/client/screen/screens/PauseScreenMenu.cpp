@@ -416,6 +416,12 @@ namespace perlin::screen {
                 std::clamp(optionsUi.kbScroll - host.inputManager.Scroll() * 20.0f, 0.0f, kl.maxScroll);
         else
             optionsUi.kbScroll = std::clamp(optionsUi.kbScroll, 0.0f, kl.maxScroll);
+        const float gx = mx / static_cast<float>(scale), gy = my / static_cast<float>(scale);
+        if (!this->leftDown)
+            optionsUi.scrollDrag = false;
+        if (optionsUi.scrollDrag && optionsUi.bindCapture < 0)
+            optionsUi.kbScroll =
+                ui::KeybindScrollbar(kl, optionsUi.kbScroll, guiW).ScrollFor(gy, optionsUi.scrollGrab);
         std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "k" +
                                 std::to_string(static_cast<int>(optionsUi.kbScroll));
         for (const ui::KeybindRow& r : rows)
@@ -446,7 +452,6 @@ namespace perlin::screen {
                     error))
                 Log("ui", "keybinds screen: {}", error);
         }
-        const float gx = mx / static_cast<float>(scale), gy = my / static_cast<float>(scale);
         hud.Overlay().MouseMove(gx, gy);
         hud.UpdateOverlay(fbW, fbH, services.options.guiScale);
         host.input.SetPadCapture(optionsUi.bindCapture >= 0 && optionsUi.bindDevice == 1);
@@ -499,7 +504,12 @@ namespace perlin::screen {
             return gx >= x && gx < x + w && gy >= y && gy < y + h;
         };
         if (down && !this->leftDown && clickReady) {
-            if (inside(kl.undoX, kl.doneY, kl.undoW, 20.0f) && undoable()) {
+            const ui::Scrollbar bar = ui::KeybindScrollbar(kl, optionsUi.kbScroll, guiW);
+            if (bar.Contains(gx, gy)) {
+                optionsUi.scrollDrag = true;
+                optionsUi.scrollGrab = bar.Grab(gy);
+                optionsUi.kbScroll = bar.ScrollFor(gy, optionsUi.scrollGrab);
+            } else if (inside(kl.undoX, kl.doneY, kl.undoW, 20.0f) && undoable()) {
                 for (size_t i = optionsUi.bindUndo.size(); i-- > 0;) {
                     const OptionsMenu::BindUndo u = optionsUi.bindUndo[i];
                     if (u.device != optionsUi.bindDevice)
