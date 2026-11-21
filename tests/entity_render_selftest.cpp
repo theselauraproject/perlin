@@ -1,5 +1,6 @@
 #include "client/systems/attachable/Geometry.hpp"
 #include "client/systems/entity/EntityQuery.hpp"
+#include "client/systems/entity/EntityScale.hpp"
 #include "client/systems/entity/BlockEntityView.hpp"
 #include "world/level/block/BlockPalette.hpp"
 #include <cstdlib>
@@ -52,6 +53,19 @@ int main() {
     tracker.SetTarget(7, -1);
     tracker.Find(7, actor);
     Check(!query("has_target"), "invalid target still activates bow controller");
+
+    tracker.AddPlayer(8, 10, "uuid", "Giant", {}, 0, 0, 0, 0, "");
+    tracker.SetScale(8, 2.0f);
+    entity::Entity giant;
+    Check(tracker.Find(8, giant), "missing scaled player");
+    Check(entity::ModelScale(giant, 0.9375f) == 1.875f, "player model ignores the metadata scale");
+    Check(entity::PlayerBox(giant).second == 3.6f, "player name tag height ignores the metadata scale");
+    tracker.SetScale(7, 0.5f);
+    tracker.Find(7, actor);
+    Check(entity::ModelScale(actor, 0.0f) == 0.5f, "mob model ignores the metadata scale");
+    tracker.SetScale(7, 0.0f);
+    tracker.Find(7, actor);
+    Check(entity::ModelScale(actor, 1.0f) == 1.0f, "zero scale collapsed the model matrix");
 
     auto& palette = BlockPalette::Instance();
     using State = BlockPalette::StateValue;

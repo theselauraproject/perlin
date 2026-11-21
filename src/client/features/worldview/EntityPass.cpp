@@ -202,6 +202,8 @@ namespace perlin::worldview {
             self.flags |= entity::flag::Riding;
         }
         dollSelf = self;
+        if (live)
+            self.scale = live->OwnScale();
         if (live && live->Sleeping()) {
             self.sleeping = true;
             ApplyBedPose(blockPalette, live->NetLevel(), self);

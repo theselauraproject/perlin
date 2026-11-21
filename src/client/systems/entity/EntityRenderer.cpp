@@ -10,6 +10,7 @@
 #include "util/Env.hpp"
 #include "util/Paths.hpp"
 #include "client/systems/entity/EntityQuery.hpp"
+#include "client/systems/entity/EntityScale.hpp"
 #include "client/systems/entity/JavaAnimation.hpp"
 #include "client/systems/hand/HandRenderer.hpp"
 #include "client/systems/sprites/ItemData.hpp"
@@ -297,9 +298,7 @@ namespace perlin::entity {
         if (e.boxWidth > 0.0f && e.boxHeight > 0.0f)
             return {e.boxWidth * scale, e.boxHeight * scale};
         if (e.isPlayer)
-            return {0.6f, (e.Has(flag::Gliding) || e.Has(flag::Swimming) || e.crawling) ? 0.6f
-                          : e.Has(flag::Sneaking)                                       ? 1.5f
-                                                                                        : 1.8f};
+            return PlayerBox(e);
         if (e.isItem)
             return {0.25f, 0.25f};
         float w, h;
@@ -1155,11 +1154,7 @@ namespace perlin::entity {
                 xf.position.x *= px;
         }
 
-        float scale = def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f;
-        if (scale <= 0.0f)
-            scale = 1.0f;
-        if (e.scale > 0.0f && !e.isPlayer)
-            scale *= e.scale;
+        const float scale = ModelScale(e, def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f);
         outScale = scale;
 
         const attachable::GeometryLibrary* library = &assets.geometries;
@@ -2862,7 +2857,7 @@ namespace perlin::entity {
         const bool gearless =
             e.mainHand.empty() && e.offHand.empty() &&
             std::all_of(std::begin(e.armor), std::end(e.armor), [](const std::string& a) { return a.empty(); });
-        const bool modelHidden = !e.isPlayer && (e.scale == 0.0f || (e.Has(flag::Invisible) && gearless));
+        const bool modelHidden = e.scale == 0.0f || (!e.isPlayer && e.Has(flag::Invisible) && gearless);
         if (e.dying && v.deathTime >= 1.0f && !e.isSelf)
             return;
         if (in.frustum && !shadowOnlySelf && OutsideFrustum(e, v, in)) {
