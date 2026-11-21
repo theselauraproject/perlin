@@ -1,6 +1,3 @@
-# BDS unavailable-chunk barriers v1
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
-# function 0x143ea1990 sha256 e068d4949fbb3ef051edbd7077953499c1bbfcb66159bd097eef38737249b76e
 # U mode bounds[6] visitedCount (cx cz)*count barrierCount (box[6] preserve)*count
 U 00000000 c2000106 be800000 c2008106 c2000106 3fe66666 c2000106 00000004 fffffffd fffffffd fffffffe fffffffd fffffffd fffffffe fffffffe fffffffe 00000000
 U 00000000 c2000106 be800000 c2008106 c1fb353f 3fe66666 c1fb353f 00000004 fffffffd fffffffd fffffffe fffffffd fffffffd fffffffe fffffffe fffffffe 00000000

@@ -1,11 +1,4 @@
-# BDS complete ground jumps v1
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
-# function 0x140eafaf0 sha256 2ebada75c5c67b9e2ac4b7db8399e1cc4da8b0727a1442d60274990ec69a353f
-# function 0x140eaffd0 sha256 620f02e193465828b5969f3568dfdf8cf4bc793d7e14e69cc260233f31a134a0
-# function 0x140ec4780 sha256 030f33ff2dc08f33138e82994b253e2c135a2397a56691508890249c82a1ee64
 # J variant actorFlags forceLow heightKind height effectKind amplifier oldTrigger prop0 prop1 minY position[3] velocity[3] yaw attributeKind attributeLevel outputLastPosition[3] outputVelocity[3] outputTrigger(bool,pos[3]) queryCount query[3]*n
-# synthetic block properties, height/type providers and sparse storage; callback arithmetic/control flow unchanged
-# alternate rows: 26.60 client 0x14ad33160 rounds (amp + 1) * 0.1 and level * 0.1 + 0.42 separately
 J 00000000 00000000 00000001 00000000 00000000 00000000 fffffffe 00000001 00000000 00000000 bf800000 419eafc5 3f1eb852 41892dab 3ffb434d bf800000 bf98460f 00000000 00000000 fffffffc 419eafc5 3f1eb852 41892dab 3ffb434d 3e4ccccd bf98460f 00000001 fffffff5 fffffff4 fffffff3 00000002 00000013 ffffffff 00000011 00000013 fffffffe 00000011
 J 00000000 00000008 00000000 00000001 00000000 00000000 fffffffe 00000000 00000100 00000000 bf800000 c04e2e99 3f1eb852 c0116859 bfa40ba0 80000000 3f2fc4c1 42340000 00000000 fffffffc c04e2e99 3f1eb852 c0116859 bfb62547 3ed70a3d 3f53f8f2 00000000 00000000 00000000 00000000 00000002 fffffffc ffffffff fffffffd fffffffc fffffffe fffffffd
 J 00000000 00000000 00000000 00000002 00000000 00000000 fffffffe 00000000 80000000000 00000000 bf800000 3fdc7c99 3f1eb852 c168e531 3f82ecd9 00000000 bf0de8ac 42b40000 00000000 fffffffc 3fdc7c99 3f1eb852 c168e531 3f82ecd9 00000000 bf0de8ac 00000001 00000001 ffffffff fffffff1 00000001 00000001 ffffffff fffffff1

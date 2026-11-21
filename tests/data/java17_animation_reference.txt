@@ -1,4 +1,3 @@
-# Java 1.7.10 ModelBiped.setRotationAngles from the 1.7.10 client jar, random inputs (seed 17)
 # id headYaw pitch walk speed age attack crouch riding held(0 empty, 1 item, 2 aimed bow), then for head body
 # rightArm leftArm rightLeg leftLeg: rotation x y z (radians) and pivot offset x -y z (pixels)
 0 34.846725 53.272385 27.89482 0.5899265 82.95608 0.0 0 0 1 0.9297786 0.6081901 0.0 0.0 -0.0 0.0 0.0 0.0 0.0 0.0 -0.0 0.0 -0.6319087 0.0 0.068916954 0.0 -0.0 0.0 0.602335 0.0 -0.068916954 0.0 -0.0 -0.0 0.7968396 0.0 0.0 0.0 -0.0 0.1 -0.7968396 0.0 0.0 0.0 -0.0 0.1
