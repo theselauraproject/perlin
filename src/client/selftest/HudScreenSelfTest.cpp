@@ -163,6 +163,15 @@ namespace perlin::selftest {
             for (int i = 0; i < 30; i++)
                 r.hudScreen.TickHud();
             t.Equal(r.hudAnim.displayHealth, 16, "displayed health catches up once the blink window passes");
+
+            r.hudState.health = 18.0f;
+            r.hudScreen.TickHud();
+            t.Equal(r.hudAnim.blinkUntil, 44, "healing long after the last hit still blinks the hearts");
+            t.Equal(r.hudAnim.displayHealth, 16, "displayed health lags behind while healing blinks");
+
+            r.hudState.health = 18.0f;
+            r.hudScreen.TickHud();
+            t.Equal(r.hudAnim.blinkUntil, 44, "unchanged health does not restart the blink");
         }
         {
             Rig r;

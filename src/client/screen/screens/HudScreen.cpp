@@ -398,12 +398,11 @@ namespace perlin::screen {
             a.displayHealth = health;
             a.lastHealthTick = tick;
         }
-        const bool invulnerable = tick - a.lastHurtTick < 20;
         if (health < a.lastHealth) {
             a.lastHurtTick = tick;
             a.lastHealthTick = tick;
             a.blinkUntil = tick + 20;
-        } else if (health > a.lastHealth && invulnerable) {
+        } else if (health > a.lastHealth) {
             a.lastHealthTick = tick;
             a.blinkUntil = tick + 10;
         }
