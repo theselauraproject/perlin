@@ -1,11 +1,5 @@
-# BDS common liquid collector v1
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
-# function 0x140fc94c0 sha256 79c1c9a9cf4daed8bf92832d17bfa78639ac07208d3ae3865bdd7ea9dce2dc14
-# function 0x140fc8fa0 sha256 1c848cb96b397979b2395ba7422521689f17eac6f931c2a87c12dcdca20260ed
-# function 0x1447976a0 sha256 4143d31fc288de0627d8bfbfefadf88e8d23339b26a69ff3187c8975b8397cb7
 # Q bounds[6] material retain seed found queryCount queryPosition[3]*n recordCount recordPosition[3],faceMask*n
 # supplied world material = [0,5,6,25][(x*3+y*5+z*7+seed)&3]; no secondary bodies
-# Complete native collector, bounds conversion, vector writes and early-exit logic; only block fetch is synthetic.
 Q cc000000 bf800000 80000000 cc000000 bf800000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 Q cb800000 bf800000 80000000 cb800000 bf800000 00000000 00000005 00000000 00000000 00000000 00000001 ff000000 ffffffff 00000000 00000000
 Q c61c4000 bf800000 80000000 c61c4000 bf800000 00000000 00000006 00000000 00000000 00000000 00000001 ffffd8f0 ffffffff 00000000 00000000

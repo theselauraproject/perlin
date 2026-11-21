@@ -2,6 +2,10 @@
 #include "client/selftest/Check.hpp"
 #include "client/selftest/SelfTestGlobals.hpp"
 #include "client/selftest/SelfTests.hpp"
+#include "network/Stream.hpp"
+#include "network/Transport.hpp"
+
+#include <variant>
 
 namespace {
     using namespace perlin;
@@ -186,6 +190,74 @@ namespace perlin::selftest {
             f.live = &session;
             r.interactionPlayer.UpdateEatingAndDrinking(f, session);
             t.Check(!f.blockedFoodUse, "non-food is never reported as blocked food");
+        }
+        {
+            Rig r;
+            BedrockSession session;
+            session.BeginReplayMode("eater", 1, kBedrockProtocol);
+            std::vector<proto::InventoryTransactionPacket> sent;
+            session.SetSentTap([&](uint32_t id, const std::vector<uint8_t>& body) {
+                if (id != proto::InventoryTransactionPacket::kId)
+                    return;
+                net::ReadStream in(body.data(), body.size());
+                proto::InventoryTransactionPacket p;
+                if (proto::Read(in, p))
+                    sent.push_back(std::move(p));
+            });
+            const auto use = [&](size_t i) {
+                return i < sent.size() ? std::get_if<proto::TransactionUseItem>(&sent[i].transaction.transactionData)
+                                       : nullptr;
+            };
+            const auto release = [&](size_t i) {
+                return i < sent.size()
+                           ? std::get_if<proto::TransactionTransactionDataCase2>(&sent[i].transaction.transactionData)
+                           : nullptr;
+            };
+            r.input.SetCaptured(true);
+            r.hudState.mode = ui::GameMode::Survival;
+            r.hudState.food = 12;
+            r.hudState.hotbar[0].name = "minecraft:apple";
+            r.hudState.hotbar[0].count = 3;
+
+            r.Press(Action::Use);
+            FrameContext f;
+            f.live = &session;
+            r.interactionPlayer.UpdateEatingAndDrinking(f, session);
+            t.Check(f.earlyItemUse && r.interactionPlayer.usingItem, "pressing use with food starts eating");
+            t.Equal(sent.size(), size_t{1}, "starting to eat sends one transaction");
+            const auto* start = use(0);
+            t.Check(start && start->actionType == proto::TransactionUseItemActionType::ClickAir,
+                    "eating starts with a click in the air");
+            t.Check(start && start->triggerType == proto::TransactionUseItemTriggerType::Unknown,
+                    "the click in the air leaves the trigger type unset");
+            t.Check(start && start->clientPrediction == proto::TransactionUseItemClientPrediction::Failure,
+                    "the click in the air leaves the client prediction unset");
+            t.Check(start && start->face == 255 && start->hand == proto::TransactionUseItemHand::MainHand,
+                    "the click in the air has no face and uses the main hand");
+
+            r.Idle();
+            f = FrameContext{};
+            f.live = &session;
+            r.interactionPlayer.UpdateEatingAndDrinking(f, session);
+            t.Check(!r.interactionPlayer.usingItem, "letting go of use stops eating");
+            t.Equal(sent.size(), size_t{2}, "letting go early sends one release");
+            const auto* early = release(1);
+            t.Check(early && early->actionType == proto::TransactionTransactionDataCase2ActionType::Release,
+                    "letting go early releases the item instead of consuming it");
+
+            sent.clear();
+            const float eye[3] = {1, 2, 3};
+            session.SetUseOffhand(true);
+            session.SendUseItemInAir(eye, true);
+            session.SendReleaseItem(eye);
+            t.Check(use(0) && use(0)->hotbarSlot == 0 && use(0)->hand == proto::TransactionUseItemHand::OffHand,
+                    "an off-hand click in the air reports hotbar slot 0");
+            t.Check(release(1) && release(1)->hotbarSlot == 0 && release(1)->hand == 1 &&
+                        release(1)->actionType == proto::TransactionTransactionDataCase2ActionType::Release,
+                    "an off-hand release reports hotbar slot 0 and never consumes");
+            t.Check(use(0) && use(0)->playerPos.x == 1 && use(0)->playerPos.y == 2 && use(0)->playerPos.z == 3,
+                    "before any movement input the given position is used");
+            session.SetSentTap({});
         }
         return t.Finish();
     }

@@ -768,6 +768,11 @@ namespace perlin {
     }
 
     bool BedrockSession::Transmit(uint32_t packetId, const std::vector<uint8_t>& body, bool reliable) {
+        if (sentTapActive.load(std::memory_order_acquire)) {
+            std::lock_guard<std::mutex> tl(tapMutex);
+            if (sentTap)
+                sentTap(packetId, body);
+        }
         if (replayMode)
             return true;
         packetlog::Record(true, packetId, body.data(), body.size());
@@ -1428,6 +1433,9 @@ namespace perlin {
         f.pitch = input.pitch;
         f.yaw = input.yaw;
         f.position = {input.position[0], input.position[1] + input.eyeHeight, input.position[2]};
+        lastAuthHead[0] = f.position.x;
+        lastAuthHead[1] = f.position.y;
+        lastAuthHead[2] = f.position.z;
         f.moveVector = {mx, mz};
         f.headYaw = input.yaw;
         f.inputData.reserve(inputFlags.size());
