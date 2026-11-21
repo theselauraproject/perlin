@@ -546,6 +546,7 @@ namespace perlin {
         }
         if (!transfer)
             Disconnect();
+        ChunkCodec::ResetDimensions();
         lastError.clear();
         state = State::Connecting;
 
