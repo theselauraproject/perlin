@@ -54,7 +54,7 @@ namespace perlin::particle {
 
     class ParticleSystem {
     public:
-        std::function<bool(uint16_t, int, int, int, TileChoice&)> tileFor;
+        std::function<bool(uint16_t, int, int, int, int, TileChoice&)> tileFor;
 
         void Destroy(int x, int y, int z, uint16_t id);
         void Crack(int x, int y, int z, int face, uint16_t id);
