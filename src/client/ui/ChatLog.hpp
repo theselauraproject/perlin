@@ -64,7 +64,7 @@ namespace perlin::ui {
         };
         Result Type(const std::vector<InputManager::Typed>& typed, float wheel);
 
-        void Fill(HudState& s, uint64_t tick, uint64_t nowMs) const;
+        void Fill(HudState& s, uint64_t tick, uint64_t nowMs, bool preview = false) const;
 
         static std::vector<std::string> Wrap(const std::string& text, int width);
 

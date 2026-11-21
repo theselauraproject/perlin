@@ -301,6 +301,7 @@ namespace perlin::screen {
             : OverlayScreen(id, traits), host(host), services(services) {}
         Claim Update(Frame& frame) override;
         void UpdatePauseScreen(ui::Hud& hud, BedrockSession* live, int fbW, int fbH);
+        bool OnChatSettings() const { return view == 1 && optionsUi.page == 12; }
 
         bool previewOpened = false, players = false;
         int view = 0;

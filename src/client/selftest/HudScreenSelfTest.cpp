@@ -136,6 +136,27 @@ namespace perlin::selftest {
         }
         {
             Rig r;
+            r.chat.AddMessage("hello", 0);
+            r.hudAnim.ticks = 1000;
+            r.Fill();
+            t.Check(r.hudState.chatLines.empty(), "old chat lines fade out of the hud");
+            r.screens.Open(r.pause);
+            r.pause.view = 1;
+            r.pause.optionsUi.page = 12;
+            r.Fill();
+            t.Check(r.hudState.chatLines.size() == 1 && r.hudState.chatLines[0].alpha == 1.0f,
+                    "the chat settings page shows faded chat lines at full opacity");
+            t.Check(!r.hudState.chatOpen, "the chat settings preview does not open the chat");
+            r.pause.optionsUi.page = 0;
+            r.Fill();
+            t.Check(r.hudState.chatLines.empty(), "other option pages leave faded chat hidden");
+            r.pause.optionsUi.page = 12;
+            r.screens.Close(r.pause);
+            r.Fill();
+            t.Check(r.hudState.chatLines.empty(), "closing the pause screen ends the chat preview");
+        }
+        {
+            Rig r;
             r.hudState.bossBars.push_back({"stale", 1.0f, 0, 0});
             r.hudState.sidebarVisible = true;
             r.hudState.sidebar.push_back({"stale", 1});
