@@ -254,7 +254,13 @@ namespace perlin {
     }
 
     namespace {
-        DimensionInfo gDimensions[3] = {{0, -64, 24}, {1, 0, 8}, {2, 0, 16}};
+        constexpr DimensionInfo kDefaultDimensions[3] = {{0, -64, 24}, {1, 0, 8}, {2, 0, 16}};
+        DimensionInfo gDimensions[3] = {kDefaultDimensions[0], kDefaultDimensions[1], kDefaultDimensions[2]};
+    }
+
+    void ChunkCodec::ResetDimensions() {
+        for (int i = 0; i < 3; i++)
+            gDimensions[i] = kDefaultDimensions[i];
     }
 
     void ChunkCodec::SetDimension(int id, int minY, int heightRange) {
