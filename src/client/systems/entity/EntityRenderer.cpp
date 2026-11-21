@@ -40,6 +40,8 @@
 
 namespace perlin::entity {
     namespace {
+        constexpr int kDeathPoofEvent = 2007;
+
         void ApplyJavaCrouch(attachable::Pose& pose, const attachable::Geometry* g) {
             static const float zs = PERLIN_ENV("PERLIN_ZSIGN")
                                         ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_ZSIGN")))
@@ -717,8 +719,12 @@ namespace perlin::entity {
         }
         v.hurtTimer = std::max(0.0f, v.hurtTimer - dt);
         if (e.dying) {
+            const bool fallen = v.deathTime >= 1.0f;
             v.deathTime = std::min(v.deathTime + dt, 1.0f);
             v.hurtTimer = 0.5f;
+            if (!fallen && v.deathTime >= 1.0f && !(e.isSelf && in.firstPerson) &&
+                particleRequests.size() < 256)
+                particleRequests.push_back({{}, v.pos + glm::dvec3(0.0, 0.5, 0.0), {}, kDeathPoofEvent});
         } else
             v.deathTime = 0.0f;
         const auto ease = [&](float& value, bool on, float seconds) {
@@ -2858,7 +2864,7 @@ namespace perlin::entity {
             e.mainHand.empty() && e.offHand.empty() &&
             std::all_of(std::begin(e.armor), std::end(e.armor), [](const std::string& a) { return a.empty(); });
         const bool modelHidden = e.scale == 0.0f || (!e.isPlayer && e.Has(flag::Invisible) && gearless);
-        if (e.dying && v.deathTime >= 1.0f && !e.isSelf)
+        if (e.dying && v.deathTime >= 1.0f)
             return;
         if (in.frustum && !shadowOnlySelf && OutsideFrustum(e, v, in)) {
             culled++;

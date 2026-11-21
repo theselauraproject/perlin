@@ -32,6 +32,7 @@ namespace perlin::entity {
             std::string effect;
             glm::dvec3 at{0.0};
             std::string preScript;
+            int levelEvent = 0;
         };
         std::vector<ParticleRequest> TakeParticleRequests() { return std::exchange(particleRequests, {}); }
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider = true) const;

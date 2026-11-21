@@ -13,12 +13,21 @@ namespace perlin::entity {
                 return 0.0f;
             return std::clamp(math::WrapDegrees(degrees), -90.0f, 90.0f);
         }
+        double NowMs() {
+            return std::chrono::duration<double, std::milli>(
+                       std::chrono::steady_clock::now().time_since_epoch())
+                .count();
+        }
+        constexpr double kPickupMs = 160.0;
+        constexpr double kDeathMs = 1100.0;
     }
 
     void EntityTracker::Clear() {
         std::lock_guard lock(mutex);
         entities.clear();
         byUnique.clear();
+        deaths.clear();
+        corpses.clear();
     }
 
     void EntityTracker::AttachSkinLocked(Entity& e) {
@@ -55,6 +64,7 @@ namespace perlin::entity {
         e.flags = flags;
         e.mainHand = mainHand;
         e.isSelf = rid == selfRuntime && rid != 0;
+        ReviveLocked(e);
         if (fresh)
             e.moveSerial = 1;
         byUnique[uid] = rid;
@@ -87,6 +97,7 @@ namespace perlin::entity {
         e.markVariant = markVariant;
         e.color = color;
         e.moveSerial = 1;
+        ReviveLocked(e);
         byUnique[uid] = rid;
     }
 
@@ -115,6 +126,8 @@ namespace perlin::entity {
             return;
         byUnique.erase(it->second.uniqueId);
         entities.erase(it);
+        deaths.erase(rid);
+        corpses.erase(rid);
     }
 
     void EntityTracker::Remove(int64_t uid) {
@@ -122,8 +135,46 @@ namespace perlin::entity {
         const auto it = byUnique.find(uid);
         if (it == byUnique.end())
             return;
-        entities.erase(it->second);
+        const uint64_t rid = it->second;
         byUnique.erase(it);
+        // servers can remove an entity before its death animation has played out; keep it until then
+        const auto entity = entities.find(rid);
+        const auto died = deaths.find(rid);
+        if (entity != entities.end() && entity->second.dying && died != deaths.end() &&
+            NowMs() < died->second + kDeathMs) {
+            corpses.insert(rid);
+            return;
+        }
+        entities.erase(rid);
+        deaths.erase(rid);
+    }
+
+    void EntityTracker::ReviveLocked(Entity& e) {
+        e.dying = false;
+        deaths.erase(e.runtimeId);
+        corpses.erase(e.runtimeId);
+    }
+
+    void EntityTracker::MarkDyingLocked(Entity& e) {
+        if (!e.dying)
+            deaths[e.runtimeId] = NowMs();
+        e.dying = true;
+    }
+
+    void EntityTracker::StepCorpsesLocked() const {
+        if (corpses.empty())
+            return;
+        const double now = NowMs();
+        for (auto it = corpses.begin(); it != corpses.end();) {
+            const auto died = deaths.find(*it);
+            if (died == deaths.end() || now >= died->second + kDeathMs) {
+                entities.erase(*it);
+                if (died != deaths.end())
+                    deaths.erase(died);
+                it = corpses.erase(it);
+            } else
+                ++it;
+        }
     }
 
     namespace {
@@ -366,14 +417,14 @@ namespace perlin::entity {
                       if (variant) e.variant = *variant;
                       if (markVariant) e.markVariant = *markVariant; if (color) e.color = *color)
     PERLIN_ENTITY_SET(SetHealth(uint64_t rid, float health), e.health = health;
-                      if (health <= 0.0f && !e.isItem) e.dying = true;
-                      else if (health > 0.0f) e.dying = false)
+                      if (health <= 0.0f && !e.isItem) MarkDyingLocked(e);
+                      else if (health > 0.0f && !corpses.contains(rid)) ReviveLocked(e))
     PERLIN_ENTITY_SET(SetAttribute(uint64_t rid, const std::string& name, float min, float value, float max),
                       if (e.attributes.size() < 64 ||
                           e.attributes.count(name))(e.attributes[name] = Entity::Attribute{min, value, max}))
     PERLIN_ENTITY_SET(SetTarget(uint64_t rid, int64_t targetUid), e.targetUid = targetUid)
     PERLIN_ENTITY_SET(SetOwner(uint64_t rid, int64_t ownerUid), e.ownerUid = ownerUid)
-    PERLIN_ENTITY_SET(Die(uint64_t rid), e.dying = true)
+    PERLIN_ENTITY_SET(Die(uint64_t rid), MarkDyingLocked(e))
     PERLIN_ENTITY_SET(SetHeld(uint64_t rid, const std::string& item), e.mainHand = item)
     PERLIN_ENTITY_SET(SetOffHand(uint64_t rid, const std::string& item), e.offHand = item)
     PERLIN_ENTITY_SET(SetArmor(uint64_t rid, int slot, const std::string& item),
@@ -427,15 +478,6 @@ namespace perlin::entity {
         const auto it = entities.find(rid);
         if (it != entities.end())
             it->second.isSelf = true;
-    }
-
-    namespace {
-        double NowMs() {
-            return std::chrono::duration<double, std::milli>(
-                       std::chrono::steady_clock::now().time_since_epoch())
-                .count();
-        }
-        constexpr double kPickupMs = 160.0;
     }
 
     void EntityTracker::SetViewer(uint64_t rid, glm::dvec3 feet) {
@@ -492,6 +534,7 @@ namespace perlin::entity {
     void EntityTracker::Snapshot(std::vector<Entity>& out) const {
         std::lock_guard lock(mutex);
         StepPickupsLocked(nullptr);
+        StepCorpsesLocked();
         out.resize(entities.size());
         size_t i = 0;
         for (const auto& [rid, e] : entities)

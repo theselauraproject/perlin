@@ -3,8 +3,11 @@
 #include "client/systems/entity/EntityScale.hpp"
 #include "client/systems/entity/BlockEntityView.hpp"
 #include "world/level/block/BlockPalette.hpp"
+#include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <thread>
 using namespace perlin;
 static void Check(bool ok, const char* why) {
     if (!ok) {
@@ -66,6 +69,29 @@ int main() {
     tracker.SetScale(7, 0.0f);
     tracker.Find(7, actor);
     Check(entity::ModelScale(actor, 1.0f) == 1.0f, "zero scale collapsed the model matrix");
+
+    tracker.AddEntity(11, 12, "minecraft:zombie", {}, 0, 0, 0, 0, 1, 0, 0, 0);
+    tracker.Remove(12);
+    Check(!tracker.Find(11, actor), "living entity outlived its removal");
+    tracker.AddEntity(11, 12, "minecraft:zombie", {}, 0, 0, 0, 0, 1, 0, 0, 0);
+    tracker.Die(11);
+    tracker.Remove(12);
+    Check(tracker.Find(11, actor) && actor.dying, "dying entity vanished before its death animation");
+    Check(!tracker.FindUnique(12, actor), "removed corpse still resolves by unique id");
+    tracker.SetHealth(11, 20.0f);
+    tracker.Find(11, actor);
+    Check(actor.dying, "removed corpse stood back up");
+    tracker.AddEntity(13, 14, "minecraft:cow", {}, 0, 0, 0, 0, 1, 0, 0, 0);
+    tracker.SetHealth(13, 0.0f);
+    tracker.AddEntity(13, 14, "minecraft:cow", {}, 0, 0, 0, 0, 1, 0, 0, 0);
+    tracker.Find(13, actor);
+    Check(!actor.dying, "respawned entity kept its death pose");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    const auto alive = tracker.Snapshot();
+    Check(std::ranges::none_of(alive, [](const entity::Entity& e) { return e.runtimeId == 11; }),
+          "corpse was never removed");
+    Check(std::ranges::any_of(alive, [](const entity::Entity& e) { return e.runtimeId == 13; }),
+          "respawned entity was removed with the corpses");
 
     auto& palette = BlockPalette::Instance();
     using State = BlockPalette::StateValue;
