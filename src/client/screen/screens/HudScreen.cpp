@@ -402,9 +402,6 @@ namespace perlin::screen {
             a.lastHurtTick = tick;
             a.lastHealthTick = tick;
             a.blinkUntil = tick + 20;
-        } else if (health > a.lastHealth) {
-            a.lastHealthTick = tick;
-            a.blinkUntil = tick + 10;
         }
         if (tick - a.lastHealthTick > 20) {
             a.lastHealth = health;
