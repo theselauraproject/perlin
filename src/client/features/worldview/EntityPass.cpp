@@ -202,6 +202,10 @@ namespace perlin::worldview {
             self.flags |= entity::flag::Riding;
         }
         dollSelf = self;
+        if (live) {
+            self.scale = live->OwnScale();
+            self.dying = hudState.mode != ui::GameMode::Spectator && live->DeathPending();
+        }
         if (live && live->Sleeping()) {
             self.sleeping = true;
             ApplyBedPose(blockPalette, live->NetLevel(), self);
@@ -584,7 +588,9 @@ namespace perlin::worldview {
         }
 
         for (const auto& request : entityRenderer.TakeParticleRequests())
-            if (!dataParticles.Spawn(request.effect, request.at, {}, request.preScript))
+            if (request.levelEvent != 0)
+                particles.SpawnLevelEvent(request.levelEvent, request.at, 0);
+            else if (!dataParticles.Spawn(request.effect, request.at, {}, request.preScript))
                 particles.SpawnNamed(request.effect, request.at);
         if (!live)
             if (const char* pb = PERLIN_ENV("PERLIN_PREVIEW_BREAK")) {

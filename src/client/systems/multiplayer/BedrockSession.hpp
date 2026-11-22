@@ -284,6 +284,10 @@ namespace perlin {
             std::lock_guard lock(attrMutex);
             return {ownWidth * ownScale, ownHeight * ownScale};
         }
+        float OwnScale() const {
+            std::lock_guard lock(attrMutex);
+            return ownScale;
+        }
         float UnderwaterMovementSpeedAttribute() const {
             std::lock_guard lock(attrMutex);
             const auto it = ownAttributes.find("minecraft:underwater_movement");

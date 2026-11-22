@@ -10,6 +10,7 @@
 #include "util/Env.hpp"
 #include "util/Paths.hpp"
 #include "client/systems/entity/EntityQuery.hpp"
+#include "client/systems/entity/EntityScale.hpp"
 #include "client/systems/entity/JavaAnimation.hpp"
 #include "client/systems/hand/HandRenderer.hpp"
 #include "client/systems/sprites/ItemData.hpp"
@@ -39,6 +40,8 @@
 
 namespace perlin::entity {
     namespace {
+        constexpr int kDeathPoofEvent = 2007;
+
         void ApplyJavaCrouch(attachable::Pose& pose, const attachable::Geometry* g) {
             static const float zs = PERLIN_ENV("PERLIN_ZSIGN")
                                         ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_ZSIGN")))
@@ -297,9 +300,7 @@ namespace perlin::entity {
         if (e.boxWidth > 0.0f && e.boxHeight > 0.0f)
             return {e.boxWidth * scale, e.boxHeight * scale};
         if (e.isPlayer)
-            return {0.6f, (e.Has(flag::Gliding) || e.Has(flag::Swimming) || e.crawling) ? 0.6f
-                          : e.Has(flag::Sneaking)                                       ? 1.5f
-                                                                                        : 1.8f};
+            return PlayerBox(e);
         if (e.isItem)
             return {0.25f, 0.25f};
         float w, h;
@@ -718,8 +719,12 @@ namespace perlin::entity {
         }
         v.hurtTimer = std::max(0.0f, v.hurtTimer - dt);
         if (e.dying) {
+            const bool fallen = v.deathTime >= 1.0f;
             v.deathTime = std::min(v.deathTime + dt, 1.0f);
             v.hurtTimer = 0.5f;
+            if (!fallen && v.deathTime >= 1.0f && !(e.isSelf && in.firstPerson) &&
+                particleRequests.size() < 256)
+                particleRequests.push_back({{}, v.pos + glm::dvec3(0.0, 0.5, 0.0), {}, kDeathPoofEvent});
         } else
             v.deathTime = 0.0f;
         const auto ease = [&](float& value, bool on, float seconds) {
@@ -1155,11 +1160,7 @@ namespace perlin::entity {
                 xf.position.x *= px;
         }
 
-        float scale = def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f;
-        if (scale <= 0.0f)
-            scale = 1.0f;
-        if (e.scale > 0.0f && !e.isPlayer)
-            scale *= e.scale;
+        const float scale = ModelScale(e, def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f);
         outScale = scale;
 
         const attachable::GeometryLibrary* library = &assets.geometries;
@@ -2830,15 +2831,11 @@ namespace perlin::entity {
 
     void EntityRenderer::RenderEntity(const Entity& e, const FrameIn& in) {
         const bool shadowOnlySelf = e.isSelf && in.firstPerson;
-        if (shadowOnlySelf && !in.selfShadow) {
-            if (const auto hidden = views.find(e.runtimeId); hidden != views.end() && hidden->second) {
-                hidden->second->hurtSerial = e.hurtSerial;
-                hidden->second->hurtTimer = 0.0f;
-            }
-            return;
+        const bool hiddenSelf = shadowOnlySelf && !in.selfShadow;
+        if (!hiddenSelf) {
+            shadowOnlyPass = shadowOnlySelf;
+            considered++;
         }
-        shadowOnlyPass = shadowOnlySelf;
-        considered++;
         if (e.type == "minecraft:painting") {
             DrawPainting(e, in);
             return;
@@ -2850,7 +2847,13 @@ namespace perlin::entity {
         v.lastSeen = in.time;
         if (shadowOnlySelf)
             v.hurtTimer = 0.0f;
+        // the hidden first-person body keeps being tracked so pose transitions are current in third person
         Track(e, v, in);
+        if (hiddenSelf) {
+            v.hurtSerial = e.hurtSerial;
+            v.hurtTimer = 0.0f;
+            return;
+        }
         if (v.headingPending)
             return;
         const FrameIn::ModStyle* style = in.modStyle ? in.modStyle(e) : nullptr;
@@ -2862,8 +2865,8 @@ namespace perlin::entity {
         const bool gearless =
             e.mainHand.empty() && e.offHand.empty() &&
             std::all_of(std::begin(e.armor), std::end(e.armor), [](const std::string& a) { return a.empty(); });
-        const bool modelHidden = !e.isPlayer && (e.scale == 0.0f || (e.Has(flag::Invisible) && gearless));
-        if (e.dying && v.deathTime >= 1.0f && !e.isSelf)
+        const bool modelHidden = e.scale == 0.0f || (!e.isPlayer && e.Has(flag::Invisible) && gearless);
+        if (e.dying && v.deathTime >= 1.0f)
             return;
         if (in.frustum && !shadowOnlySelf && OutsideFrustum(e, v, in)) {
             culled++;
