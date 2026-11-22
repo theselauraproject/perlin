@@ -1,7 +1,9 @@
 #include "client/systems/model/EntityTracker.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <thread>
 
 using namespace perlin::entity;
 
@@ -133,6 +135,40 @@ int main() {
         t.TickInterpolation();
         CHECK(Near(Get(t, 3).pos.x, 0.5));
         CHECK(Near(Get(t, 3).prevPos.x, 0));
+    }
+    {
+        EntityTracker t;
+        t.AddEntity(1, 1, "minecraft:zombie", {4, 0, 0}, 0, 0, 0, 0, 1, 0, 0, 0);
+        t.AddItem(5, 50, {0, 0, 0}, "minecraft:stone", 1, 0, 0, false);
+        t.Pickup(5, 1);
+        t.Remove(50);
+        Entity flying;
+        CHECK(t.Find(5, flying));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        std::vector<Entity> seen;
+        t.Snapshot(seen);
+        for (const Entity& e : seen)
+            if (e.runtimeId == 5) {
+                CHECK(e.pos.x > 0.0 && e.pos.x < 4.0);
+                CHECK(e.scale > 0.0f && e.scale < 1.0f);
+            }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        t.Snapshot(seen);
+        CHECK(!t.Find(5, flying));
+        CHECK(t.Find(1, flying));
+    }
+    {
+        EntityTracker t;
+        t.AddItem(6, 60, {0, 0, 0}, "minecraft:stone", 1, 0, 0, false);
+        t.Pickup(6, 1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        std::vector<Entity> seen;
+        t.Snapshot(seen);
+        t.AddItem(6, 61, {2, 0, 0}, "minecraft:dirt", 1, 0, 0, false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        t.Snapshot(seen);
+        Entity reused;
+        CHECK(t.Find(6, reused) && reused.scale == 1.0f && Near(reused.pos.x, 2));
     }
     std::printf("ActorLerp: %d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;

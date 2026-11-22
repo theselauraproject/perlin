@@ -462,8 +462,37 @@ namespace perlin {
             inventory.horseOpen && horseWindow > 0 && static_cast<int>(window) == horseWindow;
         const bool chestWin = (inventory.chestOpen || inventory.furnaceKind >= 0) && chestWindow >= 0 &&
                               static_cast<int>(window) == chestWindow;
-        if (chestWin && whole && inventory.furnaceKind < 0)
+        // A container window (1..99) that is not open yet: keep its items for the coming open.
+        const int windowNumber = static_cast<int>(window);
+        if (!chestWin && !horseWin && !uiWindow && !offhand && !armor && !playerInventory && windowNumber > 0 &&
+            windowNumber < 100) {
+            PendingWindow& pending = pendingWindows[windowNumber];
+            const auto now = std::chrono::steady_clock::now();
+            if (whole || now - pending.at > std::chrono::seconds(5)) {
+                pending.slots.clear();
+                pending.size = 0;
+            }
+            if (whole)
+                pending.size = static_cast<int>(items.size());
+            for (size_t i = 0; i < items.size(); i++) {
+                const int c = firstSlot + static_cast<int>(i);
+                if (c >= 0 && c < kInvChestCount) {
+                    pending.slots[c] = items[i];
+                    pending.size = std::max(pending.size, c + 1);
+                }
+            }
+            pending.at = now;
+            if (debug)
+                Log("inv", "held {} item(s) for window {} until it opens", items.size(), windowNumber);
+            return;
+        }
+        if (chestWin && whole && inventory.furnaceKind < 0) {
             inventory.chestSlots = std::clamp(static_cast<int>(items.size()), 0, kInvChestCount);
+            int filled = 0;
+            for (const ItemV4& it : items)
+                filled += it.networkId != 0 ? 1 : 0;
+            Log("inventory", "window {} content: {} slots, {} filled", chestWindow, items.size(), filled);
+        }
         for (size_t i = 0; i < items.size(); i++) {
             if (chestWin) {
                 const int c = firstSlot + static_cast<int>(i);
@@ -924,6 +953,20 @@ namespace perlin {
                 for (int c = 0; c < kInvChestCount; c++) {
                     inventory.chest[c] = ItemStackInfo{};
                     chestRaw[c] = ItemV4{};
+                }
+                // Contents that came before this open (some servers send them first).
+                if (auto held = pendingWindows.find(chestWindow); held != pendingWindows.end()) {
+                    if (std::chrono::steady_clock::now() - held->second.at < std::chrono::seconds(5)) {
+                        for (const auto& [c, raw] : held->second.slots) {
+                            inventory.chest[c] = ConvertItemStack(raw);
+                            chestRaw[c] = raw;
+                        }
+                        if (held->second.size > 0)
+                            inventory.chestSlots = std::clamp(held->second.size, 0, kInvChestCount);
+                        Log("inventory", "window {}: applied {} item(s) sent before it opened", chestWindow,
+                            held->second.slots.size());
+                    }
+                    pendingWindows.erase(held);
                 }
             }
             if (workbenchOpen) {

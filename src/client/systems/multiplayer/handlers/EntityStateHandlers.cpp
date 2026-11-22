@@ -235,21 +235,6 @@ namespace perlin {
         });
 
         On<EntityEventPacket>([this](const EntityEventPacket& p) {
-            if (p.eventId != EntityEventPacketEventId::DeathAnimation ||
-                (runtimeId != 0 && p.runtimeEntityId == runtimeId))
-                return;
-            entity::Entity e;
-            if (!entities.Find(p.runtimeEntityId, e) || e.isPlayer)
-                return;
-            ParticleEvent pe;
-            pe.event = 2007;
-            pe.x = e.pos.x;
-            pe.y = e.pos.y + 0.5;
-            pe.z = e.pos.z;
-            PushParticle(std::move(pe));
-        });
-
-        On<EntityEventPacket>([this](const EntityEventPacket& p) {
             if (p.eventId != EntityEventPacketEventId::ConsumeTotem)
                 return;
             glm::dvec3 at{pose.x, pose.y + 0.9, pose.z};

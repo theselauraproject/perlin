@@ -87,7 +87,7 @@ namespace perlin {
 
         On<NetworkStackLatencyPacket>([this](const NetworkStackLatencyPacket& p) {
             if (p.needsResponse)
-                SendTickSync(p.timestamp);
+                SendLatencyReply(p.timestamp);
         });
 
         On<CommandOutputPacket>([this](const CommandOutputPacket& p) {

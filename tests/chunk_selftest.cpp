@@ -261,6 +261,15 @@ int main() {
         CHECK((int32_t)x == -3 && y == 0 && z == 7);
         CHECK(r.Remaining() == 0);
     }
+    {
+        ChunkCodec::SetDimension(0, 0, 256);
+        ChunkCodec::SetDimension(1, -32, 160);
+        CHECK(ChunkCodec::Dimension(0).minY == 0 && ChunkCodec::Dimension(0).slots == 16);
+        ChunkCodec::ResetDimensions();
+        CHECK(ChunkCodec::Dimension(0).minY == -64 && ChunkCodec::Dimension(0).slots == 24);
+        CHECK(ChunkCodec::Dimension(1).minY == 0 && ChunkCodec::Dimension(1).slots == 8);
+        CHECK(ChunkCodec::Dimension(2).minY == 0 && ChunkCodec::Dimension(2).slots == 16);
+    }
     printf(fails ? "%d FAILED\n" : "all chunk self-tests passed\n", fails);
     return fails ? 1 : 0;
 }

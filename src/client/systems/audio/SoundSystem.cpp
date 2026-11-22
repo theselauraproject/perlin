@@ -275,14 +275,16 @@ namespace perlin::audio {
         PcmPtr result;
         std::vector<std::string> roots = packRoots;
         roots.push_back(root);
-        bool found = false;
+        // Packs are searched top-down. A file that will not decode (some server packs ship sounds
+        // left encrypted or corrupt) falls through to the next format, then the next pack, ending at
+        // the vanilla sound, as Bedrock does.
+        bool undecodable = false;
         for (const auto& directory : roots) {
             for (const char* ext : {".fsb", ".ogg", ".wav"}) {
                 const fs::path p = fs::path(directory) / (file + ext);
                 std::error_code ec;
                 if (!fs::exists(p, ec))
                     continue;
-                found = true;
                 std::ifstream f(p, std::ios::binary);
                 std::vector<uint8_t> bytes;
                 file::ReadRest(f, bytes);
@@ -290,16 +292,18 @@ namespace perlin::audio {
                 std::string error;
                 if (DecodeSound(bytes, ext, *pcm, &error)) {
                     result = pcm;
-                } else if (!warned[file]) {
-                    warned[file] = true;
-                    Log("audio", "cannot decode {}{}: {}", file, ext, error);
+                    break;
                 }
-                break;
+                undecodable = true;
+                if (!warned[file + ext + directory]) {
+                    warned[file + ext + directory] = true;
+                    Log("audio", "cannot decode {}{} in {}: {}; trying the next pack", file, ext, directory, error);
+                }
             }
-            if (found)
+            if (result)
                 break;
         }
-        if (!result && !warned[file]) {
+        if (!result && !undecodable && !warned[file]) {
             warned[file] = true;
             Log("audio", "sound file {} not found", file);
         }

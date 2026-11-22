@@ -1,4 +1,5 @@
 #include "client/systems/particle/DataParticles.hpp"
+#include "client/systems/particle/TerrainTile.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -16,9 +17,53 @@ namespace {
             failures++;
         }
     }
+
+    void CheckTerrainTiles() {
+        using perlin::particle::TerrainTileFor;
+        perlin::BlockAppearance grass;
+        grass.top = 10;
+        grass.side = 11;
+        grass.bottom = 12;
+        grass.overlayTile = 13;
+        grass.overlayFrac = 1.0f;
+        Check(TerrainTileFor(grass, 1, true).tile == 10, "grass top face uses the top texture");
+        Check(TerrainTileFor(grass, 1, true).tintable, "grass top face takes the biome tint");
+        for (int face : {2, 3, 4, 5}) {
+            Check(TerrainTileFor(grass, face, true).tile == 12, "grass side face uses dirt");
+            Check(!TerrainTileFor(grass, face, true).tintable, "grass side face is not tinted");
+        }
+        Check(TerrainTileFor(grass, 0, true).tile == 12, "grass bottom face uses dirt");
+        Check(!TerrainTileFor(grass, 0, true).tintable, "grass bottom face is not tinted");
+        Check(TerrainTileFor(grass, -1, true).tile == 10, "grass general texture stays the top");
+
+        perlin::BlockAppearance log;
+        log.top = 20;
+        log.side = 21;
+        log.bottom = 22;
+        Check(TerrainTileFor(log, 1, false).tile == 20, "log top face");
+        Check(TerrainTileFor(log, 0, false).tile == 22, "log bottom face");
+        Check(TerrainTileFor(log, 2, false).tile == 21, "log side face");
+        Check(TerrainTileFor(log, -1, false).tile == 21, "log general texture is the side");
+
+        perlin::BlockAppearance furnace;
+        furnace.top = 30;
+        furnace.side = 31;
+        furnace.bottom = 30;
+        furnace.sideTile[0] = 32;
+        furnace.sideTile[3] = 33;
+        Check(TerrainTileFor(furnace, 5, false).tile == 32, "east face uses its own texture");
+        Check(TerrainTileFor(furnace, 2, false).tile == 33, "north face uses its own texture");
+        Check(TerrainTileFor(furnace, 3, false).tile == 31, "south face falls back to the side");
+        Check(TerrainTileFor(furnace, 4, false).tile == 31, "west face falls back to the side");
+
+        perlin::BlockAppearance topOnly;
+        topOnly.top = 40;
+        Check(TerrainTileFor(topOnly, 3, false).tile == 40, "missing face texture falls back");
+    }
 }
 
 int main() {
+    CheckTerrainTiles();
     const fs::path root = fs::temp_directory_path() / "perlin_particle_selftest";
     fs::remove_all(root);
     fs::create_directories(root / "particles");

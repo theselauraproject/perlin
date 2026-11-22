@@ -147,7 +147,7 @@ namespace perlin::screen {
         if (lastGuiW > 0)
             layout.width = std::min(layout.width, std::max(40, static_cast<int>((lastGuiW - 8) / layout.scale)));
         chat.SetLayout(layout);
-        chat.Fill(s, hudAnim.ticks, detail::MsNow());
+        chat.Fill(s, hudAnim.ticks, detail::MsNow(), pause.IsOpen() && pause.OnChatSettings());
     }
 
     void HudScreen::FillHudSidebar(ui::HudState& s, BedrockSession* live, bool preview) {
@@ -398,14 +398,10 @@ namespace perlin::screen {
             a.displayHealth = health;
             a.lastHealthTick = tick;
         }
-        const bool invulnerable = tick - a.lastHurtTick < 20;
         if (health < a.lastHealth) {
             a.lastHurtTick = tick;
             a.lastHealthTick = tick;
             a.blinkUntil = tick + 20;
-        } else if (health > a.lastHealth && invulnerable) {
-            a.lastHealthTick = tick;
-            a.blinkUntil = tick + 10;
         }
         if (tick - a.lastHealthTick > 20) {
             a.lastHealth = health;

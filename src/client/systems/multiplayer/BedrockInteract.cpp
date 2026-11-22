@@ -132,31 +132,31 @@ namespace perlin {
             QueueInputFlag(InputFlag::StartUsingItem);
         u.actionType = TransactionUseItemActionType::ClickAir;
         u.triggerType = TransactionUseItemTriggerType::Unknown;
-        u.clientPrediction = TransactionUseItemClientPrediction::Success;
+        u.clientPrediction = TransactionUseItemClientPrediction::Failure;
         u.blockPosition = {0, 0, 0};
         u.face = 255;
-        u.hotbarSlot = selected;
+        u.hotbarSlot = useOffhand ? 0 : selected;
         u.hand = useOffhand ? TransactionUseItemHand::OffHand : TransactionUseItemHand::MainHand;
-        u.playerPos = V(eye);
+        u.playerPos = HeadPos(eye);
         u.clickPos = {0, 0, 0};
         u.blockRuntimeId = 0;
         p.transaction.transactionData = u;
         return Send(p);
     }
 
-    bool BedrockSession::SendReleaseItem(const float eye[3], bool consume) {
+    bool BedrockSession::SendReleaseItem(const float eye[3]) {
         InventoryTransactionPacket p;
         p.transaction.transactionType = TransactionTransactionType::ItemRelease;
         TransactionTransactionDataCase2 r;
         {
             std::lock_guard lock(statusMutex);
-            r.hotbarSlot = std::clamp(inventory.selected, 0, 8);
-            r.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[r.hotbarSlot];
+            const int selected = std::clamp(inventory.selected, 0, 8);
+            r.hotbarSlot = useOffhand ? 0 : selected;
+            r.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[selected];
         }
         r.hand = useOffhand ? 1 : 0;
-        r.actionType = consume ? TransactionTransactionDataCase2ActionType::Consume
-                               : TransactionTransactionDataCase2ActionType::Release;
-        r.headPos = V(eye);
+        r.actionType = TransactionTransactionDataCase2ActionType::Release;
+        r.headPos = HeadPos(eye);
         p.transaction.transactionData = r;
         return Send(p);
     }

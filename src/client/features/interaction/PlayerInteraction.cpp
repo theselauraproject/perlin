@@ -225,6 +225,13 @@ namespace perlin::interaction {
         selfSwing++;
     }
 
+    void Player::DropSelected(BedrockSession& live, bool wholeStack) {
+        if (!live.SendDropSelected(wholeStack ? 0 : 1))
+            return;
+        SwingHand();
+        live.SendSwingArm("dropitem");
+    }
+
     void Player::UpdateBlockBreaking(FrameContext& f, const ui::HudItem& held, bool creative) {
         auto& live = f.live;
         const float eyeF[3] = {camera.x, camera.y, camera.z};
@@ -648,7 +655,7 @@ namespace perlin::interaction {
             live->SwapOffhand();
 
         if (live && inputManager.Pressed(Action::Drop) && !held.Empty())
-            live->SendDropSelected(inputManager.IsDown(Action::Sprint) ? 0 : 1);
+            DropSelected(*live, inputManager.IsDown(Action::Sprint));
     }
 
     void Player::UpdateGameInput(FrameContext& f, const View& frameView) {
@@ -758,12 +765,7 @@ namespace perlin::interaction {
                 if (name == "minecraft:dried_kelp")
                     need = 16;
                 if (now >= useStartTick + static_cast<uint64_t>(need) + 1) {
-                    const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
-                                          static_cast<float>(camera.z)};
-                    live.SendUseItemInAir(eye, false);
-                    live.SendReleaseItem(eye, true);
-                    Log("item", "finished using {} after {} ticks: sent use + consume", name,
-                        now - useStartTick);
+                    Log("item", "finished using {} after {} ticks", name, now - useStartTick);
                     useConsumed = true;
                     usingItem = false;
                 }

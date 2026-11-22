@@ -1,6 +1,7 @@
 #pragma once
 #include "client/screen/OverlayScreen.hpp"
 #include "client/ui/Scene.hpp"
+#include "client/ui/Scrollbar.hpp"
 #include "client/screen/ScreenHost.hpp"
 #include "client/screen/screens/TitleScreen.hpp"
 #include "client/systems/config/Options.hpp"
@@ -67,6 +68,7 @@ namespace perlin::ui {
         }
     };
     KeybindLayout ComputeKeybindLayout(int rows, int guiW, int guiH);
+    Scrollbar KeybindScrollbar(const KeybindLayout& layout, float scroll, int guiW);
     ui::SceneDoc BuildKeybindsScreen(const std::vector<KeybindRow>& rows, const std::string& title,
                                        const std::string& done, const std::string& reset, float scroll,
                                        int guiW, int guiH, const std::string& undo = {}, bool canUndo = false);
@@ -101,6 +103,7 @@ namespace perlin::ui {
 
     OptionsLayout ComputeOptionsLayout(const std::vector<OptionsRow>& rows, int guiW, int guiH, float scroll,
                                        int columns = 2);
+    Scrollbar OptionsScrollbar(const OptionsLayout& layout, float scroll, int guiW);
     ui::SceneDoc BuildOptionsScreen(const std::vector<OptionsRow>& rows, const std::string& title,
                                       const std::string& done, float scroll, int guiW, int guiH,
                                       int hover = -1, int columns = 2);
@@ -301,6 +304,7 @@ namespace perlin::screen {
             : OverlayScreen(id, traits), host(host), services(services) {}
         Claim Update(Frame& frame) override;
         void UpdatePauseScreen(ui::Hud& hud, BedrockSession* live, int fbW, int fbH);
+        bool OnChatSettings() const { return view == 1 && optionsUi.page == 12; }
 
         bool previewOpened = false, players = false;
         int view = 0;
@@ -321,6 +325,8 @@ namespace perlin::screen {
         TimePoint bindStartedAt;
         bool touchEditing = false, touchEditHidden = false, touchEditSeen = false;
         float kbScroll = 0.0f, scroll = 0.0f;
+        bool scrollDrag = false;
+        float scrollGrab = 0.0f;
         int scrollKey = -1;
         int hoverRow = -1;
         int typingRow = -1;

@@ -1,15 +1,6 @@
-# BDS fluid-state callbacks v1
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
-# function 0x140e0e820 sha256 3f9fbd4189d9a2261cb6c7bea1a0595a8ebe3037f4aa622f89590ef2322ce6ce
-# function 0x140e0e6f0 sha256 be6457cc1e1966254d2135b26ee3b0a2413e4278eeb85c141a61686ce5616cbe
-# function 0x140fc98e0 sha256 87f6fc2f1fc18bc9d7d0e13b4d67199f3efe8364570c9ebca18f4e32404bb491
 # membership 0 absent,1 valid,2 stale,3 out-of-range page,4 null page,5 reserved index
 # W entity material fallingMembership passengerMembership waterMembership registryMatches boat fallBits splashPresent splashValue outputWater outputFallBits outputSplashPresent outputSplashValue inserts removes boatQueries splashGets
-# C same fields as W, then chainId tick; 32 chains of 16 callbacks retaining native output state
 # L entity material lavaMembership outputLava inserts removes
-# K waterIntersects lavaIntersects outputMaterial outputWaterIntersects; complete fetch callback with synthetic collection/readiness and finite fdclass, flow disabled
-# B inputBounds[6] bypassContraction outputLavaBounds[6] outputWaterBounds[6] outputReadinessBounds[6]; finite bounds, complete fetch callback
-# Complete callback instructions; pool getters/mutation and boat-view query are synthetic services.
 W 00000000 00000000 00000001 00000004 00000004 00000001 00000000 00000000 00000001 00000000 00000000 00000000 00000001 00000000 00000000 00000000 00000000 00000000
 W 00040001 00000005 00000004 00000001 00000000 00000000 00000001 80000000 00000001 00000001 00000001 00000000 00000001 00000001 00000001 00000000 00000000 00000001
 W 000807ff 00000006 00000000 00000005 00000003 00000001 00000001 3f800000 00000001 00000002 00000000 3f800000 00000001 00000002 00000000 00000000 00000000 00000000

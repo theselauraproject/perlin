@@ -237,8 +237,13 @@ namespace perlin::screen {
                 std::clamp(optionsUi.scroll - host.inputManager.Scroll() * 20.0f, 0.0f, probe.maxScroll);
         else if (!probe.scrolling)
             optionsUi.scroll = 0.0f;
-        const ui::OptionsLayout layout = ui::ComputeOptionsLayout(view, guiW, guiH, optionsUi.scroll, m.columns);
         const float gx = mx / static_cast<float>(scale), gy = my / static_cast<float>(scale);
+        if (!this->leftDown)
+            optionsUi.scrollDrag = false;
+        if (optionsUi.scrollDrag && probe.scrolling)
+            optionsUi.scroll =
+                ui::OptionsScrollbar(probe, optionsUi.scroll, guiW).ScrollFor(gy, optionsUi.scrollGrab);
+        const ui::OptionsLayout layout = ui::ComputeOptionsLayout(view, guiW, guiH, optionsUi.scroll, m.columns);
         int hoverRow = -1;
         for (int i = 0; i < layout.count; i++)
             if (layout.visible[static_cast<size_t>(i)] && !view[static_cast<size_t>(i)].header &&
@@ -340,7 +345,13 @@ namespace perlin::screen {
             optionsUi.signature.clear();
         }
         if (down && !this->leftDown && clickReady && optionsUi.typingRow < 0) {
-            for (int i = 0; i < layout.count; i++)
+            const ui::Scrollbar bar = ui::OptionsScrollbar(layout, optionsUi.scroll, guiW);
+            optionsUi.scrollDrag = bar.Contains(gx, gy);
+            if (optionsUi.scrollDrag) {
+                optionsUi.scrollGrab = bar.Grab(gy);
+                optionsUi.scroll = bar.ScrollFor(gy, optionsUi.scrollGrab);
+            }
+            for (int i = 0; i < layout.count && !optionsUi.scrollDrag; i++)
                 if (layout.visible[static_cast<size_t>(i)] && !m.rows[static_cast<size_t>(i)].header &&
                     inside(layout.x[i], layout.y[i], layout.rowW[static_cast<size_t>(i)], layout.h)) {
                     const OptRow& row = m.rows[static_cast<size_t>(i)];
@@ -357,7 +368,8 @@ namespace perlin::screen {
         }
         if (!down && this->leftDown) {
             if (optionsUi.drag >= 0 || clickReady) {
-                if (inside(layout.doneX, layout.doneY, layout.doneW, layout.h) && optionsUi.drag < 0) {
+                if (inside(layout.doneX, layout.doneY, layout.doneW, layout.h) && optionsUi.drag < 0 &&
+                    !optionsUi.scrollDrag) {
                     services.options.Save();
                     if (this->view == 1 && optionsUi.page == 11) {
                         services.manager.SettingsClosed(services.modRequest.settingsFor);
@@ -378,6 +390,7 @@ namespace perlin::screen {
             if (optionsUi.drag >= 0)
                 services.options.Save();
             optionsUi.drag = -1;
+            optionsUi.scrollDrag = false;
         }
         this->leftDown = down;
     }

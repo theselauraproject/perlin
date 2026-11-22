@@ -579,10 +579,10 @@ namespace perlin::ui {
         return r;
     }
 
-    void ChatLog::Fill(HudState& s, uint64_t tick, uint64_t nowMs) const {
+    void ChatLog::Fill(HudState& s, uint64_t tick, uint64_t nowMs, bool preview) const {
         s.chatOpen = open;
         s.chatLines.clear();
-        const int maxLines = open ? PageLines() : std::max(1, layout.unfocusedLines);
+        const int maxLines = open || preview ? PageLines() : std::max(1, layout.unfocusedLines);
         s.chatScale = layout.scale;
         s.chatWrapWidth = WrapWidth();
         s.chatLineHeight = layout.lineHeight;
@@ -594,7 +594,7 @@ namespace perlin::ui {
             const Line& l = lines[static_cast<size_t>(total - 1 - (i + scroll))];
             const double age = static_cast<double>(tick - std::min(tick, l.added));
             float d = 1.0f;
-            if (!open) {
+            if (!open && !preview) {
                 if (age >= 200.0)
                     continue;
                 d = static_cast<float>(std::clamp((1.0 - age / 200.0) * 10.0, 0.0, 1.0));

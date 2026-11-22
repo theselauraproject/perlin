@@ -50,7 +50,7 @@ namespace perlin::particle {
 
     void ParticleSystem::Destroy(int x, int y, int z, uint16_t id) {
         TileChoice choice;
-        if (!tileFor || !tileFor(id, x, y, z, choice))
+        if (!tileFor || !tileFor(id, x, y, z, -1, choice))
             return;
         constexpr int kN = 4;
         for (int i = 0; i < kN; i++)
@@ -72,7 +72,7 @@ namespace perlin::particle {
 
     void ParticleSystem::Crack(int x, int y, int z, int face, uint16_t id) {
         TileChoice choice;
-        if (!tileFor || !tileFor(id, x, y, z, choice))
+        if (!tileFor || !tileFor(id, x, y, z, face, choice))
             return;
         const float r = 0.1f;
         double px = x + Rand() * (1.0 - 2 * r) + r, py = y + Rand() * (1.0 - 2 * r) + r,

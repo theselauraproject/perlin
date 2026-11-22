@@ -1,8 +1,4 @@
-# BDS sprint impulses observed during independent legacy-trace migration
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
 # independent_reference artemis-bedrock/bedsim-cpp 6a18b0e95b184a9392d13bff9a69d713230a7135
-# function 0x140eafaf0 sha256 2ebada75c5c67b9e2ac4b7db8399e1cc4da8b0727a1442d60274990ec69a353f
-# instruction_range 0x140eafd9c 0x140eafdfa; MXCSR 0x1f80; no runtime hooks
 # J yaw inputX inputZ sineIndex cosineIndex outputX outputZ
 # gen:terrain1_1 step 24
 J 43070000 bdcabc70 bc048410 00005fff 0000a000 be763288 be191905

@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace perlin::entity {
@@ -237,11 +238,16 @@ namespace perlin::entity {
         };
         void StepPickupsLocked(std::vector<uint64_t>* finished) const;
         void StepItemLocked(Entity& e);
+        void MarkDyingLocked(Entity& e);
+        void ReviveLocked(Entity& e);
+        void StepCorpsesLocked() const;
         ItemCollider itemCollider;
         mutable std::mutex mutex;
         mutable std::unordered_map<uint64_t, Entity> entities;
         mutable std::unordered_map<int64_t, uint64_t> byUnique;
         mutable std::unordered_map<uint64_t, PickupState> pickups;
+        mutable std::unordered_map<uint64_t, double> deaths;
+        mutable std::unordered_set<uint64_t> corpses;
         uint64_t viewerRuntime = 0;
         glm::dvec3 viewerFeet{0.0};
         std::unordered_map<std::string, std::shared_ptr<const SkinData>> skins;

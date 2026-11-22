@@ -1,8 +1,4 @@
-# BDS honey contacts v1
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
-# function 0x140b58cf0 sha256 f54f621a72f5a863644e501a5e7d634acaa7d8f165ab59d7bb9491e3d2ac6685
 # H position[3] velocity[3] bodyWidth fallDistance contactCount contactPosition[3]*n outputVelocity[3] outputFallDistance
-# finite inputs, complete callback, no runtime hooks; ECS eligibility is outside this callback
 H c61c3e00 00000000 3f000000 401f3e9f bf800000 40205073 00000000 80000000 00000000 401f3e9f bf800000 40205073 80000000
 H c61c3e00 3f700000 3f000000 be79b08d bdf5c290 bff62a0a 3f19999a 00000000 00000000 be79b08d bdf5c290 bff62a0a 00000000
 H c61c3e00 3f700001 3f000000 c00b19fd bdf5c28f 40291019 3f800000 3e000000 00000000 c00b19fd bdf5c28f 40291019 3e000000

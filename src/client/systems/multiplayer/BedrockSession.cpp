@@ -546,6 +546,7 @@ namespace perlin {
         }
         if (!transfer)
             Disconnect();
+        ChunkCodec::ResetDimensions();
         lastError.clear();
         state = State::Connecting;
 
@@ -767,6 +768,11 @@ namespace perlin {
     }
 
     bool BedrockSession::Transmit(uint32_t packetId, const std::vector<uint8_t>& body, bool reliable) {
+        if (sentTapActive.load(std::memory_order_acquire)) {
+            std::lock_guard<std::mutex> tl(tapMutex);
+            if (sentTap)
+                sentTap(packetId, body);
+        }
         if (replayMode)
             return true;
         packetlog::Record(true, packetId, body.data(), body.size());
@@ -1427,6 +1433,9 @@ namespace perlin {
         f.pitch = input.pitch;
         f.yaw = input.yaw;
         f.position = {input.position[0], input.position[1] + input.eyeHeight, input.position[2]};
+        lastAuthHead[0] = f.position.x;
+        lastAuthHead[1] = f.position.y;
+        lastAuthHead[2] = f.position.z;
         f.moveVector = {mx, mz};
         f.headYaw = input.yaw;
         f.inputData.reserve(inputFlags.size());
@@ -1634,10 +1643,13 @@ namespace perlin {
         return Send(p);
     }
 
-    bool BedrockSession::SendTickSync(uint64_t timestamp) {
+    // The answer to a server's latency ping: the same timestamp back, marked as not from the server.
+    // Servers match the echoed value exactly (inventory menus wait for it before they treat a chest
+    // window as open), so it must not be scaled or flagged as a new ping.
+    bool BedrockSession::SendLatencyReply(uint64_t timestamp) {
         proto::NetworkStackLatencyPacket p;
-        p.timestamp = timestamp * 1000000ULL;
-        p.needsResponse = 1;
+        p.timestamp = timestamp;
+        p.needsResponse = 0;
         return Send(p);
     }
 

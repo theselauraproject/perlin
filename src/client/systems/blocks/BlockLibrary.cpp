@@ -1352,6 +1352,22 @@ namespace perlin {
             }
         }
 
+        // Hardened glass (hard_glass, hard_<colour>_stained_glass and their panes) has no art of its own
+        // in the vanilla pack; it looks like the plain glass of the same colour.
+        for (const std::string& name : allNames) {
+            if (!name.starts_with("minecraft:hard_"))
+                continue;
+            const auto own = appearances.find(name);
+            if (own != appearances.end() && (own->second.top | own->second.side | own->second.bottom) != 0)
+                continue;
+            const auto plain = appearances.find("minecraft:" + name.substr(std::string("minecraft:hard_").size()));
+            if (plain == appearances.end())
+                continue;
+            appearances[name] = plain->second;
+            if (own == appearances.end() && noTexture > 0)
+                noTexture--;
+        }
+
         LoadBlockModels(perlinPackDir, vanillaRpRoot);
         ScanBlockGeometry(perlinPackDir, vanillaRpRoot);
         if (fetchFails > 0)

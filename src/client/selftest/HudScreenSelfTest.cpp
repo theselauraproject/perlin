@@ -136,6 +136,27 @@ namespace perlin::selftest {
         }
         {
             Rig r;
+            r.chat.AddMessage("hello", 0);
+            r.hudAnim.ticks = 1000;
+            r.Fill();
+            t.Check(r.hudState.chatLines.empty(), "old chat lines fade out of the hud");
+            r.screens.Open(r.pause);
+            r.pause.view = 1;
+            r.pause.optionsUi.page = 12;
+            r.Fill();
+            t.Check(r.hudState.chatLines.size() == 1 && r.hudState.chatLines[0].alpha == 1.0f,
+                    "the chat settings page shows faded chat lines at full opacity");
+            t.Check(!r.hudState.chatOpen, "the chat settings preview does not open the chat");
+            r.pause.optionsUi.page = 0;
+            r.Fill();
+            t.Check(r.hudState.chatLines.empty(), "other option pages leave faded chat hidden");
+            r.pause.optionsUi.page = 12;
+            r.screens.Close(r.pause);
+            r.Fill();
+            t.Check(r.hudState.chatLines.empty(), "closing the pause screen ends the chat preview");
+        }
+        {
+            Rig r;
             r.hudState.bossBars.push_back({"stale", 1.0f, 0, 0});
             r.hudState.sidebarVisible = true;
             r.hudState.sidebar.push_back({"stale", 1});
@@ -158,11 +179,15 @@ namespace perlin::selftest {
 
             r.hudState.health = 16.0f;
             r.hudScreen.TickHud();
-            t.Equal(r.hudAnim.blinkUntil, 13, "regaining health while invulnerable restarts a shorter blink");
+            t.Equal(r.hudAnim.blinkUntil, 22, "regaining health during the blink leaves it running");
 
             for (int i = 0; i < 30; i++)
                 r.hudScreen.TickHud();
             t.Equal(r.hudAnim.displayHealth, 16, "displayed health catches up once the blink window passes");
+
+            r.hudState.health = 18.0f;
+            r.hudScreen.TickHud();
+            t.Check(r.hudAnim.blinkUntil < static_cast<int>(r.hudAnim.ticks), "healing never blinks the hearts");
         }
         {
             Rig r;

@@ -1,4 +1,5 @@
 #include "client/ui/UiLayout.hpp"
+#include "client/ui/LabelText.hpp"
 #include "client/ui/TenFont.hpp"
 #include "client/ui/UiExpr.hpp"
 
@@ -745,33 +746,8 @@ namespace perlin::ui {
             void WrapLines(const std::string& text, float scale, bool ten, float wrapWidth,
                            std::vector<std::string>& out) const {
                 const auto measure = [&](const std::string& s) { return Measure(s, scale, ten); };
-                size_t start = 0;
-                while (start <= text.size()) {
-                    const size_t nl = text.find('\n', start);
-                    const std::string paragraph =
-                        text.substr(start, nl == std::string::npos ? std::string::npos : nl - start);
-                    std::string line;
-                    size_t i = 0;
-                    while (i <= paragraph.size()) {
-                        const size_t sp = paragraph.find(' ', i);
-                        const std::string word =
-                            paragraph.substr(i, sp == std::string::npos ? std::string::npos : sp - i);
-                        const std::string candidate = line.empty() ? word : line + " " + word;
-                        if (!line.empty() && measure(candidate) > wrapWidth) {
-                            out.push_back(line);
-                            line = word;
-                        } else {
-                            line = candidate;
-                        }
-                        if (sp == std::string::npos)
-                            break;
-                        i = sp + 1;
-                    }
-                    out.push_back(line);
-                    if (nl == std::string::npos)
-                        break;
-                    start = nl + 1;
-                }
+                for (std::string& l : WrapLabelText(text, wrapWidth, measure))
+                    out.push_back(std::move(l));
             }
 
             bool Lookup(const LNode& n, const std::string& name, const Vars* vars, json::Value& out) const {
@@ -1266,7 +1242,7 @@ namespace perlin::ui {
                     while (!measured.empty() && (measured.back() == ' ' || measured.back() == '\t'))
                         measured.pop_back();
                     LayoutText(measured, scale, ten, wrap, lines, width);
-                    iw = std::ceil(width);
+                    iw = LabelDefaultWidth(width, !ten);
                     ih = static_cast<float>(lines) * line +
                          (lines - 1) * static_cast<float>(n.Num("line_padding", 0));
                     n.textLines = lines;
@@ -1325,56 +1301,11 @@ namespace perlin::ui {
                 if (text.empty())
                     return;
                 const auto measure = [&](const std::string& s) { return Measure(s, scale, ten); };
-                if (!Known(wrapWidth) || wrapWidth <= 0) {
-                    size_t start = 0;
-                    lines = 0;
-                    while (start <= text.size()) {
-                        const size_t nl = text.find('\n', start);
-                        const std::string line =
-                            text.substr(start, nl == std::string::npos ? std::string::npos : nl - start);
-                        width = std::max(width, measure(line));
-                        lines++;
-                        if (nl == std::string::npos)
-                            break;
-                        start = nl + 1;
-                    }
-                    return;
-                }
-                lines = 0;
-                size_t start = 0;
-                while (start <= text.size()) {
-                    const size_t nl = text.find('\n', start);
-                    const std::string paragraph =
-                        text.substr(start, nl == std::string::npos ? std::string::npos : nl - start);
-                    std::string line;
-                    size_t i = 0;
-                    bool any = false;
-                    while (i <= paragraph.size()) {
-                        size_t sp = paragraph.find(' ', i);
-                        std::string word =
-                            paragraph.substr(i, sp == std::string::npos ? std::string::npos : sp - i);
-                        const std::string candidate = line.empty() ? word : line + " " + word;
-                        if (!line.empty() && measure(candidate) > wrapWidth) {
-                            width = std::max(width, measure(line));
-                            lines++;
-                            line = word;
-                        } else {
-                            line = candidate;
-                        }
-                        any = true;
-                        if (sp == std::string::npos)
-                            break;
-                        i = sp + 1;
-                    }
-                    (void)any;
-                    width = std::max(width, measure(line));
-                    lines++;
-                    if (nl == std::string::npos)
-                        break;
-                    start = nl + 1;
-                }
-                if (lines < 1)
-                    lines = 1;
+                const std::vector<std::string> wrapped =
+                    WrapLabelText(text, Known(wrapWidth) && wrapWidth > 0 ? wrapWidth : 0.0f, measure);
+                lines = std::max<int>(1, static_cast<int>(wrapped.size()));
+                for (const std::string& l : wrapped)
+                    width = std::max(width, measure(l));
             }
 
             void ClampSize(const LNode& n, float pw, float ph, float& w, float& h) const {

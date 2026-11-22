@@ -32,6 +32,7 @@ namespace perlin::entity {
             std::string effect;
             glm::dvec3 at{0.0};
             std::string preScript;
+            int levelEvent = 0;
         };
         std::vector<ParticleRequest> TakeParticleRequests() { return std::exchange(particleRequests, {}); }
         glm::dvec3 SeatPosition(const Entity& vehicle, bool playerRider = true) const;
@@ -235,6 +236,7 @@ namespace perlin::entity {
         void QueueHitboxes(const std::vector<Entity>& entities, const FrameIn& in);
         void QueueChunkBorders(const FrameIn& in);
         void QueueFishingLines(const std::vector<Entity>& entities, const FrameIn& in);
+        void QueueLightning(const std::vector<Entity>& entities, const FrameIn& in);
         void TickPlayerBody(const Entity& e, View& v, float dt, float prevYaw);
         void DrawShadow(const glm::dvec3& pos, float radius, float strength, const FrameIn& in);
         uint32_t shadowTexture = 0;

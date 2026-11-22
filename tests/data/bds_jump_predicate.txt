@@ -1,8 +1,4 @@
-# BDS ground-jump permission predicate v1
-# input_sha256 f35469677a9d0db236e8559e9e72c4d6532230edf54497e88677eceff4cde539
-# function 0x140defbf0 sha256 fe96c7f582603dc03ae999dc2a9e98896f1d9090c9155b9a531b036639ab18a4
 # P actorUpperFlags powderSnow canStandOnSnow lightweight outputAllowed queryCount queryKind*n
-# support selection, block lookup/identity and ECS queries are supplied services; permission branches execute BDS
 P 00000000 00000000 00000000 00000000 00000001 00000000
 P 00000000 00000000 00000000 00000001 00000001 00000000
 P 00000000 00000000 00000001 00000000 00000001 00000000

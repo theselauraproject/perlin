@@ -10,6 +10,7 @@
 #include "util/Env.hpp"
 #include "util/Paths.hpp"
 #include "client/systems/entity/EntityQuery.hpp"
+#include "client/systems/entity/EntityScale.hpp"
 #include "client/systems/entity/JavaAnimation.hpp"
 #include "client/systems/hand/HandRenderer.hpp"
 #include "client/systems/sprites/ItemData.hpp"
@@ -39,6 +40,8 @@
 
 namespace perlin::entity {
     namespace {
+        constexpr int kDeathPoofEvent = 2007;
+
         void ApplyJavaCrouch(attachable::Pose& pose, const attachable::Geometry* g) {
             static const float zs = PERLIN_ENV("PERLIN_ZSIGN")
                                         ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_ZSIGN")))
@@ -297,9 +300,7 @@ namespace perlin::entity {
         if (e.boxWidth > 0.0f && e.boxHeight > 0.0f)
             return {e.boxWidth * scale, e.boxHeight * scale};
         if (e.isPlayer)
-            return {0.6f, (e.Has(flag::Gliding) || e.Has(flag::Swimming) || e.crawling) ? 0.6f
-                          : e.Has(flag::Sneaking)                                       ? 1.5f
-                                                                                        : 1.8f};
+            return PlayerBox(e);
         if (e.isItem)
             return {0.25f, 0.25f};
         float w, h;
@@ -718,8 +719,12 @@ namespace perlin::entity {
         }
         v.hurtTimer = std::max(0.0f, v.hurtTimer - dt);
         if (e.dying) {
+            const bool fallen = v.deathTime >= 1.0f;
             v.deathTime = std::min(v.deathTime + dt, 1.0f);
             v.hurtTimer = 0.5f;
+            if (!fallen && v.deathTime >= 1.0f && !(e.isSelf && in.firstPerson) &&
+                particleRequests.size() < 256)
+                particleRequests.push_back({{}, v.pos + glm::dvec3(0.0, 0.5, 0.0), {}, kDeathPoofEvent});
         } else
             v.deathTime = 0.0f;
         const auto ease = [&](float& value, bool on, float seconds) {
@@ -1155,11 +1160,7 @@ namespace perlin::entity {
                 xf.position.x *= px;
         }
 
-        float scale = def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f;
-        if (scale <= 0.0f)
-            scale = 1.0f;
-        if (e.scale > 0.0f && !e.isPlayer)
-            scale *= e.scale;
+        const float scale = ModelScale(e, def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f);
         outScale = scale;
 
         const attachable::GeometryLibrary* library = &assets.geometries;
@@ -2738,7 +2739,8 @@ namespace perlin::entity {
             light = in.light(centre);
         SetPackLightAt(centre, in);
         itemRenderer->SetPackEntity("minecraft:item");
-        itemRenderer->DrawWorldItem(item, v.pos, static_cast<float>((in.time - v.born) * 20.0), e.runtimeId, light);
+        const float age = static_cast<float>((in.time - v.born) * 20.0);
+        itemRenderer->DrawWorldItem(item, v.pos, age, e.runtimeId, light, e.scale > 0.0f ? e.scale : 1.0f);
         itemRenderer->SetPackEntity(nullptr);
         itemRenderer->SetPackLight(-1, -1);
         drawn++;
@@ -2830,15 +2832,11 @@ namespace perlin::entity {
 
     void EntityRenderer::RenderEntity(const Entity& e, const FrameIn& in) {
         const bool shadowOnlySelf = e.isSelf && in.firstPerson;
-        if (shadowOnlySelf && !in.selfShadow) {
-            if (const auto hidden = views.find(e.runtimeId); hidden != views.end() && hidden->second) {
-                hidden->second->hurtSerial = e.hurtSerial;
-                hidden->second->hurtTimer = 0.0f;
-            }
-            return;
+        const bool hiddenSelf = shadowOnlySelf && !in.selfShadow;
+        if (!hiddenSelf) {
+            shadowOnlyPass = shadowOnlySelf;
+            considered++;
         }
-        shadowOnlyPass = shadowOnlySelf;
-        considered++;
         if (e.type == "minecraft:painting") {
             DrawPainting(e, in);
             return;
@@ -2850,7 +2848,13 @@ namespace perlin::entity {
         v.lastSeen = in.time;
         if (shadowOnlySelf)
             v.hurtTimer = 0.0f;
+        // the hidden first-person body keeps being tracked so pose transitions are current in third person
         Track(e, v, in);
+        if (hiddenSelf) {
+            v.hurtSerial = e.hurtSerial;
+            v.hurtTimer = 0.0f;
+            return;
+        }
         if (v.headingPending)
             return;
         const FrameIn::ModStyle* style = in.modStyle ? in.modStyle(e) : nullptr;
@@ -2862,8 +2866,8 @@ namespace perlin::entity {
         const bool gearless =
             e.mainHand.empty() && e.offHand.empty() &&
             std::all_of(std::begin(e.armor), std::end(e.armor), [](const std::string& a) { return a.empty(); });
-        const bool modelHidden = !e.isPlayer && (e.scale == 0.0f || (e.Has(flag::Invisible) && gearless));
-        if (e.dying && v.deathTime >= 1.0f && !e.isSelf)
+        const bool modelHidden = e.scale == 0.0f || (!e.isPlayer && e.Has(flag::Invisible) && gearless);
+        if (e.dying && v.deathTime >= 1.0f)
             return;
         if (in.frustum && !shadowOnlySelf && OutsideFrustum(e, v, in)) {
             culled++;
@@ -2960,6 +2964,46 @@ namespace perlin::entity {
         }
     }
 
+    // Lightning has no model: it is a jagged bolt from the sky to the strike point, a bright core with a
+    // wider glow, re-shaped a few times a second while the entity lives (about a second).
+    void EntityRenderer::QueueLightning(const std::vector<Entity>& entities, const FrameIn& in) {
+        for (const Entity& bolt : entities) {
+            if (bolt.type != "minecraft:lightning_bolt")
+                continue;
+            const auto bv = views.find(bolt.runtimeId);
+            const glm::dvec3 ground = bv != views.end() ? bv->second->pos : bolt.pos;
+            const uint64_t flicker = static_cast<uint64_t>(in.time * 12.0);
+            uint64_t seed = (bolt.runtimeId * 0x9E3779B97F4A7C15ull) ^ (flicker * 0xBF58476D1CE4E5B9ull);
+            const auto next = [&seed]() {
+                seed ^= seed >> 30;
+                seed *= 0xBF58476D1CE4E5B9ull;
+                seed ^= seed >> 27;
+                seed *= 0x94D049BB133111EBull;
+                seed ^= seed >> 31;
+                return static_cast<double>(seed & 0xFFFFFF) / static_cast<double>(0xFFFFFF) - 0.5;
+            };
+            constexpr int kSegments = 16;
+            constexpr double kHeight = 128.0;
+            glm::dvec3 previous = ground + glm::dvec3(0.0, kHeight, 0.0);
+            double ox = 0.0, oz = 0.0;
+            for (int i = 1; i <= kSegments; i++) {
+                const double y = kHeight * (1.0 - static_cast<double>(i) / kSegments);
+                if (i < kSegments) {
+                    ox += next() * 3.0;
+                    oz += next() * 3.0;
+                    ox *= 0.85;
+                    oz *= 0.85;
+                } else {
+                    ox = oz = 0.0;
+                }
+                const glm::dvec3 point = ground + glm::dvec3(ox, y, oz);
+                lines.push_back({previous, point, 0x60FFC8B0u, 9.0f});
+                lines.push_back({previous, point, 0xFFFFF4EEu, 3.0f});
+                previous = point;
+            }
+        }
+    }
+
     void EntityRenderer::QueueFishingLines(const std::vector<Entity>& entities, const FrameIn& in) {
         for (const Entity& hook : entities) {
             if (hook.type != "minecraft:fishing_hook" || hook.ownerUid == 0)
@@ -3024,6 +3068,7 @@ namespace perlin::entity {
         if (in.chunkBorders)
             QueueChunkBorders(in);
         QueueFishingLines(entities, in);
+        QueueLightning(entities, in);
         DrawCracks(in);
         outlineLineStart = lines.size();
         if (in.outline) {

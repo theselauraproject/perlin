@@ -284,6 +284,10 @@ namespace perlin {
             std::lock_guard lock(attrMutex);
             return {ownWidth * ownScale, ownHeight * ownScale};
         }
+        float OwnScale() const {
+            std::lock_guard lock(attrMutex);
+            return ownScale;
+        }
         float UnderwaterMovementSpeedAttribute() const {
             std::lock_guard lock(attrMutex);
             const auto it = ownAttributes.find("minecraft:underwater_movement");
@@ -381,7 +385,7 @@ namespace perlin {
             return tabPlayers;
         }
         void ReloadChunks();
-        bool SendTickSync(uint64_t timestamp);
+        bool SendLatencyReply(uint64_t timestamp);
         struct BlockCrack {
             int x, y, z, stage;
         };
@@ -497,6 +501,12 @@ namespace perlin {
             std::lock_guard<std::mutex> lk(tapMutex);
             recordTap = std::move(t);
             tapActive.store(static_cast<bool>(recordTap), std::memory_order_release);
+        }
+        using SentTap = std::function<void(uint32_t id, const std::vector<uint8_t>& body)>;
+        void SetSentTap(SentTap t) {
+            std::lock_guard<std::mutex> lk(tapMutex);
+            sentTap = std::move(t);
+            sentTapActive.store(static_cast<bool>(sentTap), std::memory_order_release);
         }
         void BeginReplayMode(const std::string& name, uint64_t localRuntimeId, int protocol) {
             replayMode = true;
@@ -760,7 +770,7 @@ namespace perlin {
         bool SendUseItemInAir(const float eye[3], bool held);
         void SetUseOffhand(bool v) { useOffhand = v; }
         void SetAttackOffhand(bool v) { attackOffhand = v; }
-        bool SendReleaseItem(const float eye[3], bool consume = false);
+        bool SendReleaseItem(const float eye[3]);
         bool SendAttackEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendInteractEntity(uint64_t targetRuntimeId, const float eye[3], const float click[3]);
         bool SendLeaveVehicle();
@@ -1008,6 +1018,8 @@ namespace perlin {
         std::string lastError;
         PacketHandler onPacket;
         RecordTap recordTap;
+        SentTap sentTap;
+        std::atomic<bool> sentTapActive{false};
         std::mutex tapMutex;
         std::atomic<bool> tapActive{false};
         bool replayMode = false;
@@ -1172,7 +1184,13 @@ namespace perlin {
         uint64_t authTick = 0;
         uint64_t serverTick = 0;
         float lastAuthPos[3] = {0, 0, 0};
+        float lastAuthHead[3] = {0, 0, 0};
         bool haveLastAuthPos = false;
+        proto::Vec3F HeadPos(const float fallback[3]) const {
+            if (!haveLastAuthPos)
+                return {fallback[0], fallback[1], fallback[2]};
+            return {lastAuthHead[0], lastAuthHead[1], lastAuthHead[2]};
+        }
         bool pendingTeleportAck = false;
         std::vector<uint32_t> pendingInputFlags;
         std::mutex pendingInputMutex;
@@ -1306,6 +1324,14 @@ namespace perlin {
         proto::ItemV4 horseRaw[17];
         int horseWindow = -1;
         proto::ItemV4 chestRaw[54];
+        // Contents a server sent for a container window before (or between) its ContainerOpen.
+        // Some servers send InventoryContent first; the open would otherwise wipe it.
+        struct PendingWindow {
+            std::map<int, proto::ItemV4> slots;
+            int size = 0;
+            std::chrono::steady_clock::time_point at;
+        };
+        std::map<int, PendingWindow> pendingWindows;
         int chestWindow = -1;
         bool chestJustOpened = false;
         proto::ContainerSlotType chestSlotType = proto::ContainerSlotType::Container;
