@@ -71,7 +71,7 @@ namespace perlin {
 
         void BeginWorldItems();
         void DrawWorldItem(const ui::HudItem& item, const glm::dvec3& feet, float age, uint64_t seed,
-                           const glm::vec3& light);
+                           const glm::vec3& light, float size = 1.0f);
         void DrawWorldBlock(const ui::HudItem& item, const glm::dvec3& feet, float scale, const glm::vec3& light);
 
         void DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left, const glm::vec3& light,

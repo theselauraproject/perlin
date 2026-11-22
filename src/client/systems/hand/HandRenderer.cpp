@@ -932,7 +932,7 @@ namespace perlin {
     }
 
     void HandRenderer::DrawWorldItem(const ui::HudItem& item, const glm::dvec3& feet, float age,
-                                     uint64_t seed, const glm::vec3& light) {
+                                     uint64_t seed, const glm::vec3& light, float size) {
         currentItem = item.name;
         if (!renderer || item.Empty())
             return;
@@ -964,7 +964,7 @@ namespace perlin {
         const float kz = tabled ? groundDisplay.ground.scale.z : scale;
         glm::mat4 base =
             T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z)) *
-            T(0.0f, yOff + 0.25f * scale, 0.0f) * Ry(spin);
+            T(0.0f, yOff + 0.25f * scale, 0.0f) * Ry(spin) * S(size);
         if (!solid)
             base = base * T(0.0f, 0.0f, -0.09375f * static_cast<float>(copies - 1) * 0.5f * kz);
         for (int i = 0; i < copies; i++) {

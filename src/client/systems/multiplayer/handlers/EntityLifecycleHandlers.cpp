@@ -81,36 +81,33 @@ namespace perlin {
         On<TakeItemEntityPacket>([this](const TakeItemEntityPacket& p) {
             droppedRaw.erase(p.runtimeEntityId);
             entity::Entity taken;
-            if (entities.Find(p.runtimeEntityId, taken) && runtimeId != 0 && p.target == runtimeId) {
-                const auto nowMs =
+            const bool found = entities.Find(p.runtimeEntityId, taken);
+            if (found && taken.type != "minecraft:xp_orb") {
+                // Servers send no sound for a pickup: the client plays the pop for every collector.
+                SoundRequest r;
+                r.kind = SoundRequest::Kind::Named;
+                r.name = "pop";
+                r.x = static_cast<float>(taken.pos.x);
+                r.y = static_cast<float>(taken.pos.y);
+                r.z = static_cast<float>(taken.pos.z);
+                PushSound(std::move(r));
+            } else if (found && runtimeId != 0 && p.target == runtimeId) {
+                SoundRequest r;
+                r.kind = SoundRequest::Kind::Named;
+                r.name = "random.orb";
+                r.x = static_cast<float>(taken.pos.x);
+                r.y = static_cast<float>(taken.pos.y);
+                r.z = static_cast<float>(taken.pos.z);
+                r.volume = 0.35f;
+                r.pitch = 1.0f + (static_cast<float>(taken.runtimeId % 5) * 0.03f);
+                PushSound(std::move(r));
+                lastLocalOrbMs =
                     static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                               std::chrono::steady_clock::now().time_since_epoch())
                                               .count());
-                if (taken.isItem) {
-                    SoundRequest r;
-                    r.kind = SoundRequest::Kind::Named;
-                    r.name = "random.pop";
-                    r.x = static_cast<float>(taken.pos.x);
-                    r.y = static_cast<float>(taken.pos.y);
-                    r.z = static_cast<float>(taken.pos.z);
-                    r.volume = 0.2f;
-                    r.pitch = 1.4f + (static_cast<float>(taken.runtimeId % 7) * 0.03f);
-                    PushSound(std::move(r));
-                } else if (taken.type == "minecraft:xp_orb") {
-                    SoundRequest r;
-                    r.kind = SoundRequest::Kind::Named;
-                    r.name = "random.orb";
-                    r.x = static_cast<float>(taken.pos.x);
-                    r.y = static_cast<float>(taken.pos.y);
-                    r.z = static_cast<float>(taken.pos.z);
-                    r.volume = 0.35f;
-                    r.pitch = 1.0f + (static_cast<float>(taken.runtimeId % 5) * 0.03f);
-                    PushSound(std::move(r));
-                    lastLocalOrbMs = nowMs;
-                    lastOrbX = r.x;
-                    lastOrbY = r.y;
-                    lastOrbZ = r.z;
-                }
+                lastOrbX = r.x;
+                lastOrbY = r.y;
+                lastOrbZ = r.z;
             }
             entities.Pickup(p.runtimeEntityId, p.target);
         });

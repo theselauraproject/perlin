@@ -1,6 +1,7 @@
 #include "client/features/worldview/EntityPass.hpp"
 #include "client/systems/diagnostics/FrameProfiler.hpp"
 #include "client/systems/entity/BlockEntityView.hpp"
+#include "client/systems/particle/TerrainTile.hpp"
 
 #include <array>
 #include "util/Clock.hpp"
@@ -452,26 +453,22 @@ namespace perlin::worldview {
         auto& dt = f.dt;
         auto& live = f.live;
         if (!particles.tileFor && levelRenderer) {
-            particles.tileFor = [this](uint16_t id, int bx, int by, int bz, particle::TileChoice& out) {
+            particles.tileFor = [this](uint16_t id, int bx, int by, int bz, int face,
+                                       particle::TileChoice& out) {
                 const BlockAppearance& app = levelRenderer->Blocks().Look(id);
                 const std::string pname = blockPalette.Name(id);
                 const auto pHas = [&](const char* part) { return pname.contains(part); };
-                const bool untinted =
-                    pHas("cherry_leaves") || pHas("azalea") || pHas("pale_oak_leaves") || pHas("leaf_litter");
+                const particle::TerrainTile pick = particle::TerrainTileFor(app, face, pHas("grass_block"));
+                if (!pick.tile)
+                    return false;
+                const bool untinted = !pick.tintable || pHas("cherry_leaves") || pHas("azalea") ||
+                                      pHas("pale_oak_leaves") || pHas("leaf_litter");
                 const bool foliageLike = !untinted && (pHas("leaves") || pHas("vine"));
                 const bool grassLike = !untinted && (pHas("grass") || pHas("fern") || pHas("sugar_cane"));
-                const bool grassBlock = pHas("grass_block");
-                int tile =
-                    (app.overlayTile > 0 && !grassBlock) ? app.bottom : (app.side ? app.side : app.top);
-                if (grassBlock && app.top)
-                    tile = app.top;
-                if (!tile)
-                    tile = app.top ? app.top : app.bottom;
-                if (!tile)
-                    return false;
-                out.tile = tile;
+                out.tile = pick.tile;
                 out.tint =
-                    (foliageLike || grassLike || (app.overlayTile <= 0 && (app.tintSide || app.tintTop)))
+                    (foliageLike || grassLike ||
+                     (pick.tintable && app.overlayTile <= 0 && (app.tintSide || app.tintTop)))
                         ? glm::vec3(app.tintR, app.tintG, app.tintB)
                         : glm::vec3(1.0f);
                 if ((foliageLike || grassLike) && out.tint == glm::vec3(0.0f))

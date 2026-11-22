@@ -2739,7 +2739,8 @@ namespace perlin::entity {
             light = in.light(centre);
         SetPackLightAt(centre, in);
         itemRenderer->SetPackEntity("minecraft:item");
-        itemRenderer->DrawWorldItem(item, v.pos, static_cast<float>((in.time - v.born) * 20.0), e.runtimeId, light);
+        const float age = static_cast<float>((in.time - v.born) * 20.0);
+        itemRenderer->DrawWorldItem(item, v.pos, age, e.runtimeId, light, e.scale > 0.0f ? e.scale : 1.0f);
         itemRenderer->SetPackEntity(nullptr);
         itemRenderer->SetPackLight(-1, -1);
         drawn++;
