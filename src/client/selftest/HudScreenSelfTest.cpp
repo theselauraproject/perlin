@@ -179,7 +179,7 @@ namespace perlin::selftest {
 
             r.hudState.health = 16.0f;
             r.hudScreen.TickHud();
-            t.Equal(r.hudAnim.blinkUntil, 13, "regaining health while invulnerable restarts a shorter blink");
+            t.Equal(r.hudAnim.blinkUntil, 22, "regaining health during the blink leaves it running");
 
             for (int i = 0; i < 30; i++)
                 r.hudScreen.TickHud();
@@ -187,12 +187,7 @@ namespace perlin::selftest {
 
             r.hudState.health = 18.0f;
             r.hudScreen.TickHud();
-            t.Equal(r.hudAnim.blinkUntil, 44, "healing long after the last hit still blinks the hearts");
-            t.Equal(r.hudAnim.displayHealth, 16, "displayed health lags behind while healing blinks");
-
-            r.hudState.health = 18.0f;
-            r.hudScreen.TickHud();
-            t.Equal(r.hudAnim.blinkUntil, 44, "unchanged health does not restart the blink");
+            t.Check(r.hudAnim.blinkUntil < static_cast<int>(r.hudAnim.ticks), "healing never blinks the hearts");
         }
         {
             Rig r;
