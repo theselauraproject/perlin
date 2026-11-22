@@ -259,6 +259,39 @@ namespace perlin::selftest {
                     "before any movement input the given position is used");
             session.SetSentTap({});
         }
+        {
+            Rig r;
+            BedrockSession session;
+            session.BeginReplayMode("dropper", 1, kBedrockProtocol);
+            std::vector<std::string> swings;
+            bool dropSent = false;
+            session.SetSentTap([&](uint32_t id, const std::vector<uint8_t>& body) {
+                dropSent = dropSent || id == proto::ItemStackRequestPacket::kId ||
+                           id == proto::InventoryTransactionPacket::kId;
+                if (id != proto::AnimatePacket::kId)
+                    return;
+                net::ReadStream in(body.data(), body.size());
+                proto::AnimatePacket p;
+                if (proto::Read(in, p) && p.actionId == proto::AnimatePacketActionId::SwingArm)
+                    swings.push_back(p.swingSource.value_or(std::string()));
+            });
+            const uint32_t before = r.interactionPlayer.selfSwing;
+            r.interactionPlayer.DropSelected(session, false);
+            t.Check(!dropSent && swings.empty(), "dropping from an empty slot neither drops nor swings");
+            t.Equal(r.interactionPlayer.selfSwing, before, "dropping from an empty slot keeps the arm still");
+
+            proto::InventorySlotPacket slot;
+            slot.windowId = proto::WindowIDVarint::Inventory;
+            slot.slot = 0;
+            slot.item.networkId = 5;
+            slot.item.count = 3;
+            session.InjectIncoming(proto::InventorySlotPacket::kId, net::Encode(slot));
+            r.interactionPlayer.DropSelected(session, false);
+            t.Check(dropSent, "dropping a held item sends the drop");
+            t.Equal(r.interactionPlayer.selfSwing, before + 1, "dropping swings the local arm");
+            t.Check(swings.size() == 1 && swings[0] == "dropitem", "dropping tells the server the arm swung");
+            session.SetSentTap({});
+        }
         return t.Finish();
     }
 }

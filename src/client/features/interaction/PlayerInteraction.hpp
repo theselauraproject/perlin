@@ -88,6 +88,7 @@ namespace perlin::interaction {
         void UpdateEatingAndDrinking(FrameContext& f, BedrockSession& live);
         void StopBreaking(BedrockSession* live);
         void SwingHand();
+        void DropSelected(BedrockSession& live, bool wholeStack);
         void StopHeldBuild() { heldBuild.Stop(); }
 
         AimHit aimHit;

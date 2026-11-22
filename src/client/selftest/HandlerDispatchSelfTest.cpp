@@ -71,6 +71,25 @@ int HandlerDispatch() {
         Inject(session, again);
         Check(session.World().difficulty == 0, "later packet supersedes earlier state");
     }
+    {
+        perlin::BedrockSession session;
+        session.Entities().AddItem(7, 70, {1, 2, 3}, "minecraft:stone", 1, 0, 0, false);
+        perlin::proto::TakeItemEntityPacket take;
+        take.runtimeEntityId = 7;
+        take.target = 99;
+        Inject(session, take);
+        const auto sounds = session.TakeSounds();
+        Check(sounds.size() == 1 && sounds[0].name == "pop" &&
+                  sounds[0].kind == perlin::BedrockSession::SoundRequest::Kind::Named,
+              "pickup by another collector pops");
+        Check(sounds.size() == 1 && sounds[0].x == 1.0f && sounds[0].y == 2.0f && sounds[0].z == 3.0f,
+              "pickup pop plays at the item");
+        perlin::proto::RemoveEntityPacket remove;
+        remove.entityIdSelf = 70;
+        Inject(session, remove);
+        perlin::entity::Entity item;
+        Check(session.Entities().Find(7, item), "a collected item outlives its removal while it flies");
+    }
     if (failures == 0)
         std::puts("handler_dispatch_test: ok");
     return failures == 0 ? 0 : 1;

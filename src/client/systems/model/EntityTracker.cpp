@@ -28,6 +28,7 @@ namespace perlin::entity {
         byUnique.clear();
         deaths.clear();
         corpses.clear();
+        pickups.clear();
     }
 
     void EntityTracker::AttachSkinLocked(Entity& e) {
@@ -115,8 +116,10 @@ namespace perlin::entity {
         e.itemAux = aux;
         e.itemBlock = blockRuntimeId;
         e.itemEnchanted = enchanted;
+        e.scale = 1.0f;
         e.moveSerial = 1;
         byUnique[uid] = rid;
+        pickups.erase(rid);
     }
 
     void EntityTracker::RemoveRuntime(uint64_t rid) {
@@ -134,6 +137,9 @@ namespace perlin::entity {
         std::lock_guard lock(mutex);
         const auto it = byUnique.find(uid);
         if (it == byUnique.end())
+            return;
+        // Servers remove a collected item right after taking it; it stays until its pickup flight ends.
+        if (pickups.contains(it->second))
             return;
         const uint64_t rid = it->second;
         byUnique.erase(it);
@@ -526,6 +532,7 @@ namespace perlin::entity {
                 target = collector->second.pos + glm::dvec3(0.0, 0.5, 0.0);
             const double e = t * t;
             item->second.pos = it->second.from + (target - it->second.from) * e;
+            item->second.scale = static_cast<float>(1.0 - t);
             ++it;
         }
         (void)finished;

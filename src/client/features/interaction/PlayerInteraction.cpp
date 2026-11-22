@@ -225,6 +225,13 @@ namespace perlin::interaction {
         selfSwing++;
     }
 
+    void Player::DropSelected(BedrockSession& live, bool wholeStack) {
+        if (!live.SendDropSelected(wholeStack ? 0 : 1))
+            return;
+        SwingHand();
+        live.SendSwingArm("dropitem");
+    }
+
     void Player::UpdateBlockBreaking(FrameContext& f, const ui::HudItem& held, bool creative) {
         auto& live = f.live;
         const float eyeF[3] = {camera.x, camera.y, camera.z};
@@ -648,7 +655,7 @@ namespace perlin::interaction {
             live->SwapOffhand();
 
         if (live && inputManager.Pressed(Action::Drop) && !held.Empty())
-            live->SendDropSelected(inputManager.IsDown(Action::Sprint) ? 0 : 1);
+            DropSelected(*live, inputManager.IsDown(Action::Sprint));
     }
 
     void Player::UpdateGameInput(FrameContext& f, const View& frameView) {
