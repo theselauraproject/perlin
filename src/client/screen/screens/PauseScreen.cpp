@@ -94,6 +94,11 @@ namespace perlin::ui {
         return l;
     }
 
+    Scrollbar OptionsScrollbar(const OptionsLayout& l, float scroll, int guiW) {
+        return MakeScrollbar(static_cast<float>(guiW / 2 + 160), l.listTop, l.listBottom - l.listTop,
+                             l.contentH, scroll, l.scrolling ? l.maxScroll : 0.0f);
+    }
+
     SceneDoc BuildOptionsScreen(const std::vector<OptionsRow>& rows, const std::string& title,
                                 const std::string& done, float scroll, int guiW, int guiH, int hover,
                                 int columns) {
@@ -182,12 +187,9 @@ namespace perlin::ui {
             }
         }
         if (l.scrolling && l.maxScroll > 0.0f) {
-            const float listH = l.listBottom - l.listTop;
-            const float th = std::max(16.0f, listH * listH / l.contentH);
-            const float ty = l.listTop + (listH - th) * (std::clamp(scroll, 0.0f, l.maxScroll) / l.maxScroll);
-            const float sx = static_cast<float>(guiW / 2 + 160);
-            kit::Box(b, sx, std::floor(l.listTop), 6, std::floor(listH), "sbtrack");
-            kit::Box(b, sx, std::floor(ty), 6, std::floor(th), "sbthumb");
+            const Scrollbar bar = OptionsScrollbar(l, scroll, guiW);
+            kit::Box(b, bar.x, std::floor(bar.top), bar.w, std::floor(bar.h), "sbtrack");
+            kit::Box(b, bar.x, std::floor(bar.thumbY), bar.w, std::floor(bar.thumbH), "sbthumb");
         }
         kit::Button(b, kOptionsDoneId, l.doneX, l.doneY, l.doneW, kit::Plain(done));
         return doc;
@@ -208,6 +210,11 @@ namespace perlin::ui {
         l.contentH = static_cast<float>(rows) * l.pitch + 12.0f;
         l.maxScroll = std::max(0.0f, l.contentH - (l.listBottom - l.listTop));
         return l;
+    }
+
+    Scrollbar KeybindScrollbar(const KeybindLayout& l, float scroll, int guiW) {
+        return MakeScrollbar(static_cast<float>(guiW / 2 + 160), l.listTop, l.listBottom - l.listTop,
+                             l.contentH, scroll, l.maxScroll);
     }
 
     SceneDoc BuildKeybindsScreen(const std::vector<KeybindRow>& rows, const std::string& title,
@@ -254,11 +261,9 @@ namespace perlin::ui {
         kit::Box(b, 0, l.listBottom, gw, 1, "sepb");
         kit::Box(b, 0, l.listBottom + 1.0f, gw, 1, "sep");
         if (l.maxScroll > 0.0f) {
-            const float th = std::max(16.0f, listH * listH / l.contentH);
-            const float ty = l.listTop + (listH - th) * (scroll / l.maxScroll);
-            const float sx = static_cast<float>(guiW / 2 + 160);
-            kit::Box(b, sx, l.listTop, 6, listH, "track");
-            kit::Box(b, sx, ty, 6, th, "thumb");
+            const Scrollbar bar = KeybindScrollbar(l, scroll, guiW);
+            kit::Box(b, bar.x, bar.top, bar.w, bar.h, "track");
+            kit::Box(b, bar.x, bar.thumbY, bar.w, bar.thumbH, "thumb");
         }
         kit::Button(b, kKeybindDoneId, l.doneX, l.doneY, l.doneW, kit::Plain(done));
         kit::Button(b, kKeybindUndoId, l.undoX, l.doneY, l.undoW, kit::Plain(undo.empty() ? std::string("Undo") : undo),
