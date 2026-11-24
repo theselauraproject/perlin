@@ -14,6 +14,7 @@ import sys
 
 KINDS = [
     (r"-setup\.exe$", "installer", "Windows installer"),
+    (r"\.msi$", "msi", "Windows Installer package (MSI)"),
     (r"-portable\.zip$", "portable", "Portable (no install)"),
     (r"\.dmg$", "disk-image", "Disk image"),
     (r"\.AppImage$", "appimage", "AppImage"),

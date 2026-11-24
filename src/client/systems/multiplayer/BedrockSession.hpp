@@ -323,6 +323,21 @@ namespace perlin {
                                           float yawOverride, uint32_t action = UINT32_MAX, int bx = 0,
                                           int by = 0, int bz = 0, int face = 1);
         bool SendChat(const std::string& message);
+        // Script messages (ScriptMessagePacket): the carrier of the Perlin mod channel. The server
+        // sends "perlin:<channel>" ones to client mods; the rest are the scripting API's own.
+        struct ScriptMessage {
+            std::string id;
+            std::string data;
+        };
+        bool SendScriptMessage(const std::string& id, const std::string& data);
+        std::vector<ScriptMessage> TakeScriptMessages() {
+            std::lock_guard<std::mutex> lk(scriptMutex);
+            std::vector<ScriptMessage> out;
+            out.swap(scriptMessages);
+            return out;
+        }
+        std::mutex scriptMutex;
+        std::vector<ScriptMessage> scriptMessages; // received, not yet taken by the mod host
         uint64_t PacketsSent() const { return txPackets; }
         uint64_t BytesSent() const { return txBytes; }
         uint64_t BytesReceived() const { return rxBytes; }

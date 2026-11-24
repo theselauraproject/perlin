@@ -1364,6 +1364,24 @@ namespace perlin {
             return Status::Ok;
         });
 
+        // Revision 3: what the server announced, and the mod channel to the server's mods.
+        scope.Register(Op::ContentList, [this](CallContext&, abi::Reader&, abi::Writer& w) {
+            abi::ContentListResponse out;
+            out.entries = modContent;
+            w.write(out);
+            return Status::Ok;
+        });
+
+        scope.Register(Op::ModChannelSend, [this](CallContext&, abi::Reader& r, abi::Writer&) {
+            const abi::ModChannelMessage m = r.read<abi::ModChannelMessage>();
+            if (!r.Ok() || m.channel.empty() || m.channel.size() > 64 || m.body.size() > 65536 || m.channel.starts_with("perlin:"))
+                return Status::BadArguments;
+            if (!modLive)
+                return Status::Unavailable;
+            modLive->SendScriptMessage("perlin:" + m.channel, std::string(m.body.begin(), m.body.end()));
+            return Status::Ok;
+        });
+
         scope.Register(Op::Command, [this](CallContext&, abi::Reader& r, abi::Writer&) {
             std::string text = r.str();
             if (!r.Ok() || text.empty() || text.size() > 512)

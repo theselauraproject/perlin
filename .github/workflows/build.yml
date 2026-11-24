@@ -333,6 +333,24 @@ jobs:
           Set-Content -Path portable\portable.txt -Value "Perlin keeps its settings, worlds and downloads in the data folder beside it while this file is here."
           Push-Location portable; 7z a -tzip -bso0 "$env:GITHUB_WORKSPACE\pkg\Perlin-${{ matrix.name }}-portable.zip" .; Pop-Location
           Get-ChildItem pkg
+      - name: Windows MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" build -arch x64 -d "Version=1.0.${{ github.run_number }}" -d "AppUrl=https://github.com/${{ github.repository }}" `
+            -bindpath "dist=$env:GITHUB_WORKSPACE\dist" -bindpath "$env:GITHUB_WORKSPACE\packaging\windows" `
+            -o "pkg\Perlin-${{ matrix.name }}.msi" packaging\windows\perlin.wxs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Item "pkg\Perlin-${{ matrix.name }}.msi"
+      - name: Upload Windows MSI
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}.msi
+          archive: false
+          if-no-files-found: error
       - name: Upload Windows installer
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
@@ -557,6 +575,20 @@ jobs:
           Copy-Item -Recurse dist\* portable\
           Set-Content -Path portable\portable.txt -Value "Perlin keeps its settings, worlds and downloads in the data folder beside it while this file is here."
           Push-Location portable; 7z a -tzip -bso0 "$env:GITHUB_WORKSPACE\pkg\Perlin-windows-arm64-portable.zip" .; Pop-Location
+      - name: Windows MSI
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" build -arch arm64 -d "Version=1.0.${{ github.run_number }}" -d "AppUrl=https://github.com/${{ github.repository }}" `
+            -bindpath "dist=$env:GITHUB_WORKSPACE\dist" -bindpath "$env:GITHUB_WORKSPACE\packaging\windows" `
+            -o pkg\Perlin-windows-arm64.msi packaging\windows\perlin.wxs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-windows-arm64.msi
+          archive: false
+          if-no-files-found: error
       - uses: actions/upload-artifact@v7
         with:
           path: pkg/Perlin-windows-arm64-setup.exe
@@ -1028,7 +1060,7 @@ jobs:
         run: |
           mkdir release
           find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' -o -name '*.AppImage' -o -name '*.flatpak' \
-            -o -name '*.exe' -o -name '*.dmg' -o -name '*.deb' \) -exec cp {} release/ \;
+            -o -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.deb' \) -exec cp {} release/ \;
           for dir in folders/*/; do
             name=$(basename "$dir")
             (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)

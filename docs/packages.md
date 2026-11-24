@@ -6,6 +6,7 @@ these shapes:
 | File | What it is |
 |---|---|
 | `Perlin-windows-x64-setup.exe`, `Perlin-windows-arm64-setup.exe` | Installer. Installs for the current user by default (no administrator prompt) into `%LOCALAPPDATA%\Programs\Perlin`, adds a Start menu entry and an uninstaller; the built-in updater keeps it current. |
+| `Perlin-windows-x64.msi`, `Perlin-windows-arm64.msi` | Windows Installer package for every user (Program Files), for IT deployment and Group Policy; installs silently with `msiexec /i Perlin-windows-x64.msi /qn`. A newer MSI upgrades it in place; the built-in updater stays off. |
 | `Perlin-windows-x64-portable.zip`, `Perlin-windows-arm64-portable.zip` | Portable copy. Unzip anywhere and run `Perlin.exe`; `portable.txt` beside it makes Perlin keep its settings, worlds and downloads in a `data` folder next to it instead of `%APPDATA%`. Delete `portable.txt` to make it an ordinary copy. |
 | `Perlin-windows-x64.zip`, `Perlin-windows-arm64.zip` | The plain program folder (what the updater downloads). |
 | `Perlin-macos-arm64.dmg`, `Perlin-macos-x64.dmg` | Disk image: drag Perlin to Applications. |

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Windows Installer package (MSI) of Perlin, for WiX Toolset v5:
+
+    wix build -arch x64 -d Version=1.0.123 -d AppUrl=https://github.com/<owner>/<repo>
+              -bindpath dist=<the installed tree> -o Perlin-windows-x64.msi packaging\windows\perlin.wxs
+
+  It installs for every user into Program Files\Perlin with a Start menu entry, upgrades any
+  older Perlin MSI in place, and can be deployed silently (msiexec /i Perlin-windows-x64.msi /qn),
+  which is what IT departments and Group Policy want. An install there is not writable by the
+  player, so package-managed.txt turns the built-in updater off: a newer MSI updates it.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Perlin" Manufacturer="The Perlin Project" Version="$(Version)"
+           UpgradeCode="{3F7D2A51-8C4B-4E1A-9D62-7B5C0E4A9F13}" Scope="perMachine" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Perlin is already installed." AllowSameVersionUpgrades="yes" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="perlin.ico" SourceFile="perlin.ico" />
+    <Property Id="ARPPRODUCTICON" Value="perlin.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="$(AppUrl)" />
+    <Property Id="ARPHELPLINK" Value="$(AppUrl)/issues" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Perlin" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="Perlin">
+      <!-- Everything the build installed, except the program itself (below, with its shortcut)
+           and the portable marker (this copy keeps its data in %APPDATA%\Perlin). -->
+      <Files Directory="INSTALLFOLDER" Include="!(bindpath.dist)\**">
+        <Exclude Files="!(bindpath.dist)\Perlin.exe" />
+        <Exclude Files="!(bindpath.dist)\portable.txt" />
+        <Exclude Files="!(bindpath.dist)\package-managed.txt" />
+      </Files>
+      <Component Directory="INSTALLFOLDER">
+        <File Id="PerlinExe" Source="!(bindpath.dist)\Perlin.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut" Name="Perlin" Directory="ProgramMenuFolder" Advertise="yes"
+                    Icon="perlin.ico" WorkingDirectory="INSTALLFOLDER" />
+        </File>
+      </Component>
+      <Component Directory="INSTALLFOLDER">
+        <File Id="ManagedMarker" Source="package-managed.txt" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>

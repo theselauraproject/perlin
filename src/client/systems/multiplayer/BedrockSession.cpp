@@ -1653,6 +1653,13 @@ namespace perlin {
         return Send(p);
     }
 
+    bool BedrockSession::SendScriptMessage(const std::string& id, const std::string& data) {
+        proto::ScriptMessagePacket p;
+        p.messageId = id;
+        p.data = data;
+        return Send(p);
+    }
+
     bool BedrockSession::SendCommand(const std::string& command) {
         proto::CommandRequestPacket p;
         p.command = !command.empty() && command[0] == '/' ? command : "/" + command;

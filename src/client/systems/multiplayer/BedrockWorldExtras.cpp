@@ -1154,13 +1154,22 @@ namespace perlin {
     }
 
     void BedrockSession::RegisterIgnoredHandlers() {
+        // Kept for the mod host (the Perlin mod channel); only "perlin:" messages, and a bounded
+        // number, so a server flooding them costs nothing.
+        On<ScriptMessagePacket>([this](const ScriptMessagePacket& p) {
+            if (!p.messageId.starts_with("perlin:") || p.messageId.size() > 7 + 64 || p.data.size() > (1u << 20))
+                return;
+            std::lock_guard<std::mutex> lk(scriptMutex);
+            if (scriptMessages.size() < 1024)
+                scriptMessages.push_back({p.messageId, p.data});
+        });
         auto accept = [this]<class... T>() { (On<T>([](const T&) {}), ...); };
         accept.template
         operator()<AnimateEntityPacket, EmotePacket, HurtArmorPacket, PlayerArmorDamagePacket,
                    LevelEventGenericPacket, PlayerLocationPacket, ServerPostMovePacket, SetLastHurtByPacket,
                    SimulationTypePacket, SpawnExperienceOrbPacket, UpdateBlockPropertiesPacket,
                    UpdateEquipmentPacket, ClientboundControlsSchemePacket, ClientboundTextureShiftPacket,
-                   ClientboundUpdateSoundDataPacket, SetMovementAuthorityPacket, ScriptMessagePacket,
+                   ClientboundUpdateSoundDataPacket, SetMovementAuthorityPacket,
                    GraphicsOverrideParameterPacket, PrimitiveShapesPacket, ServerScriptDebugDrawerPacket,
                    ClientboundAttributeLayerSyncPacket, CameraSplinePacket, CameraAimAssistPacket,
                    CameraAimAssistPresetsPacket, CameraAimAssistActorPriorityPacket,

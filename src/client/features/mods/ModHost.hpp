@@ -182,6 +182,9 @@ namespace perlin {
         void DrawModGfx(int fbW, int fbH, bool hudBand);
 
         BedrockSession* modLive = nullptr;
+        // Content the server announced over the mod channel (revision 3), for ContentList.
+        std::vector<abi::ContentEntry> modContent;
+        void PumpModChannel(BedrockSession* live, mods::ModManager& mm);
         Level* modLevel = nullptr;
         ui::Hud* modHud = nullptr;
         float modDt = 0.0f;

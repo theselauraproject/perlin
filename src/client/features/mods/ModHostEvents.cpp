@@ -325,6 +325,52 @@ namespace perlin {
             modSounds.push_back(std::move(e));
     }
 
+    // The mod channel (ScriptMessagePacket "perlin:<channel>"): the server's content list raises
+    // ContentAnnounced; a mod's own channel raises ModChannel. "perlin:" channels other than the
+    // content list are the server's own and stay here.
+    void ModHost::PumpModChannel(BedrockSession* live, mods::ModManager& mm) {
+        for (BedrockSession::ScriptMessage& m : live->TakeScriptMessages()) {
+            const std::string channel = m.id.substr(7);
+            if (channel == "perlin:content") {
+                json::Value list;
+                std::string error;
+                if (!json::Value::Parse(m.data, list, error) || list.type != json::Value::Type::Array)
+                    continue;
+                modContent.clear();
+                for (const json::Value& v : list.array) {
+                    abi::ContentEntry e;
+                    if (const json::Value* k = v.Find("kind"))
+                        e.kind = k->StringOr("");
+                    if (const json::Value* i = v.Find("id"))
+                        e.id = i->StringOr("");
+                    if (const json::Value* o = v.Find("owner"))
+                        e.owner = o->StringOr("");
+                    if (const json::Value* d = v.Find("def"))
+                        e.json = d->Dump();
+                    if (!e.id.empty() && modContent.size() < 4096)
+                        modContent.push_back(std::move(e));
+                }
+                if (mm.WantsEvent(abi::Event::ContentAnnounced)) {
+                    abi::EventContentAnnounced ev;
+                    ev.count = static_cast<uint32_t>(modContent.size());
+                    abi::Writer w;
+                    w.write(ev);
+                    mm.Dispatch(abi::Event::ContentAnnounced, w);
+                }
+                continue;
+            }
+            if (channel.empty() || channel.starts_with("perlin:") || !mm.WantsEvent(abi::Event::ModChannel))
+                continue;
+            abi::EventModChannel ev;
+            ev.player = 0;
+            ev.channel = channel;
+            ev.body.assign(m.data.begin(), m.data.end());
+            abi::Writer w;
+            w.write(ev);
+            mm.Dispatch(abi::Event::ModChannel, w);
+        }
+    }
+
     bool ModHost::FilterIncomingChat(const std::string& line) {
         auto& mm = deps.manager;
         if (!mm.WantsEvent(abi::Event::ChatReceived))
@@ -541,7 +587,14 @@ namespace perlin {
             w.write(e);
             mm.Dispatch(connected ? abi::Event::Connected : abi::Event::Disconnected, w);
             modEntitySeeded = false;
+            modContent.clear();
+            // Tells a Perlin server that this client has mods: it answers with its content list
+            // and the type of each content entity it shows. Other servers ignore the message.
+            if (connected && live)
+                live->SendScriptMessage("perlin:perlin:hello", "");
         }
+        if (connected && live)
+            PumpModChannel(live, mm);
 
         std::vector<std::pair<std::string, abi::EventHttp>> responses;
         {

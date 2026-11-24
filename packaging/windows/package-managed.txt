@@ -1,0 +1,1 @@
+Installed by the Windows Installer package; a newer MSI updates it.
