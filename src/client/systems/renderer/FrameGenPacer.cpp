@@ -22,7 +22,14 @@ namespace perlin {
             std::this_thread::yield();
     }
 
+    void FrameGenPacer::NoteShown(Clock::time_point t) {
+        if (tracking && lastShown != Clock::time_point{} && shownIntervals.size() < 8192)
+            shownIntervals.push_back(Ms(t - lastShown));
+        lastShown = t;
+    }
+
     void FrameGenPacer::RealFrame(Clock::time_point now, int frames, double work) {
+        NoteShown(now);
         workMs += (std::clamp(work, 0.5, 250.0) - workMs) * 0.1;
         if (lastReal != Clock::time_point{}) {
             const double cycle = Ms(now - lastReal);
@@ -51,16 +58,22 @@ namespace perlin {
                     }
                     SleepUntil(due);
                 } else {
-                    const Clock::time_point until = std::min(due, now + FromMs(interval * 0.5));
+                    const Clock::time_point until = std::min(due, now + FromMs(interval * waitFraction));
                     SleepUntil(until);
                     waitedMs += Ms(Clock::now() - now);
                 }
             }
-            if (!present(next, total)) {
+            const double nominal = static_cast<double>(next) / static_cast<double>(total);
+            // unpaced (vsync) frames queue for the next refresh, so their nominal slot is the best estimate
+            const double phase = paced ? std::clamp(Ms(Clock::now() - anchor) / std::max(0.5, cycleMs), 0.0, 1.0)
+                                       : nominal;
+            if (!present(next, total, phase)) {
                 next = 0;
                 break;
             }
+            NoteShown(Clock::now());
             shown++;
+            generatedShown++;
             next++;
         }
         if (next >= total)

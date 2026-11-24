@@ -199,7 +199,8 @@ namespace perlin::screen {
         t.options = i18n::Tr("menu.options");
         t.world = i18n::TrOr("perlin.worldOptions", "World Options");
         t.mods = i18n::TrOr("perlin.mods", "Mods");
-        t.quit = i18n::Tr("menu.disconnect");
+        t.quit = services.inSingleplayer && services.inSingleplayer() ? i18n::TrOr("perlin.saveAndQuit", "Save and Quit to Title")
+                                                                       : i18n::Tr("menu.disconnect");
         t.advancements = i18n::TrOr("gui.advancements", "Advancements");
         t.stats = i18n::TrOr("gui.stats", "Statistics");
         t.feedback = i18n::TrOr("menu.sendFeedback", "Give Feedback");

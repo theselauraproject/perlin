@@ -193,6 +193,26 @@ namespace perlin::ui {
                 if (!gImageSource || !gImageSource(source.substr(6), bytes) ||
                     !LoadTextureMemory(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), t))
                     return none;
+            } else if (source.starts_with("mcfile:")) {
+                // an image file on disk (a world's preview); "#square..." after the path asks for its centre square,
+                // and the rest of the fragment only tells a changed file apart so it is loaded again
+                std::string path = source.substr(7);
+                const size_t hash = path.rfind('#');
+                const bool square = hash != std::string::npos && path.compare(hash + 1, 6, "square") == 0;
+                if (hash != std::string::npos)
+                    path.resize(hash);
+                if (!LoadTexture(path, t))
+                    return none;
+                if (square && t.width != t.height && t.width > 0 && t.height > 0) {
+                    const int side = std::min(t.width, t.height);
+                    const int x0 = (t.width - side) / 2, y0 = (t.height - side) / 2;
+                    std::vector<uint8_t> cropped(static_cast<size_t>(side) * side * 4);
+                    for (int y = 0; y < side; y++)
+                        std::copy_n(&t.pixels[(static_cast<size_t>(y + y0) * t.width + x0) * 4], static_cast<size_t>(side) * 4,
+                                    &cropped[static_cast<size_t>(y) * side * 4]);
+                    t.pixels = std::move(cropped);
+                    t.width = t.height = side;
+                }
             } else if (source.starts_with("mchead:")) {
                 if (!UiAssets::Instance().Head(source.substr(7), t))
                     return none;

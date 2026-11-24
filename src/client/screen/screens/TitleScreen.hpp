@@ -9,6 +9,10 @@ namespace perlin::ui {
     int TitleListTop();
     int TitleListBottom(int guiH);
     int TitleVisibleRows(int guiH);
+    // Select World: the list band and how many 36-pixel rows fit in it
+    int TitleWorldListTop();
+    int TitleWorldListBottom(int guiH);
+    int TitleWorldRows(int guiH);
     int TitleAccountRows(int guiH);
 
     SceneDoc BuildTitleScene(const TitleModel& model, int guiW, int guiH);
@@ -19,7 +23,7 @@ namespace perlin::screen {
         using OverlayScreen::OverlayScreen;
         bool active = false;
         bool options = false;
-        bool returnToServers = false, returnToReplays = false;
+        bool returnToServers = false, returnToReplays = false, returnToWorlds = false;
         int openView = 1;
         int clickRow = -1;
         std::chrono::steady_clock::time_point clickAt;

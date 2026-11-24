@@ -54,7 +54,20 @@ namespace perlin::bench {
             return action;
         }
         const Phase before = run.Current();
-        action.pose = run.Frame(frameSeconds);
+        action.pose = run.Frame(frameSeconds, o.generatedFrames);
+        if (!setupSent && action.pose) {
+            setupSent = true;
+            const std::string& list = run.Config().commands;
+            for (size_t start = 0; start < list.size();) {
+                const size_t end = list.find(';', start);
+                const std::string c = list.substr(start, end == std::string::npos ? std::string::npos : end - start);
+                if (!c.empty())
+                    action.commands.push_back(c);
+                if (end == std::string::npos)
+                    break;
+                start = end + 1;
+            }
+        }
         if (before != run.Current() && run.Current() == Phase::Recording)
             action.status = "Benchmark: recording";
         if (run.Current() == Phase::Done)

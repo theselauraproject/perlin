@@ -350,7 +350,10 @@ namespace perlin {
 
     void Tessellator::Reserve(size_t quads) {
         vertices.reserve(quads * 4);
-        indices[0].reserve(quads * 6);
+        // Solid faces wait in the per-direction groups of the section being built before they join the layer.
+        indices[static_cast<size_t>(RenderLayer::Solid)].reserve(quads * 6);
+        indices[static_cast<size_t>(RenderLayer::CutoutCull)].reserve(quads);
+        indices[static_cast<size_t>(RenderLayer::TranslucentCull)].reserve(quads / 2);
     }
 
     void Tessellator::AddQuad(const float v[4][3], const float c[4][3], const float uv[4][2], bool flip,
@@ -545,8 +548,9 @@ namespace perlin {
         std::erase_if(sections, [](const MeshSection& s) {
             return !s.count[0] && !s.count[1] && !s.count[2] && !s.count[3] && !s.count[4];
         });
+        // Give back only a large surplus: a shrink copies the whole array, and the reserve above is close.
         const auto trim = [](auto& list) {
-            if (list.capacity() > list.size() + list.size() / 8 + 256)
+            if (list.capacity() > list.size() + list.size() / 4 + 1024)
                 list.shrink_to_fit();
         };
         trim(vertices);

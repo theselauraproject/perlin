@@ -1,6 +1,7 @@
 #include "client/systems/javashaders/GlslTokens.hpp"
 
 #include <cctype>
+#include <regex>
 #include <unordered_set>
 
 namespace perlin::jshader::glsl {
@@ -144,6 +145,54 @@ namespace perlin::jshader::glsl {
         for (size_t i = a; i < b && i < t.size(); i++) {
             out += t[i].ws;
             out += t[i].text;
+        }
+        return out;
+    }
+
+    namespace {
+        const std::regex& ImageDeclRegex() {
+            static const std::regex kDecl(
+                R"((layout\s*\(\s*([A-Za-z0-9_]+)[^)]*\)\s*)?(?:\b(?:readonly|writeonly|coherent|volatile|restrict|uniform)\s+)+([iu]?image(?:2D|3D|2DArray))\s+([A-Za-z_][A-Za-z0-9_]*)\s*;)");
+            return kDecl;
+        }
+        ImageDecl DeclOf(const std::smatch& m) {
+            return {m[2].matched ? m[2].str() : std::string(), m[3].str(), m[4].str()};
+        }
+    }
+
+    std::vector<ImageDecl> FindImageDeclarationsSlow(const std::string& text) {
+        std::vector<ImageDecl> out;
+        for (auto it = std::sregex_iterator(text.begin(), text.end(), ImageDeclRegex()); it != std::sregex_iterator();
+             ++it)
+            out.push_back(DeclOf(*it));
+        return out;
+    }
+
+    std::vector<ImageDecl> FindImageDeclarations(const std::string& text) {
+        // A match always contains "image2D" or "image3D" and never a ';' before its own final one, nor '{' or
+        // '}'. So every match lies inside the statement around such a word: from just after the previous ';',
+        // '{' or '}' up to and including the next ';'. Matching there gives the same declarations in the same
+        // order (a boundary character before the statement is a non-word character, as at the text's start).
+        std::vector<ImageDecl> out;
+        size_t done = 0; // statements are disjoint; skip words inside one already searched
+        for (size_t at = text.find("image"); at != std::string::npos; at = text.find("image", at + 5)) {
+            if (at + 7 > text.size() || text[at + 5] < '2' || text[at + 5] > '3' || text[at + 6] != 'D')
+                continue;
+            if (at < done)
+                continue;
+            const size_t open = text.find_last_of(";{}", at);
+            const size_t from = open == std::string::npos ? 0 : open + 1;
+            const size_t semi = text.find(';', at);
+            if (semi == std::string::npos)
+                break;
+            done = semi + 1;
+            const auto first = text.begin() + static_cast<std::ptrdiff_t>(from);
+            const auto last = text.begin() + static_cast<std::ptrdiff_t>(semi + 1);
+            for (auto it = std::sregex_iterator(first, last, ImageDeclRegex(),
+                                                from == 0 ? std::regex_constants::match_default
+                                                          : std::regex_constants::match_prev_avail);
+                 it != std::sregex_iterator(); ++it)
+                out.push_back(DeclOf(*it));
         }
         return out;
     }

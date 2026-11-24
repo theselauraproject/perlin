@@ -1,3 +1,4 @@
+#include <string_view>
 #include "client/systems/attachable/Molang.hpp"
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <random>
 
 namespace perlin::molang {
+    using namespace std::string_view_literals;
     struct Expr::Node {
         enum Kind {
             Num,
@@ -417,47 +419,47 @@ namespace perlin::molang {
             if (n.isMath) {
                 const std::string& f = n.key;
                 const double deg = kPi / 180.0;
-                if (f == "sin")
+                if (f == "sin"sv)
                     return Value::Num(std::sin(a(0) * deg));
-                if (f == "cos")
+                if (f == "cos"sv)
                     return Value::Num(std::cos(a(0) * deg));
-                if (f == "asin")
+                if (f == "asin"sv)
                     return Value::Num(std::asin(a(0)) / deg);
-                if (f == "acos")
+                if (f == "acos"sv)
                     return Value::Num(std::acos(a(0)) / deg);
-                if (f == "atan")
+                if (f == "atan"sv)
                     return Value::Num(std::atan(a(0)) / deg);
-                if (f == "atan2")
+                if (f == "atan2"sv)
                     return Value::Num(std::atan2(a(0), a(1)) / deg);
-                if (f == "abs")
+                if (f == "abs"sv)
                     return Value::Num(std::fabs(a(0)));
-                if (f == "sqrt")
+                if (f == "sqrt"sv)
                     return Value::Num(std::sqrt(std::max(0.0, a(0))));
-                if (f == "exp")
+                if (f == "exp"sv)
                     return Value::Num(std::exp(a(0)));
-                if (f == "ln")
+                if (f == "ln"sv)
                     return Value::Num(std::log(a(0)));
-                if (f == "pow")
+                if (f == "pow"sv)
                     return Value::Num(std::pow(a(0), a(1)));
-                if (f == "floor")
+                if (f == "floor"sv)
                     return Value::Num(std::floor(a(0)));
-                if (f == "ceil")
+                if (f == "ceil"sv)
                     return Value::Num(std::ceil(a(0)));
-                if (f == "round")
+                if (f == "round"sv)
                     return Value::Num(std::round(a(0)));
-                if (f == "trunc")
+                if (f == "trunc"sv)
                     return Value::Num(std::trunc(a(0)));
-                if (f == "min")
+                if (f == "min"sv)
                     return Value::Num(std::min(a(0), a(1)));
-                if (f == "max")
+                if (f == "max"sv)
                     return Value::Num(std::max(a(0), a(1)));
-                if (f == "mod")
+                if (f == "mod"sv)
                     return Value::Num(a(1) != 0 ? std::fmod(a(0), a(1)) : 0.0);
-                if (f == "clamp")
+                if (f == "clamp"sv)
                     return Value::Num(std::min(std::max(a(0), a(1)), a(2)));
-                if (f == "lerp")
+                if (f == "lerp"sv)
                     return Value::Num(a(0) + (a(1) - a(0)) * a(2));
-                if (f == "lerprotate") {
+                if (f == "lerprotate"sv) {
                     double d = std::fmod(a(1) - a(0), 360.0);
                     if (d > 180)
                         d -= 360;
@@ -465,7 +467,7 @@ namespace perlin::molang {
                         d += 360;
                     return Value::Num(a(0) + d * a(2));
                 }
-                if (f == "min_angle") {
+                if (f == "min_angle"sv) {
                     double v = std::fmod(a(0), 360.0);
                     if (v >= 180)
                         v -= 360;
@@ -473,58 +475,58 @@ namespace perlin::molang {
                         v += 360;
                     return Value::Num(v);
                 }
-                if (f == "pi")
+                if (f == "pi"sv)
                     return Value::Num(kPi);
-                if (f == "random")
+                if (f == "random"sv)
                     return Value::Num(a(0) +
                                       (a(1) - a(0)) * std::uniform_real_distribution<double>(0, 1)(Rng()));
-                if (f == "random_integer") {
+                if (f == "random_integer"sv) {
                     const int lo = static_cast<int>(a(0)), hi = static_cast<int>(std::max(a(0), a(1)));
                     return Value::Num(std::uniform_int_distribution<int>(lo, hi)(Rng()));
                 }
-                if (f == "die_roll" || f == "die_roll_integer") {
+                if (f == "die_roll"sv || f == "die_roll_integer"sv) {
                     double sum = 0;
                     for (int i = 0; i < static_cast<int>(a(0)); i++)
                         sum += a(1) + (a(2) - a(1)) * std::uniform_real_distribution<double>(0, 1)(Rng());
-                    return Value::Num(f == "die_roll" ? sum : std::floor(sum));
+                    return Value::Num(f == "die_roll"sv ? sum : std::floor(sum));
                 }
-                if (f == "sign")
+                if (f == "sign"sv)
                     return Value::Num(a(0) > 0 ? 1.0 : a(0) < 0 ? -1.0 : 0.0);
-                if (f == "copy_sign")
+                if (f == "copy_sign"sv)
                     return Value::Num(std::copysign(std::fabs(a(0)), a(1)));
-                if (f == "inverse_lerp")
+                if (f == "inverse_lerp"sv)
                     return Value::Num(a(1) == a(0) ? 0.0 : (a(2) - a(0)) / (a(1) - a(0)));
-                if (f == "sinh")
+                if (f == "sinh"sv)
                     return Value::Num(std::sinh(a(0)));
-                if (f == "cosh")
+                if (f == "cosh"sv)
                     return Value::Num(std::cosh(a(0)));
-                if (f == "tanh")
+                if (f == "tanh"sv)
                     return Value::Num(std::tanh(a(0)));
                 if (f.starts_with("ease_")) {
                     const double t = std::clamp(a(2), 0.0, 1.0);
                     const std::string k = f.substr(5);
                     auto in = [&](const std::string& n, double x) {
-                        if (n == "sine")
+                        if (n == "sine"sv)
                             return 1 - std::cos(x * kPi / 2);
-                        if (n == "quad")
+                        if (n == "quad"sv)
                             return x * x;
-                        if (n == "cubic")
+                        if (n == "cubic"sv)
                             return x * x * x;
-                        if (n == "quart")
+                        if (n == "quart"sv)
                             return x * x * x * x;
-                        if (n == "quint")
+                        if (n == "quint"sv)
                             return x * x * x * x * x;
-                        if (n == "expo")
+                        if (n == "expo"sv)
                             return x == 0 ? 0.0 : std::pow(2.0, 10 * x - 10);
-                        if (n == "circ")
+                        if (n == "circ"sv)
                             return 1 - std::sqrt(1 - x * x);
-                        if (n == "back")
+                        if (n == "back"sv)
                             return 2.70158 * x * x * x - 1.70158 * x * x;
-                        if (n == "elastic")
+                        if (n == "elastic"sv)
                             return x == 0 || x == 1 ? x
                                                     : -std::pow(2.0, 10 * x - 10) *
                                                           std::sin((x * 10 - 10.75) * (2 * kPi / 3));
-                        if (n == "bounce") {
+                        if (n == "bounce"sv) {
                             const double y = 1 - x;
                             double r;
                             if (y < 1 / 2.75)
@@ -554,13 +556,13 @@ namespace perlin::molang {
                     }
                     return Value::Num(a(0) + (a(1) - a(0)) * w);
                 }
-                if (f == "hermite_blend") {
+                if (f == "hermite_blend"sv) {
                     const double t = a(0);
                     return Value::Num(3 * t * t - 2 * t * t * t);
                 }
                 return Value::Num(0);
             }
-            if (name == "query.key_frame_lerp_time")
+            if (name == "query.key_frame_lerp_time"sv)
                 return Value::Num(s.keyFrameLerpTime);
             if (s.host && name.starts_with("query.")) {
                 Value out;
@@ -639,13 +641,13 @@ namespace perlin::molang {
                     } else if (id.starts_with("context.")) {
                         n.varKind = Node::VContext;
                         n.key = id.substr(8);
-                    } else if (id == "this")
+                    } else if (id == "this"sv)
                         n.varKind = Node::VThis;
-                    else if (id == "math.pi")
+                    else if (id == "math.pi"sv)
                         n.varKind = Node::VPi;
-                    else if (id == "true")
+                    else if (id == "true"sv)
                         n.varKind = Node::VTrue;
-                    else if (id == "false")
+                    else if (id == "false"sv)
                         n.varKind = Node::VFalse;
                     else
                         n.varKind = Node::VOther;

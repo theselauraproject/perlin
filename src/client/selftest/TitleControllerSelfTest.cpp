@@ -6,6 +6,7 @@
 #include "client/selftest/TestEnvironment.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/resources/TexturePack.hpp"
+#include "util/Paths.hpp"
 
 #include <algorithm>
 
@@ -94,9 +95,14 @@ namespace {
         screen::TitleScreen& titleScreen = screens.Emplace<screen::TitleScreen>(screen::Id::Title, screen::Traits{true});
         screen::ReplayLibrary replayLibrary{screen::ReplayLibrary::Deps{
             title, [] {}, [](const std::string&) {}, [](const std::string&) {}, [](const std::string&) {}}};
+        std::vector<screen::WorldLaunch> launched;
+        screen::WorldLibrary worldLibrary{screen::WorldLibrary::Deps{
+            title, [] {}, [](const std::string&) {},
+            [this](const screen::WorldLaunch& w) { launched.push_back(w); },
+            [] { return paths::DataDir() + "/singleplayer/worlds"; }, [] { return paths::DataDir() + "/backups"; }}};
         FakePorts ports;
         screen::TitleController controller{screen::TitleController::Deps{
-            titleScreen, title, options, input, inputManager, panorama, screens, chat, replayLibrary,
+            titleScreen, title, options, input, inputManager, panorama, screens, chat, replayLibrary, worldLibrary,
             selftest::G().uiAssets, selftest::G().jsonScreens, ports}};
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
@@ -119,7 +125,13 @@ namespace perlin::selftest {
         {
             Rig r;
             r.Click(ui::kTitleSingle);
-            t.Equal(r.ports.Count("JoinSingleplayer"), 1, "singleplayer button joins singleplayer");
+            t.Check(r.title.page == ui::TitlePage::CreateWorld, "singleplayer with no worlds opens Create New World");
+            r.Click(ui::kCreateBonus);
+            r.Click(ui::kCreateDone);
+            t.Check(r.launched.size() == 1 && r.launched[0].fresh && r.launched[0].folder == "New World" &&
+                        r.launched[0].bonusChest,
+                    "Create New World starts a new world with the chosen settings");
+            r.title.page = ui::TitlePage::Main;
             r.Click(ui::kTitleQuit);
             t.Equal(r.ports.Count("Quit"), 1, "quit button quits");
             r.Click(ui::kTitleUpdate);

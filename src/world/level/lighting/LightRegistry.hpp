@@ -54,6 +54,8 @@ namespace perlin {
         const FaceOcclusion* Occlusion(uint16_t id) const;
         void Invalidate();
         bool HasRules() const;
+        // Changes whenever an answer of Resolve or Occlusion may have changed.
+        uint64_t Generation() const { return generation.load(std::memory_order_acquire); }
 
         BlockLightProps Resolve(uint16_t id) const {
             const uint16_t packed = memo[id].load(std::memory_order_relaxed);
@@ -100,5 +102,6 @@ namespace perlin {
         std::unordered_map<std::string, int> customEmission, customOpacity;
         OpacityFn derivedOpacity;
         bool rulesLoaded = false;
+        std::atomic<uint64_t> generation{1};
     };
 }

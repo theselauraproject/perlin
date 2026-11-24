@@ -48,7 +48,7 @@ namespace perlin::selftest {
 
         {
             auto level = OpenLevel(1);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             const uint8_t open = cache.At(*level, 4, 100, 4, start);
             t.Equal(ChunkLighting::Result::Sky(open), 15, "open sky above an empty chunk is fully lit");
             t.Equal(ChunkLighting::Result::Block(open), 0, "no emitters means no block light");
@@ -56,7 +56,7 @@ namespace perlin::selftest {
         {
             auto level = OpenLevel(2);
             level->SetBlock(5, 70, 5, blocks.opaque);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             const uint8_t shaded = cache.At(*level, 5, 69, 5, start);
             t.Check(ChunkLighting::Result::Sky(shaded) < 15, "a cell under an opaque block loses sky light");
             const uint8_t above = cache.At(*level, 5, 72, 5, start);
@@ -65,7 +65,7 @@ namespace perlin::selftest {
         {
             auto level = OpenLevel(1);
             level->SetBlock(8, 64, 8, blocks.lamp);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             const uint8_t beside = cache.At(*level, 9, 64, 8, start);
             t.Check(ChunkLighting::Result::Block(beside) >= 12, "a lamp lights its neighbours");
             const uint8_t distant = cache.At(*level, 15, 64, 8, start);
@@ -74,7 +74,7 @@ namespace perlin::selftest {
         }
         {
             auto level = OpenLevel(1);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             auto now = start;
             const uint8_t before = cache.At(*level, 8, 64, 8, now);
             t.Equal(ChunkLighting::Result::Block(before), 0, "dark before the lamp exists");
@@ -92,7 +92,7 @@ namespace perlin::selftest {
         }
         {
             auto level = OpenLevel(1);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             auto now = start;
             cache.At(*level, 8, 64, 8, now);
             level->SetBlock(8, 64, 8, blocks.lamp);
@@ -101,7 +101,7 @@ namespace perlin::selftest {
         }
         {
             auto level = OpenLevel(3);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             const auto now = start;
             const uint8_t a = cache.At(*level, 8, 64, 8, now);
             const uint8_t b = cache.At(*level, 24, 64, 8, now);
@@ -116,7 +116,7 @@ namespace perlin::selftest {
             auto first = OpenLevel(1);
             auto second = OpenLevel(1);
             second->SetBlock(8, 64, 8, blocks.lamp);
-            perlin::LightBandCache cache;
+            perlin::LightBandCache cache(selftest::G().lightRegistry);
             const uint8_t one = cache.At(*first, 9, 64, 8, start);
             t.Equal(ChunkLighting::Result::Block(one), 0, "first level is dark");
             const uint8_t two = cache.At(*second, 9, 64, 8, start + 16ms);

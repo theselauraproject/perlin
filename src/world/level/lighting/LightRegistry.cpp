@@ -49,8 +49,10 @@ namespace perlin {
     LightRegistry::LightRegistry() {
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
         for (auto& slot : occlusion)
             slot.store(0, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     void LightRegistry::SetOcclusion(OcclusionFn fn) {
@@ -58,6 +60,7 @@ namespace perlin {
         occlusionFn = std::move(fn);
         for (auto& slot : occlusion)
             slot.store(0, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     const FaceOcclusion* LightRegistry::Occlusion(uint16_t id) const {
@@ -91,8 +94,10 @@ namespace perlin {
         std::unique_lock lock(mutex);
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
         for (auto& slot : occlusion)
             slot.store(0, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     void LightRegistry::SetCustom(const std::string& name, int emission, int opacity) {
@@ -103,6 +108,7 @@ namespace perlin {
             customOpacity[name] = opacity;
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     void LightRegistry::ClearCustom() {
@@ -111,6 +117,7 @@ namespace perlin {
         customOpacity.clear();
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     void LightRegistry::SetDerivedOpacity(OpacityFn fn) {
@@ -118,6 +125,7 @@ namespace perlin {
         derivedOpacity = std::move(fn);
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     bool LightRegistry::HasRules() const {
@@ -181,6 +189,7 @@ namespace perlin {
         rulesLoaded = true;
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
     }
 
     void LightRegistry::LoadBehaviorPack(const std::string& blocksDir) {
@@ -227,6 +236,7 @@ namespace perlin {
         packOpacity = std::move(opacity);
         for (auto& slot : memo)
             slot.store(kUnresolved, std::memory_order_relaxed);
+        generation.fetch_add(1, std::memory_order_acq_rel);
         if (!packEmission.empty() || !packOpacity.empty())
             Log("light", "behavior pack: {} emitters, {} opacity overrides", packEmission.size(),
                 packOpacity.size());

@@ -1,3 +1,4 @@
+#include <string_view>
 #include <set>
 #include <unordered_map>
 #include "util/Env.hpp"
@@ -12,6 +13,7 @@
 #include "util/Angles.hpp"
 
 namespace perlin::entity {
+    using namespace std::string_view_literals;
     using molang::Value;
 
     namespace {
@@ -109,180 +111,180 @@ namespace perlin::entity {
         if (const auto f = kFlagMap.find(name); f != kFlagMap.end())
             return f->second ? has(f->second) : yes(false);
 
-        if (name == "is_laying_down")
+        if (name == "is_laying_down"sv)
             return yes(e.Has(flag::LayingDown));
-        if (name == "is_alive")
+        if (name == "is_alive"sv)
             return yes(e.health != 0);
-        if (name == "is_on_ground")
+        if (name == "is_on_ground"sv)
             return yes(e.onGround);
-        if (name == "is_jumping")
+        if (name == "is_jumping"sv)
             return yes(!e.onGround && c.verticalSpeed > 0.5f);
-        if (name == "is_moving")
+        if (name == "is_moving"sv)
             return yes(e.Has(flag::Moving) || c.groundSpeed > 0.1f);
-        if (name == "is_first_person")
+        if (name == "is_first_person"sv)
             return yes(c.firstPerson);
-        if (name == "is_on_screen")
+        if (name == "is_on_screen"sv)
             return yes(c.onScreen);
-        if (name == "is_in_water" || name == "is_in_contact_with_water")
+        if (name == "is_in_water"sv || name == "is_in_contact_with_water"sv)
             return yes(c.inWater);
-        if (name == "is_in_water_or_rain")
+        if (name == "is_in_water_or_rain"sv)
             return yes(c.inWater || c.inRain);
-        if (name == "is_in_ui")
+        if (name == "is_in_ui"sv)
             return yes(false);
-        if (name == "is_spectator")
+        if (name == "is_spectator"sv)
             return yes(false);
-        if (name == "is_sleeping")
+        if (name == "is_sleeping"sv)
             return yes(false);
-        if (name == "is_levitating")
+        if (name == "is_levitating"sv)
             return yes(!e.onGround && !e.Has(flag::Gravity) && e.flags != 0);
-        if (name == "is_persona_or_premium_skin")
+        if (name == "is_persona_or_premium_skin"sv)
             return yes(false);
-        if (name == "has_head_gear")
+        if (name == "has_head_gear"sv)
             return yes(!e.armor[0].empty());
-        if (name == "has_cape")
+        if (name == "has_cape"sv)
             return yes(e.skin && e.skin->capeWidth > 0);
-        if (name == "has_target")
+        if (name == "has_target"sv)
             return yes(e.targetUid != 0 && e.targetUid != -1);
-        if (name == "facing_target_to_range_attack" || name == "is_facing_target_to_range_attack")
+        if (name == "facing_target_to_range_attack"sv || name == "is_facing_target_to_range_attack"sv)
             return yes((e.flagsExtended & flag::FacingTargetToRangeAttack) != 0);
-        if (name == "is_charging")
+        if (name == "is_charging"sv)
             return has(flag::Charging);
-        if (name == "has_rider" || name == "has_owner" || name == "is_attached_to_entity")
-            return yes(e.Has(flag::Tamed) && name == "has_owner");
-        if (name == "is_shield_powered" || name == "is_blocking" || name == "blocking")
+        if (name == "has_rider"sv || name == "has_owner"sv || name == "is_attached_to_entity"sv)
+            return yes(e.Has(flag::Tamed) && name == "has_owner"sv);
+        if (name == "is_shield_powered"sv || name == "is_blocking"sv || name == "blocking"sv)
             return yes(c.blocking);
-        if (name == "is_roaring" || name == "is_stunned" || name == "is_delayed_attacking" ||
-            name == "is_playing_dead" || name == "is_casting" || name == "is_celebrating" ||
-            name == "is_celebrating_special" || name == "is_croaking" || name == "is_digging" ||
-            name == "is_emerging" || name == "is_emoting" || name == "is_ghost" || name == "is_grazing" ||
-            name == "is_admiring" || name == "is_avoiding_block" || name == "is_avoiding_mobs" ||
-            name == "is_breeding_stock" || name == "is_carrying_block" || name == "is_eating_mob" ||
-            name == "is_illager_captain" || name == "is_jump_goal_jumping" || name == "is_rolling" ||
-            name == "is_scared" || name == "is_shaking" || name == "is_stalking" || name == "is_standing" ||
-            name == "out_of_control" || name == "is_selected_item" || name == "has_biome_tag" ||
-            name == "has_block_property" || name == "block_neighbor_has_any_tag" ||
-            name == "item_is_charged" || name == "show_bottom" || name == "is_trading" ||
-            name == "is_sneezing")
+        if (name == "is_roaring"sv || name == "is_stunned"sv || name == "is_delayed_attacking"sv ||
+            name == "is_playing_dead"sv || name == "is_casting"sv || name == "is_celebrating"sv ||
+            name == "is_celebrating_special"sv || name == "is_croaking"sv || name == "is_digging"sv ||
+            name == "is_emerging"sv || name == "is_emoting"sv || name == "is_ghost"sv || name == "is_grazing"sv ||
+            name == "is_admiring"sv || name == "is_avoiding_block"sv || name == "is_avoiding_mobs"sv ||
+            name == "is_breeding_stock"sv || name == "is_carrying_block"sv || name == "is_eating_mob"sv ||
+            name == "is_illager_captain"sv || name == "is_jump_goal_jumping"sv || name == "is_rolling"sv ||
+            name == "is_scared"sv || name == "is_shaking"sv || name == "is_stalking"sv || name == "is_standing"sv ||
+            name == "out_of_control"sv || name == "is_selected_item"sv || name == "has_biome_tag"sv ||
+            name == "has_block_property"sv || name == "block_neighbor_has_any_tag"sv ||
+            name == "item_is_charged"sv || name == "show_bottom"sv || name == "is_trading"sv ||
+            name == "is_sneezing"sv)
             return yes(false);
 
-        if (name == "modified_move_speed")
+        if (name == "modified_move_speed"sv)
             return num(c.limbAmount);
-        if (name == "modified_distance_moved" || name == "walk_distance")
+        if (name == "modified_distance_moved"sv || name == "walk_distance"sv)
             return num(c.limbSwing);
-        if (name == "ground_speed")
+        if (name == "ground_speed"sv)
             return num(c.groundSpeed);
-        if (name == "vertical_speed")
+        if (name == "vertical_speed"sv)
             return num(c.verticalSpeed);
-        if (name == "delta_time")
+        if (name == "delta_time"sv)
             return num(c.dt);
-        if (name == "life_time")
+        if (name == "life_time"sv)
             return num(c.life);
-        if (name == "anim_time")
+        if (name == "anim_time"sv)
             return num(c.animTime);
-        if (name == "frame_alpha")
+        if (name == "frame_alpha"sv)
             return num(c.partial);
-        if (name == "time_stamp")
+        if (name == "time_stamp"sv)
             return num(std::floor(c.now * 20.0));
-        if (name == "yaw_speed")
+        if (name == "yaw_speed"sv)
             return num(c.yawSpeed);
-        if (name == "average_frame_time" || name == "maximum_frame_time" || name == "minimum_frame_time")
+        if (name == "average_frame_time"sv || name == "maximum_frame_time"sv || name == "minimum_frame_time"sv)
             return num(c.dt);
-        if (name == "time_of_day")
+        if (name == "time_of_day"sv)
             return num(c.timeOfDay);
-        if (name == "day")
+        if (name == "day"sv)
             return num(c.day);
-        if (name == "moon_phase")
+        if (name == "moon_phase"sv)
             return num(std::fmod(c.day, 8.0));
-        if (name == "moon_brightness") {
+        if (name == "moon_brightness"sv) {
             static const double kBright[8] = {1.0, 0.75, 0.5, 0.25, 0.0, 0.25, 0.5, 0.75};
             return num(kBright[static_cast<int>(std::fmod(c.day, 8.0)) & 7]);
         }
-        if (name == "position")
+        if (name == "position"sv)
             return num(Axis(args) == 0 ? c.pos.x : Axis(args) == 1 ? c.pos.y : c.pos.z);
-        if (name == "position_delta")
+        if (name == "position_delta"sv)
             return num(Axis(args) == 0 ? c.dx : Axis(args) == 1 ? c.dy : c.dz);
-        if (name == "movement_direction") {
+        if (name == "movement_direction"sv) {
             const double l = std::sqrt(c.dx * c.dx + c.dy * c.dy + c.dz * c.dz);
             if (l < 1e-6)
                 return num(0);
             return num((Axis(args) == 0 ? c.dx : Axis(args) == 1 ? c.dy : c.dz) / l);
         }
-        if (name == "distance_from_camera")
+        if (name == "distance_from_camera"sv)
             return num(glm::length(c.pos - c.camera));
-        if (name == "camera_rotation")
+        if (name == "camera_rotation"sv)
             return num(Axis(args) == 0 ? c.cameraPitch : c.cameraYaw);
-        if (name == "rotation_to_camera") {
+        if (name == "rotation_to_camera"sv) {
             const glm::dvec3 d = c.camera - (c.pos + glm::dvec3(0.0, 1.0, 0.0));
             const double horiz = std::sqrt(d.x * d.x + d.z * d.z);
             if (Axis(args) == 0)
                 return num(-std::atan2(d.y, horiz) * 180.0 / 3.14159265358979);
             return num(std::atan2(-d.x, d.z) * 180.0 / 3.14159265358979);
         }
-        if (name == "camera_distance_range_lerp") {
+        if (name == "camera_distance_range_lerp"sv) {
             const double d = glm::length(c.pos - c.camera);
             const double lo = !args.empty() ? args[0].n : 0, hi = args.size() > 1 ? args[1].n : 1;
             return num(hi == lo ? 0.0 : std::clamp((d - lo) / (hi - lo), 0.0, 1.0));
         }
-        if (name == "head_x_rotation" || name == "target_x_rotation" || name == "body_x_rotation" ||
-            name == "eye_target_x_rotation")
+        if (name == "head_x_rotation"sv || name == "target_x_rotation"sv || name == "body_x_rotation"sv ||
+            name == "eye_target_x_rotation"sv)
             return num(c.pitch);
-        if (name == "head_y_rotation" || name == "target_y_rotation" || name == "eye_target_y_rotation")
+        if (name == "head_y_rotation"sv || name == "target_y_rotation"sv || name == "eye_target_y_rotation"sv)
             return num(math::WrapDegrees(c.headYaw - c.bodyYaw));
-        if (name == "body_y_rotation")
+        if (name == "body_y_rotation"sv)
             return num(math::WrapDegrees(c.bodyYaw));
-        if (name == "head_roll_angle" || name == "shake_angle" || name == "tail_angle" ||
-            name == "wing_flap_position" || name == "wing_flap_speed" || name == "roll_counter" ||
-            name == "sneeze_counter" || name == "unhappy_counter" || name == "shield_blocking_bob" ||
-            name == "surface_particle_color" || name == "spellcolor" || name == "lod_index" ||
-            name == "invulnerable_ticks" || name == "hurt_direction" || name == "texture_frame_index")
-            return num(name == "hurt_direction" ? 0 : 0);
-        if (name == "hurt_time")
+        if (name == "head_roll_angle"sv || name == "shake_angle"sv || name == "tail_angle"sv ||
+            name == "wing_flap_position"sv || name == "wing_flap_speed"sv || name == "roll_counter"sv ||
+            name == "sneeze_counter"sv || name == "unhappy_counter"sv || name == "shield_blocking_bob"sv ||
+            name == "surface_particle_color"sv || name == "spellcolor"sv || name == "lod_index"sv ||
+            name == "invulnerable_ticks"sv || name == "hurt_direction"sv || name == "texture_frame_index"sv)
+            return num(name == "hurt_direction"sv ? 0 : 0);
+        if (name == "hurt_time"sv)
             return num(c.hurtTime);
-        if (name == "sit_amount")
+        if (name == "sit_amount"sv)
             return num(c.sitAmount);
-        if (name == "swim_amount")
+        if (name == "swim_amount"sv)
             return num(c.swimAmount);
-        if (name == "lie_amount")
+        if (name == "lie_amount"sv)
             return num(c.lieAmount);
-        if (name == "swell_amount")
+        if (name == "swell_amount"sv)
             return num(c.swellAmount);
-        if (name == "standing_scale")
+        if (name == "standing_scale"sv)
             return num(90.0 / 63.0 - (90.0 / 63.0 - 1.0) * c.standAmount);
-        if (name == "sleep_rotation")
+        if (name == "sleep_rotation"sv)
             return num(0);
-        if (name == "health")
+        if (name == "health"sv)
             return num(e.health < 0 ? 20.0 : e.health);
-        if (name == "max_health")
+        if (name == "max_health"sv)
             return num(e.health < 0 ? 20.0 : std::max<double>(e.health, 20.0));
-        if (name == "variant")
+        if (name == "variant"sv)
             return num(e.variant);
-        if (name == "mark_variant")
+        if (name == "mark_variant"sv)
             return num(e.markVariant);
-        if (name == "skin_id")
+        if (name == "skin_id"sv)
             return num(0);
-        if (name == "cape_flap_amount")
+        if (name == "cape_flap_amount"sv)
             return num(c.capeFlap);
-        if (name == "armor_texture_slot")
+        if (name == "armor_texture_slot"sv)
             return num(0);
-        if (name == "armor_color_slot")
+        if (name == "armor_color_slot"sv)
             return num(1);
-        if (name == "armor_material_slot")
+        if (name == "armor_material_slot"sv)
             return num(0);
-        if (name == "has_armor_slot")
+        if (name == "has_armor_slot"sv)
             return yes(Axis(args) >= 0 && Axis(args) < 4 && !e.armor[Axis(args)].empty());
-        if (name == "equipment_count") {
+        if (name == "equipment_count"sv) {
             int n = 0;
             for (const std::string& a : e.armor)
                 n += a.empty() ? 0 : 1;
             return num(n);
         }
-        if (name == "player_level" || name == "max_trade_tier" || name == "scoreboard" ||
-            name == "structural_integrity" || name == "remaining_durability" || name == "heightmap" ||
-            name == "total_emitter_count" || name == "cardinal_block_face_placed_on" ||
-            name == "block_face" || name == "current_squad_target" || name == "previous_squad_block" ||
-            name == "get_actor_info_id")
+        if (name == "player_level"sv || name == "max_trade_tier"sv || name == "scoreboard"sv ||
+            name == "structural_integrity"sv || name == "remaining_durability"sv || name == "heightmap"sv ||
+            name == "total_emitter_count"sv || name == "cardinal_block_face_placed_on"sv ||
+            name == "block_face"sv || name == "current_squad_target"sv || name == "previous_squad_block"sv ||
+            name == "get_actor_info_id"sv)
             return num(0);
-        if (name == "cardinal_facing_2d" || name == "cardinal_facing" || name == "cardinal_player_facing") {
+        if (name == "cardinal_facing_2d"sv || name == "cardinal_facing"sv || name == "cardinal_player_facing"sv) {
             const float y = math::WrapDegrees(c.bodyYaw);
             if (y >= -45 && y < 45)
                 return num(3);
@@ -293,61 +295,61 @@ namespace perlin::entity {
             return num(2);
         }
 
-        if (name == "model_scale")
+        if (name == "model_scale"sv)
             return num(e.scale > 0.0f ? e.scale : 1.0f);
-        if (name == "death_ticks")
+        if (name == "death_ticks"sv)
             return num(e.dying ? c.deathTicks : 0.0f);
-        if (name == "current_squish_value")
+        if (name == "current_squish_value"sv)
             return num(e.squish);
-        if (name == "previous_squish_value")
+        if (name == "previous_squish_value"sv)
             return num(e.prevSquish);
-        if (name == "swelling_dir")
+        if (name == "swelling_dir"sv)
             return num(e.Has(flag::Ignited) ? 1.0 : -1.0);
-        if (name == "fuse_time")
+        if (name == "fuse_time"sv)
             return num(e.Has(flag::Ignited) ? c.swellAmount * 30.0 : -1.0);
-        if (name == "ticks_since_last_kinetic_weapon_hit")
+        if (name == "ticks_since_last_kinetic_weapon_hit"sv)
             return num(-1);
-        if (name == "owner_identifier") {
+        if (name == "owner_identifier"sv) {
             out = Value::Str("");
             return true;
         }
-        if (name == "life_span")
+        if (name == "life_span"sv)
             return num(22);
-        if (name == "is_crawling")
+        if (name == "is_crawling"sv)
             return yes(e.crawling);
-        if (name == "is_in_lava" || name == "is_searching" || name == "is_sniffing" ||
-            name == "is_sonic_boom" || name == "is_shaking_wetness" || name == "has_dash_cooldown" ||
-            name == "has_player_rider" || name == "can_damage_nearby_mobs" ||
-            name == "is_riding_any_entity_of_type" || name == "has_any_leashed_entity_of_type" ||
-            name == "timer_flag_1" || name == "timer_flag_2" || name == "timer_flag_3")
+        if (name == "is_in_lava"sv || name == "is_searching"sv || name == "is_sniffing"sv ||
+            name == "is_sonic_boom"sv || name == "is_shaking_wetness"sv || name == "has_dash_cooldown"sv ||
+            name == "has_player_rider"sv || name == "can_damage_nearby_mobs"sv ||
+            name == "is_riding_any_entity_of_type"sv || name == "has_any_leashed_entity_of_type"sv ||
+            name == "timer_flag_1"sv || name == "timer_flag_2"sv || name == "timer_flag_3"sv)
             return yes(false);
-        if (name == "kinetic_weapon_delay" || name == "kinetic_weapon_dismount_duration" ||
-            name == "kinetic_weapon_knockback_duration" || name == "kinetic_weapon_damage_duration" ||
-            name == "key_frame_lerp_time" || name == "shake_time" || name == "heartbeat_phase" ||
-            name == "overlay_alpha" ||
-            name == "time_since_last_vibration_detection" || name == "trade_tier" ||
-            name == "surface_particle_texture_coordinate" || name == "surface_particle_texture_size" ||
-            name == "bone_origin" || name == "bone_rotation" || name == "bone_aabb")
+        if (name == "kinetic_weapon_delay"sv || name == "kinetic_weapon_dismount_duration"sv ||
+            name == "kinetic_weapon_knockback_duration"sv || name == "kinetic_weapon_damage_duration"sv ||
+            name == "key_frame_lerp_time"sv || name == "shake_time"sv || name == "heartbeat_phase"sv ||
+            name == "overlay_alpha"sv ||
+            name == "time_since_last_vibration_detection"sv || name == "trade_tier"sv ||
+            name == "surface_particle_texture_coordinate"sv || name == "surface_particle_texture_size"sv ||
+            name == "bone_origin"sv || name == "bone_rotation"sv || name == "bone_aabb"sv)
             return num(0);
 
-        if (name == "is_item_equipped") {
+        if (name == "is_item_equipped"sv) {
             const std::string item = args.empty() ? e.mainHand : (args[0].n == 1.0 ? e.offHand : e.mainHand);
             return yes(!item.empty());
         }
-        if (name == "main_hand_item_max_duration" || name == "item_max_use_duration")
+        if (name == "main_hand_item_max_duration"sv || name == "item_max_use_duration"sv)
             return num(c.maxUseTicks);
-        if (name == "main_hand_item_use_duration" || name == "item_in_use_duration")
+        if (name == "main_hand_item_use_duration"sv || name == "item_in_use_duration"sv)
             return num(c.using_ ? std::max(0.0f, c.maxUseTicks - c.usedTicks) : 0.0f);
-        if (name == "item_remaining_use_duration")
+        if (name == "item_remaining_use_duration"sv)
             return num(c.using_ ? std::max(0.0f, c.maxUseTicks - c.usedTicks) / 20.0f : 0.0f);
-        if (name == "get_equipped_item_name") {
+        if (name == "get_equipped_item_name"sv) {
             bool off = false;
             if (!args.empty())
                 off = args[0].isString ? args[0].s.contains("off") : args[0].n == 1.0;
             out = Value::Str(std::string(str::StripNamespace(str::Lower(off ? e.offHand : e.mainHand))));
             return true;
         }
-        if (name == "is_item_name_any") {
+        if (name == "is_item_name_any"sv) {
             if (args.size() < 2)
                 return yes(false);
             const std::string item = std::string(str::StripNamespace(str::Lower(SlotItem(e, args[0], Axis(args, 1)))));
@@ -356,31 +358,31 @@ namespace perlin::entity {
                     return yes(true);
             return yes(false);
         }
-        if (name == "equipped_item_any_tag" || name == "equipped_item_all_tags" ||
-            name == "equipped_item_is_attachable")
+        if (name == "equipped_item_any_tag"sv || name == "equipped_item_all_tags"sv ||
+            name == "equipped_item_is_attachable"sv)
             return yes(false);
 
-        if (name == "get_name") {
+        if (name == "get_name"sv) {
             out = Value::Str(e.name);
             return true;
         }
-        if (name == "is_name_any") {
+        if (name == "is_name_any"sv) {
             for (const auto& a : args)
                 if (a.isString && a.s == e.name)
                     return yes(true);
             return yes(false);
         }
-        if (name == "has_any_family") {
+        if (name == "has_any_family"sv) {
             const std::string t = std::string(str::StripNamespace(str::Lower(e.type)));
             for (const auto& a : args)
                 if (a.isString && (std::string(str::StripNamespace(str::Lower(a.s))) == t || (e.isPlayer && std::string(str::StripNamespace(str::Lower(a.s))) == "player")))
                     return yes(true);
             return yes(false);
         }
-        if (name == "is_owner_identifier_any")
+        if (name == "is_owner_identifier_any"sv)
             return yes(false);
 
-        if (name == "property") {
+        if (name == "property"sv) {
             if (!args.empty() && args[0].isString) {
                 std::string key = args[0].s;
                 if (const auto text = e.propText.find(key); text != e.propText.end()) {
@@ -403,49 +405,49 @@ namespace perlin::entity {
             }
             return num(0);
         }
-        if (name == "has_property") {
+        if (name == "has_property"sv) {
             return yes(!args.empty() && args[0].isString &&
                        (e.props.contains(args[0].s) || e.propText.contains(args[0].s)));
         }
 
-        if (name == "in_range")
+        if (name == "in_range"sv)
             return yes(args.size() >= 3 && args[0].n >= args[1].n && args[0].n <= args[2].n);
-        if (name == "approx_eq") {
+        if (name == "approx_eq"sv) {
             for (size_t i = 1; i < args.size(); i++)
                 if (std::fabs(args[i].n - args[0].n) > 1e-5)
                     return yes(false);
             return yes(true);
         }
-        if (name == "all") {
+        if (name == "all"sv) {
             for (size_t i = 1; i < args.size(); i++)
                 if (args[i].isString ? args[i].s != args[0].s : args[i].n != args[0].n)
                     return yes(false);
             return yes(true);
         }
-        if (name == "any") {
+        if (name == "any"sv) {
             for (size_t i = 1; i < args.size(); i++)
                 if (args[i].isString ? args[i].s == args[0].s : args[i].n == args[0].n)
                     return yes(true);
             return yes(false);
         }
-        if (name == "count")
+        if (name == "count"sv)
             return num(static_cast<double>(args.size()));
-        if (name == "all_animations_finished")
+        if (name == "all_animations_finished"sv)
             return yes(c.allFinished);
-        if (name == "any_animation_finished")
+        if (name == "any_animation_finished"sv)
             return yes(c.anyFinished);
-        if (name == "log" || name == "debug_output")
+        if (name == "log"sv || name == "debug_output"sv)
             return num(0);
-        if (name == "get_default_bone_pivot") {
+        if (name == "get_default_bone_pivot"sv) {
             double value = 0;
             if (c.bonePivot && args.size() >= 2 && args[0].isString &&
                 c.bonePivot(args[0].s, static_cast<int>(args[1].n), value))
                 return num(value);
             return num(0);
         }
-        if (name == "get_root_locator_offset" || name == "get_locator_offset" ||
-            name == "bone_orientation_matrix" || name == "bone_orientation_trs" ||
-            name == "get_animation_frame" || name == "combine_player_texture")
+        if (name == "get_root_locator_offset"sv || name == "get_locator_offset"sv ||
+            name == "bone_orientation_matrix"sv || name == "bone_orientation_trs"sv ||
+            name == "get_animation_frame"sv || name == "combine_player_texture"sv)
             return num(0);
         if (PERLIN_ENV("PERLIN_MOLANG_LOG")) {
             static std::set<std::string> logged;

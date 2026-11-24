@@ -73,6 +73,12 @@ float linearDepth(float d)
 void stageMain()
 {
     vec2 uv = v_texcoord0;
+    // the camera did not move since the last real frame: reprojecting through an identity reproduces it
+    if (u_post.z > 0.5)
+    {
+        gl_FragColor = vec4(texture2DLod(s_final, uv, 0.0).rgb, 1.0);
+        return;
+    }
     vec3 shown = texture2DLod(s_final, uv, 0.0).rgb;
     vec3 world = texture2DLod(s_world, uv, 0.0).rgb;
     vec3 diff = abs(shown - world);
@@ -95,7 +101,12 @@ void stageMain()
         w /= w.w;
         vec4 c = mul(u_genCurVp, w);
         expected = c.w;
-        src = uvOf(vec3(c.xy / max(abs(c.w), 1.0e-5) * sign(c.w), 0.0));
+        vec2 next = uvOf(vec3(c.xy / max(abs(c.w), 1.0e-5) * sign(c.w), 0.0));
+        // a fixed point: further steps would land on the same texel
+        bool settled = abs(next.x - src.x) + abs(next.y - src.y) < 1.0e-5;
+        src = next;
+        if (settled)
+            break;
     }
     bool inside = src.x > 0.002 && src.x < 0.998 && src.y > 0.002 && src.y < 0.998;
     float actual = linearDepth(rawDepth(src));

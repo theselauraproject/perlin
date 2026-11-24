@@ -288,6 +288,8 @@ namespace perlin::screen {
         ShaderPackCache& packCache;
         std::function<std::string()> activeAccountId;
         std::function<void(const std::string&, const std::string&, const std::string&)> setAccountSkin;
+        // in a singleplayer world, where leaving saves it ("Save and Quit to Title")
+        std::function<bool()> inSingleplayer = [] { return false; };
     };
 
     struct PackMenuInput {

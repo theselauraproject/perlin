@@ -1,3 +1,4 @@
+#include <string_view>
 #include "client/systems/attachable/AnimationStyle.hpp"
 #include "client/systems/entity/EntityRenderer.hpp"
 #include "client/systems/text/FontTexture.hpp"
@@ -39,6 +40,7 @@
 #include "util/Angles.hpp"
 
 namespace perlin::entity {
+    using namespace std::string_view_literals;
     namespace {
         constexpr int kDeathPoofEvent = 2007;
 
@@ -227,16 +229,16 @@ namespace perlin::entity {
             }
 
             bool Volatile(const std::string& name) const override {
-                return name == "anim_time" || name == "all_animations_finished" ||
-                       name == "any_animation_finished";
+                return name == "anim_time"sv || name == "all_animations_finished"sv ||
+                       name == "any_animation_finished"sv;
             }
 
             bool Context(const std::string& name, Value& out) override {
-                if (name == "is_first_person") {
+                if (name == "is_first_person"sv) {
                     out = Value::Num(firstPerson ? 1 : 0);
                     return true;
                 }
-                if (name == "player_offhand_arm_height") {
+                if (name == "player_offhand_arm_height"sv) {
                     out = Value::Num(offArmHeight);
                     return true;
                 }
@@ -1429,10 +1431,10 @@ namespace perlin::entity {
             addLayer("controller.render.player.cape", true);
         if (itemRenderer && e.isPlayer) {
             const auto bind = [&](const std::string& name, const glm::mat4& boneWorld, bool left) {
-                if (name.empty() || (v.fp && name != "minecraft:bow"))
+                if (name.empty() || (v.fp && name != "minecraft:bow"sv))
                     return;
                 static const bool bedrockAttach = PERLIN_ENV("PERLIN_BEDROCK_ATTACH") != nullptr;
-                if (!v.fp && !bedrockAttach && (name == "minecraft:bow" || name == "minecraft:crossbow"))
+                if (!v.fp && !bedrockAttach && (name == "minecraft:bow"sv || name == "minecraft:crossbow"sv))
                     return;
                 attachable::Frame frame;
                 if (!itemRenderer->ThirdPersonAttachable(

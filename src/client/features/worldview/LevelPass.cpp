@@ -28,7 +28,7 @@ namespace perlin::worldview {
         fgPacer.PreRenderMs(std::chrono::duration<double, std::milli>(Clock::now() - frameStart).count());
         if (fgPacer.Pending() && !replayStudio.Exporting())
             frames += fgPacer.Pump(FrameGenPacer::Stage::BeforeRender, !options.vsync, Clock::now(),
-                                   [&](int i, int n) { return renderer->PresentGenerated(i, n); });
+                                   [&](int i, int n, double phase) { return renderer->PresentGenerated(i, n, phase); });
         renderer->BeginFrame(params);
         if (live) {
             {

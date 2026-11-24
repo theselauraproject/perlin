@@ -17,6 +17,7 @@ namespace perlin::screen::title {
     void ScrollList(int& scroll, int selected, int count, int rows, float wheel);
     bool IsReplayPage(ui::TitlePage page);
     bool IsServerFieldPage(ui::TitlePage page);
+    bool IsWorldPage(ui::TitlePage page);
     ui::TitlePage ParentPage(ui::TitlePage page);
     void ApplyPingResult(ui::ServerEntry& entry, const ui::ServerEntry& result, bool withMotd);
     ui::ServerEntry SectionHeader(std::string name, size_t count, int sectionId);

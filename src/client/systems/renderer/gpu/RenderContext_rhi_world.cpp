@@ -885,7 +885,10 @@ namespace perlin {
             return;
         const bool pack = PackRunning();
         static const bool skyEarly = PERLIN_ENV("PERLIN_SKY_EARLY") != nullptr;
-        const bool skyLate = !skyEarly && packActive && !javaActive && !pack && frame.sky.enabled;
+        // The sky goes after opaque terrain, depth tested, so it is shaded only where terrain left the far plane
+        // showing: same picture (sunrise, sun and stars also land only on sky), far fewer fragments. A software
+        // rasteriser pays for every sky pixel terrain would cover anyway. PERLIN_SKY_EARLY=1 restores the old order.
+        const bool skyLate = !skyEarly && !javaActive && !pack && frame.sky.enabled;
         if (!pack && !skyLate)
             DrawSky();
         meshes.ReleaseEmptyPages();

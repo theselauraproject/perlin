@@ -21,5 +21,8 @@ namespace perlin {
         double benchmarkSeconds = 0;
         uint64_t benchmarkSeed = 0;
         std::string benchmarkOut;
+        double benchmarkWarmup = -1;
+        bool benchmarkStill = false;
+        std::string benchmarkCommands;
     };
 }

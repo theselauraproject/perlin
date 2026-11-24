@@ -54,7 +54,26 @@ int main() {
     Check(std::fabs(a.x - b.x) < 0.2 && std::fabs(a.z - b.z) < 0.2, "path continuous");
     Check(a.pitch < 0.0f, "looks down");
 
+    {
+        // frame generation: generated frames count toward what was shown, never toward real frames
+        const Stats g = Compute(std::vector<double>(100, 20.0), 100);
+        Check(g.frames == 100 && Near(g.averageFps, 50.0), "real fps unchanged by generated frames");
+        Check(g.generatedFrames == 100 && Near(g.shownFps, 100.0), "shown fps includes generated frames");
+        Check(Summary(g).find("100 fps shown") != std::string::npos, "summary names shown fps");
+        Check(Summary(Compute(std::vector<double>(10, 20.0))).find("shown") == std::string::npos,
+              "summary quiet without frame generation");
+        Run fg(set);
+        fg.Frame(0.01, 3);
+        fg.Spawned(0, 64, 0);
+        while (fg.Current() != Phase::Done)
+            fg.Frame(0.01, 1);
+        Check(fg.GeneratedFrames() == fg.FrameTimes().size(), "generated frames counted only while recording");
+    }
+
     const std::string json = ToJson(Report{});
+    Check(json.find("\"frame_generation\"") != std::string::npos &&
+              json.find("\"shown_fps\"") != std::string::npos,
+          "json frame generation fields");
     Check(json.find("\"low_1_percent_fps\"") != std::string::npos, "json fields");
     std::printf("%s\n", failures ? "benchmark selftest FAILED" : "benchmark selftest ok");
     return failures ? 1 : 0;

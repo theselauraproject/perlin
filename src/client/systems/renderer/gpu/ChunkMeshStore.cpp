@@ -468,38 +468,32 @@ namespace perlin::gpu {
             }
         }
 
-        static thread_local std::vector<uint8_t> packed;
-        packed.resize(static_cast<size_t>(g.vCount) * vertexStride);
-        {
-            uint8_t* out = packed.data();
-            const uint8_t* src = reinterpret_cast<const uint8_t*>(verts.data());
-            for (uint32_t index : order) {
-                std::memcpy(out, src + static_cast<size_t>(index) * sizeof(Vertex), vertexStride);
-                out += vertexStride;
-            }
-        }
-        static thread_local std::vector<uint8_t> extraOrdered;
-        extraOrdered.clear();
+        // Vertices are gathered straight into the upload staging memory, once; nothing reads that memory back
+        // (it can be write-combined). The translucent layers' sort cache is gathered from the mesh itself, and
+        // only a sorted order is written over their staged range. A staged pointer can move on the next
+        // StageBuffer call, so every write to the vertex buffer's range is done before the extra buffer is staged.
+        const uint8_t* src = reinterpret_cast<const uint8_t*>(verts.data());
+        const auto gather = [&](uint8_t* out, const uint32_t* from, uint32_t n) {
+            for (uint32_t k = 0; k < n; k++, out += vertexStride)
+                std::memcpy(out, src + static_cast<size_t>(from[k]) * sizeof(Vertex), vertexStride);
+        };
+        static thread_local std::vector<uint8_t> extra;
+        extra.clear();
         if (extBytes && extConvert && pg.ext.Buffer()) {
-            static thread_local std::vector<uint8_t> extra;
-            extra.clear();
             extConvert(tess, extra);
-            if (extra.size() == static_cast<size_t>(vertexLimit) * extBytes) {
-                extraOrdered.resize(static_cast<size_t>(g.vCount) * extBytes);
-                uint8_t* out = extraOrdered.data();
-                for (uint32_t index : order) {
-                    std::memcpy(out, extra.data() + static_cast<size_t>(index) * extBytes, extBytes);
-                    out += extBytes;
-                }
-            } else {
-                extraOrdered.clear();
-            }
+            if (extra.size() != static_cast<size_t>(vertexLimit) * extBytes)
+                extra.clear();
         }
+        const auto gatherExt = [&](uint8_t* out, const uint32_t* from, uint32_t n) {
+            for (uint32_t k = 0; k < n; k++, out += extBytes)
+                std::memcpy(out, extra.data() + static_cast<size_t>(from[k]) * extBytes, extBytes);
+        };
+        bool sorted = false;
         if (sortCache) {
             SortCache& sc = *sortCache;
             const uint32_t cacheVerts = (sc.layerQuads[0] + sc.layerQuads[1]) * 4;
             sc.vertices.resize(static_cast<size_t>(cacheVerts) * vertexStride);
-            if (!extraOrdered.empty())
+            if (!extra.empty())
                 sc.ext.resize(static_cast<size_t>(cacheVerts) * extBytes);
             uint32_t at = 0;
             for (int s = 0; s < 2; s++) {
@@ -507,13 +501,9 @@ namespace perlin::gpu {
                 const uint32_t n = sc.layerQuads[s] * 4;
                 if (!n)
                     continue;
-                std::memcpy(sc.vertices.data() + static_cast<size_t>(at) * vertexStride,
-                            packed.data() + static_cast<size_t>(local) * vertexStride,
-                            static_cast<size_t>(n) * vertexStride);
+                gather(sc.vertices.data() + static_cast<size_t>(at) * vertexStride, order.data() + local, n);
                 if (!sc.ext.empty())
-                    std::memcpy(sc.ext.data() + static_cast<size_t>(at) * extBytes,
-                                extraOrdered.data() + static_cast<size_t>(local) * extBytes,
-                                static_cast<size_t>(n) * extBytes);
+                    gatherExt(sc.ext.data() + static_cast<size_t>(at) * extBytes, order.data() + local, n);
                 at += n;
             }
             sc.centers.resize(static_cast<size_t>(cacheVerts / 4) * 3);
@@ -530,28 +520,35 @@ namespace perlin::gpu {
                 sc.centers[q * 3 + 1] = c[1] * 0.25f;
                 sc.centers[q * 3 + 2] = c[2] * 0.25f;
             }
-            if (sortKnown && SortQuads(sc, sortX, sortY, sortZ)) {
-                at = 0;
-                for (int s = 0; s < 2; s++) {
-                    const uint32_t local = sc.firstVertex[s] - g.vOff;
-                    const uint32_t n = sc.layerQuads[s] * 4;
-                    if (!n)
-                        continue;
-                    std::memcpy(packed.data() + static_cast<size_t>(local) * vertexStride,
-                                sc.vertices.data() + static_cast<size_t>(at) * vertexStride,
-                                static_cast<size_t>(n) * vertexStride);
-                    if (!sc.ext.empty())
-                        std::memcpy(extraOrdered.data() + static_cast<size_t>(local) * extBytes,
-                                    sc.ext.data() + static_cast<size_t>(at) * extBytes,
-                                    static_cast<size_t>(n) * extBytes);
-                    at += n;
-                }
-            }
+            sorted = sortKnown && SortQuads(sc, sortX, sortY, sortZ);
         }
-        gpu->WriteBuffer(pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, packed.data(), packed.size());
-        if (!extraOrdered.empty())
-            gpu->WriteBuffer(pg.ext, static_cast<uint64_t>(g.vOff) * extBytes, extraOrdered.data(),
-                             extraOrdered.size());
+        // the sorted translucent ranges replace those vertices in the staged copy
+        const auto overlaySorted = [&](uint8_t* staged, const std::vector<uint8_t>& cache, size_t bytesPer) {
+            const SortCache& sc = *sortCache;
+            uint32_t at = 0;
+            for (int s = 0; s < 2; s++) {
+                const uint32_t local = sc.firstVertex[s] - g.vOff;
+                const uint32_t n = sc.layerQuads[s] * 4;
+                if (!n)
+                    continue;
+                std::memcpy(staged + static_cast<size_t>(local) * bytesPer, cache.data() + static_cast<size_t>(at) * bytesPer,
+                            static_cast<size_t>(n) * bytesPer);
+                at += n;
+            }
+        };
+        if (uint8_t* staged = static_cast<uint8_t*>(gpu->StageBuffer(
+                pg.vb, static_cast<uint64_t>(g.vOff) * vertexStride, static_cast<size_t>(g.vCount) * vertexStride))) {
+            gather(staged, order.data(), g.vCount);
+            if (sorted)
+                overlaySorted(staged, sortCache->vertices, vertexStride);
+        }
+        if (!extra.empty())
+            if (uint8_t* staged = static_cast<uint8_t*>(gpu->StageBuffer(
+                    pg.ext, static_cast<uint64_t>(g.vOff) * extBytes, static_cast<size_t>(g.vCount) * extBytes))) {
+                gatherExt(staged, order.data(), g.vCount);
+                if (sorted && !sortCache->ext.empty())
+                    overlaySorted(staged, sortCache->ext, extBytes);
+            }
 
         float lo = tess.boundsLo, hi = tess.boundsHi;
         if (!tess.boundsKnown) {

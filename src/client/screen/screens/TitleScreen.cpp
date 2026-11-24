@@ -655,6 +655,211 @@ namespace perlin::ui {
             Btn(b, kReplayDeleteOk, cx - 100, h / 4 + 96 + 18, 200, "Delete");
             Btn(b, kReplayDialogCancel, cx - 100, h / 4 + 120 + 18, 200, "Cancel");
         }
+        // ---- Singleplayer worlds, laid out as Java Edition's Select World / Create New World / Edit World ----
+        constexpr int kWorldRowW = 270;
+        constexpr const char* kWorldGray = "#808080";
+
+        void HintField(Sb& b, const std::string& id, int x, int y, int w, const std::string& value, bool focused,
+                       bool caret, const std::string& hint) {
+            Field(b, id, x, y, w, value, focused, caret);
+            if (value.empty() && !focused)
+                Txt(b, x + 4, y + 6, w - 8, kit::Plain(hint, "#707070"), "", 6, true);
+        }
+
+        void Separator(Sb& b, int w, int y, bool header) {
+            Fill(b, 0, y, w, 1, header ? "#000000bf" : "#ffffff33", 3);
+            Fill(b, 0, y + 1, w, 1, header ? "#ffffff33" : "#000000bf", 3);
+            SceneNode& art = Sprite(b, 0, y, w, 2, header ? "mcres:ui_menu_header.png" : "mcres:ui_menu_footer.png", {},
+                                    {}, "3");
+            art.tiled = "1";
+        }
+
+        void Worlds(Sb& b, const TitleModel& m, int w, int h) {
+            Backdrop(b, m, w, h);
+            const int cx = w / 2;
+            const int listTop = TitleWorldListTop(), listBottom = TitleWorldListBottom(h);
+            ListBand(b, m, w, listTop, listBottom);
+            Plain(b, 0, 8, w, "Select World", "ctr");
+            HintField(b, kWorldSearch, cx - 100, 22, 200, m.worldSearch, m.worldSearchFocus, m.caret, "Search...");
+            const int rows = TitleWorldRows(h);
+            const int rowX = cx - kWorldRowW / 2;
+            const int count = static_cast<int>(m.worlds.size());
+            int y = listTop + 4;
+            for (int i = m.worldScroll; i < count && i < m.worldScroll + rows; i++, y += kRowH) {
+                const WorldEntry& e = m.worlds[static_cast<size_t>(i)];
+                if (i == m.worldSelected) {
+                    Fill(b, rowX - 2, y - 2, kWorldRowW + 4, kRowH, "#ffffff", 2);
+                    Fill(b, rowX - 1, y - 1, kWorldRowW + 2, kRowH - 2, "#000000", 2);
+                }
+                kit::Begin(b, static_cast<float>(rowX), static_cast<float>(y), kWorldRowW, kRowH - 4, "row",
+                           std::string(kWorldRowPrefix) + N(i), N(6 + rows - (i - m.worldScroll)));
+                Fill(b, 0, 0, 32, 32, "#3a2f26", 0);
+                Sprite(b, 0, 0, 32, 32, e.icon.empty() ? std::string("mcres:ui_menu_unknown_world.png") : e.icon);
+                kit::Begin(b, 0, 0, 32, 32, "go", std::string(kWorldPlayPrefix) + N(i));
+                Fill(b, 0, 0, 32, 32, "#90909090", 0);
+                Sprite(b, 0, 0, 32, 32, "mcres:ui_menu_join_hi.png");
+                b.End();
+                Txt(b, 35, 1, kWorldRowW - 37, kit::Plain(Fit(e.name, kWorldRowW - 37)), "", 4, true);
+                Txt(b, 35, 12, kWorldRowW - 37, kit::Plain(Fit(e.line2, kWorldRowW - 37), kWorldGray), "", 4, true);
+                Txt(b, 35, 23, kWorldRowW - 37, kit::Plain(Fit(e.line3, kWorldRowW - 37), kWorldGray), "", 4, true);
+                b.End();
+            }
+            if (count > rows) {
+                const int trackX = rowX + kWorldRowW + 8, trackH = listBottom - listTop;
+                const int thumbH = std::clamp(trackH * trackH / std::max(1, count * kRowH + 4), 32, trackH - 8);
+                const int thumbY = listTop + (trackH - thumbH) * m.worldScroll / std::max(1, count - rows);
+                Fill(b, trackX, listTop, 6, trackH, "#000000", 3);
+                Fill(b, trackX, thumbY, 6, thumbH, "#808080", 4);
+                Fill(b, trackX, thumbY, 5, thumbH - 1, "#c0c0c0", 4);
+            }
+            if (!m.worldMessage.empty())
+                Plain(b, 0, listBottom - 14, w, m.worldMessage, "ctr red");
+            const bool has = m.worldSelected >= 0 && m.worldSelected < count;
+            const int r1 = h - 52, r2 = h - 28;
+            Btn(b, has ? kWorldPlay : "", cx - 154, r1, 150, "Play Selected World", !has);
+            Btn(b, kWorldCreate, cx + 4, r1, 150, "Create New World");
+            Btn(b, has ? kWorldEdit : "", cx - 154, r2, 71, "Edit", !has);
+            Btn(b, has ? kWorldDelete : "", cx - 75, r2, 71, "Delete", !has);
+            Btn(b, has ? kWorldRecreate : "", cx + 4, r2, 71, "Re-Create", !has);
+            Btn(b, kWorldBack, cx + 83, r2, 71, "Back");
+        }
+
+        void Cycle(Sb& b, const std::string& id, int x, int y, int w, const std::string& label, const std::string& value,
+                   const std::string& tip = {}, bool off = false) {
+            Btn(b, off ? std::string() : id, x, y, w, label + ": " + value, off, tip);
+        }
+
+        void CreateWorld(Sb& b, const TitleModel& m, int w, int h) {
+            Backdrop(b, m, w, h);
+            const int cx = w / 2;
+            const int top = 24, bottom = h - 36;
+            ListBand(b, m, w, top + 2, bottom);
+            // tab strip: three equal tabs across at most 400 pixels, the chosen one raised and underlined
+            static const char* const kTabs[] = {"Game", "World", "More"};
+            const int tabW = std::max(40, (std::min(400, w) - 28) / 3 / 2 * 2);
+            const int tabsX = cx - tabW * 3 / 2;
+            for (int t = 0; t < 3; t++) {
+                const bool on = m.createTab == t;
+                const int tx = tabsX + t * tabW;
+                kit::Begin(b, static_cast<float>(tx), on ? 0.0f : 2.0f, static_cast<float>(tabW), on ? 24.0f : 22.0f,
+                           "btn", std::string(kCreateTabPrefix) + N(t), "5");
+                Fill(b, 0, 0, tabW, on ? 24 : 22, "#000000", 0);
+                Fill(b, 1, 1, tabW - 2, on ? 23 : 21, on ? "#4a4a4a" : "#2c2c2c", 0);
+                Fill(b, 1, 1, tabW - 2, 1, on ? "#8a8a8a" : "#4c4c4c", 0);
+                // the game's tab art where it is available, over the drawn fallback
+                Sprite(b, 0, on ? 0 : -2, tabW, 24, on ? "mcres:ui_menu_tab_sel.png" : "mcres:ui_menu_tab.png", "2 2 2 0");
+                Sprite(b, 0, on ? 0 : -2, tabW, 24, on ? "mcres:ui_menu_tab_sel_hi.png" : "mcres:ui_menu_tab_hi.png",
+                       "2 2 2 0", "h");
+                Txt(b, 0, on ? 8 : 7, tabW, kit::Plain(kTabs[t], on ? "#ffffff" : "#a0a0a0"), "ctr", 0);
+                if (on)
+                    Fill(b, tabW / 2 - text::DefaultTextWidth(kTabs[t]) / 2 - 1, 18,
+                         text::DefaultTextWidth(kTabs[t]) + 1, 1, "#ffffff", 0);
+                b.End();
+            }
+            Separator(b, w, top, true);
+            Separator(b, w, bottom, false);
+            const int area = bottom - top - 2;
+            if (m.createTab == 0) {
+                const int contentH = 13 + 20 + 3 * (8 + 20);
+                int y = top + 2 + (area - contentH) / 6;
+                Plain(b, cx - 104, y, 208, "World Name", "");
+                Field(b, kCreateName, cx - 104, y + 13, 208, m.createName, m.createFocus == 0, m.caret);
+                // the save folder shows while the pointer is over the name, as the game's tooltip does
+                kit::Begin(b, static_cast<float>(cx - 104), static_cast<float>(y + 13), 208, 20, "btn", kCreateName, "7");
+                Tip(b, 208, "Save folder: " + m.createFolder);
+                b.End();
+                y += 13 + 20 + 8;
+                static const char* const kModes[] = {"Survival", "Creative", "Adventure"};
+                static const char* const kModeInfo[] = {
+                    "Explore a mysterious world where you build, collect, craft, and fight monsters.",
+                    "Create, build, and explore without limits. You can fly, have endless materials, and can't be hurt by monsters.",
+                    "Same as Survival Mode, but blocks can't be added or removed."};
+                const int mode = std::clamp(m.createMode, 0, 2);
+                (void)kModeInfo;
+                Cycle(b, kCreateMode, cx - 105, y, 210, "Game Mode", kModes[mode]);
+                static const char* const kDiff[] = {"Peaceful", "Easy", "Normal", "Hard"};
+                static const char* const kDiffInfo[] = {
+                    "No hostile mobs and only some neutral mobs spawn. Hunger bar doesn't deplete and health replenishes over time.",
+                    "Hostile mobs spawn but deal less damage. Hunger bar depletes and drains health down to 5 hearts.",
+                    "Hostile mobs spawn and deal standard damage. Hunger bar depletes and drains health down to half a heart.",
+                    "Hostile mobs spawn and deal more damage. Hunger bar depletes and drains all health."};
+                const int diff = std::clamp(m.createDifficulty, 0, 3);
+                (void)kDiffInfo;
+                Cycle(b, kCreateDifficulty, cx - 105, y + 28, 210, "Difficulty", kDiff[diff]);
+                Cycle(b, kCreateCheats, cx - 105, y + 56, 210, "Allow Cheats", m.createCheats ? "ON" : "OFF");
+            } else if (m.createTab == 1) {
+                const int contentH = 20 + 8 + 13 + 20 + 8 + 2 * 24;
+                const int y = top + 2 + (area - contentH) / 6;
+                Cycle(b, kCreateType, cx - 155, y, 150, "World Type", m.createType == 1 ? "Superflat" : "Default");
+                Btn(b, "", cx + 5, y, 150, "Customize", true);
+                Plain(b, cx - 154, y + 28, 308, "Seed for the world generator", "");
+                HintField(b, kCreateSeed, cx - 154, y + 41, 308, m.createSeed, m.createFocus == 1, m.caret,
+                          "Leave blank for a random seed");
+                const auto toggle = [&](int row, const std::string& id, const std::string& label, bool on,
+                                        const std::string& info) {
+                    const int ry = y + 69 + row * 24;
+                    Plain(b, cx - 155, ry + 6, 260, label, "");
+                    (void)info;
+                    Btn(b, id, cx + 111, ry, 44, on ? "ON" : "OFF");
+                };
+                toggle(0, kCreateStructures, "Generate Structures", m.createStructures, "Villages, Shipwrecks, etc.");
+                toggle(1, kCreateBonus, "Bonus Chest", m.createBonus, "");
+            } else {
+                const int y = top + 2 + (area - 76) / 6;
+                Btn(b, "", cx - 105, y, 210, "Game Rules", true);
+                Btn(b, "", cx - 105, y + 28, 210, "Experiments", true);
+                Btn(b, "", cx - 105, y + 56, 210, "Data Packs", true);
+            }
+            Btn(b, kCreateDone, cx - 154, h - 28, 150, "Create New World");
+            Btn(b, kCreateCancel, cx + 4, h - 28, 150, "Cancel");
+        }
+
+        void EditWorld(Sb& b, const TitleModel& m, int w, int h) {
+            Backdrop(b, m, w, h);
+            const int cx = w / 2;
+            const bool icon = m.worldSelected >= 0 && m.worldSelected < static_cast<int>(m.worlds.size()) &&
+                              !m.worlds[static_cast<size_t>(m.worldSelected)].icon.empty();
+            const int contentH = 9 + 5 + 13 + 20 + 4 * 25 + 5 + 20;
+            int y = std::max(4, (h - contentH) / 2);
+            Plain(b, 0, y, w, "Edit World", "ctr");
+            if (!m.editWorldMessage.empty())
+                Plain(b, 0, std::max(2, y - 14), w, m.editWorldMessage, "ctr yellow");
+            y += 14;
+            Plain(b, cx - 100, y, 200, "World Name", "");
+            Field(b, kEditWorldName, cx - 100, y + 13, 200, m.editWorldName, true, m.caret);
+            y += 13 + 20 + 5;
+            Btn(b, icon ? kEditWorldResetIcon : "", cx - 100, y, 200, "Reset Icon", !icon);
+            Btn(b, kEditWorldFolder, cx - 100, y + 25, 200, "Open World Folder");
+            Btn(b, kEditWorldBackup, cx - 100, y + 50, 200, "Make Backup");
+            Btn(b, kEditWorldBackupFolder, cx - 100, y + 75, 200, "Open Backups Folder");
+            y += 100 + 5;
+            Btn(b, kEditWorldSave, cx - 100, y, 98, "Save");
+            Btn(b, kEditWorldCancel, cx + 2, y, 98, "Cancel");
+        }
+
+        void DeleteWorld(Sb& b, const TitleModel& m, int w, int h) {
+            Backdrop(b, m, w, h);
+            const int cx = w / 2;
+            const std::string name =
+                m.worldSelected >= 0 && m.worldSelected < static_cast<int>(m.worlds.size())
+                    ? m.worlds[static_cast<size_t>(m.worldSelected)].name
+                    : std::string();
+            const int y = std::max(20, h / 2 - 40);
+            Plain(b, 0, y, w, "Are you sure you want to delete this world?", "ctr");
+            Plain(b, 0, y + 20, w, "'" + name + "' will be lost forever! (A long time!)", "ctr");
+            Btn(b, kDeleteWorldOk, cx - 154, y + 44, 150, "Delete");
+            Btn(b, kDeleteWorldCancel, cx + 4, y + 44, 150, "Cancel");
+        }
+    }
+
+    int TitleWorldListTop() {
+        return 48;
+    }
+    int TitleWorldListBottom(int guiH) {
+        return guiH - 60;
+    }
+    int TitleWorldRows(int guiH) {
+        return std::max(1, (TitleWorldListBottom(guiH) - TitleWorldListTop() - 4) / kRowH);
     }
 
     int TitleRowHeight() {
@@ -708,6 +913,18 @@ namespace perlin::ui {
             break;
         case TitlePage::ReplayDelete:
             ReplayDelete(b, m, guiW, guiH);
+            break;
+        case TitlePage::Worlds:
+            Worlds(b, m, guiW, guiH);
+            break;
+        case TitlePage::CreateWorld:
+            CreateWorld(b, m, guiW, guiH);
+            break;
+        case TitlePage::EditWorld:
+            EditWorld(b, m, guiW, guiH);
+            break;
+        case TitlePage::DeleteWorld:
+            DeleteWorld(b, m, guiW, guiH);
             break;
         }
         return doc;

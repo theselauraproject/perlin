@@ -186,10 +186,15 @@ namespace perlin {
             if (args.benchmarkSeed)
                 s.seed = args.benchmarkSeed;
             s.output = args.benchmarkOut;
+            if (args.benchmarkWarmup >= 0)
+                s.warmupSeconds = args.benchmarkWarmup;
+            s.moving = !args.benchmarkStill;
+            s.commands = args.benchmarkCommands;
             s.exitWhenDone = true;
             StartBenchmark(std::move(s));
         }
         UpdateBenchmark(f);
+        UpdateWorldIcon();
 
         UpdateCameraEffects();
         frameParams.PrepareView(f);
@@ -825,6 +830,11 @@ namespace perlin {
             const auto realEnd = Clock::now();
             const double work = std::chrono::duration<double, std::milli>(realEnd - frameStart).count() -
                                 fgPacer.TakeWaitedMs();
+            static const double fgWait = [] {
+                const char* v = PERLIN_ENV("PERLIN_FG_WAIT");
+                return v ? std::atof(v) : 0.5;
+            }();
+            fgPacer.SetWaitFraction(fgWait);
             fgPacer.RealFrame(realEnd, fgActive, work);
             if (fgActive > 1) {
                 const auto idleUntil =
@@ -832,7 +842,7 @@ namespace perlin {
                         ? frameStart + std::chrono::microseconds(1000000LL * fgActive / options.maxFps)
                         : realEnd;
                 frames += fgPacer.Pump(FrameGenPacer::Stage::AfterPresent, !options.vsync, idleUntil,
-                                       [&](int i, int n) { return renderer->PresentGenerated(i, n); });
+                                       [&](int i, int n, double phase) { return renderer->PresentGenerated(i, n, phase); });
             }
         }
         if (frame::Profiler::Get().Enabled()) {

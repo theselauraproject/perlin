@@ -1,3 +1,6 @@
+#include <filesystem>
+#include <random>
+#include <stb_image_write.h>
 #include "client/application/PerlinInternal.hpp"
 #include "client/application/LaunchOverrides.hpp"
 #include "client/services/update/Updater.hpp"
@@ -439,7 +442,122 @@ namespace perlin {
         platform->SetTitle(title);
     }
 
-    void Perlin::JoinSingleplayer(const std::string& worldDir, uint64_t seed, int gameMode, bool persistent) {
+    void Perlin::JoinWorld(const screen::WorldLaunch& world) {
+        const auto quoted = [](const std::string& text) {
+            std::string out = "\"";
+            for (const unsigned char c : text) {
+                if (c == '"' || c == '\\')
+                    out += '\\';
+                if (c < 0x20) {
+                    char esc[8];
+                    std::snprintf(esc, sizeof esc, "\\u%04x", c);
+                    out += esc;
+                    continue;
+                }
+                out += static_cast<char>(c);
+            }
+            return out + "\"";
+        };
+        const std::string dir = paths::DataDir() + "/singleplayer";
+        std::string extra = ",\"world_folder\":" + quoted(world.folder) + ",\"level_name\":" + quoted(world.name);
+        uint64_t seed = 0;
+        int mode = -1;
+        if (world.fresh) {
+            extra += ",\"difficulty\":" + std::to_string(std::clamp(world.difficulty, 0, 3));
+            extra += std::string(",\"allow_cheats\":") + (world.cheats ? "true" : "false");
+            extra += std::string(",\"bonus_chest\":") + (world.bonusChest ? "true" : "false");
+            extra += std::string(",\"generate_structures\":") + (world.structures ? "true" : "false");
+            extra += std::string(",\"generator\":") + (world.flat ? "\"flat\"" : "\"vanilla\"");
+            if (!world.seedText.empty()) {
+                extra += ",\"seed_text\":" + quoted(world.seedText);
+            } else {
+                // a blank seed is a random one, as the game picks it
+                std::random_device rd;
+                do
+                    seed = ((static_cast<uint64_t>(rd()) << 32) | rd()) & 0x7FFFFFFFFFFFFFFFull;
+                while (seed == 0);
+            }
+            mode = world.gameMode;
+        }
+        worldIconPath = dir + "/worlds/" + world.folder + "/world_icon.jpeg";
+        worldIconStage = 1;
+        worldIconReadyAt = {};
+        JoinSingleplayer(dir, seed, mode, true, extra);
+    }
+
+    void Perlin::UpdateWorldIcon() {
+        // 2: the HUD is hidden; the capture waits two frames so no screen built with the HUD is still drawn
+        if (worldIconStage >= 2 && worldIconStage < 4) {
+            worldIconStage++;
+            return;
+        }
+        if (worldIconStage == 4) {
+            worldIconStage = 5;
+            RequestWorldIcon();
+            return;
+        }
+        if (worldIconStage == 5) {
+            options.showHud = worldIconHud;
+            worldIconStage = 6;
+            return;
+        }
+        if (worldIconStage != 1 || !inSingleplayer || !sessionReady || !renderer || WorldCovered() ||
+            screens.AnyCoveringOpen() || chat.IsOpen()) {
+            if (worldIconStage == 1 && (!sessionReady || WorldCovered()))
+                worldIconReadyAt = {};
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (worldIconReadyAt == std::chrono::steady_clock::time_point{})
+            worldIconReadyAt = now;
+        if (now - worldIconReadyAt < std::chrono::seconds(4))
+            return;
+        worldIconHud = options.showHud;
+        options.showHud = false;
+        worldIconStage = 2;
+    }
+
+    // a frame without the HUD and hand, cropped to 16:9 and kept as the world's JPEG preview
+    void Perlin::RequestWorldIcon() {
+        const std::string path = worldIconPath;
+        renderer->RequestFrameCapture([path](uint32_t w, uint32_t h, uint32_t pitch, const uint8_t* bgra, bool) {
+            if (!w || !h || !bgra)
+                return;
+            uint32_t cw = w, ch = w * 9 / 16;
+            if (ch > h) {
+                ch = h;
+                cw = h * 16 / 9;
+            }
+            const uint32_t x0 = (w - cw) / 2, y0 = (h - ch) / 2;
+            constexpr uint32_t kOutW = 384, kOutH = 216;
+            std::vector<uint8_t> rgb(static_cast<size_t>(kOutW) * kOutH * 3);
+            for (uint32_t y = 0; y < kOutH; y++)
+                for (uint32_t x = 0; x < kOutW; x++) {
+                    // box filter over the source pixels this output pixel covers
+                    const uint32_t sx0 = x0 + x * cw / kOutW, sx1 = std::max(sx0 + 1, x0 + (x + 1) * cw / kOutW);
+                    const uint32_t sy0 = y0 + y * ch / kOutH, sy1 = std::max(sy0 + 1, y0 + (y + 1) * ch / kOutH);
+                    uint32_t sum[3] = {0, 0, 0}, n = 0;
+                    for (uint32_t sy = sy0; sy < sy1 && sy < h; sy++)
+                        for (uint32_t sx = sx0; sx < sx1 && sx < w; sx++, n++) {
+                            const uint8_t* p = bgra + static_cast<size_t>(sy) * pitch + static_cast<size_t>(sx) * 4;
+                            sum[0] += p[2];
+                            sum[1] += p[1];
+                            sum[2] += p[0];
+                        }
+                    uint8_t* o = &rgb[(static_cast<size_t>(y) * kOutW + x) * 3];
+                    for (int c = 0; c < 3; c++)
+                        o[c] = static_cast<uint8_t>(n ? sum[c] / n : 0);
+                }
+            const std::string temp = path + ".tmp";
+            if (stbi_write_jpg(temp.c_str(), kOutW, kOutH, 3, rgb.data(), 90)) {
+                std::error_code ec;
+                std::filesystem::rename(temp, path, ec);
+            }
+        });
+    }
+
+    void Perlin::JoinSingleplayer(const std::string& worldDir, uint64_t seed, int gameMode, bool persistent,
+                                  const std::string& extraConfig) {
 #ifdef PERLIN_SINGLEPLAYER
         serverBrowser.ReleaseFriendLease();
         if (!singleplayerServer)
@@ -477,6 +595,7 @@ namespace perlin {
                 extra += ",\"gamemode\":" + std::to_string(gameMode);
             if (!persistent)
                 extra += ",\"world_storage\":\"none\"";
+            extra += extraConfig;
             // The vanilla behavior pack (from the Bedrock Dedicated Server download) is kept once for every
             // world, beside them, rather than downloaded again for each new world.
             const std::string packDir = paths::DataDir() + "/perlite";

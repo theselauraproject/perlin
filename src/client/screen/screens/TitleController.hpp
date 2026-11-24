@@ -1,6 +1,7 @@
 #pragma once
 #include "client/screen/ScreenManager.hpp"
 #include "client/screen/screens/ReplayLibrary.hpp"
+#include "client/screen/screens/WorldLibrary.hpp"
 #include "client/screen/screens/TitlePorts.hpp"
 #include "client/screen/screens/TitleScreen.hpp"
 #include "client/systems/config/Options.hpp"
@@ -31,6 +32,7 @@ namespace perlin::screen {
             Manager& screens;
             ui::ChatLog& chat;
             ReplayLibrary& replayLibrary;
+            WorldLibrary& worldLibrary;
             ui::UiAssets& uiAssets;
             ui::JsonScreens& jsonScreens;
             TitlePorts& ports;
@@ -75,6 +77,7 @@ namespace perlin::screen {
         Manager& screens;
         ui::ChatLog& chat;
         ReplayLibrary& replayLibrary;
+        WorldLibrary& worldLibrary;
         ui::UiAssets& uiAssets;
         ui::JsonScreens& jsonScreens;
         TitlePorts& ports;

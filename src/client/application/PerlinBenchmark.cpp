@@ -50,7 +50,15 @@ namespace perlin {
         seen.x = s.x;
         seen.y = s.y;
         seen.z = s.z;
+        {
+            const uint64_t shownNow = fgPacer.GeneratedShown();
+            seen.generatedFrames = static_cast<int>(shownNow - benchmarkGeneratedSeen);
+            benchmarkGeneratedSeen = shownNow;
+        }
+        fgPacer.TrackPacing(true);
         const bench::Driver::Action action = benchmark->Step(seen);
+        if (benchmark->Active())
+            benchmark->Shown(fgPacer.TakeShownIntervals());
         if (action.join)
             JoinSingleplayer(paths::DataDir() + "/benchmark-world", action.join->seed, action.join->mode, false);
         for (const std::string& command : action.commands)
@@ -76,7 +84,8 @@ namespace perlin {
             return;
         bench::Report report;
         report.settings = benchmark->Current().Config();
-        report.stats = bench::Compute(benchmark->Current().FrameTimes());
+        report.stats = bench::Compute(benchmark->Current().FrameTimes(), benchmark->Current().GeneratedFrames(),
+                                      benchmark->Current().ShownIntervals());
         report.build = update::BuildLabel();
         report.platform = platform::kName;
         if (renderer) {
@@ -91,6 +100,7 @@ namespace perlin {
         report.renderDistance = options.renderDistance;
         report.vsync = options.vsync;
         report.maxFps = options.maxFps;
+        report.frameGen = std::max(1, fgActive);
         const std::string json = bench::ToJson(report);
         std::string file = report.settings.output;
         if (file.empty()) {

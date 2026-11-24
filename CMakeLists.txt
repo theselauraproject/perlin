@@ -1534,7 +1534,8 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/client/systems/player/BlockCollision.cpp src/world/movement/VoxelShapes.cpp src/world/movement/PlayerPhysics.cpp
         src/client/systems/resources/BlockBoxDefinition.cpp src/client/systems/resources/BlockOffsetDefinition.cpp
         src/world/level/Level.cpp src/world/level/chunk/ChunkCodec.cpp
-        src/world/level/lighting/LightRegistry.cpp src/world/level/lighting/ChunkLighting.cpp)
+        src/world/level/lighting/LightRegistry.cpp src/world/level/lighting/ChunkLighting.cpp
+        src/world/level/lighting/LightStore.cpp)
     target_include_directories(perlin_meshbench PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/generated")
     target_link_libraries(perlin_meshbench PRIVATE glaze::glaze miniz Threads::Threads)
     target_compile_features(perlin_meshbench PRIVATE cxx_std_23)
@@ -1607,6 +1608,12 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(shaderpack_selftest PRIVATE cxx_std_23)
     add_test(NAME shaderpack_selftest COMMAND shaderpack_selftest)
 
+    # storage image declarations: the statement-scoped search must agree with one regex over the whole text
+    add_executable(glsl_image_decl_selftest tests/glsl_image_decl_selftest.cpp src/client/systems/javashaders/GlslTokens.cpp)
+    target_include_directories(glsl_image_decl_selftest PRIVATE src)
+    target_compile_features(glsl_image_decl_selftest PRIVATE cxx_std_23)
+    add_test(NAME glsl_image_decl_selftest COMMAND glsl_image_decl_selftest)
+
     add_executable(light_selftest
         tests/light_selftest.cpp
         src/world/level/lighting/ChunkLighting.cpp
@@ -1618,6 +1625,26 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_link_libraries(light_selftest PRIVATE glaze::glaze Threads::Threads)
     target_compile_features(light_selftest PRIVATE cxx_std_23)
     add_test(NAME light_selftest COMMAND light_selftest)
+
+    # the persistent light store must agree with a fresh ChunkLighting solve on every cell, across random
+    # chunk arrival orders, block edits, unloads and reloads
+    add_executable(light_store_selftest
+        tests/light_store_selftest.cpp
+        src/world/level/lighting/LightStore.cpp
+        src/world/level/lighting/ChunkLighting.cpp
+        src/world/level/lighting/LightRegistry.cpp
+        src/util/Json.cpp
+        src/world/level/Level.cpp
+        src/world/level/block/BlockPalette.cpp src/util/Resources.cpp src/util/Paths.cpp)
+    target_include_directories(light_store_selftest PRIVATE src)
+    target_link_libraries(light_store_selftest PRIVATE glaze::glaze Threads::Threads)
+    target_compile_features(light_store_selftest PRIVATE cxx_std_23)
+    add_test(NAME light_store_selftest COMMAND light_store_selftest)
+
+    add_executable(framegen_pacer_selftest tests/framegen_pacer_selftest.cpp src/client/systems/renderer/FrameGenPacer.cpp)
+    target_include_directories(framegen_pacer_selftest PRIVATE src)
+    target_compile_features(framegen_pacer_selftest PRIVATE cxx_std_23)
+    add_test(NAME framegen_pacer_selftest COMMAND framegen_pacer_selftest)
 
     if(PERLIN_WASM3)
         set(PERLIN_MOD_RUNTIME_SOURCE ${PERLIN_API_HOST_WASM3_SOURCES})

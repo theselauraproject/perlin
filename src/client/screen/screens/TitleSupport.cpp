@@ -259,6 +259,11 @@ namespace perlin::screen::title {
                page == ui::TitlePage::ReplayDelete;
     }
 
+    bool IsWorldPage(ui::TitlePage page) {
+        return page == ui::TitlePage::Worlds || page == ui::TitlePage::CreateWorld ||
+               page == ui::TitlePage::EditWorld || page == ui::TitlePage::DeleteWorld;
+    }
+
     bool IsServerFieldPage(ui::TitlePage page) {
         return page == ui::TitlePage::Edit || page == ui::TitlePage::Direct || page == ui::TitlePage::AddRealm;
     }
@@ -275,9 +280,14 @@ namespace perlin::screen::title {
         case ui::TitlePage::AccountName:
         case ui::TitlePage::AccountSignIn:
             return ui::TitlePage::Accounts;
+        case ui::TitlePage::CreateWorld:
+        case ui::TitlePage::EditWorld:
+        case ui::TitlePage::DeleteWorld:
+            return ui::TitlePage::Worlds;
         case ui::TitlePage::Servers:
         case ui::TitlePage::Accounts:
         case ui::TitlePage::Replays:
+        case ui::TitlePage::Worlds:
             return ui::TitlePage::Main;
         default:
             return page;

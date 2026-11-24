@@ -40,6 +40,10 @@ namespace perlin {
         packManager.RequestLevelUnload();
         titleScreen.active = true;
         titleScreen.returnToServers = !inSingleplayer;
+        titleScreen.returnToWorlds = inSingleplayer;
+        if (worldIconStage >= 2 && worldIconStage <= 5)
+            options.showHud = worldIconHud;
+        worldIconStage = 0;
 #ifdef PERLIN_SINGLEPLAYER
         // Saves and closes the world in the background; the next world starts once it is done.
         if (inSingleplayer && singleplayerServer)

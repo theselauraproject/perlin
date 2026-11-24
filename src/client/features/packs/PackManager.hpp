@@ -77,6 +77,8 @@ namespace perlin::packs {
         void MarkTexturesStale() { hotTexStamp = "reload"; }
         std::string& JavaPackPending() { return javaPackPending; }
 
+        LightRegistry& Lights() const { return lightRegistry; }
+
     private:
         using Clock = std::chrono::steady_clock;
         using TimePoint = Clock::time_point;

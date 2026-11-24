@@ -7,6 +7,7 @@
 #include "client/systems/javashaders/PackTextureUtil.hpp"
 #include "client/systems/javashaders/ShaderUsage.hpp"
 #include "client/systems/renderer/gpu/JavaProgramCache.hpp"
+#include "client/systems/javashaders/GlslTokens.hpp"
 #include "client/systems/renderer/gpu/PackConvert.hpp"
 #include "client/systems/renderer/gpu/PackSkyMesh.hpp"
 #include "util/ThreadPool.hpp"
@@ -1158,18 +1159,13 @@ namespace perlin::gpu {
     }
 
     void JavaPack::PlaceholdersForUndeclaredImages(const std::string& text) {
-        if (!text.contains("image"))
-            return;
-        static const std::regex kDecl(
-            R"((layout\s*\(\s*([A-Za-z0-9_]+)[^)]*\)\s*)?(?:\b(?:readonly|writeonly|coherent|volatile|restrict|uniform)\s+)+([iu]?image(?:2D|3D|2DArray))\s+([A-Za-z_][A-Za-z0-9_]*)\s*;)");
-        for (auto it = std::sregex_iterator(text.begin(), text.end(), kDecl); it != std::sregex_iterator(); ++it) {
-            const std::string name = (*it)[4].str();
-            if (imageSlotOf.contains(name))
+        for (const jshader::glsl::ImageDecl& decl : jshader::glsl::FindImageDeclarations(text)) {
+            if (imageSlotOf.contains(decl.name))
                 continue;
-            std::string format = (*it)[2].matched ? (*it)[2].str() : std::string();
+            std::string format = decl.layoutFirst;
             if (format == "binding" || format == "set" || format == "location")
                 format.clear();
-            EnsurePlaceholderImage(name, (*it)[3].str(), format);
+            EnsurePlaceholderImage(decl.name, decl.type, format);
         }
     }
 

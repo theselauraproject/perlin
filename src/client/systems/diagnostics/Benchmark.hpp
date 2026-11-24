@@ -9,6 +9,12 @@ namespace perlin::bench {
         double warmupSeconds = 10.0;
         uint64_t seed = 8675309;
         bool exitWhenDone = false;
+        // false: hold the path's starting pose, so after the warm-up loads everything the recorded frames
+        // measure rendering of one fixed scene rather than rendering plus loading
+        bool moving = true;
+        // chat commands run once, right after the first pose is set (";" between them), e.g. to summon mobs
+        // around the camera so entity rendering shows in the numbers
+        std::string commands;
         std::string output;
     };
 
@@ -20,9 +26,14 @@ namespace perlin::bench {
         double low01Fps = 0;
         double medianMs = 0, p95Ms = 0, p99Ms = 0, worstMs = 0, bestMs = 0;
         size_t hitches = 0;
+        // frames produced by frame generation in the recorded span, and every frame that reached the screen
+        size_t generatedFrames = 0;
+        double shownFps = 0;
+        // time between consecutive frames reaching the screen (real or generated): even pacing keeps these close
+        double shownIntervalMedianMs = 0, shownIntervalP95Ms = 0;
     };
 
-    Stats Compute(std::vector<double> frameMs);
+    Stats Compute(std::vector<double> frameMs, size_t generatedFrames = 0, std::vector<double> shownIntervals = {});
 
     struct Pose {
         double x = 0, y = 0, z = 0;
@@ -38,6 +49,7 @@ namespace perlin::bench {
         float renderScale = 1.0f;
         bool vsync = false;
         int maxFps = 0;
+        int frameGen = 1;
     };
     std::string ToJson(const Report& report);
     std::string Summary(const Stats& stats);
@@ -53,8 +65,12 @@ namespace perlin::bench {
         void Spawned(double x, double y, double z);
         bool HasSpawn() const { return spawned; }
 
-        Pose Frame(double frameSeconds);
+        Pose Frame(double frameSeconds, int generated = 0);
+        size_t GeneratedFrames() const { return generated; }
         const std::vector<double>& FrameTimes() const { return frameMs; }
+        // intervals between frames shown, kept while recording
+        void Shown(const std::vector<double>& intervalsMs);
+        const std::vector<double>& ShownIntervals() const { return shownIntervals; }
         double Elapsed() const { return elapsed; }
 
         float Progress() const;
@@ -66,5 +82,7 @@ namespace perlin::bench {
         double sx = 0, sy = 0, sz = 0;
         double elapsed = 0;
         std::vector<double> frameMs;
+        size_t generated = 0;
+        std::vector<double> shownIntervals;
     };
 }

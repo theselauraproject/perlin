@@ -12,6 +12,7 @@
 #include "client/systems/gfx/Tessellator.hpp"
 #include "world/level/lighting/ChunkLighting.hpp"
 #include "world/level/lighting/LightRegistry.hpp"
+#include "world/level/lighting/LightStore.hpp"
 #include "client/systems/player/BlockCollision.hpp"
 
 #include <algorithm>
@@ -659,7 +660,9 @@ namespace perlin {
                    static_cast<size_t>(x + 1);
         }
         PERLIN_HOT bool InRange(int x, int y, int z) const {
-            return x >= -1 && x <= 16 && z >= -1 && z <= 16 && y >= yBase && y < yBase + yRows;
+            // One unsigned compare per axis: -1..16 across, yBase..yBase+yRows-1 up.
+            return static_cast<unsigned>(x + 1) < 18u && static_cast<unsigned>(z + 1) < 18u &&
+                   static_cast<unsigned>(y - yBase) < static_cast<unsigned>(yRows);
         }
 
         void FillRaw(Level& level, const ChunkPos& pos, int yLo, int yHi) {
@@ -1013,9 +1016,9 @@ namespace perlin {
         class BlockMesher {
         public:
             BlockMesher(Tessellator& tess, const BlockCache& cache, BlockLibrary* library, BiomeTints* tints,
-                        const ChunkLighting::Result& lighting, ChunkPos pos)
+                        const ChunkLighting::Result& lighting, ChunkPos pos, const LightRegistry& registry)
                 : tess(tess), cache(cache), library(library), tints(tints), lighting(lighting), pos(pos),
-                  registry(LightRegistry::Instance()), textured(library && library->Ready()),
+                  registry(registry), textured(library && library->Ready()),
                   haveTints(tints && tints->Ready()), baseX(pos.x * 16), baseZ(pos.z * 16), biomeNames(256) {}
 
             void MeshCell(int x, int y, int z, int pass);
@@ -2815,6 +2818,7 @@ namespace perlin {
     void BuildChunkMesh(Level& level, const ChunkPos& pos, Tessellator& tess, BlockLibrary* library,
                         BiomeTints* tints, MeshReuse* reuse) {
         const uint64_t t0 = NowUs();
+        const LightRegistry& lights = LightRegistry::Instance();
         bool textured = library && library->Ready();
         bool haveTints = tints && tints->Ready();
 
@@ -2872,10 +2876,19 @@ namespace perlin {
             tess.AddVisibility(sy, SectionConnectivity(cache, sy));
         const uint64_t t2 = NowUs();
         static thread_local ChunkLighting::Result lighting;
-        ChunkLighting::Compute(level, pos, std::max(cache.yBase, lowAir - 3), cache.yBase + cache.yRows - 1,
-                               lighting);
+        {
+            // The light kept for the chunk and its neighbours, brought up to date where they changed (see
+            // LightStore); the same values ChunkLighting::Compute would work out for this window.
+            std::lock_guard<std::mutex> lk(level.mutex);
+            LightStore::For(level, lights).Extract(level, pos, std::max(cache.yBase, lowAir - 3), cache.yBase + cache.yRows - 1,
+                                           lighting);
+        }
         const uint64_t t3 = NowUs();
-        tess.Reserve(8192);
+        // Room for the whole mesh up front: the last mesh of this chunk when there is one, else what this thread's
+        // recent meshes needed. Growing the vertex array by doubling copied every vertex several times per mesh.
+        static thread_local size_t typicalQuads = 6144;
+        const size_t expectQuads = reuse && reuse->mesh ? reuse->mesh->Vertices().size() / 4 : typicalQuads;
+        tess.Reserve(expectQuads + expectQuads / 8 + 64);
 
         static thread_local std::vector<uint8_t> keep;
         keep.assign(Chunk::SECTION_COUNT + 2, 0);
@@ -2921,7 +2934,7 @@ namespace perlin {
             for (auto& k : keep)
                 k = k & 2 ? 0 : 1;
         }
-        BlockMesher mesher(tess, cache, library, tints, lighting, pos);
+        BlockMesher mesher(tess, cache, library, tints, lighting, pos, lights);
 
         int rebuiltSections = 0, copiedSections = 0;
         for (int y = faceLo; y <= yHi; y++) {
@@ -2976,6 +2989,7 @@ namespace perlin {
             reuse->rebuilt = rebuiltSections;
             reuse->copied = copiedSections;
         }
+        typicalQuads = (typicalQuads * 3 + tess.Vertices().size() / 4) / 4;
         const uint64_t t4 = NowUs();
         gProf[0] += t1 - t0;
         gProf[1] += t2 - t1;

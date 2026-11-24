@@ -23,6 +23,7 @@ namespace perlin::bench {
             bool worldReady = false;
             bool hasSession = false;
             double x = 0, y = 0, z = 0;
+            int generatedFrames = 0;
         };
 
         struct JoinRequest {
@@ -44,6 +45,7 @@ namespace perlin::bench {
             : run(std::move(settings)), environment(std::move(environment)) {}
 
         const Run& Current() const { return run; }
+        void Shown(const std::vector<double>& intervalsMs) { run.Shown(intervalsMs); }
         bool Active() const { return run.Current() != Phase::Done; }
 
         Action Step(const Observation& observation);
@@ -53,6 +55,7 @@ namespace perlin::bench {
         Environment environment;
         TimePoint lastFrame{};
         bool joinIssued = false;
+        bool setupSent = false;
         bool worldOnly = false;
     };
 }

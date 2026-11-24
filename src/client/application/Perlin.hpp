@@ -52,6 +52,8 @@
 #include "client/features/servers/ServerBrowser.hpp"
 #include "client/application/ReplayHostAdapter.hpp"
 #include "client/screen/screens/ReplayLibrary.hpp"
+#include "client/screen/screens/WorldLibrary.hpp"
+#include "util/Paths.hpp"
 #include "client/systems/replay/ReplayController.hpp"
 #include "client/systems/replay/Timeline.hpp"
 #include "client/systems/diagnostics/BenchmarkDriver.hpp"
@@ -199,7 +201,12 @@ namespace perlin {
         void BuildDiscordService();
         void UpdateDiscord();
         void JoinSingleplayer(const std::string& worldDir = {}, uint64_t seed = 0, int gameMode = -1,
-                              bool persistent = true);
+                              bool persistent = true, const std::string& extraConfig = {});
+        // A world from the world list: an existing one by folder, or a new one with its creation settings.
+        void JoinWorld(const screen::WorldLaunch& world);
+        // A few seconds into a singleplayer world, one frame without the HUD becomes its preview icon.
+        void UpdateWorldIcon();
+        void RequestWorldIcon();
         void StartBenchmark(bench::Settings settings);
         void UpdateBenchmark(FrameContext& f);
         void FinishBenchmark();
@@ -237,6 +244,7 @@ namespace perlin {
         std::atomic<bool> renderReady{false};
         FrameGenPacer fgPacer;
         int fgActive = 1;
+        uint64_t benchmarkGeneratedSeen = 0;
 
         Camera camera;
         LocalPlayer player;
@@ -387,7 +395,8 @@ namespace perlin {
             [this] { return Accounts().ActiveId(); },
             [this](const std::string& id, const std::string& skin, const std::string& cape) {
                 Accounts().SetSkin(id, skin, cape);
-            }};
+            },
+            [this] { return inSingleplayer; }};
         screen::PauseScreen& pause = screens.Emplace<screen::PauseScreen>(screen::Id::Pause, screen::Traits{true}, screenHost, pauseHost);
         std::unique_ptr<BedrockSession> session;
         std::vector<std::unique_ptr<BedrockSession>> retiredSessions;
@@ -399,6 +408,10 @@ namespace perlin {
         screen::ConnectionPorts::VersionOverride versionOverride;
         std::unique_ptr<Transport> pendingSingleplayer;
         bool inSingleplayer = false;
+        std::string worldIconPath;
+        int worldIconStage = 0; // 0 none, 1 waiting for the world, 2-4 HUD hidden, 5 captured, 6 done
+        bool worldIconHud = true;
+        std::chrono::steady_clock::time_point worldIconReadyAt;
         services::AccountService::ConnectLogin connectLogin;
         std::mutex statusMutex;
         std::string statusHint;
@@ -462,6 +475,12 @@ namespace perlin {
             [this](const std::string& url) { OpenUrl(url); },
             [this](const std::string& file) { replayStudio.StartPlayback(file); },
             [this](const std::string& text) { chat.AddMessage(text, hudAnim.ticks); }}};
+        screen::WorldLibrary worldLibrary{screen::WorldLibrary::Deps{
+            title, [this] { titleScreen.signature.clear(); },
+            [this](const std::string& url) { OpenUrl(url); },
+            [this](const screen::WorldLaunch& world) { JoinWorld(world); },
+            [] { return paths::DataDir() + "/singleplayer/worlds"; },
+            [] { return paths::DataDir() + "/backups"; }}};
         TitlePortsImpl titlePorts{TitlePortsImpl::Deps{
             serverBrowser, appServices, packManager, connectsInFlight, ServerPacks::Instance(),
             [this] { ApplyActiveAccount(); },
@@ -475,7 +494,7 @@ namespace perlin {
         screen::DisconnectController disconnectController{screen::DisconnectController::Deps{
             disconnect, screens, input, options, chat, panorama, connectionPorts}};
         screen::TitleController titleController{screen::TitleController::Deps{
-            titleScreen, title, options, input, inputManager, panorama, screens, chat, replayLibrary,
+            titleScreen, title, options, input, inputManager, panorama, screens, chat, replayLibrary, worldLibrary,
             ui::UiAssets::Instance(), ui::JsonScreens::Instance(), titlePorts}};
         ConnectionPortsImpl connectionPorts{ConnectionPortsImpl::Deps{
             session, levelRenderer, sessionReady, statusMutex, statusHint, onlineThisRun, inSingleplayer, replayCtl,
@@ -504,7 +523,7 @@ namespace perlin {
 #endif
                 return out;
             }}};
-        LightBandCache lightCache;
+        LightBandCache lightCache{packManager.Lights()};
         worldview::ViewEnvironment view{worldview::ViewEnvironment::Deps{
             modHost, BlockPalette::Instance(), lightCache, replayStudio, levelRenderer, camera, loop, debugOverlay, replayCtl, session,
             [this] {

@@ -1,3 +1,5 @@
+#include <sstream>
+#include <fstream>
 #include "client/selftest/SelfTests.hpp"
 #include <string_view>
 #include "util/TaskGroup.hpp"
@@ -275,6 +277,20 @@ namespace {
                 args.benchmarkSeed = std::strtoull(argv[++i], nullptr, 10);
             else if (arg == "--benchmark-out" && i + 1 < argc)
                 args.benchmarkOut = argv[++i];
+            else if (arg == "--benchmark-warmup" && i + 1 < argc)
+                args.benchmarkWarmup = std::max(0.0, std::atof(argv[++i]));
+            else if (arg == "--benchmark-commands" && i + 1 < argc) {
+                args.benchmarkCommands = argv[++i];
+                if (!args.benchmarkCommands.empty() && args.benchmarkCommands[0] == '@') {
+                    std::ifstream in(args.benchmarkCommands.substr(1));
+                    std::stringstream text;
+                    text << in.rdbuf();
+                    args.benchmarkCommands = text.str();
+                    std::replace(args.benchmarkCommands.begin(), args.benchmarkCommands.end(), '\n', ';');
+                }
+            }
+            else if (arg == "--benchmark-path" && i + 1 < argc)
+                args.benchmarkStill = std::string(argv[++i]) == "still";
             else if (arg == "--help" || arg == "-h")
                 std::printf(
                     "Perlin options:\n"
@@ -295,6 +311,10 @@ namespace {
                     "  --benchmark [secs]   fly through a fixed world, write the frame times and quit\n"
                     "  --benchmark-seed <n> world seed for the benchmark (default 8675309)\n"
                     "  --benchmark-out <f>  where the benchmark json goes (default <data>/benchmarks)\n"
+                    "  --benchmark-warmup <secs>  seconds before recording starts (default 10)\n"
+                    "  --benchmark-path <flight|still>  fly the circle, or hold the start pose to time\n"
+                    "                       rendering alone once the warm-up has loaded the world\n"
+                    "  --benchmark-commands <c;c|@file>  chat commands to run once the benchmark starts\n"
                     "  --renderdoc          load RenderDoc in-process (F12 captures, attach from the RenderDoc UI)\n");
         }
         return args;

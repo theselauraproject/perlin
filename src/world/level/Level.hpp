@@ -66,6 +66,19 @@ namespace perlin {
                         size_t stride) const;
 
         void ReadBlocks(int x, int z, int yLo, int yHi, uint16_t* blocks, size_t stride) const;
+        // True when every block of the section is the same (an absent section is all air); id is that block.
+        bool SectionUniform(int section, uint16_t& id) const {
+            const auto& s = sections[static_cast<size_t>(section)];
+            if (!s) {
+                id = 0;
+                return true;
+            }
+            if (s->blocks.Empty()) {
+                id = s->uniform;
+                return true;
+            }
+            return false;
+        }
         // rows z0..z0+zn-1 of one y layer, n blocks from x0 each, written zStride apart; air where nothing is stored
         void CopyRows(int y, int z0, int zn, int x0, int n, uint16_t* blocks, size_t zStride) const;
         void CopyRun(int y, int z, int x0, int n, uint16_t* blocks, uint8_t* biomes, uint16_t* liquid) const;
@@ -192,5 +205,7 @@ namespace perlin {
         std::atomic<int> lodOnlyCount{0};
         std::atomic<uint64_t> changeCounter{0};
         std::atomic<uint64_t> clearCounter{0};
+        // The chunk light kept between meshes (LightStore); only touched with mutex held.
+        std::shared_ptr<void> lightCache;
     };
 }

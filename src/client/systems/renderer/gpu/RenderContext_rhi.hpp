@@ -170,7 +170,7 @@ namespace perlin {
         void BeginFrame(const FrameParams& params) override;
         void EndFrame() override;
         double LastGpuMs() const override { return features.LastGpuMs(); }
-        bool PresentGenerated(int index, int total) override;
+        bool PresentGenerated(int index, int total, double phase) override;
         bool CanGenerateFrames() const override {
             return initialized && !offscreen && !fgenBlocked && ProgramIndex(Program::FrameGen) >= 0;
         }

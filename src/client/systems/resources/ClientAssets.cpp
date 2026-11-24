@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 
 namespace perlin::clientassets {
     namespace {
-        constexpr const char* kMarker = ".ready8";
+        constexpr const char* kMarker = ".ready9";
         const std::string kBase = "assets/minecraft/textures/";
 
         struct Image {
@@ -299,9 +299,15 @@ namespace perlin::clientassets {
                 {"ui_menu_language.png", "sprites/icon/language.png"},
                 {"ui_menu_accessibility.png", "sprites/icon/accessibility.png"},
                 {"ui_menu_scroller.png", "sprites/widget/scroller.png"},
+                {"ui_menu_tab.png", "sprites/widget/tab.png"},
+                {"ui_menu_tab_hi.png", "sprites/widget/tab_highlighted.png"},
+                {"ui_menu_tab_sel.png", "sprites/widget/tab_selected.png"},
+                {"ui_menu_tab_sel_hi.png", "sprites/widget/tab_selected_highlighted.png"},
             };
             for (const auto& [dst, src] : sprites)
                 emit(dst, gui(src));
+            // the world list's picture for a world that has no preview yet
+            emit("ui_menu_unknown_world.png", jar.Load(kBase + "misc/unknown_server.png"));
         }
 
         for (const char* text : {"end.txt", "credits.json", "postcredits.txt"}) {

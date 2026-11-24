@@ -376,6 +376,7 @@ namespace perlin {
         changeCounter++;
         clearCounter++;
         chunks.clear();
+        lightCache.reset();
         lodOnlyCount = 0;
         dirty.clear();
         undo.clear();
@@ -472,6 +473,8 @@ namespace perlin {
         std::scoped_lock lock(mutex, other.mutex);
         chunks = std::move(other.chunks);
         other.chunks.clear();
+        lightCache.reset();
+        other.lightCache.reset();
         dirty = std::move(other.dirty);
         other.dirty.clear();
         undo = std::move(other.undo);

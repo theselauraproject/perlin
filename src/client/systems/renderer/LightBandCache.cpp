@@ -1,5 +1,7 @@
 #include "client/systems/renderer/LightBandCache.hpp"
 
+#include "world/level/lighting/LightStore.hpp"
+
 namespace perlin {
     uint8_t LightBandCache::At(Level& level, int bx, int by, int bz, TimePoint now) {
         if (owner != &level || bands.size() > 2048) {
@@ -31,7 +33,10 @@ namespace perlin {
                                           age > std::chrono::seconds(20)))) {
             budget--;
             const uint64_t area = level.AreaVersion(cx, cz);
-            if (ChunkLighting::Compute(level, {cx, cz}, band * 16 - 8, band * 16 + 23, b.lit, true)) {
+            std::unique_lock lock(level.mutex, std::try_to_lock);
+            if (lock.owns_lock()) {
+                LightStore::For(level, registry).Extract(level, {cx, cz}, band * 16 - 8, band * 16 + 23, b.lit);
+                lock.unlock();
                 b.at = now;
                 b.counter = counter;
                 b.area = area;

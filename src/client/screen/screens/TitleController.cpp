@@ -17,7 +17,7 @@ namespace perlin::screen {
     TitleController::TitleController(Deps d)
         : titleScreen(d.titleScreen), title(d.title), options(d.options), input(d.input),
           inputManager(d.inputManager), panorama(d.panorama), screens(d.screens), chat(d.chat),
-          replayLibrary(d.replayLibrary), uiAssets(d.uiAssets), jsonScreens(d.jsonScreens), ports(d.ports) {}
+          replayLibrary(d.replayLibrary), worldLibrary(d.worldLibrary), uiAssets(d.uiAssets), jsonScreens(d.jsonScreens), ports(d.ports) {}
 
     bool TitleController::Update(ui::Hud& hud, int fbW, int fbH) {
         const auto now = Clock::now();
@@ -39,6 +39,7 @@ namespace perlin::screen {
         if (!titleScreen.active)
             return false;
         ScrollTitleLists(guiH);
+        worldLibrary.Poll();
 
         ports.ReleaseIdleServerPacks();
         panorama.Draw(fbW, fbH,
@@ -91,6 +92,10 @@ namespace perlin::screen {
                 if (title.servers[i].address == options.server)
                     title.selected = static_cast<int>(i) + title.savedOffset;
         }
+        if (titleScreen.returnToWorlds) {
+            titleScreen.returnToWorlds = false;
+            worldLibrary.Open();
+        }
         if (titleScreen.returnToReplays) {
             titleScreen.returnToReplays = false;
             title.page = ui::TitlePage::Replays;
@@ -116,6 +121,20 @@ namespace perlin::screen {
             title.name = title.servers[0].name;
             title.address = title.servers[0].address;
             title.focus = 1;
+        } else if (page == "worlds" || page == "create" || page == "create-world" || page == "create-more" ||
+                   page == "edit-world" || page == "delete-world") {
+            worldLibrary.Open();
+            if (page == "worlds" && !title.worlds.empty())
+                title.worldSelected = 0;
+            if (page.starts_with("create")) {
+                worldLibrary.Click(ui::kWorldCreate);
+                title.page = ui::TitlePage::CreateWorld;
+                title.createTab = page == "create-world" ? 1 : page == "create-more" ? 2 : 0;
+            }
+            if ((page == "edit-world" || page == "delete-world") && !title.worlds.empty()) {
+                title.worldSelected = 0;
+                worldLibrary.Click(page == "edit-world" ? ui::kWorldEdit : ui::kWorldDelete);
+            }
         } else if (page == "replays") {
             title.page = ui::TitlePage::Replays;
             title.replaySelected = -1;
@@ -222,6 +241,8 @@ namespace perlin::screen {
                 TitleBack();
             } else if (title::IsReplayPage(title.page)) {
                 replayLibrary.Typed(t);
+            } else if (title::IsWorldPage(title.page)) {
+                worldLibrary.Typed(t);
             } else if (title.page == ui::TitlePage::AccountName) {
                 ui::TextLimits limits{16};
                 limits.accept = [](uint32_t cp) { return cp != ' '; };
@@ -259,6 +280,10 @@ namespace perlin::screen {
         case ui::TitlePage::Replays:
             title::ScrollList(title.replayScroll, title.replaySelected, static_cast<int>(title.replays.size()),
                        ui::TitleVisibleRows(guiH), inputManager.Scroll());
+            break;
+        case ui::TitlePage::Worlds:
+            title::ScrollList(title.worldScroll, title.worldSelected, static_cast<int>(title.worlds.size()),
+                              ui::TitleWorldRows(guiH), inputManager.Scroll());
             break;
         case ui::TitlePage::Accounts:
             title::ScrollList(title.accountScroll, -1, static_cast<int>(title.accounts.size()),
@@ -398,6 +423,8 @@ namespace perlin::screen {
             for (const ui::ReplayEntry& r : title.replays)
                 signature += "|" + r.file + r.name + r.line1;
         }
+        if (title::IsWorldPage(title.page))
+            signature += worldLibrary.Signature() + caret;
         if (title::IsServerFieldPage(title.page)) {
             signature += "|" + title.joinMessage + "|" + title.name + "|" + title.address + "|" + caret +
                          (title.adding ? "a" : "e");
@@ -501,7 +528,8 @@ namespace perlin::screen {
             return hover.starts_with(p) ? std::atoi(hover.c_str() + p.size()) : -1;
         };
         const auto showPage = [&](ui::TitlePage page) { title.page = page; };
-        if (replayLibrary.Click(hover)) {
+        if (worldLibrary.Click(hover)) {
+        } else if (replayLibrary.Click(hover)) {
         } else if (hover == ui::kTitleAccounts) {
             showPage(ui::TitlePage::Accounts);
         } else if (hover == ui::kAccountDone) {

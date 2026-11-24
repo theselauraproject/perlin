@@ -49,6 +49,18 @@ namespace perlin::ui {
         unsigned durationMs = 0;
     };
 
+    // A singleplayer world, as the world list shows it.
+    struct WorldEntry {
+        std::string folder;      // its folder under the worlds directory
+        std::string name;        // LevelName
+        std::string line2, line3; // "folder (date)" and "Survival Mode, Cheats, Version: ..."
+        std::string icon;        // image source for the preview, empty when there is none
+        long long lastPlayed = 0;
+        long long seed = 0;
+        int gameType = 0, difficulty = 2, generator = 1;
+        bool cheats = false, structures = true;
+    };
+
     enum class TitlePage {
         Main,
         Servers,
@@ -60,7 +72,11 @@ namespace perlin::ui {
         AccountSignIn,
         Replays,
         ReplayRename,
-        ReplayDelete
+        ReplayDelete,
+        Worlds,
+        CreateWorld,
+        EditWorld,
+        DeleteWorld
     };
 
     struct TitleModel {
@@ -117,6 +133,26 @@ namespace perlin::ui {
         std::string replayMessage;
         std::string replayName;
 
+        // Select World: the worlds matching the search, newest played first
+        std::vector<WorldEntry> worlds;
+        int worldSelected = -1;
+        int worldScroll = 0;
+        std::string worldSearch;
+        bool worldSearchFocus = false;
+        std::string worldMessage;
+        int worldTotal = 0;
+        // Create New World (also Re-Create)
+        int createTab = 0; // Game, World, More
+        int createFocus = 0; // 0 world name, 1 seed
+        std::string createName = "New World", createSeed, createFolder;
+        int createMode = 0; // 0 Survival, 1 Creative, 2 Adventure
+        int createDifficulty = 2; // Peaceful, Easy, Normal, Hard
+        bool createCheats = false;
+        int createType = 0; // 0 Default, 1 Superflat
+        bool createStructures = true, createBonus = false;
+        // Edit World
+        std::string editWorldName, editWorldMessage;
+
         std::string accountLabel;
         std::string accountUser;
         std::string accountHead;
@@ -152,6 +188,35 @@ namespace perlin::ui {
     inline constexpr const char* kReplayNameField = "rp_name";
     inline constexpr const char* kReplayDeleteOk = "rp_delete_ok";
     inline constexpr const char* kReplayDialogCancel = "rp_dialog_cancel";
+    inline constexpr const char* kWorldSearch = "w_search";
+    inline constexpr const char* kWorldRowPrefix = "wrow_";
+    inline constexpr const char* kWorldPlayPrefix = "wgo_";
+    inline constexpr const char* kWorldPlay = "w_play";
+    inline constexpr const char* kWorldCreate = "w_create";
+    inline constexpr const char* kWorldEdit = "w_edit";
+    inline constexpr const char* kWorldDelete = "w_delete";
+    inline constexpr const char* kWorldRecreate = "w_recreate";
+    inline constexpr const char* kWorldBack = "w_back";
+    inline constexpr const char* kCreateTabPrefix = "ctab_";
+    inline constexpr const char* kCreateName = "c_name";
+    inline constexpr const char* kCreateSeed = "c_seed";
+    inline constexpr const char* kCreateMode = "c_mode";
+    inline constexpr const char* kCreateDifficulty = "c_diff";
+    inline constexpr const char* kCreateCheats = "c_cheats";
+    inline constexpr const char* kCreateType = "c_type";
+    inline constexpr const char* kCreateStructures = "c_struct";
+    inline constexpr const char* kCreateBonus = "c_bonus";
+    inline constexpr const char* kCreateDone = "c_done";
+    inline constexpr const char* kCreateCancel = "c_cancel";
+    inline constexpr const char* kEditWorldName = "ew_name";
+    inline constexpr const char* kEditWorldResetIcon = "ew_icon";
+    inline constexpr const char* kEditWorldFolder = "ew_folder";
+    inline constexpr const char* kEditWorldBackup = "ew_backup";
+    inline constexpr const char* kEditWorldBackupFolder = "ew_backups";
+    inline constexpr const char* kEditWorldSave = "ew_save";
+    inline constexpr const char* kEditWorldCancel = "ew_cancel";
+    inline constexpr const char* kDeleteWorldOk = "dw_ok";
+    inline constexpr const char* kDeleteWorldCancel = "dw_cancel";
     inline constexpr const char* kServerJoin = "servers_join";
     inline constexpr const char* kServerDirect = "servers_direct";
     inline constexpr const char* kServerAdd = "servers_add";

@@ -1033,13 +1033,14 @@ namespace perlin {
         }
     }
 
-    bool RenderContext_rhi::PresentGenerated(int index, int total) {
+    bool RenderContext_rhi::PresentGenerated(int index, int total, double phase) {
         if (!initialized || frameOpen || offscreen || !fgen.valid || !fgen.depthSource || total < 2 ||
             index < 1 || index >= total || ProgramIndex(Program::FrameGen) < 0)
             return false;
         if (gpu.TargetWidth() != fgen.w || gpu.TargetHeight() != fgen.h || gpu.TargetFormat() != fgen.format)
             return false;
-        const double t = static_cast<double>(index) / static_cast<double>(total);
+        const double t = std::isfinite(phase) && phase >= 0.0 ? std::min(phase, 1.0)
+                                                              : static_cast<double>(index) / static_cast<double>(total);
         const glm::dmat4 genView = fgen.havePrev ? ExtrapolateView(fgen.prevView, fgen.view, t) : fgen.view;
         const glm::dmat4 shift = glm::translate(glm::dmat4(1.0), fgen.eye);
         const glm::dmat4 curVp = fgen.proj * fgen.view * shift;
@@ -1057,7 +1058,9 @@ namespace perlin {
             v.draws.clear();
         frameOpen = true;
         ResetBindings();
-        uni.Vec4("u_post", 0.0f, kOrigin, 0.0f, 0.0f);
+        // no camera motion to extrapolate: the shader shows the captured frame and skips reprojection
+        const bool still = !fgen.havePrev || genView == fgen.view;
+        uni.Vec4("u_post", 0.0f, kOrigin, still ? 1.0f : 0.0f, 0.0f);
         uni.Vec4("u_gen", nearZ, farZ, kOrigin > 0.5f ? 1.0f : -1.0f, 0.0f);
         uni.Mat4("u_genInvVp", invGen);
         uni.Mat4("u_genCurVp", cur);

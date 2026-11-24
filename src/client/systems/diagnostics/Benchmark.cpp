@@ -34,7 +34,7 @@ namespace perlin::bench {
         }
     }
 
-    Stats Compute(std::vector<double> frameMs) {
+    Stats Compute(std::vector<double> frameMs, size_t generatedFrames, std::vector<double> shownIntervals) {
         Stats s;
         std::erase_if(frameMs, [](double v) { return !(v > 0.0) || !std::isfinite(v); });
         s.frames = frameMs.size();
@@ -55,6 +55,13 @@ namespace perlin::bench {
         for (double ms : frameMs)
             if (ms > 2.0 * s.medianMs && ms > 33.3)
                 s.hitches++;
+        s.generatedFrames = generatedFrames;
+        if (!shownIntervals.empty()) {
+            std::sort(shownIntervals.begin(), shownIntervals.end());
+            s.shownIntervalMedianMs = Percentile(shownIntervals, 0.5);
+            s.shownIntervalP95Ms = Percentile(shownIntervals, 0.95);
+        }
+        s.shownFps = total > 0 ? 1000.0 * static_cast<double>(frameMs.size() + generatedFrames) / total : 0.0;
         return s;
     }
 
@@ -85,7 +92,12 @@ namespace perlin::bench {
         elapsed = 0;
     }
 
-    Pose Run::Frame(double frameSeconds) {
+    void Run::Shown(const std::vector<double>& intervalsMs) {
+        if (phase == Phase::Recording)
+            shownIntervals.insert(shownIntervals.end(), intervalsMs.begin(), intervalsMs.end());
+    }
+
+    Pose Run::Frame(double frameSeconds, int generatedNow) {
         Pose pose;
         if (!spawned || phase == Phase::Done)
             return pose;
@@ -94,10 +106,13 @@ namespace perlin::bench {
             phase = Phase::Recording;
         if (phase == Phase::Recording) {
             frameMs.push_back(frameSeconds * 1000.0);
+            generated += static_cast<size_t>(std::max(0, generatedNow));
             if (elapsed >= settings.warmupSeconds + settings.seconds)
                 phase = Phase::Done;
         }
-        pose = PathAt(elapsed);
+        pose = PathAt(settings.moving ? elapsed : 0.0);
+        if (!settings.moving)
+            pose.pitch = -45.0f; // held: look down over the ground ahead, where play and any summoned mobs are
         pose.x += sx;
         pose.y += sy;
         pose.z += sz;
@@ -114,7 +129,13 @@ namespace perlin::bench {
         std::snprintf(buf, sizeof(buf),
                       "%.0f fps average, %.0f fps 1%% low, %.0f fps 0.1%% low (%zu frames, %zu hitches)",
                       s.averageFps, s.low1Fps, s.low01Fps, s.frames, s.hitches);
-        return buf;
+        std::string out = buf;
+        if (s.generatedFrames > 0) {
+            std::snprintf(buf, sizeof(buf), "; %.0f fps shown with %zu generated frames", s.shownFps,
+                          s.generatedFrames);
+            out += buf;
+        }
+        return out;
     }
 
     std::string ToJson(const Report& r) {
@@ -131,13 +152,20 @@ namespace perlin::bench {
         j += "  \"render_distance\": " + std::to_string(r.renderDistance) + ",\n";
         j += "  \"vsync\": " + std::string(r.vsync ? "true" : "false") + ",\n";
         j += "  \"max_fps\": " + std::to_string(r.maxFps) + ",\n";
+        j += "  \"frame_generation\": " + std::to_string(r.frameGen) + ",\n";
         j += "  \"seed\": " + std::to_string(r.settings.seed) + ",\n";
+        j += "  \"path\": \"" + std::string(r.settings.moving ? "flight" : "still") + "\",\n";
+        j += "  \"warmup_seconds\": " + Num(r.settings.warmupSeconds) + ",\n";
         j += "  \"warmup_seconds\": " + Num(r.settings.warmupSeconds, 1) + ",\n";
         j += "  \"frames\": " + std::to_string(s.frames) + ",\n";
         j += "  \"seconds\": " + Num(s.seconds, 3) + ",\n";
         j += "  \"average_fps\": " + Num(s.averageFps) + ",\n";
         j += "  \"low_1_percent_fps\": " + Num(s.low1Fps) + ",\n";
         j += "  \"low_0_1_percent_fps\": " + Num(s.low01Fps) + ",\n";
+        j += "  \"generated_frames\": " + std::to_string(s.generatedFrames) + ",\n";
+        j += "  \"shown_fps\": " + Num(s.shownFps) + ",\n";
+        j += "  \"shown_interval_median_ms\": " + Num(s.shownIntervalMedianMs) + ",\n";
+        j += "  \"shown_interval_p95_ms\": " + Num(s.shownIntervalP95Ms) + ",\n";
         j += "  \"frame_ms\": {\"best\": " + Num(s.bestMs, 3) + ", \"median\": " + Num(s.medianMs, 3) +
              ", \"p95\": " + Num(s.p95Ms, 3) + ", \"p99\": " + Num(s.p99Ms, 3) +
              ", \"worst\": " + Num(s.worstMs, 3) + "},\n";
