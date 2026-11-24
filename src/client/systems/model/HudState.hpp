@@ -156,6 +156,7 @@ namespace perlin::ui {
         float chatTextAlpha = 1.0f;
         float chatBackgroundAlpha = 0.5f;
         bool chatAtTop = false; // "Bottom Chat" off: the lines hang from the top left, newest last
+        bool chatBelowDoll = false; // top chat leaves room for the paper doll (its option is on)
         std::string chatInput;
         int chatCaret = 0;
         int chatSelStart = 0, chatSelEnd = 0;

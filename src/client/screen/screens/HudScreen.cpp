@@ -149,6 +149,9 @@ namespace perlin::screen {
         chat.SetLayout(layout);
         chat.Fill(s, hudAnim.ticks, detail::MsNow(), pause.IsOpen() && pause.OnChatSettings());
         s.chatAtTop = !options.chat.bottom;
+        // Room for the paper doll whenever its option is on, not only while it shows (sprinting,
+        // sneaking...), so the chat does not jump up and down; with the doll off, the very top.
+        s.chatBelowDoll = options.paperDoll;
     }
 
     void HudScreen::FillHudSidebar(ui::HudState& s, BedrockSession* live, bool preview) {

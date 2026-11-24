@@ -487,9 +487,9 @@ namespace perlin::ui {
             }
             w.EndSection("chat_scroll");
             if (s.chatAtTop) {
-                // Tells the emitter to place the chat area at the top.
+                // Tells the emitter to place the chat area at the top, under the paper doll or not.
                 w.BeginSection();
-                w.EndSection("chat_top");
+                w.EndSection(s.chatBelowDoll ? "chat_top_doll" : "chat_top");
             }
             w.BeginSection();
             if (s.chatOpen) {

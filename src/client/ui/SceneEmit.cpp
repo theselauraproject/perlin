@@ -779,9 +779,12 @@ namespace perlin::ui {
         std::vector<SceneNode> chat;
         if (sec.contains("chat_lines")) {
             // Bottom chat stands on a line 60 px above the bottom; top chat starts under the
-            // paper doll in the top left corner.
-            constexpr float kTopChatY = 58.0f;
-            const float chatTop = sec.contains("chat_top") ? kTopChatY : guiH - 60.0f - 180.0f;
+            // paper doll in the top left corner, or at the very top when the doll is turned off.
+            constexpr float kTopChatUnderDollY = 58.0f;
+            constexpr float kTopChatY = 2.0f;
+            const float chatTop = sec.contains("chat_top_doll") ? kTopChatUnderDollY
+                                  : sec.contains("chat_top")    ? kTopChatY
+                                                                : guiH - 60.0f - 180.0f;
             kit::Container(chat, "chat-lines", 0, chatTop, 328, 180, "30", std::move(sec["chat_lines"]));
             kit::Container(chat, "chat-scroll", 0, chatTop, 2, 180, "31", std::move(sec["chat_scroll"]));
             kit::Container(chat, "chat-input", 2, guiH - 14.0f, guiW - 4.0f, 12, "32", std::move(sec["chat_input"]));
@@ -796,7 +799,8 @@ namespace perlin::ui {
             kit::Append(out, chat);
         }
         for (auto& [name, list] : sec)
-            if (name != "chat_lines" && name != "chat_scroll" && name != "chat_input" && name != "chat_top")
+            if (name != "chat_lines" && name != "chat_scroll" && name != "chat_input" && name != "chat_top" &&
+                name != "chat_top_doll")
                 result.scene.lists[name] = std::move(list);
         return result;
     }
