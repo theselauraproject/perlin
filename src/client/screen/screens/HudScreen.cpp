@@ -148,7 +148,9 @@ namespace perlin::screen {
             layout.width = std::min(layout.width, std::max(40, static_cast<int>((lastGuiW - 8) / layout.scale)));
         chat.SetLayout(layout);
         chat.Fill(s, hudAnim.ticks, detail::MsNow(), pause.IsOpen() && pause.OnChatSettings());
-        s.chatAtTop = !options.chat.bottom;
+        // While typing, the full list stands above the input bar at the bottom as usual; top
+        // chat is only for the messages shown during play.
+        s.chatAtTop = !options.chat.bottom && !s.chatOpen;
         // Room for the paper doll whenever its option is on, not only while it shows (sprinting,
         // sneaking...), so the chat does not jump up and down; with the doll off, the very top.
         s.chatBelowDoll = options.paperDoll;

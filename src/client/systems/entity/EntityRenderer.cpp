@@ -203,6 +203,7 @@ namespace perlin::entity {
         std::map<std::string, CtrlState> ctrl;
         std::vector<EntityRenderer::Layer> cachedLayers;
         float cachedScale = 1.0f;
+        glm::vec3 axisScale{1.0f};
         int cacheAge = 1 << 20;
         double cacheTime = -1e9;
         const Entity* entity = nullptr;
@@ -1162,6 +1163,12 @@ namespace perlin::entity {
 
         const float scale = ModelScale(e, def->scale ? static_cast<float>(def->scale->Number(v.scope)) : 1.0f);
         outScale = scale;
+        for (int axis = 0; axis < 3; axis++) {
+            float a = def->scaleAxis[axis] ? static_cast<float>(def->scaleAxis[axis]->Number(v.scope)) : 1.0f;
+            if (!std::isfinite(a))
+                a = 1.0f;
+            v.axisScale[axis] = std::clamp(a, -64.0f, 64.0f);
+        }
 
         const attachable::GeometryLibrary* library = &assets.geometries;
         std::string playerGeometry;
@@ -1623,7 +1630,7 @@ namespace perlin::entity {
             model = glm::rotate(model, (90.0f + v.pitch) * kDeg, glm::vec3(1, 0, 0));
             model = glm::translate(model, glm::vec3(0.0f, -12.0f / 16.0f * scale, 0.0f));
         }
-        model = glm::scale(model, glm::vec3(scale / 16.0f) * modScale);
+        model = glm::scale(model, glm::vec3(scale / 16.0f) * modScale * v.axisScale);
         glm::vec3 light(1.0f);
         if (in.light)
             light = in.light(v.pos + glm::dvec3(0.0, 1.0, 0.0));
@@ -1639,7 +1646,7 @@ namespace perlin::entity {
         if (dollModel) {
             const float dollRotation = dollFacing ? *dollFacing : rotation;
             model = *dollModel * glm::rotate(glm::mat4(1.0f), dollRotation * kDeg, glm::vec3(0, 1, 0)) * mirrorZ *
-                    glm::scale(glm::mat4(1.0f), glm::vec3(scale / 16.0f));
+                    glm::scale(glm::mat4(1.0f), glm::vec3(scale / 16.0f) * v.axisScale);
             light = glm::vec3(1.0f);
         }
         const float hurt = v.hurtTimer > 0.0f ? std::min(1.0f, v.hurtTimer / 0.5f) : 0.0f;

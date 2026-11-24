@@ -705,7 +705,7 @@ namespace perlin {
         }
         serverProtocol = net->Info().protocol;
         if (serverProtocol <= 0) {
-            lastError = "server reported no protocol version";
+            lastError = net->LastError().empty() ? "server reported no protocol version" : net->LastError();
             state = State::Failed;
             return false;
         }

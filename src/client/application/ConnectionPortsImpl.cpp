@@ -8,7 +8,8 @@ namespace perlin {
           versionOverride(d.versionOverride), modHidesLoading(std::move(d.modHidesLoading)),
           connect(std::move(d.connect)), leaveToServerList(std::move(d.leaveToServerList)),
           startAssetDownloads(std::move(d.startAssetDownloads)),
-          closeGameplayScreens(std::move(d.closeGameplayScreens)) {}
+          closeGameplayScreens(std::move(d.closeGameplayScreens)),
+          singleplayerStatus(std::move(d.singleplayerStatus)) {}
 
     BedrockSession* ConnectionPortsImpl::Session() {
         return session.get();
@@ -37,6 +38,10 @@ namespace perlin {
 
     bool ConnectionPortsImpl::InSingleplayer() {
         return inSingleplayer;
+    }
+
+    screen::ConnectionPorts::SingleplayerSetup ConnectionPortsImpl::SingleplayerStatus() {
+        return singleplayerStatus ? singleplayerStatus() : SingleplayerSetup{};
     }
 
     bool ConnectionPortsImpl::ReplayPlaying() {

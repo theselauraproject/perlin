@@ -237,7 +237,10 @@ namespace perlin::screen {
         };
         ui::LoadingScreenText t;
         t.title = tr("progressScreen.title.connectingExternal", "Connecting to external server");
-        if (!ports.ReplayPlaying())
+        const bool singleplayer = ports.InSingleplayer();
+        if (singleplayer)
+            t.title = tr("perlin.loading.singleplayer", "Loading world");
+        if (!ports.ReplayPlaying() && !singleplayer)
             t.warning = "Perlin is not yet stable, and may get you kicked/banned by server anticheats, due "
                         "to movement and other inaccuracies";
         bool show = false;
@@ -260,11 +263,19 @@ namespace perlin::screen {
                 session ? session->GetState() : BedrockSession::State::Disconnected;
             const auto progress = session ? session->PackProgress() : PackDownloader::Progress{};
             const std::string hint = ports.StatusHint();
-            if (!hint.empty()) {
+            const screen::ConnectionPorts::SingleplayerSetup setup =
+                singleplayer ? ports.SingleplayerStatus() : screen::ConnectionPorts::SingleplayerSetup{};
+            if (setup.starting) {
+                t.message = tr("perlin.loading.preparing", "Preparing the world");
+                t.detail = setup.text;
+                t.progress = setup.progress;
+            } else if (!hint.empty()) {
                 t.message = tr("connect.authorizing", "Logging in...");
                 t.detail = hint;
             } else if (!session || st == BedrockSession::State::Disconnected) {
                 t.message = tr("progressScreen.message.resourceLoading", "Loading Resources");
+            } else if (st == BedrockSession::State::Connecting && singleplayer) {
+                t.message = tr("perlin.loading.joining", "Joining the world");
             } else if (st == BedrockSession::State::Connecting) {
                 t.message = ports.OnlineThisRun() ? tr("connect.authorizing", "Logging in...")
                                           : tr("progressScreen.message.locating", "Locating server");

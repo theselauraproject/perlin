@@ -26,6 +26,12 @@ namespace perlin::screen {
         virtual std::string StatusHint() = 0;
         virtual bool OnlineThisRun() = 0;
         virtual bool InSingleplayer() = 0;
+        struct SingleplayerSetup {
+            bool starting = false;
+            std::string text;
+            float progress = -1.0f;
+        };
+        virtual SingleplayerSetup SingleplayerStatus() { return {}; }
         virtual bool ReplayPlaying() = 0;
         virtual bool ModHidesLoading() = 0;
         virtual bool TakeLeaseJoinFailed() = 0;

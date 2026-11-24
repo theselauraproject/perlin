@@ -27,6 +27,7 @@ namespace perlin {
             std::function<void(ui::Hud&)> leaveToServerList;
             std::function<void()> startAssetDownloads;
             std::function<void()> closeGameplayScreens;
+            std::function<SingleplayerSetup()> singleplayerStatus;
         };
 
         explicit ConnectionPortsImpl(Deps deps);
@@ -38,6 +39,7 @@ namespace perlin {
         std::string StatusHint() override;
         bool OnlineThisRun() override;
         bool InSingleplayer() override;
+        SingleplayerSetup SingleplayerStatus() override;
         bool ReplayPlaying() override;
         bool ModHidesLoading() override;
         bool TakeLeaseJoinFailed() override;
@@ -65,5 +67,6 @@ namespace perlin {
         std::function<void(ui::Hud&)> leaveToServerList;
         std::function<void()> startAssetDownloads;
         std::function<void()> closeGameplayScreens;
+        std::function<SingleplayerSetup()> singleplayerStatus;
     };
 }

@@ -491,6 +491,18 @@ namespace perlin {
                 screens.CloseAll({&pause, &inventory, &death});
                 pause.signature.clear();
                 death.signature.clear();
+            },
+            [this] {
+                screen::ConnectionPorts::SingleplayerSetup out;
+#ifdef PERLIN_SINGLEPLAYER
+                if (singleplayerServer) {
+                    const EmbeddedServer::SetupStatus s = singleplayerServer->Status();
+                    out.starting = s.starting;
+                    out.text = s.text;
+                    out.progress = s.progress;
+                }
+#endif
+                return out;
             }}};
         LightBandCache lightCache;
         worldview::ViewEnvironment view{worldview::ViewEnvironment::Deps{

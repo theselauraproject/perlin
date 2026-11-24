@@ -229,6 +229,44 @@ namespace perlin::entity {
 
         constexpr int kProjectileCoast = 2;
 
+        enum : int8_t { kNotBallistic = 0, kFallingBlock = 1, kPrimedTnt = 2 };
+        int8_t BallisticKind(Entity& e) {
+            if (e.ballistic < 0)
+                e.ballistic = e.type == "minecraft:falling_block" ? kFallingBlock
+                              : e.type == "minecraft:tnt"         ? kPrimedTnt
+                                                                  : kNotBallistic;
+            return e.ballistic;
+        }
+
+        // A server position for a falling block or primed TNT: the simulated path is pulled onto it
+        // over a few ticks instead of jumping, and a large miss (a teleport, a missed motion packet) snaps.
+        bool ReceiveBallistic(Entity& e, const glm::dvec3& next) {
+            if (!e.ticked || BallisticKind(e) == kNotBallistic)
+                return false;
+            const glm::dvec3 miss = next - e.pos;
+            if (e.fallHaveServer && e.fallTicksSince > 0 && glm::dot(miss, miss) > 1.0) {
+                // Far off, so the motion this client has is wrong: take it from the server's own path
+                // (the mean over the gap, plus the gravity of half of it).
+                const double n = static_cast<double>(e.fallTicksSince);
+                glm::dvec3 v = (next - e.fallLastServer) / n;
+                v.y -= 0.04 * n * 0.5;
+                if (glm::dot(v, v) < 100.0)
+                    e.vel = v;
+            }
+            e.fallHaveServer = true;
+            e.fallLastServer = next;
+            e.fallTicksSince = 0;
+            if (glm::dot(miss, miss) > 4.0) {
+                e.pos = e.prevPos = next;
+                e.fallCorrection = glm::dvec3(0.0);
+            } else {
+                e.fallCorrection = miss;
+            }
+            e.lerp.steps = 0;
+            e.hasQueued = false;
+            return true;
+        }
+
         void StepProjectile(Entity& e) {
             e.projTicksSince++;
             if (e.projPending) {
@@ -274,6 +312,12 @@ namespace perlin::entity {
             const glm::dvec3 jump = next - e.pos;
             const bool farTeleport =
                 kind == EntityTracker::MoveKind::Teleport && glm::dot(jump, jump) >= 0.25;
+            if (kind != EntityTracker::MoveKind::Place && !farTeleport && ReceiveBallistic(e, next)) {
+                e.pitch = pitch;
+                e.yaw = yaw;
+                e.headYaw = headYaw;
+                return;
+            }
             if (IsProjectile(e) && e.ticked && kind != EntityTracker::MoveKind::Place && !farTeleport) {
                 if (e.projHaveServer && e.projTicksSince > 0)
                     e.vel = (next - e.projLastServer) / static_cast<double>(e.projTicksSince);
@@ -355,10 +399,26 @@ namespace perlin::entity {
                 StepItemLocked(e);
                 continue;
             }
+            if (e.squishy < 0)
+                e.squishy = e.type == "minecraft:slime" || e.type == "minecraft:magma_cube" ? 1 : 0;
+            if (e.squishy == 1) {
+                e.prevSquish = e.squish;
+                e.squish += (e.targetSquish - e.squish) * 0.5f;
+                if (e.onGround && !e.squishWasOnGround)
+                    e.targetSquish = -0.5f;
+                else if (!e.onGround && e.squishWasOnGround)
+                    e.targetSquish = 1.0f;
+                e.squishWasOnGround = e.onGround;
+                e.targetSquish *= 0.6f;
+            }
             if (e.isSelf || pickups.contains(rid))
                 continue;
             if (IsProjectile(e) && (e.projHaveServer || glm::dot(e.vel, e.vel) > 1e-8)) {
                 StepProjectile(e);
+                continue;
+            }
+            if (BallisticKind(e) != kNotBallistic) {
+                StepBallisticLocked(e);
                 continue;
             }
 
@@ -575,6 +635,73 @@ namespace perlin::entity {
     void EntityTracker::SetItemCollider(ItemCollider hit) {
         std::lock_guard lock(mutex);
         itemCollider = std::move(hit);
+    }
+
+    // The same steps as the server's tick: a falling block falls straight down, TNT slides and stops.
+    void EntityTracker::StepBallisticLocked(Entity& e) {
+        e.fallTicksSince++;
+        const bool tnt = e.ballistic == kPrimedTnt;
+        const double half = 0.49;
+        const auto blocked = [&](double x, double y, double z) {
+            return itemCollider && itemCollider(x - half, y, z - half, x + half, y + 0.98, z + half);
+        };
+        // Pull towards the last server position first, half the remaining gap each tick, unless that
+        // would put the block into the ground.
+        glm::dvec3 p = e.pos;
+        {
+            const glm::dvec3 pull = e.fallCorrection * 0.5;
+            e.fallCorrection -= pull;
+            if (!blocked(p.x + pull.x, p.y + pull.y, p.z + pull.z))
+                p += pull;
+            if (glm::dot(e.fallCorrection, e.fallCorrection) < 1e-8)
+                e.fallCorrection = glm::dvec3(0.0);
+        }
+        if (tnt)
+            e.vel.y -= 0.04;
+        else
+            e.vel.y = (e.vel.y - 0.04) * 0.98;
+        bool grounded = false;
+        const double ny = p.y + e.vel.y;
+        if (blocked(p.x, ny, p.z)) {
+            if (e.vel.y < 0.0) {
+                grounded = true;
+                double lo = ny, hi = p.y;
+                if (!blocked(p.x, hi, p.z)) {
+                    for (int i = 0; i < 10; i++) {
+                        const double mid = (lo + hi) * 0.5;
+                        (blocked(p.x, mid, p.z) ? lo : hi) = mid;
+                    }
+                    p.y = hi;
+                }
+            }
+            e.vel.y = 0.0;
+        } else {
+            p.y = ny;
+        }
+        if (tnt || e.vel.x != 0.0 || e.vel.z != 0.0) {
+            const double nx = p.x + e.vel.x;
+            if (blocked(nx, p.y + 0.1, p.z))
+                e.vel.x = 0.0;
+            else
+                p.x = nx;
+            const double nz = p.z + e.vel.z;
+            if (blocked(p.x, p.y + 0.1, nz))
+                e.vel.z = 0.0;
+            else
+                p.z = nz;
+        }
+        if (tnt) {
+            e.vel *= 0.98;
+            if (grounded) {
+                e.vel.x *= 0.7;
+                e.vel.z *= 0.7;
+            }
+        }
+        if (glm::dot(p - e.pos, p - e.pos) > 1e-12) {
+            e.pos = p;
+            e.moveSerial++;
+        }
+        e.onGround = grounded;
     }
 
     void EntityTracker::StepItemLocked(Entity& e) {

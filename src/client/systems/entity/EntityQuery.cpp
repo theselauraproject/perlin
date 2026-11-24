@@ -297,6 +297,10 @@ namespace perlin::entity {
             return num(e.scale > 0.0f ? e.scale : 1.0f);
         if (name == "death_ticks")
             return num(e.dying ? c.deathTicks : 0.0f);
+        if (name == "current_squish_value")
+            return num(e.squish);
+        if (name == "previous_squish_value")
+            return num(e.prevSquish);
         if (name == "swelling_dir")
             return num(e.Has(flag::Ignited) ? 1.0 : -1.0);
         if (name == "fuse_time")
@@ -320,7 +324,7 @@ namespace perlin::entity {
         if (name == "kinetic_weapon_delay" || name == "kinetic_weapon_dismount_duration" ||
             name == "kinetic_weapon_knockback_duration" || name == "kinetic_weapon_damage_duration" ||
             name == "key_frame_lerp_time" || name == "shake_time" || name == "heartbeat_phase" ||
-            name == "overlay_alpha" || name == "previous_squish_value" || name == "current_squish_value" ||
+            name == "overlay_alpha" ||
             name == "time_since_last_vibration_detection" || name == "trade_tier" ||
             name == "surface_particle_texture_coordinate" || name == "surface_particle_texture_size" ||
             name == "bone_origin" || name == "bone_rotation" || name == "bone_aabb")

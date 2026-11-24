@@ -464,7 +464,9 @@ namespace perlin {
 #ifdef PERLIN_MOBILE
             const unsigned genThreads = 2u;
 #else
-            const unsigned genThreads = cores > 8 ? cores - 2 : std::max(2u, cores / 2);
+            // Half the cores generate the world; the rest are left to the chunk meshers and the frame, so
+            // meshing is not starved while the world loads.
+            const unsigned genThreads = std::max(2u, cores / 2);
 #endif
             const std::string threads = ",\"max_threads\":" + std::to_string(genThreads);
 #endif
@@ -475,15 +477,25 @@ namespace perlin {
                 extra += ",\"gamemode\":" + std::to_string(gameMode);
             if (!persistent)
                 extra += ",\"world_storage\":\"none\"";
+            // The vanilla behavior pack (from the Bedrock Dedicated Server download) is kept once for every
+            // world, beside them, rather than downloaded again for each new world.
+            const std::string packDir = paths::DataDir() + "/perlite";
+            paths::EnsureDir(packDir);
+            const auto quoted = [](const std::string& text) {
+                std::string out = "\"";
+                for (const char c : text) {
+                    if (c == '"' || c == '\\')
+                        out += '\\';
+                    out += c;
+                }
+                return out + "\"";
+            };
             const std::string config =
                 "{\"view_distance\":" + std::to_string(std::clamp(options.renderDistance, 2, 128)) + threads + extra +
-                ",\"block_data_dir\":\"" + dir + "\"}";
-            std::string error;
-            if (!singleplayerServer->Start(dir, config, error)) {
-                Log("singleplayer", "{}", error);
-                SetStatusHint("Singleplayer could not start: " + error);
-                return;
-            }
+                ",\"block_data_dir\":" + quoted(dir) + ",\"vanilla_pack_dir\":" + quoted(packDir) + "}";
+            // Perlite sets up on its own thread (pack download, world load) while the loading screen shows
+            // its progress; the loopback transport waits for it on the connect thread.
+            singleplayerServer->StartAsync(dir, config);
         }
         pendingSingleplayer = singleplayerServer->Connect();
         if (!pendingSingleplayer) {

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <thread>
 
 using namespace perlin::entity;
@@ -169,6 +170,37 @@ int main() {
         t.Snapshot(seen);
         Entity reused;
         CHECK(t.Find(6, reused) && reused.scale == 1.0f && Near(reused.pos.x, 2));
+    }
+    // A falling block between the server's corrections (sent every 5 ticks) keeps falling on the
+    // client along the same path as the server's tick, so it moves every tick.
+    {
+        EntityTracker t;
+        t.SetItemCollider([](double, double y0, double, double, double, double) { return y0 < 0.0; });
+        t.AddEntity(9, 9, "minecraft:falling_block", {0.5, 20, 0.5}, 0, 0, 0, 0, 1, 0, 0, 0);
+        double y = 20, vy = 0, last = Get(t, 9).pos.y;
+        bool movedEveryTick = true, onPath = true;
+        for (int tick = 1; tick <= 40; tick++) {
+            vy = (vy - 0.04) * 0.98;
+            y = std::max(0.0, y + vy);
+            t.TickInterpolation();
+            if (tick % 5 == 0)
+                t.Move(9, {0.5, y, 0.5}, 0, 0, 0, false, Kind::Lerp);
+            const double now = Get(t, 9).pos.y;
+            if (y > 0.0 && !(now < last))
+                movedEveryTick = false;
+            if (std::fabs(now - y) > 1e-3 && std::getenv("LERP_DEBUG")) std::printf("tick %d server %.6f client %.6f\n", tick, y, now);
+            if (std::fabs(now - y) > 1e-3)
+                onPath = false;
+            last = now;
+        }
+        CHECK(movedEveryTick);
+        CHECK(onPath);
+        CHECK(Get(t, 9).pos.y >= 0.0);
+        // A late correction is eased in, not jumped to.
+        t.Move(9, {0.5, Get(t, 9).pos.y + 0.5, 0.5}, 0, 0, 0, false, Kind::Lerp);
+        const double before = Get(t, 9).pos.y;
+        t.TickInterpolation();
+        CHECK(Get(t, 9).pos.y - before < 0.4);
     }
     std::printf("ActorLerp: %d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;

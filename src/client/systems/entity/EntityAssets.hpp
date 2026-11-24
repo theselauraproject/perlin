@@ -28,6 +28,8 @@ namespace perlin::entity {
         };
         std::vector<Animate> animate;
         ExprPtr scale;
+        // scaleX/scaleY/scaleZ: a per-axis scale on top of scale (the slime's size and squash).
+        ExprPtr scaleAxis[3];
         struct Controller {
             std::string id;
             ExprPtr condition;

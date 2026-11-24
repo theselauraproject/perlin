@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iterator>
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -106,6 +107,113 @@ namespace perlin {
         }
     }
 
+    namespace {
+        // Merging exactness: every point of every face of the unmerged mesh is drawn by the merged mesh
+        // with the same colour, light, AO and texture position (the merged mesh is what the GPU
+        // interpolates, so this is the pixel-exact check for the face merge).
+        struct Sampled {
+            float rgba[4], light[2], ao, u, v;
+        };
+
+        bool Interpolate(const Vertex& a, const Vertex& b, const Vertex& c, const float p[3], int axis,
+                         Sampled& out) {
+            const int i = axis == 0 ? 1 : 0, j = axis == 2 ? 1 : 2;
+            const float* pa = &a.x;
+            const float* pb = &b.x;
+            const float* pc = &c.x;
+            const float d = (pb[i] - pa[i]) * (pc[j] - pa[j]) - (pc[i] - pa[i]) * (pb[j] - pa[j]);
+            if (std::fabs(d) < 1e-9f || std::fabs(pa[axis] - p[axis]) > 1e-4f)
+                return false;
+            const float wb = ((p[i] - pa[i]) * (pc[j] - pa[j]) - (pc[i] - pa[i]) * (p[j] - pa[j])) / d;
+            const float wc = ((pb[i] - pa[i]) * (p[j] - pa[j]) - (p[i] - pa[i]) * (pb[j] - pa[j])) / d;
+            const float wa = 1.0f - wb - wc;
+            constexpr float kIn = -1e-5f;
+            if (wa < kIn || wb < kIn || wc < kIn)
+                return false;
+            const auto mix = [&](float x, float y, float z) { return wa * x + wb * y + wc * z; };
+            for (int k = 0; k < 4; k++)
+                out.rgba[k] = mix(static_cast<float>((a.rgba >> (8 * k)) & 0xFF), static_cast<float>((b.rgba >> (8 * k)) & 0xFF),
+                                  static_cast<float>((c.rgba >> (8 * k)) & 0xFF));
+            for (int k = 0; k < 2; k++)
+                out.light[k] = mix(static_cast<float>((a.light >> (8 * k)) & 0xFF), static_cast<float>((b.light >> (8 * k)) & 0xFF),
+                                   static_cast<float>((c.light >> (8 * k)) & 0xFF));
+            const auto fr = [](float t) { return t - std::floor(t); };
+            out.ao = mix(fr(a.tangent), fr(b.tangent), fr(c.tangent));
+            out.u = mix(a.u, b.u, c.u);
+            out.v = mix(a.v, b.v, c.v);
+            return true;
+        }
+
+        int CheckMergeExact(const Tessellator& flat, const Tessellator& merged, int& checkedPoints) {
+            int bad = 0;
+            for (int l = 0; l < kRenderLayerCount; l++) {
+                const auto& fi = flat.Indices(static_cast<RenderLayer>(l));
+                const auto& mi = merged.Indices(static_cast<RenderLayer>(l));
+                const auto& fv = flat.Vertices();
+                const auto& mv = merged.Vertices();
+                // Merged triangles by plane: axis, coordinate, normal and block.
+                std::unordered_map<uint64_t, std::vector<size_t>> byPlane;
+                const auto key = [](const Vertex& a, const Vertex& b, const Vertex& c, int& axis) -> uint64_t {
+                    axis = a.x == b.x && a.x == c.x ? 0 : a.y == b.y && a.y == c.y ? 1 : a.z == b.z && a.z == c.z ? 2 : -1;
+                    if (axis < 0)
+                        return 0;
+                    const float at = (&a.x)[axis];
+                    uint32_t bits;
+                    std::memcpy(&bits, &at, 4);
+                    return (static_cast<uint64_t>(bits) << 32) ^ (static_cast<uint64_t>(a.normal) * 31) ^
+                           static_cast<uint64_t>(axis + 1) ^ (static_cast<uint64_t>(a.entity) << 40);
+                };
+                for (size_t t = 0; t + 2 < mi.size(); t += 3) {
+                    int axis = -1;
+                    const uint64_t k = key(mv[mi[t]], mv[mi[t + 1]], mv[mi[t + 2]], axis);
+                    if (axis >= 0)
+                        byPlane[k].push_back(t);
+                }
+                for (size_t t = 0; t + 2 < fi.size(); t += 3) {
+                    const Vertex &a = fv[fi[t]], &b = fv[fi[t + 1]], &c = fv[fi[t + 2]];
+                    int axis = -1;
+                    const uint64_t k = key(a, b, c, axis);
+                    if (axis < 0)
+                        continue;
+                    const auto found = byPlane.find(k);
+                    static constexpr float kWeights[4][3] = {
+                        {0.6f, 0.2f, 0.2f}, {0.2f, 0.6f, 0.2f}, {0.2f, 0.2f, 0.6f}, {0.34f, 0.33f, 0.33f}};
+                    for (const auto& w : kWeights) {
+                        const float p[3] = {w[0] * a.x + w[1] * b.x + w[2] * c.x, w[0] * a.y + w[1] * b.y + w[2] * c.y,
+                                            w[0] * a.z + w[1] * b.z + w[2] * c.z};
+                        Sampled want{}, got{};
+                        Interpolate(a, b, c, p, axis, want);
+                        bool hit = false;
+                        if (found != byPlane.end())
+                            for (const size_t m : found->second)
+                                if (Interpolate(mv[mi[m]], mv[mi[m + 1]], mv[mi[m + 2]], p, axis, got)) {
+                                    hit = true;
+                                    break;
+                                }
+                        checkedPoints++;
+                        bool same = hit;
+                        for (int q = 0; q < 4 && same; q++)
+                            same = std::fabs(want.rgba[q] - got.rgba[q]) < 0.02f;
+                        for (int q = 0; q < 2 && same; q++)
+                            same = std::fabs(want.light[q] - got.light[q]) < 0.02f;
+                        const auto fr = [](float t) { return t - std::floor(t); };
+                        const auto wrapNear = [&](float x, float y) {
+                            const float d = std::fabs(fr(x) - fr(y));
+                            return d < 1e-3f || d > 1.0f - 1e-3f;
+                        };
+                        same = same && std::fabs(want.ao - got.ao) < 1e-4f && wrapNear(want.u, got.u) && wrapNear(want.v, got.v);
+                        if (!same && bad++ < 5)
+                            std::printf("[meshbench] merge differs at (%.2f,%.2f,%.2f) layer %d: %s rgb %.1f/%.1f light %.1f,%.1f/%.1f,%.1f "
+                                        "ao %.4f/%.4f\n",
+                                        p[0], p[1], p[2], l, hit ? "covered" : "UNCOVERED", want.rgba[0], got.rgba[0],
+                                        want.light[0], want.light[1], got.light[0], got.light[1], want.ao, got.ao);
+                    }
+                }
+            }
+            return bad;
+        }
+    }
+
     int RunMeshBench(int radius, int rounds) {
         std::shared_ptr<BlockLibrary> library;
         std::shared_ptr<BiomeTints> tints;
@@ -123,7 +231,9 @@ namespace perlin {
             }
             library->ApplyCustom(root + "/resource_pack");
             tints = std::make_shared<BiomeTints>();
-            tints->EnsureLoaded(root + "/resource_pack");
+            // A pack without every biome rule loads on the second try, as in the game.
+            if (!tints->EnsureLoaded(root + "/resource_pack"))
+                tints->EnsureLoaded(root + "/resource_pack");
             std::printf("[meshbench] textured: library ready=%d complete=%d, tints ready=%d\n",
                         library->Ready(), library->Complete(), tints->Ready());
         }
@@ -187,6 +297,35 @@ namespace perlin {
                         checksum = (checksum ^ bytes[i]) * 1099511628211ull;
                 }
             }
+        // The merged mesh draws exactly what the unmerged one does.
+        {
+            int bad = 0, points = 0;
+            size_t flatVerts = 0, mergedVerts = 0;
+            const bool was = Tessellator::MergeFaces();
+            for (const ChunkPos& p : todo) {
+                Tessellator::SetMergeFaces(false);
+                Tessellator flat;
+                flat.Begin();
+                BuildChunkMesh(level, p, flat, lib, tint);
+                flat.End();
+                Tessellator::SetMergeFaces(true);
+                Tessellator merged;
+                merged.Begin();
+                BuildChunkMesh(level, p, merged, lib, tint);
+                merged.End();
+                flatVerts += flat.Vertices().size();
+                mergedVerts += merged.Vertices().size();
+                bad += CheckMergeExact(flat, merged, points);
+            }
+            Tessellator::SetMergeFaces(was);
+            std::printf("[meshbench] merge: %zu -> %zu vertices (%.1f%% fewer), %d of %d sample points differ\n",
+                        flatVerts, mergedVerts, 100.0 * (1.0 - static_cast<double>(mergedVerts) / std::max<size_t>(1, flatVerts)),
+                        bad, points);
+            if (bad) {
+                std::printf("FAIL merged faces draw differently from the faces they replace\n");
+                return 1;
+            }
+        }
         std::ranges::sort(times);
         double sum = 0;
         for (double v : times)

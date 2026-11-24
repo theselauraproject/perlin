@@ -98,6 +98,10 @@ namespace perlin::entity {
                     }
                 if (const Json* s = scripts->Find("scale"))
                     d.scale = ParseValue(*s);
+                static constexpr const char* kAxes[3] = {"scaleX", "scaleY", "scaleZ"};
+                for (int axis = 0; axis < 3; axis++)
+                    if (const Json* s = scripts->Find(kAxes[axis]))
+                        d.scaleAxis[axis] = ParseValue(*s);
             }
             if (d.animate.empty())
                 if (const Json* acs = desc->Find("animation_controllers"); acs && acs->IsArray())

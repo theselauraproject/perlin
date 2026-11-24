@@ -5,6 +5,7 @@
 #include "client/systems/blocks/BlockLibrary.hpp"
 #include "util/Env.hpp"
 
+#include <bit>
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
@@ -34,19 +35,100 @@ namespace perlin {
     }
 
     namespace {
+        // What a face's lighting does across it: the value at its first corner and the change per block
+        // along each of its two axes. Colour (AO and tint), the two light levels and the AO kept in the
+        // tangent all vary this way, so faces on one plane with the same steps can be drawn as one: the
+        // GPU interpolates the big face to the same value at every pixel as the small ones it replaces.
+        struct Plane {
+            int16_t at[6], stepA[6], stepB[6];
+            float aoAt, aoStepA, aoStepB;
+        };
+
         struct MergeScratch {
             int32_t grid[16][256];
             uint8_t code[16][256];
+            Plane plane[16][256];
+            uint64_t occupied[16][4];
             std::vector<uint32_t> keep;
             MergeScratch() {
                 std::memset(grid, 0, sizeof(grid));
                 std::memset(code, 0, sizeof(code));
+                std::memset(occupied, 0, sizeof(occupied));
             }
         };
 
-        bool SameSurface(const Vertex& a, const Vertex& b) {
-            return a.rgba == b.rgba && a.light == b.light && a.normal == b.normal && a.entity == b.entity &&
-                   a.tangent == b.tangent && a.midU == b.midU && a.midV == b.midV;
+        // Everything that must be the same at every corner of every face in a merged rectangle.
+        // (The tangent's whole part is the tangent axis and handedness, its fraction the AO; both are >= 0.)
+        bool SameConstants(const Vertex& a, const Vertex& b) {
+            return a.normal == b.normal && a.entity == b.entity && a.midU == b.midU && a.midV == b.midV &&
+                   (a.light >> 16) == (b.light >> 16) &&
+                   static_cast<int>(a.tangent) == static_cast<int>(b.tangent);
+        }
+
+        void Channels(const Vertex& v, int (&out)[6]) {
+            out[0] = static_cast<int>(v.rgba & 0xFF);
+            out[1] = static_cast<int>((v.rgba >> 8) & 0xFF);
+            out[2] = static_cast<int>((v.rgba >> 16) & 0xFF);
+            out[3] = static_cast<int>(v.rgba >> 24);
+            out[4] = static_cast<int>(v.light & 0xFF);
+            out[5] = static_cast<int>((v.light >> 8) & 0xFF);
+        }
+
+        float Ao(const Vertex& v) {
+            return v.tangent - static_cast<float>(static_cast<int>(v.tangent));
+        }
+
+        // corners[c]: the vertex at corner c (bit 0: along a, bit 1: along b). False when the four corners
+        // do not lie on one plane in every value (the two triangles would then differ from a bigger face).
+        bool PlaneOf(const Vertex* const (&corners)[4], Plane& out) {
+            for (int i = 1; i < 4; i++)
+                if (!SameConstants(*corners[0], *corners[i]))
+                    return false;
+            const Vertex& v0 = *corners[0];
+            bool flat = true;
+            for (int i = 1; i < 4 && flat; i++)
+                flat = corners[i]->rgba == v0.rgba && corners[i]->light == v0.light && corners[i]->tangent == v0.tangent;
+            if (flat) {
+                // The usual case (open sky, no AO): one value all over.
+                int c0[6];
+                Channels(v0, c0);
+                for (int k = 0; k < 6; k++) {
+                    out.at[k] = static_cast<int16_t>(c0[k]);
+                    out.stepA[k] = out.stepB[k] = 0;
+                }
+                out.aoAt = Ao(v0);
+                out.aoStepA = out.aoStepB = 0.0f;
+                return true;
+            }
+            int c[4][6];
+            for (int i = 0; i < 4; i++)
+                Channels(*corners[i], c[i]);
+            for (int k = 0; k < 6; k++) {
+                if (c[0][k] + c[3][k] != c[1][k] + c[2][k])
+                    return false;
+                out.at[k] = static_cast<int16_t>(c[0][k]);
+                out.stepA[k] = static_cast<int16_t>(c[1][k] - c[0][k]);
+                out.stepB[k] = static_cast<int16_t>(c[2][k] - c[0][k]);
+            }
+            const float ao[4] = {Ao(*corners[0]), Ao(*corners[1]), Ao(*corners[2]), Ao(*corners[3])};
+            out.aoAt = ao[0];
+            out.aoStepA = ao[1] - ao[0];
+            out.aoStepB = ao[2] - ao[0];
+            return ao[0] + ao[3] == ao[1] + ao[2] && ao[0] + out.aoStepA == ao[1] && ao[0] + out.aoStepB == ao[2];
+        }
+
+        // Whether the face `da` blocks along a and `db` along b from `origin` continues its plane exactly.
+        bool Continues(const Plane& origin, const Plane& other, int da, int db) {
+            for (int k = 0; k < 6; k++)
+                if (other.stepA[k] != origin.stepA[k] || other.stepB[k] != origin.stepB[k] ||
+                    other.at[k] != origin.at[k] + da * origin.stepA[k] + db * origin.stepB[k])
+                    return false;
+            if (other.aoStepA != origin.aoStepA || other.aoStepB != origin.aoStepB)
+                return false;
+            if (origin.aoStepA == 0.0f && origin.aoStepB == 0.0f)
+                return other.aoAt == origin.aoAt;
+            return other.aoAt == origin.aoAt + static_cast<float>(da) * origin.aoStepA +
+                                     static_cast<float>(db) * origin.aoStepB;
         }
 
         int UnitBit(float value) {
@@ -76,10 +158,10 @@ namespace perlin {
             const uint32_t base = idx[0] & ~3u;
             const Vertex* q = &vertices[base];
             const size_t quadIndex = base >> 2;
-            bool ok = (quadIndex >= pinned.size() || !pinned[quadIndex]) && SameSurface(q[0], q[1]) &&
-                      SameSurface(q[0], q[2]) && SameSurface(q[0], q[3]);
+            bool ok = quadIndex >= pinned.size() || !pinned[quadIndex];
             int plane = 0, la = 0, lb = 0;
             uint8_t code = 0;
+            Plane shade{};
             if (ok) {
                 const float* p0 = &q[0].x;
                 float minA = p0[a], minB = p0[b];
@@ -91,6 +173,7 @@ namespace perlin {
                 }
                 ok = ok && minA == std::floor(minA) && minB == std::floor(minB) && p0[n] == std::floor(p0[n]);
                 int seen = 0, ub[4] = {0, 0, 0, 0}, vb[4] = {0, 0, 0, 0};
+                const Vertex* corners[4] = {q, q, q, q};
                 for (int i = 0; i < 4 && ok; i++) {
                     const float* p = &q[i].x;
                     const float da = p[a] - minA, db = p[b] - minB;
@@ -107,8 +190,10 @@ namespace perlin {
                     seen |= 1 << corner;
                     ub[corner] = u;
                     vb[corner] = v;
+                    corners[corner] = &q[i];
                 }
-                ok = ok && seen == 15 && ub[3] == ub[1] + ub[2] - ub[0] && vb[3] == vb[1] + vb[2] - vb[0];
+                ok = ok && seen == 15 && ub[3] == ub[1] + ub[2] - ub[0] && vb[3] == vb[1] + vb[2] - vb[0] &&
+                     PlaneOf(corners, shade);
                 if (ok) {
                     code = static_cast<uint8_t>(ub[0] | (ub[1] << 1) | (ub[2] << 2) | (vb[0] << 3) | (vb[1] << 4) |
                                                 (vb[2] << 5) | 0x80);
@@ -125,6 +210,8 @@ namespace perlin {
             }
             scratch.grid[plane][lb * 16 + la] = static_cast<int32_t>(k) + 1;
             scratch.code[plane][lb * 16 + la] = code;
+            scratch.plane[plane][lb * 16 + la] = shade;
+            scratch.occupied[plane][lb >> 2] |= 1ull << ((lb & 3) * 16 + la);
             planes |= 1u << plane;
             candidates++;
         }
@@ -137,32 +224,44 @@ namespace perlin {
                 continue;
             int32_t* grid = scratch.grid[plane];
             const uint8_t* codes = scratch.code[plane];
-            for (int lb = 0; lb < 16; lb++)
-                for (int la = 0; la < 16; la++) {
-                    const int cell = lb * 16 + la;
+            const Plane* shades = scratch.plane[plane];
+            uint64_t* occupied = scratch.occupied[plane];
+            // The occupied cells in order (b, then a), as the bits of four words.
+            for (int word = 0; word < 4; word++)
+                for (uint64_t bits = occupied[word]; bits; bits &= bits - 1) {
+                    const int cell = word * 64 + std::countr_zero(bits);
+                    const int lb = cell >> 4, la = cell & 15;
                     if (!grid[cell])
                         continue;
                     const size_t k = static_cast<size_t>(grid[cell] - 1);
                     const uint32_t* idx = &group[k * 6];
                     const uint32_t base = idx[0] & ~3u;
                     const uint8_t code = codes[cell];
-                    const auto matches = [&](int other) {
+                    const auto matches = [&](int other, int da, int db) {
                         if (!grid[other] || codes[other] != code)
                             return false;
                         const uint32_t otherBase = group[static_cast<size_t>(grid[other] - 1) * 6] & ~3u;
-                        return SameSurface(vertices[base], vertices[otherBase]);
+                        return SameConstants(vertices[base], vertices[otherBase]) &&
+                               Continues(shades[cell], shades[other], da, db);
                     };
                     int w = 1, h = 1;
-                    while (la + w < 16 && matches(cell + w))
+                    while (la + w < 16 && matches(cell + w, w, 0))
                         w++;
                     while (lb + h < 16) {
                         bool row = true;
                         for (int x = 0; x < w && row; x++)
-                            row = matches(cell + h * 16 + x);
+                            row = matches(cell + h * 16 + x, x, h);
                         if (!row)
                             break;
                         h++;
                     }
+                    // The far corners of the merged face take their values from the faces there.
+                    const auto quadAt = [&](int x, int y) -> const Vertex* {
+                        return &vertices[group[static_cast<size_t>(grid[cell + y * 16 + x] - 1) * 6] & ~3u];
+                    };
+                    const Vertex* farA = quadAt(w - 1, 0);
+                    const Vertex* farB = quadAt(0, h - 1);
+                    const Vertex* farAB = quadAt(w - 1, h - 1);
                     for (int y = 0; y < h; y++)
                         for (int x = 0; x < w; x++) {
                             const int other = cell + y * 16 + x;
@@ -170,7 +269,6 @@ namespace perlin {
                                 dead[(group[static_cast<size_t>(grid[other] - 1) * 6] & ~3u) >> 2] = 1;
                                 mergedAway++;
                             }
-                            grid[other] = 0;
                         }
                     if (w > 1 || h > 1) {
                         Vertex* q = &vertices[base];
@@ -178,6 +276,30 @@ namespace perlin {
                         for (int i = 1; i < 4; i++) {
                             minA = std::min(minA, (&q[i].x)[a]);
                             minB = std::min(minB, (&q[i].x)[b]);
+                        }
+                        // Corner c of each far face, picked by where it sits (min/max along a and b).
+                        const auto cornerOf = [&](const Vertex* quad, bool hiA, bool hiB) -> const Vertex& {
+                            float qa = (&quad[0].x)[a], qb = (&quad[0].x)[b];
+                            for (int i = 1; i < 4; i++) {
+                                qa = std::min(qa, (&quad[i].x)[a]);
+                                qb = std::min(qb, (&quad[i].x)[b]);
+                            }
+                            for (int i = 0; i < 4; i++)
+                                if (((&quad[i].x)[a] != qa) == hiA && ((&quad[i].x)[b] != qb) == hiB)
+                                    return quad[i];
+                            return quad[0];
+                        };
+                        struct Shade {
+                            uint32_t rgba, light;
+                            float tangent;
+                        } shade[4];
+                        for (int i = 0; i < 4; i++) {
+                            const bool hiA = (&q[i].x)[a] != minA, hiB = (&q[i].x)[b] != minB;
+                            const Vertex& from = hiA && hiB ? cornerOf(farAB, true, true)
+                                                 : hiA      ? cornerOf(farA, true, false)
+                                                 : hiB      ? cornerOf(farB, false, true)
+                                                            : q[i];
+                            shade[i] = {from.rgba, from.light, from.tangent};
                         }
                         const int u0 = code & 1, u1 = (code >> 1) & 1, u2 = (code >> 2) & 1;
                         const int v0 = (code >> 3) & 1, v1 = (code >> 4) & 1, v2 = (code >> 5) & 1;
@@ -188,10 +310,17 @@ namespace perlin {
                             p[b] = minB + static_cast<float>(db);
                             q[i].u = static_cast<float>(u0 + da * (u1 - u0) + db * (u2 - u0));
                             q[i].v = static_cast<float>(v0 + da * (v1 - v0) + db * (v2 - v0));
+                            q[i].rgba = shade[i].rgba;
+                            q[i].light = shade[i].light;
+                            q[i].tangent = shade[i].tangent;
                         }
                     }
+                    for (int y = 0; y < h; y++)
+                        for (int x = 0; x < w; x++)
+                            grid[cell + y * 16 + x] = 0;
                     keep.insert(keep.end(), idx, idx + 6);
                 }
+            occupied[0] = occupied[1] = occupied[2] = occupied[3] = 0;
         }
         group.swap(keep);
     }

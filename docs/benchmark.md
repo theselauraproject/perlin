@@ -29,3 +29,31 @@ contains:
 
 Turn vsync off and set the fps cap to unlimited for a raw number. Compare runs only when they used the same
 settings.
+
+## Chunk meshing
+
+`perlin_meshbench` (built with the tests, from `tools/mesh_bench.cpp`) meshes a fixed synthetic terrain on the
+CPU, without a window or a GPU, so it runs in CI and under valgrind:
+
+    perlin_meshbench [radius] [rounds]                # time per chunk, vertices, a checksum of the output
+    PERLIN_SAMPLES=<folder> perlin_meshbench 4 3      # with textures, tints and block models
+
+`<folder>` holds `resource_pack/` (`blocks.json`, `textures/terrain_texture.json`, the textures) and
+`metadata/vanilladata_modules/mojang-blocks.json`. Nothing of the game is shipped for this: point it at your
+own copy, or at a small pack of your own.
+
+Each run also checks itself, and fails (`FAIL ...`) when a check does not hold:
+
+- **Merged faces draw the same.** Every chunk is meshed with face merging off and on, and every face of the
+  unmerged mesh is sampled at four points inside each triangle. The merged mesh must cover each point and give
+  it the same colour, light, AO and texture position. This is the pixel-exact test for merging: the GPU draws
+  what those interpolated values say.
+- **Partial rebuilds match full ones**, after ten kinds of block edit.
+
+The checksum is of the vertices made in the first round. A change that only makes meshing faster must keep it.
+
+To compare two builds, use `tools/bench_compare.py`. It runs them in interleaved rounds and reports medians.
+With `--instructions` it counts the instructions spent meshing under callgrind instead of timing: the count does
+not move with machine load, so it is the number to trust for small changes.
+
+    tools/bench_compare.py old/perlin_meshbench new/perlin_meshbench --instructions --radius 2 --rounds 1

@@ -1521,6 +1521,26 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
                     $<TARGET_FILE:block_library_dump> "${CMAKE_SOURCE_DIR}/tests/block_library_golden.json")
     endif()
 
+    # The chunk mesher on its own (tools/mesh_bench.cpp): mesh time, a checksum of the vertices, partial
+    # rebuilds against full ones, and the merged faces checked point by point against the unmerged ones.
+    add_executable(perlin_meshbench
+        tools/mesh_bench.cpp ${TEXTURE_TEST_SOURCES}
+        src/client/systems/renderer/chunk/MeshBench.cpp src/client/systems/renderer/chunk/ChunkMesher.cpp
+        src/client/systems/gfx/Tessellator.cpp
+        src/client/systems/config/Options.cpp src/client/systems/bindings/KeyMapping.cpp src/client/systems/bindings/Keys.cpp
+        src/util/Json.cpp src/util/Paths.cpp
+        src/world/level/block/BlockPalette.cpp src/util/Resources.cpp
+        src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/resources/ServerBlocks.cpp src/util/JsonValue.cpp
+        src/client/systems/player/BlockCollision.cpp src/world/movement/VoxelShapes.cpp src/world/movement/PlayerPhysics.cpp
+        src/client/systems/resources/BlockBoxDefinition.cpp src/client/systems/resources/BlockOffsetDefinition.cpp
+        src/world/level/Level.cpp src/world/level/chunk/ChunkCodec.cpp
+        src/world/level/lighting/LightRegistry.cpp src/world/level/lighting/ChunkLighting.cpp)
+    target_include_directories(perlin_meshbench PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_link_libraries(perlin_meshbench PRIVATE glaze::glaze miniz Threads::Threads)
+    target_compile_features(perlin_meshbench PRIVATE cxx_std_23)
+    add_test(NAME mesh_exactness COMMAND perlin_meshbench 2 1 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_tests_properties(mesh_exactness PROPERTIES PASS_REGULAR_EXPRESSION "RESULT mesh=" FAIL_REGULAR_EXPRESSION "FAIL")
+
     add_executable(javapack_selftest
         tests/javapack_selftest.cpp src/client/systems/resources/JavaPack.cpp src/client/systems/resources/TexturePack.cpp
         src/client/systems/resources/TextureLoader.cpp src/util/Json.cpp)

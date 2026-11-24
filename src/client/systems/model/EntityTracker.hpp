@@ -125,6 +125,18 @@ namespace perlin::entity {
         int projTicksSince = 0;
         bool sleeping = false, sleepExt = false, sleepPlayer = false;
         bool simulated = false;
+        // Falling blocks and primed TNT fly on the client from their motion between the server's
+        // corrections (a vanilla server sends their position only every few ticks).
+        // Slime and magma cube squash: set on landing and jumping, eased every tick (current/previous
+        // squish value in Molang).
+        int8_t squishy = -1;
+        float squish = 0.0f, prevSquish = 0.0f, targetSquish = 0.0f;
+        bool squishWasOnGround = true;
+        int8_t ballistic = -1;
+        glm::dvec3 fallCorrection{0.0};
+        bool fallHaveServer = false;
+        glm::dvec3 fallLastServer{0.0};
+        int fallTicksSince = 0;
 
         struct Lerp {
             glm::dvec3 pos{0.0};
@@ -238,6 +250,7 @@ namespace perlin::entity {
         };
         void StepPickupsLocked(std::vector<uint64_t>* finished) const;
         void StepItemLocked(Entity& e);
+        void StepBallisticLocked(Entity& e);
         void MarkDyingLocked(Entity& e);
         void ReviveLocked(Entity& e);
         void StepCorpsesLocked() const;

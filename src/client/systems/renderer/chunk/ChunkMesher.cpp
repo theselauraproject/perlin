@@ -1043,10 +1043,34 @@ namespace perlin {
                                     PackedLight lightCenter) const;
             void ShadeFace(const int center[3], const int normal[3], int axis1, int axis2, const int first[3],
                            float shadeCenter, PackedLight lightCenter, CornerShade out[2][2]) const;
+            void ShadeFaceInside(const int center[3], const int normal[3], int axis1, int axis2,
+                                 const int first[3], float shadeCenter, PackedLight lightCenter,
+                                 CornerShade out[2][2]) const;
             CellLight OwnLight(int lx, int ly, int lz, uint16_t cellId) const;
             std::array<float, 4> BiomeTintForRaw(const BlockCtx& blk, const std::string& biomeName,
                                                  const std::string& tex, int tile, bool isTop);
-            std::array<float, 4> BiomeTintFor(BlockCtx& blk, const std::string& tex, int tile, bool isTop);
+            // What the tint lookup needs to know about a texture name, worked out once per name.
+            struct TexFacts {
+                bool known = false;
+                bool redstone = false, bamboo = false;
+                size_t hash = 0;
+            };
+            static void Learn(const std::string& tex, TexFacts& facts) {
+                facts.known = true;
+                facts.redstone = TexHas(tex, "redstone_dust");
+                facts.bamboo = tex.contains("bamboo_leaf") || tex.contains("bamboo_small_leaf");
+                facts.hash = std::hash<std::string>()(tex);
+            }
+            const TexFacts& ModelTextureFacts(const std::vector<std::string>& textures, uint16_t index) {
+                if (modelTexFacts.size() < textures.size())
+                    modelTexFacts.resize(textures.size());
+                TexFacts& f = modelTexFacts[index];
+                if (!f.known)
+                    Learn(textures[index], f);
+                return f;
+            }
+            std::array<float, 4> BiomeTintFor(BlockCtx& blk, const std::string& tex, int tile, bool isTop,
+                                              const TexFacts* facts = nullptr);
             void EmitStairLike(BlockCtx& blk);
             class ModelEmitter;
             class CubeEmitter;
@@ -1072,6 +1096,7 @@ namespace perlin {
             std::unordered_map<TintKey, std::array<float, 4>, TintKeyHash> tintMemo;
             std::unordered_map<TintKey, std::array<float, 4>, TintKeyHash> blendMemo;
             std::unordered_set<uint16_t> askedFor;
+            std::vector<TexFacts> modelTexFacts;
         };
 
         const std::string kPlainsName = "minecraft:plains";
@@ -1173,17 +1198,22 @@ namespace perlin {
         }
 
         std::array<float, 4> BlockMesher::BiomeTintFor(BlockCtx& blk, const std::string& tex, int tile,
-                                                       bool isTop) {
+                                                       bool isTop, const TexFacts* facts) {
             const int x = blk.x, y = blk.y, z = blk.z;
             const uint16_t id = blk.id;
             const BlockAppearance* app = blk.app;
-            if (TexHas(tex, "redstone_dust")) {
+            TexFacts learned;
+            if (!facts) {
+                Learn(tex, learned);
+                facts = &learned;
+            }
+            if (facts->redstone) {
                 const float f =
                     static_cast<float>(BlockPalette::Instance().StateInt(id, "redstone_signal", 0)) / 15.0f;
                 return {f * 0.6f + (f > 0.0f ? 0.4f : 0.3f), std::clamp(f * f * 0.7f - 0.5f, 0.0f, 1.0f),
                         std::clamp(f * f * 0.6f - 0.7f, 0.0f, 1.0f), 1.0f};
             }
-            const size_t texHash = std::hash<std::string>()(tex);
+            const size_t texHash = facts->hash;
             std::array<float, 4> sum{0, 0, 0, 0};
             std::array<float, 4> own{0, 0, 0, 0};
             int count = 0;
@@ -1490,6 +1520,17 @@ namespace perlin {
         void BlockMesher::ShadeFace(const int center[3], const int normal[3], int axis1, int axis2,
                                     const int first[3], float shadeCenter, PackedLight lightCenter,
                                     CornerShade out[2][2]) const {
+            // Every tap is within one block of the centre: when that whole 3x3x3 box is inside the cache
+            // and the light grid, read them by index instead of checking each one's bounds.
+            {
+                const int cx = center[0], cy = center[1], cz = center[2];
+                if (!tFullbright && cx >= 0 && cx <= 15 && cz >= 0 && cz <= 15 && cy - 1 >= cache.yBase &&
+                    cy + 1 < cache.yBase + cache.yRows && cy - 1 >= lighting.yBase &&
+                    cy + 1 < lighting.yBase + lighting.rows) {
+                    ShadeFaceInside(center, normal, axis1, axis2, first, shadeCenter, lightCenter, out);
+                    return;
+                }
+            }
             struct Tap {
                 float ao;
                 PackedLight light;
@@ -1527,6 +1568,73 @@ namespace perlin {
                         corner[axis1] += a ? 1 : -1;
                         corner[axis2] += b ? 1 : -1;
                         diagonal = tap(corner);
+                    }
+                    const PackedLight blended = BlendCorner(t1[a].light, t2[b].light, diagonal.light, lightCenter);
+                    out[a][b] = CornerShade{(t1[a].ao + t2[b].ao + diagonal.ao + shadeCenter) * 0.25f,
+                                            static_cast<float>(blended.block) / 16.0f,
+                                            static_cast<float>(blended.sky) / 16.0f};
+                }
+        }
+
+        void BlockMesher::ShadeFaceInside(const int center[3], const int normal[3], int axis1, int axis2,
+                                          const int first[3], float shadeCenter, PackedLight lightCenter,
+                                          CornerShade out[2][2]) const {
+            constexpr ptrdiff_t kStride[3] = {1, 18 * 18, 18};
+            const ptrdiff_t s1 = kStride[axis1], s2 = kStride[axis2];
+            const ptrdiff_t sn = normal[0] * kStride[0] + normal[1] * kStride[1] + normal[2] * kStride[2];
+            const ptrdiff_t ci = static_cast<ptrdiff_t>(cache.Idx(center[0], center[1], center[2]));
+            const ptrdiff_t li =
+                (static_cast<ptrdiff_t>(center[1] - lighting.yBase) * 18 + (center[2] + 1)) * 18 + (center[0] + 1);
+            const uint8_t* solid = cache.solid.data();
+            const uint8_t* light = lighting.packed.data();
+            uint8_t* aoCell = cache.aoCell.data();
+            struct Tap {
+                float ao;
+                PackedLight light;
+            };
+            // d: offset from the centre, in cells; (x, y, z) only for the rare first look at a cell's AO.
+            const auto tap = [&](ptrdiff_t d, int dx, int dy, int dz) {
+                uint8_t& known = aoCell[ci + d];
+                if (known == 0xFF)
+                    known = AoShadeUncached(cache, library, center[0] + dx, center[1] + dy, center[2] + dz) == 1.0f ? 0 : 1;
+                const uint8_t packed = light[li + d];
+                return Tap{known ? 0.2f : 1.0f, PackedLight{ChunkLighting::Result::Block(packed) * 16,
+                                                            ChunkLighting::Result::Sky(packed) * 16}};
+            };
+            const auto offset = [&](int axis, int d, int (&v)[3]) {
+                v[0] = v[1] = v[2] = 0;
+                v[axis] = d;
+            };
+            bool open1[2], open2[2];
+            Tap t1[2], t2[2];
+            for (int s = 0; s < 2; s++) {
+                const int d = s ? 1 : -1;
+                open1[s] = !solid[ci + d * s1 + sn];
+                open2[s] = !solid[ci + d * s2 + sn];
+                int v1[3], v2[3];
+                offset(axis1, d, v1);
+                offset(axis2, d, v2);
+                t1[s] = tap(d * s1, v1[0], v1[1], v1[2]);
+                t2[s] = tap(d * s2, v2[0], v2[1], v2[2]);
+            }
+            bool haveFallback = false;
+            Tap fallback{};
+            for (int a = 0; a < 2; a++)
+                for (int b = 0; b < 2; b++) {
+                    Tap diagonal;
+                    if (!open1[a] && !open2[b]) {
+                        if (!haveFallback) {
+                            fallback = tap(first[0] * kStride[0] + first[1] * kStride[1] + first[2] * kStride[2],
+                                           first[0], first[1], first[2]);
+                            haveFallback = true;
+                        }
+                        diagonal = fallback;
+                    } else {
+                        const int da = a ? 1 : -1, db = b ? 1 : -1;
+                        int v[3] = {0, 0, 0};
+                        v[axis1] += da;
+                        v[axis2] += db;
+                        diagonal = tap(da * s1 + db * s2, v[0], v[1], v[2]);
                     }
                     const PackedLight blended = BlendCorner(t1[a].light, t2[b].light, diagonal.light, lightCenter);
                     out[a][b] = CornerShade{(t1[a].ao + t2[b].ao + diagonal.ao + shadeCenter) * 0.25f,
@@ -1756,15 +1864,19 @@ namespace perlin {
             std::array<float, 3> BaseColor(const ModelQuad& q, int tile) {
                 std::string tilePath;
                 const bool modelTexture = !q.tile && q.tex < models.Textures().size();
-                if (!modelTexture)
+                TexFacts tileFacts;
+                if (!modelTexture) {
                     tilePath = m.library->TilePathOf(tile);
+                    Learn(tilePath, tileFacts);
+                }
                 const std::string& texture = modelTexture ? models.Textures()[q.tex] : tilePath;
+                const TexFacts& facts = modelTexture ? m.ModelTextureFacts(models.Textures(), q.tex) : tileFacts;
                 std::array<float, 3> base = {1, 1, 1};
-                if (texture.contains("bamboo_leaf") || texture.contains("bamboo_small_leaf"))
+                if (facts.bamboo)
                     base = {0.63f, 0.63f, 0.63f};
                 if (q.tint < 0 || q.tile)
                     return base;
-                const auto tint = m.BiomeTintFor(blk, texture, tile, q.dir == 1);
+                const auto tint = m.BiomeTintFor(blk, texture, tile, q.dir == 1, &facts);
                 if (tint[3])
                     return {tint[0], tint[1], tint[2]};
                 const BlockAppearance* app = blk.app;
@@ -1774,6 +1886,13 @@ namespace perlin {
             }
 
             void EmitQuad(const ModelQuad& q) {
+                // Most quads of a model face a full neighbour: drop those before looking at the texture.
+                if (q.cull >= 0) {
+                    const int* nb = kFaceNormal[q.cull];
+                    if (NeighbourId(nb[0], nb[1], nb[2]) != 0 &&
+                        m.cache.Occ(blk.x + nb[0], blk.y + nb[1], blk.z + nb[2]))
+                        return;
+                }
                 QuadTexture tex;
                 if (!ResolveTexture(q, tex))
                     return;
@@ -1798,13 +1917,22 @@ namespace perlin {
                     const float p1 = std::clamp(q.pos[i][axis1], 0.0f, 1.0f);
                     const float p2 = std::clamp(q.pos[i][axis2], 0.0f, 1.0f);
                     float ao = 0, bl = 0, sk = 0;
-                    for (int s1 = 0; s1 < 2; s1++)
-                        for (int s2 = 0; s2 < 2; s2++) {
-                            const float w = (s1 ? p1 : 1 - p1) * (s2 ? p2 : 1 - p2);
-                            ao += w * light.ao[s1][s2];
-                            bl += w * light.block[s1][s2];
-                            sk += w * light.sky[s1][s2];
-                        }
+                    if ((p1 == 0.0f || p1 == 1.0f) && (p2 == 0.0f || p2 == 1.0f)) {
+                        // A corner of the block face (most model quads): that corner's values, as the
+                        // weighted sum below gives them exactly.
+                        const int s1 = p1 != 0.0f, s2 = p2 != 0.0f;
+                        ao = light.ao[s1][s2];
+                        bl = light.block[s1][s2];
+                        sk = light.sky[s1][s2];
+                    } else {
+                        for (int s1 = 0; s1 < 2; s1++)
+                            for (int s2 = 0; s2 < 2; s2++) {
+                                const float w = (s1 ? p1 : 1 - p1) * (s2 ? p2 : 1 - p2);
+                                ao += w * light.ao[s1][s2];
+                                bl += w * light.block[s1][s2];
+                                sk += w * light.sky[s1][s2];
+                            }
+                    }
                     if (q.light) {
                         bl = std::max(bl, static_cast<float>(q.light));
                         sk = std::max(sk, static_cast<float>(q.light));
