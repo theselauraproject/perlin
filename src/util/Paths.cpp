@@ -67,6 +67,19 @@ namespace perlin::paths {
     std::string DataDir() {
         if (const char* override = std::getenv("PERLIN_DATA_DIR"); override && *override)
             return fs::path(override).generic_string();
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__) && !defined(PERLIN_IOS)
+        // Portable copies (the portable zip ships portable.txt beside the program) keep
+        // everything in a data folder next to it, so the whole install moves on a USB stick.
+        static const std::string portable = [] {
+            const std::string exe = ExeDir();
+            std::error_code ec;
+            if (!exe.empty() && fs::exists(fs::path(exe) / "portable.txt", ec))
+                return (fs::path(exe) / "data").generic_string();
+            return std::string();
+        }();
+        if (!portable.empty())
+            return portable;
+#endif
 #if defined(__EMSCRIPTEN__)
         return "/perlin";
 #elif defined(__ANDROID__)

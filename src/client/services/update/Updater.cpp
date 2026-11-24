@@ -144,7 +144,17 @@ namespace perlin::update {
         }
 
         bool ManagedElsewhere() {
-            return std::getenv("FLATPAK_ID") != nullptr || std::getenv("SNAP") != nullptr;
+            if (std::getenv("FLATPAK_ID") != nullptr || std::getenv("SNAP") != nullptr)
+                return true;
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+            // System packages (the .deb) put a marker beside the program: their package manager
+            // updates them, and the folder is not writable anyway.
+            std::error_code ec;
+            const std::string exe = paths::ExeDir();
+            if (!exe.empty() && std::filesystem::exists(std::filesystem::path(exe) / "package-managed.txt", ec))
+                return true;
+#endif
+            return false;
         }
 
 #if !defined(__EMSCRIPTEN__)

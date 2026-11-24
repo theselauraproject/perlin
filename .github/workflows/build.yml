@@ -311,6 +311,70 @@ jobs:
           archive: false
           if-no-files-found: error
 
+      # The same build in the other shapes people download: a Windows installer and a portable
+      # zip, a macOS disk image, a Debian package. The plain zip above stays as it is (the
+      # built-in updater downloads it).
+      - name: Windows installer and portable zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            for ($i = 1; $i -le 3; $i++) { choco install innosetup -y --no-progress; if ($LASTEXITCODE -eq 0) { break }; Start-Sleep (20 * $i) }
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          $version = "1.0.${{ github.run_number }}"
+          & $iscc /Q "/DAppVersion=$version" "/DSourceDir=$env:GITHUB_WORKSPACE\dist" "/DOutputDir=$env:GITHUB_WORKSPACE\pkg" `
+            "/DOutputName=Perlin-${{ matrix.name }}-setup" /DArch=x64 "/DAppUrl=https://github.com/${{ github.repository }}" packaging\windows\perlin.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force portable | Out-Null
+          Copy-Item -Recurse dist\* portable\
+          Set-Content -Path portable\portable.txt -Value "Perlin keeps its settings, worlds and downloads in the data folder beside it while this file is here."
+          Push-Location portable; 7z a -tzip -bso0 "$env:GITHUB_WORKSPACE\pkg\Perlin-${{ matrix.name }}-portable.zip" .; Pop-Location
+          Get-ChildItem pkg
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}-setup.exe
+          archive: false
+          if-no-files-found: error
+      - name: Upload Windows portable zip
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}-portable.zip
+          archive: false
+          if-no-files-found: error
+
+      - name: macOS disk image
+        if: runner.os == 'macOS'
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: sh tools/package/make-dmg.sh dist "pkg/Perlin-${{ matrix.name }}.dmg"
+      - name: Upload macOS disk image
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}.dmg
+          archive: false
+          if-no-files-found: error
+
+      - name: Debian package
+        if: matrix.appimage
+        run: |
+          arch=$([ "${{ matrix.appimage }}" = aarch64 ] && echo arm64 || echo amd64)
+          sh tools/package/make-deb.sh dist "pkg/Perlin-${{ matrix.name }}.deb" "1.0.${{ github.run_number }}" "$arch"
+          dpkg-deb --info "pkg/Perlin-${{ matrix.name }}.deb"
+      - name: Upload Debian package
+        if: matrix.appimage
+        uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-${{ matrix.name }}.deb
+          archive: false
+          if-no-files-found: error
+
       - name: Cache appimagetool
         if: matrix.appimage
         uses: actions/cache@v4
@@ -477,6 +541,32 @@ jobs:
           path: pkg/Perlin-windows-arm64.zip
           archive: false
           if-no-files-found: error
+      - name: Windows installer and portable zip
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            for ($i = 1; $i -le 3; $i++) { choco install innosetup -y --no-progress; if ($LASTEXITCODE -eq 0) { break }; Start-Sleep (20 * $i) }
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc /Q "/DAppVersion=1.0.${{ github.run_number }}" "/DSourceDir=$env:GITHUB_WORKSPACE\dist" "/DOutputDir=$env:GITHUB_WORKSPACE\pkg" `
+            /DOutputName=Perlin-windows-arm64-setup /DArch=arm64 "/DAppUrl=https://github.com/${{ github.repository }}" packaging\windows\perlin.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force portable | Out-Null
+          Copy-Item -Recurse dist\* portable\
+          Set-Content -Path portable\portable.txt -Value "Perlin keeps its settings, worlds and downloads in the data folder beside it while this file is here."
+          Push-Location portable; 7z a -tzip -bso0 "$env:GITHUB_WORKSPACE\pkg\Perlin-windows-arm64-portable.zip" .; Pop-Location
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-windows-arm64-setup.exe
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          path: pkg/Perlin-windows-arm64-portable.zip
+          archive: false
+          if-no-files-found: error
 
   freebsd:
     name: freebsd-x64
@@ -524,20 +614,49 @@ jobs:
           if-no-files-found: error
 
   flatpak:
+    # Built straight on the runner. In the flatpak-github-actions container the SDK and runtimes
+    # come preinstalled in the image's overlay filesystem, and whenever Flathub has a newer
+    # build of them flatpak has to update them in place, which overlayfs refuses ("Invalid
+    # cross-device link"); that is why it failed only now and then. Here they live in a user
+    # installation on the runner's own disk, cached between runs.
     name: flatpak-x64
     runs-on: ubuntu-24.04
     continue-on-error: true
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
-      options: --privileged
+    env:
+      FLATPAK_USER_DIR: ${{ github.workspace }}/.flatpak-user
     steps:
       - uses: actions/checkout@v4
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y flatpak flatpak-builder
+      - name: Cache runtimes and build state
+        uses: actions/cache@v4
         with:
-          bundle: Perlin.flatpak
-          manifest-path: packaging/flatpak/io.perlin.client.yml
-          cache-key: flatpak-builder-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
-          upload-artifact: false
+          path: |
+            .flatpak-user
+            .flatpak-builder
+          key: flatpak-25.08-${{ hashFiles('packaging/flatpak/io.perlin.client.yml', 'CMakeLists.txt', 'cmake/**') }}
+          restore-keys: flatpak-25.08-
+      - name: Install the SDK and runtime
+        run: |
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          for i in 1 2 3; do
+            flatpak --user install -y --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08 && \
+              flatpak --user update -y --noninteractive && exit 0
+            sleep $((30 * i))
+          done
+          exit 1
+      - name: Build
+        run: |
+          for i in 1 2; do
+            flatpak-builder --user --disable-rofiles-fuse --force-clean --ccache --repo=repo \
+              --state-dir .flatpak-builder --default-branch=master build-flatpak packaging/flatpak/io.perlin.client.yml && break
+            [ "$i" = 2 ] && exit 1
+            echo "::warning::flatpak-builder failed; trying once more"; sleep 30
+          done
+          flatpak build-bundle repo Perlin.flatpak io.perlin.client master --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+          ls -l Perlin.flatpak
       - uses: actions/upload-artifact@v7
         with:
           path: Perlin.flatpak
@@ -887,7 +1006,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        if: github.ref == 'refs/heads/main'
 
       - name: Download packages
         uses: actions/download-artifact@v8
@@ -909,7 +1027,8 @@ jobs:
       - name: Archive
         run: |
           mkdir release
-          find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' -o -name '*.AppImage' -o -name '*.flatpak' \) -exec cp {} release/ \;
+          find packages -type f \( -name '*.zip' -o -name '*.apk' -o -name '*.ipa' -o -name '*.AppImage' -o -name '*.flatpak' \
+            -o -name '*.exe' -o -name '*.dmg' -o -name '*.deb' \) -exec cp {} release/ \;
           for dir in folders/*/; do
             name=$(basename "$dir")
             (cd "$dir" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)
@@ -921,6 +1040,13 @@ jobs:
               echo "::error::$z only holds another zip"; exit 1
             fi
           done
+
+      - name: Checksums and the downloads list
+        run: |
+          (cd release && sha256sum * > SHA256SUMS.txt)
+          python3 tools/package/downloads_json.py release "${{ github.repository }}" \
+            "${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'nightly' }}" "$GITHUB_SHA" > release/downloads.json
+          cat release/downloads.json
 
       - name: iOS app source
         if: github.ref == 'refs/heads/main'

@@ -45,4 +45,8 @@ modules:
           - build
           - build-flatpak
           - .flatpak-builder
+          - .flatpak-user
           - .cpm-cache
+          - repo
+          - pkg
+          - dist
