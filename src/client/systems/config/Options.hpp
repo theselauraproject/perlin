@@ -1,6 +1,7 @@
 #pragma once
 #include "client/systems/bindings/KeyMapping.hpp"
 #include "client/systems/bindings/TouchState.hpp"
+#include "util/Platform.hpp"
 
 #include <map>
 #include <string>
@@ -57,6 +58,10 @@ namespace perlin {
         float textOpacity = 1.0f;
         float backgroundOpacity = 0.5f;
         float lineSpacing = 0.0f;
+        // Chat above the hotbar at the bottom left (on). Off puts it at the top left, under the
+        // paper doll, the way Bedrock shows it on phones and tablets, which is where it starts on
+        // Android and iOS.
+        bool bottom = !platform::kMobile;
     };
 
     struct SkinParts {

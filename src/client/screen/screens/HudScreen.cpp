@@ -148,6 +148,7 @@ namespace perlin::screen {
             layout.width = std::min(layout.width, std::max(40, static_cast<int>((lastGuiW - 8) / layout.scale)));
         chat.SetLayout(layout);
         chat.Fill(s, hudAnim.ticks, detail::MsNow(), pause.IsOpen() && pause.OnChatSettings());
+        s.chatAtTop = !options.chat.bottom;
     }
 
     void HudScreen::FillHudSidebar(ui::HudState& s, BedrockSession* live, bool preview) {

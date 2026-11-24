@@ -601,6 +601,7 @@ namespace perlin::screen {
         pixels("options.chat.width", "Width", c.width, 280.0f, 40.0f, kChatMaxWidth);
         pixels("options.chat.height.focused", "Focused Height", c.focusedHeight, 160.0f, 20.0f, kChatMaxHeight);
         pixels("options.chat.height.unfocused", "Unfocused Height", c.unfocusedHeight, 160.0f, 20.0f, kChatMaxHeight);
+        m.Toggle(i18n::TrOr("perlin.options.chat.bottom", "Bottom Chat"), c.bottom);
         OptRow reset{i18n::TrOr("controls.reset", "Reset"), "", -1.0f, [this](float, bool click) {
                          if (click)
                              services.options.chat = ChatSettings{};

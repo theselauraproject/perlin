@@ -445,12 +445,20 @@ namespace perlin::ui {
             const float lineH = static_cast<float>(s.chatLineHeight);
             constexpr float kBottom = 180.0f;
             const float textAlpha = s.chatTextAlpha * 0.9f + 0.1f;
+            // Top chat: the same lines in the same order, but hanging from the top of the area
+            // (the oldest shown at the top, the newest under it) instead of standing on its bottom.
+            int topRows = 0;
+            if (s.chatAtTop)
+                for (const HudState::ChatLine& l : s.chatLines)
+                    if (l.alpha * textAlpha * 255.0f > 3.0f)
+                        topRows = std::max(topRows, l.row + 1);
             w.BeginSection();
             for (const HudState::ChatLine& l : s.chatLines) {
                 const float a = l.alpha * textAlpha;
                 if (a * 255.0f <= 3.0f)
                     continue;
-                const float top = kBottom - (static_cast<float>(l.row) + 1.0f) * lineH * sc;
+                const float top = s.chatAtTop ? static_cast<float>(topRows - 1 - l.row) * lineH * sc
+                                              : kBottom - (static_cast<float>(l.row) + 1.0f) * lineH * sc;
                 const float textTop = top + ((lineH - 9.0f) * 0.5f + 1.0f) * sc;
                 w.Rect(0, top, (width + 8) * sc, lineH * sc, 1, 0, 0, 0, s.chatBackgroundAlpha * l.alpha);
                 for (const HudState::ChatLine::Click& c : l.clicks) {
@@ -475,9 +483,14 @@ namespace perlin::ui {
                                                        static_cast<float>(std::max(page, s.chatTotalLines)));
                 const float pos = (track - thumb) * static_cast<float>(s.chatScroll) /
                                   static_cast<float>(std::max(1, s.chatTotalLines - page));
-                w.Rect(0, kBottom - pos - thumb, 2, thumb, 1, 0.8f, 0.8f, 0.8f, 0.9f);
+                w.Rect(0, s.chatAtTop ? track - pos - thumb : kBottom - pos - thumb, 2, thumb, 1, 0.8f, 0.8f, 0.8f, 0.9f);
             }
             w.EndSection("chat_scroll");
+            if (s.chatAtTop) {
+                // Tells the emitter to place the chat area at the top.
+                w.BeginSection();
+                w.EndSection("chat_top");
+            }
             w.BeginSection();
             if (s.chatOpen) {
                 const float barW = s.guiW - 4.0f;
