@@ -91,7 +91,9 @@ namespace perlin::gpu {
 
         void Select(const Frustum& frustum, float camX, float camY, float camZ, int cullRadius,
                     bool caveCulling, double now, bool translucentOnly = false);
-        void CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out);
+        // faceCamera: leave out the faces of solid and culled-cutout sections that point away from that
+        // position (what the GPU culling does for the plain renderer); null keeps every face.
+        void CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out, const float* faceCamera = nullptr);
         bool SectionReached(int sx, int sy, int sz, bool caveCulling) const;
 
         using ExtendFn = std::function<void(const Tessellator&, std::vector<uint8_t>&)>;

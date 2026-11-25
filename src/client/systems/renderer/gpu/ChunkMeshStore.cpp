@@ -879,9 +879,10 @@ namespace perlin::gpu {
         }
     }
 
-    void ChunkMeshStore::CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out) {
+    void ChunkMeshStore::CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out, const float* faceCamera) {
         out.clear();
         const size_t slot = static_cast<size_t>(layer);
+        const int split = SplitSlot(layer);
         const auto push = [&](uint32_t page, uint32_t start, uint32_t count) {
             if (!out.empty() && out.back().page == page && out.back().first + out.back().count == start)
                 out.back().count += count;
@@ -894,8 +895,44 @@ namespace perlin::gpu {
                 return;
             for (uint32_t i = item.secBegin; i < item.secEnd; i++) {
                 const Section& sec = *visibleSections[i];
-                if (sec.count[slot])
-                    push(static_cast<uint32_t>(g.page), g.iOff[slot] + sec.start[slot], sec.count[slot]);
+                if (!sec.count[slot])
+                    continue;
+                const uint32_t first = g.iOff[slot] + sec.start[slot];
+                if (faceCamera && split >= 0 && sec.split) {
+                    const auto& faces = sec.faces[static_cast<size_t>(split)];
+                    uint32_t sum = 0;
+                    for (uint32_t n : faces)
+                        sum += n;
+                    if (sum == sec.count[slot]) {
+                        // Face groups: 0 +x, 1 +y, 2 +z, 3 any, 4 -z, 5 -y, 6 -x, by the side the camera must be on.
+                        constexpr float m = 0.5f;
+                        const float s = static_cast<float>(g.size);
+                        const float x0 = static_cast<float>(g.cx) * s, z0 = static_cast<float>(g.cz) * s;
+                        const float* c = faceCamera;
+                        uint32_t mask = 1u << 3;
+                        if (c[0] > x0 - m)
+                            mask |= 1u << 0;
+                        if (c[1] > sec.minY - m)
+                            mask |= 1u << 1;
+                        if (c[2] > z0 - m)
+                            mask |= 1u << 2;
+                        if (c[2] < z0 + s + m)
+                            mask |= 1u << 4;
+                        if (c[1] < sec.maxY + m)
+                            mask |= 1u << 5;
+                        if (c[0] < x0 + s + m)
+                            mask |= 1u << 6;
+                        uint32_t offset = first;
+                        for (int k = 0; k < kFaceGroups; k++) {
+                            const uint32_t n = faces[static_cast<size_t>(k)];
+                            if (n && (mask & (1u << k)))
+                                push(static_cast<uint32_t>(g.page), offset, n);
+                            offset += n;
+                        }
+                        continue;
+                    }
+                }
+                push(static_cast<uint32_t>(g.page), first, sec.count[slot]);
             }
         };
         if (farToNear) {

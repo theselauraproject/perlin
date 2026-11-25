@@ -81,7 +81,7 @@ namespace perlin::gpu {
 
         bool TerrainUsable();
 
-        void GatherGeometry(float camX, float camZ);
+        void GatherGeometry(float camX, float camY, float camZ);
         void SetViewFrustum(const Frustum& f) {
             viewFrustum = f;
             haveViewFrustum = true;

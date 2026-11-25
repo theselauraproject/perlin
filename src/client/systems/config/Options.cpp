@@ -1,8 +1,11 @@
 #include "client/systems/config/Options.hpp"
 #include "util/Paths.hpp"
 #include "util/Platform.hpp"
+#include <SDL3/SDL_locale.h>
 
 #include <algorithm>
+#include <cctype>
+#include <string_view>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -12,6 +15,48 @@
 #include <map>
 
 namespace perlin {
+    namespace {
+        // The game language closest to the operating system's preferred languages, for a first start
+        // with no language saved yet.
+        std::string SystemLanguage() {
+            static const char* const kLanguages[] = {"en_US", "en_GB", "de_DE", "es_ES", "es_MX", "fr_FR", "fr_CA", "it_IT",
+                                                     "ja_JP", "ko_KR", "pt_BR", "pt_PT", "ru_RU", "zh_CN", "zh_TW", "nl_NL",
+                                                     "bg_BG", "cs_CZ", "da_DK", "el_GR", "fi_FI", "hu_HU", "id_ID", "nb_NO",
+                                                     "pl_PL", "sk_SK", "sv_SE", "tr_TR", "uk_UA"};
+            int count = 0;
+            SDL_Locale** locales = SDL_GetPreferredLocales(&count);
+            std::string found;
+            for (int i = 0; locales && i < count && found.empty(); i++) {
+                if (!locales[i] || !locales[i]->language)
+                    continue;
+                std::string language = locales[i]->language;
+                for (char& c : language)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (language == "nn" || language == "no")
+                    language = "nb";
+                std::string country = locales[i]->country ? locales[i]->country : "";
+                for (char& c : country)
+                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                // Chinese without a country: simplified unless the script says otherwise.
+                if (language == "zh" && country.empty())
+                    country = "CN";
+                if (language == "zh" && (country == "HK" || country == "MO"))
+                    country = "TW";
+                for (const char* l : kLanguages)
+                    if (language + "_" + country == l)
+                        found = l;
+                if (found.empty())
+                    for (const char* l : kLanguages)
+                        if (std::string_view(l).substr(0, 2) == language) {
+                            found = l;
+                            break;
+                        }
+            }
+            SDL_free(locales);
+            return found.empty() ? std::string("en_US") : found;
+        }
+    }
+
     namespace {
         constexpr int kOptionsVersion = 6;
     }
@@ -55,7 +100,7 @@ namespace perlin {
             HandSettings hand;
             int guiScale = 0;
             SoundSettings sound;
-            std::string language = "en_US";
+            std::string language; // empty: the system language
             std::string dynamicLights = "off";
             int menuBlur = 5;
             std::string sprintMode = "hold";
@@ -175,10 +220,13 @@ namespace perlin {
         o.bedrockSamplesDir = dir + "/bedrock-samples";
 
         std::ifstream file(SettingsPath());
-        if (!file.good())
+        if (!file.good()) {
+            o.language = SystemLanguage();
             return o;
+        }
         std::string text;
         file::ReadRest(file, text);
+        o.language.clear(); // a settings file without a language takes the system's
 
         Stored stored{o.maxFps,
                       o.vsync,
@@ -333,7 +381,7 @@ namespace perlin {
         o.sneakMode = stored.sneakMode == "toggle" ? "toggle" : "hold";
         o.dynamicLights =
             stored.dynamicLights == "fast" || stored.dynamicLights == "fancy" ? stored.dynamicLights : "off";
-        o.language = stored.language.empty() ? std::string("en_US") : stored.language;
+        o.language = stored.language.empty() ? SystemLanguage() : stored.language;
         for (float* v :
              {&o.sound.master, &o.sound.music, &o.sound.record, &o.sound.weather, &o.sound.block,
               &o.sound.hostile, &o.sound.neutral, &o.sound.player, &o.sound.ambient, &o.sound.voice})

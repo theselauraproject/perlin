@@ -924,7 +924,7 @@ namespace perlin {
         if (pack) {
 
             jpack->SetViewFrustum(frustum);
-            jpack->GatherGeometry(camX, camZ);
+            jpack->GatherGeometry(camX, frame.cameraPosition[1], camZ);
             jpackGathered = true;
             if (jpack->VanillaClouds())
                 DrawClouds();

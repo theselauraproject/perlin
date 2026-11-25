@@ -2761,11 +2761,15 @@ namespace perlin::gpu {
             v.clear();
     }
 
-    void JavaPack::GatherGeometry(float camX, float camZ) {
+    void JavaPack::GatherGeometry(float camX, float camY, float camZ) {
+        // Faces turned away from the camera are left out of the main passes, as the plain renderer's culling
+        // does; the shadow pass looks from the sun and gathers its own runs.
+        static const bool faceCull = !std::getenv("PERLIN_PACK_NO_FACE_CULL");
+        const float camera[3] = {camX, camY, camZ};
         for (int l = 0; l < kRenderLayerCount; l++) {
             const RenderLayer layer = static_cast<RenderLayer>(l);
             const bool ordered = layer == RenderLayer::Translucent || layer == RenderLayer::TranslucentCull;
-            meshes.CollectRuns(layer, ordered, layerRuns[static_cast<size_t>(l)]);
+            meshes.CollectRuns(layer, ordered, layerRuns[static_cast<size_t>(l)], faceCull && !ordered ? camera : nullptr);
         }
         const float reach = std::max(8.0f, config.shadowDistance) * 1.5f + 24.0f;
 
