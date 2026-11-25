@@ -245,6 +245,8 @@ namespace perlin {
         FrameGenPacer fgPacer;
         int fgActive = 1;
         uint64_t benchmarkGeneratedSeen = 0;
+        uint64_t titleGeneratedSeen = 0;
+        int FrameGenShownCap() const;
 
         Camera camera;
         LocalPlayer player;

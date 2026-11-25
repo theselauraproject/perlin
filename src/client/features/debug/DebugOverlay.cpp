@@ -122,6 +122,7 @@ namespace perlin::debug {
         d.serverBrand = brand;
         d.fps = state.fps;
         d.lowFps = state.lowFps;
+        d.renderedFps = state.renderedFps;
         d.maxFps = options.maxFps;
         d.vsync = options.vsync;
         d.fancyGraphics = options.fancyGraphics;

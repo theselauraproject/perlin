@@ -90,6 +90,10 @@ namespace perlin::heldbuild {
         if (!sneaking && !lastInteractive && !lineless)
             delay = speedSq > 0.0f ? std::min(900.0f / std::sqrt(speedSq), 180.0f) : 200.0f;
 
+        // The first repeat after a click waits longer, so a click held a little past the repeat
+        // interval places one block rather than two.
+        if (afterClick)
+            delay = std::max(delay, 350.0f);
         return static_cast<int64_t>(static_cast<int>(delay)) * 1000000;
     }
 
@@ -152,6 +156,7 @@ namespace perlin::heldbuild {
         lastBuilt = fromRepeat && replacedSupport ? clicked.support + glm::ivec3(0, 1, 0) : cell;
         hasLastBuilt = true;
         lastBuildNs = fromRepeat ? nextBuildNs : nowNs;
+        afterClick = !fromRepeat;
         pendingLine = replacedSupport = false;
     }
 }

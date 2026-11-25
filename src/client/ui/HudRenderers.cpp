@@ -41,6 +41,20 @@ namespace perlin::ui {
         };
 
         HeartSet HeartsFor(const HudState& s) {
+            // Hardcore draws every kind of heart with the hardcore art (textures/ui/hardcore/), in the
+            // usual containers, as the game does.
+            if (s.hardcore) {
+                if (s.wither)
+                    return {"hardcore/wither_heart", "hardcore/wither_heart_half", "hardcore/wither_heart_flash",
+                            "hardcore/wither_heart_flash_half"};
+                if (s.poison)
+                    return {"hardcore/poison_heart", "hardcore/poison_heart_half", "hardcore/poison_heart_flash",
+                            "hardcore/poison_heart_flash_half"};
+                if (s.freezing)
+                    return {"hardcore/freeze_heart", "hardcore/freeze_heart_half", "hardcore/freeze_heart_flash",
+                            "hardcore/freeze_heart_flash_half"};
+                return {"hardcore/heart", "hardcore/heart_half", "hardcore/heart_flash", "hardcore/heart_flash_half"};
+            }
             if (s.wither)
                 return {"wither_heart", "wither_heart_half", "wither_heart_flash", "wither_heart_flash_half"};
             if (s.poison)
@@ -86,13 +100,18 @@ namespace perlin::ui {
                     y += random.NextInt(2);
                 if (i < normalHearts && i == regen)
                     y -= 2;
-                Tex(w, n, x, y, 9, blinking ? "heart_blink" : "heart_background", 0);
+                Tex(w, n, x, y, 9,
+                    blinking ? "heart_blink" : "heart_background",
+                    0);
                 const int twice = i * 2;
                 if (i >= normalHearts) {
                     const int index = twice - maxHealth;
                     if (index < absorption) {
                         const bool half = index + 1 == absorption;
-                        Tex(w, n, x, y, 9, half ? "absorption_heart_half" : "absorption_heart", 1);
+                        Tex(w, n, x, y, 9,
+                            s.hardcore ? (half ? "hardcore/absorption_heart_half" : "hardcore/absorption_heart")
+                                       : (half ? "absorption_heart_half" : "absorption_heart"),
+                            1);
                         (void)absorptionLeft;
                     }
                     continue;
@@ -106,7 +125,6 @@ namespace perlin::ui {
                     Tex(w, n, x, y, 9, half ? set.half : set.full, 2);
                 }
             }
-            if (s.hardcore) {}
         }
 
         void Armor(const HudState& s, const LNode& n, SceneWriter& w) {

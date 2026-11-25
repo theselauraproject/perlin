@@ -52,9 +52,11 @@ namespace perlin::screen {
             const auto t = fs::last_write_time(p, ec);
             if (ec)
                 return 0;
-            return std::chrono::duration_cast<std::chrono::seconds>(
-                       std::chrono::clock_cast<std::chrono::system_clock>(t).time_since_epoch())
-                .count();
+            // The file clock's epoch differs by platform and libc++ has no clock_cast, so convert
+            // through the present moment on both clocks.
+            const auto sys = std::chrono::system_clock::now() +
+                             std::chrono::duration_cast<std::chrono::system_clock::duration>(t - fs::file_time_type::clock::now());
+            return std::chrono::duration_cast<std::chrono::seconds>(sys.time_since_epoch()).count();
         }
 
         bool ZipFolder(const fs::path& folder, const fs::path& zipPath, const std::string& top) {
@@ -164,6 +166,7 @@ namespace perlin::screen {
                 w.generator = static_cast<int>(tag.Int("Generator", 1));
                 w.seed = tag.Int("RandomSeed", 0);
                 w.cheats = tag.Int("commandsEnabled", 0) != 0;
+                w.hardcore = tag.Int("IsHardcore", 0) != 0;
                 w.structures = tag.Int("GenerateStructures", 1) != 0;
                 if (const nbtle::Tag* v = tag.Find("lastOpenedWithVersion"); v && v->type == nbtle::List) {
                     // trailing zeros of the five-part version are not shown: 1.21.60
@@ -183,7 +186,7 @@ namespace perlin::screen {
             if (w.lastPlayed <= 0)
                 w.lastPlayed = FileSeconds(levelDat);
             w.line2 = w.folder + " (" + DateText(w.lastPlayed) + ")";
-            w.line3 = ModeName(w.gameType) + (w.cheats ? ", Cheats" : "") +
+            w.line3 = (w.hardcore ? std::string("Hardcore Mode") : ModeName(w.gameType)) + (w.cheats ? ", Cheats" : "") +
                       ", Version: " + (version.empty() ? std::string("unknown") : version);
             const fs::path icon = dir.path() / kIcon;
             if (fs::exists(icon, ec))
@@ -229,6 +232,52 @@ namespace perlin::screen {
         return &t.worlds[static_cast<size_t>(t.worldSelected)];
     }
 
+    std::vector<FlatLayerRow> ParseFlatLayers(const std::string& raw) {
+        std::vector<FlatLayerRow> out;
+        const std::string text = raw.substr(0, raw.find(';'));
+        int total = 0;
+        size_t start = 0;
+        while (start <= text.size()) {
+            const size_t comma = text.find(',', start);
+            std::string item = text.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+            while (!item.empty() && std::isspace(static_cast<unsigned char>(item.front())))
+                item.erase(item.begin());
+            while (!item.empty() && std::isspace(static_cast<unsigned char>(item.back())))
+                item.pop_back();
+            if (!item.empty()) {
+                FlatLayerRow row;
+                if (const size_t star = item.find('*'); star != std::string::npos) {
+                    const std::string n = item.substr(0, star);
+                    if (n.empty() || !std::all_of(n.begin(), n.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
+                        return {};
+                    row.count = std::atoi(n.c_str());
+                    row.block = item.substr(star + 1);
+                } else {
+                    row.block = item;
+                }
+                if (row.block.empty() || row.count < 1)
+                    return {};
+                if (!row.block.contains(':'))
+                    row.block = "minecraft:" + row.block;
+                total += row.count;
+                if (total > 384)
+                    return {};
+                out.push_back(std::move(row));
+            }
+            if (comma == std::string::npos)
+                break;
+            start = comma + 1;
+        }
+        return out;
+    }
+
+    std::string ServerFlatLayers(const std::vector<FlatLayerRow>& layers) {
+        std::string out;
+        for (const FlatLayerRow& l : layers)
+            out += (out.empty() ? "" : ",") + l.block + "*" + std::to_string(l.count);
+        return out;
+    }
+
     void WorldLibrary::OpenCreate(const ui::WorldEntry* from) {
         ui::TitleModel& t = deps.title;
         t.page = ui::TitlePage::CreateWorld;
@@ -236,7 +285,7 @@ namespace perlin::screen {
         t.createFocus = 0;
         t.createName = from ? from->name : "New World";
         t.createSeed = from ? std::to_string(from->seed) : std::string();
-        t.createMode = from && (from->gameType == 1 || from->gameType == 2) ? from->gameType : 0;
+        t.createMode = from && from->hardcore ? 3 : from && (from->gameType == 1 || from->gameType == 2) ? from->gameType : 0;
         t.createDifficulty = from ? std::clamp(from->difficulty, 0, 3) : 2;
         t.createCheats = from ? from->cheats : false;
         t.createType = from && from->generator == 2 ? 1 : 0;
@@ -253,12 +302,18 @@ namespace perlin::screen {
         w.folder = FolderFor(deps.worldsDir(), w.name);
         w.fresh = true;
         w.seedText = t.createSeed;
-        w.gameMode = t.createMode;
-        w.difficulty = t.createDifficulty;
-        w.cheats = t.createCheats;
+        w.hardcore = t.createMode == 3;
+        w.gameMode = w.hardcore ? 0 : t.createMode;
+        w.difficulty = w.hardcore ? 3 : t.createDifficulty;
+        w.cheats = w.hardcore ? false : t.createCheats;
         w.flat = t.createType == 1;
         w.structures = t.createStructures;
         w.bonusChest = t.createBonus;
+        if (w.flat) {
+            const auto layers = ParseFlatLayers(t.createFlatLayers);
+            if (!layers.empty())
+                w.flatLayers = ServerFlatLayers(layers);
+        }
         deps.play(w);
     }
 
@@ -358,6 +413,12 @@ namespace perlin::screen {
             if (special && t.key == Key::Enter)
                 Click(ui::kDeleteWorldOk);
             return true;
+        case ui::TitlePage::SuperflatWorld:
+            if (special && t.key == Key::Enter)
+                Click(ui::kFlatDone);
+            else
+                ui::TextEdit::Focused().Apply(t, m.flatEdit, ui::TextLimits{.maxBytes = 2000});
+            return true;
         default:
             return false;
         }
@@ -371,7 +432,8 @@ namespace perlin::screen {
             return true;
         }
         if (m.page != ui::TitlePage::Worlds && m.page != ui::TitlePage::CreateWorld &&
-            m.page != ui::TitlePage::EditWorld && m.page != ui::TitlePage::DeleteWorld)
+            m.page != ui::TitlePage::EditWorld && m.page != ui::TitlePage::DeleteWorld &&
+            m.page != ui::TitlePage::SuperflatWorld)
             return false;
         const auto rowOf = [&](const char* prefix) {
             const std::string p = prefix;
@@ -413,7 +475,8 @@ namespace perlin::screen {
         }
 
         if (m.page == ui::TitlePage::CreateWorld) {
-            static const int kModes[] = {0, 1, 2};
+            // Survival, Hardcore, Creative, Adventure (Hardcore is mode 3 here: survival with one life).
+            static const int kModes[] = {0, 3, 1, 2};
             if (const int tab = rowOf(ui::kCreateTabPrefix); tab >= 0) {
                 m.createTab = std::clamp(tab, 0, 2);
                 m.createFocus = m.createTab == 1 ? 1 : 0;
@@ -423,13 +486,16 @@ namespace perlin::screen {
                 m.createFocus = 1;
             } else if (hover == ui::kCreateMode) {
                 const auto at = std::ranges::find(kModes, m.createMode);
-                m.createMode = kModes[(at == std::end(kModes) ? 0 : (at - std::begin(kModes) + 1)) % 3];
-            } else if (hover == ui::kCreateDifficulty) {
+                m.createMode = kModes[(at == std::end(kModes) ? 0 : (at - std::begin(kModes) + 1)) % 4];
+            } else if (hover == ui::kCreateDifficulty && m.createMode != 3) {
                 m.createDifficulty = (m.createDifficulty + 1) % 4;
-            } else if (hover == ui::kCreateCheats) {
+            } else if (hover == ui::kCreateCheats && m.createMode != 3) {
                 m.createCheats = !m.createCheats;
             } else if (hover == ui::kCreateType) {
                 m.createType = (m.createType + 1) % 2;
+            } else if (hover == ui::kCreateCustomize && m.createType == 1) {
+                m.flatEdit = m.createFlatLayers;
+                m.page = ui::TitlePage::SuperflatWorld;
             } else if (hover == ui::kCreateStructures) {
                 m.createStructures = !m.createStructures;
             } else if (hover == ui::kCreateBonus) {
@@ -439,6 +505,23 @@ namespace perlin::screen {
             } else if (hover == ui::kCreateCancel) {
                 Refresh();
                 m.page = all.empty() ? ui::TitlePage::Main : ui::TitlePage::Worlds;
+            }
+            deps.invalidate();
+            return true;
+        }
+
+        if (m.page == ui::TitlePage::SuperflatWorld) {
+            constexpr int presets = static_cast<int>(std::size(kFlatPresets));
+            if (hover == ui::kFlatPreset) {
+                m.flatPreset = (m.flatPreset + 1) % presets;
+                m.flatEdit = kFlatPresets[m.flatPreset].layers;
+            } else if (hover == ui::kFlatDone) {
+                if (!ParseFlatLayers(m.flatEdit).empty()) {
+                    m.createFlatLayers = m.flatEdit;
+                    m.page = ui::TitlePage::CreateWorld;
+                }
+            } else if (hover == ui::kFlatCancel) {
+                m.page = ui::TitlePage::CreateWorld;
             }
             deps.invalidate();
             return true;

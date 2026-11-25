@@ -217,6 +217,7 @@ namespace perlin::screen {
         s.fireFrame = static_cast<int>(s.tick % 32);
         s.maxAir = std::max(1, vitals.maxAir);
         s.poison = vitals.poison;
+        s.hardcore = live.Hardcore();
         s.wither = vitals.wither;
         s.regeneration = vitals.regeneration;
         s.hungerEffect = vitals.hungerEffect;

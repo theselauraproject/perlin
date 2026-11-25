@@ -58,7 +58,7 @@ namespace perlin::ui {
         long long lastPlayed = 0;
         long long seed = 0;
         int gameType = 0, difficulty = 2, generator = 1;
-        bool cheats = false, structures = true;
+        bool cheats = false, structures = true, hardcore = false;
     };
 
     enum class TitlePage {
@@ -76,7 +76,8 @@ namespace perlin::ui {
         Worlds,
         CreateWorld,
         EditWorld,
-        DeleteWorld
+        DeleteWorld,
+        SuperflatWorld
     };
 
     struct TitleModel {
@@ -145,11 +146,15 @@ namespace perlin::ui {
         int createTab = 0; // Game, World, More
         int createFocus = 0; // 0 world name, 1 seed
         std::string createName = "New World", createSeed, createFolder;
-        int createMode = 0; // 0 Survival, 1 Creative, 2 Adventure
+        int createMode = 0; // 0 Survival, 1 Creative, 2 Adventure, 3 Hardcore
         int createDifficulty = 2; // Peaceful, Easy, Normal, Hard
         bool createCheats = false;
         int createType = 0; // 0 Default, 1 Superflat
         bool createStructures = true, createBonus = false;
+        // Superflat layers in the game's preset text form, top layer last: "minecraft:bedrock,2*minecraft:dirt,..."
+        std::string createFlatLayers = "minecraft:bedrock,2*minecraft:dirt,minecraft:grass_block";
+        std::string flatEdit; // the text being edited on the Customize page
+        int flatPreset = 0;
         // Edit World
         std::string editWorldName, editWorldMessage;
 
@@ -217,6 +222,11 @@ namespace perlin::ui {
     inline constexpr const char* kEditWorldCancel = "ew_cancel";
     inline constexpr const char* kDeleteWorldOk = "dw_ok";
     inline constexpr const char* kDeleteWorldCancel = "dw_cancel";
+    inline constexpr const char* kCreateCustomize = "c_customize";
+    inline constexpr const char* kFlatField = "sf_text";
+    inline constexpr const char* kFlatPreset = "sf_preset";
+    inline constexpr const char* kFlatDone = "sf_done";
+    inline constexpr const char* kFlatCancel = "sf_cancel";
     inline constexpr const char* kServerJoin = "servers_join";
     inline constexpr const char* kServerDirect = "servers_direct";
     inline constexpr const char* kServerAdd = "servers_add";

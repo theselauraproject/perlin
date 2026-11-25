@@ -461,6 +461,10 @@ namespace perlin {
         const uint16_t id = level.GetBlock(x, y, z, loaded);
         if (!loaded || id == 0)
             return false;
+        // Water and lava are never targeted like blocks (they cannot be mined or placed against), whatever
+        // selection shape a server or table gives them; aiming at fluids is the caller's FluidAim.
+        if (QueryMain(x, y, z).fluid != 0)
+            return false;
         const Info& info = Lookup(id, blocks);
         if (info.selectionDefined) {
             out = info.selection;
@@ -480,8 +484,6 @@ namespace perlin {
             }
         }
         const physics::BlockShape shape = QueryMain(x, y, z);
-        if (shape.fluid != 0)
-            return false;
         if (shape.Empty()) {
             out.push_back({0, 0, 0, 1, 1, 1});
             return true;

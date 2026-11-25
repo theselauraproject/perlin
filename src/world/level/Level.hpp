@@ -204,7 +204,14 @@ namespace perlin {
         mutable std::mutex mutex;
         std::atomic<int> lodOnlyCount{0};
         std::atomic<uint64_t> changeCounter{0};
-        std::atomic<uint64_t> clearCounter{0};
+        // Starts at a value no other level has used, so a renderer that remembers (level, counter)
+        // sees a new level even when it is allocated at the address of the one before it (leaving one
+        // singleplayer world and opening another).
+        std::atomic<uint64_t> clearCounter{NextClearBase()};
+        static uint64_t NextClearBase() {
+            static std::atomic<uint64_t> next{0};
+            return next.fetch_add(1, std::memory_order_relaxed) << 32;
+        }
         // The chunk light kept between meshes (LightStore); only touched with mutex held.
         std::shared_ptr<void> lightCache;
     };

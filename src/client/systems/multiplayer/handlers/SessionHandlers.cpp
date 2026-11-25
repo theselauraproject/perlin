@@ -300,6 +300,11 @@ namespace perlin {
             }
             clientGen = p.clientSideGeneration;
             flatWorld = p.generator == 2;
+            {
+                static std::atomic<uint64_t> nextWorld{0};
+                worldSerial.store(++nextWorld, std::memory_order_release);
+            }
+            hardcore = p.hardcore;
             serverAuthBreaking = p.serverAuthoritativeBlockBreaking;
             Log("bedrock", "serverAuthoritativeBlockBreaking={}",
                 (p.serverAuthoritativeBlockBreaking ? "true" : "false"));

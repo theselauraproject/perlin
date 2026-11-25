@@ -31,7 +31,8 @@ namespace perlin::debug {
         bool softPaused = false;
         bool advancedTooltips = false;
         int switcherIndex = -1;
-        int fps = 0;
+        int fps = 0;         // frames shown, generated ones included
+        int renderedFps = 0; // frames rendered
         int lowFps = 0;
         uint64_t rateTx = 0, rateRx = 0;
         int txRate = 0, rxRate = 0;

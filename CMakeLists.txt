@@ -195,6 +195,16 @@ if(PERLIN_BUILD_APP)
     find_package(Threads REQUIRED)
 endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+# The macOS, iOS, Android, FreeBSD and web builds use libc++, which lacks some C++20/23 library
+# features that libstdc++ and MSVC have. Fail at configure time on every platform rather than
+# compiling for an hour and failing on only some of them.
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_portability.py ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE PERLIN_PORTABILITY_RESULT
+    OUTPUT_VARIABLE PERLIN_PORTABILITY_OUTPUT)
+if(NOT PERLIN_PORTABILITY_RESULT EQUAL 0)
+    message(FATAL_ERROR "Non-portable standard library use:\n${PERLIN_PORTABILITY_OUTPUT}")
+endif()
 
 include(cmake/CPM.cmake)
 include(cmake/Materials.cmake)
@@ -1146,6 +1156,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
 
     add_test(NAME layering COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_layers.py ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME singleton_ratchet COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_singletons.py ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME libcxx_portability COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_portability.py ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME resource_layout COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_resources.py "${PERLIN_EMBED_SOURCE}")
     add_executable(resources_selftest tests/resources_selftest.cpp src/util/Resources.cpp src/util/Paths.cpp
         src/client/platform/EmbeddedProvider.cpp ${PERLIN_EMBED_SOURCE} ${PERLIN_EMBED_NAMES_SOURCE})

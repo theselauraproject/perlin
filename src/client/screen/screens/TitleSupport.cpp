@@ -261,7 +261,8 @@ namespace perlin::screen::title {
 
     bool IsWorldPage(ui::TitlePage page) {
         return page == ui::TitlePage::Worlds || page == ui::TitlePage::CreateWorld ||
-               page == ui::TitlePage::EditWorld || page == ui::TitlePage::DeleteWorld;
+               page == ui::TitlePage::EditWorld || page == ui::TitlePage::DeleteWorld ||
+               page == ui::TitlePage::SuperflatWorld;
     }
 
     bool IsServerFieldPage(ui::TitlePage page) {
@@ -280,6 +281,8 @@ namespace perlin::screen::title {
         case ui::TitlePage::AccountName:
         case ui::TitlePage::AccountSignIn:
             return ui::TitlePage::Accounts;
+        case ui::TitlePage::SuperflatWorld:
+            return ui::TitlePage::CreateWorld;
         case ui::TitlePage::CreateWorld:
         case ui::TitlePage::EditWorld:
         case ui::TitlePage::DeleteWorld:

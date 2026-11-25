@@ -884,11 +884,11 @@ namespace perlin {
         if (!initialized || !frameOpen)
             return;
         const bool pack = PackRunning();
-        static const bool skyEarly = PERLIN_ENV("PERLIN_SKY_EARLY") != nullptr;
-        // The sky goes after opaque terrain, depth tested, so it is shaded only where terrain left the far plane
-        // showing: same picture (sunrise, sun and stars also land only on sky), far fewer fragments. A software
-        // rasteriser pays for every sky pixel terrain would cover anyway. PERLIN_SKY_EARLY=1 restores the old order.
-        const bool skyLate = !skyEarly && !javaActive && !pack && frame.sky.enabled;
+        // PERLIN_SKY_LATE=1 draws the sky after opaque terrain so a software rasteriser skips covered sky pixels.
+        // It relies on every sky pipeline depth testing against the terrain, which not all backends do (the sun
+        // and stars showed through the ground on Direct3D 12), so it is off by default.
+        static const bool skyLateWanted = PERLIN_ENV("PERLIN_SKY_LATE") != nullptr;
+        const bool skyLate = skyLateWanted && !javaActive && !pack && frame.sky.enabled;
         if (!pack && !skyLate)
             DrawSky();
         meshes.ReleaseEmptyPages();

@@ -1,7 +1,10 @@
 #pragma once
 #include "network/Stream.hpp"
 
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
+#include <string>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -42,6 +45,13 @@ namespace perlin::net {
                     result = Result::Malformed;
                     if (failure)
                         failure(id, it->second->Name(), size);
+                    if (const char* dir = std::getenv("PERLIN_DUMP_BAD_PACKETS"); dir && *dir) {
+                        const std::string path = std::string(dir) + "/" + it->second->Name() + ".bin";
+                        if (FILE* f = std::fopen(path.c_str(), "wb")) {
+                            std::fwrite(data, 1, size, f);
+                            std::fclose(f);
+                        }
+                    }
                 }
             }
             return result;

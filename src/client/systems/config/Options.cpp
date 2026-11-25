@@ -321,7 +321,10 @@ namespace perlin {
         o.menuBlur = std::clamp(stored.menuBlur, 0, 10);
         o.renderer = stored.renderer == "d3d12" || stored.renderer == "d3d11" ||
                              stored.renderer == "vulkan" || stored.renderer == "metal" ||
-                             stored.renderer == "webgpu" || stored.renderer == "gles"
+                             stored.renderer == "webgpu"
+#if !defined(_WIN32)
+                             || stored.renderer == "gles"
+#endif
                          ? stored.renderer
                          : std::string("auto");
         o.capePhysics = stored.capePhysics == "off" || stored.capePhysics == "shoulder" ? stored.capePhysics

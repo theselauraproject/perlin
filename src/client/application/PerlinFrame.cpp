@@ -811,6 +811,19 @@ namespace perlin {
         }
     }
 
+    // The shown-frame rate frame generation paces to. Generated frames can only be shown while the game is not
+    // rendering, so without a limit they would bunch up right before each real frame and motion would stutter.
+    // Unless the player set a limit (or vsync paces the frames), real frames are held to the display's refresh
+    // rate divided by the frame generation factor, and the generated frames fill the idle time evenly.
+    int Perlin::FrameGenShownCap() const {
+        if (options.maxFps > 0)
+            return options.maxFps;
+        if (options.vsync)
+            return 0;
+        const double hz = platform ? platform->DisplayRefreshHz() : 0.0;
+        return hz >= 30.0 ? static_cast<int>(std::lround(std::min(hz, 500.0))) : 144;
+    }
+
     void Perlin::EndFrame(FrameContext& f) {
         auto& frameStart = f.frameStart;
         auto& titleAt = loop->titleAt;
@@ -837,10 +850,9 @@ namespace perlin {
             fgPacer.SetWaitFraction(fgWait);
             fgPacer.RealFrame(realEnd, fgActive, work);
             if (fgActive > 1) {
+                const int shownCap = FrameGenShownCap();
                 const auto idleUntil =
-                    options.maxFps > 0
-                        ? frameStart + std::chrono::microseconds(1000000LL * fgActive / options.maxFps)
-                        : realEnd;
+                    shownCap > 0 ? frameStart + std::chrono::microseconds(1000000LL * fgActive / shownCap) : realEnd;
                 frames += fgPacer.Pump(FrameGenPacer::Stage::AfterPresent, !options.vsync, idleUntil,
                                        [&](int i, int n, double phase) { return renderer->PresentGenerated(i, n, phase); });
             }
@@ -891,7 +903,13 @@ namespace perlin {
         }
         if (now - titleAt >= frame::kTitleInterval) {
             const double seconds = std::chrono::duration<double>(now - titleAt).count();
-            debugOverlay.state.fps = static_cast<int>(frames / seconds + 0.5);
+            // Frames shown: real frames plus the generated ones frame generation put on screen, so 2x or 4x frame
+            // generation reads as twice or four times the rendered rate.
+            const uint64_t generatedNow = fgPacer.GeneratedShown();
+            const uint64_t generated = generatedNow >= titleGeneratedSeen ? generatedNow - titleGeneratedSeen : 0;
+            titleGeneratedSeen = generatedNow;
+            debugOverlay.state.fps = static_cast<int>((static_cast<double>(frames) + static_cast<double>(generated)) / seconds + 0.5);
+            debugOverlay.state.renderedFps = static_cast<int>(frames / seconds + 0.5);
             int low = debugOverlay.state.fps;
             if (loop->frameMsCount >= 120) {
                 static thread_local std::vector<float> recent;
@@ -988,7 +1006,7 @@ namespace perlin {
                         std::min(target, Clock::now() + std::chrono::milliseconds(5)));
             }
         }
-        int baseCap = options.maxFps;
+        int baseCap = fgActive > 1 ? FrameGenShownCap() : options.maxFps;
 #if defined(PERLIN_MOBILE)
         // on phones the unlimited setting means the panel's own rate: past it frames are only heat
         if (baseCap == 0) {

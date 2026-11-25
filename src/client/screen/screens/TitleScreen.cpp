@@ -5,11 +5,13 @@
 #include "client/systems/text/FormatCodes.hpp"
 #include "client/ui/SceneKit.hpp"
 #include "client/ui/TextEdit.hpp"
+#include "client/screen/screens/WorldLibrary.hpp"
 
 #include <algorithm>
 #include "client/systems/resources/TexturePack.hpp"
 #include "util/TextMetrics.hpp"
 #include <cctype>
+#include <iterator>
 #include <string>
 #include <utility>
 
@@ -769,12 +771,13 @@ namespace perlin::ui {
                 Tip(b, 208, "Save folder: " + m.createFolder);
                 b.End();
                 y += 13 + 20 + 8;
-                static const char* const kModes[] = {"Survival", "Creative", "Adventure"};
+                static const char* const kModes[] = {"Survival", "Creative", "Adventure", "Hardcore"};
                 static const char* const kModeInfo[] = {
                     "Explore a mysterious world where you build, collect, craft, and fight monsters.",
                     "Create, build, and explore without limits. You can fly, have endless materials, and can't be hurt by monsters.",
                     "Same as Survival Mode, but blocks can't be added or removed."};
-                const int mode = std::clamp(m.createMode, 0, 2);
+                const int mode = std::clamp(m.createMode, 0, 3);
+                const bool hardcore = mode == 3;
                 (void)kModeInfo;
                 Cycle(b, kCreateMode, cx - 105, y, 210, "Game Mode", kModes[mode]);
                 static const char* const kDiff[] = {"Peaceful", "Easy", "Normal", "Hard"};
@@ -785,13 +788,15 @@ namespace perlin::ui {
                     "Hostile mobs spawn and deal more damage. Hunger bar depletes and drains all health."};
                 const int diff = std::clamp(m.createDifficulty, 0, 3);
                 (void)kDiffInfo;
-                Cycle(b, kCreateDifficulty, cx - 105, y + 28, 210, "Difficulty", kDiff[diff]);
-                Cycle(b, kCreateCheats, cx - 105, y + 56, 210, "Allow Cheats", m.createCheats ? "ON" : "OFF");
+                // Hardcore is played on Hard without cheats, as the game sets it.
+                Cycle(b, kCreateDifficulty, cx - 105, y + 28, 210, "Difficulty", hardcore ? "Hard" : kDiff[diff], {}, hardcore);
+                Cycle(b, kCreateCheats, cx - 105, y + 56, 210, "Allow Cheats", hardcore ? "OFF" : (m.createCheats ? "ON" : "OFF"), {},
+                      hardcore);
             } else if (m.createTab == 1) {
                 const int contentH = 20 + 8 + 13 + 20 + 8 + 2 * 24;
                 const int y = top + 2 + (area - contentH) / 6;
                 Cycle(b, kCreateType, cx - 155, y, 150, "World Type", m.createType == 1 ? "Superflat" : "Default");
-                Btn(b, "", cx + 5, y, 150, "Customize", true);
+                Btn(b, m.createType == 1 ? kCreateCustomize : "", cx + 5, y, 150, "Customize", m.createType != 1);
                 Plain(b, cx - 154, y + 28, 308, "Seed for the world generator", "");
                 HintField(b, kCreateSeed, cx - 154, y + 41, 308, m.createSeed, m.createFocus == 1, m.caret,
                           "Leave blank for a random seed");
@@ -835,6 +840,45 @@ namespace perlin::ui {
             y += 100 + 5;
             Btn(b, kEditWorldSave, cx - 100, y, 98, "Save");
             Btn(b, kEditWorldCancel, cx + 2, y, 98, "Cancel");
+        }
+
+        // The Customize page of a superflat world: the layers top down, the preset text and the presets.
+        void SuperflatWorld(Sb& b, const TitleModel& m, int w, int h) {
+            Backdrop(b, m, w, h);
+            const int cx = w / 2;
+            Plain(b, 0, 8, w, "Superflat Customization", "ctr");
+            const auto layers = screen::ParseFlatLayers(m.flatEdit);
+            const int top = 24;
+            const int bottom = h - 84;
+            const int rows = std::max(1, (bottom - top) / 12);
+            Plain(b, cx - 150, top - 2, 150, "Layer Material", "");
+            Plain(b, cx, top - 2, 150, "Height", "");
+            int y = top + 10;
+            int shown = 0;
+            int height = 0;
+            for (const screen::FlatLayerRow& l : layers)
+                height += l.count;
+            for (auto it = layers.rbegin(); it != layers.rend() && shown < rows - 1; ++it, ++shown) {
+                std::string name = it->block.starts_with("minecraft:") ? it->block.substr(10) : it->block;
+                for (char& c : name)
+                    if (c == '_')
+                        c = ' ';
+                if (!name.empty())
+                    name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+                Plain(b, cx - 150, y, 150, name, "");
+                Plain(b, cx, y, 150, std::to_string(it->count) + (shown == 0 ? " - Top" : (std::next(it) == layers.rend() ? " - Bottom" : "")), "");
+                y += 12;
+            }
+            if (layers.empty())
+                Plain(b, 0, top + 20, w, "Invalid layers: use block or count*block, separated by commas", "ctr yellow");
+            else
+                Plain(b, 0, bottom + 2, w, "Total height: " + std::to_string(height) + " of 384", "ctr");
+            Field(b, kFlatField, cx - 155, h - 70, 310, m.flatEdit, true, m.caret);
+            const int presets = static_cast<int>(std::size(screen::kFlatPresets));
+            const int preset = std::clamp(m.flatPreset, 0, presets - 1);
+            Btn(b, kFlatPreset, cx - 155, h - 46, 310, std::string("Preset: ") + screen::kFlatPresets[preset].name);
+            Btn(b, layers.empty() ? "" : kFlatDone, cx - 155, h - 22, 150, "Done", layers.empty());
+            Btn(b, kFlatCancel, cx + 5, h - 22, 150, "Cancel");
         }
 
         void DeleteWorld(Sb& b, const TitleModel& m, int w, int h) {
@@ -925,6 +969,9 @@ namespace perlin::ui {
             break;
         case TitlePage::DeleteWorld:
             DeleteWorld(b, m, guiW, guiH);
+            break;
+        case TitlePage::SuperflatWorld:
+            SuperflatWorld(b, m, guiW, guiH);
             break;
         }
         return doc;

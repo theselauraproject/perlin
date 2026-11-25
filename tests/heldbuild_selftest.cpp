@@ -32,20 +32,22 @@ int main() {
         build.Start(20, true);
         build.Built(hit.target, {1, 0, 0}, true, false, 1000 * ms, false);
 
+        // The first repeat after a click waits at least 350 ms, so one press places one block.
         CHECK(!build.Next(hit, eye, movement, movement, false, 1300 * ms, 26, solid));
-        const auto repeat = build.Next(hit, eye, movement, movement, false, 1300 * ms + 1, 27, solid);
+        CHECK(!build.Next(hit, eye, movement, movement, false, 1350 * ms, 26, solid));
+        const auto repeat = build.Next(hit, eye, movement, movement, false, 1350 * ms + 1, 27, solid);
         CHECK(repeat && repeat->support == glm::ivec3(1, 0, 0) && repeat->face == 5);
-        if (repeat) build.Built(*repeat, {2, 0, 0}, true, false, 1300 * ms + 1, true);
+        if (repeat) build.Built(*repeat, {2, 0, 0}, true, false, 1350 * ms + 1, true);
 
-        CHECK(!build.Next(hit, eye, movement, movement, false, 1500 * ms, 27, solid));
+        CHECK(!build.Next(hit, eye, movement, movement, false, 1550 * ms, 27, solid));
 
         hit.point = {3.5f, 0.5f, 0.5f};
-        CHECK(!build.Next(hit, eye, movement, movement, false, 1480 * ms, 28, solid));
-        const auto line = build.Next(hit, eye, movement, movement, false, 1481 * ms, 29, solid);
+        CHECK(!build.Next(hit, eye, movement, movement, false, 1530 * ms, 28, solid));
+        const auto line = build.Next(hit, eye, movement, movement, false, 1531 * ms, 29, solid);
         CHECK(line && line->support == glm::ivec3(2, 0, 0) && line->face == 5);
-        if (line) build.Built(*line, {3, 0, 0}, true, false, 1481 * ms, true);
+        if (line) build.Built(*line, {3, 0, 0}, true, false, 1531 * ms, true);
         hit.point = {1, 0.5f, 0.5f};
-        CHECK(!build.Next(hit, eye, movement, movement, false, 2000 * ms, 30, solid));
+        CHECK(!build.Next(hit, eye, movement, movement, false, 2050 * ms, 30, solid));
         build.Stop();
 
         build.Start(40, false);

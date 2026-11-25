@@ -73,6 +73,7 @@ namespace perlin {
         int wallArm[4] = {0, 0, 0, 0};
         bool wallPost = false;
         int cakeBites = -1;
+        int vineBits = -1; // vine_direction_bits: 1 south, 2 west, 4 north, 8 east
         bool fire = false;
         bool fireConnKnown = false;
         uint8_t fireConn = 0;
@@ -173,6 +174,8 @@ namespace perlin {
             }
             if (pal.HasState(id, "bite_counter"))
                 g.cakeBites = pal.StateInt(id, "bite_counter", -1);
+            if (pal.HasState(id, "vine_direction_bits"))
+                g.vineBits = pal.StateInt(id, "vine_direction_bits", 0) & 15;
         }
         slot.info = g;
         slot.ready = true;
@@ -2092,8 +2095,12 @@ namespace perlin {
                 i[2] = baseRGB[2];
             }
             constexpr float kInset = 1.0f / 16.0f;
+            // Vines face the sides their state names (Bedrock's vine_direction_bits); other wall-mounted blocks
+            // (ladders and the like) take the solid neighbours.
+            const int vine = blk.gi ? blk.gi->vineBits : -1;
+            const auto side = [&](int dx, int dz, int bit) { return vine >= 0 ? (vine & bit) != 0 : cache.Occ(x + dx, y, z + dz); };
             int quads = 0;
-            if (cache.Occ(x + 1, y, z)) {
+            if (side(1, 0, 8)) {
                 float q[4][3] = {{bx + 1 - kInset, by, bz},
                                  {bx + 1 - kInset, by + 1, bz},
                                  {bx + 1 - kInset, by + 1, bz + 1},
@@ -2107,7 +2114,7 @@ namespace perlin {
                 tess.AddQuad(q, c, uvw, false, cellLight.block, cellLight.sky);
                 quads++;
             }
-            if (cache.Occ(x - 1, y, z)) {
+            if (side(-1, 0, 2)) {
                 float q[4][3] = {{bx + kInset, by, bz + 1},
                                  {bx + kInset, by + 1, bz + 1},
                                  {bx + kInset, by + 1, bz},
@@ -2121,7 +2128,7 @@ namespace perlin {
                 tess.AddQuad(q, c, uvw, false, cellLight.block, cellLight.sky);
                 quads++;
             }
-            if (cache.Occ(x, y, z + 1)) {
+            if (side(0, 1, 1)) {
                 float q[4][3] = {{bx + 1, by, bz + 1 - kInset},
                                  {bx + 1, by + 1, bz + 1 - kInset},
                                  {bx, by + 1, bz + 1 - kInset},
@@ -2135,7 +2142,7 @@ namespace perlin {
                 tess.AddQuad(q, c, uvw, false, cellLight.block, cellLight.sky);
                 quads++;
             }
-            if (cache.Occ(x, y, z - 1)) {
+            if (side(0, -1, 4)) {
                 float q[4][3] = {{bx, by, bz + kInset},
                                  {bx, by + 1, bz + kInset},
                                  {bx + 1, by + 1, bz + kInset},
@@ -2148,6 +2155,15 @@ namespace perlin {
                 }
                 tess.AddQuad(q, c, uvw, false, cellLight.block, cellLight.sky);
                 quads++;
+            }
+            if (vine == 0) {
+                // A vine with no side set hangs from the block above: a face just under that block's bottom.
+                const float top = by + 1 - kInset;
+                float q[4][3] = {{bx, top, bz}, {bx + 1, top, bz}, {bx + 1, top, bz + 1}, {bx, top, bz + 1}};
+                tess.AddQuad(q, colW, uvw, false, cellLight.block, cellLight.sky);
+                float r[4][3] = {{bx, top, bz + 1}, {bx + 1, top, bz + 1}, {bx + 1, top, bz}, {bx, top, bz}};
+                tess.AddQuad(r, colW, uvw, false, cellLight.block, cellLight.sky);
+                return;
             }
             if (quads == 0) {
                 float va[4][3] = {

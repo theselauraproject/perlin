@@ -144,6 +144,7 @@ namespace perlin {
         physics::State state;
         physics::State previous;
         bool initialised = false;
+        uint64_t worldSeen = 0;
         double accumulator = 0.0;
         WalkBob walkBob;
         uint64_t tickCounter = 0;

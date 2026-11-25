@@ -101,6 +101,10 @@ namespace perlin {
         std::vector<PackDownloader::PackFile> ServerPackFiles() const { return packs.Files(); }
         bool Transferring() const { return transferring; }
         bool FlatWorld() const { return flatWorld; }
+        // Changes with every StartGame, across sessions too: the local player starts over in a new world
+        // instead of keeping the position it had in the last one.
+        uint64_t WorldSerial() const { return worldSerial.load(std::memory_order_acquire); }
+        bool Hardcore() const { return hardcore; }
 
         void Update();
 
@@ -983,6 +987,8 @@ namespace perlin {
         void FillUnstreamedColumns();
         bool clientGen = false;
         bool flatWorld = false;
+        std::atomic<uint64_t> worldSerial{0};
+        bool hardcore = false;
         int maxViewDistance = 32;
         std::atomic<int> grantedRadius{0};
         std::atomic<int64_t> lastColumnMs{0};

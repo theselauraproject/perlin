@@ -1290,6 +1290,15 @@ namespace perlin {
         if (!pose.known)
             return;
 
+        if (const uint64_t world = session.WorldSerial(); world != worldSeen) {
+            worldSeen = world;
+            initialised = false;
+            history.clear();
+            futureMotion.clear();
+            futureTeleports.clear();
+            accumulator = 0.0;
+            smoothOffset[0] = smoothOffset[1] = smoothOffset[2] = 0.0;
+        }
         if (!initialised) {
             state = {};
             state.x = pose.x;

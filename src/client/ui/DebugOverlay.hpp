@@ -9,6 +9,7 @@ namespace perlin::ui {
         std::string version;
         int fps = 0;
         int lowFps = 0;
+        int renderedFps = 0; // below fps when frame generation adds frames
         int maxFps = 0;
         bool vsync = false;
         bool fancyGraphics = true;

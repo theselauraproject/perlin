@@ -50,6 +50,7 @@ namespace perlin::heldbuild {
         int continueFacing = 0;
 
         int64_t lastBuildNs = 0;
+        bool afterClick = false;
         int64_t nextBuildNs = 0;
         bool pendingLine = false;
         bool replacedSupport = false;

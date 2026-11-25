@@ -35,7 +35,11 @@ else()
     perlin_default_api(CONDUIT_WEBGPU OFF)
 endif()
 
-if(APPLE)
+# OpenGL ES is a last resort for phones, browsers and Linux; Windows always has Direct3D 12, Direct3D 11 or
+# Vulkan, so the Windows build leaves it out.
+if(WIN32)
+    set(CONDUIT_GLES OFF CACHE BOOL "Build this conduit backend" FORCE)
+elseif(APPLE)
     perlin_default_api(CONDUIT_GLES OFF)
 else()
     perlin_default_api(CONDUIT_GLES ON)

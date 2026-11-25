@@ -466,6 +466,10 @@ namespace perlin {
             extra += ",\"difficulty\":" + std::to_string(std::clamp(world.difficulty, 0, 3));
             extra += std::string(",\"allow_cheats\":") + (world.cheats ? "true" : "false");
             extra += std::string(",\"bonus_chest\":") + (world.bonusChest ? "true" : "false");
+            if (world.hardcore)
+                extra += ",\"hardcore\":true";
+            if (world.flat && !world.flatLayers.empty())
+                extra += ",\"flat_layers\":\"" + world.flatLayers + "\"";
             extra += std::string(",\"generate_structures\":") + (world.structures ? "true" : "false");
             extra += std::string(",\"generator\":") + (world.flat ? "\"flat\"" : "\"vanilla\"");
             if (!world.seedText.empty()) {
