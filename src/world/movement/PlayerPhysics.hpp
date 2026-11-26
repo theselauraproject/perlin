@@ -220,7 +220,8 @@ namespace perlin::physics {
                                const std::vector<AttributeModifierValue>& modifiers, float current,
                                std::array<float, 2>& limits);
 
-    void Step(State& state, const Input& input, const Attributes& attributes, const World& world);
+    // Returns whether a ground jump started during this tick.
+    bool Step(State& state, const Input& input, const Attributes& attributes, const World& world);
 
     struct BoxMove {
         float x = 0, y = 0, z = 0;

@@ -121,11 +121,12 @@ int main() {
         s.hasTeleported = true;
         Input in;
         in.jump = true;
-        Step(s, in, attr, ground);
+        CHECK(Step(s, in, attr, ground));
         CHECK(s.y == 0);
+        CHECK(s.jumpDelay == 10);
         CHECK(Near(s.vy, 0.42f, 1e-7));
         CHECK(!s.hasTeleported);
-        Step(s, in, attr, ground);
+        CHECK(!Step(s, in, attr, ground));
         CHECK(s.y > 0 && s.vy > 0 && s.vy < 0.42f);
     }
     {
