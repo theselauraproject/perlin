@@ -46,6 +46,25 @@ static BlockShape Slab(double h) {
 }
 
 int main() {
+    CHECK(!bds::ReplaysStatusEffectAt(0, 119));
+    CHECK(!bds::ReplaysStatusEffectAt(118, 118));
+    {
+        // Start at the server correction for tick 118. The effect arrived after tick 119 was sent,
+        // so the first retained tick must be simulated again with Slow Falling.
+        TestWorld empty;
+        empty.fn = [](int, int, int) { return BlockShape{}; };
+        State state;
+        state.x = state.z = 0.5;
+        state.y = 120.92160034179688;
+        state.vy = -0.155232f;
+        for (uint64_t tick = 119; tick <= 131; ++tick) {
+            Attributes attributes;
+            attributes.slowFalling = bds::ReplaysStatusEffectAt(118, tick);
+            Step(state, Input{}, attributes, empty);
+        }
+        CHECK(Near(state.y, 118.41779327392578, 0.00002));
+        CHECK(Near(state.vy, -0.23255602, 0.000001));
+    }
     CHECK(bds::StatusEffectTicksAt(40, 100, 100) == 40);
     CHECK(bds::StatusEffectTicksAt(40, 100, 139) == 1);
     CHECK(bds::StatusEffectTicksAt(40, 100, 140) == 0);

@@ -104,12 +104,10 @@ namespace perlin {
         const auto updates = session.TakeEffectUpdates();
         size_t first = history.size();
         for (const auto& update : updates) {
-            if (update.tick == 0 || history.empty())
-                continue;
-            const uint64_t boundary = std::max(update.tick, history.front().tick);
             for (size_t i = 0; i < history.size(); ++i) {
                 Record& record = history[i];
-                if (record.tick <= boundary)
+                // The first retained record already holds the corrected starting state.
+                if (!physics::bds::ReplaysStatusEffectAt(update.tick, record.tick))
                     continue;
                 const bool active = update.active && physics::bds::StatusEffectTicksAt(
                                                          update.duration, update.tick, record.tick - 1) != 0;
