@@ -1029,13 +1029,13 @@ namespace perlin::physics {
         }
     }
 
-    static void StepMovement(State& s, const Input& in, const Attributes& attr, const World& world) {
+    static bool StepMovement(State& s, const Input& in, const Attributes& attr, const World& world) {
         thread_local std::vector<Box> scratch;
         const StepFrame frame = BeginStep(s, in, world);
 
         if (in.flying != in.flyToggled) {
             TravelFlying(s, in, attr, world, frame, scratch);
-            return;
+            return false;
         }
 
         const std::optional<float> flyFrictionOverride = ApplyFlightControl(s, in, attr);
@@ -1076,7 +1076,7 @@ namespace perlin::physics {
             MoveRelative(s, frame.strafe, frame.forward, relSpeed, attr.currentMovementMath);
 
         if (s.hasTeleported)
-            return;
+            return jumpInitiated;
 
         if (climbJump)
             s.vy = kClimbSpeed;
@@ -1105,6 +1105,7 @@ namespace perlin::physics {
         SlowOnStickySurface(s, world, frame, mv.velocity);
         StoreVelocity(s, mv.velocity);
         s.jumpDelay = bds::TickJumpDelay(s.jumpDelay);
+        return jumpInitiated;
     }
 
     static void UpdateBlockContacts(State& s, const Input& in, const Attributes& attr, const World& world,
@@ -1222,12 +1223,12 @@ namespace perlin::physics {
         }
     }
 
-    void Step(State& s, const Input& in, const Attributes& attr, const World& world) {
+    bool Step(State& s, const Input& in, const Attributes& attr, const World& world) {
         for (const auto& effect : in.movementEffects)
             bds::ApplyMovementEffect(s.movementEffects, effect);
         if (in.riptideLevel > 0)
             StartSpinAttack(s, in, in.headInWater);
-        StepMovement(s, in, attr, world);
+        const bool groundJumpStarted = StepMovement(s, in, attr, world);
         EndSpinAttack(s, in);
         const auto climber = bds::SenseScaffolding(
             CollisionBox(BoundingBox(s, in.sneak)),
@@ -1243,6 +1244,7 @@ namespace perlin::physics {
                                                    : std::fmax(s.swimAmount - 0.1f, 0.0f);
         s.previousRotation = {in.pitch, s.yaw};
         s.hasTeleported = false;
+        return groundJumpStarted;
     }
 
     BoxMove MoveBox(const World& world, const Box& start, float dx, float dy, float dz, bool wasOnGround,

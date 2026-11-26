@@ -831,8 +831,9 @@ namespace perlin {
         }
         futureMotion.clear();
         ApplyMotion(state, rec.motion);
+        bool groundJumpStarted = false;
         if (simulate) {
-            physics::Step(state, in, attributes, world);
+            groundJumpStarted = physics::Step(state, in, attributes, world);
         } else {
             state.vx = state.vy = state.vz = 0;
         }
@@ -887,7 +888,8 @@ namespace perlin {
         if (goBack && goRight)
             f.push_back(Flag::DownRight);
 
-        const bool jumpInitiated = !flying && before.jumpDelay == 0 && state.jumpDelay == 9;
+        const bool jumpInitiated =
+            !flying && (groundJumpStarted || (before.jumpDelay == 0 && state.jumpDelay == 9));
         if (jump) {
             f.push_back(Flag::JumpDown);
             f.push_back(Flag::Jumping);
