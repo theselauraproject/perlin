@@ -3,6 +3,10 @@
 #include <cstdint>
 
 namespace perlin::physics::bds {
+    constexpr bool ReplaysStatusEffectAt(uint64_t appliedTick, uint64_t recordTick) {
+        return appliedTick != 0 && recordTick > appliedTick;
+    }
+
     inline int32_t StatusEffectTicksAt(int32_t duration, uint64_t appliedTick, uint64_t movementTick) {
         if (duration == -1)
             return -1;
