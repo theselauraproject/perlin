@@ -1024,6 +1024,21 @@ class Bridge:
                     used.add(pick[1])
                     fsh = shape(fg, pick[2])
                     lines.extend(self.conv(fg, fsh, tg, tsh, f"a.{pick[1]}", f"b.{tm}", 0))
+                if fcpp == tcpp == "ClientboundUpdateSoundDataPacket" and self.old_ns == "perlin::proto2193":
+                    # The matched 26.51 cereal binding serializes the entire
+                    # sound variant seven times, with a varuint32 index for
+                    # each copy. Every read assigns the same native variant;
+                    # the final copy is the value delivered to the handler.
+                    # r26u6 replaces this with one uint8-tagged Event field.
+                    # Keep the legacy wire layout in its schema and preserve
+                    # this assignment behavior at the version boundary.
+                    fsh, tsh = shape(fg, "SoundDataUpdate"), shape(tg, "SoundDataUpdate")
+                    if fg is self.old:
+                        lines.extend(self.conv(fg, fsh, tg, tsh, "a.updates.back()", "b.update", 0))
+                    else:
+                        lines.append("for (auto& update : b.updates) {")
+                        lines.extend("    " + l for l in self.conv(fg, fsh, tg, tsh, "a.update", "update", 0))
+                        lines.append("}")
         fq = f"{self.ns(fg)}::{fcpp}"
         tq = f"{self.ns(tg)}::{tcpp}"
         body = [f"void {fn}(const {fq}& a, {tq}& b) {{", "    (void)a; (void)b;"]
@@ -1333,7 +1348,21 @@ def emit_bridge(bridge, cur, legacy, version, cur_ns, old_ns, out_dir, packets):
         od = legacy.by_packet[name]
         up = bridge.struct_fn(legacy.gen, od.name, cur.gen, nd.name)
         down = bridge.struct_fn(cur.gen, nd.name, legacy.gen, od.name)
-        entry.append(f"bool ReadInto(ReadStream& s, {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; const bool ok = Read(s, o); {up}(o, v); return ok; }}")
+        if version == 2193 and nd.name == "ClientboundUpdateSoundDataPacket":
+            # Native variant decoding checks the complete uint32 index before
+            # narrowing it or dispatching an alternative. Validate every copy:
+            # otherwise e.g. unknown index 256 becomes current uint8 Stop(0),
+            # or an invalid earlier record disappears behind a valid last one.
+            entry.append(f"bool ReadInto(ReadStream& s, {cur_ns}::{nd.name}& v) {{")
+            entry.append(f"    {old_ns}::{od.name} o;")
+            entry.append("    if (!Read(s, o)) return false;")
+            entry.append("    for (const auto& update : o.updates) {")
+            entry.append("        if (static_cast<uint32_t>(update.type) > 6u) { s.ok = false; return false; }")
+            entry.append("    }")
+            entry.append(f"    {up}(o, v); return true;")
+            entry.append("}")
+        else:
+            entry.append(f"bool ReadInto(ReadStream& s, {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; const bool ok = Read(s, o); {up}(o, v); return ok; }}")
         entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; {down}(v, o); Write(s, o); }}")
     bridge.flush()
     src = ['#include "protocol/Packets.hpp"', f'#include "protocol/v{version}/Packets.hpp"', '#include "protocol/Bridges.hpp"', "",

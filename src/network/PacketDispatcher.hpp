@@ -18,13 +18,11 @@ namespace perlin::net {
         using FailureHandler = std::function<void(uint32_t id, const char* name, size_t size)>;
 
         template <class P, class Fn> void On(Fn&& fn) {
-            Channel<P>().handlers.emplace_back(std::forward<Fn>(fn));
+            Channel<P>().handlers.push_back({std::forward<Fn>(fn), false});
         }
 
         template <class P, class Fn> void OnPartial(Fn&& fn) {
-            auto& channel = Channel<P>();
-            channel.partial = true;
-            channel.handlers.emplace_back(std::forward<Fn>(fn));
+            Channel<P>().handlers.push_back({std::forward<Fn>(fn), true});
         }
 
         template <class Fn> void OnRaw(uint32_t id, Fn&& fn) { raw[id].emplace_back(std::forward<Fn>(fn)); }
@@ -67,17 +65,19 @@ namespace perlin::net {
         };
 
         template <class P> struct TypedChannel final : ChannelBase {
-            std::vector<std::function<void(const P&)>> handlers;
-            bool partial = false;
+            struct Handler {
+                std::function<void(const P&)> callback;
+                bool partial = false;
+            };
+            std::vector<Handler> handlers;
 
             bool Deliver(const uint8_t* data, size_t size) const override {
-                P packet;
+                P packet{};
                 ReadStream stream(data, size);
                 const bool ok = Read(stream, packet) && stream.ok;
-                if (!ok && !partial)
-                    return false;
                 for (const auto& handler : handlers)
-                    handler(packet);
+                    if (ok || handler.partial)
+                        handler.callback(packet);
                 return ok;
             }
             const char* Name() const override { return P::kName; }

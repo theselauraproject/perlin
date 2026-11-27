@@ -4,6 +4,8 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "client/systems/audio/AudioEngine.hpp"
 #include "client/systems/audio/MovementSounds.hpp"
@@ -62,5 +64,9 @@ namespace perlin::audio {
         LocalPlace lastLocalPlace;
         bool opened = false;
         bool hooked = false;
+        BedrockSession* soundSession = nullptr;
+        std::unordered_map<uint64_t, uint64_t> serverSounds;
+        std::unordered_set<uint64_t> serverVoices;
+        glm::dvec3 listenerPosition{0.0};
     };
 }

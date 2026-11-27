@@ -403,6 +403,7 @@ namespace perlin {
 
     void TouchControls::ApplyStick(Input& input) {
         bool want[5] = {false, false, false, false, false};
+        input.SetTouchMove(0, 0);
         if (state.dpad) {
             want[KeyForward] = (dpadDir & 1) != 0;
             want[KeyBack] = (dpadDir & 2) != 0;
@@ -414,6 +415,8 @@ namespace perlin {
             const float nx = knobX / radius, ny = knobY / radius;
             const float len = std::sqrt(nx * nx + ny * ny);
             if (len > kDeadZone) {
+                const float magnitude = (std::min(len, 1.0f) - kDeadZone) / (1.0f - kDeadZone);
+                input.SetTouchMove(nx * magnitude / len, ny * magnitude / len);
                 want[KeyForward] = ny < -0.38f;
                 want[KeyBack] = ny > 0.38f;
                 want[KeyLeft] = nx < -0.38f;

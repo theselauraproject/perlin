@@ -26,6 +26,7 @@ namespace perlin::screen {
         InventoryScreen(Id id, Traits traits, const Host& host) : OverlayScreen(id, traits), host(host) {}
         Claim Update(Frame& frame) override;
         void Open(TimePoint now);
+        void ApplyServerOptions(BedrockSession& live);
 
         CreativeState creative;
         bool rightDown = false, middleDown = false, previewOpened = false, bookInit = false;
@@ -33,6 +34,7 @@ namespace perlin::screen {
         int hoverAddr = -1, picked = -1, hover = -1;
         std::string hoverId;
         bool workbench = false, book = false, horse = false, chest = false;
+        bool recipeFilter = false;
         std::chrono::steady_clock::time_point mountAsk;
         int dragButton = 0;
         std::vector<int> dragSlots;
@@ -52,5 +54,8 @@ namespace perlin::screen {
         TimePoint lastWarm{};
         BedrockSession::CreativeCatalog creativeCatalog;
         uint32_t creativeCatalogVersion = ~0u;
+        BedrockSession* optionsSession = nullptr;
+        uint64_t optionsSerialSeen = 0;
+        bool optionsWorkbench = false;
     };
 }

@@ -1,0 +1,256 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "SharedTypes::Legacy::ActorDamageCause",
+      "type_index": "0x1064",
+      "fieldlist": "0x1063",
+      "underlying": 116,
+      "member_count": 37,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": -1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Override",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Contact",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "EntityAttack",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Projectile",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Suffocation",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Fall",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Fire",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FireTick",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Lava",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Drowning",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BlockExplosion",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "EntityExplosion",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Void",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SelfDestruct",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Magic",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Wither",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Starve",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Anvil",
+          "value": 17,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Thorns",
+          "value": 18,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FallingBlock",
+          "value": 19,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Piston",
+          "value": 20,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FlyIntoWall",
+          "value": 21,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Magma",
+          "value": 22,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Fireworks",
+          "value": 23,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Lightning",
+          "value": 24,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Charging",
+          "value": 25,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Temperature",
+          "value": 26,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Freezing",
+          "value": 27,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Stalactite",
+          "value": 28,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Stalagmite",
+          "value": 29,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RamAttack",
+          "value": 30,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SonicBoom",
+          "value": 31,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Campfire",
+          "value": 32,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SoulCampfire",
+          "value": 33,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MaceSmash",
+          "value": 34,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "All",
+          "value": 35,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::Legacy::ArmorSlot",
+      "type_index": "0x10ea",
+      "fieldlist": "0x10e9",
+      "underlying": 116,
+      "member_count": 7,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Head",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Torso",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Legs",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Feet",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Body",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "HumanoidCount",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 5,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": []
+}

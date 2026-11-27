@@ -1,0 +1,412 @@
+{
+  "scope": "Protocol 2193 (1.26.51) <-> current facade 2225 (1.26.60), in both directions.",
+  "snapshot": "Inspected the generated Bridge2193.cpp before the final regeneration: 25 packet conversion pairs and 190 nested converter functions. Findings resolved below refer to subsequent source-schema fixes; other entries remain open unless the final audit explicitly supersedes them.",
+  "method": [
+    "Compared every generated converter source-field read and destination-field assignment against generator-resolved fields, including current overrides.",
+    "Instrumented the generator in memory to enumerate empty conversions, unmatched/ambiguous variant alternatives, enum fallback collisions and discarded flag labels.",
+    "Traced material fields into live handlers and send builders. Schema agreement is not proof of native behavior; matched binary/PDB evidence is identified separately."
+  ],
+  "inputs": [
+    "protocol/legacy/bedrock-1.26.51.json",
+    "protocol/bedrock-1.26.60.json",
+    "protocol/overrides.json",
+    "tools/protogen/protogen.py",
+    "build/compatibility/generated/protocol/Bridge2193.cpp"
+  ],
+  "findings": [
+    {
+      "id": "prediction_sync_actor_id",
+      "status": "resolved_2193_schema",
+      "packets": [
+        322
+      ],
+      "direction": "both; live impact is outgoing",
+      "source_schema_paths": [
+        "packet_client_movement_prediction_sync.entity_runtime_id (old incorrect 2193 schema)"
+      ],
+      "target_schema_paths": [
+        "packet_client_movement_prediction_sync.entity_unique_id"
+      ],
+      "loss": "C44/C45 copied neither identity field. The live current builder supplied uniqueId, but the old packet serialized its default runtime-id field, zero.",
+      "consumer": [
+        "src/client/systems/multiplayer/BedrockSession.cpp:SendPredictionSync"
+      ],
+      "evidence": "Matched 1.26.51 PDB payload mActorID at offset 112 is ActorUniqueID. Default writer RVA 0x83EF520 loads it at 0x83EF67B and calls BinaryStream virtual slot 0x78 at 0x83EF696; PDB names that slot writeVarInt64, the signed ZigZag operation. Unsigned writeUnsignedVarInt64 uses slot 0x68.",
+      "resolution": "Corrected only the 2193 schema to entity_unique_id/zigzag64. Existing session emission is already semantically correct. No runtime-ID substitution or generic bridge alias was added.",
+      "tests": [
+        "tests/bridge2193_selftest.cpp: full literal bodies for unique IDs +70 and -70",
+        "MovementProtocol(): real SendPredictionSync with runtime ID 7 / unique ID 70, literal ZigZag tail 8c 01 00, and corrected extended flags"
+      ]
+    },
+    {
+      "id": "extended_actor_flags",
+      "status": "resolved_2193_schema",
+      "packets": [
+        12,
+        13,
+        15,
+        39
+      ],
+      "direction": "both; live impact is incoming metadata and subsequent prediction state",
+      "source_schema_paths": [
+        "MetadataFlags1.flags",
+        "MetadataFlags2.flags",
+        "MetadataDictionary[].value[key=flags_extended]"
+      ],
+      "target_schema_paths": [
+        "MetadataFlags1.flags via current overrides",
+        "MetadataFlags2.flags via current overrides"
+      ],
+      "loss": "The old schema put 65 flags in the first signed 64-bit word and began the second word at Sneezing. The current override starts the second word at LayingDown. C67 therefore shifted incoming extended words left by one and C72 shifted outgoing words right by one, dropping boundary bits.",
+      "consumer": [
+        "src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:SetEntityData ownFlagWords",
+        "src/client/systems/multiplayer/handlers/HandlerSupport.cpp:ApplyMetadata -> EntityTracker::SetFlagsExtended",
+        "src/client/systems/multiplayer/BedrockSession.hpp:Sleeping/PushTowardsClosestSpace/OwnActorFlags",
+        "src/client/systems/multiplayer/BedrockSession.cpp:SendPredictionSync"
+      ],
+      "evidence": "Matched ActorFlags PDB values: Eating 63, LayingDown 64, Sneezing 65, Sleeping 76, PushTowardsClosestSpace 109, UsesLegacyFriction 127.",
+      "resolution": "Corrected only 2193 to the representable 64+64 split. Generic legacy_overrides and older schemas are unchanged.",
+      "tests": [
+        "tests/bridge2193_selftest.cpp: literal words with bits 0, 1, 12, 45 and 63 in both directions",
+        "MovementProtocol(): literal metadata reaches own sleeping/escape state and remote flags without shifting"
+      ]
+    },
+    {
+      "id": "sound_update_payload",
+      "status": "resolved_2193_schema_and_bridge",
+      "packets": [
+        348
+      ],
+      "direction": "both; live impact is incoming",
+      "source_schema_paths": [
+        "packet_clientbound_update_sound_data.updates[0..6] (corrected 2193 fixed array)",
+        "SoundDataUpdate.type (2193 unsigned VarInt32)",
+        "SoundDataUpdate[fade].duration",
+        "SoundDataUpdate[fade].target_volume"
+      ],
+      "target_schema_paths": [
+        "packet_clientbound_update_sound_data.update (2225 single variant)",
+        "SoundDataUpdate.type (2225 uint8)"
+      ],
+      "loss": "Before correction, C48/C49 copied only server_sound_handle and discarded every operation. Native evidence showed the supplied old option-field schema was also incorrect.",
+      "consumer": [
+        "src/client/systems/multiplayer/BedrockWorldExtras.cpp:ClientboundUpdateSoundData handler",
+        "audio SoundRequest consumers"
+      ],
+      "evidence": "Matched native mode-5 writer serializes seven complete event variants through seven bindings to the same member; each tag is unsigned VarInt32. Each setter overwrites that same member. Fade field order is duration then target volume. See evidence/v26_51/continued/README.md and the linked Mojang developer note. The matched variant reader checks the unsigned32 index at 0x39A5EE9/0x39A5EED and reports context error8 at 0x39A6142 before narrowing.",
+      "resolution": "Corrected 2193 to an array of seven complete SoundDataUpdate variants. Explicit bridge uses the final decoded value on upgrade and writes seven identical copies on downgrade, matching the normal writer/shared setter. Corrected Fade field order in both 2193 and 2225. Every full-width legacy index is also checked against 6 before any conversion, so invalid early records cannot be hidden and 256 cannot narrow to Stop.",
+      "tests": [
+        "sound_packets_wire_selftest: 81 checks, zero failures in the full protocol build (reported by root).",
+        "AudioPackets app regression covers 2193 and 2225; final full-app execution pending integration.",
+        "Six invalid full-width tags in each of seven positions: decode/stream failure, unchanged destination, and no strict handler callbacks."
+      ],
+      "remaining_limits": [
+        "Generic error handling for malformed/inconsistent repeated events is not exhaustively traced."
+      ]
+    },
+    {
+      "id": "camera_fade_times",
+      "status": "resolved_2193_schema",
+      "packets": [
+        300
+      ],
+      "direction": "both; live impact is incoming",
+      "source_schema_paths": [
+        "packet_camera_instruction.fade.fade_in_duration/wait_duration/fade_out_duration (old incorrect flat schema)",
+        "packet_camera_instruction.fade.color_rgb (old incorrect required field)"
+      ],
+      "target_schema_paths": [
+        "packet_camera_instruction.fade.time_data? {fade_in_duration,wait_duration,fade_out_duration}",
+        "packet_camera_instruction.fade.color_rgb?"
+      ],
+      "loss": "The old schema omitted two native optional-presence bytes and its generated bridge then dropped the durations. This was a schema defect, not a genuine flat-to-nested version transition.",
+      "consumer": [
+        "src/client/systems/multiplayer/BedrockWorldExtras.cpp:CameraInstruction handler -> CameraEffects::Fade"
+      ],
+      "evidence": "Matched FadeInstruction has independent optional time/color values. bindType registers time then color; writer callbacks at 0x67C88F0 and 0x67CA150 write their presence byte through archive slot 0x88 -> 0x40F2FA0 -> BinaryStream::writeBool, followed conditionally by the corresponding three floats. See evidence/v26_51/continued/camera_fade_findings.json.",
+      "previous_effect": "The old live handler received absent timing and substituted 1.0 / 0.5 / 1.0 seconds; genuine native optional payloads could also fail decoding.",
+      "resolution": "Corrected only the 2193 fade schema to the proven optional time_data and optional color_rgb wire layout. It now agrees with the current facade and needs no special conversion.",
+      "tests": [
+        "camera_wire_selftest: independent literal cases for all four nested optional combinations, outer absence, nondefault values and truncated payloads in both profiles.",
+        "ServerUiPackets: literal 2193 fade reaches public camera tint with immediate fade-in and a ten-second hold; no sleep."
+      ],
+      "remaining_limits": [
+        "Exact native visual timing, default duration policy and invalid duration/color handling remain outside this wire fix."
+      ]
+    },
+    {
+      "id": "camera_fov_easing",
+      "status": "resolved_2193_schema_and_known_labels",
+      "packets": [
+        300
+      ],
+      "direction": "both; live impact is incoming",
+      "source_schema_paths": [
+        "packet_camera_instruction.fov.ease_type (old incorrect 2193 uint8 EaseType)"
+      ],
+      "target_schema_paths": [
+        "packet_camera_instruction.fov.ease_type (registered-label string in both corrected profiles)"
+      ],
+      "loss": "The old numeric schema contradicted the native string writer, and C103/C108 omitted enum/string conversion. Valid non-linear names did not reach the current consumer correctly.",
+      "consumer": [
+        "src/client/systems/multiplayer/BedrockWorldExtras.cpp:CameraInstruction handler -> EaseIndex -> CameraEffects::SetFov"
+      ],
+      "evidence": "Normal 2193 mode 5 clears archive traits. The FOV property also leaves SerializationTraits::EnumAsValue clear; native writer 0x678C1D8 selects registered-label string -> archive slot 0x10 -> 0x40F2E90 -> BinaryStream::writeString. SharedTypes::bindEasing registers 32 names. Reader lowercases bytes before lookup. See evidence/v26_51/continued/camera_fov_findings.json.",
+      "previous_effect": "The old generic conversion left easeType empty, selecting the consumer linear fallback.",
+      "resolution": "Corrected only the 2193 FOV field to string. The live FOV consumer passes the captured protocol to CameraEaseIndex; only 2193 known labels receive ASCII case-insensitive matching. Other camera callers and protocol profiles retain existing case behavior.",
+      "tests": [
+        "camera_wire_selftest: independent string fixtures for linear/in_quad/in_out_elastic and clear state; uppercase, unknown and empty strings are codec-only preservation cases; truncation rejection; all 32 registered indices and uppercase/mixed-case mapping.",
+        "ServerUiPackets: literal 2193 uppercase-name FOV updates the live public FOV state without an invented reply. Easing-index semantics are checked separately without clock-sensitive sampling."
+      ],
+      "remaining_limits": [
+        "Native unknown/empty label lookup reports reflection context error 0x1000. Its outer packet failure policy remains untraced. Perlin retains its existing linear fallback for unknown/empty names; no disconnect behavior was invented.",
+        "Native has no registered inverse_lerp label (EasingType values 32=Count, 33=Invalid). Existing lowercase Perlin extra-curve behavior is unchanged; case folding does not extend that extra label."
+      ]
+    },
+    {
+      "id": "environment_attribute_transitions",
+      "status": "open_ignored_packet_loss",
+      "packets": [
+        345
+      ],
+      "direction": "both",
+      "source_schema_paths": [
+        "AttributeLayerData.noise_name",
+        "EnvironmentAttributeData.current_transition_ticks",
+        "EnvironmentAttributeData.total_transition_ticks",
+        "EnvironmentAttributeData.ease_type",
+        "EnvironmentAttributeData.local_transition_ticks",
+        "EnvironmentAttributeData.noise_transition"
+      ],
+      "target_schema_paths": [
+        "EnvironmentAttributeData.payload_type",
+        "EnvironmentAttributeData.transition_settings",
+        "EnvironmentAttributeData.noise_transition_settings"
+      ],
+      "loss": "C122 drops noise_name. C124 drops all timing/easing/noise-mode fields and leaves the new payload_type at its default Constant value. Reverse C125/C127 similarly omit the old mode/timing fields. Some from/to attributes copy, but the discriminated payload does not preserve its meaning.",
+      "consumer": [
+        "src/client/systems/multiplayer/BedrockWorldExtras.cpp:RegisterIgnoredHandlers registers ClientboundAttributeLayerSyncPacket as a no-op"
+      ],
+      "evidence": "Proven structural/discriminator loss under supplied schemas; no live environment-feature implementation consumes the data yet. Correct mapping of transition/noise semantics remains unverified.",
+      "next_action": "Resolve native wire semantics and implement the feature together with explicit payload conversion; conversion alone does not make the ignored feature functional."
+    },
+    {
+      "id": "education_optional_presence",
+      "status": "open_no_live_consumer",
+      "packets": [
+        137
+      ],
+      "direction": "both",
+      "source_schema_paths": [
+        "packet_education_settings.has_agent_capabilities",
+        "packet_education_settings.agent_capabilities.has",
+        "packet_education_settings.agent_capabilities.can_modify_blocks"
+      ],
+      "target_schema_paths": [
+        "packet_education_settings.agent_capabilities?",
+        "packet_education_settings.agent_capabilities.can_modify_blocks?"
+      ],
+      "loss": "C28 unconditionally emplaces the outer current optional even when legacy agentCapabilities is absent; C86 discards the inner has flag. Reverse C29/C88 never set either old presence flag, so a populated current capability can be omitted by the old conditional writer.",
+      "consumer": [],
+      "evidence": "Generated optional/discriminator behavior is clear. No semantic EducationSettings receive handler or sender was found. Native wire meaning of the old nested has boolean still requires validation.",
+      "next_action": "Map both presence levels explicitly after verifying the old optional representation; test absent, present-false and present-true separately."
+    },
+    {
+      "id": "playfab_id_relocation",
+      "status": "open_representation_loss",
+      "packets": [
+        63,
+        93
+      ],
+      "direction": "both",
+      "source_schema_paths": [
+        "PlayerRecord.skin_data.play_fab_id",
+        "packet_player_skin.skin.play_fab_id"
+      ],
+      "target_schema_paths": [
+        "PlayerRecord.play_fab_id (2225)",
+        "Skin has no play_fab_id in 2225"
+      ],
+      "loss": "C84 discards old Skin.playFabId; C82 never transfers it to the new PlayerRecord.playFabId. Reverse C83/C85 similarly lose the relocated value, and standalone PlayerSkin has no current place to store the old field.",
+      "consumer": [
+        "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:PlayerList and PlayerSkin -> ConvertSkin",
+        "src/client/systems/multiplayer/BedrockSession.cpp:SendSkinUpdate"
+      ],
+      "observed_effect": "The inspected rendering/tab consumers do not read PlayFab ID. Live outgoing skin updates exist, but the current builder cannot supply the removed old Skin member. Gameplay/server impact is unverified.",
+      "evidence": "Schema and generated-field proof; semantic necessity of the ID for this client is not established.",
+      "next_action": "Add packet-specific relocation for PlayerList and decide whether a legacy-only sidecar is required for PlayerSkin; do not invent an account identity."
+    },
+    {
+      "id": "diagnostic_enum_collisions",
+      "status": "open_no_live_sender",
+      "packets": [
+        315
+      ],
+      "direction": "both",
+      "source_schema_paths": [
+        "MemoryCategoryCounter.category"
+      ],
+      "target_schema_paths": [
+        "MemoryCategoryCounter.category"
+      ],
+      "loss": "Shared category labels remap by name correctly, but missing labels use a raw numeric fallback that can name a different category. For example, current blobs=7 becomes old cereal=7; old persona=54 becomes current ore_ui=54.",
+      "consumer": [],
+      "evidence": "C110/C115 and both enum maps prove the collision. No ServerboundDiagnostics sender was found in live source.",
+      "next_action": "For unsupported diagnostic categories, explicitly reject/omit or aggregate according to a documented policy rather than numerically relabeling them."
+    },
+    {
+      "id": "reserved_craft_action",
+      "status": "open_unsupported_new_variant",
+      "packets": [
+        144,
+        147
+      ],
+      "direction": "2225 -> 2193",
+      "source_schema_paths": [
+        "ItemStackRequest.actions[].type_id=craft_reserved",
+        "ItemStackRequest.actions[].reserved_id",
+        "ItemStackRequest.actions[].number_of_crafts"
+      ],
+      "target_schema_paths": [
+        "ItemStackRequest.actions[].type_id=non_implemented (numeric value 16 in 2193)"
+      ],
+      "loss": "C163 falls back numerically for current CraftReserved=16, which collides with old NonImplemented=16, while dropping the reserved payload. Existing NonImplemented and ResultsDeprecated variants do remap by name to 16 and 17 correctly.",
+      "consumer": [
+        "src/client/systems/multiplayer/BedrockInventory.cpp builds item-stack actions, but no CraftReserved construction was found"
+      ],
+      "evidence": "Schema/generator proof of a dangerous generic conversion if this new variant is used; it is not emitted by current live builders.",
+      "next_action": "Gate unsupported action variants by protocol or reject conversion explicitly. Do not substitute another action or synthesize payload."
+    }
+  ],
+  "schema_version_additions": [
+    {
+      "paths": [
+        "packet_start_game.editor_level_migration_version"
+      ],
+      "packets": [
+        11
+      ],
+      "behavior": "Defaults on upgrade; omitted on downgrade. No corresponding 2193 field."
+    },
+    {
+      "paths": [
+        "packet_add_player.passenger_of_block",
+        "packet_add_entity.passenger_of_block"
+      ],
+      "packets": [
+        12,
+        13
+      ],
+      "behavior": "Absent on 2193; current-only passenger-of-block state cannot be represented there."
+    },
+    {
+      "paths": [
+        "packet_level_chunk.client_biome_update"
+      ],
+      "packets": [
+        58
+      ],
+      "behavior": "Current-only flag defaults on upgrade and is omitted on downgrade."
+    },
+    {
+      "paths": [
+        "packet_dimension_data.definitions[].cloud_height",
+        "packet_dimension_data.definitions[].render_clouds"
+      ],
+      "packets": [
+        180
+      ],
+      "behavior": "Absent on 2193. The current handler reads only id/minY/heightRange, so these fields are not a live rendering input in this implementation."
+    },
+    {
+      "paths": [
+        "packet_animate.hand"
+      ],
+      "packets": [
+        44
+      ],
+      "behavior": "Absent on 2193. The current entity animation handler does not read it."
+    },
+    {
+      "paths": [
+        "Transaction.transaction_data[item_use_on_entity].hand",
+        "Transaction.transaction_data[item_release].hand"
+      ],
+      "packets": [
+        30
+      ],
+      "behavior": "Absent on 2193 schemas and therefore omitted on downgrade. Live attack/interact/release builders do set this for offhand actions; version-specific offhand support requires verification. TransactionUseItem.hand exists in BOTH schemas and is copied correctly."
+    }
+  ],
+  "version_addition_qualification": "The additions above are expected omissions/defaults according to the supplied schemas, not proof that the schemas exactly reflect native version history. They must not be confused with fields that merely moved or changed representation.",
+  "unknown_enum_passthrough": [
+    {
+      "paths": [
+        "Action.internal_update=38"
+      ],
+      "packets": [
+        36,
+        144
+      ],
+      "behavior": "Current-only label is numerically passed through, with no same-value old label. Current normal movement builders do not send this action."
+    },
+    {
+      "paths": [
+        "ContainerSlotType.reserved_a=68",
+        "ContainerSlotType.reserved_b=69",
+        "ContainerSlotType.reserved_c=70",
+        "ContainerSlotType.reserved_d=71"
+      ],
+      "packets": [
+        49,
+        50,
+        147,
+        148,
+        317
+      ],
+      "behavior": "Current-only container IDs pass numerically to older enum; no collision in the declared old map, but validity is unverified."
+    },
+    {
+      "paths": [
+        "DisconnectFailReason.sub_client_login_not_bound=150"
+      ],
+      "packets": [
+        5
+      ],
+      "behavior": "Current-only reason is numerically passed through on downgrade; no live client-originated Disconnect sender found."
+    }
+  ],
+  "checked_without_detected_field_loss": [
+    "PlayerAuthInput ordinary position/rotation/tick/delta/move/raw/analog/input-mode/interaction-mode/camera fields and matched optional payload conversion.",
+    "ItemStackResponse status, request_id, containers, slot_type/dynamic_container_id, slot, hotbar_slot, count, optional item_stack_id, custom_name, filtered_custom_name and durability_correction.",
+    "TransactionUseItem.hand/client_prediction/client_cooldown_state and common item-stack request payloads.",
+    "No unmatched or ambiguous non-void switch alternatives were reported by the converter audit for this generated 2193 snapshot. Anonymous flattened payloads still require separate discriminator review, as demonstrated by environment attributes."
+  ],
+  "older_profiles": {
+    "protocols": [
+      944,
+      975,
+      1001,
+      2168
+    ],
+    "status": "Not generalized from 2193 evidence.",
+    "remaining": "Their raw schemas still have the suspect first-word 65-flag split and unsigned entity_runtime_id for prediction sync. Each needs version-appropriate validation; no exact parity is claimed."
+  },
+  "native_schema_discrepancies_outside_bridge_scope": [
+    "Matched 2193 ActorDataIDs PDB names NameplateRenderDistanceMax=140 and Count=141, while the supplied schema has extra named entries through 143. Serialization/reflection mapping was not traced here, so no key renumbering was applied.",
+    "Matched ActorFlags also has global bits 128..130 (UsesUniformAirDrag, NameplateDepthTested, NotPickableFromInside). The corrected two 64-bit metadata words represent bits 0..127. This audit did not establish transmission of the additional bits."
+  ],
+  "tests": {
+    "pre_fix": "bridge2193_selftest: 19 checks, 14 failures against the existing pre-regeneration library.",
+    "isolated_fixed": "19 checks, 0 failures against freshly generated two-packet current/2193 codecs from the corrected schemas. Both packets now have identical declared wire layouts, so the isolated generator needs no bridge for them.",
+    "live_regressions": "MovementProtocolSelfTest syntax passes; final full-app execution is owned by the root integration run.",
+    "camera_wire": "168 checks, zero failures against isolated freshly generated corrected current/2193 codecs; original 2193 schema reproduced 22 failures. Strict standalone syntax and configured BedrockWorldExtras/ServerUiPackets syntax checks pass.",
+    "sound_wire": "81 checks, zero failures in the full protocol build, reported by root.",
+    "live_camera_regressions": "ServerUiPackets literal 2193 camera cases compile; final full-app execution is owned by root integration."
+  },
+  "limits": [
+    "This is a static conversion audit, not a differential official-client capture suite.",
+    "Default-only codec round trips cannot establish field preservation across protocol versions.",
+    "A passing focused regression is evidence for its selected fields and paths, not complete packet-behavior equivalence."
+  ]
+}

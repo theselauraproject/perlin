@@ -1,4 +1,5 @@
 #include "client/systems/multiplayer/BedrockSession.hpp"
+#include "client/systems/multiplayer/CameraEasing.hpp"
 #include "client/systems/multiplayer/NbtJson.hpp"
 
 #include <algorithm>
@@ -178,20 +179,6 @@ namespace perlin {
     }
 
     namespace {
-        int EaseIndex(const std::string& name) {
-            static const char* const kEases[] = {
-                "linear",      "spring",       "in_quad",     "out_quad",    "in_out_quad",   "in_cubic",
-                "out_cubic",   "in_out_cubic", "in_quart",    "out_quart",   "in_out_quart",  "in_quint",
-                "out_quint",   "in_out_quint", "in_sine",     "out_sine",    "in_out_sine",   "in_expo",
-                "out_expo",    "in_out_expo",  "in_circ",     "out_circ",    "in_out_circ",   "in_bounce",
-                "out_bounce",  "in_out_bounce", "in_back",    "out_back",    "in_out_back",   "in_elastic",
-                "out_elastic", "in_out_elastic", "inverse_lerp"};
-            for (int i = 0; i < static_cast<int>(sizeof(kEases) / sizeof(kEases[0])); i++)
-                if (name == kEases[i])
-                    return i;
-            return 0;
-        }
-
         template <class Points, class Progress, class Rotation>
         CameraSpline SplineFrom(const std::string& name, float total, const std::string& type, const Points& curve,
                                 const Progress& progress, const Rotation& rotation) {
@@ -206,7 +193,7 @@ namespace perlin {
                 q.value = k.value;
                 q.time = k.time;
                 if (k.hasEaseType && k.easeType)
-                    q.ease = EaseIndex(*k.easeType);
+                    q.ease = CameraEaseIndex(*k.easeType);
                 sp.progress.push_back(q);
             }
             for (const auto& k : rotation) {
@@ -214,7 +201,7 @@ namespace perlin {
                 q.value = {k.value.x, k.value.y, k.value.z};
                 q.time = k.time;
                 if (k.hasEaseType && k.easeType)
-                    q.ease = EaseIndex(*k.easeType);
+                    q.ease = CameraEaseIndex(*k.easeType);
                 sp.rotation.push_back(q);
             }
             return sp;
@@ -411,7 +398,8 @@ namespace perlin {
                 cameraEffects.Fade(in, wait, out, {c.x, c.y, c.z});
             }
             if (p.fov)
-                cameraEffects.SetFov(p.fov->fieldOfView, p.fov->easeTime, EaseIndex(p.fov->easeType), p.fov->clear);
+                cameraEffects.SetFov(p.fov->fieldOfView, p.fov->easeTime,
+                                     CameraEaseIndex(p.fov->easeType, net::context::Protocol()), p.fov->clear);
             if (p.target) {
                 std::optional<glm::vec3> off;
                 if (p.target->offset)
@@ -1086,6 +1074,43 @@ namespace perlin {
     }
 
     void BedrockSession::RegisterProtocolExtras() {
+        On<ClientboundUpdateSoundDataPacket>([this](const ClientboundUpdateSoundDataPacket& p) {
+            SoundRequest request;
+            request.kind = SoundRequest::Kind::Control;
+            request.handle = p.serverSoundHandle;
+            switch (p.update.type) {
+            case SoundDataUpdateType::Stop:
+                request.control = SoundRequest::Control::Stop;
+                break;
+            case SoundDataUpdateType::SetVolume:
+                request.control = SoundRequest::Control::Volume;
+                request.controlValue = p.update.volume;
+                break;
+            case SoundDataUpdateType::SetPitch:
+                request.control = SoundRequest::Control::Pitch;
+                request.controlValue = p.update.pitch;
+                break;
+            case SoundDataUpdateType::Fade:
+                request.control = SoundRequest::Control::Fade;
+                request.controlValue = p.update.targetVolume;
+                request.controlDuration = p.update.duration;
+                break;
+            case SoundDataUpdateType::SeekTo:
+                request.control = SoundRequest::Control::Seek;
+                request.controlValue = p.update.seconds;
+                break;
+            case SoundDataUpdateType::Pause:
+                request.control = SoundRequest::Control::Pause;
+                break;
+            case SoundDataUpdateType::Resume:
+                request.control = SoundRequest::Control::Resume;
+                break;
+            default:
+                return;
+            }
+            PushSound(std::move(request));
+        });
+
         On<LevelSoundEventOldPacket>([this](const LevelSoundEventOldPacket& p) {
             const std::string name = LegacySoundName(p.soundId);
             if (name.empty())
@@ -1165,11 +1190,11 @@ namespace perlin {
         });
         auto accept = [this]<class... T>() { (On<T>([](const T&) {}), ...); };
         accept.template
-        operator()<AnimateEntityPacket, EmotePacket, HurtArmorPacket, PlayerArmorDamagePacket,
-                   LevelEventGenericPacket, PlayerLocationPacket, ServerPostMovePacket, SetLastHurtByPacket,
+        operator()<AnimateEntityPacket, EmotePacket, HurtArmorPacket,
+                   LevelEventGenericPacket, ServerPostMovePacket, SetLastHurtByPacket,
                    SimulationTypePacket, SpawnExperienceOrbPacket, UpdateBlockPropertiesPacket,
                    UpdateEquipmentPacket, ClientboundControlsSchemePacket, ClientboundTextureShiftPacket,
-                   ClientboundUpdateSoundDataPacket, SetMovementAuthorityPacket,
+                   SetMovementAuthorityPacket,
                    GraphicsOverrideParameterPacket, PrimitiveShapesPacket, ServerScriptDebugDrawerPacket,
                    ClientboundAttributeLayerSyncPacket, CameraSplinePacket, CameraAimAssistPacket,
                    CameraAimAssistPresetsPacket, CameraAimAssistActorPriorityPacket,

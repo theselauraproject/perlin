@@ -39,10 +39,13 @@ namespace perlin::audio {
         deps.engine.SetVolumes(volumes);
         const bool atCamera = live && live->Camera().PoseActive() && !live->Camera().AudioAtPlayer();
         const CameraPose p = atCamera ? live->Camera().Pose() : CameraPose{};
-        if (atCamera)
-            deps.engine.SetListener({p.position.x, p.position.y, p.position.z}, p.yaw - 90.0f);
-        else
-            deps.engine.SetListener({deps.camera.x, deps.camera.y, deps.camera.z}, deps.camera.yaw - 90.0f);
+        if (atCamera) {
+            listenerPosition = {p.position.x, p.position.y, p.position.z};
+            deps.engine.SetListener(listenerPosition, p.yaw - 90.0f);
+        } else {
+            listenerPosition = {deps.camera.x, deps.camera.y, deps.camera.z};
+            deps.engine.SetListener(listenerPosition, deps.camera.yaw - 90.0f);
+        }
     }
 
     bool AudioDirector::EchoesLocalPlace(const BedrockSession::SoundRequest& r, const std::string& lowered) const {
@@ -61,9 +64,22 @@ namespace perlin::audio {
             if (deps.noteSound)
                 deps.noteSound(r);
             switch (r.kind) {
-            case BedrockSession::SoundRequest::Kind::Named:
-                deps.sounds.PlayNamed(r.name, at, r.volume, r.pitch, !r.global);
+            case BedrockSession::SoundRequest::Kind::Named: {
+                if (r.serverInitiated && !r.bypassListenerRangeCheck) {
+                    const glm::vec3 delta = glm::vec3(at) - glm::vec3(listenerPosition);
+                    const float range = 16.0f * (r.volume > 1.0f ? r.volume : 1.0f);
+                    if (!(glm::dot(delta, delta) < range * range))
+                        break;
+                }
+                const PlaybackOptions playback{r.loopCount, r.serverInitiated || r.bypassListenerRangeCheck,
+                                                r.handle.has_value(), r.playbackPositionSeconds};
+                const uint64_t id = deps.sounds.PlayNamed(r.name, at, r.volume, r.pitch, !r.global, playback);
+                if (r.serverInitiated && id != 0)
+                    serverVoices.insert(id);
+                if (r.handle && id != 0)
+                    serverSounds[*r.handle] = id;
                 break;
+            }
             case BedrockSession::SoundRequest::Kind::Level: {
                 std::string lowered = r.name;
                 std::ranges::transform(lowered, lowered.begin(),
@@ -79,6 +95,39 @@ namespace perlin::audio {
                 else
                     deps.sounds.Stop(r.name);
                 break;
+            case BedrockSession::SoundRequest::Kind::Control: {
+                if (!r.handle)
+                    break;
+                const auto found = serverSounds.find(*r.handle);
+                if (found == serverSounds.end())
+                    break;
+                const uint64_t id = found->second;
+                switch (r.control) {
+                case BedrockSession::SoundRequest::Control::Stop:
+                    deps.engine.Stop(id);
+                    serverSounds.erase(found);
+                    break;
+                case BedrockSession::SoundRequest::Control::Volume:
+                    deps.engine.SetVolume(id, r.controlValue);
+                    break;
+                case BedrockSession::SoundRequest::Control::Pitch:
+                    deps.engine.SetPitch(id, r.controlValue);
+                    break;
+                case BedrockSession::SoundRequest::Control::Fade:
+                    deps.engine.FadeVolume(id, r.controlDuration, r.controlValue);
+                    break;
+                case BedrockSession::SoundRequest::Control::Seek:
+                    deps.engine.Seek(id, r.controlValue);
+                    break;
+                case BedrockSession::SoundRequest::Control::Pause:
+                    deps.engine.SetScriptPaused(id, true);
+                    break;
+                case BedrockSession::SoundRequest::Control::Resume:
+                    deps.engine.SetScriptPaused(id, false);
+                    break;
+                }
+                break;
+            }
             }
         }
     }
@@ -118,6 +167,15 @@ namespace perlin::audio {
 
     void AudioDirector::Update(BedrockSession* live, double now, float dt) {
         OpenOnce();
+        if (soundSession != live) {
+            for (const uint64_t voice : serverVoices)
+                deps.engine.Stop(voice);
+            serverSounds.clear();
+            serverVoices.clear();
+            soundSession = live;
+        }
+        std::erase_if(serverSounds, [this](const auto& entry) { return !deps.engine.Active(entry.second); });
+        std::erase_if(serverVoices, [this](uint64_t voice) { return !deps.engine.Active(voice); });
         const std::string root = deps.vanillaRoot();
         if (!root.empty())
             deps.sounds.Configure(root, deps.packDirectories());

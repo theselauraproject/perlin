@@ -1,0 +1,2675 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [
+    "ILevelListener"
+  ],
+  "classes": [
+    {
+      "name": "LevelRenderer",
+      "type_index": "0x3edcd",
+      "size": 2696,
+      "fieldlist": "0x3edcc",
+      "member_count": 84,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "LevelListener",
+          "member_kind": "base"
+        },
+        {
+          "offset": 8,
+          "type": "AppPlatformListener",
+          "member_kind": "base"
+        },
+        {
+          "name": "mRenderChunkCoordinators",
+          "offset": 40,
+          "type": "std::unordered_map<DimensionType,OwnerPtr<RenderChunkCoordinator>,std::hash<DimensionType>,std::equal_to<DimensionType>,std::allocator<std::pair<const DimensionType,OwnerPtr<RenderChunkCoordinator> > > >",
+          "type_index": "0xd336",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPointLightCoordinator",
+          "offset": 104,
+          "type": "std::unique_ptr<PointLighting::PointLightCoordinator,std::default_delete<PointLighting::PointLightCoordinator> >",
+          "type_index": "0xd195",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPointLightShadowProbeManager",
+          "offset": 112,
+          "type": "std::shared_ptr<PointLighting::PointLightShadowProbeManager>",
+          "type_index": "0xccc1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLightVolumeManager",
+          "offset": 128,
+          "type": "std::shared_ptr<LightPropagation::LightVolumeManager>",
+          "type_index": "0xcc8d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLightPropagationCoordinator",
+          "offset": 144,
+          "type": "std::shared_ptr<LightPropagation::LightPropagationCoordinator>",
+          "type_index": "0xcc8c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLightVolumeOptionSubscription",
+          "offset": 160,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTextureGroup",
+          "offset": 176,
+          "type": "std::shared_ptr<mce::TextureGroup>",
+          "type_index": "0xcd28",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShadowCylinder",
+          "offset": 192,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShadowOverlayCube",
+          "offset": 208,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShadowDisc",
+          "offset": 224,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSkyMesh",
+          "offset": 240,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStarsMesh",
+          "offset": 256,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEndSkyMesh",
+          "offset": 272,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSunMesh",
+          "offset": 288,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMoonMesh",
+          "offset": 304,
+          "type": "std::shared_ptr<mce::Mesh> [bytes=128]",
+          "type_index": "0x3eda2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNameplateBackgroundMesh",
+          "offset": 432,
+          "type": "std::shared_ptr<mce::Mesh>",
+          "type_index": "0xcc9a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAtlasTexture",
+          "offset": 448,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBrightnessTex",
+          "offset": 480,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSunTex",
+          "offset": 512,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSunTexVibrantVisuals",
+          "offset": 544,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMoonTex",
+          "offset": 576,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEndSkyTex",
+          "offset": 608,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEndFlashTex",
+          "offset": 640,
+          "type": "mce::TexturePtr",
+          "type_index": "0x10445",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCrackFrames",
+          "offset": 672,
+          "type": "std::vector<mce::TexturePtr,std::allocator<mce::TexturePtr> >",
+          "type_index": "0xdd0e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDebugRenderer",
+          "offset": 696,
+          "type": "DebugRenderer",
+          "type_index": "0xe731",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mScriptDebugRenderer",
+          "offset": 704,
+          "type": "Scripting::RenderHelper::Renderer",
+          "type_index": "0xfb11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTicks",
+          "offset": 896,
+          "type": "Tick",
+          "type_index": "0x6903",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlockEntityRenderDispatcher",
+          "offset": 904,
+          "type": "BlockActorRenderDispatcher &",
+          "type_index": "0x321bb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLocalRenderer",
+          "offset": 912,
+          "type": "std::unique_ptr<BlockTessellator,std::default_delete<BlockTessellator> >",
+          "type_index": "0xcf3b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mParticleEngine",
+          "offset": 920,
+          "type": "Bedrock::NonOwnerPointer<ParticleEngine>",
+          "type_index": "0x7447",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mParticleSystemEngine",
+          "offset": 944,
+          "type": "Bedrock::NonOwnerPointer<ParticleSystemEngine>",
+          "type_index": "0x7448",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGeometryEditorGui",
+          "offset": 968,
+          "type": "std::shared_ptr<GeometryEditorGui>",
+          "type_index": "0xcc22",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTaskGroup",
+          "offset": 984,
+          "type": "std::unique_ptr<TaskGroup,std::default_delete<TaskGroup> >",
+          "type_index": "0xd26a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSyncTaskGroup",
+          "offset": 992,
+          "type": "std::unique_ptr<TaskGroup,std::default_delete<TaskGroup> >",
+          "type_index": "0xd26a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGameRenderer",
+          "offset": 1000,
+          "type": "GameRenderer &",
+          "type_index": "0x349f0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevel",
+          "offset": 1008,
+          "type": "ClientLevel &",
+          "type_index": "0x349fb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOptions",
+          "offset": 1016,
+          "type": "std::shared_ptr<OptionRegistry>",
+          "type_index": "0xccaa",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClientInstance",
+          "offset": 1032,
+          "type": "IClientInstance &",
+          "type_index": "0x19da4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLocalUser",
+          "offset": 1040,
+          "type": "WeakEntityRef",
+          "type_index": "0x10710",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mReleaseParticleSystemInterfaceProxyCallback",
+          "offset": 1064,
+          "type": "std::function<void ()>",
+          "type_index": "0xbd7f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelRendererPlayer",
+          "offset": 1128,
+          "type": "std::shared_ptr<LevelRendererPlayer>",
+          "type_index": "0xcc83",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelRendererShadowCamera",
+          "offset": 1144,
+          "type": "std::shared_ptr<LevelRendererShadowCamera>",
+          "type_index": "0xcc84",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelRendererCloudShadowCamera",
+          "offset": 1160,
+          "type": "std::shared_ptr<LevelRendererShadowCamera>",
+          "type_index": "0xcc84",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShadowCascadeState",
+          "offset": 1176,
+          "type": "ShadowCascadeState",
+          "type_index": "0x65dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTextureShiftsEnabled",
+          "offset": 1180,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelBuilder",
+          "offset": 1184,
+          "type": "LevelBuilder",
+          "type_index": "0xf1e4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mProxy",
+          "offset": 2640,
+          "type": "std::unique_ptr<LevelRendererProxy,std::default_delete<LevelRendererProxy> >",
+          "type_index": "0xd0fa",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClearBufferColor",
+          "offset": 2648,
+          "type": "mce::Color",
+          "type_index": "0xe4c3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayerView",
+          "offset": 2664,
+          "type": "std::weak_ptr<PlayerRenderView>",
+          "type_index": "0xddea",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDataDrivenRendererV2RequiredData",
+          "offset": 2680,
+          "type": "std::unique_ptr<DataDrivenRendererV2RequiredData,std::default_delete<DataDrivenRendererV2RequiredData> >",
+          "type_index": "0xcfa0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUniversalEntityRenderer",
+          "offset": 2688,
+          "type": "std::unique_ptr<UniversalEntityRenderer,std::default_delete<UniversalEntityRenderer> >",
+          "type_index": "0xd291",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "rebuildAllRenderChunkGeometry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda7",
+          "return_type": "LevelRenderer &",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "const LevelRenderer &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelRenderer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda8",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "const LevelRenderer &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelRenderer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda9",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelRenderer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb0",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "IClientInstance &",
+            "ClientLevel &",
+            "std::shared_ptr<OptionRegistry>",
+            "std::shared_ptr<mce::TextureGroup>",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<const TextureAtlas> > &",
+            "WeakEntityRef",
+            "GameRenderer &",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<SoundPlayerInterface> > &",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<GeometryGroup> > &",
+            "const SoundMapping &",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<const ActorResourceDefinitionGroup> > &",
+            "gsl::not_null<Bedrock::NonOwnerPointer<const TextureShiftManager> > &",
+            "std::weak_ptr<dragon::atlas::IAtlasUserOperations>"
+          ],
+          "argument_count": 13,
+          "this_adjust": 0
+        },
+        {
+          "name": "~LevelRenderer",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "onAppSuspended",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb2",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 8
+        },
+        {
+          "name": "onAppResumed",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb2",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 8
+        },
+        {
+          "name": "onDeviceLost",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb2",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 8
+        },
+        {
+          "name": "onLowMemory",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "LowMemorySeverity"
+          ],
+          "argument_count": 1,
+          "this_adjust": 8
+        },
+        {
+          "name": "onBlockChanged",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb4",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "BlockSource &",
+            "const BlockPos &",
+            "uint32_t",
+            "const Block &",
+            "const Block &",
+            "int32_t",
+            "const ActorBlockSyncMessage *",
+            "BlockChangedEventTarget",
+            "Actor *"
+          ],
+          "argument_count": 9,
+          "this_adjust": 0
+        },
+        {
+          "name": "onChunkUnloaded",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb5",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "LevelChunk &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "takePicture",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb6",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "cg::ImageBuffer &",
+            "Actor *",
+            "Actor *",
+            "ScreenshotOptions &",
+            "std::function<void (cg::ImageBuffer &, ScreenshotOptions &)>"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "_createMeshes",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb7",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "Tessellator &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_initDataDrivenRendererResources",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edb9",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "const std::unordered_map<HashedString,std::shared_ptr<DataDrivenRenderer>,std::hash<HashedString>,std::equal_to<HashedString>,std::allocator<std::pair<const HashedString,std::shared_ptr<DataDrivenRenderer> > > > &",
+            "MinecraftGameplayGraphicsResources &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_setLevelRendererCameras",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "frameUpdate",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edbc",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "ClientFrameUpdateContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBlockRenderer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edbd",
+          "return_type": "BlockTessellator &",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getParticleEngine",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc0",
+          "return_type": "ParticleEngine &",
+          "class_type": "LevelRenderer",
+          "this_type": "const LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getRenderChunkCoordinator",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc1",
+          "return_type": "StackRefResult<RenderChunkCoordinator>",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "DimensionType"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "onDimensionChanged",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "onOptionsChanged",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "onWillChangeDimension",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "preRenderUpdate",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc4",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "ScreenContext &",
+            "LevelRenderPreRenderUpdateParameters &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "rebuildAllDDRv2Geometry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "reinit",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc6",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "const gsl::not_null<Bedrock::NonOwnerPointer<const TextureAtlas> > &",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<GeometryGroup> > &",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<const ActorResourceDefinitionGroup> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "renderLevel",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc7",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "ScreenContext &",
+            "const FrameRenderObject &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "resetLightVolumeManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc9",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "std::weak_ptr<const RuntimeLocalLightingConfig>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "resetLightingConfig",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edc9",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "std::weak_ptr<const RuntimeLocalLightingConfig>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "resetPointLighting",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3edcb",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [
+            "std::weak_ptr<dragon::atlas::IAtlasUserOperations>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickLevelRenderer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eda3",
+          "return_type": "void",
+          "class_type": "LevelRenderer",
+          "this_type": "LevelRenderer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "LevelRendererPlayer",
+      "type_index": "0x3ee93",
+      "size": 8392,
+      "fieldlist": "0x3ee92",
+      "member_count": 147,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "LevelRendererCameraListeners",
+          "member_kind": "base"
+        },
+        {
+          "offset": 3248,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "WATER_VISION_QUICK_TIME",
+          "offset": 3272,
+          "type": "const float",
+          "type_index": "0x1482b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "WATER_VISION_MAX_TIME",
+          "offset": 3276,
+          "type": "const float",
+          "type_index": "0x1482b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "WATER_VISION_QUICK_PERCENT",
+          "offset": 3280,
+          "type": "const float",
+          "type_index": "0x1482b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCloudsImage",
+          "offset": 3288,
+          "type": "std::weak_ptr<cg::ImageBuffer>",
+          "type_index": "0xddc8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCloudMeshes",
+          "offset": 3304,
+          "type": "std::shared_ptr<std::vector<mce::Mesh,std::allocator<mce::Mesh> > >",
+          "type_index": "0xcb96",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCloudMeshesCurrentlyTessellating",
+          "offset": 3320,
+          "type": "std::shared_ptr<std::vector<mce::Mesh,std::allocator<mce::Mesh> > >",
+          "type_index": "0xcb96",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCloudTessellator",
+          "offset": 3336,
+          "type": "std::unique_ptr<Tessellator,std::default_delete<Tessellator> >",
+          "type_index": "0xd270",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCloudTextureTessellator",
+          "offset": 3344,
+          "type": "std::unique_ptr<TextureTessellator,std::default_delete<TextureTessellator> >",
+          "type_index": "0xd277",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUpdatingClouds",
+          "offset": 3352,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastCloudUpdatePosition",
+          "offset": 3356,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastCloudSide",
+          "offset": 3368,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastCloudMeshSize",
+          "offset": 3372,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastCloudGridSize",
+          "offset": 3376,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDirectionalLightRenderData",
+          "offset": 3380,
+          "type": "std::array<DirectionalLightRenderData,3>",
+          "type_index": "0xb8b3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRecordServerSoundMap",
+          "offset": 3720,
+          "type": "std::unordered_map<BlockPos,ServerSoundHandle,std::hash<BlockPos>,std::equal_to<BlockPos>,std::allocator<std::pair<const BlockPos,ServerSoundHandle> > >",
+          "type_index": "0xd448",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDestroyingBlockList",
+          "offset": 3784,
+          "type": "std::unordered_map<BlockPos,BlockDestructInfo,std::hash<BlockPos>,std::equal_to<BlockPos>,std::allocator<std::pair<const BlockPos,BlockDestructInfo> > >",
+          "type_index": "0xd437",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastDestroyRenderTime",
+          "offset": 3848,
+          "type": "double",
+          "type_index": "0x41",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFov",
+          "offset": 3856,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOFov",
+          "offset": 3860,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRenderingParameters",
+          "offset": 3864,
+          "type": "PlayerRenderingParameters",
+          "type_index": "0x5eca",
+          "member_kind": "instance"
+        },
+        {
+          "name": "thirdDistance",
+          "offset": 4144,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "thirdDistanceO",
+          "offset": 4148,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "thirdRotation",
+          "offset": 4152,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "thirdRotationO",
+          "offset": 4156,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "thirdTilt",
+          "offset": 4160,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "thirdTiltO",
+          "offset": 4164,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "cameraRoll",
+          "offset": 4168,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "cameraRollO",
+          "offset": 4172,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "currentCameraDist",
+          "offset": 4176,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "prevHeightOffset",
+          "offset": 4180,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHeightOffsetAdjustment",
+          "offset": 4184,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterVisionTime",
+          "offset": 4188,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterVisionTimePrevious",
+          "offset": 4192,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterVisionClarity",
+          "offset": 4196,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterVisionScale",
+          "offset": 4200,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterLightLevel",
+          "offset": 4204,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "selectionBlockEntityOverlayMaterial",
+          "offset": 4208,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "selectionBlockEntityOverlayColorMaterial",
+          "offset": 4224,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "selectionOverlayMaterial",
+          "offset": 4240,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "selectionOpaqueMaterial",
+          "offset": 4256,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "selectionTwoSidedMaterial",
+          "offset": 4272,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "cracksOverlayMaterial",
+          "offset": 4288,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "cracksOverlayAlphaTestMaterial",
+          "offset": 4304,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "cracksOverlayBlockEntityMaterial",
+          "offset": 4320,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOutlineSelectionMaterial",
+          "offset": 4336,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSounds",
+          "offset": 4352,
+          "type": "const SoundMapping &",
+          "type_index": "0x312d8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDeferredSounds",
+          "offset": 4360,
+          "type": "std::vector<DeferredSound,std::allocator<DeferredSound> >",
+          "type_index": "0xd82e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "uvBreakBlockItem",
+          "offset": 4384,
+          "type": "TextureAtlasItem",
+          "type_index": "0x10437",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClientInstance",
+          "offset": 4456,
+          "type": "IClientInstance &",
+          "type_index": "0x19da4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLocalUser",
+          "offset": 4464,
+          "type": "WeakEntityRef",
+          "type_index": "0x10710",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelRenderer",
+          "offset": 4488,
+          "type": "LevelRenderer &",
+          "type_index": "0x3d39b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundPlayer",
+          "offset": 4496,
+          "type": "Bedrock::NonOwnerPointer<SoundPlayerInterface>",
+          "type_index": "0x7474",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevel",
+          "offset": 4520,
+          "type": "Level &",
+          "type_index": "0x17524",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAmbientSoundController",
+          "offset": 4528,
+          "type": "std::unique_ptr<AmbientSoundController,std::default_delete<AmbientSoundController> >",
+          "type_index": "0xcf00",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mListenerState",
+          "offset": 4536,
+          "type": "ListenerState",
+          "type_index": "0x596c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraForward",
+          "offset": 4584,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraUp",
+          "offset": 4596,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastListenerPos",
+          "offset": 4608,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastListenerUpdateTime",
+          "offset": 4624,
+          "type": "double",
+          "type_index": "0x41",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBiomeTintedParticleEffects",
+          "offset": 4632,
+          "type": "std::unordered_map<LevelRendererPlayer::BiomeParticleKey,Bedrock::slot_map_handle<std::unique_ptr<ParticleSystem::ParticleEmitter,std::default_delete<ParticleSystem::ParticleEmitter> >,64,32>,LevelRendererPlayer::BiomeParticleKeyHash,std::equal_to<LevelRendererPlayer::BiomeParticleKey>,std::allocator<std::pair<const LevelRendererPlayer::BiomeParticleKey,Bedrock::slot_map_handle<std::unique_ptr<ParticleSystem::ParticleEmitter,std::default_delete<ParticleSystem::ParticleEmitter> >,64,32> > > >",
+          "type_index": "0xd32f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSkyColorLerp",
+          "offset": 4696,
+          "type": "std::optional<LevelRendererPlayer::SkyColorLerp>",
+          "type_index": "0xc723",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRainSoundTime",
+          "offset": 4752,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnLevelSoundEvent",
+          "offset": 4760,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnLevelSoundEventWithVolumeAndPitch",
+          "offset": 4776,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnStopLevelSoundEvent",
+          "offset": 4792,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnStopAllLevelSoundsEvent",
+          "offset": 4808,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnStopMusicEvent",
+          "offset": 4824,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnRecordStartedEvent",
+          "offset": 4840,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnRecordStoppedEvent",
+          "offset": 4856,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSubtitlesOptionSubscription",
+          "offset": 4872,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSubtitlesEnabled",
+          "offset": 4888,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelAnimateTickHelper",
+          "offset": 4896,
+          "type": "std::unique_ptr<LevelAnimateTickHelper,std::default_delete<LevelAnimateTickHelper> >",
+          "type_index": "0xd0e9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnSoundPlayed",
+          "offset": 4904,
+          "type": "Bedrock::PubSub::Publisher<void (const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &, std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >, const Vec3 &, float, const Vec3 &, const Vec3 &, bool),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76a0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mScriptGraphicsOverrideManager",
+          "offset": 5032,
+          "type": "ServerGraphicsOverrideManager",
+          "type_index": "0x1001f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee4a",
+          "return_type": "LevelRendererPlayer &",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const LevelRendererPlayer &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelRendererPlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee4b",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const LevelRendererPlayer &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelRendererPlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee4c",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelRendererPlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee4e",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "IClientInstance &",
+            "std::shared_ptr<OptionRegistry>",
+            "Level &",
+            "LevelRenderer &",
+            "WeakEntityRef",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<SoundPlayerInterface> > &",
+            "const gsl::not_null<Bedrock::NonOwnerPointer<const TextureAtlas> > &",
+            "const SoundMapping &"
+          ],
+          "argument_count": 8,
+          "this_adjust": 0
+        },
+        {
+          "name": "~LevelRendererPlayer",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCameraType",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee51",
+          "return_type": "LevelRendererCameraType",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "frameUpdate",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee52",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "ClientFrameUpdateContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickLevelRendererCamera",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickRain",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "onWillChangeDimension",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee53",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "Player &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 3216
+        },
+        {
+          "name": "onDimensionChanged",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee53",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "Player &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 3216
+        },
+        {
+          "name": "recalculateRenderDistance",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee54",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "preRenderUpdate",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee55",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &",
+            "LevelRenderPreRenderUpdateParameters &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "renderBlockEntities",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee56",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "BaseActorRenderContext &",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateViewArea",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee57",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const LevelRenderPreRenderUpdateParameters &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "extractNameTags",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee58",
+          "return_type": "NameTagRenderObjectCollection",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "callRenderNameTags",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee59",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &",
+            "const ViewRenderObject &",
+            "Font &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "extractCracks",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee5a",
+          "return_type": "CrackRenderObjectCollection",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "callRenderCracks",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee5b",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "BaseActorRenderContext &",
+            "const ViewRenderObject &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getForceFog",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee5c",
+          "return_type": "bool",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "const Actor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setupFog",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee5d",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &",
+            "const float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "levelEvent",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee5e",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "SharedTypes::Legacy::LevelEvent",
+            "const Vec3 &",
+            "int32_t"
+          ],
+          "argument_count": 3,
+          "this_adjust": 3208
+        },
+        {
+          "name": "levelEvent",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee5f",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "SharedTypes::Legacy::LevelEvent",
+            "const CompoundTag &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 3208
+        },
+        {
+          "name": "addCameraListenerToRenderChunkCoordinator",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "notifyGeoChangedForAffectedEntities",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee61",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "RenderChunkShared &",
+            "unsigned char"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "addTerrainParticleEffect",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee62",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const BlockPos &",
+            "const Block &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "float"
+          ],
+          "argument_count": 6,
+          "this_adjust": 3208
+        },
+        {
+          "name": "addTerrainSlideEffect",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee62",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const BlockPos &",
+            "const Block &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "float"
+          ],
+          "argument_count": 6,
+          "this_adjust": 3208
+        },
+        {
+          "name": "addBreakingItemParticleEffect",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee63",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const Vec3 &",
+            "const BreakingItemParticleData &",
+            "const ResolvedItemIconInfo &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 3208
+        },
+        {
+          "name": "addBiomeTintedParticleEffect",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee64",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const HashedString &",
+            "const BlockPos &",
+            "const Block &",
+            "std::optional<mce::Color>"
+          ],
+          "argument_count": 4,
+          "this_adjust": 3208
+        },
+        {
+          "name": "getUnderwaterVisionClarity",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 256,
+          "type_index": "0x3ee65",
+          "return_type": "float",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_getFogDistanceSettingType",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee66",
+          "return_type": "FogDefinition::DistanceSettingType",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_getFogDensitySettingType",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee67",
+          "return_type": "FogDefinition::DensitySettingType",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_releaseRespectiveResources",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "queueRenderEntities",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee57",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const LevelRenderPreRenderUpdateParameters &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "renderEntityEffects",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee68",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "BaseActorRenderContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_addTerrainEffect",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee6a",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const HashedString &",
+            "const BlockPos &",
+            "const Block &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "float"
+          ],
+          "argument_count": 7,
+          "this_adjust": 0
+        },
+        {
+          "name": "_crack",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee6c",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "BlockSource &",
+            "const Block &",
+            "const BlockPos &",
+            "unsigned char"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_renderHighlightSelection",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee6e",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "BaseActorRenderContext &",
+            "BlockSource &",
+            "const Block &",
+            "const BlockPos &",
+            "bool",
+            "bool"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        },
+        {
+          "name": "_renderOutlineSelection",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee70",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "BaseActorRenderContext &",
+            "const Block &",
+            "BlockSource &",
+            "const BlockPos &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_spawnSmokeParticles",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee72",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "ParticleType",
+            "const Vec3 &",
+            "int32_t"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "blockCanHaveCracksOverlay",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee73",
+          "return_type": "bool",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "const Block &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "blockCanHaveSelectionOverlay",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee73",
+          "return_type": "bool",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "const Block &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "bobHurt",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee75",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "Matrix &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "bobView",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee75",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "Matrix &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "createCrackRenderObject",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee77",
+          "return_type": "CrackRenderObject",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &",
+            "BlockSource &",
+            "const Block &",
+            "const BlockPos &",
+            "float"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "createViewRenderObject",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee79",
+          "return_type": "ViewRenderObject",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "ScreenContext &",
+            "SubClientId"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "emitGrowthParticles",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee7a",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const Vec3 &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getActiveDirectionalLight",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee7b",
+          "return_type": "DirectionalLightRenderData",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getFov",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee7c",
+          "return_type": "float",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "float",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "playDeferredSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee7d",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const Vec3 &",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "playSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee7f",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "bool",
+            "std::optional<ServerSoundHandle>"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        },
+        {
+          "name": "reinit",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee81",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const gsl::not_null<Bedrock::NonOwnerPointer<const TextureAtlas> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "renderHitSelect",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee83",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "const LevelRendererPlayer *",
+          "argument_types": [
+            "BaseActorRenderContext &",
+            "BlockSource &",
+            "const BlockPos &",
+            "bool"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "setupCamera",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee85",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "mce::Camera &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopMusic",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee86",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopSounds",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryReassignSoundEventToVariant",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee89",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "SharedTypes::Legacy::LevelSoundEvent &",
+            "const Vec3 &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryReassignSoundToFallback",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee8c",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "SharedTypes::Legacy::LevelSoundEvent &",
+            "Sound &",
+            "const ActorSoundIdentifier &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "Random &"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateDestroyBlock",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee8d",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "const BlockPos &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateDestroyProgress",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee50",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateListenerState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee8e",
+          "return_type": "void",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "LevelRendererPlayer *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getActorShadowOffset",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee8f",
+          "return_type": "float",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const EntityContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDestructionParticlesTexture",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ee91",
+          "return_type": "TextureUVCoordinateSet",
+          "class_type": "LevelRendererPlayer",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "IRandom &",
+            "const Block &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 1193572,
+      "name": "?_playAmbientSounds@Block@@QEBAXAEBUBlockAnimateTickData@@@Z",
+      "section": 1,
+      "section_offset": "0x2a69b50",
+      "rva": "0x2a6ab50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1193648,
+      "name": "?_playBreakProgressSound@StompEggGoal@@UEAAXAEAVLevel@@AEAVBlockSource@@VBlockPos@@@Z",
+      "section": 1,
+      "section_offset": "0x6d84fa0",
+      "rva": "0x6d85fa0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1193748,
+      "name": "?_playBumpingSound@ControlOptionEditorControl@@QEAAXAEAVInputEventQueue@@@Z",
+      "section": 1,
+      "section_offset": "0x3430f0",
+      "rva": "0x3440f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1193840,
+      "name": "?_playCraftingSound@ContainerManagerController@@QEAAXAEBV?$weak_ptr@VContainerManagerModel@@@std@@W4LevelSoundEvent@Legacy@SharedTypes@@@Z",
+      "section": 1,
+      "section_offset": "0x33f7ec0",
+      "rva": "0x33f8ec0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1193996,
+      "name": "?_playDestroySound@StompEggGoal@@UEAAXAEAVLevel@@AEAVBlockSource@@VBlockPos@@@Z",
+      "section": 1,
+      "section_offset": "0x6d85020",
+      "rva": "0x6d86020"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1194848,
+      "name": "?_playSound@ContainerAPI@GameplayUI@@QEBAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x6745720",
+      "rva": "0x6746720"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1194972,
+      "name": "?_playSoundFrom@Village@@QEAAXAEBVVec3@@W4LevelSoundEvent@Legacy@SharedTypes@@@Z",
+      "section": 1,
+      "section_offset": "0x256a820",
+      "rva": "0x256b820"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1195068,
+      "name": "?_playSoundInternal@ScriptPlayer@ScriptModuleMinecraft@@QEAA?AV?$Result_deprecated@X@Scripting@@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$optional@UScriptPlayerSoundOptions@ScriptModuleMinecraft@@@6@V?$optional@VServerSoundHandle@@@6@@Z",
+      "section": 1,
+      "section_offset": "0xb2050e0",
+      "rva": "0xb2060e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1195344,
+      "name": "?_playSoundInternal@ScriptWorld@ScriptModuleMinecraft@@QEAA?AV?$Result@XUPropertyOutOfBoundsError@Scripting@@@Scripting@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@V?$optional@UScriptWorldSoundOptions@ScriptModuleMinecraft@@@6@@Z",
+      "section": 1,
+      "section_offset": "0xbd41e00",
+      "rva": "0xbd42e00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2090036,
+      "name": "?displaySubtitleMessage@ClientInstanceScreenModel@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@W4SoundDirection@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1886940",
+      "rva": "0x1887940"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3265988,
+      "name": "?play@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@MMV?$optional@VServerSoundHandle@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x41be660",
+      "rva": "0x41bf660"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266144,
+      "name": "?play@SoundEngine@@UEAA_KUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x41be810",
+      "rva": "0x41bf810"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266208,
+      "name": "?playAmbientSound@Actor@@UEAAXXZ",
+      "section": 1,
+      "section_offset": "0x1a09e20",
+      "rva": "0x1a0ae20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266256,
+      "name": "?playAmbientSound@Parrot@@UEAAXXZ",
+      "section": 1,
+      "section_offset": "0x1e599c0",
+      "rva": "0x1e5a9c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266796,
+      "name": "?playAttached@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@$$QEAV?$function@$$A6AXAEAUSoundInstanceProperties@@@Z@3@@Z",
+      "section": 1,
+      "section_offset": "0x41c1ff0",
+      "rva": "0x41c2ff0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266968,
+      "name": "?playBlockSound@ShieldItem@@QEBAXPEAVPlayer@@@Z",
+      "section": 1,
+      "section_offset": "0x3041870",
+      "rva": "0x3042870"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3267032,
+      "name": "?playBreakSound@ShieldItem@@QEBAXPEAVPlayer@@@Z",
+      "section": 1,
+      "section_offset": "0x3041a50",
+      "rva": "0x3042a50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3267236,
+      "name": "?playDeferredSound@LevelRendererPlayer@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@MM@Z",
+      "section": 1,
+      "section_offset": "0x46bd590",
+      "rva": "0x46be590"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3267716,
+      "name": "?playFromMemory@SoundEngine@@QEAA_KAEBVPath@Core@@PEBD_K_NMMMM33@Z",
+      "section": 1,
+      "section_offset": "0x41c1c60",
+      "rva": "0x41c2c60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3267800,
+      "name": "?playInsertFailSound@Server@VaultBlockActor@@SAXAEAVBlockSource@@VBlockPos@@AEAUVaultServerData@2@W4LevelSoundEvent@Legacy@SharedTypes@@@Z",
+      "section": 1,
+      "section_offset": "0x9632a30",
+      "rva": "0x9633a30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3268436,
+      "name": "?playMusic@SoundEngine@@UEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@M@Z",
+      "section": 1,
+      "section_offset": "0x41bf6f0",
+      "rva": "0x41c06f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3268548,
+      "name": "?playMusic@SoundEngine@@UEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@MAEAI@Z",
+      "section": 1,
+      "section_offset": "0x41bf1d0",
+      "rva": "0x41c01d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3268896,
+      "name": "?playOnlineMusic@SoundEngine@@QEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$WeakRef@VOnlineAudioStream@Audio@@@@MVSoundStartOptions@Audio@@@Z",
+      "section": 1,
+      "section_offset": "0x41c20d0",
+      "rva": "0x41c30d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269080,
+      "name": "?playPOISoundEvent@WorkGoal@@QEBAXXZ",
+      "section": 1,
+      "section_offset": "0xcbb8b10",
+      "rva": "0xcbb9b10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269132,
+      "name": "?playPredictiveSynchronizedSound@LevelSoundManager@@QEAAXAEAVIDimension@@AEBUSoundEventIdentifier@@AEBVVec3@@PEAVPlayer@@HAEBVActorSoundIdentifier@@_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1748760",
+      "rva": "0x1749760"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269328,
+      "name": "?playPredictiveSynchronizedSound@LevelSoundManager@@QEAAXAEAVIDimension@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@PEAVPlayer@@HAEBVActorSoundIdentifier@@_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1748660",
+      "rva": "0x1749660"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269536,
+      "name": "?playPredictiveSynchronizedSound@Player@@QEAAXAEBUSoundEventIdentifier@@AEBVVec3@@H_N@Z",
+      "section": 1,
+      "section_offset": "0x1fa7c0",
+      "rva": "0x1fb7c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269640,
+      "name": "?playPredictiveSynchronizedSound@Player@@QEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@H_N@Z",
+      "section": 1,
+      "section_offset": "0x210580",
+      "rva": "0x211580"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269988,
+      "name": "?playSound@Actor@@QEAAXAEBVIConstBlockSource@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@H@Z",
+      "section": 1,
+      "section_offset": "0x1a1aad0",
+      "rva": "0x1a1bad0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270100,
+      "name": "?playSound@Level@@UEAAXAEBUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x1172ee0",
+      "rva": "0x1173ee0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270164,
+      "name": "?playSound@Level@@UEAAXAEBVIConstBlockSource@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1172e10",
+      "rva": "0x1173e10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270304,
+      "name": "?playSound@Level@@UEAAXUDimensionType@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1172d90",
+      "rva": "0x1173d90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270440,
+      "name": "?playSound@Level@@UEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1172ec0",
+      "rva": "0x1173ec0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270560,
+      "name": "?playSound@Level@@UEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@MM@Z",
+      "section": 1,
+      "section_offset": "0x1172ed0",
+      "rva": "0x1173ed0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270652,
+      "name": "?playSound@LevelRendererPlayer@@QEBAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@MM_NV?$optional@VServerSoundHandle@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x46a8460",
+      "rva": "0x46a9460"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270820,
+      "name": "?playSound@LevelSoundManager@@QEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x17474f0",
+      "rva": "0x17484f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270952,
+      "name": "?playSound@LevelSoundManager@@QEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@MM@Z",
+      "section": 1,
+      "section_offset": "0x17478b0",
+      "rva": "0x17488b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271056,
+      "name": "?playSound@ScriptDimension@ScriptModuleMinecraft@@QEAA?AV?$Result@V?$StrongTypedObjectHandle@VScriptSoundInstance@ScriptModuleMinecraft@@@Scripting@@UPropertyOutOfBoundsError@2@UEngineError@2@@Scripting@@AEBVWeakLifetimeScope@4@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@V?$optional@UScriptWorldSoundOptions@ScriptModuleMinecraft@@@7@@Z",
+      "section": 1,
+      "section_offset": "0x8803be0",
+      "rva": "0x8804be0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271440,
+      "name": "?playSoundForPlayerInDimension@LevelSoundManager@@QEAAXUDimensionType@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_NPEAVPlayer@@@Z",
+      "section": 1,
+      "section_offset": "0x1747ad0",
+      "rva": "0x1748ad0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271620,
+      "name": "?playSoundIncrementally@CrossbowItem@@UEBAXAEBVItemStack@@AEAVMob@@@Z",
+      "section": 1,
+      "section_offset": "0x8ba2e50",
+      "rva": "0x8ba3e50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271704,
+      "name": "?playSynchronizedSound@Actor@@QEAAXAEBUSoundEventIdentifier@@AEBVVec3@@H_NPEAVPlayer@@@Z",
+      "section": 1,
+      "section_offset": "0x1a1ace0",
+      "rva": "0x1a1bce0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271808,
+      "name": "?playSynchronizedSound@Actor@@QEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@H_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x19f4c50",
+      "rva": "0x19f5c50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271940,
+      "name": "?playSynchronizedSound_DEPRECATED@LevelSoundManager@@QEAAXAEAVIDimension@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@PEAVPlayer@@HAEBVActorSoundIdentifier@@_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1747bf0",
+      "rva": "0x1748bf0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3272260,
+      "name": "?playUI@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@MM@Z",
+      "section": 1,
+      "section_offset": "0x41bf090",
+      "rva": "0x41c0090"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3773296,
+      "name": "?stopSound@LevelRendererPlayer@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x46a1670",
+      "rva": "0x46a2670"
+    }
+  ]
+}

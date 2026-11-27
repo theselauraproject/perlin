@@ -1,0 +1,853 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "BinaryStream",
+      "type_index": "0x3295e",
+      "size": 80,
+      "fieldlist": "0x3295d",
+      "member_count": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ReadOnlyBinaryStream",
+          "member_kind": "base"
+        },
+        {
+          "name": "mBuffer",
+          "offset": 72,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "type_index": "0x157b6",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32911",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BlockPos &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32913",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const Vec3 &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32917",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const MoveActorAbsoluteData &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32919",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BaseGameVersion &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3291d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const ActorLink &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32921",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const GameRulesChangedPacketData &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "BinaryStream",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32923",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "BinaryStream",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32924",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "BinaryStream",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32928",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3292b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "unsigned long long"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3292c",
+          "return_type": "BinaryStream &",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~BinaryStream",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3292d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeBool",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x3292f",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "bool",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeByte",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x32931",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned char",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedByte",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x32933",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "char",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedShort",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x32935",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned short",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedShort",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x32937",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "short",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x32939",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "uint32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedBigEndianInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x3293b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "int32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x3293b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "int32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x3293d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x3293f",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedVarInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x32939",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "uint32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedVarInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x3293d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeVarInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x3293b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "int32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeVarInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 120,
+          "type_index": "0x3293f",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeDouble",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 128,
+          "type_index": "0x32941",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "double",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeFloat",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 136,
+          "type_index": "0x32943",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "float",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeFixedFloat",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 144,
+          "type_index": "0x32945",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "float",
+            "const char *",
+            "const char *",
+            "double"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeNormalizedFloat",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 152,
+          "type_index": "0x32943",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "float",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeString",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 160,
+          "type_index": "0x32947",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::basic_string_view<char,std::char_traits<char> >",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeIf",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 168,
+          "type_index": "0x3294d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "bool",
+            "const char *",
+            "const brstd::function_ref<void (BinaryStream &),void (BinaryStream &)> &",
+            "const std::optional<brstd::function_ref<void (BinaryStream &),void (BinaryStream &)> > &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeConditional",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 176,
+          "type_index": "0x32950",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "std::initializer_list<BinaryStream::ConditionBlock> &&",
+            "const std::optional<brstd::function_ref<void (BinaryStream &),void (BinaryStream &)> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "branchingWrite_DEPRECATED",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 192,
+          "type_index": "0x32953",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::function<void (BinaryStream &, int)> &&",
+            "int32_t",
+            "int32_t",
+            "int32_t",
+            "const char *"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "branchingWrite_DEPRECATED",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 184,
+          "type_index": "0x32955",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::function<void (BinaryStream &, int)> &&",
+            "int32_t",
+            "const std::vector<int,std::allocator<int> > &",
+            "const char *"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeTypeBegin_DocHelper",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 200,
+          "type_index": "0x32958",
+          "return_type": "bool",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeTypeEnd_DocHelper",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 208,
+          "type_index": "0x3292d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeEnum_DocHelper",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 216,
+          "type_index": "0x32959",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_writeArray",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 224,
+          "type_index": "0x3295c",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::function<void (BinaryStream &)> &&",
+            "std::function<void (BinaryStream &)> &&",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraInstruction",
+      "type_index": "0x16e18",
+      "size": 336,
+      "fieldlist": "0x16e17",
+      "member_count": 17,
+      "fields": [
+        {
+          "name": "mAttachToEntity",
+          "offset": 0,
+          "type": "std::optional<CameraInstructionOptions::AttachToEntityInstruction>",
+          "type_index": "0xc5c9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFade",
+          "offset": 24,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction>",
+          "type_index": "0xc643",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFieldOfView",
+          "offset": 60,
+          "type": "std::optional<CameraInstructionOptions::FovInstruction>",
+          "type_index": "0xc65b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSet",
+          "offset": 80,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction>",
+          "type_index": "0xc71e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSpline",
+          "offset": 176,
+          "type": "std::optional<CameraInstructionOptions::SplineInstruction>",
+          "type_index": "0xc72d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTarget",
+          "offset": 296,
+          "type": "std::optional<CameraInstructionOptions::TargetInstruction>",
+          "type_index": "0xc741",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClear",
+          "offset": 328,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDetachFromEntity",
+          "offset": 330,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRemoveTarget",
+          "offset": 332,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e15",
+          "return_type": "bool",
+          "class_type": "CameraInstruction",
+          "this_type": "const CameraInstruction *",
+          "argument_types": [
+            "const CameraInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e16",
+          "return_type": "void",
+          "class_type": "CameraInstruction",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraInstructionOptions::FadeInstruction",
+      "type_index": "0x196d0",
+      "size": 32,
+      "fieldlist": "0x196cf",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mTime",
+          "offset": 0,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction::TimeOption>",
+          "type_index": "0xc74d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mColor",
+          "offset": 16,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction::ColorOption>",
+          "type_index": "0xc5f5",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::FadeInstruction::ColorOption",
+      "type_index": "0x1771e",
+      "size": 12,
+      "fieldlist": "0x1771d",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mRed",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGreen",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlue",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::FadeInstruction::TimeOption",
+      "type_index": "0x20f38",
+      "size": 12,
+      "fieldlist": "0x20f37",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mFadeInTime",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHoldTime",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFadeOutTime",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 1705284,
+      "name": "?bindType@CameraInstruction@@SAXAEAUReflectionCtx@cereal@@@Z",
+      "section": 1,
+      "section_offset": "0x67778e0",
+      "rva": "0x67788e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 4092192,
+      "name": "?writeWithSerializationMode@CameraInstructionPacket@@UEBAXAEAVBinaryStream@@AEBUReflectionCtx@cereal@@V?$optional@W4SerializationMode@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x83bc1f0",
+      "rva": "0x83bd1f0"
+    }
+  ]
+}

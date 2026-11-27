@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <random>
+#include <limits>
 
 using namespace perlin;
 using namespace perlin::ui;
@@ -143,6 +144,12 @@ int main() {
     }
     CHECK(ProjectLocator({0, 0, 0, -60.0f, 0, 70}, 10, 0, 0).has_value());
     CHECK(!ProjectLocator({0, 0, 0, 60.0f, 0, 70}, 10, 0, 0).has_value());
+    CHECK(!ProjectLocator({0, 0, 0, 0, 0, 70}, 10, std::numeric_limits<double>::quiet_NaN(), 0));
+    CHECK(!ProjectLocator({0, 0, 0, 0, 0, 70}, std::numeric_limits<double>::infinity(), 0, 0));
+    const auto farMarker = ProjectLocator({0, 0, 0, 0, 0, 70},
+                                          std::numeric_limits<float>::max(),
+                                          std::numeric_limits<float>::max(), 0);
+    CHECK(farMarker && std::isfinite(farMarker->distance));
 
     for (int time = -5; time <= 400; time++)
         for (int k = 0; k < 40; k++) {

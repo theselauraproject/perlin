@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 
 using namespace perlin::audio;
 namespace fs = std::filesystem;
@@ -361,10 +362,109 @@ static void LoadLanguage() {
     perlin::i18n::Lang::Get().LoadFromText(contents);
 }
 
+static void TestServerPlaybackControls() {
+    {
+        AudioEngine engine;
+        Voice voice;
+        voice.pcm = Constant(16384, 64);
+        voice.loop = true;
+        const uint64_t id = engine.Start(voice);
+        CHECK(id != 0 && engine.Active(id));
+        CHECK(std::fabs(RenderPeak(engine, 1) - 0.5f) < 1e-6f);
+        engine.SetVolume(id, 0.25f);
+        CHECK(std::fabs(RenderPeak(engine, 1) - 0.125f) < 1e-6f);
+        engine.SetScriptPaused(id, true);
+        CHECK(RenderPeak(engine, 16) == 0.0f && engine.Active(id));
+        engine.SetScriptPaused(id, false);
+        CHECK(std::fabs(RenderPeak(engine, 1) - 0.125f) < 1e-6f);
+        engine.SetVolume(id, 1.0f);
+        engine.FadeVolume(id, 4.0f / 48000.0f, 0.0f);
+        float samples[8]{};
+        engine.Mix(samples, 4);
+        CHECK(samples[0] > samples[2] && samples[2] > samples[4] && samples[4] >= samples[6]);
+        CHECK(std::fabs(samples[6]) < 1e-5f && RenderPeak(engine, 1) == 0.0f);
+        engine.SetVolume(id, 1.0f);
+        engine.SetVolume(id, std::numeric_limits<float>::quiet_NaN());
+        CHECK(std::fabs(RenderPeak(engine, 1) - 0.5f) < 1e-6f);
+        Volumes muted;
+        muted.v[static_cast<size_t>(Category::Master)] = 0.0f;
+        engine.SetVolumes(muted);
+        engine.SetVolume(id, std::numeric_limits<float>::max());
+        engine.FadeVolume(id, 0.00003f, -std::numeric_limits<float>::max());
+        float extreme[4]{};
+        engine.Mix(extreme, 2);
+        for (float value : extreme)
+            CHECK(std::isfinite(value) && value == 0.0f);
+        engine.SetScriptPaused(id, true);
+        engine.Stop(id);
+        CHECK(!engine.Active(id));
+        CHECK(RenderPeak(engine, 1) == 0.0f && engine.Active() == 0);
+    }
+    {
+        AudioEngine engine;
+        auto pcm = std::make_shared<Pcm>();
+        pcm->rate = 48000;
+        pcm->channels = 1;
+        pcm->samples = {4096, 8192, 12288, 16384, 20480, 24576, 28672};
+        Voice voice;
+        voice.pcm = pcm;
+        const uint64_t id = engine.Start(voice);
+        engine.SetPitch(id, 2.0f);
+        float samples[4]{};
+        engine.Mix(samples, 2);
+        CHECK(std::fabs(samples[0] - 0.125f) < 1e-6f && std::fabs(samples[2] - 0.375f) < 1e-6f);
+        engine.Seek(id, 1.0f / 48000.0f);
+        engine.SetPitch(id, 0.0f);
+        engine.SetScriptPaused(id, true);
+        CHECK(RenderPeak(engine, 10) == 0.0f);
+        engine.SetScriptPaused(id, false);
+        CHECK(std::fabs(RenderPeak(engine, 3) - 0.25f) < 1e-6f);
+        engine.SetPitch(id, std::numeric_limits<float>::max());
+        RenderPeak(engine, 2);
+        CHECK(!engine.Active(id));
+    }
+    {
+        AudioEngine engine;
+        Voice voice;
+        voice.pcm = Constant(16384, 2);
+        voice.repeats = 2;
+        const uint64_t id = engine.Start(voice);
+        float samples[16]{};
+        engine.Mix(samples, 8);
+        for (int frame = 0; frame < 6; ++frame)
+            CHECK(samples[frame * 2] == 0.5f);
+        CHECK(samples[12] == 0.0f && samples[14] == 0.0f && !engine.Active(id));
+    }
+    {
+        AudioEngine engine;
+        Voice voice;
+        voice.pcm = Constant(16384, 100);
+        voice.position = {100, 0, 0};
+        voice.positional = true;
+        CHECK(engine.Start(voice) == 0);
+        voice.bypassRangeCheck = true;
+        const uint64_t id = engine.Start(voice);
+        CHECK(id != 0 && RenderPeak(engine, 2) == 0.0f);
+        engine.SetListener({100, 0, 0}, 0);
+        CHECK(RenderPeak(engine, 2) > 0.49f);
+    }
+    {
+        AudioEngine engine;
+        Voice voice;
+        voice.pcm = Constant(16384, 100);
+        voice.name = "server-owned";
+        voice.positional = true;
+        voice.allowMerge = false;
+        const uint64_t first = engine.Start(voice), second = engine.Start(voice);
+        CHECK(first != 0 && second != 0 && first != second && engine.Active() == 2);
+    }
+}
+
 int main() {
     LoadLanguage();
     TestDecoders();
     TestMixer();
+    TestServerPlaybackControls();
     TestSoundSystem();
     TestSubtitles();
     if (failures == 0)

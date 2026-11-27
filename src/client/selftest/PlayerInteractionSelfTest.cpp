@@ -2,6 +2,7 @@
 #include "client/selftest/Check.hpp"
 #include "client/selftest/SelfTestGlobals.hpp"
 #include "client/selftest/SelfTests.hpp"
+#include "client/selftest/ItemFixtures.hpp"
 #include "network/Stream.hpp"
 #include "network/Transport.hpp"
 
@@ -257,6 +258,55 @@ namespace perlin::selftest {
                     "an off-hand release reports hotbar slot 0 and never consumes");
             t.Check(use(0) && use(0)->playerPos.x == 1 && use(0)->playerPos.y == 2 && use(0)->playerPos.z == 3,
                     "before any movement input the given position is used");
+            session.SetSentTap({});
+        }
+        {
+            Rig r;
+            BedrockSession session;
+            session.BeginReplayMode("cooldown-eater", 1, kBedrockProtocol);
+            proto::ItemRegistryPacket registry;
+            registry.itemstates.push_back(CooldownItem("minecraft:apple", 5, "test:food"));
+            session.InjectIncoming(registry.kId, net::Encode(registry));
+            proto::InventorySlotPacket slot;
+            slot.windowId = proto::WindowIDVarint::Inventory;
+            slot.slot = 0;
+            slot.item.networkId = 5;
+            slot.item.count = 3;
+            session.InjectIncoming(slot.kId, net::Encode(slot));
+            proto::ClientStartItemCooldownPacket cooldown{"test:food", 2};
+            session.InjectIncoming(cooldown.kId, net::Encode(cooldown));
+            int sent = 0;
+            session.SetSentTap([&](uint32_t id, const std::vector<uint8_t>&) {
+                if (id == proto::InventoryTransactionPacket::kId)
+                    ++sent;
+            });
+            r.input.SetCaptured(true);
+            r.hudState.mode = ui::GameMode::Survival;
+            r.hudState.food = 12;
+            r.hudState.hotbar[0].name = "minecraft:apple";
+            r.hudState.hotbar[0].count = 3;
+            r.Press(Action::Use);
+            FrameContext f;
+            f.live = &session;
+            r.interactionPlayer.UpdateEatingAndDrinking(f, session);
+            t.Check(f.earlyItemUse && !r.interactionPlayer.usingItem,
+                    "a received food cooldown sends the use attempt without starting local eating");
+            r.interactionPlayer.UpdateGameInput(f, r.View(false));
+            t.Equal(sent, 1, "a cooldown-blocked early use is not sent a second time in block-use input");
+            r.Idle();
+            f = FrameContext{};
+            f.live = &session;
+            r.interactionPlayer.UpdateEatingAndDrinking(f, session);
+            t.Equal(sent, 1, "releasing a cooldown-blocked use does not release an unstarted item action");
+            session.TickItemCooldowns();
+            session.TickItemCooldowns();
+            r.Press(Action::Use);
+            f = FrameContext{};
+            f.live = &session;
+            r.interactionPlayer.UpdateEatingAndDrinking(f, session);
+            t.Check(f.earlyItemUse && r.interactionPlayer.usingItem,
+                    "local eating starts again after the server cooldown expires");
+            t.Equal(sent, 2, "the next use after cooldown sends one new attempt");
             session.SetSentTap({});
         }
         {

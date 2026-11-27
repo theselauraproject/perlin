@@ -1,0 +1,147 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "packet_id": 300,
+  "packet_name": "CameraInstructionPacket",
+  "scope": "Matched 2193 normal reflection writer for fade time/color presence and field order. This is static evidence, not a runtime capture or complete camera-handler equivalence claim.",
+  "normal_mode": {
+    "factory_rva": "0x16b7f90",
+    "mode_store_rva": "0x16b80ac",
+    "mode_value": 5,
+    "writer_rva": "0x83bd1f0",
+    "archive_vtable_rva": "0xe8bc140",
+    "related_evidence": "camera_fov_findings.json"
+  },
+  "memory_types": {
+    "FadeInstruction": {
+      "size": 32,
+      "mTime_offset": 0,
+      "mColor_offset": 16,
+      "members": "independent std::optional<TimeOption> and std::optional<ColorOption>"
+    },
+    "TimeOption": {
+      "size": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "mFadeInTime",
+          "type": "float"
+        },
+        {
+          "offset": 4,
+          "name": "mHoldTime",
+          "type": "float"
+        },
+        {
+          "offset": 8,
+          "name": "mFadeOutTime",
+          "type": "float"
+        }
+      ]
+    },
+    "ColorOption": {
+      "size": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "mRed",
+          "type": "float"
+        },
+        {
+          "offset": 4,
+          "name": "mGreen",
+          "type": "float"
+        },
+        {
+          "offset": 8,
+          "name": "mBlue",
+          "type": "float"
+        }
+      ]
+    }
+  },
+  "binding": {
+    "function": "CameraInstruction::bindType",
+    "rva": "0x67788e0",
+    "time_field_order": [
+      {
+        "name": "fadeIn",
+        "name_reference_rva": "0x67792e5"
+      },
+      {
+        "name": "hold",
+        "name_reference_rva": "0x6779320"
+      },
+      {
+        "name": "fadeOut",
+        "name_reference_rva": "0x6779357"
+      }
+    ],
+    "color_field_order": [
+      {
+        "name": "r",
+        "name_reference_rva": "0x67793fa"
+      },
+      {
+        "name": "g",
+        "name_reference_rva": "0x6779435"
+      },
+      {
+        "name": "b",
+        "name_reference_rva": "0x677946c"
+      }
+    ],
+    "nested_option_order": [
+      {
+        "name": "time",
+        "name_reference_rva": "0x677950a",
+        "registration_call_rva": "0x677953e",
+        "registration_helper_rva": "0x67c7f50",
+        "binder_vtable_rva": "0xe9a1790"
+      },
+      {
+        "name": "color",
+        "name_reference_rva": "0x6779543",
+        "registration_call_rva": "0x6779570",
+        "registration_helper_rva": "0x67c9b60",
+        "binder_vtable_rva": "0xe9a1820"
+      }
+    ]
+  },
+  "wire_presence": {
+    "time_optional_writer_rva": "0x67c88f0",
+    "time_presence_load_rva": "0x67c8a63",
+    "time_presence_call_rva": "0x67c8a75",
+    "color_optional_writer_rva": "0x67ca150",
+    "color_presence_load_rva": "0x67ca2c3",
+    "color_presence_call_rva": "0x67ca2d5",
+    "optional_presence_member_offset": 12,
+    "archive_virtual_slot": 136,
+    "binary_archive_callback_rva": "0x40f2fa0",
+    "binary_stream_virtual_slot": 16,
+    "binary_stream_method": "writeBool",
+    "payload_condition": "Each optional writer always writes its own presence bool; its three-float payload is written only when that optional is present.",
+    "binary_float_archive_callback_rva": "0x40f2e30",
+    "binary_stream_float_virtual_slot": 136,
+    "binary_stream_float_method": "writeFloat"
+  },
+  "resolution": "Correct only protocol/legacy/bedrock-1.26.51.json: fade contains optional time_data {fade_in_duration,wait_duration,fade_out_duration}, then optional color_rgb. The old flat schema incorrectly omitted both inner presence bytes. No synthetic defaults or field-relocation bridge is needed.",
+  "tests": {
+    "source": "tests/camera_wire_selftest.cpp",
+    "fade_cases": "Both present, time only, color only, both absent, outer fade absent; nondefault durations 2/3/4 and colors 0.25/0.5/0.75; separate encoding and decoding literals for 2193 and 2225; truncated payload rejection.",
+    "combined_camera_result": "168 checks; 22 expected failures with original 2193 camera schema, zero failures with corrected schemas and known-label mapping.",
+    "live_consumer": "ServerUiPackets selftest injects literal 2193 zero-fade-in/ten-second-hold color and reads public camera tint without sleeping. Final app execution is owned by the integration run."
+  },
+  "limits": [
+    "The native fade duration/color validation and visual transition behavior were not reconstructed by this narrow wire trace.",
+    "Malformed/noncanonical optional bool handling was not traced.",
+    "Default codec values and literal fixture success are not proof of every CameraInstruction field or every protocol profile."
+  ]
+}

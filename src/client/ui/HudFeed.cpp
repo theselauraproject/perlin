@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 
 namespace perlin::ui {
     namespace {
@@ -53,6 +54,10 @@ namespace perlin::ui {
     }
 
     std::optional<LocatorMarker> ProjectLocator(const LocatorView& view, double x, double y, double z) {
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !std::isfinite(view.eyeX) ||
+            !std::isfinite(view.eyeY) || !std::isfinite(view.eyeZ) || !std::isfinite(view.yaw) ||
+            !std::isfinite(view.pitch) || !std::isfinite(view.fov))
+            return std::nullopt;
         const double dx = x - view.eyeX, dy = y - view.eyeY, dz = z - view.eyeZ;
         const double horizontal = std::sqrt(dx * dx + dz * dz);
         double angle = std::atan2(dz, dx) * 180.0 / kPi - static_cast<double>(view.yaw);
@@ -61,7 +66,8 @@ namespace perlin::ui {
             return std::nullopt;
         LocatorMarker m;
         m.angle = static_cast<float>(angle);
-        m.distance = static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
+        m.distance = static_cast<float>(std::min(std::sqrt(dx * dx + dy * dy + dz * dz),
+                                                static_cast<double>(std::numeric_limits<float>::max())));
         const double elevation = std::atan2(dy, std::max(horizontal, 1e-6)) * 180.0 / kPi;
         const double rel = elevation - static_cast<double>(view.pitch);
         const double halfFov = static_cast<double>(view.fov) * 0.5;

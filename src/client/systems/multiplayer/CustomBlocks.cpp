@@ -104,14 +104,22 @@ namespace perlin {
         }
     }
 
-    size_t RegisterCustomItems(const std::vector<proto::ItemstatesEntry>& items) {
+    size_t RegisterCustomItems(const std::vector<proto::ItemstatesEntry>& items,
+                              std::map<std::string, itemcooldown::Definition, std::less<>>& cooldowns) {
         ServerBlocks::Instance().ClearItems();
+        cooldowns.clear();
         size_t count = 0;
         for (const proto::ItemstatesEntry& item : items) {
-            if (item.name.starts_with("minecraft:") || item.nbt.bytes.empty())
-                continue;
             json::Value nbt;
-            if (!NetworkNbtToJson(item.nbt.bytes, nbt) || !nbt.IsObject())
+            const bool hasComponents = !item.nbt.bytes.empty() &&
+                                       NetworkNbtToJson(item.nbt.bytes, nbt) && nbt.IsObject();
+            auto cooldown = itemcooldown::BuiltinDefinition(item.name);
+            if (!cooldown && hasComponents)
+                if (auto component = itemcooldown::ComponentDefinition(FindKey(nbt, "minecraft:cooldown")))
+                    cooldown = std::move(component);
+            if (cooldown)
+                cooldowns[item.name] = std::move(*cooldown);
+            if (item.name.starts_with("minecraft:") || !hasComponents)
                 continue;
             CustomItemDef def;
             def.name = item.name;

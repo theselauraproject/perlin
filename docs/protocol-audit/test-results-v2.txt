@@ -1,0 +1,83 @@
+Final continued bundle validation
+Base: 0329b0cc4b1c21482b46cf275bd8a5eafc8aaeab
+Linux application build/link: PASSED
+
+Test project build/compatibility
+      Start  11: actor_lerp_selftest
+ 1/30 Test  #11: actor_lerp_selftest ..............   Passed    0.49 sec
+      Start  55: audio_selftest
+ 2/30 Test  #55: audio_selftest ...................   Passed    0.01 sec
+      Start  65: hud_feed_selftest
+ 3/30 Test  #65: hud_feed_selftest ................   Passed    0.04 sec
+      Start  76: handler_dispatch_selftest
+ 4/30 Test  #76: handler_dispatch_selftest ........   Passed    0.03 sec
+      Start  77: armor_packets_selftest
+ 5/30 Test  #77: armor_packets_selftest ...........   Passed    0.01 sec
+      Start  78: recipe_packets_selftest
+ 6/30 Test  #78: recipe_packets_selftest ..........   Passed    0.01 sec
+      Start  79: server_ui_packets_selftest
+ 7/30 Test  #79: server_ui_packets_selftest .......   Passed    0.01 sec
+      Start  80: audio_packets_selftest
+ 8/30 Test  #80: audio_packets_selftest ...........   Passed    0.02 sec
+      Start  81: input_reporting_selftest
+ 9/30 Test  #81: input_reporting_selftest .........   Passed    0.01 sec
+      Start  82: movement_protocol_selftest
+10/30 Test  #82: movement_protocol_selftest .......   Passed    0.01 sec
+      Start  83: session_codec_context_selftest
+11/30 Test  #83: session_codec_context_selftest ...   Passed    0.01 sec
+      Start  87: audio_director_selftest
+12/30 Test  #87: audio_director_selftest ..........   Passed    0.01 sec
+      Start  90: player_interaction_selftest
+13/30 Test  #90: player_interaction_selftest ......   Passed    0.03 sec
+      Start  91: hud_screen_selftest
+14/30 Test  #91: hud_screen_selftest ..............   Passed    0.02 sec
+      Start  99: executable_boot_resources
+15/30 Test  #99: executable_boot_resources ........   Passed    0.08 sec
+      Start 101: session_policy_selftest
+16/30 Test #101: session_policy_selftest ..........   Passed    0.00 sec
+      Start 110: packet_selftest
+17/30 Test #110: packet_selftest ..................   Passed    0.00 sec
+      Start 111: wire_selftest
+18/30 Test #111: wire_selftest ....................   Passed    0.00 sec
+      Start 112: move_input_selftest
+19/30 Test #112: move_input_selftest ..............   Passed    0.00 sec
+      Start 113: inventory_slots_selftest
+20/30 Test #113: inventory_slots_selftest .........   Passed    0.00 sec
+      Start 114: item_cooldown_selftest
+21/30 Test #114: item_cooldown_selftest ...........   Passed    0.00 sec
+      Start 115: gui_data_selftest
+22/30 Test #115: gui_data_selftest ................   Passed    0.00 sec
+      Start 116: armor_damage_selftest
+23/30 Test #116: armor_damage_selftest ............   Passed    0.00 sec
+      Start 117: recipe_unlocks_selftest
+24/30 Test #117: recipe_unlocks_selftest ..........   Passed    0.00 sec
+      Start 118: bridge2193_selftest
+25/30 Test #118: bridge2193_selftest ..............   Passed    0.00 sec
+      Start 119: sound_packets_wire_selftest
+26/30 Test #119: sound_packets_wire_selftest ......   Passed    0.00 sec
+      Start 120: camera_wire_selftest
+27/30 Test #120: camera_wire_selftest .............   Passed    0.00 sec
+      Start 121: protocol_audit_selftest
+28/30 Test #121: protocol_audit_selftest ..........   Passed    1.02 sec
+      Start 124: physics_selftest
+29/30 Test #124: physics_selftest .................   Passed    0.03 sec
+      Start 165: client_control_selftest
+30/30 Test #165: client_control_selftest ..........   Passed    0.01 sec
+
+100% tests passed out of 30
+
+Total Test time (real) =   1.90 sec
+
+Separate tracing/offhand run:
+Test project build/compatibility
+    Start 76: handler_dispatch_selftest
+1/1 Test #76: handler_dispatch_selftest ........   Passed    0.01 sec
+
+100% tests passed out of 1
+
+Total Test time (real) =   0.02 sec
+
+Independent wire check counts from final successful test output:
+bridge2193_selftest: 19 checks, 0 failures
+sound_packets_wire_selftest: 207 checks, 0 failures
+camera_wire_selftest: 168 checks, 0 failures

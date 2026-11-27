@@ -2,6 +2,7 @@
 #include "util/Paths.hpp"
 #include "util/Env.hpp"
 #include "client/systems/multiplayer/BedrockSession.hpp"
+#include "client/systems/multiplayer/SessionPolicy.hpp"
 
 #include "client/systems/mods/ModManager.hpp"
 #include "util/SimClock.hpp"
@@ -145,7 +146,7 @@ namespace perlin {
     }
 
     void BedrockSession::ChunkWorkerMain() {
-        std::deque<std::pair<uint32_t, std::vector<uint8_t>>> batch;
+        std::deque<ChunkPacket> batch;
         for (;;) {
             {
                 std::unique_lock<std::mutex> lk(chunkMutex);
@@ -156,8 +157,10 @@ namespace perlin {
                 batch.swap(chunkIn);
                 chunkBusy = true;
             }
-            for (auto& [id, body] : batch)
-                dispatcher.Dispatch(id, body.data(), body.size());
+            for (auto& packet : batch) {
+                const net::context::ScopedSettings codecScope(packet.codec);
+                dispatcher.Dispatch(packet.id, packet.body.data(), packet.body.size());
+            }
             batch.clear();
         }
     }
@@ -546,9 +549,12 @@ namespace perlin {
         }
         if (!transfer)
             Disconnect();
+        shieldItemId = -1;
+        ResetServerGui();
         ChunkCodec::ResetDimensions();
         lastError.clear();
         state = State::Connecting;
+        ResetMovementProtocolState();
 
         {
             std::lock_guard lk(attrMutex);
@@ -564,6 +570,9 @@ namespace perlin {
             pendingMovementEffects.clear();
             pendingEffectUpdates.clear();
             serverMotions.clear();
+            itemCooldowns.Clear();
+            itemCooldownDefinitions.clear();
+            recipeUnlocks.Clear();
         }
 
         {
@@ -716,7 +725,7 @@ namespace perlin {
             gameVersion = "1.26.60";
         if (protocolOverride > 0) {
             Log("bedrock", "announcing protocol {} ({}) instead of {}", protocolOverride,
-                versionOverride.empty() ? gameVersion : versionOverride, serverProtocol);
+                versionOverride.empty() ? gameVersion : versionOverride, serverProtocol.load());
             serverProtocol = protocolOverride;
             if (!versionOverride.empty())
                 gameVersion = versionOverride;
@@ -768,6 +777,8 @@ namespace perlin {
     }
 
     bool BedrockSession::Transmit(uint32_t packetId, const std::vector<uint8_t>& body, bool reliable) {
+        // Every caller binds the settings for these bytes. Keep that snapshot
+        // through taps and logging even if a reconnect changes the session.
         if (sentTapActive.load(std::memory_order_acquire)) {
             std::lock_guard<std::mutex> tl(tapMutex);
             if (sentTap)
@@ -798,21 +809,22 @@ namespace perlin {
         content.insert(content.end(), body.begin(), body.end());
 
         std::vector<uint8_t> batch;
+        const auto compression =
+            session::SelectBatchCompression(compressAlgorithm, compressThreshold, content.size());
         if (!compressEnabled) {
             batch = std::move(content);
-        } else if (compressAlgorithm == 0xFFFF || content.size() < compressThreshold) {
-            batch.push_back(0xFF);
+        } else if (compression == session::BatchCompression::None) {
+            batch.push_back(static_cast<uint8_t>(compression));
             batch.insert(batch.end(), content.begin(), content.end());
         } else {
             std::vector<uint8_t> deflated;
-            if (compressAlgorithm == 1) {
+            if (compression == session::BatchCompression::Snappy) {
                 SnappyCompress(content, deflated);
-                batch.push_back(0x01);
             } else {
                 if (!RawDeflate(content, deflated))
                     return false;
-                batch.push_back(0x00);
             }
+            batch.push_back(static_cast<uint8_t>(compression));
             batch.insert(batch.end(), deflated.begin(), deflated.end());
         }
         if (cipher && cipher->Active())
@@ -1053,6 +1065,8 @@ namespace perlin {
     }
 
     void BedrockSession::OnGamePacket(uint32_t id, const std::vector<uint8_t>& body) {
+        const net::context::Settings codec = PacketCodecSettings();
+        const net::context::ScopedSettings codecScope(codec);
         diagPackets++;
         rxBytes += body.size();
         diagLastId = id;
@@ -1098,7 +1112,7 @@ namespace perlin {
         if (id == LevelChunkPacket::kId || id == SubchunkPacket::kId || id == ClientCacheMissResponsePacket::kId) {
             {
                 std::lock_guard<std::mutex> lk(chunkMutex);
-                chunkIn.emplace_back(id, body);
+                chunkIn.push_back({id, body, codec});
             }
             chunkCv.notify_one();
             return;
@@ -1121,7 +1135,7 @@ namespace perlin {
             lastError = "login build failed: " + error;
             return false;
         }
-        Log("bedrock", "sending Login (protocol {})", serverProtocol);
+        Log("bedrock", "sending Login (protocol {})", serverProtocol.load());
         return Send(*login);
     }
 
@@ -1186,9 +1200,11 @@ namespace perlin {
             return false;
         proto::SetLocalPlayerAsInitializedPacket p;
         p.runtimeEntityId = runtimeId;
-        initializedSent = true;
         Log("bedrock", "SetLocalPlayerAsInitialized");
-        return Send(p);
+        if (!Send(p))
+            return false;
+        initializedSent = true;
+        return true;
     }
 
     bool BedrockSession::SendLoadingScreen(bool start, std::optional<uint32_t> id) {
@@ -1241,7 +1257,7 @@ namespace perlin {
         pose = PlayerPose{};
         haveLastAuthPos = false;
         haveStartPos = false;
-        pendingTeleportAck = false;
+        ResetMovementProtocolState();
         dimAckPending = false;
         diagLostLogged = false;
         chunksReceived = 0;
@@ -1334,6 +1350,27 @@ namespace perlin {
         return SendPlayerAuthInputWithFlags({}, pose.pitch, pose.yaw);
     }
 
+    void BedrockSession::ResetMovementProtocolState() {
+        std::lock_guard lock(pendingInputMutex);
+        ++movementInputEpoch;
+        pendingInputFlags.clear();
+        pendingBlockActions.clear();
+        blockActionGroup = 0;
+        pendingTeleportAck = false;
+        pendingTeleportSerial = 0;
+        initializedSent = false;
+        authTick = 0;
+        haveLastAuthPos = false;
+        movePacketsSent = 0;
+        predictionSyncCountdown = -1;
+    }
+
+    void BedrockSession::QueueTeleportAcknowledgment() {
+        std::lock_guard lock(pendingInputMutex);
+        pendingTeleportAck = true;
+        ++pendingTeleportSerial;
+    }
+
     bool BedrockSession::SendPlayerAuthInputWithFlags(const std::vector<uint32_t>& flags, float pitchOverride,
                                                       float yawOverride, uint32_t action, int bx, int by,
                                                       int bz, int face) {
@@ -1363,15 +1400,8 @@ namespace perlin {
     }
 
     bool BedrockSession::SendMoveInput(const MoveInput& input) {
-        if (!initializedSent)
-            return false;
-        auto finite = [](float v) { return std::isfinite(v); };
-        for (float v : {input.position[0], input.position[1], input.position[2], input.yaw, input.pitch,
-                        input.eyeHeight, input.moveX, input.moveZ})
-            if (!finite(v))
-                return false;
-        if (std::fabs(input.position[0]) > 100000.0f || std::fabs(input.position[1]) > 10000.0f ||
-            std::fabs(input.position[2]) > 100000.0f)
+        const net::context::ScopedSettings codecScope(PacketCodecSettings());
+        if (!initializedSent || !movement::ValidMoveInput(input))
             return false;
 
         std::vector<uint32_t> inputFlags;
@@ -1384,25 +1414,30 @@ namespace perlin {
             if (id <= 65)
                 add(id);
 
-        {
-            std::lock_guard lock(pendingInputMutex);
-            for (uint32_t id : pendingInputFlags)
-                add(id);
-            pendingInputFlags.clear();
-        }
-        if (pendingTeleportAck) {
-            add(InputFlag::HandledTeleport);
-            pendingTeleportAck = false;
-        }
-
         std::vector<BlockActionData> actions;
         if (input.hasBlockAction)
             actions.push_back(input.blockAction);
-        if (!pendingBlockActions.empty()) {
-            const uint32_t group = pendingBlockActions.front().group;
-            while (!pendingBlockActions.empty() && pendingBlockActions.front().group == group) {
-                actions.push_back(pendingBlockActions.front());
-                pendingBlockActions.pop_front();
+        size_t pendingFlagCount = 0, pendingActionCount = 0;
+        uint64_t inputEpoch = 0, teleportSerial = 0;
+        bool acknowledgeTeleport = false;
+        {
+            std::lock_guard lock(pendingInputMutex);
+            inputEpoch = movementInputEpoch;
+            pendingFlagCount = pendingInputFlags.size();
+            for (uint32_t id : pendingInputFlags)
+                add(id);
+            acknowledgeTeleport = pendingTeleportAck;
+            teleportSerial = pendingTeleportSerial;
+            if (acknowledgeTeleport)
+                add(InputFlag::HandledTeleport);
+            if (!pendingBlockActions.empty()) {
+                const uint32_t group = pendingBlockActions.front().group;
+                for (const auto& action : pendingBlockActions) {
+                    if (action.group != group)
+                        break;
+                    actions.push_back(action);
+                    ++pendingActionCount;
+                }
             }
         }
         const bool hasAction = !actions.empty();
@@ -1424,28 +1459,20 @@ namespace perlin {
         const float pitch = input.pitch * (kPi / 180.0f);
         const float cp = std::cos(pitch);
 
-        lastAuthPos[0] = input.position[0];
-        lastAuthPos[1] = input.position[1];
-        lastAuthPos[2] = input.position[2];
-        haveLastAuthPos = true;
-
         PlayerAuthInputPacket f;
         f.pitch = input.pitch;
         f.yaw = input.yaw;
         f.position = {input.position[0], input.position[1] + input.eyeHeight, input.position[2]};
-        lastAuthHead[0] = f.position.x;
-        lastAuthHead[1] = f.position.y;
-        lastAuthHead[2] = f.position.z;
         f.moveVector = {mx, mz};
         f.headYaw = input.yaw;
         f.inputData.reserve(inputFlags.size());
         for (uint32_t id : inputFlags)
             f.inputData.push_back(static_cast<proto::InputData>(id));
-        f.inputMode = proto::PlayerAuthInputPacketInputMode::Mouse;
+        f.inputMode = static_cast<proto::PlayerAuthInputPacketInputMode>(input.device);
         f.playMode = proto::PlayerAuthInputPacketPlayMode::Normal;
-        f.interactionModel = proto::PlayerAuthInputPacketInteractionModel::Crosshair;
+        f.interactionModel = static_cast<proto::PlayerAuthInputPacketInteractionModel>(input.interaction);
         f.interactRotation = {input.pitch, input.yaw};
-        f.tick = ++authTick;
+        f.tick = authTick + 1;
         f.delta = {input.delta[0], input.delta[1], input.delta[2]};
         if (hasAction) {
             std::vector<proto::PlayerAuthInputPacketBlockActionEntry> entries;
@@ -1463,7 +1490,7 @@ namespace perlin {
             f.vehicleRotation = proto::Vec2F{(*input.vehicleRotation)[0], (*input.vehicleRotation)[1]};
             f.predictedVehicle = *input.predictedVehicle;
         }
-        f.analogueMoveVector = {0, 0};
+        f.analogueMoveVector = {input.analogX, input.analogZ};
         f.cameraOrientation = {-std::sin(yaw) * cp, -std::sin(pitch), std::cos(yaw) * cp};
         {
             float rx = input.rawX, rz = input.rawZ;
@@ -1475,14 +1502,41 @@ namespace perlin {
             }
             f.rawMoveVector = {rx, rz};
         }
+        std::vector<uint8_t> body;
+        if (!net::EncodeChecked(f, body)) {
+            Log("net", "refusing to send malformed PlayerAuthInput");
+            return false;
+        }
+        // Ticks identify simulated frames, including frames whose transport
+        // fails. Pending acknowledgments/actions belong to accepted sends.
+        authTick = f.tick;
+        if (!Transmit(PlayerAuthInputPacket::kId, body, true))
+            return false;
+        {
+            std::lock_guard lock(pendingInputMutex);
+            if (inputEpoch != movementInputEpoch)
+                return false;
+            pendingInputFlags.erase(pendingInputFlags.begin(),
+                                    pendingInputFlags.begin() + pendingFlagCount);
+            for (size_t i = 0; i < pendingActionCount; ++i)
+                pendingBlockActions.pop_front();
+            if (acknowledgeTeleport && teleportSerial == pendingTeleportSerial)
+                pendingTeleportAck = false;
+            std::copy(std::begin(input.position), std::end(input.position), std::begin(lastAuthPos));
+            lastAuthHead[0] = f.position.x;
+            lastAuthHead[1] = f.position.y;
+            lastAuthHead[2] = f.position.z;
+            haveLastAuthPos = true;
+        }
         if (movePacketsSent < 3 || movePacketsSent % 200 == 0)
             Log("move", "input #{} tick={} eye=({},{},{}) move=({},{}) flags={}", movePacketsSent, f.tick,
                 f.position.x, f.position.y, f.position.z, f.moveVector.x, f.moveVector.z, f.inputData.size());
         movePacketsSent++;
-        const bool sent = Send(f);
-        if (predictionSyncCountdown > 0 && --predictionSyncCountdown == 0 && SendPredictionSync())
+        if (predictionSyncCountdown > 0)
+            --predictionSyncCountdown;
+        if (predictionSyncCountdown == 0 && SendPredictionSync())
             predictionSyncCountdown = -1;
-        return sent;
+        return true;
     }
 
     bool BedrockSession::SendPredictionSync() {
@@ -1559,8 +1613,11 @@ namespace perlin {
             }
             return ok;
         }
-        if (pendingBlockActions.size() < 64)
-            pendingBlockActions.push_back({action, bx, by, bz, face, blockActionGroup});
+        {
+            std::lock_guard lock(pendingInputMutex);
+            if (pendingBlockActions.size() < 64)
+                pendingBlockActions.push_back({action, bx, by, bz, face, blockActionGroup});
+        }
         return true;
     }
 
@@ -1724,9 +1781,7 @@ namespace perlin {
     }
 
     void BedrockSession::SetPose(float x, float y, float z, float yaw, float pitch) {
-        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !std::isfinite(yaw) ||
-            !std::isfinite(pitch) || std::fabs(x) > 100000.0f || std::fabs(y) > 10000.0f ||
-            std::fabs(z) > 100000.0f)
+        if (!movement::ValidPlayerPosition(x, y, z) || !std::isfinite(yaw) || !std::isfinite(pitch))
             return;
 
         pose.x = x;

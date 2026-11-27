@@ -2473,7 +2473,7 @@
           "35": "stop_flying",
           "36": "received_server_data",
           "37": "start_using_item",
-          "38": "swap_offhand"
+          "38": "internal_update"
         }
       }
     ],
@@ -9662,7 +9662,7 @@
         },
         {
           "name": "armor_slots",
-          "type": "zigzag64"
+          "type": "varint64"
         }
       ]
     ],
@@ -13217,7 +13217,7 @@
           "62": "sneak_released_raw",
           "63": "sneak_pressed_raw",
           "64": "sneak_current_raw",
-          "65": "swap_offhand"
+          "65": "internal_update"
         }
       }
     ],
@@ -13353,7 +13353,7 @@
           "type": [
             "mapper",
             {
-              "type": "u8",
+              "type": "zigzag32",
               "mappings": {
                 "0": "helmet",
                 "1": "chestplate",
@@ -16853,11 +16853,11 @@
                   "container",
                   [
                     {
-                      "name": "target_volume",
+                      "name": "duration",
                       "type": "lf32"
                     },
                     {
-                      "name": "duration",
+                      "name": "target_volume",
                       "type": "lf32"
                     }
                   ]

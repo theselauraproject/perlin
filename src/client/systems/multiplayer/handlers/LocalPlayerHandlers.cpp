@@ -8,17 +8,31 @@ namespace perlin {
         On<MovePlayerPacket>([this](const MovePlayerPacket& p) {
             if (runtimeId != 0 && p.runtimeId != runtimeId)
                 return;
-            runtimeId = p.runtimeId;
-            const Vec3F& eye = p.position;
-            if (!SaneWorldPos(eye.x, eye.y, eye.z))
+            if (!SanePlayerMove(p))
                 return;
+            if (p.mode == MovePlayerPacketMode::Rotation) {
+                if (!pose.known)
+                    return;
+                // PositionMode::OnlyHeadRot leaves position and body yaw unchanged.
+                pose.pitch = p.pitch;
+                pose.headYaw = p.headYaw;
+                pose.onGround = p.onGround;
+                ServerMotion motion;
+                motion.hasRotation = true;
+                motion.yaw = pose.yaw;
+                motion.pitch = p.pitch;
+                QueueServerMotion(motion);
+                return;
+            }
+            const Vec3F& eye = p.position;
+            runtimeId = p.runtimeId;
             pose = {eye.x, eye.y - kPlayerEyeHeight, eye.z, p.yaw, p.pitch, p.headYaw, p.onGround, true};
             haveLastAuthPos = false;
             gotSpawn = true;
             const bool forced =
                 p.mode == MovePlayerPacketMode::Teleport || p.mode == MovePlayerPacketMode::Reset;
             if (forced) {
-                pendingTeleportAck = true;
+                QueueTeleportAcknowledgment();
                 ServerMotion motion;
                 motion.poseChanged = true;
                 motion.teleport = true;
@@ -75,8 +89,12 @@ namespace perlin {
         });
 
         On<CorrectPlayerMovePredictionPacket>([this](const CorrectPlayerMovePredictionPacket& p) {
+            if (p.tick == 0 || !SaneWorldPos(p.position.x, p.position.y, p.position.z) ||
+                !std::isfinite(p.delta.x) || !std::isfinite(p.delta.y) || !std::isfinite(p.delta.z))
+                return;
             if (p.predictionType == CorrectPlayerMovePredictionPacketPredictionType::Vehicle) {
-                if (!SaneWorldPos(p.position.x, p.position.y, p.position.z))
+                if (!std::isfinite(p.rotation.x) || !std::isfinite(p.rotation.z) ||
+                    (p.angularVelocity && !std::isfinite(*p.angularVelocity)))
                     return;
                 VehicleCorrection c;
                 c.tick = p.tick;
@@ -97,8 +115,6 @@ namespace perlin {
                 return;
             }
             if (p.predictionType != CorrectPlayerMovePredictionPacketPredictionType::Player)
-                return;
-            if (!SaneWorldPos(p.position.x, p.position.y, p.position.z))
                 return;
             pose.x = p.position.x;
             pose.y = p.position.y - kPlayerEyeHeight;
@@ -127,6 +143,9 @@ namespace perlin {
 
         On<SetEntityMotionPacket>([this](const SetEntityMotionPacket& p) {
             if (runtimeId == 0 || p.runtimeEntityId != runtimeId)
+                return;
+            if (!std::isfinite(p.velocity.x) || !std::isfinite(p.velocity.y) ||
+                !std::isfinite(p.velocity.z))
                 return;
             ServerMotion motion;
             motion.hasVelocity = true;

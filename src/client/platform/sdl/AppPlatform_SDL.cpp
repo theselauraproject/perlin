@@ -887,6 +887,7 @@ void AppPlatform_SDL::OnGamepadRemoved(const SDL_Event& e, perlin::Input* input)
     if (!input)
         return;
     input->SetPadConnected(false);
+    input->SetPadMove(0, 0);
     input->SetPadLook(0, 0);
     for (int c = 0; c < 64; c++)
         if (padState[c]) {
@@ -896,12 +897,14 @@ void AppPlatform_SDL::OnGamepadRemoved(const SDL_Event& e, perlin::Input* input)
 }
 
 void AppPlatform_SDL::OnGamepadButton(const SDL_Event& e, perlin::Input* input) {
-    if (!input || !gamepad)
+    if (!input || !gamepad || SDL_GetGamepadID(gamepad) != e.gbutton.which)
         return;
     const bool pressed = e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN;
     const int code = e.gbutton.button;
     if (code < 0 || code >= 15)
         return;
+    if (pressed)
+        input->NoteDevice(perlin::InputDevice::Gamepad);
     if (pressed && touchMode)
         SetTouchMode(false);
     if (input->TextMode() && !input->PadCapture()) {
@@ -947,6 +950,8 @@ bool AppPlatform_SDL::IsTvPointerKey(const SDL_KeyboardEvent& k, perlin::Input* 
 }
 
 void AppPlatform_SDL::OnKeyDown(const SDL_KeyboardEvent& k, perlin::Input* input) {
+    if (input && !k.repeat)
+        input->NoteDevice(perlin::InputDevice::Mouse);
     if (IsTvPointerKey(k, input)) {
         const float step = PointerStep();
         switch (k.scancode) {
@@ -1019,8 +1024,16 @@ void AppPlatform_SDL::OnMouseMotion(const SDL_MouseMotionEvent& m, perlin::Input
         }
         return;
     }
-    if (!LeaveTouchModeForMouse())
+    // SDL resets relative deltas for its generated cursor-warp events. Those
+    // move the pointer, but do not change the physical device in use.
+    if (m.xrel != 0 || m.yrel != 0) {
+        if (!LeaveTouchModeForMouse())
+            return;
+        if (input)
+            input->NoteDevice(perlin::InputDevice::Mouse);
+    } else if (touchMode) {
         return;
+    }
     pointerShown = false;
     if (input) {
         if (cursorCaptured)
@@ -1041,6 +1054,8 @@ void AppPlatform_SDL::OnMouseButtonDown(const SDL_MouseButtonEvent& b, perlin::I
     }
     if (!LeaveTouchModeForMouse())
         return;
+    if (input)
+        input->NoteDevice(perlin::InputDevice::Mouse);
     pointerShown = false;
     if (!cursorCaptured && !(input && (input->TextMode() || input->FreeCursor()))) {
         SetCursorCaptured(true);
@@ -1052,6 +1067,8 @@ void AppPlatform_SDL::OnMouseButtonDown(const SDL_MouseButtonEvent& b, perlin::I
 }
 
 void AppPlatform_SDL::OnMouseButtonUp(const SDL_MouseButtonEvent& b, perlin::Input* input) {
+    if (b.which == SDL_TOUCH_MOUSEID)
+        return;
     if (editMouseDown && input) {
         const float d = SDL_GetWindowPixelDensity(window);
         editMouseDown = false;
@@ -1070,6 +1087,8 @@ void AppPlatform_SDL::OnFinger(const SDL_Event& e, perlin::Input* input) {
         SetTouchMode(true);
     if (!input || !touchMode)
         return;
+    if (e.type == SDL_EVENT_FINGER_DOWN || e.type == SDL_EVENT_FINGER_MOTION)
+        input->NoteDevice(perlin::InputDevice::Touch);
     touch.SetViewport(framebufferWidth, framebufferHeight);
     const float w = static_cast<float>(framebufferWidth), h = static_cast<float>(framebufferHeight);
     const int64_t id = static_cast<int64_t>(e.tfinger.fingerID);
@@ -1154,6 +1173,18 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
     case SDL_EVENT_GAMEPAD_BUTTON_UP:
         OnGamepadButton(e, input);
         break;
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        if (input && gamepad && SDL_GetGamepadID(gamepad) == e.gaxis.which) {
+            const float value = static_cast<float>(e.gaxis.value) / 32767.0f;
+            const bool trigger = e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+                                 e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+            if (trigger ? value > 0.4f : std::fabs(value) > input->PadDeadzone()) {
+                input->NoteDevice(perlin::InputDevice::Gamepad);
+                if (touchMode)
+                    SetTouchMode(false);
+            }
+        }
+        break;
     case SDL_EVENT_KEY_DOWN:
         OnKeyDown(e.key, input);
         break;
@@ -1173,8 +1204,11 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         OnMouseButtonUp(e.button, input);
         break;
     case SDL_EVENT_MOUSE_WHEEL:
-        if (input)
+        if (input && e.wheel.which != SDL_TOUCH_MOUSEID) {
+            if (e.wheel.x != 0 || e.wheel.y != 0)
+                input->NoteDevice(perlin::InputDevice::Mouse);
             input->OnMouseWheel(e.wheel.y);
+        }
         break;
     case SDL_EVENT_FINGER_DOWN:
     case SDL_EVENT_FINGER_MOTION:
@@ -1197,16 +1231,17 @@ void AppPlatform_SDL::PumpGamepad() {
                          : std::min(0.1f, std::chrono::duration<float>(now - padLast).count());
     padLast = now;
     if (!gamepad) {
+        in.SetPadMove(0, 0);
         in.SetPadLook(0, 0);
         return;
     }
     const auto axis = [&](SDL_GamepadAxis a) {
-        return static_cast<float>(SDL_GetGamepadAxis(gamepad, a)) / 32767.0f;
+        return std::clamp(static_cast<float>(SDL_GetGamepadAxis(gamepad, a)) / 32767.0f, -1.0f, 1.0f);
     };
     const float lx = axis(SDL_GAMEPAD_AXIS_LEFTX), ly = axis(SDL_GAMEPAD_AXIS_LEFTY);
     const float rx = axis(SDL_GAMEPAD_AXIS_RIGHTX), ry = axis(SDL_GAMEPAD_AXIS_RIGHTY);
     const float lt = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER), rt = axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
-    const float dz = in.PadDeadzone();
+    const float dz = std::clamp(in.PadDeadzone(), 0.0f, 0.99f);
     const auto shape = [&](float v) {
         const float m = std::fabs(v);
         return m <= dz ? 0.0f : std::copysign(std::min(1.0f, (m - dz) / (1.0f - dz)), v);
@@ -1218,6 +1253,7 @@ void AppPlatform_SDL::PumpGamepad() {
                 padState[c] = false;
                 in.OnPadUp(c);
             }
+        in.SetPadMove(0, 0);
         in.SetPadLook(0, 0);
         const float sx = shape(lx), sy = shape(ly);
         if (sx != 0.0f || sy != 0.0f) {
@@ -1241,6 +1277,7 @@ void AppPlatform_SDL::PumpGamepad() {
         return;
     }
 
+    in.SetPadMove(shape(lx), shape(ly));
     in.SetPadLook(shape(rx), shape(ry));
     struct Virtual {
         int code;

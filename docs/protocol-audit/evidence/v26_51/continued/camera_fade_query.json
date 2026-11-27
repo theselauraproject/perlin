@@ -1,0 +1,18 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "CameraInstruction",
+    "CameraInstructionOptions::FadeInstruction",
+    "CameraInstructionOptions::FadeInstruction::TimeOption",
+    "CameraInstructionOptions::FadeInstruction::ColorOption",
+    "BinaryStream"
+  ],
+  "symbol_rvas": [
+    "0x83bd1f0",
+    "0x67788e0",
+    "0x67c88f0",
+    "0x67ca150",
+    "0x40f2fa0",
+    "0x40f2e30"
+  ]
+}

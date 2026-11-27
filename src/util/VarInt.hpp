@@ -78,6 +78,8 @@ namespace perlin::wire {
             unsigned shift = 0;
             while (p < end) {
                 uint8_t b = *p++;
+                if (shift == 28 && (b & 0x7F) > 0x0F)
+                    return false;
                 v |= static_cast<uint32_t>(b & 0x7F) << shift;
                 if (!(b & 0x80)) {
                     out = v;
@@ -130,6 +132,8 @@ namespace perlin::wire {
             unsigned shift = 0;
             while (p < end) {
                 uint8_t b = *p++;
+                if (shift == 63 && (b & 0x7F) > 0x01)
+                    return false;
                 v |= static_cast<uint64_t>(b & 0x7F) << shift;
                 if (!(b & 0x80)) {
                     out = v;

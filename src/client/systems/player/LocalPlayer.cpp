@@ -104,12 +104,10 @@ namespace perlin {
         const auto updates = session.TakeEffectUpdates();
         size_t first = history.size();
         for (const auto& update : updates) {
-            if (update.tick == 0 || history.empty())
-                continue;
-            const uint64_t boundary = std::max(update.tick, history.front().tick);
             for (size_t i = 0; i < history.size(); ++i) {
                 Record& record = history[i];
-                if (record.tick <= boundary)
+                // The first retained record already holds the corrected starting state.
+                if (!physics::bds::ReplaysStatusEffectAt(update.tick, record.tick))
                     continue;
                 const bool active = update.active && physics::bds::StatusEffectTicksAt(
                                                          update.duration, update.tick, record.tick - 1) != 0;
@@ -445,6 +443,7 @@ namespace perlin {
 
     void LocalPlayer::Tick(BedrockSession& session, const InputManager& input, const Camera& cameraIn,
                            const physics::World& world) {
+        session.TickItemCooldowns();
         Camera camera = cameraIn;
         forcedYaw.reset();
         const uint64_t nextTick = session.LastAuthTick() + 1;
@@ -485,7 +484,7 @@ namespace perlin {
 
                     if (len > 0.001f) {
                         camera.yaw = glm::degrees(std::atan2(wz, wx)), forcedYaw = camera.yaw;
-                        forwardKeys = 1.0f;
+                        forwardKeys = std::min(len, 1.0f);
                         strafeKeys = 0.0f;
                     }
                 } else {
@@ -833,8 +832,9 @@ namespace perlin {
         }
         futureMotion.clear();
         ApplyMotion(state, rec.motion);
+        bool groundJumpStarted = false;
         if (simulate) {
-            physics::Step(state, in, attributes, world);
+            groundJumpStarted = physics::Step(state, in, attributes, world);
         } else {
             state.vx = state.vy = state.vz = 0;
         }
@@ -889,7 +889,8 @@ namespace perlin {
         if (goBack && goRight)
             f.push_back(Flag::DownRight);
 
-        const bool jumpInitiated = !flying && before.jumpDelay == 0 && state.jumpDelay == 9;
+        const bool jumpInitiated =
+            !flying && (groundJumpStarted || (before.jumpDelay == 0 && state.jumpDelay == 9));
         if (jump) {
             f.push_back(Flag::JumpDown);
             f.push_back(Flag::Jumping);
@@ -971,8 +972,13 @@ namespace perlin {
 
         packet.moveX = -move.strafe;
         packet.moveZ = move.forward;
-        packet.rawX = -strafeKeys;
-        packet.rawZ = forwardKeys;
+        packet.rawX = asleep ? 0.0f : -input.AxisBeforeServerLocks(Action::Right, Action::Left);
+        packet.rawZ = asleep ? 0.0f : input.AxisBeforeServerLocks(Action::Forward, Action::Back);
+        const MoveAxes analog = asleep ? MoveAxes{} : input.AnalogMovement();
+        packet.analogX = -analog.strafe;
+        packet.analogZ = analog.forward;
+        packet.device = input.Device();
+        packet.interaction = input.Interaction();
         packet.yaw = BedrockYaw(camera.yaw);
         packet.pitch = BedrockPitch(camera.pitch);
         packet.eyeHeight = kPlayerEyeHeight;

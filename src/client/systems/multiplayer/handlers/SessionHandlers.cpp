@@ -291,8 +291,7 @@ namespace perlin {
                 mayFly = true;
             if (!pose.known && SaneWorldPos(x, y, z))
                 pose = {x, y, z, p.rotation.z, p.rotation.x, p.rotation.z, false, true};
-            if (std::isfinite(x) && std::isfinite(z) && std::fabs(x) <= 100000.0f &&
-                std::fabs(z) <= 100000.0f) {
+            if (SaneWorldPos(x, y, z)) {
                 startPos[0] = x;
                 startPos[1] = y;
                 startPos[2] = z;

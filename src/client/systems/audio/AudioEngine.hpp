@@ -6,6 +6,7 @@
 #include <array>
 #include <atomic>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,8 @@ namespace perlin::audio {
         glm::dvec3 position{0.0};
         float range = 16.0f;
         bool loop = false;
+        uint32_t repeats = 0;
+        bool bypassRangeCheck = false, allowMerge = true, scriptPaused = false;
         std::string name;
         uint64_t id = 0;
 
@@ -51,6 +54,15 @@ namespace perlin::audio {
         double cursor = 0.0;
         float fade = 1.0f;
         bool stopping = false;
+        double volumeFadeFrames = 0.0;
+        double volumeFadeTotal = 0.0, volumeFadeStart = 1.0;
+        float volumeTarget = 1.0f;
+    };
+
+    struct PlaybackOptions {
+        uint32_t loopCount = 0;
+        bool bypassRangeCheck = false, distinct = false;
+        std::optional<float> positionSeconds;
     };
 
     struct StreamParams {
@@ -85,6 +97,12 @@ namespace perlin::audio {
         void Stop(uint64_t id);
         void StopName(const std::string& name);
         void StopAll();
+        bool Active(uint64_t id) const;
+        void SetVolume(uint64_t id, float volume);
+        void SetPitch(uint64_t id, float pitch);
+        void FadeVolume(uint64_t id, float duration, float target);
+        void Seek(uint64_t id, float seconds);
+        void SetScriptPaused(uint64_t id, bool paused);
         size_t Active() const;
         bool Playing(const std::string& name) const;
 

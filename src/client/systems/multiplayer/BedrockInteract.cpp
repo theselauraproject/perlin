@@ -26,10 +26,12 @@ namespace perlin {
         p.transaction.transactionType = TransactionTransactionType::ItemUse;
         TransactionUseItem u;
         int selected = 0;
+        bool onCooldown = false;
         {
             std::lock_guard lock(statusMutex);
             selected = std::clamp(inventory.selected, 0, 8);
             u.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[selected];
+            onCooldown = ItemOnCooldownLocked(u.heldItem);
         }
         if (use == 2 && (u.heldItem.count == 0 || u.heldItem.blockRuntimeId == 0))
             return false;
@@ -71,7 +73,10 @@ namespace perlin {
              : use == 1 ? "interact"
                         : "nothing"),
             dest[0], dest[1], dest[2]);
-        if (use != 0 && !itemUseOnActive.exchange(true)) {
+        // A block's own interaction runs before ItemStack::useOn. Cooldown
+        // prevents using the held block, but does not prevent opening a chest.
+        const bool predictSuccess = use != 0 && !(use == 2 && onCooldown);
+        if (predictSuccess && !itemUseOnActive.exchange(true)) {
             PlayerActionPacket start;
             start.runtimeEntityId = runtimeId;
             start.action = Action::StartItemUseOn;
@@ -84,10 +89,12 @@ namespace perlin {
             }
             std::copy(dest, dest + 3, itemUseDest);
         }
-        u.clientPrediction = use != 0 ? TransactionUseItemClientPrediction::Success
-                                      : TransactionUseItemClientPrediction::Failure;
+        u.clientPrediction = predictSuccess ? TransactionUseItemClientPrediction::Success
+                                            : TransactionUseItemClientPrediction::Failure;
         p.transaction.transactionData = u;
         if (!Send(p))
+            return false;
+        if (use == 2 && onCooldown)
             return false;
         if (use != 0) {
             itemUseDest[0] = dest[0];
@@ -123,16 +130,20 @@ namespace perlin {
         p.transaction.transactionType = TransactionTransactionType::ItemUse;
         TransactionUseItem u;
         int selected = 0;
+        bool onCooldown = false;
         {
             std::lock_guard lock(statusMutex);
             selected = std::clamp(inventory.selected, 0, 8);
             u.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[selected];
+            onCooldown = ItemOnCooldownLocked(u.heldItem, itemcooldown::Type::Use);
         }
-        if (held)
+        if (held && !onCooldown)
             QueueInputFlag(InputFlag::StartUsingItem);
         u.actionType = TransactionUseItemActionType::ClickAir;
         u.triggerType = TransactionUseItemTriggerType::Unknown;
         u.clientPrediction = TransactionUseItemClientPrediction::Failure;
+        // The matched client's baseUseItem still sends a failed air-use attempt
+        // with cooldown state Off; cooldown gates the local item-use action.
         u.blockPosition = {0, 0, 0};
         u.face = 255;
         u.hotbarSlot = useOffhand ? 0 : selected;

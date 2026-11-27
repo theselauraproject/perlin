@@ -41,6 +41,14 @@ int main() {
     CHECK(manager.Pressed(Action::Jump));
     manager.SetServerLocks(512);
     CHECK(!manager.IsDown(Action::Forward));
+    CHECK(manager.Axis(Action::Forward, Action::Back) == 0);
+    CHECK(manager.AxisBeforeServerLocks(Action::Forward, Action::Back) == 1);
+    manager.SetServerLocks(4);
+    CHECK(manager.Axis(Action::Forward, Action::Back) == 0);
+    CHECK(manager.AxisBeforeServerLocks(Action::Forward, Action::Back) == 1);
+    manager.SetModFreeze(true);
+    CHECK(manager.AxisBeforeServerLocks(Action::Forward, Action::Back) == 0);
+    manager.SetModFreeze(false);
     manager.SetServerLocks(0);
     manager.SetBlocked(true);
     manager.SetControlActions({}, 14);
@@ -48,6 +56,7 @@ int main() {
     manager.Poll();
     CHECK(!manager.Pressed(Action::Jump));
     CHECK(!manager.IsDown(Action::Jump));
+    CHECK(manager.AxisBeforeServerLocks(Action::Forward, Action::Back) == 0);
     manager.SetBlocked(false);
 
     httplib::Server probe;

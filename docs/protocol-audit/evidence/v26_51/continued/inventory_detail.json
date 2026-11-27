@@ -1,0 +1,913 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [
+    "ContainerRegistryTracker"
+  ],
+  "classes": [
+    {
+      "name": "ContainerRegistry",
+      "type_index": "0x35f0a",
+      "size": 120,
+      "fieldlist": "0x35f09",
+      "member_count": 24,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "IDynamicContainerSerialization",
+          "member_kind": "base"
+        },
+        {
+          "offset": 8,
+          "type": "IContainerRegistryAccess",
+          "member_kind": "base"
+        },
+        {
+          "offset": 16,
+          "type": "IContainerRegistryTracker",
+          "member_kind": "base"
+        },
+        {
+          "name": "mNextDynamicId",
+          "offset": 24,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContainers",
+          "offset": 32,
+          "type": "std::unordered_map<FullContainerName,DynamicTrackedContainer,std::hash<FullContainerName>,std::equal_to<FullContainerName>,std::allocator<std::pair<const FullContainerName,DynamicTrackedContainer> > >",
+          "type_index": "0xd33b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsClientSide",
+          "offset": 96,
+          "type": "const bool",
+          "type_index": "0x15681",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTicksSinceLastCleanup",
+          "offset": 100,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContainerContextMutex",
+          "offset": 104,
+          "type": "std::shared_ptr<Bedrock::Threading::SharedRecursiveMutex>",
+          "type_index": "0xcd06",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "ContainerRegistry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ee8",
+          "return_type": "void",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "ContainerRegistry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ee9",
+          "return_type": "void",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~ContainerRegistry",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35eeb",
+          "return_type": "void",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "serializeContainerContent",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35eed",
+          "return_type": "std::unique_ptr<ListTag,std::default_delete<ListTag> >",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &",
+            "const SaveContext &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDynamicContainerWeight",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35eee",
+          "return_type": "std::optional<int>",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasContainer",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ef1",
+          "return_type": "bool",
+          "class_type": "ContainerRegistry",
+          "this_type": "const ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getModel",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ef2",
+          "return_type": "std::shared_ptr<StorageItemContainerModel>",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 8
+        },
+        {
+          "name": "getBackingContainer",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ef3",
+          "return_type": "std::shared_ptr<FillingContainer>",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 8
+        },
+        {
+          "name": "tryCreateEntry",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ef7",
+          "return_type": "void",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "StorageItemComponent *",
+            "StorageWeightLimitItemComponent *",
+            "const FullContainerName &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 8
+        },
+        {
+          "name": "createContainerManager",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35ef9",
+          "return_type": "std::unique_ptr<DynamicContainerManager,std::default_delete<DynamicContainerManager> >",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &",
+            "const ItemStack &",
+            "StorageItemComponent *",
+            "StorageWeightLimitItemComponent *"
+          ],
+          "argument_count": 4,
+          "this_adjust": 16
+        },
+        {
+          "name": "generateNewID",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35efa",
+          "return_type": "uint32_t",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 16
+        },
+        {
+          "name": "tryLoadSavedStorageItem",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35efe",
+          "return_type": "void",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const ListTag &",
+            "const FullContainerName &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 16
+        },
+        {
+          "name": "setExpired",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35f02",
+          "return_type": "void",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const std::vector<FullContainerName,std::allocator<FullContainerName> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 16
+        },
+        {
+          "name": "getSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35f03",
+          "return_type": "unsigned long long",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 16
+        },
+        {
+          "name": "_getOrCreate",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35f06",
+          "return_type": "DynamicTrackedContainer &",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "const FullContainerName &",
+            "StorageItemComponent *",
+            "StorageWeightLimitItemComponent *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "_tick",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x35f08",
+          "return_type": "int32_t",
+          "class_type": "ContainerRegistry",
+          "this_type": "ContainerRegistry *",
+          "argument_types": [
+            "std::function<void (Packet &)>",
+            "int32_t"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "FullContainerName",
+      "type_index": "0x19c2f",
+      "size": 12,
+      "fieldlist": "0x19c2e",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "ContainerEnumName",
+          "type_index": "0x13ad",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDynamicId",
+          "offset": 4,
+          "type": "std::optional<unsigned int>",
+          "type_index": "0xc599",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "toString",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19c2d",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "FullContainerName",
+          "this_type": "const FullContainerName *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "Recipe",
+      "type_index": "0x45330",
+      "size": 256,
+      "fieldlist": "0x4532f",
+      "member_count": 39,
+      "fields": [
+        {
+          "name": "mRecipeId",
+          "offset": 8,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMyId",
+          "offset": 40,
+          "type": "mce::UUID",
+          "type_index": "0x105a6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mWidth",
+          "offset": 56,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHeight",
+          "offset": 60,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPriority",
+          "offset": 64,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRecipeNetId",
+          "offset": 68,
+          "type": "TypedServerNetId<RecipeNetIdTag,unsigned int,0>",
+          "type_index": "0x7a1b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMyIngredients",
+          "offset": 72,
+          "type": "std::vector<RecipeIngredient,std::allocator<RecipeIngredient> >",
+          "type_index": "0xdce7",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mResults",
+          "offset": 96,
+          "type": "Recipe::Results",
+          "type_index": "0xfb99",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnlockingRequirement",
+          "offset": 152,
+          "type": "RecipeUnlockingRequirement",
+          "type_index": "0xfa79",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRecipeDataVersion",
+          "offset": 184,
+          "type": "SemVersion",
+          "type_index": "0xffde",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTag",
+          "offset": 208,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "Recipe",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x45317",
+          "return_type": "void",
+          "class_type": "Recipe",
+          "this_type": "Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "Recipe",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4531a",
+          "return_type": "void",
+          "class_type": "Recipe",
+          "this_type": "Recipe *",
+          "argument_types": [
+            "Recipe::ConstructionContext &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~Recipe",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 0,
+          "type_index": "0x4531c",
+          "return_type": "void",
+          "class_type": "Recipe",
+          "this_type": "Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "assemble",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x4531d",
+          "return_type": "const std::vector<ItemInstance,std::allocator<ItemInstance> > &",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "CraftingContainer &",
+            "CraftingContext &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCraftingSize",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x4531e",
+          "return_type": "int32_t",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getIngredient",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x4531f",
+          "return_type": "const RecipeIngredient &",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "int32_t",
+            "int32_t"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isShapeless",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x45320",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "matches",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x45321",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "const CraftingContainer &",
+            "const CraftingContext &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "size",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x4531e",
+          "return_type": "int32_t",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getId",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x45322",
+          "return_type": "const mce::UUID &",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getResultItems",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x45323",
+          "return_type": "const std::vector<ItemInstance,std::allocator<ItemInstance> > &",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isMultiRecipe",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x45320",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasDataDrivenResult",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x45320",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "itemValidForRecipe",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x45325",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "const ItemDescriptor &",
+            "const ItemStack &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "itemsMatch",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x45326",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "const ItemDescriptor &",
+            "const ItemDescriptor &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "itemsMatch",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x45328",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "const ItemDescriptor &",
+            "const ItemDescriptor &",
+            "const CompoundTag *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getIngredientsHash",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x4532a",
+          "return_type": "unsigned long long",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "checkContainerItemsForUsability",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4532c",
+          "return_type": "IngredientSearchResults",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "const std::vector<ContainerModel *,std::allocator<ContainerModel *> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "countQuantityOfIngredient",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4532d",
+          "return_type": "int32_t",
+          "class_type": "Recipe",
+          "this_type": "const Recipe *",
+          "argument_types": [
+            "const ItemInstance &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isAnyAuxValue",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4532e",
+          "return_type": "bool",
+          "class_type": "Recipe",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const ItemDescriptor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "UnlockedRecipesClientComponent",
+      "type_index": "0x4d386",
+      "size": 200,
+      "fieldlist": "0x4d385",
+      "member_count": 11,
+      "fields": [
+        {
+          "name": "mUnlockedCategories",
+          "offset": 0,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNewlyUnlockedCategories",
+          "offset": 4,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnlockedItems",
+          "offset": 8,
+          "type": "std::unordered_set<int,std::hash<int>,std::equal_to<int>,std::allocator<int> >",
+          "type_index": "0xd52c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnlockedRecipes",
+          "offset": 72,
+          "type": "std::unordered_set<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::hash<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::equal_to<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xd542",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNewlyUnlockedRecipes",
+          "offset": 136,
+          "type": "std::unordered_set<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::hash<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::equal_to<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xd542",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "UnlockedRecipesClientComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d37a",
+          "return_type": "void",
+          "class_type": "UnlockedRecipesClientComponent",
+          "this_type": "UnlockedRecipesClientComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "addUnlockedRecipes",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d37c",
+          "return_type": "void",
+          "class_type": "UnlockedRecipesClientComponent",
+          "this_type": "UnlockedRecipesClientComponent *",
+          "argument_types": [
+            "const Recipes &",
+            "const std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > > &",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "isRecipeUnlocked",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d37f",
+          "return_type": "bool",
+          "class_type": "UnlockedRecipesClientComponent",
+          "this_type": "const UnlockedRecipesClientComponent *",
+          "argument_types": [
+            "const Recipe &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isRecipeUnlocked",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d380",
+          "return_type": "bool",
+          "class_type": "UnlockedRecipesClientComponent",
+          "this_type": "const UnlockedRecipesClientComponent *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "removeAllRecipes",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d382",
+          "return_type": "void",
+          "class_type": "UnlockedRecipesClientComponent",
+          "this_type": "UnlockedRecipesClientComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "removeRecipes",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d384",
+          "return_type": "void",
+          "class_type": "UnlockedRecipesClientComponent",
+          "this_type": "UnlockedRecipesClientComponent *",
+          "argument_types": [
+            "const Recipes &",
+            "const std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 323352,
+      "name": "??0UnlockedRecipesClientComponent@@QEAA@XZ",
+      "section": 1,
+      "section_offset": "0x2894000",
+      "rva": "0x2895000"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1096016,
+      "name": "?_handleUnlockedRecipesByTag@ClientNetworkHandler@@SAXAEBVUnlockedRecipesClientComponent@@AEBV?$map@VHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@U?$less@VHashedString@@@3@V?$allocator@U?$pair@$$CBVHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@@std@@@3@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@AEBVHashedString@@AEAV?$vector@UToastIconData@@V?$allocator@UToastIconData@@@std@@@4@@Z",
+      "section": 1,
+      "section_offset": "0x12fd850",
+      "rva": "0x12fe850"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1526872,
+      "name": "?addUnlockedRecipes@UnlockedRecipesClientComponent@@QEAAXAEBVRecipes@@AEBV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@_N@Z",
+      "section": 1,
+      "section_offset": "0x28940c0",
+      "rva": "0x28950c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1867720,
+      "name": "?cleanUpDynamicContainers@HudContainerManagerModel@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x343cac0",
+      "rva": "0x343dac0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2787140,
+      "name": "?handleArmorDamage@LocalPlayer@@QEAAXAEBUArmorSlotAndDamagePair@@@Z",
+      "section": 1,
+      "section_offset": "0x476b2f0",
+      "rva": "0x476c2f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2939628,
+      "name": "?isRecipeUnlocked@UnlockedRecipesClientComponent@@QEBA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x28946e0",
+      "rva": "0x28956e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2939768,
+      "name": "?isRecipeUnlocked@UnlockedRecipesClientComponent@@QEBA_NAEBVRecipe@@@Z",
+      "section": 1,
+      "section_offset": "0x2894850",
+      "rva": "0x2895850"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2939856,
+      "name": "?isRecipeUnlocked@UnlockedRecipesServerComponent@@QEBA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2894dd0",
+      "rva": "0x2895dd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3451016,
+      "name": "?removeAllRecipes@UnlockedRecipesClientComponent@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x2894cb0",
+      "rva": "0x2895cb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3462272,
+      "name": "?removeRecipes@UnlockedRecipesClientComponent@@QEAAXAEBVRecipes@@AEBV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x28949d0",
+      "rva": "0x28959d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3618972,
+      "name": "?setExpired@ContainerRegistry@@UEAAXAEBV?$vector@UFullContainerName@@V?$allocator@UFullContainerName@@@std@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x31ae390",
+      "rva": "0x31af390"
+    }
+  ]
+}

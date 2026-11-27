@@ -11,6 +11,11 @@
 #include "util/ThreadPool.hpp"
 #include "network/PacketCipher.hpp"
 #include "network/PlayerConstants.hpp"
+#include "client/systems/multiplayer/MoveInput.hpp"
+#include "client/systems/multiplayer/InventorySlots.hpp"
+#include "client/systems/multiplayer/ItemCooldowns.hpp"
+#include "client/systems/multiplayer/RecipeUnlocks.hpp"
+#include "client/systems/multiplayer/GuiDataState.hpp"
 
 using EC_KEY = struct ec_key_st;
 #include "client/systems/multiplayer/PackDownloader.hpp"
@@ -44,6 +49,8 @@ namespace perlin {
     class ClientIdentity;
 
     class BedrockSession {
+        friend struct MovementProtocolTestAccess;
+
     public:
         enum class State {
             Disconnected,
@@ -109,6 +116,7 @@ namespace perlin {
         void Update();
 
         template <class P> bool Send(const P& packet) {
+            const net::context::ScopedSettings codecScope(PacketCodecSettings());
             std::vector<uint8_t> body;
             if (!net::EncodeChecked(packet, body)) {
                 std::cout << "[net] refusing to send malformed " << P::kName << std::endl;
@@ -117,6 +125,7 @@ namespace perlin {
             return Transmit(P::kId, body, true);
         }
         template <class P> bool SendUnreliable(const P& packet) {
+            const net::context::ScopedSettings codecScope(PacketCodecSettings());
             std::vector<uint8_t> body;
             if (!net::EncodeChecked(packet, body)) {
                 std::cout << "[net] refusing to send malformed " << P::kName << std::endl;
@@ -140,7 +149,10 @@ namespace perlin {
         uint64_t GetRuntimeId() const { return runtimeId; }
         bool SendPlayerAuthInput();
         bool SendPlayerAuthInputBlockAction(uint32_t action, int bx, int by, int bz, int face);
-        void EndBlockActionTick() { blockActionGroup++; }
+        void EndBlockActionTick() {
+            std::lock_guard lock(pendingInputMutex);
+            blockActionGroup++;
+        }
         void EndItemUseOn();
         bool TakeBlockNamesLearned() { return blockNamesLearned.exchange(false); }
         bool ServerAuthoritativeBlockBreaking() const { return serverAuthBreaking.load(); }
@@ -182,31 +194,32 @@ namespace perlin {
         std::vector<BossBar> BossBars() const;
         ScoreboardView Scoreboard() const;
         bool TakeToast(ServerToast& out);
+        bool TakePickItemNotice(GuiDataState::Notice& out);
+        GuiDataState::Flash PickItemFlash() const;
+        void TickServerGui();
+        void ResetServerGui();
+        struct InventoryUiOptions {
+            int32_t leftTab = 0, rightTab = 0;
+            bool filtering = false;
+            int32_t layout = 0, craftingLayout = 0;
+            uint64_t serial = 0;
+        };
+        struct FurnaceUiOptions {
+            int32_t leftTab = 0;
+            bool filtering = false;
+            int32_t layout = 0;
+            uint64_t serial = 0;
+        };
+        InventoryUiOptions GetInventoryUiOptions() const;
+        FurnaceUiOptions GetFurnaceUiOptions(int type) const;
         uint32_t InputLocks() const { return inputLocks.load() | (immobile.load() ? 4u | 64u : 0u); }
         uint32_t HiddenHud() const { return hiddenHud.load(); }
         std::atomic<bool> serverAuthBreaking{true};
         mutable std::mutex brandMutex;
         std::string serverBrand;
 
-        struct BlockActionData {
-            uint32_t action = 0;
-            int x = 0, y = 0, z = 0, face = 0;
-            uint32_t group = 0;
-        };
-        struct MoveInput {
-            std::vector<uint32_t> flags;
-            float moveX = 0, moveZ = 0;
-            float yaw = 0, pitch = 0;
-            float eyeHeight = 1.62001f;
-            float rawX = 0, rawZ = 0;
-            float position[3] = {0, 0, 0};
-            float delta[3] = {0, 0, 0};
-            bool hasDelta = false;
-            bool hasBlockAction = false;
-            BlockActionData blockAction;
-            std::optional<std::array<float, 2>> vehicleRotation;
-            std::optional<int64_t> predictedVehicle;
-        };
+        using BlockActionData = movement::BlockActionData;
+        using MoveInput = movement::MoveInput;
         bool SendMoveInput(const MoveInput& input);
 
         struct VehicleCorrection {
@@ -356,13 +369,20 @@ namespace perlin {
         uint64_t PacketsReceived() const { return diagPackets; }
         std::vector<std::string> TakeChat();
         struct SoundRequest {
-            enum class Kind { Named, Level, Stop } kind = Kind::Named;
+            enum class Kind { Named, Level, Stop, Control } kind = Kind::Named;
+            enum class Control { Stop, Volume, Pitch, Fade, Seek, Pause, Resume } control = Control::Stop;
             std::string name;
             float x = 0, y = 0, z = 0;
             float volume = 1, pitch = 1;
             int32_t extra = 0;
             std::string entityType;
             bool baby = false, global = false, stopAll = false;
+            std::optional<uint64_t> handle;
+            uint32_t loopCount = 0;
+            bool bypassListenerRangeCheck = false;
+            bool serverInitiated = false;
+            std::optional<float> playbackPositionSeconds;
+            float controlValue = 0.0f, controlDuration = 0.0f;
         };
         std::vector<SoundRequest> TakeSounds();
         struct ParticleEvent {
@@ -508,7 +528,10 @@ namespace perlin {
                 out.emplace_back(id, static_cast<uint32_t>(n));
             return out;
         }
-        bool SendRaw(uint32_t id, const std::vector<uint8_t>& body) { return Transmit(id, body, true); }
+        bool SendRaw(uint32_t id, const std::vector<uint8_t>& body) {
+            const net::context::ScopedSettings codecScope(PacketCodecSettings());
+            return Transmit(id, body, true);
+        }
         void SetDroppedOutgoing(std::vector<uint32_t> ids) {
             std::lock_guard<std::mutex> lk(dropMutex);
             droppedOut.assign(ids.begin(), ids.end());
@@ -532,6 +555,7 @@ namespace perlin {
             playerName = name;
             runtimeId = localRuntimeId;
             serverProtocol = protocol;
+            shieldItemId = -1;
             net::context::SetProtocol(protocol);
             state = State::InGame;
             netLevel.EnableUndo(static_cast<size_t>(768) << 20);
@@ -714,9 +738,12 @@ namespace perlin {
             float cook = 0, burn = 0;
         };
         FurnaceProgress Furnace() const;
-        static constexpr int kInvArmor0 = 36, kInvOffhand = 40, kInvCraft0 = 41, kInvOutput = 45,
-                             kInvCursor = 46, kInvWork0 = 47, kInvSlots = 56, kInvHorse0 = 56,
-                             kInvHorseCount = 17, kInvChest0 = 73, kInvChestCount = 54, kInvTotal = 127;
+        static constexpr int kInvArmor0 = inventory::kArmor0, kInvOffhand = inventory::kOffhand,
+                             kInvCraft0 = inventory::kCraft0, kInvOutput = inventory::kOutput,
+                             kInvCursor = inventory::kCursor, kInvWork0 = inventory::kWork0,
+                             kInvSlots = inventory::kPlayerSlots, kInvHorse0 = inventory::kHorse0,
+                             kInvHorseCount = inventory::kHorseCount, kInvChest0 = inventory::kChest0,
+                             kInvChestCount = inventory::kChestCount, kInvTotal = inventory::kTotal;
         static bool IsCraftAddr(int a) {
             return (a >= kInvCraft0 && a < kInvOutput) || (a >= kInvWork0 && a < kInvSlots);
         }
@@ -775,6 +802,10 @@ namespace perlin {
             std::lock_guard lock(locatorMutex);
             return locatorWaypoints;
         }
+        std::map<int64_t, std::optional<glm::vec3>> GetTrackedPlayerLocations() const {
+            std::lock_guard lock(locatorMutex);
+            return trackedPlayerLocations;
+        }
         InventoryView GetInventory() const;
         int WaterWalkSpeedEnchant() const;
         int SoulSpeedEnchant() const;
@@ -787,6 +818,10 @@ namespace perlin {
         bool PredictBridgePlace(int x, int y, int z, int32_t heldRuntimeId, int face, const float click[3]);
         bool SendUseItemOnBlock(int bx, int by, int bz, int face, const float click[3], const float eye[3], int use, const int dest[3], bool repeat = false);
         bool SendUseItemInAir(const float eye[3], bool held);
+        void TickItemCooldowns();
+        int32_t ItemCooldownTicks(std::string_view itemName) const;
+        bool ItemUseOnCooldown(std::string_view itemName) const;
+        bool HeldItemUseOnCooldown() const;
         void SetUseOffhand(bool v) { useOffhand = v; }
         void SetAttackOffhand(bool v) { attackOffhand = v; }
         bool SendReleaseItem(const float eye[3]);
@@ -936,7 +971,6 @@ namespace perlin {
         std::map<int64_t, MapView> maps;
         std::deque<NpcDialogueView> npcDialogues;
         std::optional<TradeView> pendingTrade;
-        std::map<int64_t, glm::vec3> trackedLocations;
         std::atomic<uint64_t> syntheticEntityId{0x7000000000ull};
         std::atomic<int> gameCreditsStatus{0};
         std::atomic<int> controlsScheme{0};
@@ -965,6 +999,9 @@ namespace perlin {
         std::map<ScoreKey, ScoreValue> scoreValues;
         std::map<int64_t, int64_t> scoreIdentities;
         std::deque<ServerToast> toasts;
+        GuiDataState guiData;
+        InventoryUiOptions inventoryUiOptions;
+        std::array<FurnaceUiOptions, 3> furnaceUiOptions{};
         std::atomic<uint32_t> inputLocks{0};
         std::atomic<bool> immobile{false};
         std::atomic<bool> legacyInventory{false};
@@ -977,6 +1014,8 @@ namespace perlin {
         bool SendRequestChunkRadius();
         bool SendClientCacheStatus();
         bool SendSetLocalPlayerAsInitialized();
+        void ResetMovementProtocolState();
+        void QueueTeleportAcknowledgment();
         void FinishLoadingIfReady();
 
         bool Transmit(uint32_t packetId, const std::vector<uint8_t>& body, bool reliable);
@@ -1004,7 +1043,12 @@ namespace perlin {
         std::unique_ptr<ThreadPool> decodePool;
         std::mutex chunkMutex;
         std::condition_variable chunkCv;
-        std::deque<std::pair<uint32_t, std::vector<uint8_t>>> chunkIn;
+        struct ChunkPacket {
+            uint32_t id;
+            std::vector<uint8_t> body;
+            net::context::Settings codec;
+        };
+        std::deque<ChunkPacket> chunkIn;
         bool chunkStop = false;
         bool chunkBusy = false;
 
@@ -1213,6 +1257,8 @@ namespace perlin {
             return {lastAuthHead[0], lastAuthHead[1], lastAuthHead[2]};
         }
         bool pendingTeleportAck = false;
+        uint64_t pendingTeleportSerial = 0;
+        uint64_t movementInputEpoch = 0;
         std::vector<uint32_t> pendingInputFlags;
         std::mutex pendingInputMutex;
         struct BrokenSupport {
@@ -1264,7 +1310,12 @@ namespace perlin {
         int lastBlockPos[3] = {0, 0, 0};
         bool haveBlockPos = false;
         int chunkRadius = 8;
-        int serverProtocol = 0;
+        std::atomic<int> serverProtocol{0};
+        std::atomic<int32_t> shieldItemId{-1};
+        net::context::Settings PacketCodecSettings() const {
+            return {serverProtocol.load(std::memory_order_relaxed),
+                    shieldItemId.load(std::memory_order_relaxed)};
+        }
 
         bool mayFly = false;
         bool noClip = false;
@@ -1331,6 +1382,7 @@ namespace perlin {
         mutable std::mutex statusMutex;
         mutable std::mutex locatorMutex;
         std::vector<LocatorWaypoint> locatorWaypoints;
+        std::map<int64_t, std::optional<glm::vec3>> trackedPlayerLocations;
         Vitals vitals;
         InventoryView inventory;
         proto::ItemV4 inventoryRaw[36];
@@ -1364,6 +1416,8 @@ namespace perlin {
         };
         struct RecipeInfo {
             bool shaped = false;
+            bool alwaysUnlocked = true;
+            std::string id;
             int w = 0, h = 0;
             std::vector<RecipeIngredientInfo> in;
             proto::ItemV4 out;
@@ -1371,6 +1425,9 @@ namespace perlin {
             uint32_t netId = 0;
         };
         std::vector<RecipeInfo> recipes;
+        perlin::recipes::Unlocks recipeUnlocks;
+        bool RecipeBookUsesUnlocks() const;
+        bool RecipeOutputUnlockedLocked(const RecipeInfo& recipe) const;
         std::map<int32_t, std::string> invSummaries;
         struct InvSnapshot {
             InventoryView view;
@@ -1417,6 +1474,10 @@ namespace perlin {
         int dropForm = 0;
         bool SendDropRequest(int slot, int count, int attempt);
         std::map<int, std::string> itemNames;
+        std::map<std::string, itemcooldown::Definition, std::less<>> itemCooldownDefinitions;
+        itemcooldown::State itemCooldowns;
+        bool ItemOnCooldownLocked(const proto::ItemV4& item,
+                                  std::optional<itemcooldown::Type> action = std::nullopt) const;
         CreativeCatalog creative;
         std::map<uint32_t, proto::ItemV4> creativeRaw;
         std::map<uint64_t, proto::ItemV4> droppedRaw;

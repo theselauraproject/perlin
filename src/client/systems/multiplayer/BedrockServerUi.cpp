@@ -1,4 +1,5 @@
 #include "client/systems/multiplayer/BedrockSession.hpp"
+#include "client/systems/i18n/Lang.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -78,6 +79,39 @@ namespace perlin {
         return true;
     }
 
+    bool BedrockSession::TakePickItemNotice(GuiDataState::Notice& out) {
+        std::lock_guard lock(serverUiMutex);
+        return guiData.TakeNotice(out);
+    }
+
+    GuiDataState::Flash BedrockSession::PickItemFlash() const {
+        std::lock_guard lock(serverUiMutex);
+        return guiData.GetFlash();
+    }
+
+    void BedrockSession::TickServerGui() {
+        std::lock_guard lock(serverUiMutex);
+        guiData.Tick();
+    }
+
+    void BedrockSession::ResetServerGui() {
+        std::lock_guard lock(serverUiMutex);
+        guiData.Clear();
+        inventoryUiOptions = {};
+        furnaceUiOptions = {};
+    }
+
+    BedrockSession::InventoryUiOptions BedrockSession::GetInventoryUiOptions() const {
+        std::lock_guard lock(serverUiMutex);
+        return inventoryUiOptions;
+    }
+
+    BedrockSession::FurnaceUiOptions BedrockSession::GetFurnaceUiOptions(int type) const {
+        std::lock_guard lock(serverUiMutex);
+        return type >= 1 && type <= 3 ? furnaceUiOptions[static_cast<size_t>(type - 1)]
+                                    : FurnaceUiOptions{};
+    }
+
     BedrockSession::ScoreboardView BedrockSession::Scoreboard() const {
         ScoreboardView view;
         std::lock_guard<std::mutex> lk(serverUiMutex);
@@ -109,6 +143,53 @@ namespace perlin {
     }
 
     void BedrockSession::RegisterServerUiHandlers() {
+        On<PlayerLocationPacket>([this](const PlayerLocationPacket& p) {
+            std::optional<glm::vec3> position;
+            if (p.type == PlayerLocationPacketType::Coordinates) {
+                if (!p.position)
+                    return;
+                if (!std::isfinite(p.position->x) || !std::isfinite(p.position->y) ||
+                    !std::isfinite(p.position->z)) {
+                    lastError = "Invalid PlayerLocation coordinates";
+                    SetDisconnectInfo(static_cast<int>(DisconnectFailReason::BadPacket), lastError, false);
+                    state = State::Failed;
+                    return;
+                }
+                position = glm::vec3{p.position->x, p.position->y, p.position->z};
+            } else if (p.type != PlayerLocationPacketType::TypeHide) {
+                return;
+            }
+            std::lock_guard lock(locatorMutex);
+            trackedPlayerLocations[p.entityUniqueId] = position;
+        });
+
+        On<GuiDataPickItemPacket>([this](const GuiDataPickItemPacket& p) {
+            const std::string name = i18n::Tr(p.itemName);
+            std::lock_guard lock(serverUiMutex);
+            guiData.Pick(name, p.itemEffects, p.hotbarSlot);
+        });
+
+        On<SetPlayerInventoryOptionsPacket>([this](const SetPlayerInventoryOptionsPacket& p) {
+            if (GetRuntimeId() == 0)
+                return;
+            std::lock_guard lock(serverUiMutex);
+            inventoryUiOptions = {static_cast<int32_t>(p.leftTab), static_cast<int32_t>(p.rightTab),
+                                  p.filtering, static_cast<int32_t>(p.layout),
+                                  static_cast<int32_t>(p.craftingLayout), inventoryUiOptions.serial + 1};
+        });
+
+        On<SetPlayerFurnaceOptionsPacket>([this](const SetPlayerFurnaceOptionsPacket& p) {
+            if (GetRuntimeId() == 0)
+                return;
+            const int type = static_cast<int>(p.furnaceType);
+            if (type < 1 || type > 3)
+                return;
+            std::lock_guard lock(serverUiMutex);
+            auto& options = furnaceUiOptions[static_cast<size_t>(type - 1)];
+            options = {p.furnaceOptions.leftFurnaceTab, p.furnaceOptions.filtering,
+                       p.furnaceOptions.layout, options.serial + 1};
+        });
+
         On<ModalFormRequestPacket>([this](const ModalFormRequestPacket& p) {
             std::lock_guard<std::mutex> lk(serverUiMutex);
             pendingForms.push_back({p.formId, p.data});

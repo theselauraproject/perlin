@@ -1,0 +1,14 @@
+{
+  "mismatched_pdb_address_mapping_refused": true,
+  "exception": "ValueError: PDB GUID/age does not match executable; refusing address mapping",
+  "comparison": {
+    "executable_sha256": "9138ed5c5a213c3de891f56693542c6de1f5258b04fac4889ac37233785a700e",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622"
+  },
+  "note": "This verifies the identity guard, not game behavior.",
+  "matching_catalog_hash_accepted": true,
+  "matching_catalog_regeneration_unchanged": true,
+  "same_packet_addresses_with_wrong_executable_hash_refused": true,
+  "missing_catalog_executable_hash_refused": true,
+  "catalog_hash_exception": "ValueError: Packet catalog executable SHA-256 does not match executable; refusing address mapping"
+}

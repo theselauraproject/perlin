@@ -16,6 +16,8 @@
 
 namespace perlin {
     class LocalPlayer {
+        friend struct MovementProtocolTestAccess;
+
     public:
         void Update(BedrockSession& session, InputManager& input, Camera& camera, const BlockLibrary& blocks,
                     float dt);

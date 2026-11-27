@@ -1,0 +1,709 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "Audio::SoundStartOptions",
+      "type_index": "0x4aa84",
+      "size": 8,
+      "fieldlist": "0x4aa83",
+      "member_count": 10,
+      "fields": [
+        {
+          "name": "mUnkc80c9f",
+          "offset": 0,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa7f",
+          "return_type": "Audio::SoundStartOptions &",
+          "class_type": "Audio::SoundStartOptions",
+          "this_type": "Audio::SoundStartOptions *",
+          "argument_types": [
+            "const Audio::SoundStartOptions &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SoundStartOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa80",
+          "return_type": "void",
+          "class_type": "Audio::SoundStartOptions",
+          "this_type": "Audio::SoundStartOptions *",
+          "argument_types": [
+            "const Audio::SoundStartOptions &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SoundStartOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa81",
+          "return_type": "void",
+          "class_type": "Audio::SoundStartOptions",
+          "this_type": "Audio::SoundStartOptions *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "Audio::SoundStartOptions::AfterDelay",
+      "type_index": "0x310ec",
+      "size": 4,
+      "fieldlist": "0x310eb",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mUnkd1c7bc",
+          "offset": 0,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x310e7",
+          "return_type": "Audio::SoundStartOptions::AfterDelay &",
+          "class_type": "Audio::SoundStartOptions::AfterDelay",
+          "this_type": "Audio::SoundStartOptions::AfterDelay *",
+          "argument_types": [
+            "const Audio::SoundStartOptions::AfterDelay &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "AfterDelay",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x310e8",
+          "return_type": "void",
+          "class_type": "Audio::SoundStartOptions::AfterDelay",
+          "this_type": "Audio::SoundStartOptions::AfterDelay *",
+          "argument_types": [
+            "const Audio::SoundStartOptions::AfterDelay &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "AfterDelay",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x310e9",
+          "return_type": "void",
+          "class_type": "Audio::SoundStartOptions::AfterDelay",
+          "this_type": "Audio::SoundStartOptions::AfterDelay *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "Audio::SoundStartOptions::OnSignal",
+      "type_index": "0x1c53d",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "Audio::SoundStartOptions::WhenReady",
+      "type_index": "0x21c0b",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "ListenerState",
+      "type_index": "0x1b43c",
+      "size": 48,
+      "fieldlist": "0x1b43b",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mPosition",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVelocity",
+          "offset": 12,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mForward",
+          "offset": 24,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUp",
+          "offset": 36,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LoopingSoundAttributes",
+      "type_index": "0x1b62a",
+      "size": 16,
+      "fieldlist": "0x1b629",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "fadeInDuration",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "fadeOutDuration",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "paused",
+          "offset": 8,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "stage",
+          "offset": 12,
+          "type": "LoopLifecycle",
+          "type_index": "0x1a1b",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LoopingSoundInstanceFMOD",
+      "type_index": "0x3f654",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "LoopingSoundPlaybackStartOptionsFMOD",
+      "type_index": "0x3f655",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "LoopingSoundState",
+      "type_index": "0x1b635",
+      "size": 20,
+      "fieldlist": "0x1b634",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mUnkfa5aff",
+          "offset": 0,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk28d4e8",
+          "offset": 12,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk1a6f03",
+          "offset": 16,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1b630",
+          "return_type": "LoopingSoundState &",
+          "class_type": "LoopingSoundState",
+          "this_type": "LoopingSoundState *",
+          "argument_types": [
+            "const LoopingSoundState &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LoopingSoundState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1b631",
+          "return_type": "void",
+          "class_type": "LoopingSoundState",
+          "this_type": "LoopingSoundState *",
+          "argument_types": [
+            "const LoopingSoundState &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LoopingSoundState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1b632",
+          "return_type": "void",
+          "class_type": "LoopingSoundState",
+          "this_type": "LoopingSoundState *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "PlaySoundOptions",
+      "type_index": "0x1d0cb",
+      "size": 88,
+      "fieldlist": "0x1d0ca",
+      "member_count": 9,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosition",
+          "offset": 32,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVolume",
+          "offset": 44,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPitch",
+          "offset": 48,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLoopCount",
+          "offset": 52,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSoundHandle",
+          "offset": 56,
+          "type": "std::optional<ServerSoundHandle>",
+          "type_index": "0xc8c8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBypassListenerRangeCheck",
+          "offset": 72,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlaybackPositionSeconds",
+          "offset": 76,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~PlaySoundOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d0c9",
+          "return_type": "void",
+          "class_type": "PlaySoundOptions",
+          "this_type": "PlaySoundOptions *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SoundInstanceBaseFMOD",
+      "type_index": "0x4aa19",
+      "size": 1,
+      "fieldlist": "0x4aa18",
+      "member_count": 1,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceBaseFMOD::StartReadiness",
+      "type_index": "0x210f",
+      "fieldlist": "0x1004",
+      "underlying": 116,
+      "member_count": 0,
+      "enum": true,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceFMOD",
+      "type_index": "0x4aa1b",
+      "size": 1,
+      "fieldlist": "0x4aa1a",
+      "member_count": 1,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceFMOD::State",
+      "type_index": "0x216d",
+      "fieldlist": "0x1004",
+      "underlying": 116,
+      "member_count": 0,
+      "enum": true,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceListFMOD",
+      "type_index": "0x4aa1c",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceProperties",
+      "type_index": "0x20215",
+      "size": 40,
+      "fieldlist": "0x20214",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mUnk9d79c3",
+          "offset": 0,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5f8372",
+          "offset": 16,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20210",
+          "return_type": "SoundInstanceProperties &",
+          "class_type": "SoundInstanceProperties",
+          "this_type": "SoundInstanceProperties *",
+          "argument_types": [
+            "const SoundInstanceProperties &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SoundInstanceProperties",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20211",
+          "return_type": "void",
+          "class_type": "SoundInstanceProperties",
+          "this_type": "SoundInstanceProperties *",
+          "argument_types": [
+            "const SoundInstanceProperties &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SoundInstanceProperties",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20212",
+          "return_type": "void",
+          "class_type": "SoundInstanceProperties",
+          "this_type": "SoundInstanceProperties *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SoundSystemBase",
+      "type_index": "0x4aa85",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundSystemFMOD",
+      "type_index": "0x4aa87",
+      "size": 1,
+      "fieldlist": "0x4aa86",
+      "member_count": 2,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundSystemFMOD::StreamInfo",
+      "type_index": "0x20691",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 269796,
+      "name": "??0ScriptSoundInstance@ScriptModuleMinecraft@@QEAA@AEBV01@@Z",
+      "section": 1,
+      "section_offset": "0x8898800",
+      "rva": "0x8899800"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 269872,
+      "name": "??0ScriptSoundInstance@ScriptModuleMinecraft@@QEAA@VServerSoundInstance@@VWeakLifetimeScope@Scripting@@V?$optional@V?$StrongTypedObjectHandle@VScriptPlayer@ScriptModuleMinecraft@@@Scripting@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0xbf78760",
+      "rva": "0xbf79760"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 376504,
+      "name": "??4ScriptSoundInstance@ScriptModuleMinecraft@@QEAAAEAV01@$$QEAV01@@Z",
+      "section": 1,
+      "section_offset": "0x8898230",
+      "rva": "0x8899230"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 376588,
+      "name": "??4ScriptSoundInstance@ScriptModuleMinecraft@@QEAAAEAV01@AEBV01@@Z",
+      "section": 1,
+      "section_offset": "0x8898510",
+      "rva": "0x8899510"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1374936,
+      "name": "?_tickAmbientSoundComponent@AmbientSoundSystem@@SAXAEAVActorOwnerComponent@@AEAVAmbientSoundComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x9021970",
+      "rva": "0x9022970"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1671784,
+      "name": "?bind@ScriptSoundInstance@ScriptModuleMinecraft@@SA?AUClassBinding@Scripting@@XZ",
+      "section": 1,
+      "section_offset": "0xbf78c50",
+      "rva": "0xbf79c50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2020680,
+      "name": "?createServerSoundInstance@LevelSoundManager@@QEAA?AV?$optional@VServerSoundInstance@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@HV?$optional@UNetworkIdentifierWithSubId@@@3@V?$optional@UBroadcastOptions@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x174a590",
+      "rva": "0x174b590"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2110020,
+      "name": "?doPlayJumpSoundSystem@PlayJumpSoundSystemImpl@@SAXAEBVStrictEntityContext@@AEBUActorDataFlagComponent@@AEBUActorDefinitionIdentifierComponent@@AEBUActorUniqueIDComponent@@AEBUDimensionTypeComponent@@AEBUSoundEventPlayerComponent@@AEBUStateVectorComponent@@AEBUAABBShapeComponent@@V?$ViewT@VStrictEntityContext@@USoundEventRequestQueueComponent@@@@W4SoundType@PlayJumpSoundSystem@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x8ff9110",
+      "rva": "0x8ffa110"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266144,
+      "name": "?play@SoundEngine@@UEAA_KUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x41be810",
+      "rva": "0x41bf810"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266796,
+      "name": "?playAttached@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@$$QEAV?$function@$$A6AXAEAUSoundInstanceProperties@@@Z@3@@Z",
+      "section": 1,
+      "section_offset": "0x41c1ff0",
+      "rva": "0x41c2ff0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270100,
+      "name": "?playSound@Level@@UEAAXAEBUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x1172ee0",
+      "rva": "0x1173ee0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270164,
+      "name": "?playSound@Level@@UEAAXAEBVIConstBlockSource@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1172e10",
+      "rva": "0x1173e10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270304,
+      "name": "?playSound@Level@@UEAAXUDimensionType@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1172d90",
+      "rva": "0x1173d90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270440,
+      "name": "?playSound@Level@@UEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x1172ec0",
+      "rva": "0x1173ec0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270560,
+      "name": "?playSound@Level@@UEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@MM@Z",
+      "section": 1,
+      "section_offset": "0x1172ed0",
+      "rva": "0x1173ed0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271056,
+      "name": "?playSound@ScriptDimension@ScriptModuleMinecraft@@QEAA?AV?$Result@V?$StrongTypedObjectHandle@VScriptSoundInstance@ScriptModuleMinecraft@@@Scripting@@UPropertyOutOfBoundsError@2@UEngineError@2@@Scripting@@AEBVWeakLifetimeScope@4@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@V?$optional@UScriptWorldSoundOptions@ScriptModuleMinecraft@@@7@@Z",
+      "section": 1,
+      "section_offset": "0x8803be0",
+      "rva": "0x8804be0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3427464,
+      "name": "?registerSystems@MovementSoundSystems@@YAXAEAVEntitySystems@@_N@Z",
+      "section": 1,
+      "section_offset": "0x2de5450",
+      "rva": "0x2de6450"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3659216,
+      "name": "?setPitch@ScriptSoundInstance@ScriptModuleMinecraft@@QEAAXM@Z",
+      "section": 1,
+      "section_offset": "0xbf7d7c0",
+      "rva": "0xbf7e7c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3700000,
+      "name": "?setVolume@ScriptSoundInstance@ScriptModuleMinecraft@@QEAAXM@Z",
+      "section": 1,
+      "section_offset": "0xbf7d7b0",
+      "rva": "0xbf7e7b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3741536,
+      "name": "?singleTick@PlayJumpSoundSystemImpl@@UEAAXAEAV?$StrictExecutionContext@U?$Filter@UTriggerJumpRequestComponent@@ULavaSlimeFlagComponent@@@@U?$Read@UActorDataFlagComponent@@UActorDefinitionIdentifierComponent@@UActorUniqueIDComponent@@UDimensionTypeComponent@@USoundEventPlayerComponent@@UStateVectorComponent@@UAABBShapeComponent@@@@U?$Write@$$V@@U?$AddRemove@$$V@@U?$GlobalRead@ULocalConstBlockSourceFactoryComponent@@@@U?$GlobalWrite@$$V@@U?$EntityFactoryT@$$V@@@@AEAVStrictEntityContext@@@Z",
+      "section": 1,
+      "section_offset": "0x8ff8970",
+      "rva": "0x8ff9970"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3816264,
+      "name": "?tick@AmbientSoundSystem@@UEAAXAEAVEntityRegistry@@@Z",
+      "section": 1,
+      "section_offset": "0x90211b0",
+      "rva": "0x90221b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3853680,
+      "name": "?tick@PlayJumpSoundSystemImpl@@UEAAXAEAV?$StrictExecutionContext@U?$Filter@UTriggerJumpRequestComponent@@ULavaSlimeFlagComponent@@@@U?$Read@UActorDataFlagComponent@@UActorDefinitionIdentifierComponent@@UActorUniqueIDComponent@@UDimensionTypeComponent@@USoundEventPlayerComponent@@UStateVectorComponent@@UAABBShapeComponent@@@@U?$Write@$$V@@U?$AddRemove@$$V@@U?$GlobalRead@ULocalConstBlockSourceFactoryComponent@@@@U?$GlobalWrite@$$V@@U?$EntityFactoryT@$$V@@@@@Z",
+      "section": 1,
+      "section_offset": "0x8ff60e0",
+      "rva": "0x8ff70e0"
+    }
+  ]
+}

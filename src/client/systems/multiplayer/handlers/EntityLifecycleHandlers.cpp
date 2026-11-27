@@ -155,9 +155,15 @@ namespace perlin {
         On<MovePlayerPacket>([this](const MovePlayerPacket& p) {
             if (runtimeId != 0 && p.runtimeId == runtimeId)
                 return;
+            if (!SanePlayerMove(p))
+                return;
+            if (p.mode == MovePlayerPacketMode::Rotation) {
+                entities.RotateHead(p.runtimeId, p.pitch, p.headYaw, p.onGround);
+                return;
+            }
             entities.Move(p.runtimeId, {p.position.x, p.position.y, p.position.z}, p.pitch, p.yaw, p.headYaw,
                           p.onGround,
-                          p.mode == MovePlayerPacketMode::Normal || p.mode == MovePlayerPacketMode::Rotation
+                          p.mode == MovePlayerPacketMode::Normal
                               ? entity::EntityTracker::MoveKind::Lerp
                               : entity::EntityTracker::MoveKind::Teleport);
         });

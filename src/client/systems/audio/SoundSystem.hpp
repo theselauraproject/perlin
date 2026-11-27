@@ -45,8 +45,8 @@ namespace perlin::audio {
         void SetSubtitleHook(SubtitleHook hook) { subtitles = std::move(hook); }
         void SetBlockNamer(std::function<std::string(int32_t)> namer) { blockNamer = std::move(namer); }
 
-        bool PlayNamed(const std::string& name, const glm::dvec3& position, float volume, float pitch,
-                       bool positional = true);
+        uint64_t PlayNamed(const std::string& name, const glm::dvec3& position, float volume, float pitch,
+                           bool positional = true, const PlaybackOptions& playback = {});
         bool PlayLevelSound(const std::string& eventId, const glm::dvec3& position, int32_t extra,
                             const std::string& entityType, bool baby, bool global);
         bool PlayBlockEvent(const std::string& blockName, const std::string& event,
@@ -67,8 +67,8 @@ namespace perlin::audio {
             std::string name;
             float volume;
         };
-        bool Play(const std::string& definition, float volume, float pitch, const glm::dvec3& position,
-                  bool positional, const EventSound* event = nullptr);
+        uint64_t Play(const std::string& definition, float volume, float pitch, const glm::dvec3& position,
+                      bool positional, const EventSound* event = nullptr, const PlaybackOptions& playback = {});
         PcmPtr Load(const std::string& file);
         float Roll(float lo, float hi);
 

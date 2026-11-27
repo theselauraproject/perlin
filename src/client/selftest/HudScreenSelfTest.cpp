@@ -207,6 +207,77 @@ namespace perlin::selftest {
             r.hudScreen.TickHud();
             t.Equal(r.hudAnim.toolTimer, 0, "an empty hand hides the name");
         }
+        {
+            Rig r;
+            r.session->BeginReplayMode("ui", 7, kBedrockProtocol);
+            proto::GuiDataPickItemPacket pick;
+            pick.itemName = "Server item name";
+            pick.itemEffects = "Server item effects";
+            pick.hotbarSlot = 8;
+            r.session->InjectIncoming(pick.kId, net::Encode(pick));
+            r.Fill();
+            t.Equal(r.hudState.itemName, std::string("Server item name\nServer item effects"),
+                    "pick-item text reaches the item text HUD even with an empty hand");
+            t.Equal(r.hudState.selectedSlot, 0, "presentation does not select the flash slot");
+            const uint32_t serial = r.hudState.itemNameSerial;
+            r.Fill();
+            t.Equal(r.hudState.itemNameSerial, serial, "render frames do not replay a consumed popup");
+            for (int i = 0; i < 40; ++i)
+                r.hudScreen.TickHud();
+            r.Fill();
+            t.Check(r.hudState.itemName.empty(), "popup presentation expires independently of inventory");
+            r.session->InjectIncoming(pick.kId, net::Encode(pick));
+            r.Fill();
+            r.session->ResetServerGui();
+            r.Fill();
+            t.Check(r.hudState.itemName.empty(), "reset does not leave a popup from the previous server");
+        }
+        {
+            Rig r;
+            r.session->BeginReplayMode("ui", 7, kBedrockProtocol);
+            proto::SetPlayerInventoryOptionsPacket options;
+            options.leftTab = static_cast<decltype(options.leftTab)>(5);
+            options.filtering = true;
+            options.layout = static_cast<decltype(options.layout)>(2);
+            options.craftingLayout = static_cast<decltype(options.craftingLayout)>(1);
+            r.session->InjectIncoming(options.kId, net::Encode(options));
+            r.inventory.ApplyServerOptions(*r.session);
+            t.Check(r.inventory.creative.tab == ui::kCreativeSearchTab && r.inventory.book &&
+                        r.inventory.recipeFilter,
+                    "inventory options select the server tab, book layout and craftable filter");
+            r.inventory.book = false;
+            r.inventory.ApplyServerOptions(*r.session);
+            t.Check(!r.inventory.book, "unchanged server preferences do not overwrite subsequent UI input");
+            r.inventory.workbench = true;
+            r.inventory.ApplyServerOptions(*r.session);
+            t.Check(!r.inventory.book, "crafting-table layout is independent of inventory layout");
+            options.craftingLayout = static_cast<decltype(options.craftingLayout)>(3);
+            options.filtering = false;
+            r.session->InjectIncoming(options.kId, net::Encode(options));
+            r.inventory.ApplyServerOptions(*r.session);
+            t.Check(r.inventory.book && !r.inventory.recipeFilter, "a new server snapshot replaces UI preferences");
+        }
+        {
+            Rig r;
+            r.session->BeginReplayMode("locator", 7, kBedrockProtocol);
+            r.camera.x = r.camera.y = r.camera.z = 0;
+            r.camera.yaw = 0;
+            proto::PlayerLocationPacket location;
+            location.entityUniqueId = 100;
+            location.type = proto::PlayerLocationPacketType::Coordinates;
+            location.position = proto::Vec3F{10, 0, 0};
+            r.session->InjectIncoming(location.kId, net::Encode(location));
+            r.Fill();
+            t.Check(r.hudState.locatorActive && r.hudState.locator.size() == 1 &&
+                        r.hudState.locator.front().distance == 10,
+                    "an unloaded player's received location reaches the HUD locator");
+            location.type = proto::PlayerLocationPacketType::TypeHide;
+            location.position.reset();
+            r.session->InjectIncoming(location.kId, net::Encode(location));
+            r.Fill();
+            t.Check(!r.hudState.locatorActive && r.hudState.locator.empty(),
+                    "a hidden location removes its HUD marker");
+        }
         return t.Finish();
     }
 }

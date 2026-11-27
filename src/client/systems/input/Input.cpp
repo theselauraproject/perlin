@@ -50,6 +50,9 @@ namespace perlin {
     }
 
     void Input::ReleaseAll() {
+        SetPadMove(0, 0);
+        SetPadLook(0, 0);
+        SetTouchMove(0, 0);
         for (auto& p : pad)
             p = false;
         for (auto& k : keys)

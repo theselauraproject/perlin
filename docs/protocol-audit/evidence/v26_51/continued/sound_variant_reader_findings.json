@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "network_protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "method": "Manual static instruction/data-flow review grounded by matched public symbols, CodeView member/virtual-slot metadata and PE imports. No execution of the reference binary.",
+    "limits": "These are bounded contracts, not a claim that all packet semantics, indirect listeners, physics, resource behavior or server anticheat compatibility were reproduced. No send observed in a reviewed body is not proof that every transitive callback cannot send.",
+    "external_references": [
+      {
+        "topic": "FMOD loop count semantics",
+        "url": "https://www.fmod.com/docs/2.04/api/core-api-channel.html#channel_setloopcount",
+        "use": "Documents the API to which the matched executable passes the signed loop count unchanged."
+      },
+      {
+        "topic": "Old sound-update duplicate variant binding and later replacement",
+        "repository": "https://github.com/Mojang/bedrock-protocol-docs",
+        "commit": "d011926b11583430de5d5c49f9c4e53eb7d1fe58",
+        "path": "developer_notes/r26u6/clientbound_update_sound_data_packet_tagged_variant.md"
+      },
+      {
+        "topic": "Protocol2225 Fade field order",
+        "repository": "https://github.com/Mojang/bedrock-protocol-docs",
+        "commit": "d011926b11583430de5d5c49f9c4e53eb7d1fe58",
+        "path": "json/Fade.json"
+      }
+    ]
+  },
+  "packet_id": 348,
+  "scope": "Per-variant out-of-range discriminator check in the matched2193 normal binary reader; outer error recovery and disconnect policy remain unresolved.",
+  "reader_path": {
+    "mode5_read_rva": "0x38c76e0",
+    "binary_archive_vtable_install_rva": "0x38c773a",
+    "binary_archive_vtable_rva": "0xe9f3790",
+    "archive_format_slot": 16,
+    "archive_format_method_rva": "0x2544f80",
+    "archive_format_value": 7,
+    "variant_binder_vtable_rva": "0xe899290",
+    "variant_reader_slot": 40,
+    "variant_reader_rva": "0x39a0850",
+    "binary_reader_tail_call_rva": "0x39a0a62",
+    "binary_variant_helper_rva": "0x39a5e10",
+    "additional_uint32_read_call_rva": "0x39a5ec9",
+    "additional_data_archive_slot": 144,
+    "additional_data_archive_reader_rva": "0x40f3850",
+    "note": "The binary-format flag selects the index-based helper. Compression is enabled temporarily for the additional uint32 value."
+  },
+  "range_guard": {
+    "index_load_rva": "0x39a5ee5",
+    "compare_rva": "0x39a5ee9",
+    "unsigned_above_branch_rva": "0x39a5eed",
+    "maximum_index": 6,
+    "width_before_check_bits": 32,
+    "byte_narrowing_only_after_guard_rva": "0x39a5efc",
+    "first_normal_alternative_reader_call_rva": "0x39a5f0f"
+  },
+  "error_path": {
+    "entry_rva": "0x39a6112",
+    "context_error_call_rva": "0x39a6142",
+    "context_error_routine_rva": "0x40f5630",
+    "error_value": 8,
+    "message": "Invalid element index: likely data corruption",
+    "message_rva": "0xec1d633",
+    "error_entry_count_increment_rva": "0x40f57cf",
+    "observed_effect": "Appends a context error and returns from this helper without narrowing the invalid index or calling an alternative reader."
+  },
+  "implication": "Every repeated event has the same range check. Index256 is invalid; truncating it to current uint8 Stop0 before validation creates an unsupported valid operation.",
+  "limits": [
+    "No reference executable was executed.",
+    "This finding does not establish all outer context rollback, continued-field parsing, packet failure, or disconnect behavior.",
+    "Successful parsing of a later repetition is not used here to claim that an earlier error is erased or retained by every surrounding layer.",
+    "Behavior of mutually inconsistent but individually valid seven-event repetitions remains separately bounded."
+  ]
+}

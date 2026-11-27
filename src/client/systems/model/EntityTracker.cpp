@@ -387,6 +387,20 @@ namespace perlin::entity {
         e.moveSerial++;
     }
 
+    void EntityTracker::RotateHead(uint64_t rid, float pitch, float headYaw, bool onGround) {
+        std::lock_guard lock(mutex);
+        const auto it = entities.find(rid);
+        if (it == entities.end())
+            return;
+        Entity& e = it->second;
+        e.prevPitch = e.pitch;
+        e.prevHeadYaw = e.headYaw;
+        e.pitch = e.netPitch = e.lerp.pitch = e.queued.pitch = SignedPitch(pitch);
+        e.headYaw = e.netHeadYaw = e.lerp.headYaw = e.queued.headYaw = headYaw;
+        e.onGround = onGround;
+        e.moveSerial++;
+    }
+
     void EntityTracker::TickInterpolation() {
         std::lock_guard lock(mutex);
         for (auto& [rid, e] : entities) {

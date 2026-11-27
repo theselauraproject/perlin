@@ -1,0 +1,5916 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "ActorUseItemEvent",
+      "type_index": "0x157e4",
+      "size": 144,
+      "fieldlist": "0x157e3",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mActor",
+          "offset": 0,
+          "type": "Actor &",
+          "type_index": "0x14b58",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemUsed",
+          "offset": 8,
+          "type": "const ItemInstance",
+          "type_index": "0x14c10",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemUseMethod",
+          "offset": 136,
+          "type": "ItemUseMethod",
+          "type_index": "0x18ff",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "ActorUseItemEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x157dd",
+          "return_type": "void",
+          "class_type": "ActorUseItemEvent",
+          "this_type": "ActorUseItemEvent *",
+          "argument_types": [
+            "Actor &",
+            "const ItemInstance &",
+            "ItemUseMethod"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "ActorUseItemEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x157e0",
+          "return_type": "void",
+          "class_type": "ActorUseItemEvent",
+          "this_type": "ActorUseItemEvent *",
+          "argument_types": [
+            "const ActorUseItemEvent &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~ActorUseItemEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x157e2",
+          "return_type": "void",
+          "class_type": "ActorUseItemEvent",
+          "this_type": "ActorUseItemEvent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "AnimateEntityPacketPayload",
+      "type_index": "0x15b02",
+      "size": 168,
+      "fieldlist": "0x15b01",
+      "member_count": 10,
+      "fields": [
+        {
+          "name": "mRuntimeIds",
+          "offset": 0,
+          "type": "std::vector<ActorRuntimeID,std::allocator<ActorRuntimeID> >",
+          "type_index": "0xdc58",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAnimation",
+          "offset": 24,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNextState",
+          "offset": 56,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStopExpression",
+          "offset": 88,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStopExpressionVersion",
+          "offset": 120,
+          "type": "MolangVersion",
+          "type_index": "0x1af0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mController",
+          "offset": 128,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlendOutTime",
+          "offset": 160,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "AnimateEntityPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15afa",
+          "return_type": "void",
+          "class_type": "AnimateEntityPacketPayload",
+          "this_type": "AnimateEntityPacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "AnimateEntityPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15afe",
+          "return_type": "void",
+          "class_type": "AnimateEntityPacketPayload",
+          "this_type": "AnimateEntityPacketPayload *",
+          "argument_types": [
+            "const std::vector<ActorRuntimeID,std::allocator<ActorRuntimeID> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "MolangVersion",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 7,
+          "this_adjust": 0
+        },
+        {
+          "name": "~AnimateEntityPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15b00",
+          "return_type": "void",
+          "class_type": "AnimateEntityPacketPayload",
+          "this_type": "AnimateEntityPacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ArmorSlotAndDamagePair",
+      "type_index": "0x15c49",
+      "size": 8,
+      "fieldlist": "0x15c48",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mArmorSlot",
+          "offset": 0,
+          "type": "SharedTypes::Legacy::ArmorSlot",
+          "type_index": "0x10ea",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDamage",
+          "offset": 4,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "BinaryStream",
+      "type_index": "0x3295e",
+      "size": 80,
+      "fieldlist": "0x3295d",
+      "member_count": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ReadOnlyBinaryStream",
+          "member_kind": "base"
+        },
+        {
+          "name": "mBuffer",
+          "offset": 72,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "type_index": "0x157b6",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32911",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BlockPos &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32913",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const Vec3 &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32917",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const MoveActorAbsoluteData &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32919",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BaseGameVersion &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3291d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const ActorLink &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeType",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32921",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const GameRulesChangedPacketData &",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "BinaryStream",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32923",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "BinaryStream",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32924",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "BinaryStream",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x32928",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3292b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "unsigned long long"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3292c",
+          "return_type": "BinaryStream &",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~BinaryStream",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3292d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeBool",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x3292f",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "bool",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeByte",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x32931",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned char",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedByte",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x32933",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "char",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedShort",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x32935",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned short",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedShort",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x32937",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "short",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x32939",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "uint32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedBigEndianInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x3293b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "int32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x3293b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "int32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x3293d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeSignedInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x3293f",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedVarInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x32939",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "uint32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUnsignedVarInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x3293d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "unsigned long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeVarInt",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x3293b",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "int32_t",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeVarInt64",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 120,
+          "type_index": "0x3293f",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "long long",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeDouble",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 128,
+          "type_index": "0x32941",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "double",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeFloat",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 136,
+          "type_index": "0x32943",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "float",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeFixedFloat",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 144,
+          "type_index": "0x32945",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "float",
+            "const char *",
+            "const char *",
+            "double"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeNormalizedFloat",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 152,
+          "type_index": "0x32943",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "float",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeString",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 160,
+          "type_index": "0x32947",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::basic_string_view<char,std::char_traits<char> >",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeIf",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 168,
+          "type_index": "0x3294d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "bool",
+            "const char *",
+            "const brstd::function_ref<void (BinaryStream &),void (BinaryStream &)> &",
+            "const std::optional<brstd::function_ref<void (BinaryStream &),void (BinaryStream &)> > &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeConditional",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 176,
+          "type_index": "0x32950",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "std::initializer_list<BinaryStream::ConditionBlock> &&",
+            "const std::optional<brstd::function_ref<void (BinaryStream &),void (BinaryStream &)> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "branchingWrite_DEPRECATED",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 192,
+          "type_index": "0x32953",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::function<void (BinaryStream &, int)> &&",
+            "int32_t",
+            "int32_t",
+            "int32_t",
+            "const char *"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "branchingWrite_DEPRECATED",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 184,
+          "type_index": "0x32955",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::function<void (BinaryStream &, int)> &&",
+            "int32_t",
+            "const std::vector<int,std::allocator<int> > &",
+            "const char *"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeTypeBegin_DocHelper",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 200,
+          "type_index": "0x32958",
+          "return_type": "bool",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeTypeEnd_DocHelper",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 208,
+          "type_index": "0x3292d",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeEnum_DocHelper",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 216,
+          "type_index": "0x32959",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_writeArray",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 224,
+          "type_index": "0x3295c",
+          "return_type": "void",
+          "class_type": "BinaryStream",
+          "this_type": "BinaryStream *",
+          "argument_types": [
+            "std::function<void (BinaryStream &)> &&",
+            "std::function<void (BinaryStream &)> &&",
+            "const char *",
+            "const char *"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ClientboundControlSchemeSetPacketPayload",
+      "type_index": "0x17515",
+      "size": 1,
+      "fieldlist": "0x17514",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mControlScheme",
+          "offset": 0,
+          "type": "ControlScheme::Scheme",
+          "type_index": "0x1f55",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ClientboundUpdateSoundDataPacketPayload",
+      "type_index": "0x1753c",
+      "size": 24,
+      "fieldlist": "0x1753b",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mServerSoundHandle",
+          "offset": 0,
+          "type": "ServerSoundHandle",
+          "type_index": "0x1005c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEvent",
+          "offset": 8,
+          "type": "std::variant<SoundDataEvent::Stop,SoundDataEvent::SetVolume,SoundDataEvent::SetPitch,SoundDataEvent::Fade,SoundDataEvent::SeekTo,SoundDataEvent::Pause,SoundDataEvent::Resume>",
+          "type_index": "0xd5d1",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CompletedUsingItemPacketPayload",
+      "type_index": "0x1788c",
+      "size": 8,
+      "fieldlist": "0x1788b",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mItemId",
+          "offset": 0,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemUseMethod",
+          "offset": 4,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ContainerRegistryCleanupPacketPayload",
+      "type_index": "0x17cfa",
+      "size": 24,
+      "fieldlist": "0x17cf9",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mRemovedContainers",
+          "offset": 0,
+          "type": "std::vector<FullContainerName,std::allocator<FullContainerName> >",
+          "type_index": "0xd89d",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ControlScheme::Scheme",
+      "type_index": "0x1f55",
+      "fieldlist": "0x1f54",
+      "underlying": 32,
+      "member_count": 5,
+      "enum": true,
+      "fields": [
+        {
+          "name": "LockedPlayerRelativeStrafe",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CameraRelative",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CameraRelativeStrafe",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PlayerRelative",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PlayerRelativeStrafe",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ControlSchemeComponent",
+      "type_index": "0x17ed5",
+      "size": 1,
+      "fieldlist": "0x17514",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mControlScheme",
+          "offset": 0,
+          "type": "ControlScheme::Scheme",
+          "type_index": "0x1f55",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "EmotePacketPayload",
+      "type_index": "0x19104",
+      "size": 120,
+      "fieldlist": "0x19103",
+      "member_count": 11,
+      "fields": [
+        {
+          "name": "mRuntimeId",
+          "offset": 0,
+          "type": "ActorRuntimeID",
+          "type_index": "0xdf0a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPieceId",
+          "offset": 8,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEmoteTicks",
+          "offset": 40,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mXuid",
+          "offset": 48,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlatformId",
+          "offset": 80,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlags",
+          "offset": 112,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x190fe",
+          "return_type": "EmotePacketPayload &",
+          "class_type": "EmotePacketPayload",
+          "this_type": "EmotePacketPayload *",
+          "argument_types": [
+            "const EmotePacketPayload &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "EmotePacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x190ff",
+          "return_type": "void",
+          "class_type": "EmotePacketPayload",
+          "this_type": "EmotePacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "EmotePacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19100",
+          "return_type": "void",
+          "class_type": "EmotePacketPayload",
+          "this_type": "EmotePacketPayload *",
+          "argument_types": [
+            "const EmotePacketPayload &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~EmotePacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19102",
+          "return_type": "void",
+          "class_type": "EmotePacketPayload",
+          "this_type": "EmotePacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "EntitySystems",
+      "type_index": "0x38fee",
+      "size": 368,
+      "fieldlist": "0x38fed",
+      "member_count": 42,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "IEntitySystems",
+          "member_kind": "base"
+        },
+        {
+          "offset": 8,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mPlayerInteractionSystem",
+          "offset": 32,
+          "type": "std::unique_ptr<PlayerInteractionSystem,std::default_delete<PlayerInteractionSystem> >",
+          "type_index": "0xd188",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSystems",
+          "offset": 40,
+          "type": "std::unique_ptr<IEntitySystemsCollection,std::default_delete<IEntitySystemsCollection> >",
+          "type_index": "0xce66",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDispatcher",
+          "offset": 48,
+          "type": "OwnerPtr<EcsEventDispatcher>",
+          "type_index": "0x74e8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mName",
+          "offset": 64,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEnableTimingCapture",
+          "offset": 96,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPreTotalTick",
+          "offset": 104,
+          "type": "std::function<void ()>",
+          "type_index": "0xbd7f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPostTotalTick",
+          "offset": 168,
+          "type": "std::function<void ()>",
+          "type_index": "0xbd7f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPreSystemInvoke",
+          "offset": 232,
+          "type": "std::function<void (TickingSystemId)>",
+          "type_index": "0xbcdb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPostSystemInvoke",
+          "offset": 296,
+          "type": "std::function<void (TickingSystemId)>",
+          "type_index": "0xbcdb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTickingAnnotation",
+          "offset": 360,
+          "type": "Bedrock::Profiler::details::PredeclaredAnnotation",
+          "type_index": "0x5f46",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "EntitySystems",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fdd",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "EntitySystems",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fdf",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "std::unique_ptr<IEntitySystemsCollection,std::default_delete<IEntitySystemsCollection> >",
+            "std::basic_string_view<char,std::char_traits<char> >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "~EntitySystems",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe1",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickMovementCatchup",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe2",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "EntityRegistry &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickMovementCorrectionReplay",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe2",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "EntityRegistry &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerTickingSystem",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe3",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "gsl::span<const Bedrock::typeid_t<SystemCategory>,18446744073709551615>",
+            "std::unique_ptr<ITickingSystem,std::default_delete<ITickingSystem> >",
+            "const SystemInfo &",
+            "EntitySystemTickingMode"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_hasSingleTickCategory",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe6",
+          "return_type": "bool",
+          "class_type": "EntitySystems",
+          "this_type": "const EntitySystems *",
+          "argument_types": [
+            "const Bedrock::typeid_t<SystemCategory>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerEvents",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe2",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "EntityRegistry &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setSystemInvokeCallbacks",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe9",
+          "return_type": "std::pair<std::function<void (TickingSystemId)>,std::function<void (TickingSystemId)> >",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "std::function<void (TickingSystemId)> &&",
+            "std::function<void (TickingSystemId)> &&"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTotalTickCallbacks",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38feb",
+          "return_type": "std::pair<std::function<void ()>,std::function<void ()> >",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "std::function<void ()> &&",
+            "std::function<void ()> &&"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "tick",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe2",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "EntityRegistry &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickEditor",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe2",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "EntityRegistry &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tickInitialize",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fe2",
+          "return_type": "void",
+          "class_type": "EntitySystems",
+          "this_type": "EntitySystems *",
+          "argument_types": [
+            "EntityRegistry &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "EntitySystemsManager",
+      "type_index": "0x38ff6",
+      "size": 48,
+      "fieldlist": "0x38ff5",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mEntitySystems",
+          "offset": 0,
+          "type": "std::unique_ptr<EntitySystems,std::default_delete<EntitySystems> >",
+          "type_index": "0xcfd9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsClientSide",
+          "offset": 8,
+          "type": "const bool",
+          "type_index": "0x15681",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSubClientId",
+          "offset": 9,
+          "type": "const SubClientId",
+          "type_index": "0x14d06",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntityRegistry",
+          "offset": 16,
+          "type": "WeakRef<EntityRegistry>",
+          "type_index": "0x7bd6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPauseManager",
+          "offset": 32,
+          "type": "WeakRef<PauseManager>",
+          "type_index": "0x7bdf",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "EntitySystemsManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fef",
+          "return_type": "void",
+          "class_type": "EntitySystemsManager",
+          "this_type": "EntitySystemsManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "EntitySystemsManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38ff3",
+          "return_type": "void",
+          "class_type": "EntitySystemsManager",
+          "this_type": "EntitySystemsManager *",
+          "argument_types": [
+            "bool",
+            "SubClientId",
+            "const gsl::not_null<StackRefResult<EntityRegistry> > &",
+            "const gsl::not_null<StackRefResult<PauseManager> > &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "FullContainerName",
+      "type_index": "0x19c2f",
+      "size": 12,
+      "fieldlist": "0x19c2e",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "ContainerEnumName",
+          "type_index": "0x13ad",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDynamicId",
+          "offset": 4,
+          "type": "std::optional<unsigned int>",
+          "type_index": "0xc599",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "toString",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19c2d",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "FullContainerName",
+          "this_type": "const FullContainerName *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "FurnaceOptions",
+      "type_index": "0x19c6b",
+      "size": 12,
+      "fieldlist": "0x19c6a",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mUnk186ed2",
+          "offset": 0,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnke7aa71",
+          "offset": 4,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk903218",
+          "offset": 8,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19c66",
+          "return_type": "FurnaceOptions &",
+          "class_type": "FurnaceOptions",
+          "this_type": "FurnaceOptions *",
+          "argument_types": [
+            "const FurnaceOptions &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "FurnaceOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19c67",
+          "return_type": "void",
+          "class_type": "FurnaceOptions",
+          "this_type": "FurnaceOptions *",
+          "argument_types": [
+            "const FurnaceOptions &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "FurnaceOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19c68",
+          "return_type": "void",
+          "class_type": "FurnaceOptions",
+          "this_type": "FurnaceOptions *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "GuiData",
+      "type_index": "0x3ae32",
+      "size": 3600,
+      "fieldlist": "0x3ae31",
+      "member_count": 119,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "IConfigListener",
+          "member_kind": "base"
+        },
+        {
+          "offset": 8,
+          "type": "AppPlatformListener",
+          "member_kind": "base"
+        },
+        {
+          "offset": 40,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mScreenSizeData",
+          "offset": 64,
+          "type": "ScreenSizeData",
+          "type_index": "0x629b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mScreenSizeDataValid",
+          "offset": 88,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGuiScale",
+          "offset": 92,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInvGuiScale",
+          "offset": 96,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOverlappingControlsExist",
+          "offset": 100,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsCurrentlyActive",
+          "offset": 101,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPostedErrors",
+          "offset": 104,
+          "type": "std::set<int,std::less<int>,std::allocator<int> >",
+          "type_index": "0xca2b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMenuPointer",
+          "offset": 120,
+          "type": "MenuPointer",
+          "type_index": "0xf3ac",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPointerX",
+          "offset": 122,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPointerY",
+          "offset": 124,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHasShowPreexistingMessages",
+          "offset": 126,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mToolbarWasRendered",
+          "offset": 127,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPrevSelectedSlot",
+          "offset": 128,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPrevSelectedInventoryContainer",
+          "offset": 132,
+          "type": "ContainerID",
+          "type_index": "0x13b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlashSlotId",
+          "offset": 136,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlashSlotStartTime",
+          "offset": 144,
+          "type": "double",
+          "type_index": "0x41",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClient",
+          "offset": 152,
+          "type": "IClientInstance &",
+          "type_index": "0x19da4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mToolbarArea",
+          "offset": 160,
+          "type": "RectangleArea",
+          "type_index": "0xfa8b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mToolbarAreaContainer",
+          "offset": 176,
+          "type": "RectangleArea",
+          "type_index": "0xfa8b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastPopupText",
+          "offset": 192,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastPopupSubtitleText",
+          "offset": 224,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastJukeboxPopupText",
+          "offset": 256,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastJukeboxPopupSubtitleText",
+          "offset": 288,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTickCount",
+          "offset": 320,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemNameOverlayTime",
+          "offset": 324,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mJukeboxNameOverlayTime",
+          "offset": 328,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPopupNoticeDirty",
+          "offset": 332,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mJukeboxPopupNoticeDirty",
+          "offset": 333,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGuiMessages",
+          "offset": 336,
+          "type": "std::vector<GuiMessage,std::allocator<GuiMessage> >",
+          "type_index": "0xdca1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSubtitleMessages",
+          "offset": 360,
+          "type": "std::vector<GuiMessage,std::allocator<GuiMessage> >",
+          "type_index": "0xdca1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDevConsoleMessages",
+          "offset": 384,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxDevConsoleMessages",
+          "offset": 408,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContentLogMessages",
+          "offset": 416,
+          "type": "std::vector<ContentLogMessage,std::allocator<ContentLogMessage> >",
+          "type_index": "0xd80f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContentLogErrorCount",
+          "offset": 440,
+          "type": "unsigned long long",
+          "type_index": "0x23",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPerfTurtleMessages",
+          "offset": 448,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mModalScreenData",
+          "offset": 472,
+          "type": "std::optional<ModalScreenData>",
+          "type_index": "0xc697",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTitleMessage",
+          "offset": 848,
+          "type": "TitleMessage",
+          "type_index": "0x104c9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHudVisibilityState",
+          "offset": 1080,
+          "type": "std::array<HudVisibility,13>",
+          "type_index": "0xb92a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSettingsId",
+          "offset": 1132,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSettings",
+          "offset": 1136,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMuteChat",
+          "offset": 1168,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentDropTicks",
+          "offset": 1172,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentDropSlot",
+          "offset": 1176,
+          "type": "PlayerInventorySlotData",
+          "type_index": "0x5eb1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastSelectedSlot",
+          "offset": 1184,
+          "type": "PlayerInventorySlotData",
+          "type_index": "0x5eb1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShowProgress",
+          "offset": 1192,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTipMessage",
+          "offset": 1200,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTipMessageLength",
+          "offset": 1232,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRcFeedbackOuter",
+          "offset": 1240,
+          "type": "mce::Mesh",
+          "type_index": "0xf3b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRcFeedbackInner",
+          "offset": 1872,
+          "type": "mce::Mesh",
+          "type_index": "0xf3b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVignette",
+          "offset": 2504,
+          "type": "mce::Mesh",
+          "type_index": "0xf3b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInvFillMat",
+          "offset": 3136,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCursorMat",
+          "offset": 3152,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDevConsoleLogger",
+          "offset": 3168,
+          "type": "gsl::not_null<Bedrock::NonOwnerPointer<DevConsoleLogger> >",
+          "type_index": "0xc42b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastTickTime",
+          "offset": 3192,
+          "type": "std::chrono::time_point<std::chrono::steady_clock,std::chrono::duration<long long,std::ratio<1,1000000000> > >",
+          "type_index": "0xcdbf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDelayedMessages",
+          "offset": 3200,
+          "type": "std::map<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::vector<GuiMessage,std::allocator<GuiMessage> >,std::less<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::allocator<std::pair<const std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::vector<GuiMessage,std::allocator<GuiMessage> > > > >",
+          "type_index": "0xc26b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mQueuedDevConsoleMessages",
+          "offset": 3216,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mQueuedDevMessagesMutex",
+          "offset": 3240,
+          "type": "std::mutex",
+          "type_index": "0x10870",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUseEditorGuiScale",
+          "offset": 3320,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHUDHotbarRectangle",
+          "offset": 3324,
+          "type": "RectangleArea",
+          "type_index": "0xfa8b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCoordinateCaptureType",
+          "offset": 3340,
+          "type": "CoordinateCaptureType",
+          "type_index": "0x13f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnGuiScaleUpdatedPublisher",
+          "offset": 3344,
+          "type": "Bedrock::PubSub::Publisher<void (),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76cf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerFormDataAvailable",
+          "offset": 3472,
+          "type": "Bedrock::PubSub::Publisher<void (),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76cf",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "setHudVisibilityState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adf6",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::vector<HudElement,std::allocator<HudElement> > &",
+            "HudVisibility"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isHudElementVisible",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adf9",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [
+            "HudElement"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adfd",
+          "return_type": "GuiData &",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const GuiData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GuiData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adfe",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const GuiData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GuiData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adff",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GuiData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae00",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "IClientInstance &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "onConfigChanged",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae02",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const Config &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_addMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae04",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "GuiData::MessageConfig",
+            "ProfanityFilterContext"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_setSubtitleInternal",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_setTitleInternal",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "addSubtitle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae07",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "SoundDirection",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculateGuiScale",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0b",
+          "return_type": "float",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const Vec2 &",
+            "const Vec2 &",
+            "const cg::math::Rect<float> &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculateMaxGuiScaleIndex",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0c",
+          "return_type": "int32_t",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [
+            "const Vec2 &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculateOptimalGuiScaleIndex",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0c",
+          "return_type": "int32_t",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [
+            "const Vec2 &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "clearPlayerMessages",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "clearSessionState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayAnnouncementMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0f",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayChatMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae11",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayClientMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae13",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayDevConsoleMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae14",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayLocalizableMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae16",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayLocalizedMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae17",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "displaySystemMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae19",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "ProfanityFilterContext"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayTextObjectMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae1d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const TextObjectRoot &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayTextObjectWhisperMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae1e",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayTextObjectWhisperMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae1d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const TextObjectRoot &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayWhisperMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae11",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "flushQueuedDevConsoleMessages",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getClampedGuiScaleOffset",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae20",
+          "return_type": "int32_t",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getGuiScale",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae21",
+          "return_type": "float",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLastFilteredChatMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae22",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLayoutCustomizationMainPanelRectangle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getNewJukeboxPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae24",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getNewPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae24",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSafeScreenZoneArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getWYSIWYGBottomHudReservedArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getWYSIWYGTopReservedArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "handleClick",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae25",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "postError",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae26",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "recomputeHUDHotbarRectangle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae27",
+          "return_type": "const RectangleArea &",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setActionBarMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae17",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setScreenSizeData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae28",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const ScreenSizeData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setSubtitle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTextToSpeechEnabled",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae29",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTitle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTouchToolbarArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2a",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const RectangleArea &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "showJukeboxPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2b",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "showPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2c",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "showPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2b",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "showTipMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae14",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tick",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GUI_SCALE_VALUES",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae30",
+          "return_type": "const std::array<float,8> &",
+          "class_type": "GuiData",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "GuiDataPickItemPacketPayload",
+      "type_index": "0x19fba",
+      "size": 72,
+      "fieldlist": "0x19fb9",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mItemName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemEffectName",
+          "offset": 32,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSlot",
+          "offset": 64,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "HurtArmorPacketPayload",
+      "type_index": "0x1a18c",
+      "size": 12,
+      "fieldlist": "0x1a18b",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mCause",
+          "offset": 0,
+          "type": "SharedTypes::Legacy::ActorDamageCause",
+          "type_index": "0x1064",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDmg",
+          "offset": 4,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mArmorSlots",
+          "offset": 8,
+          "type": "std::bitset<5>",
+          "type_index": "0xb996",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InventoryLayout",
+      "type_index": "0x18ad",
+      "fieldlist": "0x18ac",
+      "underlying": 116,
+      "member_count": 5,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InventoryOnly",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Default",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeBookOnly",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InventoryLeftTabIndex",
+      "type_index": "0x18af",
+      "fieldlist": "0x18ae",
+      "underlying": 116,
+      "member_count": 8,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeConstruction",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeEquipment",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeItems",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeNature",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeSearch",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Survival",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 7,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InventoryLeftTabPocketIndex",
+      "type_index": "0x18b1",
+      "fieldlist": "0x18b0",
+      "underlying": 116,
+      "member_count": 8,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Survival",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeNature",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeItems",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeEquipment",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeConstruction",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RecipeSearch",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 7,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InventoryOptions",
+      "type_index": "0x1a8e8",
+      "size": 20,
+      "fieldlist": "0x1a8e7",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mLeftInventoryTab",
+          "offset": 0,
+          "type": "InventoryLeftTabIndex",
+          "type_index": "0x18af",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRightInventoryTab",
+          "offset": 4,
+          "type": "InventoryRightTabIndex",
+          "type_index": "0x18b3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFiltering",
+          "offset": 8,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLayoutInv",
+          "offset": 12,
+          "type": "InventoryLayout",
+          "type_index": "0x18ad",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLayoutCraft",
+          "offset": 16,
+          "type": "InventoryLayout",
+          "type_index": "0x18ad",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InventoryRightTabIndex",
+      "type_index": "0x18b3",
+      "fieldlist": "0x18b2",
+      "underlying": 116,
+      "member_count": 5,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FullScreen",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Crafting",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Armor",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InventoryTabIndex",
+      "type_index": "0x18b9",
+      "fieldlist": "0x18b8",
+      "underlying": 117,
+      "member_count": 7,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Owned",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RealmsPlusCurrent",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RealmsPlusRemoved",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SearchTabsCount",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Subscriptions",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InventoryTabCount",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Invalid",
+          "value": 5,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ItemStackNetManagerBase",
+      "type_index": "0x3dcf2",
+      "size": 88,
+      "fieldlist": "0x3dcf1",
+      "member_count": 31,
+      "fields": [
+        {
+          "name": "mIsEnabled",
+          "offset": 8,
+          "type": "const bool",
+          "type_index": "0x15681",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsClientSide",
+          "offset": 9,
+          "type": "const bool",
+          "type_index": "0x15681",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayer",
+          "offset": 16,
+          "type": "Player &",
+          "type_index": "0x158ae",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelWeakRegistry",
+          "offset": 24,
+          "type": "WeakRef<EntityRegistry>",
+          "type_index": "0x7bd6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntityRegistry",
+          "offset": 40,
+          "type": "OwnerPtr<EntityRegistry>",
+          "type_index": "0x74eb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mScreenStack",
+          "offset": 56,
+          "type": "std::unique_ptr<ItemStackNetManagerScreenStack,std::default_delete<ItemStackNetManagerScreenStack> >",
+          "type_index": "0xd0d4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentRequestHasCraftAction",
+          "offset": 64,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLegacyTransactionRequestId",
+          "offset": 72,
+          "type": "TypedClientNetId<ItemStackLegacyRequestIdTag,int,0>",
+          "type_index": "0x7a0c",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dcce",
+          "return_type": "ItemStackNetManagerBase &",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "const ItemStackNetManagerBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ItemStackNetManagerBase",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dccf",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "const ItemStackNetManagerBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ItemStackNetManagerBase",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dcd0",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "ItemStackNetManagerBase",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dcd2",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "Player &",
+            "bool",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "~ItemStackNetManagerBase",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 0,
+          "type_index": "0x3dcd4",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isEnabled",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x3dcd6",
+          "return_type": "bool",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "const ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getRequestId",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x3dcd7",
+          "return_type": "TypedClientNetId<ItemStackRequestIdTag,int,0>",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "const ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "retainSetItemStackNetIdVariant",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x3dcd6",
+          "return_type": "bool",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "const ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "allowInventoryTransactionManager",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x3dcd6",
+          "return_type": "bool",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "const ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_tryBeginClientLegacyTransactionRequest",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x3dcd8",
+          "return_type": "gsl::final_action<std::function<void ()> >",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_tryBeginClientLegacyTransactionRequest",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dcd9",
+          "return_type": "gsl::final_action<std::function<void ()> >",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "Player *"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "onContainerScreenOpen",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x3dcdb",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "const ContainerScreenContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "onContainerScreenClose",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x3dcd4",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "initOpenContainer",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x3dce0",
+          "return_type": "SparseContainer *",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "BlockSource &",
+            "const FullContainerName &",
+            "const ContainerWeakRef &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "_addLegacyTransactionRequestSetItemSlot",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x3dce3",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "ItemStackNetManagerScreen &",
+            "SharedTypes::Legacy::ContainerType",
+            "int32_t"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "_initScreen",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x3dce5",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "ItemStackNetManagerScreen &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_isRequestActionAllowed",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dce9",
+          "return_type": "bool",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "const ItemStackRequestAction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_pushScreen",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dceb",
+          "return_type": "void",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "ItemStackNetManagerBase *",
+          "argument_types": [
+            "ContainerScreenContext"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getScreenContext",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dcec",
+          "return_type": "const ContainerScreenContext &",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "const ItemStackNetManagerBase *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPlayerContainer",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3dcf0",
+          "return_type": "bool",
+          "class_type": "ItemStackNetManagerBase",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "Player &",
+            "SharedTypes::Legacy::ContainerType",
+            "int32_t",
+            "const ItemStack &",
+            "ItemStack &",
+            "const std::function<void (const ItemStack &)> &"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ItemUseMethod",
+      "type_index": "0x18ff",
+      "fieldlist": "0x18fe",
+      "underlying": 116,
+      "member_count": 19,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Unknown",
+          "value": -1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "EquipArmor",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Eat",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Attack",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Consume",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Throw",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Shoot",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Place",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FillBottle",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FillBucket",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PourBucket",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "UseTool",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Interact",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Retrieved",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Dyed",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Traded",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BrushingCompleted",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OpenedVault",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 17,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ListenerState",
+      "type_index": "0x1b43c",
+      "size": 48,
+      "fieldlist": "0x1b43b",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mPosition",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVelocity",
+          "offset": 12,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mForward",
+          "offset": 24,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUp",
+          "offset": 36,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LoadingState",
+      "type_index": "0x19e9",
+      "fieldlist": "0x19e8",
+      "underlying": 116,
+      "member_count": 24,
+      "enum": true,
+      "fields": [
+        {
+          "name": "TimeCancellable",
+          "value": -2147483648,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "None",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BuildingTerrain",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SwitchingDimension",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingRealms",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Done",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Disconnected",
+          "value": 32,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ImportingExporting",
+          "value": 64,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "LocatingServer",
+          "value": 128,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingResourcePack",
+          "value": 256,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DownloadingResourcePack",
+          "value": 512,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MakingWorldInfinite",
+          "value": 1024,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingResourceLoad",
+          "value": 2048,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ConvertingWorld",
+          "value": 4096,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingRemoteStorage",
+          "value": 8192,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingSaveAndQuit",
+          "value": 16384,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PreCachingScreens",
+          "value": 32768,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StorageMigration",
+          "value": 65536,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingForTickingAreasPreload",
+          "value": 131072,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingPurchase",
+          "value": 1048576,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CopyingWorld",
+          "value": 16777216,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaitingErrorPrompt",
+          "value": 268435456,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Error",
+          "value": 536870912,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Cancellable",
+          "value": 1073741824,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LoadingStateComponent",
+      "type_index": "0x3f268",
+      "size": 8,
+      "fieldlist": "0x3f267",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mLoadingState",
+          "offset": 0,
+          "type": "LoadingState",
+          "type_index": "0x19e9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLoadingProgress",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LocalPlayerDimensionWaitComponent",
+      "type_index": "0x1b50d",
+      "size": 16,
+      "fieldlist": "0x1b50c",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mWaitingForServerDimensionChangeAcknowledgment",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerDimensionChangeTimer",
+          "offset": 8,
+          "type": "std::chrono::time_point<std::chrono::steady_clock,std::chrono::duration<long long,std::ratio<1,1000000000> > >",
+          "type_index": "0xcdbf",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PauseManager",
+      "type_index": "0x42cc2",
+      "size": 208,
+      "fieldlist": "0x42cc1",
+      "member_count": 12,
+      "fields": [
+        {
+          "name": "mUnk994f71",
+          "offset": 0,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkf88b2a",
+          "offset": 1,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk99ce49",
+          "offset": 2,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkd10131",
+          "offset": 8,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk2c9d89",
+          "offset": 16,
+          "type": "unsigned char [bytes=128]",
+          "type_index": "0x108d0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk903eb4",
+          "offset": 144,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5b37dc",
+          "offset": 160,
+          "type": "unsigned char [bytes=48]",
+          "type_index": "0x15cfe",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x42cb8",
+          "return_type": "PauseManager &",
+          "class_type": "PauseManager",
+          "this_type": "PauseManager *",
+          "argument_types": [
+            "const PauseManager &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "PauseManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x42cb9",
+          "return_type": "void",
+          "class_type": "PauseManager",
+          "this_type": "PauseManager *",
+          "argument_types": [
+            "const PauseManager &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "PauseManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x42cba",
+          "return_type": "void",
+          "class_type": "PauseManager",
+          "this_type": "PauseManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "requestInGamePause",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x42cbf",
+          "return_type": "bool",
+          "class_type": "PauseManager",
+          "this_type": "const PauseManager *",
+          "argument_types": [
+            "ILocalServerPauseCommunication &",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "~PauseManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x42cc0",
+          "return_type": "void",
+          "class_type": "PauseManager",
+          "this_type": "PauseManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "PlaySoundOptions",
+      "type_index": "0x1d0cb",
+      "size": 88,
+      "fieldlist": "0x1d0ca",
+      "member_count": 9,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosition",
+          "offset": 32,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVolume",
+          "offset": 44,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPitch",
+          "offset": 48,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLoopCount",
+          "offset": 52,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSoundHandle",
+          "offset": 56,
+          "type": "std::optional<ServerSoundHandle>",
+          "type_index": "0xc8c8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBypassListenerRangeCheck",
+          "offset": 72,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlaybackPositionSeconds",
+          "offset": 76,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~PlaySoundOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d0c9",
+          "return_type": "void",
+          "class_type": "PlaySoundOptions",
+          "this_type": "PlaySoundOptions *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "PlaySoundPacketPayload",
+      "type_index": "0x1d0cd",
+      "size": 88,
+      "fieldlist": "0x1d0cc",
+      "member_count": 8,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPos",
+          "offset": 32,
+          "type": "BlockPos",
+          "type_index": "0xe1db",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVolume",
+          "offset": 44,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPitch",
+          "offset": 48,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLoopCount",
+          "offset": 52,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSoundHandle",
+          "offset": 56,
+          "type": "std::optional<ServerSoundHandle>",
+          "type_index": "0xc8c8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBypassListenerRangeCheck",
+          "offset": 72,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlaybackPositionSeconds",
+          "offset": 76,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerActionPacketPayload",
+      "type_index": "0x1d0f6",
+      "size": 48,
+      "fieldlist": "0x1d0f5",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mPos",
+          "offset": 0,
+          "type": "BlockPos",
+          "type_index": "0xe1db",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mResultPos",
+          "offset": 12,
+          "type": "BlockPos",
+          "type_index": "0xe1db",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFace",
+          "offset": 24,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAction",
+          "offset": 28,
+          "type": "PlayerActionType",
+          "type_index": "0x1cd6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRuntimeId",
+          "offset": 32,
+          "type": "ActorRuntimeID",
+          "type_index": "0xdf0a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsFromServerPlayerMovementSystem",
+          "offset": 40,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerActionType",
+      "type_index": "0x1cd6",
+      "fieldlist": "0x1cd5",
+      "underlying": 116,
+      "member_count": 41,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Unknown",
+          "value": -1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartDestroyBlock",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "AbortDestroyBlock",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopDestroyBlock",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "GetUpdatedBlock",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DropItem",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartSleeping",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopSleeping",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Respawn",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartJump",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartSprinting",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopSprinting",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartSneaking",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopSneaking",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CreativeDestroyBlock",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ChangeDimensionAck",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartGliding",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopGliding",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DenyDestroyBlock",
+          "value": 17,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CrackBlock",
+          "value": 18,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ChangeSkin",
+          "value": 19,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DeprecatedUpdatedEnchantingSeed",
+          "value": 20,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartSwimming",
+          "value": 21,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopSwimming",
+          "value": 22,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartSpinAttack",
+          "value": 23,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopSpinAttack",
+          "value": 24,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InteractWithBlock",
+          "value": 25,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PredictDestroyBlock",
+          "value": 26,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ContinueDestroyBlock",
+          "value": 27,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartItemUseOn",
+          "value": 28,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopItemUseOn",
+          "value": 29,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "HandledTeleport",
+          "value": 30,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MissedSwing",
+          "value": 31,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartCrawling",
+          "value": 32,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopCrawling",
+          "value": 33,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartFlying",
+          "value": 34,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StopFlying",
+          "value": 35,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DeprecatedClientAckServerData",
+          "value": 36,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "StartUsingItem",
+          "value": 37,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InternalUpdate",
+          "value": 38,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 39,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerArmorDamagePacketPayload",
+      "type_index": "0x1d0fe",
+      "size": 24,
+      "fieldlist": "0x1d0fd",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mSlotAndDamagePairs",
+          "offset": 0,
+          "type": "std::vector<ArmorSlotAndDamagePair,std::allocator<ArmorSlotAndDamagePair> >",
+          "type_index": "0xd77a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationPacketPayload",
+      "type_index": "0x1d1d9",
+      "size": 32,
+      "fieldlist": "0x1d1d8",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mId",
+          "offset": 0,
+          "type": "ActorUniqueID",
+          "type_index": "0x48fa",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLocation",
+          "offset": 8,
+          "type": "std::variant<PlayerLocationPacketPayload::CoordinatesLocation,PlayerLocationPacketPayload::HiddenLocation>",
+          "type_index": "0xd58d",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationPacketPayload::CoordinatesLocation",
+      "type_index": "0x17f0a",
+      "size": 16,
+      "fieldlist": "0x17f09",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mType",
+          "offset": 0,
+          "type": "PlayerLocationPacketPayload::Type",
+          "type_index": "0x2386",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPos",
+          "offset": 4,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationPacketPayload::HiddenLocation",
+      "type_index": "0x1a09b",
+      "size": 4,
+      "fieldlist": "0x1a09a",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mType",
+          "offset": 0,
+          "type": "PlayerLocationPacketPayload::Type",
+          "type_index": "0x2386",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationPacketPayload::Type",
+      "type_index": "0x2386",
+      "fieldlist": "0x2385",
+      "underlying": 116,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Coordinates",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Hide",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationReceiver",
+      "type_index": "0x43842",
+      "size": 48,
+      "fieldlist": "0x43841",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mCurrentPlayerLocationData",
+          "offset": 0,
+          "type": "brstd::flat_map<ActorUniqueID,std::optional<Vec3>,PlayerLocationReceiver::ActorUniqueIDCompare,std::vector<ActorUniqueID,std::allocator<ActorUniqueID> >,std::vector<std::optional<Vec3>,std::allocator<std::optional<Vec3> > > >",
+          "type_index": "0xbab7",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "hidePlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4383e",
+          "return_type": "void",
+          "class_type": "PlayerLocationReceiver",
+          "this_type": "PlayerLocationReceiver *",
+          "argument_types": [
+            "const ActorUniqueID &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "updatePlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43840",
+          "return_type": "void",
+          "class_type": "PlayerLocationReceiver",
+          "this_type": "PlayerLocationReceiver *",
+          "argument_types": [
+            "const ActorUniqueID &",
+            "const Vec3 &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ServerSoundHandle",
+      "type_index": "0x49acd",
+      "size": 8,
+      "fieldlist": "0x49acc",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mUnkc5f833",
+          "offset": 0,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49ac8",
+          "return_type": "ServerSoundHandle &",
+          "class_type": "ServerSoundHandle",
+          "this_type": "ServerSoundHandle *",
+          "argument_types": [
+            "const ServerSoundHandle &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ServerSoundHandle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49ac9",
+          "return_type": "void",
+          "class_type": "ServerSoundHandle",
+          "this_type": "ServerSoundHandle *",
+          "argument_types": [
+            "const ServerSoundHandle &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ServerSoundHandle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49aca",
+          "return_type": "void",
+          "class_type": "ServerSoundHandle",
+          "this_type": "ServerSoundHandle *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SetLastHurtByPacketPayload",
+      "type_index": "0x1fd32",
+      "size": 4,
+      "fieldlist": "0x1fd31",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mLastHurtBy",
+          "offset": 0,
+          "type": "ActorType",
+          "type_index": "0x1082",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SetPlayerFurnaceOptionsPacketPayload",
+      "type_index": "0x1fd87",
+      "size": 16,
+      "fieldlist": "0x1fd86",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mFurnaceType",
+          "offset": 0,
+          "type": "SetPlayerFurnaceOptionsPacketPayload::FurnaceType",
+          "type_index": "0x1764",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFurnaceOptions",
+          "offset": 4,
+          "type": "FurnaceOptions",
+          "type_index": "0x54fa",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SetPlayerInventoryOptionsPacketPayload",
+      "type_index": "0x1fd8b",
+      "size": 20,
+      "fieldlist": "0x1fd8a",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mInventoryOptions",
+          "offset": 0,
+          "type": "InventoryOptions",
+          "type_index": "0x578c",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::Legacy::ActorDamageCause",
+      "type_index": "0x1064",
+      "fieldlist": "0x1063",
+      "underlying": 116,
+      "member_count": 37,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": -1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Override",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Contact",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "EntityAttack",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Projectile",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Suffocation",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Fall",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Fire",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FireTick",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Lava",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Drowning",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BlockExplosion",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "EntityExplosion",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Void",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SelfDestruct",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Magic",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Wither",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Starve",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Anvil",
+          "value": 17,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Thorns",
+          "value": 18,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FallingBlock",
+          "value": 19,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Piston",
+          "value": 20,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FlyIntoWall",
+          "value": 21,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Magma",
+          "value": 22,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Fireworks",
+          "value": 23,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Lightning",
+          "value": 24,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Charging",
+          "value": 25,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Temperature",
+          "value": 26,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Freezing",
+          "value": 27,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Stalactite",
+          "value": 28,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Stalagmite",
+          "value": 29,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RamAttack",
+          "value": 30,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SonicBoom",
+          "value": 31,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Campfire",
+          "value": 32,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SoulCampfire",
+          "value": 33,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MaceSmash",
+          "value": 34,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "All",
+          "value": 35,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::Legacy::ArmorSlot",
+      "type_index": "0x10ea",
+      "fieldlist": "0x10e9",
+      "underlying": 116,
+      "member_count": 7,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Head",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Torso",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Legs",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Feet",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Body",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "HumanoidCount",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 5,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SimulationType",
+      "type_index": "0x2083",
+      "fieldlist": "0x2082",
+      "underlying": 32,
+      "member_count": 4,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Game",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Editor",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Test",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Invalid",
+          "value": 3,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SimulationTypePacketPayload",
+      "type_index": "0x1ffb5",
+      "size": 1,
+      "fieldlist": "0x1ffb4",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mSimType",
+          "offset": 0,
+          "type": "SimulationType",
+          "type_index": "0x2083",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Fade",
+      "type_index": "0x196ce",
+      "size": 8,
+      "fieldlist": "0x196cd",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mDuration",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTargetVolume",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Pause",
+      "type_index": "0x1cd12",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Resume",
+      "type_index": "0x1e213",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::SeekTo",
+      "type_index": "0x1f87b",
+      "size": 4,
+      "fieldlist": "0x1f87a",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mSeconds",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::SetPitch",
+      "type_index": "0x1fd85",
+      "size": 4,
+      "fieldlist": "0x1fd84",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mPitch",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::SetVolume",
+      "type_index": "0x1fe30",
+      "size": 4,
+      "fieldlist": "0x1fe2f",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mVolume",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Stop",
+      "type_index": "0x205b0",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundPauseSource",
+      "type_index": "0x20ca",
+      "fieldlist": "0x20c9",
+      "underlying": 32,
+      "member_count": 3,
+      "enum": true,
+      "fields": [
+        {
+          "name": "PauseMenu",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Script",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 2,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundPlayerInterface",
+      "type_index": "0x4aa6e",
+      "size": 24,
+      "fieldlist": "0x4aa6d",
+      "member_count": 39,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~SoundPlayerInterface",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa47",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "play",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x4aa48",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "std::optional<ServerSoundHandle>"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "play",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x4aa49",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "PlaySoundOptions"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "playUI",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x4aa4b",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x4aa4c",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "uint32_t &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x4aa4d",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isLoadingMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x4aa51",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingMusicEvent",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x4aa52",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x4aa53",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "Core::PathView"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fadeToStopMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x4aa54",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setMusicCommandVolumeMultiplier",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x4aa54",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fadeOut",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x4aa55",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x4aa47",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 120,
+          "type_index": "0x4aa56",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x4aa57",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x4aa58",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setVolume",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 128,
+          "type_index": "0x4aa5a",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPitch",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 136,
+          "type_index": "0x4aa5a",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "fade",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 144,
+          "type_index": "0x4aa5b",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPlaybackPosition",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 152,
+          "type_index": "0x4aa5a",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "pause",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 160,
+          "type_index": "0x4aa5c",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "SoundPauseSource"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "resume",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 168,
+          "type_index": "0x4aa5c",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "SoundPauseSource"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopAllSounds",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 176,
+          "type_index": "0x4aa47",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "pauseAllPlayingSounds",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 184,
+          "type_index": "0x4aa5d",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "SoundPauseSource"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "resumeAllPreviouslyPlayingSounds",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 192,
+          "type_index": "0x4aa5d",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "SoundPauseSource"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "pauseMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 200,
+          "type_index": "0x4aa5e",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCurrentlyPlayingMusicPath",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 208,
+          "type_index": "0x4aa5f",
+          "return_type": "Core::PathView",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 216,
+          "type_index": "0x4aa60",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "Core::PathView",
+            "SoundItem &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerLoop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 224,
+          "type_index": "0x4aa61",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::function<void (LoopingSoundState &)>",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "unregisterLoop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 232,
+          "type_index": "0x4aa62",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSubtitle",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 240,
+          "type_index": "0x4aa63",
+          "return_type": "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 264,
+          "type_index": "0x4aa64",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 256,
+          "type_index": "0x4aa65",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const Core::Path &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 248,
+          "type_index": "0x4aa66",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "playAttached",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 272,
+          "type_index": "0x4aa68",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::function<void (SoundInstanceProperties &)> &&"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetPlayingSoundAttributes",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 288,
+          "type_index": "0x4aa69",
+          "return_type": "std::optional<PlayingSoundAttributes>",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetPlayingSoundAttributes",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 280,
+          "type_index": "0x4aa6a",
+          "return_type": "std::optional<PlayingSoundAttributes>",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetLoopingSoundAttributes",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 296,
+          "type_index": "0x4aa6c",
+          "return_type": "std::optional<LoopingSoundAttributes>",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "TickingAreasLoadStatusPacketPayload",
+      "type_index": "0x20edc",
+      "size": 1,
+      "fieldlist": "0x20edb",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mWaitingForPreload",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "UnlockedRecipesPacketPayload",
+      "type_index": "0x2149c",
+      "size": 32,
+      "fieldlist": "0x2149b",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mPacketType",
+          "offset": 0,
+          "type": "UnlockedRecipesPacketPayload::PacketType",
+          "type_index": "0x1c26",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnlockedRecipes",
+          "offset": 8,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "UpdateEquipPacketPayload",
+      "type_index": "0x21518",
+      "size": 40,
+      "fieldlist": "0x21517",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mContainerId",
+          "offset": 0,
+          "type": "ContainerID",
+          "type_index": "0x13b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mType",
+          "offset": 1,
+          "type": "SharedTypes::Legacy::ContainerType",
+          "type_index": "0x13bd",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSize",
+          "offset": 4,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntityUniqueID",
+          "offset": 8,
+          "type": "ActorUniqueID",
+          "type_index": "0x48fa",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mData",
+          "offset": 16,
+          "type": "CompoundTag",
+          "type_index": "0xe54e",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 136220,
+      "name": "??0ItemStackBase@@QEAA@AEBVItem@@HHPEBVCompoundTag@@@Z",
+      "section": 1,
+      "section_offset": "0x247dad0",
+      "rva": "0x247ead0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1867720,
+      "name": "?cleanUpDynamicContainers@HudContainerManagerModel@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x343cac0",
+      "rva": "0x343dac0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2519464,
+      "name": "?getItem@ItemRegistryRef@@QEBA?AV?$WeakPtr@VItem@@@@F@Z",
+      "section": 1,
+      "section_offset": "0x348de20",
+      "rva": "0x348ee20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2589244,
+      "name": "?getNewPopupItemText@MinecraftScreenModel@@QEAA_NAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEA_N@Z",
+      "section": 1,
+      "section_offset": "0x492c0e0",
+      "rva": "0x492d0e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2589380,
+      "name": "?getNewPopupNotice@GuiData@@QEAA_NAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z",
+      "section": 1,
+      "section_offset": "0x15625e0",
+      "rva": "0x15635e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2761492,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimateEntityPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1326de0",
+      "rva": "0x1327de0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2762960,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundControlSchemeSetPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1318120",
+      "rva": "0x1319120"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2763300,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundUpdateSoundDataPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x131e6e0",
+      "rva": "0x131f6e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2763616,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCompletedUsingItemPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1305470",
+      "rva": "0x1306470"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2764440,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmotePacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1309c60",
+      "rva": "0x130ac60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2764636,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVGuiDataPickItemPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1307820",
+      "rva": "0x1308820"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2766076,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlaySoundPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x131e2a0",
+      "rva": "0x131f2a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2766272,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerArmorDamagePacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1309f90",
+      "rva": "0x130af90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2766472,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerLocationPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1329340",
+      "rva": "0x132a340"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2769232,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimulationTypePacket@@@Z",
+      "section": 1,
+      "section_offset": "0x130a740",
+      "rva": "0x130b740"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2770044,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTickingAreasLoadStatusPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x12fdcc0",
+      "rva": "0x12fecc0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2770348,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUnlockedRecipesPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x130a8c0",
+      "rva": "0x130b8c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2770452,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateEquipPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1320da0",
+      "rva": "0x1321da0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2773256,
+      "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVHurtArmorPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x13411a0",
+      "rva": "0x13421a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2787140,
+      "name": "?handleArmorDamage@LocalPlayer@@QEAAXAEBUArmorSlotAndDamagePair@@@Z",
+      "section": 1,
+      "section_offset": "0x476b2f0",
+      "rva": "0x476c2f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2814232,
+      "name": "?handleUpdateSoundData@LevelSoundManager@@QEAAXAEBUClientboundUpdateSoundDataPacketPayload@@@Z",
+      "section": 1,
+      "section_offset": "0x1749b60",
+      "rva": "0x174ab60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2832896,
+      "name": "?hidePlayer@PlayerLocationReceiver@@QEAAXAEBUActorUniqueID@@@Z",
+      "section": 1,
+      "section_offset": "0x34e5b60",
+      "rva": "0x34e6b60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2952108,
+      "name": "?isValid@PlayerLocationPacket@@UEBA_NXZ",
+      "section": 1,
+      "section_offset": "0x3cbf020",
+      "rva": "0x3cc0020"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3130728,
+      "name": "?onConfigChanged@ClientInputHandler@@QEAAXAEBVConfig@@@Z",
+      "section": 1,
+      "section_offset": "0x434e570",
+      "rva": "0x434f570"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266144,
+      "name": "?play@SoundEngine@@UEAA_KUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x41be810",
+      "rva": "0x41bf810"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3267376,
+      "name": "?playEmote@LocalPlayer@@UEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@_N@Z",
+      "section": 1,
+      "section_offset": "0x4765930",
+      "rva": "0x4766930"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270100,
+      "name": "?playSound@Level@@UEAAXAEBUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x1172ee0",
+      "rva": "0x1173ee0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3550496,
+      "name": "?sendEvent@ActorEventCoordinator@@QEAAXAEBV?$EventRef@U?$ActorGameplayEvent@X@@@@@Z",
+      "section": 1,
+      "section_offset": "0x2fe9260",
+      "rva": "0x2fea260"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3603292,
+      "name": "?setDamageValue@Item@@QEBAXAEAVItemStackBase@@F@Z",
+      "section": 1,
+      "section_offset": "0x24c6fe0",
+      "rva": "0x24c7fe0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3618972,
+      "name": "?setExpired@ContainerRegistry@@UEAAXAEBV?$vector@UFullContainerName@@V?$allocator@UFullContainerName@@@std@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x31ae390",
+      "rva": "0x31af390"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3729344,
+      "name": "?showPopupNotice@GuiData@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z",
+      "section": 1,
+      "section_offset": "0x1562400",
+      "rva": "0x1563400"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3832824,
+      "name": "?tick@EntitySystems@@QEAAXAEAVEntityRegistry@@@Z",
+      "section": 1,
+      "section_offset": "0x63afb00",
+      "rva": "0x63b0b00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3839088,
+      "name": "?tick@GuiData@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x1556f30",
+      "rva": "0x1557f30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3840220,
+      "name": "?tick@HudScreenController@@UEAA?AW4DirtyFlag@ui@@XZ",
+      "section": 1,
+      "section_offset": "0x4e9f0a0",
+      "rva": "0x4ea00a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3877916,
+      "name": "?tickEditor@EntitySystems@@QEAAXAEAVEntityRegistry@@@Z",
+      "section": 1,
+      "section_offset": "0x63b0070",
+      "rva": "0x63b1070"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3879572,
+      "name": "?tickEntitySystems@Level@@UEAAXXZ",
+      "section": 1,
+      "section_offset": "0x1176690",
+      "rva": "0x1177690"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 4005624,
+      "name": "?updatePlayer@PlayerLocationReceiver@@QEAAXAEBUActorUniqueID@@AEBVVec3@@@Z",
+      "section": 1,
+      "section_offset": "0x34e5ae0",
+      "rva": "0x34e6ae0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 4101000,
+      "name": "?writeWithSerializationMode@HurtArmorPacket@@UEBAXAEAVBinaryStream@@AEBUReflectionCtx@cereal@@V?$optional@W4SerializationMode@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2714350",
+      "rva": "0x2715350"
+    }
+  ]
+}

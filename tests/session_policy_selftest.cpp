@@ -89,6 +89,17 @@ namespace {
 }
 
 int main() {
+    for (const uint16_t algorithm : {0, 1}) {
+        for (const size_t size : {0, 1, 255, 256, 4096})
+            CHECK(static_cast<uint8_t>(SelectBatchCompression(algorithm, 0, size)) == 0xFF);
+        CHECK(static_cast<uint8_t>(SelectBatchCompression(algorithm, 256, 255)) == 0xFF);
+        CHECK(static_cast<uint8_t>(SelectBatchCompression(algorithm, 256, 256)) == algorithm);
+        CHECK(static_cast<uint8_t>(SelectBatchCompression(algorithm, 256, 257)) == algorithm);
+        CHECK(static_cast<uint8_t>(SelectBatchCompression(algorithm, 1, 1)) == algorithm);
+    }
+    for (const uint16_t threshold : {0, 1, 256})
+        CHECK(static_cast<uint8_t>(SelectBatchCompression(0xFFFF, threshold, 4096)) == 0xFF);
+
     const PlayStatusKind kinds[] = {PlayStatusKind::LoginSuccess, PlayStatusKind::FailedClient,
                                     PlayStatusKind::FailedSpawn, PlayStatusKind::PlayerSpawn,
                                     PlayStatusKind::Other};

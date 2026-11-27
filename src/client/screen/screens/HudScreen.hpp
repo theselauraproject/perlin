@@ -70,6 +70,7 @@ namespace perlin::screen {
         void FillHudLocator(ui::HudState& s, BedrockSession& live);
         void FillHudTabList(ui::HudState& s, BedrockSession& live);
         void FillHudHeldName(ui::HudState& s);
+        void FillHudPickNotice(ui::HudState& s, BedrockSession& live);
         void FillHudTitleText(ui::HudState& s, BedrockSession& live);
         void FillHudState(ui::HudState& s, BedrockSession* live, bool preview);
 
@@ -106,6 +107,8 @@ namespace perlin::screen {
         bool hudBootstrap = false;
 
         BedrockSession::ScreenAnimation screenAnimation;
+        GuiDataState::Notice pickNotice;
+        int pickNoticeTicks = 0;
         void DrawPaperDoll(FrameContext& f, int fbW, int fbH);
         bool PaperDollActive(BedrockSession& live);
         struct {

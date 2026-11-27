@@ -1,0 +1,102 @@
+{
+  "filename": "Minecraft.Windows.exe",
+  "size_bytes": 311249032,
+  "sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "architecture": "x86-64",
+  "format": "PE32+",
+  "image_base": "0x140000000",
+  "linker_timestamp_raw": 1789166333,
+  "coff_symbol_table_offset": 0,
+  "coff_symbol_count": 0,
+  "sections": [
+    {
+      "name": ".text",
+      "rva": 4096,
+      "virtual_size": 240802486,
+      "file_offset": 1024,
+      "file_size": 240802816,
+      "flags": 1610612768
+    },
+    {
+      "name": ".rdata",
+      "rva": 240807936,
+      "virtual_size": 52636516,
+      "file_offset": 240803840,
+      "file_size": 52636672,
+      "flags": 1073741888
+    },
+    {
+      "name": ".data",
+      "rva": 293445632,
+      "virtual_size": 8772568,
+      "file_offset": 293440512,
+      "file_size": 5414912,
+      "flags": 3221225536
+    },
+    {
+      "name": ".pdata",
+      "rva": 302219264,
+      "virtual_size": 11333496,
+      "file_offset": 298855424,
+      "file_size": 11333632,
+      "flags": 1073741888
+    },
+    {
+      "name": ".tls",
+      "rva": 313552896,
+      "virtual_size": 11505,
+      "file_offset": 310189056,
+      "file_size": 11776,
+      "flags": 3221225536
+    },
+    {
+      "name": ".xbld",
+      "rva": 313565184,
+      "virtual_size": 260,
+      "file_offset": 310200832,
+      "file_size": 512,
+      "flags": 3221225536
+    },
+    {
+      "name": ".rsrc",
+      "rva": 313569280,
+      "virtual_size": 18600,
+      "file_offset": 310201344,
+      "file_size": 18944,
+      "flags": 1073741888
+    },
+    {
+      "name": ".reloc",
+      "rva": 313589760,
+      "virtual_size": 985580,
+      "file_offset": 310220288,
+      "file_size": 985600,
+      "flags": 1107296320
+    },
+    {
+      "name": ".nimp",
+      "rva": 314576896,
+      "virtual_size": 43520,
+      "file_offset": 311205888,
+      "file_size": 43144,
+      "flags": 3221225472
+    }
+  ],
+  "authenticode_directory_present": true,
+  "authenticode_signature_verified": false,
+  "codeview": [
+    {
+      "guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+      "age": 1,
+      "pdb_path": "D:\\a\\_work\\1\\s\\build\\gamecore_x64_desktop\\Minecraft\\Minecraft.Windows\\Publish\\Minecraft.Windows.pdb",
+      "file_offset": "0xf0000f4"
+    }
+  ],
+  "file_versions": [
+    {
+      "file_version": "1.26.51.1",
+      "product_version": "1.26.51.1",
+      "fixed_file_info_offset": "0x127d4d58"
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 #include "util/FileIo.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -325,8 +326,9 @@ namespace perlin::audio {
         return result;
     }
 
-    bool SoundSystem::Play(const std::string& definition, float volume, float pitch,
-                           const glm::dvec3& position, bool positional, const EventSound* event) {
+    uint64_t SoundSystem::Play(const std::string& definition, float volume, float pitch,
+                               const glm::dvec3& position, bool positional, const EventSound* event,
+                               const PlaybackOptions& playback) {
         const auto it = definitions.find(definition);
         if (it == definitions.end() || it->second.entries.empty()) {
             if (!warned["def:" + definition]) {
@@ -366,22 +368,29 @@ namespace perlin::audio {
         voice.position = position;
         voice.range = std::max(16.0f * std::max(volume * eventVolume * chosen->volume, 1.0f),
                                def.maxDistance > 0 ? def.maxDistance : 0.0f);
-        voice.loop = false;
+        voice.loop = playback.loopCount == UINT32_MAX;
+        voice.repeats = voice.loop ? 0 : playback.loopCount;
+        voice.bypassRangeCheck = playback.bypassRangeCheck;
+        voice.allowMerge = !playback.distinct;
+        if (playback.positionSeconds && std::isfinite(*playback.positionSeconds) && *playback.positionSeconds > 0)
+            voice.cursor = std::min(static_cast<double>(*playback.positionSeconds) * voice.pcm->rate,
+                                    static_cast<double>(voice.pcm->Frames()));
         voice.name = definition;
-        if (voice.volume <= 0.0f)
+        if (voice.volume <= 0.0f && !playback.distinct)
             return false;
-        if (engine.Start(std::move(voice)) == 0)
+        const uint64_t id = engine.Start(std::move(voice));
+        if (id == 0)
             return false;
         if (subtitles)
             subtitles(definition, position, volume * eventVolume, !positional);
-        return true;
+        return id;
     }
 
-    bool SoundSystem::PlayNamed(const std::string& name, const glm::dvec3& position, float volume,
-                                float pitch, bool positional) {
+    uint64_t SoundSystem::PlayNamed(const std::string& name, const glm::dvec3& position, float volume,
+                                    float pitch, bool positional, const PlaybackOptions& playback) {
         if (const auto it = named.find(name); it != named.end() && definitions.contains(it->second.sound))
-            return Play(it->second.sound, volume, pitch, position, positional, &it->second);
-        return Play(name, volume, pitch, position, positional);
+            return Play(it->second.sound, volume, pitch, position, positional, &it->second, playback);
+        return Play(name, volume, pitch, position, positional, nullptr, playback);
     }
 
     bool SoundSystem::PlayBlockEvent(const std::string& blockName, const std::string& event,

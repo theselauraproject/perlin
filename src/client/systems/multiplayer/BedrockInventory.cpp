@@ -767,15 +767,6 @@ namespace perlin {
             std::lock_guard lock(statusMutex);
             slot = std::clamp(inventory.selected, 0, 8);
         }
-        if (OffhandExperiment() && previewOffhand) {
-            {
-                std::lock_guard lock(statusMutex);
-                std::swap(InvInfoLocked(slot), InvInfoLocked(kInvOffhand));
-                std::swap(InvRawLocked(slot), InvRawLocked(kInvOffhand));
-            }
-            QueueInputFlag(InputFlag::SwapOffhand);
-            return;
-        }
         InvSwapOffhand(slot);
     }
 
@@ -1159,9 +1150,27 @@ namespace perlin {
         return v;
     }
 
+    bool BedrockSession::RecipeBookUsesUnlocks() const {
+        const WorldSettings settings = World();
+        const int mode = gameType == 5 ? settings.worldGameMode : gameType;
+        const auto rule = settings.rules.find("recipesunlock");
+        return mode != 1 && mode != 6 && (rule == settings.rules.end() || rule->second != 0);
+    }
+
+    bool BedrockSession::RecipeOutputUnlockedLocked(const RecipeInfo& recipe) const {
+        return std::ranges::any_of(recipes, [&](const RecipeInfo& candidate) {
+            return candidate.outInfo.name == recipe.outInfo.name && candidate.outInfo.aux == recipe.outInfo.aux &&
+                   candidate.outInfo.blockRuntimeId == recipe.outInfo.blockRuntimeId &&
+                   candidate.outInfo.count == recipe.outInfo.count &&
+                   recipeUnlocks.Allows(candidate.id, candidate.alwaysUnlocked);
+        });
+    }
+
     std::vector<BedrockSession::RecipeEntry> BedrockSession::GetRecipes(int side) const {
+        const bool filterLocked = RecipeBookUsesUnlocks();
         std::lock_guard lock(statusMutex);
         std::vector<RecipeEntry> out;
+        std::vector<bool> unlocked;
         std::map<std::string, size_t> byKey;
         for (size_t ri = 0; ri < recipes.size(); ri++) {
             const RecipeInfo& r = recipes[ri];
@@ -1192,6 +1201,7 @@ namespace perlin {
                                     std::to_string(r.outInfo.blockRuntimeId) + ";" +
                                     std::to_string(r.outInfo.count);
             if (const auto seen = byKey.find(key); seen != byKey.end()) {
+                unlocked[seen->second] = unlocked[seen->second] || recipeUnlocks.Allows(r.id, r.alwaysUnlocked);
                 RecipeEntry& prev = out[seen->second];
                 if (craftable && !prev.craftable) {
                     prev.craftable = true;
@@ -1205,15 +1215,28 @@ namespace perlin {
             e.craftable = craftable;
             e.out = r.outInfo;
             out.push_back(std::move(e));
+            unlocked.push_back(recipeUnlocks.Allows(r.id, r.alwaysUnlocked));
+        }
+        if (filterLocked) {
+            std::vector<RecipeEntry> visible;
+            for (size_t i = 0; i < out.size(); i++)
+                if (unlocked[i])
+                    visible.push_back(std::move(out[i]));
+            return visible;
         }
         return out;
     }
 
     void BedrockSession::InvFillRecipe(int index) {
+        const bool filterLocked = RecipeBookUsesUnlocks();
         bool big;
+        RecipeInfo recipe;
         {
             std::lock_guard lock(statusMutex);
             if (index < 0 || index >= static_cast<int>(recipes.size()))
+                return;
+            recipe = recipes[static_cast<size_t>(index)];
+            if (filterLocked && !RecipeOutputUnlockedLocked(recipe))
                 return;
             big = workbenchOpen;
         }
@@ -1230,10 +1253,6 @@ namespace perlin {
                 return ok;
             });
         }
-        const RecipeInfo recipe = [&] {
-            std::lock_guard lock(statusMutex);
-            return recipes[static_cast<size_t>(index)];
-        }();
         const int w = recipe.shaped ? recipe.w : side;
         std::vector<int> usedSources;
         for (size_t k = 0; k < recipe.in.size(); k++) {

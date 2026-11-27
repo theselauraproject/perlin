@@ -167,11 +167,15 @@ namespace perlin {
     }
 
     bool InputManager::IsDownUnfrozen(Action action) const {
+        return IsDownImpl(action, true);
+    }
+
+    bool InputManager::ActionAllowed(Action action, bool applyServerLocks) const {
         if (blocked && action != Action::DebugScreen)
             return false;
         if (input.TextMode())
             return false;
-        if (locks) {
+        if (applyServerLocks && locks) {
             const bool all = (locks & 4u) != 0;
             switch (action) {
             case Action::Forward:
@@ -202,13 +206,52 @@ namespace perlin {
                 break;
             }
         }
+        return true;
+    }
+
+    namespace {
+        bool MovementAction(Action action) {
+            return action == Action::Forward || action == Action::Back || action == Action::Left ||
+                   action == Action::Right;
+        }
+
+        bool AnalogBinding(const Binding& binding) {
+            return binding.device == Binding::Device::Gamepad && binding.code >= Pad::LeftStickUp &&
+                   binding.code <= Pad::RightStickRight;
+        }
+    }
+
+    float InputManager::PadMovementValue(Action action) const {
+        const Binding& binding = options.GetPadKey(action);
+        if (!AnalogBinding(binding))
+            return 0;
+        switch (binding.code) {
+        case Pad::LeftStickUp: return std::max(0.0f, -input.PadMoveY());
+        case Pad::LeftStickDown: return std::max(0.0f, input.PadMoveY());
+        case Pad::LeftStickLeft: return std::max(0.0f, -input.PadMoveX());
+        case Pad::LeftStickRight: return std::max(0.0f, input.PadMoveX());
+        case Pad::RightStickUp: return std::max(0.0f, -input.PadLookY());
+        case Pad::RightStickDown: return std::max(0.0f, input.PadLookY());
+        case Pad::RightStickLeft: return std::max(0.0f, -input.PadLookX());
+        case Pad::RightStickRight: return std::max(0.0f, input.PadLookX());
+        default: return 0;
+        }
+    }
+
+    bool InputManager::IsDownImpl(Action action, bool applyServerLocks, bool includeAnalog) const {
+        if (!ActionAllowed(action, applyServerLocks))
+            return false;
         if (controlled)
             return controlTick < controlUntil && controlActions.test(static_cast<size_t>(action));
         if (holds[static_cast<size_t>(action)] > std::chrono::steady_clock::now())
             return true;
         const Binding& pb = options.GetPadKey(action);
-        if (pb.device == Binding::Device::Gamepad && input.IsPadDown(pb.code))
+        if (MovementAction(action) && AnalogBinding(pb)) {
+            if (includeAnalog && Device() == InputDevice::Gamepad && PadMovementValue(action) > 0)
+                return true;
+        } else if (pb.device == Binding::Device::Gamepad && input.IsPadDown(pb.code)) {
             return true;
+        }
         const Binding& b = options.GetKey(action);
         if ((grabMouse && b.device == Binding::Device::Mouse) ||
             (grabKeyboard && b.device == Binding::Device::Keyboard))
@@ -224,6 +267,64 @@ namespace perlin {
     }
 
     float InputManager::Axis(Action positive, Action negative) const {
+        if (positive == Action::Forward && negative == Action::Back)
+            return Movement(true).forward;
+        if (positive == Action::Right && negative == Action::Left)
+            return Movement(true).strafe;
         return (IsDown(positive) ? 1.0f : 0.0f) - (IsDown(negative) ? 1.0f : 0.0f);
+    }
+
+    float InputManager::AxisBeforeServerLocks(Action positive, Action negative) const {
+        if (positive == Action::Forward && negative == Action::Back)
+            return Movement(false).forward;
+        if (positive == Action::Right && negative == Action::Left)
+            return Movement(false).strafe;
+        const auto down = [this](Action action) {
+            return !(modFreeze && Freezable(action)) && IsDownImpl(action, false);
+        };
+        return (down(positive) ? 1.0f : 0.0f) - (down(negative) ? 1.0f : 0.0f);
+    }
+
+    MoveAxes InputManager::AnalogMovement(bool applyServerLocks) const {
+        if (modFreeze || controlled)
+            return {};
+        MoveAxes result;
+        if (Device() == InputDevice::Gamepad) {
+            const auto value = [&](Action action) {
+                return ActionAllowed(action, applyServerLocks) ? PadMovementValue(action) : 0.0f;
+            };
+            result = {value(Action::Right) - value(Action::Left),
+                      value(Action::Forward) - value(Action::Back)};
+        } else if (Device() == InputDevice::Touch) {
+            result = {input.TouchMoveX(), -input.TouchMoveY()};
+            const auto allowed = [&](Action action) {
+                const Binding& binding = options.GetKey(action);
+                return ActionAllowed(action, applyServerLocks) &&
+                       !(grabKeyboard && binding.device == Binding::Device::Keyboard) &&
+                       !(grabMouse && binding.device == Binding::Device::Mouse);
+            };
+            if (!allowed(result.strafe < 0 ? Action::Left : Action::Right))
+                result.strafe = 0;
+            if (!allowed(result.forward < 0 ? Action::Back : Action::Forward))
+                result.forward = 0;
+        }
+        const float length = std::hypot(result.strafe, result.forward);
+        if (!std::isfinite(length))
+            return {};
+        if (length > 1) {
+            result.strafe /= length;
+            result.forward /= length;
+        }
+        return result;
+    }
+
+    MoveAxes InputManager::Movement(bool applyServerLocks) const {
+        const MoveAxes analog = AnalogMovement(applyServerLocks);
+        if (analog.strafe != 0 || analog.forward != 0)
+            return analog;
+        const auto value = [&](Action action) {
+            return !modFreeze && IsDownImpl(action, applyServerLocks, false) ? 1.0f : 0.0f;
+        };
+        return {value(Action::Right) - value(Action::Left), value(Action::Forward) - value(Action::Back)};
     }
 }

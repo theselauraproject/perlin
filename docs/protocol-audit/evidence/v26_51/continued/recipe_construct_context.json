@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "Recipe::ConstructionContext",
+      "type_index": "0x17caa",
+      "size": 232,
+      "fieldlist": "0x17ca9",
+      "member_count": 9,
+      "fields": [
+        {
+          "name": "recipeId",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "ingredients",
+          "offset": 32,
+          "type": "std::vector<RecipeIngredient,std::allocator<RecipeIngredient> >",
+          "type_index": "0xdce7",
+          "member_kind": "instance"
+        },
+        {
+          "name": "results",
+          "offset": 56,
+          "type": "Recipe::Results",
+          "type_index": "0xfb99",
+          "member_kind": "instance"
+        },
+        {
+          "name": "tag",
+          "offset": 112,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "priority",
+          "offset": 160,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "uuid",
+          "offset": 168,
+          "type": "const mce::UUID *",
+          "type_index": "0x17ca6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "unlockingRequirement",
+          "offset": 176,
+          "type": "RecipeUnlockingRequirement",
+          "type_index": "0xfa79",
+          "member_kind": "instance"
+        },
+        {
+          "name": "formatVersion",
+          "offset": 208,
+          "type": "SemVersion",
+          "type_index": "0xffde",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~ConstructionContext",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x17ca8",
+          "return_type": "void",
+          "class_type": "Recipe::ConstructionContext",
+          "this_type": "Recipe::ConstructionContext *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": []
+}

@@ -24,11 +24,44 @@ namespace perlin::net {
     };
 
     namespace context {
+        struct Settings {
+            int32_t protocol = 0;
+            int32_t shieldItemId = -1;
+        };
+
+        inline std::optional<Settings>& BoundSettings() {
+            static thread_local std::optional<Settings> settings;
+            return settings;
+        }
+
+        // Standalone codec callers retain the process defaults below. Sessions
+        // bind an immutable snapshot for each operation, including callbacks
+        // that temporarily enter a different session on the same thread.
+        class ScopedSettings {
+        public:
+            explicit ScopedSettings(Settings settings) : previous(BoundSettings()) {
+                BoundSettings() = settings;
+            }
+            ~ScopedSettings() { BoundSettings() = previous; }
+            ScopedSettings(const ScopedSettings&) = delete;
+            ScopedSettings& operator=(const ScopedSettings&) = delete;
+
+        private:
+            std::optional<Settings> previous;
+        };
+
+        inline void UpdateBoundShieldItemID(int32_t id) {
+            if (auto& settings = BoundSettings(); settings)
+                settings->shieldItemId = id;
+        }
+
         inline std::atomic<int32_t>& ShieldItemIdSlot() {
             static std::atomic<int32_t> slot{-1};
             return slot;
         }
         inline int32_t ShieldItemID() {
+            if (const auto& settings = BoundSettings(); settings)
+                return settings->shieldItemId;
             return ShieldItemIdSlot().load(std::memory_order_relaxed);
         }
         inline void SetShieldItemID(int32_t id) {
@@ -39,6 +72,8 @@ namespace perlin::net {
             return slot;
         }
         inline int32_t Protocol() {
+            if (const auto& settings = BoundSettings(); settings)
+                return settings->protocol;
             return ProtocolSlot().load(std::memory_order_relaxed);
         }
         inline void SetProtocol(int32_t protocol) {
@@ -83,14 +118,18 @@ namespace perlin::net {
 
         template <class T> void varint(T& v) {
             static_assert(std::is_unsigned_v<T>);
+            constexpr unsigned bits = sizeof(T) * 8;
             T out = 0;
-            for (unsigned shift = 0; shift < sizeof(T) * 8 + 7; shift += 7) {
+            for (unsigned shift = 0; shift < bits; shift += 7) {
                 uint8_t b = 0;
                 u8(b);
                 if (!ok)
                     return;
-                if (shift < sizeof(T) * 8)
-                    out |= static_cast<T>(static_cast<T>(b & 0x7F) << shift);
+                if (bits - shift < 7 && (b & 0x7F) >= (1u << (bits - shift))) {
+                    ok = false;
+                    return;
+                }
+                out |= static_cast<T>(static_cast<T>(b & 0x7F) << shift);
                 if (!(b & 0x80)) {
                     v = out;
                     return;
@@ -103,7 +142,8 @@ namespace perlin::net {
             using U = std::make_unsigned_t<T>;
             U raw = 0;
             varint(raw);
-            v = static_cast<T>((raw >> 1) ^ (~(raw & 1) + 1));
+            if (ok)
+                v = static_cast<T>((raw >> 1) ^ (~(raw & 1) + 1));
         }
 
         void uuid(Uuid& v) { Bytes(v.bytes.data(), v.bytes.size()); }
@@ -116,6 +156,10 @@ namespace perlin::net {
                 if (!ok)
                     return;
                 const uint64_t bits = b & 0x7F;
+                if (shift == 126 && bits > 3) {
+                    ok = false;
+                    return;
+                }
                 if (shift < 64) {
                     out[0] |= bits << shift;
                     if (shift > 57)

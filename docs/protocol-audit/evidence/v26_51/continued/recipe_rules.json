@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 844796,
+      "name": "?UNLOCKABLE_RECIPES_SOFTENUM_NAME@CommandRegistry@@2PEBDEB",
+      "section": 3,
+      "section_offset": "0x14a440",
+      "rva": "0x11924440"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 844872,
+      "name": "?UNLOCKED_RECIPES_TAG@UnlockedRecipesServerComponent@@2V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@B",
+      "section": 3,
+      "section_offset": "0x544910",
+      "rva": "0x11d1e910"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11321552,
+      "name": "CommandRegistry::UNLOCKABLE_RECIPES_SOFTENUM_NAME",
+      "section": 3,
+      "section_offset": "0x14a440",
+      "rva": "0x11924440"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11321616,
+      "name": "UnlockedRecipesServerComponent::UNLOCKED_RECIPES_TAG",
+      "section": 3,
+      "section_offset": "0x544910",
+      "rva": "0x11d1e910"
+    }
+  ]
+}

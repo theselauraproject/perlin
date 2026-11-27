@@ -1,0 +1,2088 @@
+{
+  "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "recognized_get_name_functions": 231,
+  "mapped_packets": 231,
+  "unique_packet_ids": 231,
+  "unmapped_names": [],
+  "packets": [
+    {
+      "name": "LoginPacket",
+      "get_name_rva": "0x2e916a0",
+      "name_string_rva": "0xebdb204",
+      "packet_id": 1,
+      "get_id_rva": "0xe19a0",
+      "vtable_rva": "0xe7b0eb0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayStatusPacket",
+      "get_name_rva": "0x3c7ab00",
+      "name_string_rva": "0xebdab0c",
+      "packet_id": 2,
+      "get_id_rva": "0x159bb0",
+      "vtable_rva": "0xe8a2bd0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerToClientHandshakePacket",
+      "get_name_rva": "0x3dd3ca0",
+      "name_string_rva": "0xebdb735",
+      "packet_id": 3,
+      "get_id_rva": "0x92270",
+      "vtable_rva": "0xe7c0a00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientToServerHandshakePacket",
+      "get_name_rva": "0x83f57c0",
+      "name_string_rva": "0xebdb753",
+      "packet_id": 4,
+      "get_id_rva": "0xd807a0",
+      "vtable_rva": "0xea1c080",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "DisconnectPacket",
+      "get_name_rva": "0x26d44a0",
+      "name_string_rva": "0xebdaa8d",
+      "packet_id": 5,
+      "get_id_rva": "0x12843e0",
+      "vtable_rva": "0xe7c1300",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePacksInfoPacket",
+      "get_name_rva": "0x3797700",
+      "name_string_rva": "0xebdafee",
+      "packet_id": 6,
+      "get_id_rva": "0x56d820",
+      "vtable_rva": "0xe7c18a0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePackStackPacket",
+      "get_name_rva": "0x378f2e0",
+      "name_string_rva": "0xebdb392",
+      "packet_id": 7,
+      "get_id_rva": "0x2d0510",
+      "vtable_rva": "0xe7c1810",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePackClientResponsePacket",
+      "get_name_rva": "0x3780570",
+      "name_string_rva": "0xebdb4ec",
+      "packet_id": 8,
+      "get_id_rva": "0x91e10",
+      "vtable_rva": "0xe7b1210",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "TextPacket",
+      "get_name_rva": "0x3556920",
+      "name_string_rva": "0xebda601",
+      "packet_id": 9,
+      "get_id_rva": "0x2065490",
+      "vtable_rva": "0xe6d6940",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetTimePacket",
+      "get_name_rva": "0x3a7fed0",
+      "name_string_rva": "0xebdb6e7",
+      "packet_id": 10,
+      "get_id_rva": "0x2cae60",
+      "vtable_rva": "0xe89d550",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "StartGamePacket",
+      "get_name_rva": "0x3aaee30",
+      "name_string_rva": "0xebdb6f5",
+      "packet_id": 11,
+      "get_id_rva": "0x3aaee20",
+      "vtable_rva": "0xe7c0b20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AddPlayerPacket",
+      "get_name_rva": "0x1065b00",
+      "name_string_rva": "0xebdaede",
+      "packet_id": 12,
+      "get_id_rva": "0x1065af0",
+      "vtable_rva": "0xe7a4760",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AddActorPacket",
+      "get_name_rva": "0x1050f00",
+      "name_string_rva": "0xebdae9f",
+      "packet_id": 13,
+      "get_id_rva": "0x1050ef0",
+      "vtable_rva": "0xe7a4520",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RemoveActorPacket",
+      "get_name_rva": "0x3758470",
+      "name_string_rva": "0xebdae8d",
+      "packet_id": 14,
+      "get_id_rva": "0x319e6c0",
+      "vtable_rva": "0xe891a40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AddItemActorPacket",
+      "get_name_rva": "0x105b5d0",
+      "name_string_rva": "0xebdae7a",
+      "packet_id": 15,
+      "get_id_rva": "0x9f9310",
+      "vtable_rva": "0xe7a4640",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerPlayerPostMovePositionPacket",
+      "get_name_rva": "0x3dbf730",
+      "name_string_rva": "0xebdb0da",
+      "packet_id": 16,
+      "get_id_rva": "0x2c6b10",
+      "vtable_rva": "0xe8a6e30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "TakeItemActorPacket",
+      "get_name_rva": "0x3547ab0",
+      "name_string_rva": "0xebdae66",
+      "packet_id": 17,
+      "get_id_rva": "0x3547aa0",
+      "vtable_rva": "0xe887ce0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MoveActorAbsolutePacket",
+      "get_name_rva": "0x2ec4480",
+      "name_string_rva": "0xebdb43b",
+      "packet_id": 18,
+      "get_id_rva": "0x2ec4470",
+      "vtable_rva": "0xe85bea0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MovePlayerPacket",
+      "get_name_rva": "0x2ecd9b0",
+      "name_string_rva": "0xebdaecd",
+      "packet_id": 19,
+      "get_id_rva": "0x2ecd9a0",
+      "vtable_rva": "0xe85bfc0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateBlockPacket",
+      "get_name_rva": "0x3583200",
+      "name_string_rva": "0xebdb380",
+      "packet_id": 21,
+      "get_id_rva": "0x35831f0",
+      "vtable_rva": "0xe887fc0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AddPaintingPacket",
+      "get_name_rva": "0x105feb0",
+      "name_string_rva": "0xebdb3ca",
+      "packet_id": 22,
+      "get_id_rva": "0x105fea0",
+      "vtable_rva": "0xe7a46d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LevelEventPacket",
+      "get_name_rva": "0x2e7fd80",
+      "name_string_rva": "0xebda981",
+      "packet_id": 25,
+      "get_id_rva": "0xfb9030",
+      "vtable_rva": "0xe85bc60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "BlockEventPacket",
+      "get_name_rva": "0x8392e60",
+      "name_string_rva": "0xebda992",
+      "packet_id": 26,
+      "get_id_rva": "0x8392e50",
+      "vtable_rva": "0xea1baa0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ActorEventPacket",
+      "get_name_rva": "0x1047210",
+      "name_string_rva": "0xebda959",
+      "packet_id": 27,
+      "get_id_rva": "0x1047200",
+      "vtable_rva": "0xe7a4400",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MobEffectPacket",
+      "get_name_rva": "0x2ea7b50",
+      "name_string_rva": "0xebdaaeb",
+      "packet_id": 28,
+      "get_id_rva": "0x2ea7b40",
+      "vtable_rva": "0xe85bd80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateAttributesPacket",
+      "get_name_rva": "0x357dc40",
+      "name_string_rva": "0xebdada4",
+      "packet_id": 29,
+      "get_id_rva": "0x357dc30",
+      "vtable_rva": "0xe7c1b00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "InventoryTransactionPacket",
+      "get_name_rva": "0x272c7d0",
+      "name_string_rva": "0xebdb137",
+      "packet_id": 30,
+      "get_id_rva": "0x272c7c0",
+      "vtable_rva": "0xe6d5fd0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MobEquipmentPacket",
+      "get_name_rva": "0x2eb0420",
+      "name_string_rva": "0xebdaa14",
+      "packet_id": 31,
+      "get_id_rva": "0x2eb0410",
+      "vtable_rva": "0xe6d6740",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MobArmorEquipmentPacket",
+      "get_name_rva": "0x2ea0320",
+      "name_string_rva": "0xebda9fc",
+      "packet_id": 32,
+      "get_id_rva": "0xb23c00",
+      "vtable_rva": "0xe783740",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "InteractPacket",
+      "get_name_rva": "0x271a320",
+      "name_string_rva": "0xebdaafd",
+      "packet_id": 33,
+      "get_id_rva": "0x271a310",
+      "vtable_rva": "0xe833e80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "BlockPickRequestPacket",
+      "get_name_rva": "0x8397570",
+      "name_string_rva": "0xebda799",
+      "packet_id": 34,
+      "get_id_rva": "0x8397560",
+      "vtable_rva": "0xea1bb30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ActorPickRequestPacket",
+      "get_name_rva": "0x104c5e0",
+      "name_string_rva": "0xebda782",
+      "packet_id": 35,
+      "get_id_rva": "0x104c5d0",
+      "vtable_rva": "0xe7a4490",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerActionPacket",
+      "get_name_rva": "0x3c80a30",
+      "name_string_rva": "0xebdb152",
+      "packet_id": 36,
+      "get_id_rva": "0x3c80a20",
+      "vtable_rva": "0xe8a2c60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "HurtArmorPacket",
+      "get_name_rva": "0x2715330",
+      "name_string_rva": "0xebdaeae",
+      "packet_id": 38,
+      "get_id_rva": "0x2715320",
+      "vtable_rva": "0xe833df0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetActorDataPacket",
+      "get_name_rva": "0x3df6e30",
+      "name_string_rva": "0xebdba91",
+      "packet_id": 39,
+      "get_id_rva": "0x3df6e20",
+      "vtable_rva": "0xe7cfd80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetActorMotionPacket",
+      "get_name_rva": "0x3dff6b0",
+      "name_string_rva": "0xebdb0ae",
+      "packet_id": 40,
+      "get_id_rva": "0xb27130",
+      "vtable_rva": "0xe8a73d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetActorLinkPacket",
+      "get_name_rva": "0x3dfb0f0",
+      "name_string_rva": "0xebdb36d",
+      "packet_id": 41,
+      "get_id_rva": "0x3dfb0e0",
+      "vtable_rva": "0xe8a7340",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetHealthPacket",
+      "get_name_rva": "0x3e15800",
+      "name_string_rva": "0xebdb3aa",
+      "packet_id": 42,
+      "get_id_rva": "0x3e157f0",
+      "vtable_rva": "0xe8a7590",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetSpawnPositionPacket",
+      "get_name_rva": "0x3a7a070",
+      "name_string_rva": "0xebdb0c3",
+      "packet_id": 43,
+      "get_id_rva": "0x3a7a060",
+      "vtable_rva": "0xe89d4c0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AnimatePacket",
+      "get_name_rva": "0x108af40",
+      "name_string_rva": "0xebdb45f",
+      "packet_id": 44,
+      "get_id_rva": "0x108af30",
+      "vtable_rva": "0xe7a49a0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RespawnPacket",
+      "get_name_rva": "0x37a1f20",
+      "name_string_rva": "0xebdb0a0",
+      "packet_id": 45,
+      "get_id_rva": "0x37a1f10",
+      "vtable_rva": "0xe891f50",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ContainerOpenPacket",
+      "get_name_rva": "0x38f3e80",
+      "name_string_rva": "0xebdb21f",
+      "packet_id": 46,
+      "get_id_rva": "0x38f3e70",
+      "vtable_rva": "0xe7b0d90",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ContainerClosePacket",
+      "get_name_rva": "0x38ef210",
+      "name_string_rva": "0xebdb4d7",
+      "packet_id": 47,
+      "get_id_rva": "0x38ef200",
+      "vtable_rva": "0xe897540",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerHotbarPacket",
+      "get_name_rva": "0x3cb1710",
+      "name_string_rva": "0xebdaf87",
+      "packet_id": 48,
+      "get_id_rva": "0xb36210",
+      "vtable_rva": "0xe8a2cf0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "InventoryContentPacket",
+      "get_name_rva": "0x271fcd0",
+      "name_string_rva": "0xebda9cf",
+      "packet_id": 49,
+      "get_id_rva": "0x271fcc0",
+      "vtable_rva": "0xe837c90",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "InventorySlotPacket",
+      "get_name_rva": "0x2727a30",
+      "name_string_rva": "0xebda91a",
+      "packet_id": 50,
+      "get_id_rva": "0x2727a20",
+      "vtable_rva": "0xe6d66b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ContainerSetDataPacket",
+      "get_name_rva": "0x38fd0f0",
+      "name_string_rva": "0xebdba7a",
+      "packet_id": 51,
+      "get_id_rva": "0x38fd0e0",
+      "vtable_rva": "0xe8975d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CraftingDataPacket",
+      "get_name_rva": "0x39081c0",
+      "name_string_rva": "0xebdbb15",
+      "packet_id": 52,
+      "get_id_rva": "0x39081b0",
+      "vtable_rva": "0xe8976f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "GuiDataPickItemPacket",
+      "get_name_rva": "0x2710d80",
+      "name_string_rva": "0xebdb2f2",
+      "packet_id": 54,
+      "get_id_rva": "0x2710d70",
+      "vtable_rva": "0xe833d60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "BlockActorDataPacket",
+      "get_name_rva": "0x838eb60",
+      "name_string_rva": "0xebdbaa4",
+      "packet_id": 56,
+      "get_id_rva": "0x838eb50",
+      "vtable_rva": "0xea1ba10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LevelChunkPacket",
+      "get_name_rva": "0x2e75be0",
+      "name_string_rva": "0xebdb341",
+      "packet_id": 58,
+      "get_id_rva": "0x2e75bd0",
+      "vtable_rva": "0xe85bbd0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetCommandsEnabledPacket",
+      "get_name_rva": "0x3e03d80",
+      "name_string_rva": "0xebdb96e",
+      "packet_id": 59,
+      "get_id_rva": "0x3e03d70",
+      "vtable_rva": "0xe8a7460",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetDifficultyPacket",
+      "get_name_rva": "0x3e0b770",
+      "name_string_rva": "0xebda4c6",
+      "packet_id": 60,
+      "get_id_rva": "0x3e0b760",
+      "vtable_rva": "0xe7c0a90",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ChangeDimensionPacket",
+      "get_name_rva": "0x83ced80",
+      "name_string_rva": "0xebdb1d4",
+      "packet_id": 61,
+      "get_id_rva": "0x83ced70",
+      "vtable_rva": "0xea1bdb0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetPlayerGameTypePacket",
+      "get_name_rva": "0x3a62e70",
+      "name_string_rva": "0xebdb6a1",
+      "packet_id": 62,
+      "get_id_rva": "0x3a62e60",
+      "vtable_rva": "0xe89d3a0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerListPacket",
+      "get_name_rva": "0x3cb6500",
+      "name_string_rva": "0xebda652",
+      "packet_id": 63,
+      "get_id_rva": "0x156d2e0",
+      "vtable_rva": "0xe7c1780",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SimpleEventPacket",
+      "get_name_rva": "0x3a9bdf0",
+      "name_string_rva": "0xebda9a7",
+      "packet_id": 64,
+      "get_id_rva": "0x15713a0",
+      "vtable_rva": "0xe89d8b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LegacyTelemetryEventPacket",
+      "get_name_rva": "0x2e4b770",
+      "name_string_rva": "0xebda92e",
+      "packet_id": 65,
+      "get_id_rva": "0x2e4b760",
+      "vtable_rva": "0xe6d6b30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SpawnExperienceOrbPacket",
+      "get_name_rva": "0x3aa3f90",
+      "name_string_rva": "0xebdba4c",
+      "packet_id": 66,
+      "get_id_rva": "0x3aa3f80",
+      "vtable_rva": "0xe89d9d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundMapItemDataPacket",
+      "get_name_rva": "0x38b6f30",
+      "name_string_rva": "0xebdbadc",
+      "packet_id": 67,
+      "get_id_rva": "0x38b6f20",
+      "vtable_rva": "0xe7c1c20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MapInfoRequestPacket",
+      "get_name_rva": "0x2e99f40",
+      "name_string_rva": "0xebda71d",
+      "packet_id": 68,
+      "get_id_rva": "0x2e99f30",
+      "vtable_rva": "0xe7c28c0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RequestChunkRadiusPacket",
+      "get_name_rva": "0x3769ec0",
+      "name_string_rva": "0xebdab6e",
+      "packet_id": 69,
+      "get_id_rva": "0x3769eb0",
+      "vtable_rva": "0xe891bf0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ChunkRadiusUpdatedPacket",
+      "get_name_rva": "0x83d9590",
+      "name_string_rva": "0xebdb92d",
+      "packet_id": 70,
+      "get_id_rva": "0x4aef010",
+      "vtable_rva": "0xea1bed0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "GameRulesChangedPacket",
+      "get_name_rva": "0x26f1710",
+      "name_string_rva": "0xebdb99a",
+      "packet_id": 72,
+      "get_id_rva": "0x26f1700",
+      "vtable_rva": "0xe833bb0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraPacket",
+      "get_name_rva": "0x83c04a0",
+      "name_string_rva": "0xebdbb63",
+      "packet_id": 73,
+      "get_id_rva": "0x83c0490",
+      "vtable_rva": "0xea1bc90",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "BossEventPacket",
+      "get_name_rva": "0x83a7620",
+      "name_string_rva": "0xebda949",
+      "packet_id": 74,
+      "get_id_rva": "0x83a7610",
+      "vtable_rva": "0xe7b0c70",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ShowCreditsPacket",
+      "get_name_rva": "0x3a8fc80",
+      "name_string_rva": "0xebdabd3",
+      "packet_id": 75,
+      "get_id_rva": "0x3a8fc70",
+      "vtable_rva": "0xe89d700",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AvailableCommandsPacket",
+      "get_name_rva": "0x8349410",
+      "name_string_rva": "0xebdae31",
+      "packet_id": 76,
+      "get_id_rva": "0x8349400",
+      "vtable_rva": "0xe7c0e80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CommandRequestPacket",
+      "get_name_rva": "0x38e6bf0",
+      "name_string_rva": "0xebda7c7",
+      "packet_id": 77,
+      "get_id_rva": "0x38e6be0",
+      "vtable_rva": "0xe897420",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CommandBlockUpdatePacket",
+      "get_name_rva": "0x38d7820",
+      "name_string_rva": "0xebdb4be",
+      "packet_id": 78,
+      "get_id_rva": "0x38d7810",
+      "vtable_rva": "0xe7c1150",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CommandOutputPacket",
+      "get_name_rva": "0x38e2d30",
+      "name_string_rva": "0xebda60c",
+      "packet_id": 79,
+      "get_id_rva": "0x38e2d20",
+      "vtable_rva": "0xe897390",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateTradePacket",
+      "get_name_rva": "0x35ad690",
+      "name_string_rva": "0xebdb81b",
+      "packet_id": 80,
+      "get_id_rva": "0x35ad680",
+      "vtable_rva": "0xe83d890",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateEquipPacket",
+      "get_name_rva": "0x3596340",
+      "name_string_rva": "0xebdafca",
+      "packet_id": 81,
+      "get_id_rva": "0x3596330",
+      "vtable_rva": "0xe888200",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePackDataInfoPacket",
+      "get_name_rva": "0x3788cb0",
+      "name_string_rva": "0xebdb055",
+      "packet_id": 82,
+      "get_id_rva": "0x3788ca0",
+      "vtable_rva": "0xe891e30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePackChunkDataPacket",
+      "get_name_rva": "0x37770c0",
+      "name_string_rva": "0xebdbaf9",
+      "packet_id": 83,
+      "get_id_rva": "0x3047cf0",
+      "vtable_rva": "0xe891da0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePackChunkRequestPacket",
+      "get_name_rva": "0x377c0b0",
+      "name_string_rva": "0xebda74d",
+      "packet_id": 84,
+      "get_id_rva": "0x377c0a0",
+      "vtable_rva": "0xe7c5d50",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "TransferPacket",
+      "get_name_rva": "0x3564690",
+      "name_string_rva": "0xebdaf51",
+      "packet_id": 85,
+      "get_id_rva": "0x3564680",
+      "vtable_rva": "0xe7c1930",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlaySoundPacket",
+      "get_name_rva": "0x3c73c90",
+      "name_string_rva": "0xebdb867",
+      "packet_id": 86,
+      "get_id_rva": "0x3c73c80",
+      "vtable_rva": "0xe7c2950",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "StopSoundPacket",
+      "get_name_rva": "0x3ac9410",
+      "name_string_rva": "0xebdb877",
+      "packet_id": 87,
+      "get_id_rva": "0x3ac9400",
+      "vtable_rva": "0xe89da60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetTitlePacket",
+      "get_name_rva": "0x3a83440",
+      "name_string_rva": "0xebdb705",
+      "packet_id": 88,
+      "get_id_rva": "0x3a83430",
+      "vtable_rva": "0xe89d5e0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AddBehaviorTreePacket",
+      "get_name_rva": "0x1058030",
+      "name_string_rva": "0xebdb805",
+      "packet_id": 89,
+      "get_id_rva": "0x1058020",
+      "vtable_rva": "0xe7a45b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "StructureBlockUpdatePacket",
+      "get_name_rva": "0x3acdbe0",
+      "name_string_rva": "0xebdb4a3",
+      "packet_id": 90,
+      "get_id_rva": "0x3acdbd0",
+      "vtable_rva": "0xe7c0bb0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ShowStoreOfferPacket",
+      "get_name_rva": "0x3a98120",
+      "name_string_rva": "0xebdaf60",
+      "packet_id": 91,
+      "get_id_rva": "0x3a98110",
+      "vtable_rva": "0xe89d820",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PurchaseReceiptPacket",
+      "get_name_rva": "0x374d3d0",
+      "name_string_rva": "0xebda904",
+      "packet_id": 92,
+      "get_id_rva": "0x374d3c0",
+      "vtable_rva": "0xe7b1180",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerSkinPacket",
+      "get_name_rva": "0x3cc6710",
+      "name_string_rva": "0xebdb1ea",
+      "packet_id": 93,
+      "get_id_rva": "0x3cc6700",
+      "vtable_rva": "0xe7b76a0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SubClientLoginPacket",
+      "get_name_rva": "0x3ae8530",
+      "name_string_rva": "0xebdb1fb",
+      "packet_id": 94,
+      "get_id_rva": "0x3ae8520",
+      "vtable_rva": "0xe7b0b50",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AutomationClientConnectPacket",
+      "get_name_rva": "0x1093c70",
+      "name_string_rva": "0xebdaa9e",
+      "packet_id": 95,
+      "get_id_rva": "0x1093c60",
+      "vtable_rva": "0xe7a4ac0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetLastHurtByPacket",
+      "get_name_rva": "0x3e1dda0",
+      "name_string_rva": "0xebda5e7",
+      "packet_id": 96,
+      "get_id_rva": "0x303a7e0",
+      "vtable_rva": "0xe8a7620",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "BookEditPacket",
+      "get_name_rva": "0x839bca0",
+      "name_string_rva": "0xebdaa3e",
+      "packet_id": 97,
+      "get_id_rva": "0x839bc90",
+      "vtable_rva": "0xe7c0fa0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "NpcRequestPacket",
+      "get_name_rva": "0x3c4cc10",
+      "name_string_rva": "0xebda7dc",
+      "packet_id": 98,
+      "get_id_rva": "0x3c4cc00",
+      "vtable_rva": "0xe80d3f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PhotoTransferPacket",
+      "get_name_rva": "0x3c6b020",
+      "name_string_rva": "0xebdaf4c",
+      "packet_id": 99,
+      "get_id_rva": "0x3c6b010",
+      "vtable_rva": "0xe7b10f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ModalFormRequestPacket",
+      "get_name_rva": "0x2eb4ce0",
+      "name_string_rva": "0xebda736",
+      "packet_id": 100,
+      "get_id_rva": "0x2172c80",
+      "vtable_rva": "0xe7b9360",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ModalFormResponsePacket",
+      "get_name_rva": "0x2eb8e80",
+      "name_string_rva": "0xebdb54f",
+      "packet_id": 101,
+      "get_id_rva": "0x2eb8e70",
+      "vtable_rva": "0xe7b0f40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerSettingsRequestPacket",
+      "get_name_rva": "0x3dc5dc0",
+      "name_string_rva": "0xebda701",
+      "packet_id": 102,
+      "get_id_rva": "0x3dc5db0",
+      "vtable_rva": "0xe8a6f50",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerSettingsResponsePacket",
+      "get_name_rva": "0x3dc90c0",
+      "name_string_rva": "0xebdb532",
+      "packet_id": 103,
+      "get_id_rva": "0x3dc90b0",
+      "vtable_rva": "0xe8a6fe0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ShowProfilePacket",
+      "get_name_rva": "0x3a94e30",
+      "name_string_rva": "0xebdb714",
+      "packet_id": 104,
+      "get_id_rva": "0xb27ed0",
+      "vtable_rva": "0xe89d790",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetDefaultGameTypePacket",
+      "get_name_rva": "0x3e07060",
+      "name_string_rva": "0xebdb688",
+      "packet_id": 105,
+      "get_id_rva": "0x3e07050",
+      "vtable_rva": "0xe8a74f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RemoveObjectivePacket",
+      "get_name_rva": "0x375b7c0",
+      "name_string_rva": "0xebdb413",
+      "packet_id": 106,
+      "get_id_rva": "0x375b7b0",
+      "vtable_rva": "0xe763240",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetDisplayObjectivePacket",
+      "get_name_rva": "0x3e0fb80",
+      "name_string_rva": "0xebdb3f9",
+      "packet_id": 107,
+      "get_id_rva": "0x3e0fb70",
+      "vtable_rva": "0xe763090",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetScorePacket",
+      "get_name_rva": "0x3a6a4e0",
+      "name_string_rva": "0xebdb664",
+      "packet_id": 108,
+      "get_id_rva": "0x3a6a4d0",
+      "vtable_rva": "0xe763120",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LabTablePacket",
+      "get_name_rva": "0x2e40e40",
+      "name_string_rva": "0xebdb726",
+      "packet_id": 109,
+      "get_id_rva": "0x2e40e30",
+      "vtable_rva": "0xe7b0e20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateBlockSyncedPacket",
+      "get_name_rva": "0x35880a0",
+      "name_string_rva": "0xebdb9b1",
+      "packet_id": 110,
+      "get_id_rva": "0x3588090",
+      "vtable_rva": "0xe888050",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MoveActorDeltaPacket",
+      "get_name_rva": "0x2ec99b0",
+      "name_string_rva": "0xebdba65",
+      "packet_id": 111,
+      "get_id_rva": "0x2ec99a0",
+      "vtable_rva": "0xe85bf30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetScoreboardIdentityPacket",
+      "get_name_rva": "0x3a74440",
+      "name_string_rva": "0xebda4da",
+      "packet_id": 112,
+      "get_id_rva": "0xb244d0",
+      "vtable_rva": "0xe7631b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetLocalPlayerAsInitializedPacket",
+      "get_name_rva": "0x3e21440",
+      "name_string_rva": "0xebdb8b7",
+      "packet_id": 113,
+      "get_id_rva": "0x3e21430",
+      "vtable_rva": "0xe8a76b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateSoftEnumPacket",
+      "get_name_rva": "0x35a0550",
+      "name_string_rva": "0xebdb2c2",
+      "packet_id": 114,
+      "get_id_rva": "0x35a0540",
+      "vtable_rva": "0xe888320",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "NetworkStackLatencyPacket",
+      "get_name_rva": "0x3c40640",
+      "name_string_rva": "0xebda5cd",
+      "packet_id": 115,
+      "get_id_rva": "0x3c40630",
+      "vtable_rva": "0xe7b0fd0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SpawnParticleEffectPacket",
+      "get_name_rva": "0x3aa82e0",
+      "name_string_rva": "0xebdaad1",
+      "packet_id": 118,
+      "get_id_rva": "0x3aa82d0",
+      "vtable_rva": "0xe887240",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AvailableActorIdentifiersPacket",
+      "get_name_rva": "0x1098d50",
+      "name_string_rva": "0xebdac3d",
+      "packet_id": 119,
+      "get_id_rva": "0x1098d40",
+      "vtable_rva": "0xe7a6cc0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "NetworkChunkPublisherUpdatePacket",
+      "get_name_rva": "0x3c35c30",
+      "name_string_rva": "0xebdb46d",
+      "packet_id": 121,
+      "get_id_rva": "0x3c35c20",
+      "vtable_rva": "0xe83d920",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "BiomeDefinitionListPacket",
+      "get_name_rva": "0x8351ab0",
+      "name_string_rva": "0xebda663",
+      "packet_id": 122,
+      "get_id_rva": "0x8351aa0",
+      "vtable_rva": "0xe7c0f10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LevelSoundEventPacket",
+      "get_name_rva": "0x2e844f0",
+      "name_string_rva": "0xebda9b9",
+      "packet_id": 123,
+      "get_id_rva": "0x2e844e0",
+      "vtable_rva": "0xe7c2830",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LevelEventGenericPacket",
+      "get_name_rva": "0x2e7b9c0",
+      "name_string_rva": "0xebdba34",
+      "packet_id": 124,
+      "get_id_rva": "0x2e7b9b0",
+      "vtable_rva": "0xe7aa260",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LecternUpdatePacket",
+      "get_name_rva": "0x2e46cf0",
+      "name_string_rva": "0xebdb48f",
+      "packet_id": 125,
+      "get_id_rva": "0x2e46ce0",
+      "vtable_rva": "0xe85bab0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientCacheStatusPacket",
+      "get_name_rva": "0x83e72b0",
+      "name_string_rva": "0xebdab1d",
+      "packet_id": 129,
+      "get_id_rva": "0x83e72a0",
+      "vtable_rva": "0xea1bf60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "OnScreenTextureAnimationPacket",
+      "get_name_rva": "0x3c544a0",
+      "name_string_rva": "0xebdb17a",
+      "packet_id": 130,
+      "get_id_rva": "0x3c54490",
+      "vtable_rva": "0xe8a2a20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MapCreateLockedCopyPacket",
+      "get_name_rva": "0x2e95f90",
+      "name_string_rva": "0xebda5b3",
+      "packet_id": 131,
+      "get_id_rva": "0x2e95f80",
+      "vtable_rva": "0xe85bcf0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "StructureTemplateDataRequestPacket",
+      "get_name_rva": "0x3ad1f30",
+      "name_string_rva": "0xebda7ed",
+      "packet_id": 132,
+      "get_id_rva": "0x3ad1f20",
+      "vtable_rva": "0xe7c81f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "StructureTemplateDataResponsePacket",
+      "get_name_rva": "0xc43dc0",
+      "name_string_rva": "0xebdb5d3",
+      "packet_id": 133,
+      "get_id_rva": "0xc43db0",
+      "vtable_rva": "0xe78af00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientCacheBlobStatusPacket",
+      "get_name_rva": "0x83dcab0",
+      "name_string_rva": "0xebdab52",
+      "packet_id": 135,
+      "get_id_rva": "0x83dcaa0",
+      "vtable_rva": "0xe7b0d00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientCacheMissResponsePacket",
+      "get_name_rva": "0x83e19b0",
+      "name_string_rva": "0xebdb514",
+      "packet_id": 136,
+      "get_id_rva": "0x83e19a0",
+      "vtable_rva": "0xe7c10c0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "EducationSettingsPacket",
+      "get_name_rva": "0x26e0860",
+      "name_string_rva": "0xebdad51",
+      "packet_id": 137,
+      "get_id_rva": "0x26e0850",
+      "vtable_rva": "0xe7c1390",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "EmotePacket",
+      "get_name_rva": "0x26e7d60",
+      "name_string_rva": "0xebdb453",
+      "packet_id": 138,
+      "get_id_rva": "0x26e7d50",
+      "vtable_rva": "0xe7c14b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MultiplayerSettingsPacket",
+      "get_name_rva": "0x3c31490",
+      "name_string_rva": "0xebdad37",
+      "packet_id": 139,
+      "get_id_rva": "0x3c31480",
+      "vtable_rva": "0xe8a2900",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SettingsCommandPacket",
+      "get_name_rva": "0x3a8c640",
+      "name_string_rva": "0xebdb887",
+      "packet_id": 140,
+      "get_id_rva": "0x24bda30",
+      "vtable_rva": "0xe89d670",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AnvilDamagePacket",
+      "get_name_rva": "0x10908a0",
+      "name_string_rva": "0xebdb7f3",
+      "packet_id": 141,
+      "get_id_rva": "0x1090890",
+      "vtable_rva": "0xe7a4a30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CompletedUsingItemPacket",
+      "get_name_rva": "0x38ebbd0",
+      "name_string_rva": "0xebdb308",
+      "packet_id": 142,
+      "get_id_rva": "0x38ebbc0",
+      "vtable_rva": "0xe8974b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "NetworkSettingsPacket",
+      "get_name_rva": "0x3c3b160",
+      "name_string_rva": "0xebdad70",
+      "packet_id": 143,
+      "get_id_rva": "0x3c3b150",
+      "vtable_rva": "0xe8a2990",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerAuthInputPacket",
+      "get_name_rva": "0x3c8add0",
+      "name_string_rva": "0xebda620",
+      "packet_id": 144,
+      "get_id_rva": "0xb26a40",
+      "vtable_rva": "0xe83a360",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CreativeContentPacket",
+      "get_name_rva": "0x3921ee0",
+      "name_string_rva": "0xebda9e6",
+      "packet_id": 145,
+      "get_id_rva": "0x3921ed0",
+      "vtable_rva": "0xe7c11e0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerEnchantOptionsPacket",
+      "get_name_rva": "0x3caa230",
+      "name_string_rva": "0xebdac97",
+      "packet_id": 146,
+      "get_id_rva": "0x3caa220",
+      "vtable_rva": "0xe881b10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ItemStackRequestPacket",
+      "get_name_rva": "0x273a2b0",
+      "name_string_rva": "0xebda7b0",
+      "packet_id": 147,
+      "get_id_rva": "0x273a2a0",
+      "vtable_rva": "0xe828470",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ItemStackResponsePacket",
+      "get_name_rva": "0x2e352a0",
+      "name_string_rva": "0xebdb567",
+      "packet_id": 148,
+      "get_id_rva": "0x2e35290",
+      "vtable_rva": "0xe85ba20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerArmorDamagePacket",
+      "get_name_rva": "0x3c85ec0",
+      "name_string_rva": "0xebdb7db",
+      "packet_id": 149,
+      "get_id_rva": "0x3c85eb0",
+      "vtable_rva": "0xe83d9b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CodeBuilderPacket",
+      "get_name_rva": "0x38ceed0",
+      "name_string_rva": "0xebdaf75",
+      "packet_id": 150,
+      "get_id_rva": "0x38ceec0",
+      "vtable_rva": "0xe7c1a70",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdatePlayerGameTypePacket",
+      "get_name_rva": "0x359bb60",
+      "name_string_rva": "0xebdb6b9",
+      "packet_id": 151,
+      "get_id_rva": "0x359bb50",
+      "vtable_rva": "0xe888290",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "EmoteListPacket",
+      "get_name_rva": "0x26e3bf0",
+      "name_string_rva": "0xebda67d",
+      "packet_id": 152,
+      "get_id_rva": "0xb26610",
+      "vtable_rva": "0xe7c1420",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PositionTrackingDBServerBroadcastPacket",
+      "get_name_rva": "0x3735e80",
+      "name_string_rva": "0xebda8dc",
+      "packet_id": 153,
+      "get_id_rva": "0x3735e70",
+      "vtable_rva": "0xe8872d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PositionTrackingDBClientRequestPacket",
+      "get_name_rva": "0x3730390",
+      "name_string_rva": "0xebda6db",
+      "packet_id": 154,
+      "get_id_rva": "0x3730380",
+      "vtable_rva": "0xe891800",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "DebugInfoPacket",
+      "get_name_rva": "0x26c96d0",
+      "name_string_rva": "0xebdb016",
+      "packet_id": 155,
+      "get_id_rva": "0x26c96c0",
+      "vtable_rva": "0xe833a00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PacketViolationWarningPacket",
+      "get_name_rva": "0x3c5bbd0",
+      "name_string_rva": "0xebdb3dc",
+      "packet_id": 156,
+      "get_id_rva": "0x3c5bbc0",
+      "vtable_rva": "0xe7b1060",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MotionPredictionHintsPacket",
+      "get_name_rva": "0x2ebf8e0",
+      "name_string_rva": "0xebdab87",
+      "packet_id": 157,
+      "get_id_rva": "0x2ebf8d0",
+      "vtable_rva": "0xe85be10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AnimateEntityPacket",
+      "get_name_rva": "0x1083f40",
+      "name_string_rva": "0xebda4f6",
+      "packet_id": 158,
+      "get_id_rva": "0x1083f30",
+      "vtable_rva": "0xe7a4910",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraShakePacket",
+      "get_name_rva": "0x83c6b00",
+      "name_string_rva": "0xebdb771",
+      "packet_id": 159,
+      "get_id_rva": "0x83c6af0",
+      "vtable_rva": "0xea1bd20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerFogPacket",
+      "get_name_rva": "0x3cae420",
+      "name_string_rva": "0xebdb3ba",
+      "packet_id": 160,
+      "get_id_rva": "0x3cae410",
+      "vtable_rva": "0xe7c16f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CorrectPlayerMovePredictionPacket",
+      "get_name_rva": "0x3901ac0",
+      "name_string_rva": "0xebdb115",
+      "packet_id": 161,
+      "get_id_rva": "0x3901ab0",
+      "vtable_rva": "0xe897660",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ItemRegistryPacket",
+      "get_name_rva": "0x2733060",
+      "name_string_rva": "0xebda58a",
+      "packet_id": 162,
+      "get_id_rva": "0x2733050",
+      "vtable_rva": "0xe7c15d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundDebugRendererPacket",
+      "get_name_rva": "0x38b02c0",
+      "name_string_rva": "0xebdaf0e",
+      "packet_id": 164,
+      "get_id_rva": "0x38b02b0",
+      "vtable_rva": "0xe8971e0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SyncActorPropertyPacket",
+      "get_name_rva": "0x3aecaa0",
+      "name_string_rva": "0xebda496",
+      "packet_id": 165,
+      "get_id_rva": "0x3aeca90",
+      "vtable_rva": "0xe7c0cd0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AddVolumeEntityPacket",
+      "get_name_rva": "0x106cb70",
+      "name_string_rva": "0xebda523",
+      "packet_id": 166,
+      "get_id_rva": "0x106cb60",
+      "vtable_rva": "0xe7a47f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RemoveVolumeEntityPacket",
+      "get_name_rva": "0x375eab0",
+      "name_string_rva": "0xebda50a",
+      "packet_id": 167,
+      "get_id_rva": "0x375eaa0",
+      "vtable_rva": "0xe891ad0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SimulationTypePacket",
+      "get_name_rva": "0x3aa08f0",
+      "name_string_rva": "0xebdb673",
+      "packet_id": 168,
+      "get_id_rva": "0x3aa08e0",
+      "vtable_rva": "0xe89d940",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "NpcDialoguePacket",
+      "get_name_rva": "0x3c44b80",
+      "name_string_rva": "0xebdb429",
+      "packet_id": 169,
+      "get_id_rva": "0x3c44b70",
+      "vtable_rva": "0xe80d4f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "EduUriResourcePacket",
+      "get_name_rva": "0x26dd1e0",
+      "name_string_rva": "0xebdb82d",
+      "packet_id": 170,
+      "get_id_rva": "0x26dd1d0",
+      "vtable_rva": "0xe833b20",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CreatePhotoPacket",
+      "get_name_rva": "0x391c470",
+      "name_string_rva": "0xebdafdc",
+      "packet_id": 171,
+      "get_id_rva": "0x391c460",
+      "vtable_rva": "0xe7c8280",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateSubChunkBlocksPacket",
+      "get_name_rva": "0x35a6120",
+      "name_string_rva": "0xebdacff",
+      "packet_id": 172,
+      "get_id_rva": "0x35a6110",
+      "vtable_rva": "0xe7b0be0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SubChunkPacket",
+      "get_name_rva": "0x3ad91f0",
+      "name_string_rva": "0xebdb35e",
+      "packet_id": 174,
+      "get_id_rva": "0x3ad91e0",
+      "vtable_rva": "0xe7c0c40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SubChunkRequestPacket",
+      "get_name_rva": "0x3ae4330",
+      "name_string_rva": "0xebda76c",
+      "packet_id": 175,
+      "get_id_rva": "0x3ae4320",
+      "vtable_rva": "0xe8a18b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerStartItemCooldownPacket",
+      "get_name_rva": "0x3718860",
+      "name_string_rva": "0xebdb07e",
+      "packet_id": 176,
+      "get_id_rva": "0x3718850",
+      "vtable_rva": "0xe6d5f40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ScriptMessagePacket",
+      "get_name_rva": "0x3db6290",
+      "name_string_rva": "0xebdb7c7",
+      "packet_id": 177,
+      "get_id_rva": "0x3db6280",
+      "vtable_rva": "0xe7bc8f0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CodeBuilderSourcePacket",
+      "get_name_rva": "0x38d24e0",
+      "name_string_rva": "0xebdb842",
+      "packet_id": 178,
+      "get_id_rva": "0x38d24d0",
+      "vtable_rva": "0xe897300",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "TickingAreasLoadStatusPacket",
+      "get_name_rva": "0x355d8d0",
+      "name_string_rva": "0xebdab35",
+      "packet_id": 179,
+      "get_id_rva": "0x355d8c0",
+      "vtable_rva": "0xe887d80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "DimensionDataPacket",
+      "get_name_rva": "0x26cd0a0",
+      "name_string_rva": "0xebdbab9",
+      "packet_id": 180,
+      "get_id_rva": "0x26cd090",
+      "vtable_rva": "0xe7c1270",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AgentActionEventPacket",
+      "get_name_rva": "0x10766d0",
+      "name_string_rva": "0xebda96a",
+      "packet_id": 181,
+      "get_id_rva": "0x10766c0",
+      "vtable_rva": "0xe7a7070",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ChangeMobPropertyPacket",
+      "get_name_rva": "0x83d3de0",
+      "name_string_rva": "0xebda4ae",
+      "packet_id": 182,
+      "get_id_rva": "0x83d3dd0",
+      "vtable_rva": "0xea1be40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LessonProgressPacket",
+      "get_name_rva": "0x2e6fde0",
+      "name_string_rva": "0xebdac28",
+      "packet_id": 183,
+      "get_id_rva": "0x2e6fdd0",
+      "vtable_rva": "0xe85bb40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RequestAbilityPacket",
+      "get_name_rva": "0x3762d70",
+      "name_string_rva": "0xebda55c",
+      "packet_id": 184,
+      "get_id_rva": "0x3762d60",
+      "vtable_rva": "0xe891b60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RequestPermissionsPacket",
+      "get_name_rva": "0x3772400",
+      "name_string_rva": "0xebdacd0",
+      "packet_id": 185,
+      "get_id_rva": "0x37723f0",
+      "vtable_rva": "0xe891d10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ToastRequestPacket",
+      "get_name_rva": "0x3560d30",
+      "name_string_rva": "0xebda6a3",
+      "packet_id": 186,
+      "get_id_rva": "0x3560d20",
+      "vtable_rva": "0xe887e10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateAbilitiesPacket",
+      "get_name_rva": "0x3575090",
+      "name_string_rva": "0xebdadf9",
+      "packet_id": 187,
+      "get_id_rva": "0x3575080",
+      "vtable_rva": "0xe7c1b90",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateAdventureSettingsPacket",
+      "get_name_rva": "0x3578440",
+      "name_string_rva": "0xebdad86",
+      "packet_id": 188,
+      "get_id_rva": "0x3578430",
+      "vtable_rva": "0xe887f30",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "DeathInfoPacket",
+      "get_name_rva": "0x26c5400",
+      "name_string_rva": "0xebdb006",
+      "packet_id": 189,
+      "get_id_rva": "0x26c53f0",
+      "vtable_rva": "0xe6d5eb0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "EditorNetworkPacket",
+      "get_name_rva": "0x26d9230",
+      "name_string_rva": "0xebdb321",
+      "packet_id": 190,
+      "get_id_rva": "0x26d9220",
+      "vtable_rva": "0xe833a90",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "FeatureRegistryPacket",
+      "get_name_rva": "0x26ed7a0",
+      "name_string_rva": "0xebda59d",
+      "packet_id": 191,
+      "get_id_rva": "0x26ed790",
+      "vtable_rva": "0xe7c1540",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerStatsPacket",
+      "get_name_rva": "0x3dcd200",
+      "name_string_rva": "0xebdac16",
+      "packet_id": 192,
+      "get_id_rva": "0x3dcd1f0",
+      "vtable_rva": "0xe8a7070",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RequestNetworkSettingsPacket",
+      "get_name_rva": "0x376dfc0",
+      "name_string_rva": "0xebdad69",
+      "packet_id": 193,
+      "get_id_rva": "0x376dfb0",
+      "vtable_rva": "0xe891c80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "GameTestRequestPacket",
+      "get_name_rva": "0x26f4c50",
+      "name_string_rva": "0xebda68d",
+      "packet_id": 194,
+      "get_id_rva": "0x26f4c40",
+      "vtable_rva": "0xe833c40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "GameTestResultsPacket",
+      "get_name_rva": "0x26fb650",
+      "name_string_rva": "0xebdabbd",
+      "packet_id": 195,
+      "get_id_rva": "0x26fb640",
+      "vtable_rva": "0xe78de40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateClientInputLocksPacket",
+      "get_name_rva": "0x358e0f0",
+      "name_string_rva": "0xebdad1a",
+      "packet_id": 196,
+      "get_id_rva": "0x358e0e0",
+      "vtable_rva": "0xe8880e0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraPresetsPacket",
+      "get_name_rva": "0x83c3830",
+      "name_string_rva": "0xebdac02",
+      "packet_id": 198,
+      "get_id_rva": "0x83c3820",
+      "vtable_rva": "0xe7c1030",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UnlockedRecipesPacket",
+      "get_name_rva": "0x356f390",
+      "name_string_rva": "0xebdadbb",
+      "packet_id": 199,
+      "get_id_rva": "0x356f380",
+      "vtable_rva": "0xe887ea0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraInstructionPacket",
+      "get_name_rva": "0x83bd1d0",
+      "name_string_rva": "0xebdb0fd",
+      "packet_id": 300,
+      "get_id_rva": "0x83bd1c0",
+      "vtable_rva": "0xe945e00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "TrimDataPacket",
+      "get_name_rva": "0x3569c20",
+      "name_string_rva": "0xebdbacd",
+      "packet_id": 302,
+      "get_id_rva": "0x3569c10",
+      "vtable_rva": "0xe7c0d60",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "OpenSignPacket",
+      "get_name_rva": "0x3c58500",
+      "name_string_rva": "0xebdb210",
+      "packet_id": 303,
+      "get_id_rva": "0x3c584f0",
+      "vtable_rva": "0xe8a2ab0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AgentAnimationPacket",
+      "get_name_rva": "0x107f990",
+      "name_string_rva": "0xebdb165",
+      "packet_id": 304,
+      "get_id_rva": "0x107f980",
+      "vtable_rva": "0xe7a4880",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RefreshEntitlementsPacket",
+      "get_name_rva": "0x3755180",
+      "name_string_rva": "0xebdaba3",
+      "packet_id": 305,
+      "get_id_rva": "0x3755170",
+      "vtable_rva": "0xe8919b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerToggleCrafterSlotRequestPacket",
+      "get_name_rva": "0x371c910",
+      "name_string_rva": "0xebda6b6",
+      "packet_id": 306,
+      "get_id_rva": "0x371c900",
+      "vtable_rva": "0xe891650",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetPlayerInventoryOptionsPacket",
+      "get_name_rva": "0x3a66370",
+      "name_string_rva": "0xebdac5d",
+      "packet_id": 307,
+      "get_id_rva": "0x3a66360",
+      "vtable_rva": "0xe89d430",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetHudPacket",
+      "get_name_rva": "0x3e18bf0",
+      "name_string_rva": "0xebdb85a",
+      "packet_id": 308,
+      "get_id_rva": "0x3e18be0",
+      "vtable_rva": "0xe83d800",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "AwardAchievementPacket",
+      "get_name_rva": "0x834e430",
+      "name_string_rva": "0xebdaa27",
+      "packet_id": 309,
+      "get_id_rva": "0x834e420",
+      "vtable_rva": "0xea1b980",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundCloseFormPacket",
+      "get_name_rva": "0x389a4c0",
+      "name_string_rva": "0xebdb2d7",
+      "packet_id": 310,
+      "get_id_rva": "0x389a4b0",
+      "vtable_rva": "0xe896f10",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerboundLoadingScreenPacket",
+      "get_name_rva": "0x3dec7b0",
+      "name_string_rva": "0xebdb27a",
+      "packet_id": 312,
+      "get_id_rva": "0x3dec7a0",
+      "vtable_rva": "0xe8a72b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "JigsawStructureDataPacket",
+      "get_name_rva": "0x2e3c050",
+      "name_string_rva": "0xebdbb28",
+      "packet_id": 313,
+      "get_id_rva": "0x2e3c040",
+      "vtable_rva": "0xe7c1660",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CurrentStructureFeaturePacket",
+      "get_name_rva": "0x26c2010",
+      "name_string_rva": "0xebdb610",
+      "packet_id": 314,
+      "get_id_rva": "0x26c2000",
+      "vtable_rva": "0xe833970",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerboundDiagnosticsPacket",
+      "get_name_rva": "0x3dde130",
+      "name_string_rva": "0xebdae49",
+      "packet_id": 315,
+      "get_id_rva": "0x3dde120",
+      "vtable_rva": "0xe775470",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraAimAssistPacket",
+      "get_name_rva": "0x83b1d10",
+      "name_string_rva": "0xebda63c",
+      "packet_id": 316,
+      "get_id_rva": "0x83b1d00",
+      "vtable_rva": "0xe840480",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ContainerRegistryCleanupPacket",
+      "get_name_rva": "0x38f8eb0",
+      "name_string_rva": "0xebdafab",
+      "packet_id": 317,
+      "get_id_rva": "0x38f8ea0",
+      "vtable_rva": "0xe8711b0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "MovementEffectPacket",
+      "get_name_rva": "0x3c2c600",
+      "name_string_rva": "0xebdaabc",
+      "packet_id": 318,
+      "get_id_rva": "0x3c2c5f0",
+      "vtable_rva": "0xe862850",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraAimAssistPresetsPacket",
+      "get_name_rva": "0x83b84c0",
+      "name_string_rva": "0xebdabe5",
+      "packet_id": 320,
+      "get_id_rva": "0x83b84b0",
+      "vtable_rva": "0xe82b640",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientCameraAimAssistPacket",
+      "get_name_rva": "0x83ea590",
+      "name_string_rva": "0xebda636",
+      "packet_id": 321,
+      "get_id_rva": "0x83ea580",
+      "vtable_rva": "0xe840510",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientMovementPredictionSyncPacket",
+      "get_name_rva": "0x83ef500",
+      "name_string_rva": "0xebdba11",
+      "packet_id": 322,
+      "get_id_rva": "0x83ef4f0",
+      "vtable_rva": "0xea1bff0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "UpdateClientOptionsPacket",
+      "get_name_rva": "0x35914e0",
+      "name_string_rva": "0xebdac7d",
+      "packet_id": 323,
+      "get_id_rva": "0x35914d0",
+      "vtable_rva": "0xe888170",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerVideoCapturePacket",
+      "get_name_rva": "0x372b090",
+      "name_string_rva": "0xebdb5f7",
+      "packet_id": 324,
+      "get_id_rva": "0x372b080",
+      "vtable_rva": "0xe891770",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerUpdateEntityOverridesPacket",
+      "get_name_rva": "0x3721c20",
+      "name_string_rva": "0xebdae0f",
+      "packet_id": 325,
+      "get_id_rva": "0x3721c10",
+      "vtable_rva": "0xe8916e0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PlayerLocationPacket",
+      "get_name_rva": "0x3cbf430",
+      "name_string_rva": "0xebdb1bf",
+      "packet_id": 326,
+      "get_id_rva": "0x3cbf420",
+      "vtable_rva": "0xe8a2d80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundControlSchemeSetPacket",
+      "get_name_rva": "0x389d7c0",
+      "name_string_rva": "0xebdaa6b",
+      "packet_id": 327,
+      "get_id_rva": "0x389d7b0",
+      "vtable_rva": "0xe896fa0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PrimitiveShapesPacket",
+      "get_name_rva": "0x373b910",
+      "name_string_rva": "0xebdade3",
+      "packet_id": 328,
+      "get_id_rva": "0x373b900",
+      "vtable_rva": "0xe891890",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerboundPackSettingChangePacket",
+      "get_name_rva": "0x3df2530",
+      "name_string_rva": "0xebdb7a4",
+      "packet_id": 329,
+      "get_id_rva": "0x3df2520",
+      "vtable_rva": "0xe775500",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundDataStorePacket",
+      "get_name_rva": "0x38ac0c0",
+      "name_string_rva": "0xebdb62e",
+      "packet_id": 330,
+      "get_id_rva": "0x38ac0b0",
+      "vtable_rva": "0xe897150",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "GraphicsOverrideParameterPacket",
+      "get_name_rva": "0x26fff00",
+      "name_string_rva": "0xebdaeee",
+      "packet_id": 331,
+      "get_id_rva": "0x26ffef0",
+      "vtable_rva": "0xe833cd0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerboundDataStorePacket",
+      "get_name_rva": "0x3ddad30",
+      "name_string_rva": "0xebdb649",
+      "packet_id": 332,
+      "get_id_rva": "0x3ddad20",
+      "vtable_rva": "0xe8a7220",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundDataDrivenUIShowScreenPacket",
+      "get_name_rva": "0x38a79c0",
+      "name_string_rva": "0xebdb233",
+      "packet_id": 333,
+      "get_id_rva": "0x38a79b0",
+      "vtable_rva": "0xe7b92d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundDataDrivenUICloseScreenPacket",
+      "get_name_rva": "0x38a0b40",
+      "name_string_rva": "0xebdb299",
+      "packet_id": 334,
+      "get_id_rva": "0x38a0b30",
+      "vtable_rva": "0xe897030",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundDataDrivenUIReloadPacket",
+      "get_name_rva": "0x38a3db0",
+      "name_string_rva": "0xebdb9c9",
+      "packet_id": 335,
+      "get_id_rva": "0x38a3da0",
+      "vtable_rva": "0xe8970c0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundTextureShiftPacket",
+      "get_name_rva": "0x38be330",
+      "name_string_rva": "0xebdaa4d",
+      "packet_id": 336,
+      "get_id_rva": "0x38be320",
+      "vtable_rva": "0xe8875c0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "VoxelShapesPacket",
+      "get_name_rva": "0x35b5030",
+      "name_string_rva": "0xebdadd1",
+      "packet_id": 337,
+      "get_id_rva": "0x35b5020",
+      "vtable_rva": "0xe7c0df0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraSplinePacket",
+      "get_name_rva": "0x83cad40",
+      "name_string_rva": "0xebdb6d4",
+      "packet_id": 338,
+      "get_id_rva": "0x83cad30",
+      "vtable_rva": "0xe82b6d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "CameraAimAssistActorPriorityPacket",
+      "get_name_rva": "0x83acda0",
+      "name_string_rva": "0xebda539",
+      "packet_id": 339,
+      "get_id_rva": "0x83acd90",
+      "vtable_rva": "0xea1bc00",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ResourcePacksReadyForValidationPacket",
+      "get_name_rva": "0x379e310",
+      "name_string_rva": "0xebdb199",
+      "packet_id": 340,
+      "get_id_rva": "0x379e300",
+      "vtable_rva": "0xe891ec0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "LocatorBarPacket",
+      "get_name_rva": "0x2e8ba80",
+      "name_string_rva": "0xebdaf9a",
+      "packet_id": 341,
+      "get_id_rva": "0x2e8ba70",
+      "vtable_rva": "0xe82f7d0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PartyChangedPacket",
+      "get_name_rva": "0x3c63900",
+      "name_string_rva": "0xebdb987",
+      "packet_id": 342,
+      "get_id_rva": "0x3c638f0",
+      "vtable_rva": "0xe8a2b40",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerboundDataDrivenScreenClosedPacket",
+      "get_name_rva": "0x3dd7720",
+      "name_string_rva": "0xebdb946",
+      "packet_id": 343,
+      "get_id_rva": "0x3dd7710",
+      "vtable_rva": "0xe8a7190",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SyncWorldClocksPacket",
+      "get_name_rva": "0x3af1060",
+      "name_string_rva": "0xebdace9",
+      "packet_id": 344,
+      "get_id_rva": "0x3af1050",
+      "vtable_rva": "0xe8a1940",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundAttributeLayerSyncPacket",
+      "get_name_rva": "0x3891c40",
+      "name_string_rva": "0xebdb9ed",
+      "packet_id": 345,
+      "get_id_rva": "0x3891c30",
+      "vtable_rva": "0xe896e80",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerStoreInfoPacket",
+      "get_name_rva": "0x3dd0840",
+      "name_string_rva": "0xebdb026",
+      "packet_id": 346,
+      "get_id_rva": "0x3dd0830",
+      "vtable_rva": "0xe8a7100",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ServerPresenceInfoPacket",
+      "get_name_rva": "0x3dc2af0",
+      "name_string_rva": "0xebdb03c",
+      "packet_id": 347,
+      "get_id_rva": "0x3dc2ae0",
+      "vtable_rva": "0xe8a6ec0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "ClientboundUpdateSoundDataPacket",
+      "get_name_rva": "0x38c6850",
+      "name_string_rva": "0xebdbb42",
+      "packet_id": 348,
+      "get_id_rva": "0x38c6840",
+      "vtable_rva": "0xe897270",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SendPartyDestinationCookiePacket",
+      "get_name_rva": "0x3db99e0",
+      "name_string_rva": "0xebdb783",
+      "packet_id": 349,
+      "get_id_rva": "0x3db99d0",
+      "vtable_rva": "0xe8a6da0",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "PartyDestinationCookieResponsePacket",
+      "get_name_rva": "0x3c66bd0",
+      "name_string_rva": "0xebdb57f",
+      "packet_id": 350,
+      "get_id_rva": "0x3c66bc0",
+      "vtable_rva": "0xe7b7610",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "SetPlayerFurnaceOptionsPacket",
+      "get_name_rva": "0x3a5dcf0",
+      "name_string_rva": "0xebdacb2",
+      "packet_id": 351,
+      "get_id_rva": "0x3a5dce0",
+      "vtable_rva": "0xe89d310",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    },
+    {
+      "name": "RecordStartedPacket",
+      "get_name_rva": "0x3751df0",
+      "name_string_rva": "0xebdb8f4",
+      "packet_id": 352,
+      "get_id_rva": "0x3751de0",
+      "vtable_rva": "0xe891920",
+      "evidence": "string-view getName; preceding vtable entry returns immediate packet ID"
+    }
+  ]
+}

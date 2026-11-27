@@ -2,6 +2,12 @@
 
 namespace perlin::session {
 
+    BatchCompression SelectBatchCompression(uint16_t algorithm, uint16_t threshold, size_t size) {
+        if (algorithm == 0xFFFF || threshold == 0 || size < threshold)
+            return BatchCompression::None;
+        return algorithm == 1 ? BatchCompression::Snappy : BatchCompression::Zlib;
+    }
+
     PlayStatusDecision DecidePlayStatus(PlayStatusKind status, int statusCode, Phase phase,
                                         bool cacheStatusSent) {
         using Action = PlayStatusDecision::Action;

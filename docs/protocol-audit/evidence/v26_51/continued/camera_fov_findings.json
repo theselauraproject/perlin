@@ -1,0 +1,207 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "packet_id": 300,
+  "packet_name": "CameraInstructionPacket",
+  "scope": "Matched 2193 normal serialization-mode path and FOV easing label conversion only; no execution, full renderer or packet failure propagation claim.",
+  "normal_mode": {
+    "factory_rva": "0x16b7f90",
+    "packet_vtable_rva": "0xe945e00",
+    "mode_store_rva": "0x16b80ac",
+    "mode_value": 5,
+    "mode_member_packet_offset": 384,
+    "writer_rva": "0x83bd1f0",
+    "archive_traits_zero_rva": "0x83bd251",
+    "archive_vtable_rva": "0xe8bc140"
+  },
+  "fov_property": {
+    "name": "fovEaseType",
+    "property_registration_call_rva": "0x6779856",
+    "property_helper_rva": "0x67a5dd0",
+    "descriptor_constructor_rva": "0x67a4fe0",
+    "serialization_traits_initialization_rva": "0x67a527e",
+    "serialization_traits": 0,
+    "member_traits_extra_flag_rva": "0x677994a",
+    "member_traits_extra_flag_name": "IsMemberLevelSetterGetter",
+    "member_traits_extra_flag_value": 4,
+    "note": "MemberTraits and SerializationTraits are distinct PDB enums. The member-level setter/getter flag does not select enum-as-value serialization.",
+    "descriptor_serialization_traits_copy_rva": "0x4a4333",
+    "descriptor_copy_note": "The descriptor transfer at0x4A4333 copies its original +0xD0 serialization-trait byte into the registered member descriptor without changing it."
+  },
+  "wire": {
+    "type": "string",
+    "enum_binder_vtable_rva": "0xe9a0d80",
+    "enum_writer_rva": "0x678bb40",
+    "property_archive_trait_assignment_rva": "0x4117bbf",
+    "enum_as_value_flag_test_rva": "0x678c1d8",
+    "registered_label_write_rva": "0x678c2ec",
+    "archive_string_virtual_slot": 16,
+    "binary_archive_string_writer_rva": "0x40f2e90",
+    "binary_stream_virtual_slot": 160,
+    "binary_stream_method": "writeString",
+    "numeric_branch_not_selected_in_normal_path": "With SerializationTraits::EnumAsValue (4), the same generic binder can call signed int32 archive slot0x40. The FOV property normal path does not set that bit."
+  },
+  "registered_easing_labels": [
+    {
+      "label": "linear",
+      "registration_label_reference_rva": "0x7b4309e"
+    },
+    {
+      "label": "spring",
+      "registration_label_reference_rva": "0x7b433d6"
+    },
+    {
+      "label": "in_quad",
+      "registration_label_reference_rva": "0x7b43706"
+    },
+    {
+      "label": "out_quad",
+      "registration_label_reference_rva": "0x7b43a36"
+    },
+    {
+      "label": "in_out_quad",
+      "registration_label_reference_rva": "0x7b43d66"
+    },
+    {
+      "label": "in_cubic",
+      "registration_label_reference_rva": "0x7b44096"
+    },
+    {
+      "label": "out_cubic",
+      "registration_label_reference_rva": "0x7b443c6"
+    },
+    {
+      "label": "in_out_cubic",
+      "registration_label_reference_rva": "0x7b446f6"
+    },
+    {
+      "label": "in_quart",
+      "registration_label_reference_rva": "0x7b44a26"
+    },
+    {
+      "label": "out_quart",
+      "registration_label_reference_rva": "0x7b44d56"
+    },
+    {
+      "label": "in_out_quart",
+      "registration_label_reference_rva": "0x7b45086"
+    },
+    {
+      "label": "in_quint",
+      "registration_label_reference_rva": "0x7b453b6"
+    },
+    {
+      "label": "out_quint",
+      "registration_label_reference_rva": "0x7b456e6"
+    },
+    {
+      "label": "in_out_quint",
+      "registration_label_reference_rva": "0x7b45a16"
+    },
+    {
+      "label": "in_sine",
+      "registration_label_reference_rva": "0x7b45d46"
+    },
+    {
+      "label": "out_sine",
+      "registration_label_reference_rva": "0x7b46076"
+    },
+    {
+      "label": "in_out_sine",
+      "registration_label_reference_rva": "0x7b463a6"
+    },
+    {
+      "label": "in_expo",
+      "registration_label_reference_rva": "0x7b466d6"
+    },
+    {
+      "label": "out_expo",
+      "registration_label_reference_rva": "0x7b46a06"
+    },
+    {
+      "label": "in_out_expo",
+      "registration_label_reference_rva": "0x7b46d36"
+    },
+    {
+      "label": "in_circ",
+      "registration_label_reference_rva": "0x7b47066"
+    },
+    {
+      "label": "out_circ",
+      "registration_label_reference_rva": "0x7b47396"
+    },
+    {
+      "label": "in_out_circ",
+      "registration_label_reference_rva": "0x7b476c6"
+    },
+    {
+      "label": "in_bounce",
+      "registration_label_reference_rva": "0x7b479f6"
+    },
+    {
+      "label": "out_bounce",
+      "registration_label_reference_rva": "0x7b47d26"
+    },
+    {
+      "label": "in_out_bounce",
+      "registration_label_reference_rva": "0x7b4804a"
+    },
+    {
+      "label": "in_back",
+      "registration_label_reference_rva": "0x7b48348"
+    },
+    {
+      "label": "out_back",
+      "registration_label_reference_rva": "0x7b48647"
+    },
+    {
+      "label": "in_out_back",
+      "registration_label_reference_rva": "0x7b48954"
+    },
+    {
+      "label": "in_elastic",
+      "registration_label_reference_rva": "0x7b48c86"
+    },
+    {
+      "label": "out_elastic",
+      "registration_label_reference_rva": "0x7b48fb6"
+    },
+    {
+      "label": "in_out_elastic",
+      "registration_label_reference_rva": "0x7b492e6"
+    }
+  ],
+  "registration_function": {
+    "name": "SharedTypes::bindEasing",
+    "rva": "0x7b42b10"
+  },
+  "reader": {
+    "rva": "0x678a360",
+    "string_read_branch_rva": "0x678a419",
+    "ascii_case_normalization_call_rva": "0x678ac45",
+    "import_iat_rva": "0xf1046f8",
+    "import_name": "api-ms-win-crt-string-l1-1-0.dll!tolower",
+    "registered_member_lookup_rva": "0x678ad8e",
+    "unknown_label_error_rva": "0x678b1ae",
+    "unknown_label_error_value": 4096,
+    "behavior": "The normal string branch lowercases bytes before registered-member lookup. Unknown or empty labels reach the context error path; there is no empty-to-linear or unknown-to-Invalid label mapping in this branch."
+  },
+  "native_enum_limits": {
+    "Count": 32,
+    "Invalid": 33,
+    "note": "Neither is registered as a valid easing label; inverse_lerp is also absent from this matched registration list."
+  },
+  "remaining_limits": [
+    "No runtime packet capture or official client execution was performed.",
+    "The enum-reader error path is established; the complete outer packet error/disconnect policy is not recovered here.",
+    "The generic codec can retain a string independently of whether the native enum reader accepts that label.",
+    "Absent FOV option and local rendering transitions are outside this narrow serializer trace."
+  ]
+}

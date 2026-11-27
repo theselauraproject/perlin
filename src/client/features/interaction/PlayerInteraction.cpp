@@ -32,7 +32,7 @@ namespace perlin::interaction {
         for (int i = 0; i < 9; i++)
             if (inputManager.Pressed(static_cast<Action>(static_cast<int>(Action::Hotbar1) + i)))
                 newSlot = i;
-                static constexpr int kSpectatorSpeeds[5] = {1, 2, 5, 10, 20};
+        static constexpr int kSpectatorSpeeds[5] = {1, 2, 5, 10, 20};
         const bool wheelFliesFaster = live && hudState.mode == ui::GameMode::Spectator;
         if (!wheelFliesFaster)
             spectatorSpeed = 0;
@@ -630,11 +630,12 @@ namespace perlin::interaction {
                     (serverBlocks.Item(held.name, custom)
                          ? custom.useTicks > 0
                          : blockuse::VanillaUseTicks(held.name, ui::IsFood(held.name)) > 0);
-                live->SendUseItemInAir(eyeF, heldUse);
-                if (held.name == "minecraft:firework_rocket")
+                const bool onCooldown = live->HeldItemUseOnCooldown();
+                const bool sent = live->SendUseItemInAir(eyeF, heldUse);
+                if (sent && !onCooldown && held.name == "minecraft:firework_rocket")
                     player.UseFirework();
-                usingItem = heldUse;
-                if (heldUse)
+                usingItem = sent && heldUse && !onCooldown;
+                if (usingItem)
                     player.BeginItemUse();
             }
         }
@@ -736,7 +737,7 @@ namespace perlin::interaction {
             const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
                                   static_cast<float>(camera.z)};
             earlyItemUse = live.SendUseItemInAir(eye, true);
-            usingItem = earlyItemUse;
+            usingItem = earlyItemUse && !live.HeldItemUseOnCooldown();
         }
         if (!use && usingItem) {
             const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
@@ -775,7 +776,8 @@ namespace perlin::interaction {
                 useWasHeld = false;
         }
         const bool shieldSlow = OffhandExperiment() && live.previewOffhand && name == "minecraft:shield";
-        player.SetItemSlow(use && (eating || name == "minecraft:bow" || name == "minecraft:trident" ||
+        const bool canUse = usingItem || !live.HeldItemUseOnCooldown();
+        player.SetItemSlow(use && canUse && (eating || name == "minecraft:bow" || name == "minecraft:trident" ||
                                    name == "minecraft:spyglass" || shieldSlow),
                            useTicks, inputManager.Pressed(Action::Use));
     }

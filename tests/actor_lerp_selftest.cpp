@@ -107,6 +107,34 @@ int main() {
     }
     {
         EntityTracker t;
+        for (uint64_t id : {1, 2})
+            t.AddPlayer(id, static_cast<int64_t>(id), "", "", {0, 0, 0}, 0, 0, 0, 0, "");
+        t.TickInterpolation();
+        for (uint64_t id : {1, 2})
+            t.Move(id, {12, 1.62, 3}, 0, 90, 90, true, Kind::Lerp, 6, true);
+        t.TickInterpolation();
+        for (uint64_t id : {1, 2})
+            t.Move(id, {24, 1.62, 6}, 0, 120, 120, true, Kind::Lerp, 4);
+        const Entity before = Get(t, 1);
+        CHECK(before.hasQueued);
+        t.RotateHead(1, 10, 135, false);
+        const Entity head = Get(t, 1);
+        CHECK(head.pos == before.pos && head.prevPos == before.prevPos && head.netPos == before.netPos);
+        CHECK(head.yaw == before.yaw && head.netYaw == before.netYaw);
+        CHECK(head.lerp.steps == before.lerp.steps && head.lerp.pos == before.lerp.pos &&
+              head.lerp.yaw == before.lerp.yaw && head.lerp.forceCompletion == before.lerp.forceCompletion);
+        CHECK(head.hasQueued && head.queued.steps == before.queued.steps &&
+              head.queued.pos == before.queued.pos && head.queued.yaw == before.queued.yaw);
+        CHECK(head.pitch == 10 && head.headYaw == 135 && !head.onGround);
+        for (int tick = 0; tick < 9; ++tick) {
+            t.TickInterpolation();
+            const Entity rotated = Get(t, 1), control = Get(t, 2);
+            CHECK(rotated.pos == control.pos && rotated.yaw == control.yaw);
+            CHECK(rotated.pitch == 10 && rotated.headYaw == 135);
+        }
+    }
+    {
+        EntityTracker t;
         t.AddEntity(2, 2, "minecraft:arrow", {0, 10, 0}, 0, 0, 0, 0, 1, 0, 0, 0);
         t.TickInterpolation();
         t.Move(2, {1, 10, 0}, 0, 0, 0, true, Kind::Lerp);

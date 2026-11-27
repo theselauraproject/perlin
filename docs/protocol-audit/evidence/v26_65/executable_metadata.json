@@ -1,0 +1,94 @@
+{
+  "filename": "Minecraft.Windows.exe",
+  "size_bytes": 323828088,
+  "sha256": "9138ed5c5a213c3de891f56693542c6de1f5258b04fac4889ac37233785a700e",
+  "architecture": "x86-64",
+  "format": "PE32+",
+  "image_base": "0x140000000",
+  "linker_timestamp_raw": 1794781676,
+  "coff_symbol_table_offset": 0,
+  "coff_symbol_count": 0,
+  "sections": [
+    {
+      "name": ".text",
+      "rva": 4096,
+      "virtual_size": 250377670,
+      "file_offset": 1024,
+      "file_size": 250377728,
+      "flags": 1610612768
+    },
+    {
+      "name": ".rdata",
+      "rva": 250384384,
+      "virtual_size": 54793276,
+      "file_offset": 250378752,
+      "file_size": 54793728,
+      "flags": 1073741888
+    },
+    {
+      "name": ".data",
+      "rva": 305180672,
+      "virtual_size": 9259880,
+      "file_offset": 305172480,
+      "file_size": 5687296,
+      "flags": 3221225536
+    },
+    {
+      "name": ".pdata",
+      "rva": 314441728,
+      "virtual_size": 11901864,
+      "file_offset": 310859776,
+      "file_size": 11901952,
+      "flags": 1073741888
+    },
+    {
+      "name": ".tls",
+      "rva": 326344704,
+      "virtual_size": 11601,
+      "file_offset": 322761728,
+      "file_size": 11776,
+      "flags": 3221225536
+    },
+    {
+      "name": ".xbld",
+      "rva": 326356992,
+      "virtual_size": 340,
+      "file_offset": 322773504,
+      "file_size": 512,
+      "flags": 3221225536
+    },
+    {
+      "name": ".rsrc",
+      "rva": 326361088,
+      "virtual_size": 18640,
+      "file_offset": 322774016,
+      "file_size": 18944,
+      "flags": 1073741888
+    },
+    {
+      "name": ".reloc",
+      "rva": 326381568,
+      "virtual_size": 1024932,
+      "file_offset": 322792960,
+      "file_size": 1025024,
+      "flags": 1107296320
+    }
+  ],
+  "authenticode_directory_present": true,
+  "authenticode_signature_verified": false,
+  "codeview": [
+    {
+      "guid": "5f6cf44c-5d5d-f27c-4c4c-44205044422e",
+      "age": 1,
+      "pdb_path": "D:\\a\\_work\\1\\s\\build\\gamecore_x64_desktop\\Minecraft\\Minecraft.Windows\\Publish\\Minecraft.Windows.pdb",
+      "file_offset": "0xf89cb54"
+    }
+  ],
+  "file_versions": [
+    {
+      "file_version": "1.26.65.1",
+      "product_version": "1.26.65.1",
+      "fixed_file_info_offset": "0x133d2558"
+    }
+  ]
+}

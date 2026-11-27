@@ -16,6 +16,11 @@ namespace perlin {
         float pitch = 0;
     };
 
+    struct MoveAxes {
+        float strafe = 0;
+        float forward = 0;
+    };
+
     class InputManager {
     public:
         InputManager(Input& input, Options& options) : input(input), options(options) {}
@@ -53,6 +58,13 @@ namespace perlin {
             return pressed.test(static_cast<size_t>(action)) && !(modFreeze && Freezable(action));
         }
         float Axis(Action positive, Action negative) const;
+        float AxisBeforeServerLocks(Action positive, Action negative) const;
+        MoveAxes AnalogMovement() const { return AnalogMovement(true); }
+        InputDevice Device() const { return input.ActiveDevice(); }
+        InputInteraction Interaction() const {
+            return Device() == InputDevice::Touch && input.TouchInteract() ? InputInteraction::Touch
+                                                                         : InputInteraction::Crosshair;
+        }
         LookDelta Look() const { return (locks & 2u) ? LookDelta{} : look; }
         float Scroll() const { return scroll; }
 
@@ -97,6 +109,11 @@ namespace perlin {
     private:
         void Dispatch(const Binding& pressedBinding);
         bool Matches(Action action, const Binding& binding) const;
+        bool ActionAllowed(Action action, bool applyServerLocks) const;
+        bool IsDownImpl(Action action, bool applyServerLocks, bool includeAnalog = true) const;
+        MoveAxes AnalogMovement(bool applyServerLocks) const;
+        MoveAxes Movement(bool applyServerLocks) const;
+        float PadMovementValue(Action action) const;
 
         Input& input;
         Options& options;

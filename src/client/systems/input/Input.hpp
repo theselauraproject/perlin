@@ -1,5 +1,6 @@
 #pragma once
 #include "client/systems/bindings/Keys.hpp"
+#include "client/systems/input/InputDevice.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -36,6 +37,14 @@ namespace perlin {
         void OnPadDown(int code);
         void OnPadUp(int code);
         bool IsPadDown(int code) const { return code >= 0 && code < 64 && pad[code]; }
+        void NoteDevice(InputDevice device) { activeDevice.store(device, std::memory_order_relaxed); }
+        InputDevice ActiveDevice() const { return activeDevice.load(std::memory_order_relaxed); }
+        void SetPadMove(float x, float y) {
+            padMoveX = x;
+            padMoveY = y;
+        }
+        float PadMoveX() const { return padMoveX; }
+        float PadMoveY() const { return padMoveY; }
         void SetPadLook(float x, float y) {
             padLookX = x;
             padLookY = y;
@@ -90,6 +99,12 @@ namespace perlin {
         int TakeTouchTaps() { return touchTaps.exchange(0, std::memory_order_relaxed); }
         void SetTouchInteract(bool on) { touchInteract.store(on, std::memory_order_relaxed); }
         bool TouchInteract() const { return touchInteract.load(std::memory_order_relaxed); }
+        void SetTouchMove(float x, float y) {
+            touchMoveX = x;
+            touchMoveY = y;
+        }
+        float TouchMoveX() const { return touchMoveX; }
+        float TouchMoveY() const { return touchMoveY; }
 
         moodycamel::ConcurrentQueue<InputEvent> events;
 
@@ -97,6 +112,8 @@ namespace perlin {
         std::atomic<bool> keys[256]{};
         std::atomic<bool> buttons[8]{};
         std::atomic<bool> pad[64]{};
+        std::atomic<InputDevice> activeDevice{InputDevice::Mouse};
+        std::atomic<float> padMoveX{0}, padMoveY{0};
         std::atomic<float> padLookX{0}, padLookY{0};
         std::atomic<bool> padConnected{false};
         std::atomic<bool> padCapture{false};
@@ -114,5 +131,6 @@ namespace perlin {
         std::atomic<bool> touchHold{false};
         std::atomic<int> touchTaps{0};
         std::atomic<bool> touchInteract{false};
+        std::atomic<float> touchMoveX{0}, touchMoveY{0};
     };
 }

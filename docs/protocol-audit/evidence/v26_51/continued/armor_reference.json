@@ -1,0 +1,784 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [
+    "PlayerInventoryProxy"
+  ],
+  "classes": [
+    {
+      "name": "ArmorSlotAndDamagePair",
+      "type_index": "0x15c49",
+      "size": 8,
+      "fieldlist": "0x15c48",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mArmorSlot",
+          "offset": 0,
+          "type": "SharedTypes::Legacy::ArmorSlot",
+          "type_index": "0x10ea",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDamage",
+          "offset": 4,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "HurtArmorPacket",
+      "type_index": "0x3b44d",
+      "size": 72,
+      "fieldlist": "0x3b44c",
+      "member_count": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ll::PayloadPacket<HurtArmorPacketPayload>",
+          "member_kind": "base"
+        },
+        {
+          "name": "mSerializationMode",
+          "offset": 64,
+          "type": "SerializationMode",
+          "type_index": "0x1fff",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getId",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b43d",
+          "return_type": "MinecraftPacketIds",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getName",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b43e",
+          "return_type": "std::basic_string_view<char,std::char_traits<char> >",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b43f",
+          "return_type": "SerializationMode",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b441",
+          "return_type": "void",
+          "class_type": "HurtArmorPacket",
+          "this_type": "HurtArmorPacket *",
+          "argument_types": [
+            "SerializationMode"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeWithSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b442",
+          "return_type": "void",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [
+            "BinaryStream &",
+            "const cereal::ReflectionCtx &",
+            "std::optional<SerializationMode>"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b443",
+          "return_type": "void",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [
+            "BinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b444",
+          "return_type": "void",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [
+            "BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b446",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "HurtArmorPacket",
+          "this_type": "HurtArmorPacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "disallowBatching",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b447",
+          "return_type": "bool",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isValid",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b447",
+          "return_type": "bool",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getMaxSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b448",
+          "return_type": "unsigned long long",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "toString",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b449",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "HurtArmorPacket",
+          "this_type": "const HurtArmorPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b44a",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "HurtArmorPacket",
+          "this_type": "HurtArmorPacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3b446",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "HurtArmorPacket",
+          "this_type": "HurtArmorPacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "HurtArmorPacketPayload",
+      "type_index": "0x1a18c",
+      "size": 12,
+      "fieldlist": "0x1a18b",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mCause",
+          "offset": 0,
+          "type": "SharedTypes::Legacy::ActorDamageCause",
+          "type_index": "0x1064",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDmg",
+          "offset": 4,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mArmorSlots",
+          "offset": 8,
+          "type": "std::bitset<5>",
+          "type_index": "0xb996",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerArmorDamagePacket",
+      "type_index": "0x43675",
+      "size": 80,
+      "fieldlist": "0x43674",
+      "member_count": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ll::PayloadPacket<PlayerArmorDamagePacketPayload>",
+          "member_kind": "base"
+        },
+        {
+          "name": "mSerializationMode",
+          "offset": 72,
+          "type": "SerializationMode",
+          "type_index": "0x1fff",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getId",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43665",
+          "return_type": "MinecraftPacketIds",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getName",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43666",
+          "return_type": "std::basic_string_view<char,std::char_traits<char> >",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43667",
+          "return_type": "SerializationMode",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43669",
+          "return_type": "void",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "PlayerArmorDamagePacket *",
+          "argument_types": [
+            "SerializationMode"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeWithSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366a",
+          "return_type": "void",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [
+            "BinaryStream &",
+            "const cereal::ReflectionCtx &",
+            "std::optional<SerializationMode>"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366b",
+          "return_type": "void",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [
+            "BinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366c",
+          "return_type": "void",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [
+            "BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366e",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "PlayerArmorDamagePacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "disallowBatching",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366f",
+          "return_type": "bool",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isValid",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366f",
+          "return_type": "bool",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getMaxSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43670",
+          "return_type": "unsigned long long",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "toString",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43671",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "const PlayerArmorDamagePacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43672",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "PlayerArmorDamagePacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4366e",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "PlayerArmorDamagePacket",
+          "this_type": "PlayerArmorDamagePacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "PlayerArmorDamagePacketPayload",
+      "type_index": "0x1d0fe",
+      "size": 24,
+      "fieldlist": "0x1d0fd",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mSlotAndDamagePairs",
+          "offset": 0,
+          "type": "std::vector<ArmorSlotAndDamagePair,std::allocator<ArmorSlotAndDamagePair> >",
+          "type_index": "0xd77a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SetLastHurtByPacket",
+      "type_index": "0x49e17",
+      "size": 64,
+      "fieldlist": "0x49e16",
+      "member_count": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ll::PayloadPacket<SetLastHurtByPacketPayload>",
+          "member_kind": "base"
+        },
+        {
+          "name": "mSerializationMode",
+          "offset": 56,
+          "type": "SerializationMode",
+          "type_index": "0x1fff",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getId",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e07",
+          "return_type": "MinecraftPacketIds",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getName",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e08",
+          "return_type": "std::basic_string_view<char,std::char_traits<char> >",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e09",
+          "return_type": "SerializationMode",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e0b",
+          "return_type": "void",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "SetLastHurtByPacket *",
+          "argument_types": [
+            "SerializationMode"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeWithSerializationMode",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e0c",
+          "return_type": "void",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [
+            "BinaryStream &",
+            "const cereal::ReflectionCtx &",
+            "std::optional<SerializationMode>"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e0d",
+          "return_type": "void",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [
+            "BinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e0e",
+          "return_type": "void",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [
+            "BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e10",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "SetLastHurtByPacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "disallowBatching",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e11",
+          "return_type": "bool",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isValid",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e11",
+          "return_type": "bool",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getMaxSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e12",
+          "return_type": "unsigned long long",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "toString",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e13",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "const SetLastHurtByPacket *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e14",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "SetLastHurtByPacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_read",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49e10",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "SetLastHurtByPacket",
+          "this_type": "SetLastHurtByPacket *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &",
+            "const cereal::ReflectionCtx &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SetLastHurtByPacketPayload",
+      "type_index": "0x1fd32",
+      "size": 4,
+      "fieldlist": "0x1fd31",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mLastHurtBy",
+          "offset": 0,
+          "type": "ActorType",
+          "type_index": "0x1082",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 2787140,
+      "name": "?handleArmorDamage@LocalPlayer@@QEAAXAEBUArmorSlotAndDamagePair@@@Z",
+      "section": 1,
+      "section_offset": "0x476b2f0",
+      "rva": "0x476c2f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2835120,
+      "name": "?hurtAndBreak@ItemStackBase@@QEAA_NHPEAVActor@@@Z",
+      "section": 1,
+      "section_offset": "0x2488240",
+      "rva": "0x2489240"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2835184,
+      "name": "?hurtArmor@Mob@@QEAAXAEBVActorDamageSource@@H@Z",
+      "section": 1,
+      "section_offset": "0x2080970",
+      "rva": "0x2081970"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2835248,
+      "name": "?hurtArmorSlots@Mob@@UEAAXAEBVActorDamageSource@@HV?$bitset@$04@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2080c90",
+      "rva": "0x2081c90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2835336,
+      "name": "?hurtArmorSlots@ServerPlayer@@UEAAXAEBVActorDamageSource@@HV?$bitset@$04@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2913cd0",
+      "rva": "0x2914cd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3603292,
+      "name": "?setDamageValue@Item@@QEBAXAEAVItemStackBase@@F@Z",
+      "section": 1,
+      "section_offset": "0x24c6fe0",
+      "rva": "0x24c7fe0"
+    }
+  ]
+}

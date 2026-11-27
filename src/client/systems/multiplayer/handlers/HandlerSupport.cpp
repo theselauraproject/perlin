@@ -4,8 +4,26 @@ namespace perlin::handlers {
     using namespace proto;
 
     bool SaneWorldPos(float x, float y, float z) {
-        return std::isfinite(x) && std::isfinite(y) && std::isfinite(z) && std::fabs(x) < 100000.0f &&
-               std::fabs(y) < 10000.0f && std::fabs(z) < 100000.0f;
+        // A finite simulation envelope for Perlin. These world-state packets
+        // do not share MovePlayer's native packet validator.
+        return movement::ValidPlayerPosition(x, y, z);
+    }
+
+    bool SanePlayerMove(const MovePlayerPacket& packet) {
+        if (!movement::ValidPlayerPosition(packet.position.x, packet.position.y, packet.position.z) ||
+            !std::isfinite(packet.pitch) || !std::isfinite(packet.yaw) || !std::isfinite(packet.headYaw) ||
+            std::fabs(packet.headYaw) > movement::kPositionLimit)
+            return false;
+        switch (packet.mode) {
+        case MovePlayerPacketMode::Normal:
+        case MovePlayerPacketMode::Reset:
+        case MovePlayerPacketMode::Rotation:
+            return !packet.teleport.has_value();
+        case MovePlayerPacketMode::Teleport:
+            return packet.teleport.has_value();
+        default:
+            return false;
+        }
     }
 
     std::string UuidKey(const Uuid& u) {

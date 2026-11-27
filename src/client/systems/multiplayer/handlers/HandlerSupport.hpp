@@ -29,6 +29,7 @@ namespace perlin::handlers {
     using PackStatus = ResourcePackClientResponsePacketResponseStatus;
 
     bool SaneWorldPos(float x, float y, float z);
+    bool SanePlayerMove(const MovePlayerPacket& packet);
 
     std::string UuidKey(const Uuid& u);
 

@@ -6,6 +6,20 @@ namespace perlin::selftest {
     int Run(std::string_view name) {
         if (name == "handler_dispatch")
             return HandlerDispatch();
+        if (name == "armor_packets")
+            return ArmorPackets();
+        if (name == "server_ui_packets")
+            return ServerUiPackets();
+        if (name == "audio_packets")
+            return AudioPackets();
+        if (name == "input_reporting")
+            return InputReporting();
+        if (name == "movement_protocol")
+            return MovementProtocol();
+        if (name == "session_codec_context")
+            return SessionCodecContext();
+        if (name == "recipe_packets")
+            return RecipePackets();
         if (name == "title_controller")
             return TitleController();
         if (name == "pack_manager")

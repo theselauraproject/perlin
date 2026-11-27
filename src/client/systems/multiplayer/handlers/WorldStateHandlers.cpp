@@ -46,9 +46,11 @@ namespace perlin {
                     return;
                 }
             }
-            Log("items", "server defines {} custom items", RegisterCustomItems(p.itemstates));
+            std::map<std::string, itemcooldown::Definition, std::less<>> cooldowns;
+            Log("items", "server defines {} custom items", RegisterCustomItems(p.itemstates, cooldowns));
             {
                 std::lock_guard lock(statusMutex);
+                itemCooldownDefinitions = std::move(cooldowns);
                 itemNames.clear();
                 for (const ItemstatesEntry& item : p.itemstates)
                     itemNames[item.runtimeId] = item.name;
@@ -70,11 +72,15 @@ namespace perlin {
                 rename(v.output);
                 rename(v.cursor);
             }
+            int32_t shield = -1;
             for (const ItemstatesEntry& item : p.itemstates)
                 if (item.name == "minecraft:shield") {
-                    net::context::SetShieldItemID(item.runtimeId);
-                    return;
+                    shield = item.runtimeId;
+                    break;
                 }
+            shieldItemId.store(shield, std::memory_order_relaxed);
+            net::context::UpdateBoundShieldItemID(shield);
+            net::context::SetShieldItemID(shield);
         });
 
         On<SetTimePacket>([this](const SetTimePacket& p) {
@@ -132,7 +138,11 @@ namespace perlin {
             r.z = static_cast<float>(p.coordinates.z) / 8.0f;
             r.volume = p.volume;
             r.pitch = p.pitch;
-            r.global = p.bypassListenerRangeCheck;
+            r.bypassListenerRangeCheck = p.bypassListenerRangeCheck;
+            r.serverInitiated = true;
+            r.handle = p.handle;
+            r.loopCount = p.loopCount;
+            r.playbackPositionSeconds = p.playbackPositionSeconds;
             PushSound(std::move(r));
         });
 

@@ -372,7 +372,9 @@ namespace perlin::ui {
             mixf(m.angle * 4.0f);
             mix(static_cast<uint64_t>(m.pitch + 2));
             mix(m.color);
-            mix(static_cast<uint64_t>(std::lround(m.distance / 8.0f)));
+            // The locator uses its last distance glyph beyond 332 blocks. Keep
+            // very distant but finite PlayerLocation coordinates out of lround.
+            mix(static_cast<uint64_t>(std::lround(std::clamp(m.distance, 0.0f, 332.0f) / 8.0f)));
         }
         mix(static_cast<uint64_t>(s.xpLevel));
         mix(static_cast<uint64_t>(s.armor));

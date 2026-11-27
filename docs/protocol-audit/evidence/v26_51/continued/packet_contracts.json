@@ -1,0 +1,927 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "network_protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "method": "Manual static instruction/data-flow review grounded by matched public symbols, CodeView member/virtual-slot metadata and PE imports. No execution of the reference binary.",
+    "limits": "These are bounded contracts, not a claim that all packet semantics, indirect listeners, physics, resource behavior or server anticheat compatibility were reproduced. No send observed in a reviewed body is not proof that every transitive callback cannot send.",
+    "external_references": [
+      {
+        "topic": "FMOD loop count semantics",
+        "url": "https://www.fmod.com/docs/2.04/api/core-api-channel.html#channel_setloopcount",
+        "use": "Documents the API to which the matched executable passes the signed loop count unchanged."
+      },
+      {
+        "topic": "Old sound-update duplicate variant binding and later replacement",
+        "repository": "https://github.com/Mojang/bedrock-protocol-docs",
+        "commit": "d011926b11583430de5d5c49f9c4e53eb7d1fe58",
+        "path": "developer_notes/r26u6/clientbound_update_sound_data_packet_tagged_variant.md"
+      },
+      {
+        "topic": "Protocol2225 Fade field order",
+        "repository": "https://github.com/Mojang/bedrock-protocol-docs",
+        "commit": "d011926b11583430de5d5c49f9c4e53eb7d1fe58",
+        "path": "json/Fade.json"
+      }
+    ]
+  },
+  "packets": [
+    {
+      "packet_id": 36,
+      "name": "PlayerActionPacket",
+      "handler_rva": "0x1329a70",
+      "scope": "state transition recovered",
+      "facts": [
+        "Requires a local player. This client route handles only PlayerActionType::ChangeDimensionAck (14).",
+        "Clears LocalPlayerDimensionWaitComponent.mWaitingForServerDimensionChangeAcknowledgment when true; actor runtime ID and positions are not read by this branch.",
+        "The component type hash 0xE115DC31 matches FNV-1a of LocalPlayerDimensionWaitComponent; its bool is at offset 0 and timer at offset 8."
+      ],
+      "remaining_limits": [
+        "Other PlayerAction values have no state effect in this reviewed route; this does not establish every separate listener behavior."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1329a70"
+        },
+        {
+          "label": "clear acknowledgment flag",
+          "rva": "0x1329b41"
+        }
+      ]
+    },
+    {
+      "packet_id": 38,
+      "name": "HurtArmorPacket",
+      "handler_rva": "0x13421a0",
+      "scope": "wire contract recovered; behavior incomplete",
+      "facts": [
+        "Legacy HurtArmor writing sends cause and damage through BinaryStream virtual slot 0x70 (writeVarInt signed32).",
+        "The mask is read as a DWORD but written through BinaryStream slot 0x68 (writeUnsignedVarInt64). This is a wire-width distinction, not the C++ in-memory field width.",
+        "The legacy client application path is gated by ItemStackNetManagerBase::isEnabled() being false."
+      ],
+      "remaining_limits": [
+        "Random armor selection, enchantments, damage-cause rules, break semantics and all legacy consumers remain unresolved."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x13421a0"
+        },
+        {
+          "label": "legacy write",
+          "rva": "0x2715350"
+        },
+        {
+          "label": "mask writer call path",
+          "rva": "0x27153f6"
+        }
+      ]
+    },
+    {
+      "packet_id": 54,
+      "name": "GuiDataPickItemPacket",
+      "handler_rva": "0x1308820",
+      "scope": "producer and popup consumer recovered",
+      "facts": [
+        "Localizes the item name, preserves the supplied effect text, replaces GuiData popup title/subtitle, sets popup dirty, and resets its float age to 0. It does not select an inventory slot or send equipment here.",
+        "GuiData::tick increments popup age by 0.05 only while age < 2.0. getNewPopupNotice yields it only while dirty and age < 2.0, then clears dirty.",
+        "MinecraftScreenModel::getNewPopupItemText combines title + newline + subtitle, including the newline when subtitle is empty.",
+        "The packet hotbar slot is stored independently in GuiData.mFlashSlotId and a clock timestamp in mFlashSlotStartTime.",
+        "The HUD consumer creates the item_text UI element and uses the $item_text_background_alpha resource binding."
+      ],
+      "remaining_limits": [
+        "The 2.0 age threshold is a producer availability window; it is not proof of popup render/fade lifetime.",
+        "Flash-slot consumer, alpha curve and flash duration have not been recovered. Existing Perlin resource UI presentation remains an approximation."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1308820"
+        },
+        {
+          "label": "showPopupNotice",
+          "rva": "0x1563400"
+        },
+        {
+          "label": "getNewPopupNotice",
+          "rva": "0x15635e0"
+        },
+        {
+          "label": "GuiData tick",
+          "rva": "0x1557f30"
+        },
+        {
+          "label": "popup text consumer",
+          "rva": "0x492d0e0"
+        },
+        {
+          "label": "newline append",
+          "rva": "0x492d3ee"
+        },
+        {
+          "label": "HUD tick",
+          "rva": "0x4ea00a0"
+        }
+      ]
+    },
+    {
+      "packet_id": 81,
+      "name": "UpdateEquipPacket",
+      "handler_rva": "0x1321da0",
+      "scope": "partial transitive trace",
+      "facts": [
+        "Requires a live, non-tearing-down level and an entity fetched by ActorUniqueID.",
+        "Passes the target actor and packet to an unresolved equipment helper, then publishes a client-player event and updates the open container manager ID when present."
+      ],
+      "remaining_limits": [
+        "The equipment helper, NBT application, horse/container event meaning and all inventory side effects are not fully recovered; no complete implementation contract is claimed."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1321da0"
+        },
+        {
+          "label": "equipment helper",
+          "rva": "0x1a2c6c0"
+        },
+        {
+          "label": "event publication",
+          "rva": "0x1321f7b"
+        }
+      ]
+    },
+    {
+      "packet_id": 86,
+      "name": "PlaySoundPacket",
+      "handler_rva": "0x131f2a0",
+      "scope": "audio start contract recovered with backend limits",
+      "facts": [
+        "The integer packet position is multiplied by 0.125 to form PlaySoundOptions.mPosition. The name, volume, pitch, signed int32 loop count, optional server sound handle, bypass flag and optional playback seconds are carried forward.",
+        "The LevelRendererPlayer callback checks bypass at PlaySoundOptions +72. When false, it accepts only squared listener distance < radius squared, where radius = 16 * (volume > 1 ? volume : 1). The original, unclamped volume controls this initial radius. Equality is rejected.",
+        "When bypass is true only that initial distance gate is skipped. Both paths forward the unchanged position/options to SoundPlayerInterface::play(PlaySoundOptions). Bypass does not make audio global or unpositioned.",
+        "SoundEngine clamps start volume to [0,1]; zero-volume playback is retained when the optional server handle is present. Muted engine, missing event and same-frame duplicate suppression are additional engine gates.",
+        "The signed loop-count bits are copied without addition/subtraction into an FMOD instance. Nonzero counts enable loop mode, and FMOD::Channel::setLoopCount receives the exact signed int32 value.",
+        "FMOD documents count 0 as one shot, positive N as N repetitions after the initial play, and -1 (wire bits 0xFFFFFFFF) as continuous looping.",
+        "Position reaches FMOD 3D attributes when the chosen sound definition selects spatial playback; the bypass flag does not reach this backend wrapper."
+      ],
+      "remaining_limits": [
+        "Other negative loop counts are not established as valid.",
+        "Resource sound selection, per-definition attenuation, frame de-duplication, asynchronous loading, subtitle filtering and exact FMOD timing are not all replicated by these findings.",
+        "Backend float-seek conversion and invalid playback-position behavior need separate validation."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x131f2a0"
+        },
+        {
+          "label": "Level playSound",
+          "rva": "0x1173ee0"
+        },
+        {
+          "label": "listener callback",
+          "rva": "0x4719f20"
+        },
+        {
+          "label": "bypass gate",
+          "rva": "0x4719f5b"
+        },
+        {
+          "label": "strict range branch",
+          "rva": "0x4719fd0"
+        },
+        {
+          "label": "unchanged options copy",
+          "rva": "0x471a14e"
+        },
+        {
+          "label": "audio play virtual call",
+          "rva": "0x471a189"
+        },
+        {
+          "label": "SoundEngine play",
+          "rva": "0x41bf810"
+        },
+        {
+          "label": "backend constructor",
+          "rva": "0xb3ae4a0"
+        },
+        {
+          "label": "options wrapper",
+          "rva": "0xb3b5300"
+        },
+        {
+          "label": "sound selection and properties",
+          "rva": "0xb3b3ef0"
+        },
+        {
+          "label": "sound instance allocation",
+          "rva": "0xb3b4da0"
+        },
+        {
+          "label": "sound instance constructor",
+          "rva": "0xb3a99e0"
+        },
+        {
+          "label": "sound instance startup",
+          "rva": "0xb3a9c40"
+        },
+        {
+          "label": "set 3D attributes",
+          "rva": "0xb3a9e35"
+        },
+        {
+          "label": "setLoopCount call",
+          "rva": "0xb3a9e6a"
+        }
+      ]
+    },
+    {
+      "packet_id": 96,
+      "name": "SetLastHurtByPacket",
+      "handler_rva": "0x1322a20",
+      "scope": "mapped; behavior unresolved",
+      "facts": [],
+      "remaining_limits": [
+        "The handler is nontrivial. Last-hurt state consumers and forwarding branches remain unresolved; a generic state assignment is not a demonstrated substitute."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1322a20"
+        }
+      ]
+    },
+    {
+      "packet_id": 138,
+      "name": "EmotePacket",
+      "handler_rva": "0x130ac60",
+      "scope": "guards and delegation recovered",
+      "facts": [
+        "Requires a live, non-tearing-down level, a target runtime entity, and a local player.",
+        "Requires the target to have ActorCategory::Player and be different from the local player; the local player is ignored by this route.",
+        "Delegates the piece ID to Player::playEmote virtual slot 0x670. The handler reads identity/permission state and a chat option to compute a bool argument, and tests flag bit 1 (mask 2).",
+        "The emote tick field is not read in this reviewed client handler."
+      ],
+      "remaining_limits": [
+        "Permission helper meaning, bool argument meaning, remote-player animation/equipment effects, chat display and complete playEmote behavior are not recovered."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x130ac60"
+        },
+        {
+          "label": "identity helper call",
+          "rva": "0x130ae28"
+        },
+        {
+          "label": "playEmote virtual call",
+          "rva": "0x130ae91"
+        }
+      ]
+    },
+    {
+      "packet_id": 142,
+      "name": "CompletedUsingItemPacket",
+      "handler_rva": "0x1306470",
+      "scope": "event construction recovered",
+      "facts": [
+        "Requires live level, no teardown, a local player, a resolvable item ID and an ItemUseMethod in 0..16.",
+        "Constructs a temporary ItemInstance with count 1, auxiliary value 0 and no NBT, then publishes ActorUseItemEvent with the local actor and packet method.",
+        "No inventory mutation or stop-use action occurs in the reviewed handler body."
+      ],
+      "remaining_limits": [
+        "Downstream actor-event listeners (including achievements/telemetry and any other effects) are unresolved. Do not infer inventory consumption from this packet name."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1306470"
+        },
+        {
+          "label": "item lookup",
+          "rva": "0x348ee20"
+        },
+        {
+          "label": "temporary ItemStackBase constructor",
+          "rva": "0x247ead0"
+        },
+        {
+          "label": "event publisher",
+          "rva": "0x2fea260"
+        }
+      ]
+    },
+    {
+      "packet_id": 149,
+      "name": "PlayerArmorDamagePacket",
+      "handler_rva": "0x130af90",
+      "scope": "authoritative armor update and slot wire contract recovered",
+      "facts": [
+        "The client handler accepts this path when ItemStackNetManagerBase::isEnabled() is true (Player +0xAB8, virtual slot 8), and delegates to LocalPlayer::handleArmorDamage.",
+        "The local handler uses the supplied armor slot, copies the equipped stack, calls Item::setDamageValue, and writes the modified stack back. The reviewed upper slot bound is 4; negative slot behavior depends on the container accessor.",
+        "Item::setDamageValue sign-extends the provided int16 and writes an IntTag named Damage. It does not clamp to max durability or break/delete the item in this path.",
+        "ArmorSlotAndDamagePair slot serialization binds enum-as-value flags 5 and reaches the compressed archive signed32 path, then BinaryStream::writeVarInt slot 0x70. The wire slot is signed varint, not a byte."
+      ],
+      "remaining_limits": [
+        "Body armor slot 4 has no complete existing Perlin consumer; negative-slot/container behavior remains bounded.",
+        "Legacy HurtArmor random/cause semantics are separate."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x130af90"
+        },
+        {
+          "label": "LocalPlayer handleArmorDamage",
+          "rva": "0x476c2f0"
+        },
+        {
+          "label": "Item setDamageValue",
+          "rva": "0x24c7fe0"
+        },
+        {
+          "label": "signed16 conversion",
+          "rva": "0x24c8093"
+        },
+        {
+          "label": "NBT putInt",
+          "rva": "0x2547e40"
+        },
+        {
+          "label": "slot property initializer",
+          "rva": "0x3c8832d"
+        },
+        {
+          "label": "enum-as-value flags",
+          "rva": "0x3c884f1"
+        },
+        {
+          "label": "slot binding writer",
+          "rva": "0x3d49260"
+        },
+        {
+          "label": "archive virtual call",
+          "rva": "0x3d49990"
+        },
+        {
+          "label": "compressed archive writer",
+          "rva": "0x40f2ce0"
+        },
+        {
+          "label": "compressed signed varint branch",
+          "rva": "0x40f2d07"
+        }
+      ]
+    },
+    {
+      "packet_id": 158,
+      "name": "AnimateEntityPacket",
+      "handler_rva": "0x1327de0",
+      "scope": "mapped transitive entrypoints; incomplete semantics",
+      "facts": [
+        "The nontrivial client route reaches animation registration, global animation data editing and playback helpers."
+      ],
+      "remaining_limits": [
+        "Controller/expression mutation, runtime actor guards, transition state, blend-out, animation query state and full resource animation playback remain unresolved. Function names alone are not a recovered animation contract."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1327de0"
+        },
+        {
+          "label": "isAnimationRegistered",
+          "rva": "0x1bbe110"
+        },
+        {
+          "label": "animation group lookup",
+          "rva": "0x1bbb210"
+        },
+        {
+          "label": "tryRegisterAnimation",
+          "rva": "0x1bbe2d0"
+        },
+        {
+          "label": "editGlobalAnimationData",
+          "rva": "0x1bbe700"
+        },
+        {
+          "label": "playAnimation",
+          "rva": "0x1bbf260"
+        }
+      ]
+    },
+    {
+      "packet_id": 168,
+      "name": "SimulationTypePacket",
+      "handler_rva": "0x130b740",
+      "scope": "mode storage and tick selection recovered",
+      "facts": [
+        "Requires a live, non-tearing-down level. Invalid=3 is ignored. Game=0, Editor=1 and Test=2 are defined values.",
+        "When the mode changes, the handler publishes old/new mode through PauseManager +0xA0 before storing the new byte at +2.",
+        "Level::tickEntitySystems reads this mode through EntitySystemsManager.mPauseManager. Game and Test call EntitySystems::tick; Editor calls EntitySystems::tickEditor; other values skip both.",
+        "The packet does not directly modify the separate menu pause state or audio pause state."
+      ],
+      "remaining_limits": [
+        "Editor-category system membership and all type-change subscribers are not fully recovered. Treating every non-Game type as a blanket client freeze would be incorrect.",
+        "No claim is made that Editor simulation is implemented by storing this mode alone."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x130b740"
+        },
+        {
+          "label": "mode-change publication",
+          "rva": "0x130b83a"
+        },
+        {
+          "label": "mode store",
+          "rva": "0x130b843"
+        },
+        {
+          "label": "Level tickEntitySystems",
+          "rva": "0x1177690"
+        },
+        {
+          "label": "mode read",
+          "rva": "0x1177888"
+        },
+        {
+          "label": "mode selection",
+          "rva": "0x11778f6"
+        },
+        {
+          "label": "normal tick call",
+          "rva": "0x1177910"
+        },
+        {
+          "label": "editor tick call",
+          "rva": "0x1177987"
+        },
+        {
+          "label": "EntitySystems tick",
+          "rva": "0x63b0b00"
+        },
+        {
+          "label": "EntitySystems tickEditor",
+          "rva": "0x63b1070"
+        }
+      ]
+    },
+    {
+      "packet_id": 179,
+      "name": "TickingAreasLoadStatusPacket",
+      "handler_rva": "0x12fecc0",
+      "scope": "loading state transition recovered",
+      "facts": [
+        "When waitingForPreload is true, only LoadingState::BuildingTerrain (2) changes to WaitingForTickingAreasPreload (131072).",
+        "When false, only WaitingForTickingAreasPreload changes back to BuildingTerrain. Other states are preserved.",
+        "The reviewed handler accesses the local user LoadingStateComponent and does not send a completion acknowledgment."
+      ],
+      "remaining_limits": [
+        "This branch does not establish when all later loading gates complete."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x12fecc0"
+        }
+      ]
+    },
+    {
+      "packet_id": 199,
+      "name": "UnlockedRecipesPacket",
+      "handler_rva": "0x130b8c0",
+      "scope": "unlock state and recipe-book consumers recovered",
+      "facts": [
+        "Empty=0 creates/obtains the client component without clearing its set.",
+        "InitiallyUnlockedRecipes=1 and NewlyUnlockedRecipes=2 both add to the existing set. NewlyUnlockedRecipes additionally reaches toast/category presentation.",
+        "RemoveUnlockedRecipes=3 removes listed IDs; RemoveAllUnlockedRecipes=4 clears the set.",
+        "addUnlockedRecipes resolves IDs and skips unknown IDs.",
+        "isRecipeUnlocked allows RecipeUnlockContext::AlwaysUnlocked (1), otherwise exact recipe-ID membership is required.",
+        "CraftingContainerManagerModel::_hasUnlockedRecipes returns true when the recipesUnlock game rule is false or the client unlock component is absent. Otherwise any unlocked alternative recipe in an output group makes that group eligible in the recipe book."
+      ],
+      "remaining_limits": [
+        "Native category layout, toast presentation, manual crafting and doLimitedCrafting effects remain unresolved. These are separate from the implemented unlock-set/book-filter contract."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x130b8c0"
+        },
+        {
+          "label": "add branch",
+          "rva": "0x130bc8b"
+        },
+        {
+          "label": "addUnlockedRecipes",
+          "rva": "0x28950c0"
+        },
+        {
+          "label": "recipe lookup",
+          "rva": "0x28952a0"
+        },
+        {
+          "label": "isRecipeUnlocked",
+          "rva": "0x2895850"
+        },
+        {
+          "label": "removeRecipes",
+          "rva": "0x28959d0"
+        },
+        {
+          "label": "removeAllRecipes",
+          "rva": "0x2895cb0"
+        },
+        {
+          "label": "recipe group gate",
+          "rva": "0x3439200"
+        },
+        {
+          "label": "alternative recipe predicate",
+          "rva": "0x344d180"
+        },
+        {
+          "label": "recipe-book candidate",
+          "rva": "0x34521d0"
+        }
+      ]
+    },
+    {
+      "packet_id": 300,
+      "name": "CameraInstructionPacket",
+      "scope": "FOV easing wire and enum-reader contract recovered; complete camera behavior unresolved",
+      "facts": [
+        "Normal packet factory initializes SerializationMode::CerealOnly (5); its writer creates BinarySchemaWriter with both serialization-trait bytes zero.",
+        "fovEaseType property uses SerializationTraits::None. The enum writer serializes a registered string label through BinaryStream::writeString, not the C++ enum integer or a one-byte tag.",
+        "SharedTypes::bindEasing registers 32 labels: linear, spring, and in/out/in_out triples for quad, cubic, quart, quint, sine, expo, circ, bounce, back and elastic. Count=32 and Invalid=33 are native enum sentinels, not registered labels; inverse_lerp is absent.",
+        "The enum reader lowercases bytes before registered-member lookup. An unknown or empty label reaches the context error path with value 0x1000. This is separate from top-level packet rejection behavior."
+      ],
+      "remaining_limits": [
+        "No runtime packet capture or official client execution was performed.",
+        "The enum-reader error path is established; the complete outer packet error/disconnect policy is not recovered here.",
+        "The generic codec can retain a string independently of whether the native enum reader accepts that label.",
+        "Absent FOV option and local rendering transitions are outside this narrow serializer trace."
+      ],
+      "anchors": [
+        {
+          "label": "factory default mode5",
+          "rva": "0x16b80ac"
+        },
+        {
+          "label": "writer zeroes archive traits",
+          "rva": "0x83bd251"
+        },
+        {
+          "label": "FOV easing property registration",
+          "rva": "0x6779856"
+        },
+        {
+          "label": "property serialization traits initialized to None",
+          "rva": "0x67a527e"
+        },
+        {
+          "label": "enum label writer",
+          "rva": "0x678c2ec"
+        },
+        {
+          "label": "registered EasingType labels",
+          "rva": "0x7b42b10"
+        },
+        {
+          "label": "unknown-label reader error",
+          "rva": "0x678b1ae"
+        }
+      ],
+      "supporting_reference": "camera_fov_findings.json"
+    },
+    {
+      "packet_id": 307,
+      "name": "SetPlayerInventoryOptionsPacket",
+      "handler_rva": "0x130cc60",
+      "scope": "state replacement recovered",
+      "facts": [
+        "Requires a local player and copies the 20-byte InventoryOptions record into Player.mInventoryOptions at offset 0x5C0.",
+        "The fields are left tab, right tab, filtering bool, inventory layout and crafting layout. This receive path has no explicit immediate reply."
+      ],
+      "remaining_limits": [
+        "Memory layout alone is not a wire-order proof; UI bindings and recipe-book mode rendering require concrete consumers."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x130cc60"
+        }
+      ]
+    },
+    {
+      "packet_id": 317,
+      "name": "ContainerRegistryCleanupPacket",
+      "handler_rva": "0x1342b10",
+      "scope": "expiration contract recovered; missing Perlin subsystem",
+      "facts": [
+        "Requires a local player, cleans dynamic HUD containers, then calls the level container registry tracker setExpired with the packet FullContainerName vector.",
+        "ContainerRegistry::setExpired marks existing exact-name-plus-dynamic-ID entries as expired. It does not clear ordinary inventory or every container."
+      ],
+      "remaining_limits": [
+        "Perlin lacks the matching dynamic container registry consumers. This packet is left unresolved rather than translated into broad inventory deletion."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1342b10"
+        },
+        {
+          "label": "HUD dynamic container cleanup",
+          "rva": "0x343dac0"
+        },
+        {
+          "label": "registry setExpired",
+          "rva": "0x31af390"
+        }
+      ]
+    },
+    {
+      "packet_id": 322,
+      "name": "ClientMovementPredictionSyncPacket",
+      "handler_rva": "0x76bc0",
+      "scope": "actor identifier meaning and legacy wire path recovered",
+      "facts": [
+        "ClientMovementPredictionSyncPacketPayload.mActorID at payload offset 112 is ActorUniqueID, whose rawID is signed int64. It is not ActorRuntimeID.",
+        "The manual/default branch of writeWithSerializationMode loads packet +0xA0 and invokes BinaryStream virtual slot 0x78 (writeVarInt64, signed ZigZag64). The unsigned64 compressed slot is 0x68.",
+        "The reflected payload initializer registers this member as Actor Unique ID, and installs the shared ActorUniqueID binding. This independently corroborates identifier meaning.",
+        "Reflection modes 3, 4 and 5 use the separate cereal path; the complete member-by-member cereal serializer was not reconstructed in this finding."
+      ],
+      "remaining_limits": [
+        "The manually inspected signed64 writer is not, by itself, a proof of every reflection-mode encoding."
+      ],
+      "anchors": [
+        {
+          "label": "manual/default writer",
+          "rva": "0x83ef520"
+        },
+        {
+          "label": "actor ID load",
+          "rva": "0x83ef67b"
+        },
+        {
+          "label": "signed64 writer call",
+          "rva": "0x83ef696"
+        },
+        {
+          "label": "cereal path",
+          "rva": "0x852a100"
+        },
+        {
+          "label": "Actor Unique ID label reference",
+          "rva": "0x83f3949"
+        },
+        {
+          "label": "property registration",
+          "rva": "0x83f3974"
+        },
+        {
+          "label": "ActorUniqueID binding install",
+          "rva": "0x83f399e"
+        }
+      ]
+    },
+    {
+      "packet_id": 326,
+      "name": "PlayerLocationPacket",
+      "handler_rva": "0x132a340",
+      "scope": "validation and locator state contract recovered",
+      "facts": [
+        "Coordinates variant validation requires finite x, y and z, with no 33554432 movement bound in this validator. Hidden variant passes without a coordinate check.",
+        "Invalid data takes the client disconnect callback with reason 90 (BadPacket).",
+        "Valid handling requires a live level not tearing down, then updates PlayerLocationReceiver by ActorUniqueID.",
+        "Coordinates insert/replace an optional Vec3 in the receiver map; Hidden inserts an empty optional or clears the existing position.",
+        "This route does not require the target entity to be loaded and does not mutate the actor transform."
+      ],
+      "remaining_limits": [
+        "Native locator rendering, subscriptions and all UI conditions are not fully recovered; receiver state is distinct from entity movement."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x132a340"
+        },
+        {
+          "label": "validator",
+          "rva": "0x3cc0020"
+        },
+        {
+          "label": "updatePlayer",
+          "rva": "0x34e6ae0"
+        },
+        {
+          "label": "hidePlayer",
+          "rva": "0x34e6b60"
+        }
+      ]
+    },
+    {
+      "packet_id": 327,
+      "name": "ClientboundControlSchemeSetPacket",
+      "handler_rva": "0x1319120",
+      "scope": "partial state, camera and option contract",
+      "facts": [
+        "Requires a local player, writes ControlSchemeComponent.mControlScheme, then invokes two camera-registry helpers.",
+        "Defined values are LockedPlayerRelativeStrafe=0, CameraRelative=1, CameraRelativeStrafe=2, PlayerRelative=3, PlayerRelativeStrafe=4.",
+        "For schemes 2 and 4, the handler sets actor rotation pitch to zero.",
+        "For schemes 2 and 4, when option ID 4 equals 2 it changes option ID 5 to true and option ID 4 to 0, then refreshes the client input configuration. Other schemes restore ID 4 to 2 when ID 5 is true, then clear ID 5.",
+        "The camera helpers access RedirectCameraInputComponent, CameraComponent, StationaryCameraComponent, ActiveCameraComponent and CameraThirdPersonFixedBoomComponent pools."
+      ],
+      "remaining_limits": [
+        "Option ID names and exact camera component insertion/removal rules are not fully established. A stored scheme byte alone is not complete camera/input parity.",
+        "No arbitrary camera mode or global input lock should be inferred from these names."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x1319120"
+        },
+        {
+          "label": "scheme store",
+          "rva": "0x131923b"
+        },
+        {
+          "label": "camera helper one",
+          "rva": "0x66ff2c0"
+        },
+        {
+          "label": "camera helper two",
+          "rva": "0x67000c0"
+        },
+        {
+          "label": "pitch reset",
+          "rva": "0x131939c"
+        },
+        {
+          "label": "input configuration refresh",
+          "rva": "0x434f570"
+        }
+      ]
+    },
+    {
+      "packet_id": 348,
+      "name": "ClientboundUpdateSoundDataPacket",
+      "handler_rva": "0x131f6e0",
+      "scope": "audio event forwarding and version-specific wire contract recovered",
+      "facts": [
+        "Delegates to LevelSoundManager::handleUpdateSoundData, which gates on mIsClientSide at +0x150, not mServerAuthSoundEnabled at +0x151.",
+        "The optional play packet server handle becomes the opaque uint64 key used by subsequent update events.",
+        "Event 0 Stop -> SoundPlayerInterface slot 0x68; 1 SetVolume -> 0x80; 2 SetPitch -> 0x88; 3 Fade(duration,targetVolume) -> 0x90; 4 SeekTo(seconds) -> 0x98; 5 Pause -> 0xA0; 6 Resume -> 0xA8.",
+        "Pause and Resume use SoundPauseSource::Script=1, distinct from PauseMenu=0.",
+        "The reviewed forwarding functions do not clamp or normalize event float values. Stop also publishes the record-stopped event with the handle.",
+        "The matched packet factory initializes SerializationMode::CerealOnly (5). Its writer handles mode 5 with BinarySchemaWriter; the packet mode is not a guessed default.",
+        "In protocol 2193 the payload binding registers Server Sound Handle and then seven fields named Stop, SetVolume, SetPitch, Fade, SeekTo, Pause and Resume. Each of those seven getters returns the same whole mEvent variant, so normal output repeats the complete active variant seven times.",
+        "Each repeated variant emits an unsigned varint32 discriminator 0..6, followed by its active fields. Stop, Pause and Resume have no active fields; SetVolume, SetPitch and SeekTo have one float; Fade writes duration float before target volume float. There are no seven optional-presence bytes in this reviewed writer path.",
+        "The server sound handle uses fixed-width little-endian uint64. The member binder calls the unsigned64 archive writer with compression flags clear.",
+        "Mojang developer note r26u6/clientbound_update_sound_data_packet_tagged_variant.md independently describes the old seven-whole-variant defect and the later single Event uint8 tag. Official protocol 2225 Fade.json also gives Duration before Target Volume.",
+        "All seven property setters target the same mEvent member. The setter copies the decoded variant to payload offsets 8..19; no separate per-operation payload state exists.",
+        "Each repeated variant reader retains the full unsigned32 discriminator and rejects values above 6 through a context error before narrowing to a byte or invoking any alternative reader. In particular, index 256 must not alias Stop (0). This proves the per-variant range guard, not the entire outer packet error policy."
+      ],
+      "remaining_limits": [
+        "Underlying backend invalid-argument behavior, fade timing, paused-source composition, duplicate server-handle ownership and unknown-handle behavior require separate end-to-end verification.",
+        "The writer trace and shared setter are established; all generic reader error paths and malformed, mutually inconsistent repeated-event behavior were not exhaustively traced."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x131f6e0"
+        },
+        {
+          "label": "LevelSoundManager handler",
+          "rva": "0x174ab60"
+        },
+        {
+          "label": "event dispatcher",
+          "rva": "0x3505670"
+        },
+        {
+          "label": "factory default mode store",
+          "rva": "0x16c1d34"
+        },
+        {
+          "label": "mode getter",
+          "rva": "0x3466d0"
+        },
+        {
+          "label": "writeWithSerializationMode",
+          "rva": "0x38c6870"
+        },
+        {
+          "label": "payload binding initialization",
+          "rva": "0x38c8780"
+        },
+        {
+          "label": "handle property registration",
+          "rva": "0x38cc377"
+        },
+        {
+          "label": "seven field registrations begin",
+          "rva": "0x38cc498"
+        },
+        {
+          "label": "seven field registrations end",
+          "rva": "0x38cc57b"
+        },
+        {
+          "label": "shared variant binding install",
+          "rva": "0x38ced45"
+        },
+        {
+          "label": "generic object writer",
+          "rva": "0x4117050"
+        },
+        {
+          "label": "generic member iteration",
+          "rva": "0x4117630"
+        },
+        {
+          "label": "member writer virtual call",
+          "rva": "0x4117bf7"
+        },
+        {
+          "label": "whole variant getter",
+          "rva": "0x39a7f10"
+        },
+        {
+          "label": "whole variant setter",
+          "rva": "0x39a7d00"
+        },
+        {
+          "label": "variant writer",
+          "rva": "0x39a75e0"
+        },
+        {
+          "label": "discriminator write call",
+          "rva": "0x39a7683"
+        },
+        {
+          "label": "varuint32 archive writer",
+          "rva": "0x40f2fc0"
+        },
+        {
+          "label": "duration property registration",
+          "rva": "0x38ca758"
+        },
+        {
+          "label": "target volume property registration",
+          "rva": "0x38ca87f"
+        },
+        {
+          "label": "unsigned64 member writer",
+          "rva": "0x316810"
+        },
+        {
+          "label": "unsigned64 archive writer",
+          "rva": "0x40f2de0"
+        },
+        {
+          "label": "variant binary-reader helper",
+          "rva": "0x39a5e10"
+        },
+        {
+          "label": "full unsigned32 index comparison",
+          "rva": "0x39a5ee9"
+        },
+        {
+          "label": "invalid-index context error",
+          "rva": "0x39a6142"
+        }
+      ]
+    },
+    {
+      "packet_id": 351,
+      "name": "SetPlayerFurnaceOptionsPacket",
+      "handler_rva": "0x130cca0",
+      "scope": "state replacement recovered",
+      "facts": [
+        "Requires a local player and recognizes container types 1 Furnace, 2 BlastFurnace, 3 Smoker.",
+        "Copies the 12-byte options record into the respective Player option record at 0x5D4, 0x5E0 or 0x5EC; other container types are ignored by this branch."
+      ],
+      "remaining_limits": [
+        "The PDB leaves FurnaceOptions field names unknown; official wire/schema labels and real UI consumers are separate evidence."
+      ],
+      "anchors": [
+        {
+          "label": "client handler",
+          "rva": "0x130cca0"
+        }
+      ]
+    }
+  ]
+}

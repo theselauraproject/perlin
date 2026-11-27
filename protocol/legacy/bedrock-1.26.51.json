@@ -1008,8 +1008,7 @@
           "laying_egg",
           "rider_can_pick",
           "transition_sitting",
-          "eating",
-          "laying_down"
+          "eating"
         ]
       }
     ],
@@ -1019,6 +1018,7 @@
         "type": "zigzag64",
         "big": true,
         "flags": [
+          "laying_down",
           "sneezing",
           "trusting",
           "rolling",
@@ -1081,10 +1081,7 @@
           "body_rotation_always_follows_head",
           "can_use_vertical_movement_action",
           "rotation_locked_to_vehicle",
-          "uses_legacy_friction",
-          "uses_uniform_air_drag",
-          "nameplate_depth_tested",
-          "not_pickable_from_inside"
+          "uses_legacy_friction"
         ]
       }
     ],
@@ -9563,7 +9560,7 @@
         },
         {
           "name": "armor_slots",
-          "type": "zigzag64"
+          "type": "varint64"
         }
       ]
     ],
@@ -13256,7 +13253,7 @@
           "type": [
             "mapper",
             {
-              "type": "u8",
+              "type": "zigzag32",
               "mappings": {
                 "0": "helmet",
                 "1": "chestplate",
@@ -14658,20 +14655,34 @@
               "container",
               [
                 {
-                  "name": "fade_in_duration",
-                  "type": "lf32"
-                },
-                {
-                  "name": "wait_duration",
-                  "type": "lf32"
-                },
-                {
-                  "name": "fade_out_duration",
-                  "type": "lf32"
+                  "name": "time_data",
+                  "type": [
+                    "option",
+                    [
+                      "container",
+                      [
+                        {
+                          "name": "fade_in_duration",
+                          "type": "lf32"
+                        },
+                        {
+                          "name": "wait_duration",
+                          "type": "lf32"
+                        },
+                        {
+                          "name": "fade_out_duration",
+                          "type": "lf32"
+                        }
+                      ]
+                    ]
+                  ]
                 },
                 {
                   "name": "color_rgb",
-                  "type": "vec3f"
+                  "type": [
+                    "option",
+                    "vec3f"
+                  ]
                 }
               ]
             ]
@@ -14723,7 +14734,7 @@
                 },
                 {
                   "name": "ease_type",
-                  "type": "EaseType"
+                  "type": "string"
                 },
                 {
                   "name": "clear",
@@ -15572,8 +15583,8 @@
           "type": "lf32"
         },
         {
-          "name": "entity_runtime_id",
-          "type": "varint64"
+          "name": "entity_unique_id",
+          "type": "zigzag64"
         },
         {
           "name": "is_flying",
@@ -16487,128 +16498,13 @@
           "type": "ServerSoundHandle"
         },
         {
-          "name": "stop",
+          "name": "updates",
           "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                }
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "volume",
-          "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                },
-                {
-                  "name": "volume",
-                  "type": "lf32"
-                }
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "pitch",
-          "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                },
-                {
-                  "name": "pitch",
-                  "type": "lf32"
-                }
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "fade",
-          "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                },
-                {
-                  "name": "target_volume",
-                  "type": "lf32"
-                },
-                {
-                  "name": "duration",
-                  "type": "lf32"
-                }
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "seek_to",
-          "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                },
-                {
-                  "name": "seconds",
-                  "type": "lf32"
-                }
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "pause",
-          "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                }
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "resume",
-          "type": [
-            "option",
-            [
-              "container",
-              [
-                {
-                  "name": "unused",
-                  "type": "varint"
-                }
-              ]
-            ]
+            "array",
+            {
+              "count": 7,
+              "type": "SoundDataUpdate"
+            }
           ]
         }
       ]
@@ -16677,6 +16573,81 @@
         {
           "name": "handle",
           "type": "lu64"
+        }
+      ]
+    ],
+    "SoundDataUpdate": [
+      "container",
+      [
+        {
+          "name": "type",
+          "type": [
+            "mapper",
+            {
+              "type": "varint",
+              "mappings": {
+                "0": "stop",
+                "1": "set_volume",
+                "2": "set_pitch",
+                "3": "fade",
+                "4": "seek_to",
+                "5": "pause",
+                "6": "resume"
+              }
+            }
+          ]
+        },
+        {
+          "anon": true,
+          "type": [
+            "switch",
+            {
+              "compareTo": "type",
+              "fields": {
+                "set_volume": [
+                  "container",
+                  [
+                    {
+                      "name": "volume",
+                      "type": "lf32"
+                    }
+                  ]
+                ],
+                "set_pitch": [
+                  "container",
+                  [
+                    {
+                      "name": "pitch",
+                      "type": "lf32"
+                    }
+                  ]
+                ],
+                "fade": [
+                  "container",
+                  [
+                    {
+                      "name": "duration",
+                      "type": "lf32"
+                    },
+                    {
+                      "name": "target_volume",
+                      "type": "lf32"
+                    }
+                  ]
+                ],
+                "seek_to": [
+                  "container",
+                  [
+                    {
+                      "name": "seconds",
+                      "type": "lf32"
+                    }
+                  ]
+                ]
+              },
+              "default": "void"
+            }
+          ]
         }
       ]
     ]

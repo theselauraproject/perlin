@@ -1,0 +1,1792 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "LoopingSoundInstanceFMOD",
+      "type_index": "0x3f654",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundEngine",
+      "type_index": "0x4aa11",
+      "size": 1104,
+      "fieldlist": "0x4aa10",
+      "member_count": 79,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "SoundPlayerInterface",
+          "member_kind": "base"
+        },
+        {
+          "name": "mSoundSystem",
+          "offset": 24,
+          "type": "const gsl::not_null<std::unique_ptr<SoundSystemBase,std::default_delete<SoundSystemBase> > >",
+          "type_index": "0x4a9d5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFrameUniqueSoundSet",
+          "offset": 32,
+          "type": "std::unordered_set<unsigned long long,std::hash<unsigned long long>,std::equal_to<unsigned long long>,std::allocator<unsigned long long> >",
+          "type_index": "0xd54f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundEventRepository",
+          "offset": 96,
+          "type": "SoundEventRepository",
+          "type_index": "0x101eb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOptions",
+          "offset": 240,
+          "type": "std::shared_ptr<IReadWriteOptions>",
+          "type_index": "0xcc4f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTTSClient",
+          "offset": 256,
+          "type": "std::shared_ptr<TextToSpeechClient>",
+          "type_index": "0xcd27",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMainVolumeOptionSubscription",
+          "offset": 272,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundVolumeOptionSubscription",
+          "offset": 288,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMusicVolumeOptionSubscription",
+          "offset": 304,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTextToSpeechVolumeOptionSubscription",
+          "offset": 320,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnPauseStateChangeSubscription",
+          "offset": 336,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundCategoryVolumeOptionSubscriptions",
+          "offset": 352,
+          "type": "std::vector<Bedrock::PubSub::Subscription,std::allocator<Bedrock::PubSub::Subscription> >",
+          "type_index": "0xdd08",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mResourceManager",
+          "offset": 376,
+          "type": "Bedrock::NonOwnerPointer<ResourcePackManager>",
+          "type_index": "0x7460",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLinkedAssetValidator",
+          "offset": 400,
+          "type": "Bedrock::NonOwnerPointer<LinkedAssetValidator>",
+          "type_index": "0x7435",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMusicVolumeMultipliers",
+          "offset": 424,
+          "type": "VolumeMultipliers<5>",
+          "type_index": "0x7b6f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMainVolume",
+          "offset": 564,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTTSVolume",
+          "offset": 568,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMuted",
+          "offset": 572,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFadeToStopMusic",
+          "offset": 573,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSounds",
+          "offset": 576,
+          "type": "SoundMapping",
+          "type_index": "0x101f3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnlineStreamManager",
+          "offset": 968,
+          "type": "std::unique_ptr<Audio::OnlineAudioStreamManager,std::default_delete<Audio::OnlineAudioStreamManager> >",
+          "type_index": "0xd14c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStreamingExperiment",
+          "offset": 976,
+          "type": "const std::unique_ptr<StreamingAudioExperiment,std::default_delete<StreamingAudioExperiment> >",
+          "type_index": "0x4a9d6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFileSystem",
+          "offset": 984,
+          "type": "Bedrock::NonOwnerPointer<Core::FileSystem>",
+          "type_index": "0x73f6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFileAccess",
+          "offset": 1008,
+          "type": "Bedrock::NonOwnerPointer<IFileAccess>",
+          "type_index": "0x740f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDataPath",
+          "offset": 1032,
+          "type": "Core::PathBuffer<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >",
+          "type_index": "0x74fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundLoadScheduler",
+          "offset": 1064,
+          "type": "const gsl::not_null<std::unique_ptr<SoundLoadScheduler,std::default_delete<SoundLoadScheduler> > >",
+          "type_index": "0x4a9d7",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mResourceLoadManagerMutex",
+          "offset": 1072,
+          "type": "std::shared_mutex",
+          "type_index": "0x10874",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mResourceLoadManager",
+          "offset": 1080,
+          "type": "Bedrock::NonOwnerPointer<ResourceLoadManager>",
+          "type_index": "0x745f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~SoundEngine",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9d9",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "pauseMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9da",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "play",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9db",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "std::optional<ServerSoundHandle>"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "play",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9dc",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "PlaySoundOptions"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9de",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9df",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e0",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setVolume",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e2",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPitch",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e2",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "fade",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e3",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPlaybackPosition",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e2",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "pause",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e4",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "SoundPauseSource"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "resume",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e4",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "SoundPauseSource"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopAllSounds",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9d9",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "pauseAllPlayingSounds",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e5",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "SoundPauseSource"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "resumeAllPreviouslyPlayingSounds",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e5",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "SoundPauseSource"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSubtitle",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e8",
+          "return_type": "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "playUI",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9e9",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9ea",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "uint32_t &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9eb",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isLoadingMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9ed",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingMusicEvent",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9ee",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9ef",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "Core::PathView"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fadeToStopMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f0",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setMusicCommandVolumeMultiplier",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f0",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fadeOut",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f1",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "unsigned long long",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopMusic",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9d9",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerLoop",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f2",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::function<void (LoopingSoundState &)>",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "unregisterLoop",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f3",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "unsigned long long",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f4",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f5",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "const Core::Path &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f6",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "playAttached",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f8",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::function<void (SoundInstanceProperties &)> &&"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItem",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9f9",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "Core::PathView",
+            "SoundItem &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCurrentlyPlayingMusicPath",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9fa",
+          "return_type": "Core::PathView",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "displaySoundEngineStats",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 304,
+          "type_index": "0x4a9fb",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetPlayingSoundAttributes",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9fc",
+          "return_type": "std::optional<PlayingSoundAttributes>",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetPlayingSoundAttributes",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9fd",
+          "return_type": "std::optional<PlayingSoundAttributes>",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetLoopingSoundAttributes",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9ff",
+          "return_type": "std::optional<LoopingSoundAttributes>",
+          "class_type": "SoundEngine",
+          "this_type": "const SoundEngine *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_tryPlayMusicFromStreamingExperiment",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa03",
+          "return_type": "bool",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const SoundItem &",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "load",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa05",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "bool",
+            "Bedrock::NonOwnerPointer<LinkedAssetValidator>",
+            "std::shared_ptr<std::vector<Bedrock::Resources::PreloadedPathHandle,std::allocator<Bedrock::Resources::PreloadedPathHandle> > >"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playFromMemory",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa07",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const Core::Path &",
+            "const char *",
+            "unsigned long long",
+            "bool",
+            "float",
+            "float",
+            "float",
+            "float",
+            "bool",
+            "bool"
+          ],
+          "argument_count": 10,
+          "this_adjust": 0
+        },
+        {
+          "name": "playOnlineMusic",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa09",
+          "return_type": "unsigned long long",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "WeakRef<Audio::OnlineAudioStream>",
+            "float",
+            "Audio::SoundStartOptions"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerPauseManagerCallback",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa0a",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "Bedrock::PubSub::Connector<void (bool)> &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "releaseSoundFileHandles",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a9d9",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setOptions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa0c",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "std::shared_ptr<IReadWriteOptions>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTTSClient",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa0d",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "std::shared_ptr<TextToSpeechClient>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "update",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa0f",
+          "return_type": "void",
+          "class_type": "SoundEngine",
+          "this_type": "SoundEngine *",
+          "argument_types": [
+            "gsl::span<std::pair<int,ListenerState>,18446744073709551615>",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SoundEngine::MusicVolumeSource",
+      "type_index": "0x1b24",
+      "fieldlist": "0x1b23",
+      "underlying": 35,
+      "member_count": 6,
+      "enum": true,
+      "fields": [
+        {
+          "name": "CurrentTrack",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Option",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MusicCommand",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BiomeDuck",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "JukeboxDuck",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 5,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceBaseFMOD",
+      "type_index": "0x4aa19",
+      "size": 1,
+      "fieldlist": "0x4aa18",
+      "member_count": 1,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceFMOD",
+      "type_index": "0x4aa1b",
+      "size": 1,
+      "fieldlist": "0x4aa1a",
+      "member_count": 1,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundInstanceProperties",
+      "type_index": "0x20215",
+      "size": 40,
+      "fieldlist": "0x20214",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mUnk9d79c3",
+          "offset": 0,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5f8372",
+          "offset": 16,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20210",
+          "return_type": "SoundInstanceProperties &",
+          "class_type": "SoundInstanceProperties",
+          "this_type": "SoundInstanceProperties *",
+          "argument_types": [
+            "const SoundInstanceProperties &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SoundInstanceProperties",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20211",
+          "return_type": "void",
+          "class_type": "SoundInstanceProperties",
+          "this_type": "SoundInstanceProperties *",
+          "argument_types": [
+            "const SoundInstanceProperties &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SoundInstanceProperties",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20212",
+          "return_type": "void",
+          "class_type": "SoundInstanceProperties",
+          "this_type": "SoundInstanceProperties *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SoundPlayerInterface",
+      "type_index": "0x4aa6e",
+      "size": 24,
+      "fieldlist": "0x4aa6d",
+      "member_count": 39,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~SoundPlayerInterface",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4aa47",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "play",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x4aa48",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const Vec3 &",
+            "float",
+            "float",
+            "std::optional<ServerSoundHandle>"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "play",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x4aa49",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "PlaySoundOptions"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "playUI",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x4aa4b",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x4aa4c",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float",
+            "uint32_t &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "playMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x4aa4d",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isLoadingMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x4aa51",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingMusicEvent",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x4aa52",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x4aa53",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "Core::PathView"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fadeToStopMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x4aa54",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setMusicCommandVolumeMultiplier",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x4aa54",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fadeOut",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x4aa55",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x4aa47",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 120,
+          "type_index": "0x4aa56",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x4aa57",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "stop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x4aa58",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setVolume",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 128,
+          "type_index": "0x4aa5a",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPitch",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 136,
+          "type_index": "0x4aa5a",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "fade",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 144,
+          "type_index": "0x4aa5b",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPlaybackPosition",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 152,
+          "type_index": "0x4aa5a",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "pause",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 160,
+          "type_index": "0x4aa5c",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "SoundPauseSource"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "resume",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 168,
+          "type_index": "0x4aa5c",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle",
+            "SoundPauseSource"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "stopAllSounds",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 176,
+          "type_index": "0x4aa47",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "pauseAllPlayingSounds",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 184,
+          "type_index": "0x4aa5d",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "SoundPauseSource"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "resumeAllPreviouslyPlayingSounds",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 192,
+          "type_index": "0x4aa5d",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "SoundPauseSource"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "pauseMusic",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 200,
+          "type_index": "0x4aa5e",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCurrentlyPlayingMusicPath",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 208,
+          "type_index": "0x4aa5f",
+          "return_type": "Core::PathView",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 216,
+          "type_index": "0x4aa60",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "Core::PathView",
+            "SoundItem &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerLoop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 224,
+          "type_index": "0x4aa61",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::function<void (LoopingSoundState &)>",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "unregisterLoop",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 232,
+          "type_index": "0x4aa62",
+          "return_type": "void",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSubtitle",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 240,
+          "type_index": "0x4aa63",
+          "return_type": "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 264,
+          "type_index": "0x4aa64",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 256,
+          "type_index": "0x4aa65",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "const Core::Path &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPlayingSound",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 248,
+          "type_index": "0x4aa66",
+          "return_type": "bool",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "playAttached",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 272,
+          "type_index": "0x4aa68",
+          "return_type": "unsigned long long",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "SoundPlayerInterface *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::function<void (SoundInstanceProperties &)> &&"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetPlayingSoundAttributes",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 288,
+          "type_index": "0x4aa69",
+          "return_type": "std::optional<PlayingSoundAttributes>",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetPlayingSoundAttributes",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 280,
+          "type_index": "0x4aa6a",
+          "return_type": "std::optional<PlayingSoundAttributes>",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "ServerSoundHandle"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetLoopingSoundAttributes",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 296,
+          "type_index": "0x4aa6c",
+          "return_type": "std::optional<LoopingSoundAttributes>",
+          "class_type": "SoundPlayerInterface",
+          "this_type": "const SoundPlayerInterface *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 1393860,
+      "name": "?_tryPlayMusicFromStreamingExperiment@SoundEngine@@QEAA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVSoundItem@@M@Z",
+      "section": 1,
+      "section_offset": "0x41bf410",
+      "rva": "0x41c0410"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2166036,
+      "name": "?fadeToStopMusic@SoundEngine@@UEAAXM@Z",
+      "section": 1,
+      "section_offset": "0x41bfa90",
+      "rva": "0x41c0a90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2520220,
+      "name": "?getItem@SoundEngine@@UEBA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@VPathView@Core@@AEAVSoundItem@@@Z",
+      "section": 1,
+      "section_offset": "0x41bf930",
+      "rva": "0x41c0930"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2693924,
+      "name": "?getSoundEngine@MinecraftGame@@UEBA?AV?$not_null@V?$NonOwnerPointer@VSoundEngine@@@Bedrock@@@gsl@@XZ",
+      "section": 1,
+      "section_offset": "0x802460",
+      "rva": "0x803460"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2706932,
+      "name": "?getSubtitle@SoundEngine@@UEBA?AV?$optional@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@@Z",
+      "section": 1,
+      "section_offset": "0x41bec40",
+      "rva": "0x41bfc40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2990200,
+      "name": "?load@SoundEngine@@QEAAX_NV?$NonOwnerPointer@VLinkedAssetValidator@@@Bedrock@@V?$shared_ptr@V?$vector@VPreloadedPathHandle@Resources@Bedrock@@V?$allocator@VPreloadedPathHandle@Resources@Bedrock@@@std@@@std@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x41c0260",
+      "rva": "0x41c1260"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3265988,
+      "name": "?play@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVVec3@@MMV?$optional@VServerSoundHandle@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x41be660",
+      "rva": "0x41bf660"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266144,
+      "name": "?play@SoundEngine@@UEAA_KUPlaySoundOptions@@@Z",
+      "section": 1,
+      "section_offset": "0x41be810",
+      "rva": "0x41bf810"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3266796,
+      "name": "?playAttached@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@$$QEAV?$function@$$A6AXAEAUSoundInstanceProperties@@@Z@3@@Z",
+      "section": 1,
+      "section_offset": "0x41c1ff0",
+      "rva": "0x41c2ff0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3267716,
+      "name": "?playFromMemory@SoundEngine@@QEAA_KAEBVPath@Core@@PEBD_K_NMMMM33@Z",
+      "section": 1,
+      "section_offset": "0x41c1c60",
+      "rva": "0x41c2c60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3268436,
+      "name": "?playMusic@SoundEngine@@UEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@M@Z",
+      "section": 1,
+      "section_offset": "0x41bf6f0",
+      "rva": "0x41c06f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3268548,
+      "name": "?playMusic@SoundEngine@@UEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@MAEAI@Z",
+      "section": 1,
+      "section_offset": "0x41bf1d0",
+      "rva": "0x41c01d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3268896,
+      "name": "?playOnlineMusic@SoundEngine@@QEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$WeakRef@VOnlineAudioStream@Audio@@@@MVSoundStartOptions@Audio@@@Z",
+      "section": 1,
+      "section_offset": "0x41c20d0",
+      "rva": "0x41c30d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3272260,
+      "name": "?playUI@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@MM@Z",
+      "section": 1,
+      "section_offset": "0x41bf090",
+      "rva": "0x41c0090"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3416152,
+      "name": "?registerLoop@SoundEngine@@UEAA_KAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$function@$$A6AXAEAULoopingSoundState@@@Z@3@MM@Z",
+      "section": 1,
+      "section_offset": "0x41bfec0",
+      "rva": "0x41c0ec0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3419592,
+      "name": "?registerPauseManagerCallback@SoundEngine@@QEAAXAEAV?$Connector@$$A6AX_N@Z@PubSub@Bedrock@@@Z",
+      "section": 1,
+      "section_offset": "0x41bdd30",
+      "rva": "0x41bed30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3437084,
+      "name": "?releaseSoundFileHandles@SoundEngine@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x41bfb90",
+      "rva": "0x41c0b90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3648824,
+      "name": "?setMusicCommandVolumeMultiplier@SoundEngine@@UEAAXM@Z",
+      "section": 1,
+      "section_offset": "0x41bfac0",
+      "rva": "0x41c0ac0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3654028,
+      "name": "?setOptions@SoundEngine@@QEAAXV?$shared_ptr@VIReadWriteOptions@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x41bbd20",
+      "rva": "0x41bcd20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3679608,
+      "name": "?setTTSClient@SoundEngine@@QEAAXV?$shared_ptr@VTextToSpeechClient@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x41bdbd0",
+      "rva": "0x41bebd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3771300,
+      "name": "?stopAllSounds@SoundEngine@@UEAAXXZ",
+      "section": 1,
+      "section_offset": "0x41bef30",
+      "rva": "0x41bff30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3990856,
+      "name": "?update@SoundEngine@@QEAAXV?$span@U?$pair@HUListenerState@@@std@@$0?0@gsl@@M@Z",
+      "section": 1,
+      "section_offset": "0x41be030",
+      "rva": "0x41bf030"
+    }
+  ]
+}

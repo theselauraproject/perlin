@@ -85,7 +85,8 @@ namespace perlin::selftest {
                         "named sound keeps its name");
                 t.Check(named.x == 10.0f && named.y == 20.0f && named.z == 1.0f,
                         "named sound coordinates are converted from eighths");
-                t.Check(named.volume == 0.5f && named.pitch == 1.5f && named.global, "named sound keeps volume, pitch and range flag");
+                t.Check(named.volume == 0.5f && named.pitch == 1.5f && named.bypassListenerRangeCheck && !named.global,
+                        "range bypass is preserved independently of spatial playback");
                 const auto& lvl = r.noted[1];
                 t.Check(lvl.kind == BedrockSession::SoundRequest::Kind::Level && lvl.name == "break" &&
                             lvl.extra == 7 && lvl.entityType == "minecraft:cow" && lvl.baby,

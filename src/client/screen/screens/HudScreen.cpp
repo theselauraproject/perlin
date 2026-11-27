@@ -263,7 +263,10 @@ namespace perlin::screen {
         s.locator.clear();
         s.locatorActive = false;
         const ui::LocatorView view{camera.x, camera.y, camera.z, camera.yaw, camera.pitch, camera.fov};
+        std::unordered_set<int64_t> waypointActors;
         for (const BedrockSession::LocatorWaypoint& wp : live.GetLocatorWaypoints()) {
+            if (wp.hasActor)
+                waypointActors.insert(wp.actorId);
             if (!wp.visible)
                 continue;
             double tx = wp.x, ty = wp.y, tz = wp.z;
@@ -287,6 +290,30 @@ namespace perlin::screen {
                     wp.hasColor ? (static_cast<uint32_t>(wp.color) & 0xFFFFFFu) : ui::LocatorColorFor(wp.id);
                 s.locator.push_back(*marker);
             }
+        }
+        const auto players = live.PlayerList();
+        for (const auto& [id, position] : live.GetTrackedPlayerLocations()) {
+            if (!position || id == live.SelfUid() || waypointActors.contains(id))
+                continue;
+            s.locatorActive = true;
+            auto marker = ui::ProjectLocator(view, position->x, position->y, position->z);
+            if (!marker)
+                continue;
+            // Use a known player UUID for the existing locator color palette.
+            // Location packets remain useful before the corresponding actor loads.
+            marker->color = 0xFFFFFF;
+            const auto player = std::ranges::find(players, id, &BedrockSession::TabPlayer::uid);
+            if (player != players.end() && player->uuid.size() == 32) {
+                const auto hex = [](char c) -> uint8_t {
+                    return static_cast<uint8_t>(c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10);
+                };
+                std::array<uint8_t, 16> uuid{};
+                for (size_t i = 0; i < uuid.size(); ++i)
+                    uuid[i] = static_cast<uint8_t>((hex(player->uuid[i * 2]) << 4) |
+                                                   hex(player->uuid[i * 2 + 1]));
+                marker->color = ui::LocatorColorFor(uuid);
+            }
+            s.locator.push_back(*marker);
         }
     }
 
@@ -362,6 +389,24 @@ namespace perlin::screen {
         }
     }
 
+    void HudScreen::FillHudPickNotice(ui::HudState& s, BedrockSession& live) {
+        if (live.PickItemFlash().at == GuiDataState::Clock::time_point{}) {
+            pickNoticeTicks = 0;
+            return;
+        }
+        if (live.TakePickItemNotice(pickNotice)) {
+            // Presentation uses Perlin's existing item-text animation. The
+            // producer's two-second availability window is tracked separately.
+            pickNoticeTicks = 40;
+            ++hudAnim.toolSerial;
+        }
+        if (pickNoticeTicks <= 0)
+            return;
+        s.itemName = pickNotice.name + '\n' + pickNotice.effects;
+        s.itemNameAlpha = ui::ItemNameAlpha(pickNoticeTicks);
+        s.itemNameSerial = hudAnim.toolSerial;
+    }
+
     void HudScreen::FillHudState(ui::HudState& s, BedrockSession* live, bool preview) {
         applyModSlotOverlays(s);
         s.visible = options.showHud && (live || preview) && !(replayHidesHud()) &&
@@ -388,11 +433,16 @@ namespace perlin::screen {
         FillHudLocator(s, *live);
         FillHudTabList(s, *live);
         FillHudHeldName(s);
+        FillHudPickNotice(s, *live);
         FillHudTitleText(s, *live);
         s.paperDoll = options.paperDoll && (PaperDollActive(*live) || options.paperDollAlways);
     }
 
     void HudScreen::TickHud() {
+        if (pickNoticeTicks > 0)
+            --pickNoticeTicks;
+        if (session)
+            session->TickServerGui();
         ui::HudAnimation& a = hudAnim;
         a.ticks++;
         const int tick = static_cast<int>(a.ticks);

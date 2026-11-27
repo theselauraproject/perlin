@@ -1,5 +1,6 @@
 #include <set>
 #include "client/systems/multiplayer/ItemNbtInfo.hpp"
+#include "client/systems/multiplayer/ItemDamage.hpp"
 #include <array>
 #include "util/Env.hpp"
 #include <cstdlib>
@@ -126,13 +127,18 @@ namespace perlin {
     }
 
     void BedrockSession::ResetPlayerState() {
+        shieldItemId = -1;
+        ResetServerGui();
         {
             std::lock_guard locatorLock(locatorMutex);
             locatorWaypoints.clear();
+            trackedPlayerLocations.clear();
         }
         std::lock_guard lock(statusMutex);
         vitals = Vitals{};
         activeEffects.clear();
+        itemCooldowns.Clear();
+        itemCooldownDefinitions.clear();
         pendingEffectUpdates.clear();
         serverMotions.clear();
         pendingMovementEffects.clear();
@@ -148,6 +154,7 @@ namespace perlin {
         invInFlight.clear();
         immobile = false;
         recipes.clear();
+        recipeUnlocks.Clear();
         craftedRecipe = -1;
         titleText = TitleText{};
     }
@@ -160,6 +167,44 @@ namespace perlin {
     BedrockSession::InventoryView BedrockSession::GetInventory() const {
         std::lock_guard lock(statusMutex);
         return inventory;
+    }
+
+    void BedrockSession::TickItemCooldowns() {
+        std::lock_guard lock(statusMutex);
+        itemCooldowns.Tick();
+    }
+
+    int32_t BedrockSession::ItemCooldownTicks(std::string_view itemName) const {
+        std::lock_guard lock(statusMutex);
+        const auto it = itemCooldownDefinitions.find(itemName);
+        return it == itemCooldownDefinitions.end() ? 0 : itemCooldowns.Remaining(it->second.category);
+    }
+
+    bool BedrockSession::ItemUseOnCooldown(std::string_view itemName) const {
+        std::lock_guard lock(statusMutex);
+        const auto it = itemCooldownDefinitions.find(itemName);
+        return it != itemCooldownDefinitions.end() && it->second.type == itemcooldown::Type::Use &&
+               itemCooldowns.Active(it->second.category);
+    }
+
+    bool BedrockSession::HeldItemUseOnCooldown() const {
+        std::lock_guard lock(statusMutex);
+        const int selected = std::clamp(inventory.selected, 0, 8);
+        const ItemV4& item = useOffhand ? extraRaw[kInvOffhand - kInvArmor0] : inventoryRaw[selected];
+        return ItemOnCooldownLocked(item, itemcooldown::Type::Use);
+    }
+
+    bool BedrockSession::ItemOnCooldownLocked(const ItemV4& item,
+                                            std::optional<itemcooldown::Type> action) const {
+        if (item.networkId == 0 || item.count == 0)
+            return false;
+        const auto name = itemNames.find(item.networkId);
+        if (name == itemNames.end())
+            return false;
+        const auto definition = itemCooldownDefinitions.find(name->second);
+        return definition != itemCooldownDefinitions.end() &&
+               (!action || definition->second.type == *action) &&
+               itemCooldowns.Active(definition->second.category);
     }
 
     std::vector<BedrockSession::ServerMovementEffect> BedrockSession::TakeMovementEffects() {
@@ -327,6 +372,7 @@ namespace perlin {
     }
 
     void BedrockSession::InjectClientPacket(uint32_t id, const std::vector<uint8_t>& body) {
+        const net::context::ScopedSettings codecScope(PacketCodecSettings());
         if (!replayMode)
             return;
         if (!replayClientReady) {
@@ -421,8 +467,8 @@ namespace perlin {
                 info.lore = parsed.lore;
                 if (!parsed.customName.empty())
                     info.customName = parsed.customName;
-                if (parsed.damage >= 0)
-                    info.damage = parsed.damage;
+                if (parsed.hasDamage)
+                    info.damage = std::max(0, parsed.damage);
             }
             info.enchanted = !info.enchants.empty() || Contains(*nbt, "ench") ||
                              Contains(*nbt, "Enchantments") || Contains(*nbt, "StoredEnchantments") ||
@@ -658,6 +704,8 @@ namespace perlin {
                                       std::begin(extraRaw));
                             std::copy(std::begin(snap->second.chest), std::end(snap->second.chest),
                                       std::begin(chestRaw));
+                            std::copy(std::begin(snap->second.horse), std::end(snap->second.horse),
+                                      std::begin(horseRaw));
                             InvRecomputeOutputLocked();
                         }
                         invSnapshots.erase(snap);
@@ -670,43 +718,9 @@ namespace perlin {
                     for (const auto& c : *r.containers) {
                         const ContainerSlotType type = c.slotType.containerId;
                         for (const auto& s : c.slots) {
-                            int slot = -1;
-                            switch (type) {
-                            case ContainerSlotType::HotbarAndInventory:
-                            case ContainerSlotType::Hotbar:
-                                slot = s.slot;
-                                break;
-                            case ContainerSlotType::Inventory:
-                                slot = s.slot < 27 ? s.slot + 9 : s.slot;
-                                break;
-                            case ContainerSlotType::Armor:
-                                slot = kInvArmor0 + s.slot;
-                                break;
-                            case ContainerSlotType::Offhand:
-                                slot = kInvOffhand;
-                                break;
-                            case ContainerSlotType::CraftingInput:
-                                slot = s.slot >= 28 && s.slot <= 31
-                                           ? kInvCraft0 + s.slot - 28
-                                           : (s.slot >= 32 && s.slot <= 40 ? kInvWork0 + s.slot - 32 : -1);
-                                break;
-                            case ContainerSlotType::CraftingOutput:
-                            case ContainerSlotType::CreativeOutput:
-                                slot = kInvOutput;
-                                break;
-                            case ContainerSlotType::Cursor:
-                                slot = kInvCursor;
-                                break;
-                            case ContainerSlotType::Container:
-                            case ContainerSlotType::Shulker:
-                            case ContainerSlotType::Barrel:
-                                if (inventory.chestOpen && s.slot < kInvChestCount)
-                                    slot = kInvChest0 + s.slot;
-                                break;
-                            default:
-                                break;
-                            }
-                            if (slot < 0 || (slot >= kInvSlots && slot < kInvChest0) || slot >= kInvTotal)
+                            const int slot = inventory::ResponseAddress(
+                                type, s.slot, {inventory.chestOpen, inventory.horseOpen, inventory.furnaceKind});
+                            if (slot < 0)
                                 continue;
                             ItemStackInfo& info = InvInfoLocked(slot);
                             ItemV4& raw = InvRawLocked(slot);
@@ -829,6 +843,9 @@ namespace perlin {
                     continue;
                 RecipeInfo ri;
                 ri.shaped = true;
+                ri.id = r.recipeId;
+                ri.alwaysUnlocked = !r.unlockingRequirement ||
+                                    r.unlockingRequirement->context == RecipeUnlockingRequirementContext::AlwaysUnlocked;
                 ri.w = r.width;
                 ri.h = r.height;
                 for (const auto& in : r.input)
@@ -842,6 +859,9 @@ namespace perlin {
                 if (r.block != "crafting_table" || r.input.size() > 9 || r.output.empty())
                     continue;
                 RecipeInfo ri;
+                ri.id = r.recipeId;
+                ri.alwaysUnlocked = !r.unlockingRequirement ||
+                                    r.unlockingRequirement->context == RecipeUnlockingRequirementContext::AlwaysUnlocked;
                 for (const auto& in : r.input)
                     ri.in.push_back(ingredient(in));
                 ri.out = outRaw(r.output[0]);
@@ -856,6 +876,15 @@ namespace perlin {
             for (auto& r : list)
                 recipes.push_back(std::move(r));
             Log("inventory", "{} crafting-table recipes", recipes.size());
+        });
+
+        On<UnlockedRecipesPacket>([this](const UnlockedRecipesPacket& p) {
+            if (runtimeId == 0)
+                return;
+            std::lock_guard lock(statusMutex);
+            recipeUnlocks.Apply(static_cast<uint32_t>(p.unlockType), p.recipes, [this](const std::string& id) {
+                return std::ranges::any_of(recipes, [&](const RecipeInfo& recipe) { return recipe.id == id; });
+            });
         });
     }
 
@@ -999,6 +1028,13 @@ namespace perlin {
     }
 
     void BedrockSession::RegisterEquipmentHandlers() {
+        On<ClientStartItemCooldownPacket>([this](const ClientStartItemCooldownPacket& p) {
+            if (runtimeId == 0)
+                return;
+            std::lock_guard lock(statusMutex);
+            itemCooldowns.Start(p.category, p.duration);
+        });
+
         On<PlayerHotbarPacket>([this](const PlayerHotbarPacket& p) {
             if (!p.selectSlot)
                 return;
@@ -1022,10 +1058,25 @@ namespace perlin {
             if (runtimeId != 0 && p.runtimeEntityId != runtimeId)
                 return;
             std::lock_guard lock(statusMutex);
-            inventory.armor[0] = ConvertItemStack(p.helmet);
-            inventory.armor[1] = ConvertItemStack(p.chestplate);
-            inventory.armor[2] = ConvertItemStack(p.leggings);
-            inventory.armor[3] = ConvertItemStack(p.boots);
+            const ItemV4* items[]{&p.helmet, &p.chestplate, &p.leggings, &p.boots};
+            for (int slot = 0; slot < 4; slot++) {
+                inventory.armor[slot] = ConvertItemStack(*items[slot]);
+                extraRaw[kInvArmor0 - 36 + slot] = *items[slot];
+            }
+        });
+
+        On<PlayerArmorDamagePacket>([this](const PlayerArmorDamagePacket& p) {
+            if (runtimeId == 0 || legacyInventory)
+                return;
+            std::lock_guard lock(statusMutex);
+            for (const ArmorDamageEntry& entry : p.entries) {
+                const int slot = static_cast<int>(entry.armorSlot);
+                if (slot < 0 || slot >= 4)
+                    continue;
+                ItemV4& raw = extraRaw[kInvArmor0 - 36 + slot];
+                if (SetItemDamage(raw, entry.damage))
+                    inventory.armor[slot] = ConvertItemStack(raw);
+            }
         });
 
         On<UpdateAttributesPacket>([this](const UpdateAttributesPacket& p) {

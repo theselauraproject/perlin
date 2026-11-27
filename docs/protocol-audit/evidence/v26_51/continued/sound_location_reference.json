@@ -1,0 +1,1038 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "ClientboundUpdateSoundDataPacketPayload",
+      "type_index": "0x1753c",
+      "size": 24,
+      "fieldlist": "0x1753b",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mServerSoundHandle",
+          "offset": 0,
+          "type": "ServerSoundHandle",
+          "type_index": "0x1005c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEvent",
+          "offset": 8,
+          "type": "std::variant<SoundDataEvent::Stop,SoundDataEvent::SetVolume,SoundDataEvent::SetPitch,SoundDataEvent::Fade,SoundDataEvent::SeekTo,SoundDataEvent::Pause,SoundDataEvent::Resume>",
+          "type_index": "0xd5d1",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ControlScheme::Scheme",
+      "type_index": "0x1f55",
+      "fieldlist": "0x1f54",
+      "underlying": 32,
+      "member_count": 5,
+      "enum": true,
+      "fields": [
+        {
+          "name": "LockedPlayerRelativeStrafe",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CameraRelative",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CameraRelativeStrafe",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PlayerRelative",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PlayerRelativeStrafe",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ControlSchemeComponent",
+      "type_index": "0x17ed5",
+      "size": 1,
+      "fieldlist": "0x17514",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mControlScheme",
+          "offset": 0,
+          "type": "ControlScheme::Scheme",
+          "type_index": "0x1f55",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LevelSoundManager",
+      "type_index": "0x3ef22",
+      "size": 1336,
+      "fieldlist": "0x3ef21",
+      "member_count": 52,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ILevelSoundManagerConnector",
+          "member_kind": "base"
+        },
+        {
+          "name": "mServerSoundDefinitionRegistry",
+          "offset": 24,
+          "type": "ServerSoundDefinitionRegistry",
+          "type_index": "0x1005b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSoundInstanceManager",
+          "offset": 88,
+          "type": "ServerSoundInstanceManager",
+          "type_index": "0x1005e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundPlayer",
+          "offset": 288,
+          "type": "Bedrock::NonOwnerPointer<SoundPlayerInterface>",
+          "type_index": "0x7474",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelPacketSender",
+          "offset": 312,
+          "type": "gsl::not_null<Bedrock::NonOwnerPointer<PacketSender> >",
+          "type_index": "0xc484",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsClientSide",
+          "offset": 336,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerAuthSoundEnabled",
+          "offset": 337,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLevelEventCoordinator",
+          "offset": 344,
+          "type": "const gsl::not_null<Bedrock::NonOwnerPointer<LevelEventCoordinator> >",
+          "type_index": "0x3ecfd",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSoundPacketQueue",
+          "offset": 368,
+          "type": "std::vector<std::variant<LevelSoundManager::QueuedSoundSendPacket,LevelSoundManager::QueuedSoundBroadcastPacket,LevelSoundManager::QueuedSoundBroadcastUserIdPacket,LevelSoundManager::QueuedSoundBroadcastMultipleUserIdsPacket>,std::allocator<std::variant<LevelSoundManager::QueuedSoundSendPacket,LevelSoundManager::QueuedSoundBroadcastPacket,LevelSoundManager::QueuedSoundBroadcastUserIdPacket,LevelSoundManager::QueuedSoundBroadcastMultipleUserIdsPacket> > >",
+          "type_index": "0xdc24",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnLevelSoundEvent",
+          "offset": 392,
+          "type": "Bedrock::PubSub::Publisher<void (const SoundEventIdentifier &, const Vec3 &, int, const ActorSoundIdentifier &, bool),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x769b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnLevelSoundEventWithVolumeAndPitch",
+          "offset": 520,
+          "type": "Bedrock::PubSub::Publisher<void (const PlaySoundOptions &),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x769a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnStopLevelSoundEvent",
+          "offset": 648,
+          "type": "Bedrock::PubSub::Publisher<void (const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x769c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnStopAllLevelSoundsEvent",
+          "offset": 776,
+          "type": "Bedrock::PubSub::Publisher<void (),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76cf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnStopMusicEvent",
+          "offset": 904,
+          "type": "Bedrock::PubSub::Publisher<void (),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76cf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnRecordStartedEvent",
+          "offset": 1032,
+          "type": "Bedrock::PubSub::Publisher<void (const BlockPos &, ServerSoundHandle),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76a8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnRecordStoppedEvent",
+          "offset": 1160,
+          "type": "Bedrock::PubSub::Publisher<void (ServerSoundHandle),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76c3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnPlayerDisconnectedSubscription",
+          "offset": 1288,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnPlayerConnectedSubscription",
+          "offset": 1304,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnPlayerLeftDimensionSubscription",
+          "offset": 1320,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "LevelSoundManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eef6",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "LevelSoundManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eef8",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "gsl::not_null<Bedrock::NonOwnerPointer<SoundPlayerInterface> >",
+            "bool",
+            "gsl::not_null<Bedrock::NonOwnerPointer<LevelEventCoordinator> >",
+            "gsl::not_null<Bedrock::NonOwnerPointer<PacketSender> >",
+            "bool"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "getOnLevelSoundEventConnector",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eefa",
+          "return_type": "Bedrock::PubSub::Connector<void (const SoundEventIdentifier &, const Vec3 &, int, const ActorSoundIdentifier &, bool)> &",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getOnLevelSoundEventWithVolumeAndPitchConnector",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eefb",
+          "return_type": "Bedrock::PubSub::Connector<void (const PlaySoundOptions &)> &",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getOnStopLevelSoundEventConnector",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eefc",
+          "return_type": "Bedrock::PubSub::Connector<void (const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &)> &",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getOnStopAllLevelSoundsEventConnector",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eefd",
+          "return_type": "Bedrock::PubSub::Connector<void ()> &",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getOnStopMusicEventConnector",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eefd",
+          "return_type": "Bedrock::PubSub::Connector<void ()> &",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_queueSoundPacket",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3eeff",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "std::variant<LevelSoundManager::QueuedSoundSendPacket,LevelSoundManager::QueuedSoundBroadcastPacket,LevelSoundManager::QueuedSoundBroadcastUserIdPacket,LevelSoundManager::QueuedSoundBroadcastMultipleUserIdsPacket>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_stopBroadcastsForPlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef01",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "const NetworkIdentifierWithSubId &",
+            "std::optional<DimensionType>"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "broadcastSoundEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef03",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IDimension &",
+            "const SoundEventIdentifier &",
+            "const Vec3 &",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool",
+            "Player *",
+            "const std::optional<Vec3> &"
+          ],
+          "argument_count": 8,
+          "this_adjust": 0
+        },
+        {
+          "name": "broadcastSoundEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef05",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IDimension &",
+            "SharedTypes::Legacy::LevelSoundEvent",
+            "const Vec3 &",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool",
+            "Player *",
+            "const std::optional<Vec3> &"
+          ],
+          "argument_count": 8,
+          "this_adjust": 0
+        },
+        {
+          "name": "createServerSoundInstance",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef08",
+          "return_type": "std::optional<ServerSoundInstance>",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "int32_t",
+            "std::optional<NetworkIdentifierWithSubId>",
+            "std::optional<BroadcastOptions>"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "handleUpdateSoundData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef0c",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "const ClientboundUpdateSoundDataPacketPayload &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "onViewRegionMoved",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef0e",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "const NetworkIdentifierWithSubId &",
+            "const BlockPos &",
+            "uint32_t",
+            "DimensionType"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "playPredictiveSynchronizedSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef10",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IDimension &",
+            "const SoundEventIdentifier &",
+            "const Vec3 &",
+            "Player *",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool",
+            "const std::optional<Vec3> &"
+          ],
+          "argument_count": 8,
+          "this_adjust": 0
+        },
+        {
+          "name": "playPredictiveSynchronizedSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef12",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IDimension &",
+            "SharedTypes::Legacy::LevelSoundEvent",
+            "const Vec3 &",
+            "Player *",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool",
+            "const std::optional<Vec3> &"
+          ],
+          "argument_count": 8,
+          "this_adjust": 0
+        },
+        {
+          "name": "playSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef15",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "SharedTypes::Legacy::LevelSoundEvent",
+            "const Vec3 &",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "playSound",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef16",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "SharedTypes::Legacy::LevelSoundEvent",
+            "const Vec3 &",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "playSoundForPlayerInDimension",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef19",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "DimensionType",
+            "SharedTypes::Legacy::LevelSoundEvent",
+            "const Vec3 &",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool",
+            "Player *"
+          ],
+          "argument_count": 7,
+          "this_adjust": 0
+        },
+        {
+          "name": "playSynchronizedSound_DEPRECATED",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef12",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IDimension &",
+            "SharedTypes::Legacy::LevelSoundEvent",
+            "const Vec3 &",
+            "Player *",
+            "int32_t",
+            "const ActorSoundIdentifier &",
+            "bool",
+            "const std::optional<Vec3> &"
+          ],
+          "argument_count": 8,
+          "this_adjust": 0
+        },
+        {
+          "name": "processQueuedSoundPackets",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef1a",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "sendRecordStarted",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef1c",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "const std::vector<NetworkIdentifierWithSubId,std::allocator<NetworkIdentifierWithSubId> > &",
+            "const BlockPos &",
+            "ServerSoundHandle"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "subscribeToPlayerConnectionEvents",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef1f",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IPlayerConnectionConnector &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "subscribeToPlayerDimensionTransfers",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ef20",
+          "return_type": "void",
+          "class_type": "LevelSoundManager",
+          "this_type": "LevelSoundManager *",
+          "argument_types": [
+            "IPlayerDimensionTransferConnector &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "PlayerLocationPacketPayload::CoordinatesLocation",
+      "type_index": "0x17f0a",
+      "size": 16,
+      "fieldlist": "0x17f09",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mType",
+          "offset": 0,
+          "type": "PlayerLocationPacketPayload::Type",
+          "type_index": "0x2386",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPos",
+          "offset": 4,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationPacketPayload::HiddenLocation",
+      "type_index": "0x1a09b",
+      "size": 4,
+      "fieldlist": "0x1a09a",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mType",
+          "offset": 0,
+          "type": "PlayerLocationPacketPayload::Type",
+          "type_index": "0x2386",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationPacketPayload::Type",
+      "type_index": "0x2386",
+      "fieldlist": "0x2385",
+      "underlying": 116,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Coordinates",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Hide",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerLocationReceiver",
+      "type_index": "0x43842",
+      "size": 48,
+      "fieldlist": "0x43841",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mCurrentPlayerLocationData",
+          "offset": 0,
+          "type": "brstd::flat_map<ActorUniqueID,std::optional<Vec3>,PlayerLocationReceiver::ActorUniqueIDCompare,std::vector<ActorUniqueID,std::allocator<ActorUniqueID> >,std::vector<std::optional<Vec3>,std::allocator<std::optional<Vec3> > > >",
+          "type_index": "0xbab7",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "hidePlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4383e",
+          "return_type": "void",
+          "class_type": "PlayerLocationReceiver",
+          "this_type": "PlayerLocationReceiver *",
+          "argument_types": [
+            "const ActorUniqueID &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "updatePlayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x43840",
+          "return_type": "void",
+          "class_type": "PlayerLocationReceiver",
+          "this_type": "PlayerLocationReceiver *",
+          "argument_types": [
+            "const ActorUniqueID &",
+            "const Vec3 &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ServerSoundHandle",
+      "type_index": "0x49acd",
+      "size": 8,
+      "fieldlist": "0x49acc",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mUnkc5f833",
+          "offset": 0,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49ac8",
+          "return_type": "ServerSoundHandle &",
+          "class_type": "ServerSoundHandle",
+          "this_type": "ServerSoundHandle *",
+          "argument_types": [
+            "const ServerSoundHandle &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ServerSoundHandle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49ac9",
+          "return_type": "void",
+          "class_type": "ServerSoundHandle",
+          "this_type": "ServerSoundHandle *",
+          "argument_types": [
+            "const ServerSoundHandle &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ServerSoundHandle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x49aca",
+          "return_type": "void",
+          "class_type": "ServerSoundHandle",
+          "this_type": "ServerSoundHandle *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SoundDataEvent::Fade",
+      "type_index": "0x196ce",
+      "size": 8,
+      "fieldlist": "0x196cd",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mDuration",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTargetVolume",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Pause",
+      "type_index": "0x1cd12",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Resume",
+      "type_index": "0x1e213",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::SeekTo",
+      "type_index": "0x1f87b",
+      "size": 4,
+      "fieldlist": "0x1f87a",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mSeconds",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::SetPitch",
+      "type_index": "0x1fd85",
+      "size": 4,
+      "fieldlist": "0x1fd84",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mPitch",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::SetVolume",
+      "type_index": "0x1fe30",
+      "size": 4,
+      "fieldlist": "0x1fe2f",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mVolume",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SoundDataEvent::Stop",
+      "type_index": "0x205b0",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 151424,
+      "name": "??0LevelSoundManager@@QEAA@V?$not_null@V?$NonOwnerPointer@VSoundPlayerInterface@@@Bedrock@@@gsl@@_NV?$not_null@V?$NonOwnerPointer@VLevelEventCoordinator@@@Bedrock@@@2@V?$not_null@V?$NonOwnerPointer@VPacketSender@@@Bedrock@@@2@1@Z",
+      "section": 1,
+      "section_offset": "0x17467d0",
+      "rva": "0x17477d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1214772,
+      "name": "?_queueSoundPacket@LevelSoundManager@@QEAAXV?$variant@UQueuedSoundSendPacket@LevelSoundManager@@UQueuedSoundBroadcastPacket@2@UQueuedSoundBroadcastUserIdPacket@2@UQueuedSoundBroadcastMultipleUserIdsPacket@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x17480b0",
+      "rva": "0x17490b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1363128,
+      "name": "?_stopBroadcastsForPlayer@LevelSoundManager@@QEAAXAEBUNetworkIdentifierWithSubId@@V?$optional@UDimensionType@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x174c8f0",
+      "rva": "0x174d8f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1780944,
+      "name": "?broadcastSoundEvent@LevelSoundManager@@QEAAXAEAVIDimension@@AEBUSoundEventIdentifier@@AEBVVec3@@HAEBVActorSoundIdentifier@@_NPEAVPlayer@@AEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x17488a0",
+      "rva": "0x17498a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1781128,
+      "name": "?broadcastSoundEvent@LevelSoundManager@@QEAAXAEAVIDimension@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_NPEAVPlayer@@AEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1748570",
+      "rva": "0x1749570"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2020680,
+      "name": "?createServerSoundInstance@LevelSoundManager@@QEAA?AV?$optional@VServerSoundInstance@@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@HV?$optional@UNetworkIdentifierWithSubId@@@3@V?$optional@UBroadcastOptions@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x174a590",
+      "rva": "0x174b590"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2814232,
+      "name": "?handleUpdateSoundData@LevelSoundManager@@QEAAXAEBUClientboundUpdateSoundDataPacketPayload@@@Z",
+      "section": 1,
+      "section_offset": "0x1749b60",
+      "rva": "0x174ab60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3211760,
+      "name": "?onViewRegionMoved@LevelSoundManager@@QEAAXAEBUNetworkIdentifierWithSubId@@AEBVBlockPos@@IUDimensionType@@@Z",
+      "section": 1,
+      "section_offset": "0x174b4f0",
+      "rva": "0x174c4f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269132,
+      "name": "?playPredictiveSynchronizedSound@LevelSoundManager@@QEAAXAEAVIDimension@@AEBUSoundEventIdentifier@@AEBVVec3@@PEAVPlayer@@HAEBVActorSoundIdentifier@@_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1748760",
+      "rva": "0x1749760"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3269328,
+      "name": "?playPredictiveSynchronizedSound@LevelSoundManager@@QEAAXAEAVIDimension@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@PEAVPlayer@@HAEBVActorSoundIdentifier@@_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1748660",
+      "rva": "0x1749660"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270820,
+      "name": "?playSound@LevelSoundManager@@QEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_N@Z",
+      "section": 1,
+      "section_offset": "0x17474f0",
+      "rva": "0x17484f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3270952,
+      "name": "?playSound@LevelSoundManager@@QEAAXW4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@MM@Z",
+      "section": 1,
+      "section_offset": "0x17478b0",
+      "rva": "0x17488b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271440,
+      "name": "?playSoundForPlayerInDimension@LevelSoundManager@@QEAAXUDimensionType@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@HAEBVActorSoundIdentifier@@_NPEAVPlayer@@@Z",
+      "section": 1,
+      "section_offset": "0x1747ad0",
+      "rva": "0x1748ad0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3271940,
+      "name": "?playSynchronizedSound_DEPRECATED@LevelSoundManager@@QEAAXAEAVIDimension@@W4LevelSoundEvent@Legacy@SharedTypes@@AEBVVec3@@PEAVPlayer@@HAEBVActorSoundIdentifier@@_NAEBV?$optional@VVec3@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x1747bf0",
+      "rva": "0x1748bf0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3313756,
+      "name": "?processQueuedSoundPackets@LevelSoundManager@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x1749eb0",
+      "rva": "0x174aeb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3555960,
+      "name": "?sendRecordStarted@LevelSoundManager@@QEAAXAEBV?$vector@UNetworkIdentifierWithSubId@@V?$allocator@UNetworkIdentifierWithSubId@@@std@@@std@@AEBVBlockPos@@VServerSoundHandle@@@Z",
+      "section": 1,
+      "section_offset": "0x174cb10",
+      "rva": "0x174db10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3659216,
+      "name": "?setPitch@ScriptSoundInstance@ScriptModuleMinecraft@@QEAAXM@Z",
+      "section": 1,
+      "section_offset": "0xbf7d7c0",
+      "rva": "0xbf7e7c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3700000,
+      "name": "?setVolume@ScriptSoundInstance@ScriptModuleMinecraft@@QEAAXM@Z",
+      "section": 1,
+      "section_offset": "0xbf7d7b0",
+      "rva": "0xbf7e7b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3782200,
+      "name": "?subscribeToPlayerConnectionEvents@LevelSoundManager@@QEAAXAEAVIPlayerConnectionConnector@@@Z",
+      "section": 1,
+      "section_offset": "0x174c040",
+      "rva": "0x174d040"
+    }
+  ]
+}

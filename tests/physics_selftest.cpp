@@ -46,6 +46,25 @@ static BlockShape Slab(double h) {
 }
 
 int main() {
+    CHECK(!bds::ReplaysStatusEffectAt(0, 119));
+    CHECK(!bds::ReplaysStatusEffectAt(118, 118));
+    {
+        // Start at the server correction for tick 118. The effect arrived after tick 119 was sent,
+        // so the first retained tick must be simulated again with Slow Falling.
+        TestWorld empty;
+        empty.fn = [](int, int, int) { return BlockShape{}; };
+        State state;
+        state.x = state.z = 0.5;
+        state.y = 120.92160034179688;
+        state.vy = -0.155232f;
+        for (uint64_t tick = 119; tick <= 131; ++tick) {
+            Attributes attributes;
+            attributes.slowFalling = bds::ReplaysStatusEffectAt(118, tick);
+            Step(state, Input{}, attributes, empty);
+        }
+        CHECK(Near(state.y, 118.41779327392578, 0.00002));
+        CHECK(Near(state.vy, -0.23255602, 0.000001));
+    }
     CHECK(bds::StatusEffectTicksAt(40, 100, 100) == 40);
     CHECK(bds::StatusEffectTicksAt(40, 100, 139) == 1);
     CHECK(bds::StatusEffectTicksAt(40, 100, 140) == 0);
@@ -54,6 +73,33 @@ int main() {
     CHECK(bds::StatusEffectTicksAt(INT32_MAX, 0, UINT64_MAX) == 0);
     CHECK(bds::StatusEffectTicksAt(-1, 100, UINT64_MAX) == -1);
     Attributes attr;
+
+    {
+        TestWorld air;
+        int queries = 0;
+        air.fn = [&](int, int, int) {
+            ++queries;
+            return BlockShape{};
+        };
+        const float edge = std::nextafter(33554432.0f, 0.0f);
+        const std::array<std::array<float, 3>, 6> positions{{
+            {200000, 20000, -200000}, {-200000, -20000, 200000},
+            {edge, 64, -edge}, {-edge, 64, edge}, {0, edge, 0}, {0, -edge, 0}}};
+        for (const auto& position : positions) {
+            State state;
+            state.x = position[0];
+            state.y = position[1];
+            state.z = position[2];
+            state.vx = 0.25;
+            state.vz = -0.25;
+            queries = 0;
+            for (int tick = 0; tick < 4; ++tick)
+                Step(state, Input{}, attr, air);
+            CHECK(std::isfinite(state.x) && std::isfinite(state.y) && std::isfinite(state.z));
+            CHECK(std::isfinite(state.vx) && std::isfinite(state.vy) && std::isfinite(state.vz));
+            CHECK(queries < 20000);
+        }
+    }
 
     {
         TestWorld world;
@@ -102,11 +148,12 @@ int main() {
         s.hasTeleported = true;
         Input in;
         in.jump = true;
-        Step(s, in, attr, ground);
+        CHECK(Step(s, in, attr, ground));
         CHECK(s.y == 0);
+        CHECK(s.jumpDelay == 10);
         CHECK(Near(s.vy, 0.42f, 1e-7));
         CHECK(!s.hasTeleported);
-        Step(s, in, attr, ground);
+        CHECK(!Step(s, in, attr, ground));
         CHECK(s.y > 0 && s.vy > 0 && s.vy < 0.42f);
     }
     {

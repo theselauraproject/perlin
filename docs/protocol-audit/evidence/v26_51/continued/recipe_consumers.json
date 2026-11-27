@@ -1,0 +1,396 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "RecipeUnlockingRequirement",
+      "type_index": "0x45356",
+      "size": 32,
+      "fieldlist": "0x45355",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mContext",
+          "offset": 0,
+          "type": "RecipeUnlockingRequirement::UnlockingContext",
+          "type_index": "0x23e5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIngredients",
+          "offset": 8,
+          "type": "std::vector<RecipeIngredient,std::allocator<RecipeIngredient> >",
+          "type_index": "0xdce7",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~RecipeUnlockingRequirement",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x45354",
+          "return_type": "void",
+          "class_type": "RecipeUnlockingRequirement",
+          "this_type": "RecipeUnlockingRequirement *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 323352,
+      "name": "??0UnlockedRecipesClientComponent@@QEAA@XZ",
+      "section": 1,
+      "section_offset": "0x2894000",
+      "rva": "0x2895000"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 467156,
+      "name": "?COMPONENT_TAG@UnlockedRecipesServerComponent@@2V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@B",
+      "section": 3,
+      "section_offset": "0x5448f0",
+      "rva": "0x11d1e8f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 679560,
+      "name": "?NAME@RecipeBookFilteringQuery@OreUI@@2QBDB",
+      "section": 2,
+      "section_offset": "0x40ea70",
+      "rva": "0xe9b5a70"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 679620,
+      "name": "?NAME@RecipeBookSearchStringQuery@OreUI@@2QBDB",
+      "section": 2,
+      "section_offset": "0x40e770",
+      "rva": "0xe9b5770"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 679684,
+      "name": "?NAME@RecipeBookSelectedTabQuery@OreUI@@2QBDB",
+      "section": 2,
+      "section_offset": "0x40ead0",
+      "rva": "0xe9b5ad0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 844872,
+      "name": "?UNLOCKED_RECIPES_TAG@UnlockedRecipesServerComponent@@2V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@B",
+      "section": 3,
+      "section_offset": "0x544910",
+      "rva": "0x11d1e910"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 845284,
+      "name": "?USED_CONTEXTS_TAG@UnlockedRecipesServerComponent@@2V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@B",
+      "section": 2,
+      "section_offset": "0x293248",
+      "rva": "0xe83a248"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1096016,
+      "name": "?_handleUnlockedRecipesByTag@ClientNetworkHandler@@SAXAEBVUnlockedRecipesClientComponent@@AEBV?$map@VHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@U?$less@VHashedString@@@3@V?$allocator@U?$pair@$$CBVHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@@std@@@3@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@AEBVHashedString@@AEAV?$vector@UToastIconData@@V?$allocator@UToastIconData@@@std@@@4@@Z",
+      "section": 1,
+      "section_offset": "0x12fd850",
+      "rva": "0x12fe850"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1099228,
+      "name": "?_hasUnlockedRecipes@CraftingContainerManagerModel@@QEBA_NAEBVItemInstance@@@Z",
+      "section": 1,
+      "section_offset": "0x3438200",
+      "rva": "0x3439200"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1099324,
+      "name": "?_hasUnlockedRecipes@FurnaceContainerManagerModel@@QEBA_NAEBVItemInstance@@@Z",
+      "section": 1,
+      "section_offset": "0x698a1e0",
+      "rva": "0x698b1e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1201052,
+      "name": "?_populateRecipeBook@FurnaceContainerManagerModel@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x6983e60",
+      "rva": "0x6984e60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1274648,
+      "name": "?_read@UnlockedRecipesPacket@@UEAA?AV?$Result@XVerror_code@std@@@Bedrock@@AEAVReadOnlyBinaryStream@@@Z",
+      "section": 1,
+      "section_offset": "0x356ef90",
+      "rva": "0x356ff90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1274768,
+      "name": "?_read@UnlockedRecipesPacket@@UEAA?AV?$Result@XVerror_code@std@@@Bedrock@@AEAVReadOnlyBinaryStream@@AEBUReflectionCtx@cereal@@@Z",
+      "section": 1,
+      "section_offset": "0x356f230",
+      "rva": "0x3570230"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1441776,
+      "name": "?addAdditionalSaveData@UnlockedRecipesServerComponent@@QEBAXAEAVCompoundTag@@@Z",
+      "section": 1,
+      "section_offset": "0x2894f40",
+      "rva": "0x2895f40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1526872,
+      "name": "?addUnlockedRecipes@UnlockedRecipesClientComponent@@QEAAXAEBVRecipes@@AEBV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@_N@Z",
+      "section": 1,
+      "section_offset": "0x28940c0",
+      "rva": "0x28950c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1527120,
+      "name": "?addUnlockingInstruction@UnlockedRecipesServerComponent@@QEAAXUUnlockingInstruction@1@@Z",
+      "section": 1,
+      "section_offset": "0x28957b0",
+      "rva": "0x28967b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2653940,
+      "name": "?getRecipeBookSearchString@ContainerAPI@GameplayUI@@QEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "section": 1,
+      "section_offset": "0x675f3c0",
+      "rva": "0x67603c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2770348,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUnlockedRecipesPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x130a8c0",
+      "rva": "0x130b8c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2928956,
+      "name": "?isItemFiltered@CreativeContainerController@@UEBA_NAEBVRecipes@@AEBVItemStackBase@@@Z",
+      "section": 1,
+      "section_offset": "0x31b6830",
+      "rva": "0x31b7830"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2939628,
+      "name": "?isRecipeUnlocked@UnlockedRecipesClientComponent@@QEBA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x28946e0",
+      "rva": "0x28956e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2939768,
+      "name": "?isRecipeUnlocked@UnlockedRecipesClientComponent@@QEBA_NAEBVRecipe@@@Z",
+      "section": 1,
+      "section_offset": "0x2894850",
+      "rva": "0x2895850"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2939856,
+      "name": "?isRecipeUnlocked@UnlockedRecipesServerComponent@@QEBA_NAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2894dd0",
+      "rva": "0x2895dd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3370004,
+      "name": "?read@UnlockedRecipesPacket@@UEAA?AV?$Result@XVerror_code@std@@@Bedrock@@AEAVReadOnlyBinaryStream@@AEBUReflectionCtx@cereal@@@Z",
+      "section": 1,
+      "section_offset": "0x356e5d0",
+      "rva": "0x356f5d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3379524,
+      "name": "?readAdditionalSaveData@UnlockedRecipesServerComponent@@QEAAXAEAVActor@@AEBVCompoundTag@@AEAVDataLoadHelper@@@Z",
+      "section": 1,
+      "section_offset": "0x28955f0",
+      "rva": "0x28965f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3451016,
+      "name": "?removeAllRecipes@UnlockedRecipesClientComponent@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x2894cb0",
+      "rva": "0x2895cb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3462272,
+      "name": "?removeRecipes@UnlockedRecipesClientComponent@@QEAAXAEBVRecipes@@AEBV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x28949d0",
+      "rva": "0x28959d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3665300,
+      "name": "?setRecipeBookFiltering@ContainerAPI@GameplayUI@@QEAAX_N@Z",
+      "section": 1,
+      "section_offset": "0x675ef60",
+      "rva": "0x675ff60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3665376,
+      "name": "?setRecipeBookFiltering@ContainerAPICommands@OreUI@@QEAAX_N@Z",
+      "section": 1,
+      "section_offset": "0x6c06550",
+      "rva": "0x6c07550"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3665452,
+      "name": "?setRecipeBookSearchString@ContainerAPI@GameplayUI@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x675eb60",
+      "rva": "0x675fb60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3665592,
+      "name": "?setRecipeBookSearchString@ContainerAPICommands@OreUI@@QEAAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x6c06360",
+      "rva": "0x6c07360"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3665732,
+      "name": "?setRecipeBookTab@ContainerAPICommands@OreUI@@QEAAXW4InventoryLeftTabIndex@@@Z",
+      "section": 1,
+      "section_offset": "0x6c066b0",
+      "rva": "0x6c076b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3927244,
+      "name": "?toString@UnlockedRecipesPacket@@UEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "section": 1,
+      "section_offset": "0x3570140",
+      "rva": "0x3571140"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3989928,
+      "name": "?update@RecipeBookFilteringQuery@OreUI@@UEAAXN@Z",
+      "section": 1,
+      "section_offset": "0x6c0b4c0",
+      "rva": "0x6c0c4c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3989992,
+      "name": "?update@RecipeBookSearchStringQuery@OreUI@@UEAAXN@Z",
+      "section": 1,
+      "section_offset": "0x6c0a4c0",
+      "rva": "0x6c0b4c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3990060,
+      "name": "?update@RecipeBookSelectedTabQuery@OreUI@@UEAAXN@Z",
+      "section": 1,
+      "section_offset": "0x6c0b740",
+      "rva": "0x6c0c740"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 4083532,
+      "name": "?write@UnlockedRecipesPacket@@UEBAXAEAVBinaryStream@@@Z",
+      "section": 1,
+      "section_offset": "0x356eba0",
+      "rva": "0x356fba0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 4122596,
+      "name": "?writeWithSerializationMode@UnlockedRecipesPacket@@UEBAXAEAVBinaryStream@@AEBUReflectionCtx@cereal@@V?$optional@W4SerializationMode@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x356e3b0",
+      "rva": "0x356f3b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11104208,
+      "name": "UnlockedRecipesServerComponent::COMPONENT_TAG",
+      "section": 3,
+      "section_offset": "0x5448f0",
+      "rva": "0x11d1e8f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11229152,
+      "name": "OreUI::RecipeBookFilteringQuery::NAME",
+      "section": 2,
+      "section_offset": "0x40ea70",
+      "rva": "0xe9b5a70"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11229204,
+      "name": "OreUI::RecipeBookSearchStringQuery::NAME",
+      "section": 2,
+      "section_offset": "0x40e770",
+      "rva": "0xe9b5770"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11229260,
+      "name": "OreUI::RecipeBookSelectedTabQuery::NAME",
+      "section": 2,
+      "section_offset": "0x40ead0",
+      "rva": "0xe9b5ad0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11321616,
+      "name": "UnlockedRecipesServerComponent::UNLOCKED_RECIPES_TAG",
+      "section": 3,
+      "section_offset": "0x544910",
+      "rva": "0x11d1e910"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11321804,
+      "name": "UnlockedRecipesServerComponent::USED_CONTEXTS_TAG",
+      "section": 2,
+      "section_offset": "0x293248",
+      "rva": "0xe83a248"
+    }
+  ]
+}

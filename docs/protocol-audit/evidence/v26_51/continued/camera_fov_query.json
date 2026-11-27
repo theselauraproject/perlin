@@ -1,0 +1,15 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "CameraInstructionPacket",
+    "CameraInstructionPacketPayload",
+    "CameraInstructionOptions::FovInstruction",
+    "EasingType",
+    "cereal::SerializationTraits",
+    "cereal::internal::MemberTraits",
+    "cereal::internal::BasicSchema::MemberDescriptor",
+    "cereal::BinarySchemaWriter",
+    "BinaryStream"
+  ],
+  "symbol_regex": "^\\?bindEasing@SharedTypes@@|^\\?bindType@CameraInstruction@@|^\\?writeWithSerializationMode@CameraInstructionPacket@@"
+}

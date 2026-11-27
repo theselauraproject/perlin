@@ -1,0 +1,561 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "GameRule",
+      "type_index": "0x3a759",
+      "size": 280,
+      "fieldlist": "0x3a758",
+      "member_count": 37,
+      "fields": [
+        {
+          "name": "mShouldSave",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mType",
+          "offset": 1,
+          "type": "GameRule::Type",
+          "type_index": "0x2364",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mValue",
+          "offset": 4,
+          "type": "std::variant<cereal::NullType,bool,int,float>",
+          "type_index": "0xd5b4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mName",
+          "offset": 16,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAllowUseInCommand",
+          "offset": 48,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAllowUseInScripting",
+          "offset": 49,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsDefaultSet",
+          "offset": 50,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRequiresCheats",
+          "offset": 51,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCanBeModifiedByPlayer",
+          "offset": 52,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTagNotFoundCallback",
+          "offset": 56,
+          "type": "std::function<void (GameRule &, const BaseGameVersion &, const CompoundTag &)>",
+          "type_index": "0xbbf4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mValidateValueCallback",
+          "offset": 120,
+          "type": "std::function<bool (const std::variant<cereal::NullType,bool,int,float> &, GameRule::ValidationError *)>",
+          "type_index": "0xbdb5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCommandEnumNames",
+          "offset": 184,
+          "type": "std::map<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,int,std::less<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::allocator<std::pair<const std::basic_string<char,std::char_traits<char>,std::allocator<char> >,int> > >",
+          "type_index": "0xc241",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMinCommandVersion",
+          "offset": 200,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxCommandVersion",
+          "offset": 204,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCommandValueRedirectConverter",
+          "offset": 208,
+          "type": "std::function<std::variant<cereal::NullType,bool,int,float> (const std::variant<cereal::NullType,bool,int,float> &)>",
+          "type_index": "0xbb48",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCommandValueRedirectTarget",
+          "offset": 272,
+          "type": "std::optional<int>",
+          "type_index": "0xc598",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "GameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a742",
+          "return_type": "void",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a745",
+          "return_type": "void",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "GameRule &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a748",
+          "return_type": "void",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "const GameRule &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a749",
+          "return_type": "void",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a74b",
+          "return_type": "void",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "bool",
+            "bool",
+            "bool",
+            "bool",
+            "bool"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        },
+        {
+          "name": "_set",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a74e",
+          "return_type": "bool",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "const std::variant<cereal::NullType,bool,int,float> &",
+            "basic_0x0630",
+            "GameRule::ValidationError *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "compareValue",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a74f",
+          "return_type": "bool",
+          "class_type": "GameRule",
+          "this_type": "const GameRule *",
+          "argument_types": [
+            "const std::variant<cereal::NullType,bool,int,float> &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBool",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a750",
+          "return_type": "bool",
+          "class_type": "GameRule",
+          "this_type": "const GameRule *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getInt",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a751",
+          "return_type": "int32_t",
+          "class_type": "GameRule",
+          "this_type": "const GameRule *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a752",
+          "return_type": "GameRule &",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "GameRule &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a753",
+          "return_type": "GameRule &",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "const GameRule &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a755",
+          "return_type": "bool",
+          "class_type": "GameRule",
+          "this_type": "const GameRule *",
+          "argument_types": [
+            "const GameRule &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setName",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a756",
+          "return_type": "GameRule &",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~GameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a757",
+          "return_type": "void",
+          "class_type": "GameRule",
+          "this_type": "GameRule *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "GameRules",
+      "type_index": "0x3a77b",
+      "size": 192,
+      "fieldlist": "0x3a77a",
+      "member_count": 21,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mGameRules",
+          "offset": 24,
+          "type": "std::vector<GameRule,std::allocator<GameRule> >",
+          "type_index": "0xdc9f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mWorldPolicies",
+          "offset": 48,
+          "type": "std::map<HashedString,GameRule,std::less<HashedString>,std::allocator<std::pair<const HashedString,GameRule> > >",
+          "type_index": "0xc282",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGameRuleChangePublisher",
+          "offset": 64,
+          "type": "Bedrock::PubSub::Publisher<void (const GameRules &, const GameRuleId &),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76aa",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~GameRules",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a765",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRules",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a766",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRules",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a769",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [
+            "GameRules &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GameRules",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a76c",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [
+            "const GameRules &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_registerRules",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a765",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_setGameRule",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a76f",
+          "return_type": "std::unique_ptr<GameRulesChangedPacket,std::default_delete<GameRulesChangedPacket> >",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [
+            "GameRule *",
+            "std::variant<cereal::NullType,bool,int,float>",
+            "GameRule::Type",
+            "bool",
+            "basic_0x0630",
+            "basic_0x0630",
+            "GameRule::ValidationError *"
+          ],
+          "argument_count": 7,
+          "this_adjust": 0
+        },
+        {
+          "name": "createAllGameRulesPacket",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a770",
+          "return_type": "std::unique_ptr<GameRulesChangedPacket,std::default_delete<GameRulesChangedPacket> >",
+          "class_type": "GameRules",
+          "this_type": "const GameRules *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "deserializeRules",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a772",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [
+            "const GameRulesChangedPacketData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBool",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a774",
+          "return_type": "bool",
+          "class_type": "GameRules",
+          "this_type": "const GameRules *",
+          "argument_types": [
+            "GameRuleId",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a775",
+          "return_type": "GameRules &",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [
+            "GameRules &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a776",
+          "return_type": "GameRules &",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [
+            "const GameRules &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a778",
+          "return_type": "bool",
+          "class_type": "GameRules",
+          "this_type": "const GameRules *",
+          "argument_types": [
+            "const GameRules &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setMarketplaceOverrides",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a765",
+          "return_type": "void",
+          "class_type": "GameRules",
+          "this_type": "GameRules *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "WORLD_POLICY_TAG_NAME",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3a779",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "GameRules",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": []
+}

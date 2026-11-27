@@ -1,0 +1,535 @@
+{
+  "enum": "PlayerAuthInputData",
+  "members": [
+    {
+      "name": "Ascend",
+      "value": 0,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4026d22",
+      "getter_rva": "0x40e0e10",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Descend",
+      "value": 1,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4027053",
+      "getter_rva": "0x40e0ee0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "NorthJump",
+      "value": 2,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402735c",
+      "getter_rva": "0x40e0f80",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "JumpDown",
+      "value": 3,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4027678",
+      "getter_rva": "0x40e1300",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "SprintDown",
+      "value": 4,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402797c",
+      "getter_rva": "0x40e13a0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "ChangeHeight",
+      "value": 5,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4027c7c",
+      "getter_rva": "0x40e1440",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Jumping",
+      "value": 6,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4027f7c",
+      "getter_rva": "0x40e14e0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "AutoJumpingInWater",
+      "value": 7,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402827c",
+      "getter_rva": "0x40e1580",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Sneaking",
+      "value": 8,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402857c",
+      "getter_rva": "0x40e1620",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "SneakDown",
+      "value": 9,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402887c",
+      "getter_rva": "0x40e16c0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Up",
+      "value": 10,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4028b7c",
+      "getter_rva": "0x40e1760",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Down",
+      "value": 11,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4028e7c",
+      "getter_rva": "0x40e1800",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Left",
+      "value": 12,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402917c",
+      "getter_rva": "0x40e18a0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Right",
+      "value": 13,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402947c",
+      "getter_rva": "0x40e1940",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "UpLeft",
+      "value": 14,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402977c",
+      "getter_rva": "0x40e19e0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "UpRight",
+      "value": 15,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4029a7c",
+      "getter_rva": "0x40e1a80",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "WantUp",
+      "value": 16,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4029d7c",
+      "getter_rva": "0x40e1b20",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "WantDown",
+      "value": 17,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402a07c",
+      "getter_rva": "0x40e1bc0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "WantDownSlow",
+      "value": 18,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402a37c",
+      "getter_rva": "0x40e1c60",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "WantUpSlow",
+      "value": 19,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402a67c",
+      "getter_rva": "0x40e1d00",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Sprinting",
+      "value": 20,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402a97c",
+      "getter_rva": "0x40e1da0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "AscendBlock",
+      "value": 21,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402ac7c",
+      "getter_rva": "0x40e1e40",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "DescendBlock",
+      "value": 22,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402af7c",
+      "getter_rva": "0x40e1ee0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "SneakToggleDown",
+      "value": 23,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402b27c",
+      "getter_rva": "0x40e1f80",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "PersistSneak",
+      "value": 24,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402b57c",
+      "getter_rva": "0x40e2020",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartSprinting",
+      "value": 25,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402b87c",
+      "getter_rva": "0x40e20c0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopSprinting",
+      "value": 26,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402bb7c",
+      "getter_rva": "0x40e2160",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartSneaking",
+      "value": 27,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402be7c",
+      "getter_rva": "0x40e2200",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopSneaking",
+      "value": 28,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402c17c",
+      "getter_rva": "0x40e22a0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartSwimming",
+      "value": 29,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402c47c",
+      "getter_rva": "0x40e2340",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopSwimming",
+      "value": 30,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402c77c",
+      "getter_rva": "0x40e23e0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartJumping",
+      "value": 31,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402ca7c",
+      "getter_rva": "0x40e2480",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartGliding",
+      "value": 32,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402cd7c",
+      "getter_rva": "0x40e2520",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopGliding",
+      "value": 33,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402d07c",
+      "getter_rva": "0x40e25c0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "PerformItemInteraction",
+      "value": 34,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402d37c",
+      "getter_rva": "0x40e2660",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "PerformBlockActions",
+      "value": 35,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402d67c",
+      "getter_rva": "0x40e2700",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "PerformItemStackRequest",
+      "value": 36,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402d97c",
+      "getter_rva": "0x40e27a0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "HandledTeleport",
+      "value": 37,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402dc7c",
+      "getter_rva": "0x40e2840",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "Emoting",
+      "value": 38,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402df7c",
+      "getter_rva": "0x40e28e0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "MissedSwing",
+      "value": 39,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402e27c",
+      "getter_rva": "0x40e2980",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartCrawling",
+      "value": 40,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402e57c",
+      "getter_rva": "0x40e2a20",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopCrawling",
+      "value": 41,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402e87c",
+      "getter_rva": "0x40e2ac0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartFlying",
+      "value": 42,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402eb7c",
+      "getter_rva": "0x40e2b60",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopFlying",
+      "value": 43,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402ee7c",
+      "getter_rva": "0x40e2c00",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "ClientAckServerData",
+      "value": 44,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402f17c",
+      "getter_rva": "0x40e2ca0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "IsInClientPredictedVehicle",
+      "value": 45,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402f47c",
+      "getter_rva": "0x40e2d40",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "PaddlingLeft",
+      "value": 46,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402f77c",
+      "getter_rva": "0x40e2de0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "PaddlingRight",
+      "value": 47,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402fa7c",
+      "getter_rva": "0x40e2e80",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "BlockBreakingDelayEnabled",
+      "value": 48,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x402fd7c",
+      "getter_rva": "0x40e2f20",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "HorizontalCollision",
+      "value": 49,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x403007c",
+      "getter_rva": "0x40e2fc0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "VerticalCollision",
+      "value": 50,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x403037c",
+      "getter_rva": "0x40e3060",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "DownLeft",
+      "value": 51,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x403067c",
+      "getter_rva": "0x40e3100",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "DownRight",
+      "value": 52,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x403097c",
+      "getter_rva": "0x40e31a0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartUsingItem",
+      "value": 53,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4030c7c",
+      "getter_rva": "0x40e3240",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "IsCameraRelativeMovementEnabled",
+      "value": 54,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4030f7c",
+      "getter_rva": "0x40e32e0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "IsRotControlledByMoveDirection",
+      "value": 55,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4031298",
+      "getter_rva": "0x40e3380",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StartSpinAttack",
+      "value": 56,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x40315b8",
+      "getter_rva": "0x40e3420",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "StopSpinAttack",
+      "value": 57,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x40318bc",
+      "getter_rva": "0x40e34c0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "IsHotbarOnlyTouch",
+      "value": 58,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4031bbc",
+      "getter_rva": "0x40e3560",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "JumpReleasedRaw",
+      "value": 59,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4031ebc",
+      "getter_rva": "0x40e3600",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "JumpPressedRaw",
+      "value": 60,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x40321bc",
+      "getter_rva": "0x40e36a0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "JumpCurrentRaw",
+      "value": 61,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x40324bc",
+      "getter_rva": "0x40e3740",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "SneakReleasedRaw",
+      "value": 62,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x40327bc",
+      "getter_rva": "0x40e37e0",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "SneakPressedRaw",
+      "value": 63,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4032abc",
+      "getter_rva": "0x40e3880",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "SneakCurrentRaw",
+      "value": 64,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x4032dbc",
+      "getter_rva": "0x40e3920",
+      "registration_function_rva": "0x4026c80"
+    },
+    {
+      "name": "InternalUpdate",
+      "value": 65,
+      "enum_type_hash": "0xd1da50c8",
+      "name_reference_rva": "0x40330bc",
+      "getter_rva": "0x40e39c0",
+      "registration_function_rva": "0x4026c80"
+    }
+  ],
+  "complete_observed_0_through_65": true,
+  "evidence": "Enum label registration and constant-return metadata getter, not PDB offsets"
+}

@@ -182,6 +182,11 @@ int main() {
         CHECK(dispatcher.Dispatch(9999, body.data(), body.size()) ==
               net::PacketDispatcher::Result::Unhandled);
         CHECK(calls == 2);
+        int partialCalls = 0;
+        dispatcher.OnPartial<SetTimePacket>([&](const SetTimePacket&) { partialCalls++; });
+        CHECK(dispatcher.Dispatch(SetTimePacket::kId, body.data(), 0) ==
+              net::PacketDispatcher::Result::Malformed);
+        CHECK(calls == 2 && partialCalls == 1);
     }
     {
         MobEquipmentPacket air;

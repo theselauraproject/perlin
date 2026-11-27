@@ -1,0 +1,27 @@
+{
+  "filename": "Windows_Client_26.51 (1).pdb",
+  "size": 60108800,
+  "sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+  "guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+  "age": 1,
+  "stream_count": 13,
+  "type_record_count": 321640,
+  "packet_layout_count": 471,
+  "packet_symbol_count": 5507,
+  "handler_symbols_count": 231,
+  "warning": "PDB GUID/age matches the supplied 1.26.51.1 executable and does not match the supplied 1.26.65.1 executable. Memory layout does not establish wire serialization order.",
+  "compared_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "exe_match": true,
+  "binary_matches": [
+    {
+      "file_version": "1.26.51.1",
+      "sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+      "matches": true
+    },
+    {
+      "file_version": "1.26.65.1",
+      "sha256": "9138ed5c5a213c3de891f56693542c6de1f5258b04fac4889ac37233785a700e",
+      "matches": false
+    }
+  ]
+}

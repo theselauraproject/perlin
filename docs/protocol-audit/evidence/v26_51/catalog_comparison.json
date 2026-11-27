@@ -1,0 +1,70 @@
+{
+  "perlin": {
+    "schema_sha256": "73beb96f3e8a6a7fe496c29ffdf46ef75580f558c2735b6b1e15268572a771ed",
+    "packet_id_count": 246,
+    "missing_from_perlin": [],
+    "schema_only_ids": [
+      {
+        "id": 20,
+        "schema_name": "rider_jump"
+      },
+      {
+        "id": 23,
+        "schema_name": "tick_sync"
+      },
+      {
+        "id": 24,
+        "schema_name": "level_sound_event_old"
+      },
+      {
+        "id": 53,
+        "schema_name": "crafting_event"
+      },
+      {
+        "id": 55,
+        "schema_name": "adventure_settings"
+      },
+      {
+        "id": 57,
+        "schema_name": "player_input"
+      },
+      {
+        "id": 117,
+        "schema_name": "script_custom_event"
+      },
+      {
+        "id": 120,
+        "schema_name": "level_sound_event_v2"
+      },
+      {
+        "id": 126,
+        "schema_name": "video_stream_connect"
+      },
+      {
+        "id": 134,
+        "schema_name": "update_block_properties"
+      },
+      {
+        "id": 163,
+        "schema_name": "filter_text_packet"
+      },
+      {
+        "id": 173,
+        "schema_name": "photo_info_request"
+      },
+      {
+        "id": 197,
+        "schema_name": "client_cheat_ability"
+      },
+      {
+        "id": 301,
+        "schema_name": "compressed_biome_definitions"
+      },
+      {
+        "id": 319,
+        "schema_name": "set_movement_authority"
+      }
+    ],
+    "note": "Schema-only IDs may be deprecated. Presence does not establish a behavioral defect."
+  }
+}

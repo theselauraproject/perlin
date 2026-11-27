@@ -1,0 +1,2654 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "Selected rows of the matched packet manifest and first-level call map; downstream semantics remain bounded by packet_contracts.json."
+  },
+  "packets": [
+    {
+      "id": 36,
+      "name": "PlayerActionPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 1592,
+        "handler_rva": "0x1329a70",
+        "public_name": null,
+        "public_symbol_names": [],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x1329a70",
+          "0x1329b4a"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x1329a70",
+          "LegacyClientNetworkHandler": "0x1329a70"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "PlayerActionPacketPayload",
+          "type_index": "0x1d0f6",
+          "size": 48,
+          "fieldlist": "0x1d0f5",
+          "member_count": 6,
+          "fields": [
+            {
+              "name": "mPos",
+              "offset": 0,
+              "type": "BlockPos",
+              "type_index": "0xe1db",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mResultPos",
+              "offset": 12,
+              "type": "BlockPos",
+              "type_index": "0xe1db",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mFace",
+              "offset": 24,
+              "type": "int32_t",
+              "type_index": "0x74",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mAction",
+              "offset": 28,
+              "type": "PlayerActionType",
+              "type_index": "0x1cd6",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mRuntimeId",
+              "offset": 32,
+              "type": "ActorRuntimeID",
+              "type_index": "0xdf0a",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mIsFromServerPlayerMovementSystem",
+              "offset": 40,
+              "type": "bool",
+              "type_index": "0x30",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x1329a70",
+        "symbols": [],
+        "packet_ids": [
+          36
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 36,
+            "packet_name": "PlayerActionPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 1592
+          }
+        ],
+        "bounds": [
+          "0x1329a70",
+          "0x1329b4a"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 218,
+        "instruction_count": 59,
+        "direct_calls": [
+          {
+            "site_rva": "0x1329aaf",
+            "target_rva": "0x136da20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1329b1f",
+            "target_rva": "0xe5a4e10",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1329b24",
+            "target_rva": "0xe5a4e20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1329b37",
+            "target_rva": "0x233180",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x1329a86",
+            "operand": "QWORD PTR [rip+0xddd201c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 81,
+      "name": "UpdateEquipPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 1248,
+        "handler_rva": "0x1321da0",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateEquipPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateEquipPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x1321da0",
+          "0x1322078"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x1321da0",
+          "LegacyClientNetworkHandler": "0x1321da0"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "UpdateEquipPacketPayload",
+          "type_index": "0x21518",
+          "size": 40,
+          "fieldlist": "0x21517",
+          "member_count": 5,
+          "fields": [
+            {
+              "name": "mContainerId",
+              "offset": 0,
+              "type": "ContainerID",
+              "type_index": "0x13b1",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mType",
+              "offset": 1,
+              "type": "SharedTypes::Legacy::ContainerType",
+              "type_index": "0x13bd",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mSize",
+              "offset": 4,
+              "type": "int32_t",
+              "type_index": "0x74",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mEntityUniqueID",
+              "offset": 8,
+              "type": "ActorUniqueID",
+              "type_index": "0x48fa",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mData",
+              "offset": 16,
+              "type": "CompoundTag",
+              "type_index": "0xe54e",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x1321da0",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateEquipPacket@@@Z"
+        ],
+        "packet_ids": [
+          81
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 81,
+            "packet_name": "UpdateEquipPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 1248
+          }
+        ],
+        "bounds": [
+          "0x1321da0",
+          "0x1322078"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 728,
+        "instruction_count": 174,
+        "direct_calls": [
+          {
+            "site_rva": "0x1321e3a",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1321e87",
+            "target_rva": "0x1a2c6c0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1321f7b",
+            "target_rva": "0x25ccdd0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1321f96",
+            "target_rva": "0x21bbf0",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x1321df4",
+            "operand": "QWORD PTR [rip+0xddd9cae]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321e72",
+            "operand": "QWORD PTR [rip+0xddd9c30]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321e9a",
+            "operand": "QWORD PTR [rip+0xddd9c08]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321ed2",
+            "operand": "QWORD PTR [rip+0xddd9bd0]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321f05",
+            "operand": "QWORD PTR [rip+0xddd9b9d]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321f54",
+            "operand": "QWORD PTR [rip+0xddd9b4e]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321fe5",
+            "operand": "QWORD PTR [rip+0xddd9abd]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1321fff",
+            "operand": "QWORD PTR [rip+0xddd9aa3]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132202a",
+            "operand": "QWORD PTR [rip+0xddd9a78]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1322040",
+            "operand": "QWORD PTR [rip+0xddd9a62]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132205f",
+            "operand": "QWORD PTR [rip+0xddd9a43]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 138,
+      "name": "EmotePacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 2008,
+        "handler_rva": "0x130ac60",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmotePacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmotePacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x130ac60",
+          "0x130af1e"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x130ac60",
+          "LegacyClientNetworkHandler": "0x130ac60"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "EmotePacketPayload",
+          "type_index": "0x19104",
+          "size": 120,
+          "fieldlist": "0x19103",
+          "member_count": 11,
+          "fields": [
+            {
+              "name": "mRuntimeId",
+              "offset": 0,
+              "type": "ActorRuntimeID",
+              "type_index": "0xdf0a",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mPieceId",
+              "offset": 8,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mEmoteTicks",
+              "offset": 40,
+              "type": "uint32_t",
+              "type_index": "0x75",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mXuid",
+              "offset": 48,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mPlatformId",
+              "offset": 80,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mFlags",
+              "offset": 112,
+              "type": "unsigned char",
+              "type_index": "0x20",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x130ac60",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmotePacket@@@Z"
+        ],
+        "packet_ids": [
+          138
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 138,
+            "packet_name": "EmotePacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 2008
+          }
+        ],
+        "bounds": [
+          "0x130ac60",
+          "0x130af1e"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 702,
+        "instruction_count": 163,
+        "direct_calls": [
+          {
+            "site_rva": "0x130aced",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130adc1",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130ae05",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130ae28",
+            "target_rva": "0xe8870",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130ae5d",
+            "target_rva": "0xfbdd40",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x130aca7",
+            "operand": "QWORD PTR [rip+0xddf0dfb]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ad22",
+            "operand": "QWORD PTR [rip+0xddf0d80]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ad42",
+            "operand": "QWORD PTR [rip+0xddf0d60]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ad6c",
+            "operand": "QWORD PTR [rip+0xddf0d36]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ad8d",
+            "operand": "QWORD PTR [rip+0xddf0d15]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ae3e",
+            "operand": "QWORD PTR [rip+0xddf0c64]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ae54",
+            "operand": "QWORD PTR [rip+0xddf0c4e]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ae91",
+            "operand": "QWORD PTR [rip+0xddf0c11]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130aeba",
+            "operand": "QWORD PTR [rip+0xddf0be8]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130aed0",
+            "operand": "QWORD PTR [rip+0xddf0bd2]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130aef6",
+            "operand": "QWORD PTR [rip+0xddf0bac]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130af0c",
+            "operand": "QWORD PTR [rip+0xddf0b96]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 142,
+      "name": "CompletedUsingItemPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 1208,
+        "handler_rva": "0x1306470",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCompletedUsingItemPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCompletedUsingItemPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x1306470",
+          "0x130669c"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x1306470",
+          "LegacyClientNetworkHandler": "0x1306470"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "CompletedUsingItemPacketPayload",
+          "type_index": "0x1788c",
+          "size": 8,
+          "fieldlist": "0x1788b",
+          "member_count": 2,
+          "fields": [
+            {
+              "name": "mItemId",
+              "offset": 0,
+              "type": "short",
+              "type_index": "0x11",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mItemUseMethod",
+              "offset": 4,
+              "type": "int32_t",
+              "type_index": "0x74",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x1306470",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCompletedUsingItemPacket@@@Z"
+        ],
+        "packet_ids": [
+          142
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 142,
+            "packet_name": "CompletedUsingItemPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 1208
+          }
+        ],
+        "bounds": [
+          "0x1306470",
+          "0x130669c"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 556,
+        "instruction_count": 124,
+        "direct_calls": [
+          {
+            "site_rva": "0x130650e",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130657e",
+            "target_rva": "0x348ee20",
+            "target_symbols": [
+              "?getItem@ItemRegistryRef@@QEBA?AV?$WeakPtr@VItem@@@@F@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13065e9",
+            "target_rva": "0x247ead0",
+            "target_symbols": [
+              "??0ItemStackBase@@QEAA@AEBVItem@@HHPEBVCompoundTag@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x1306633",
+            "target_rva": "0x2fea260",
+            "target_symbols": [
+              "?sendEvent@ActorEventCoordinator@@QEAAXAEBV?$EventRef@U?$ActorGameplayEvent@X@@@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130664e",
+            "target_rva": "0x21ea10",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130665e",
+            "target_rva": "0x247e020",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1306686",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x13064c5",
+            "operand": "QWORD PTR [rip+0xddf55dd]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1306543",
+            "operand": "QWORD PTR [rip+0xddf555f]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1306569",
+            "operand": "QWORD PTR [rip+0xddf5539]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1306599",
+            "operand": "QWORD PTR [rip+0xddf5509]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1306610",
+            "operand": "QWORD PTR [rip+0xddf5492]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 158,
+      "name": "AnimateEntityPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 568,
+        "handler_rva": "0x1327de0",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimateEntityPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimateEntityPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x1327de0",
+          "0x1328491"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x1327de0",
+          "LegacyClientNetworkHandler": "0x1327de0"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "AnimateEntityPacketPayload",
+          "type_index": "0x15b02",
+          "size": 168,
+          "fieldlist": "0x15b01",
+          "member_count": 10,
+          "fields": [
+            {
+              "name": "mRuntimeIds",
+              "offset": 0,
+              "type": "std::vector<ActorRuntimeID,std::allocator<ActorRuntimeID> >",
+              "type_index": "0xdc58",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mAnimation",
+              "offset": 24,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mNextState",
+              "offset": 56,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mStopExpression",
+              "offset": 88,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mStopExpressionVersion",
+              "offset": 120,
+              "type": "MolangVersion",
+              "type_index": "0x1af0",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mController",
+              "offset": 128,
+              "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+              "type_index": "0xb986",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mBlendOutTime",
+              "offset": 160,
+              "type": "float",
+              "type_index": "0x40",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x1327de0",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimateEntityPacket@@@Z"
+        ],
+        "packet_ids": [
+          158
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 158,
+            "packet_name": "AnimateEntityPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 568
+          }
+        ],
+        "bounds": [
+          "0x1327de0",
+          "0x1328491"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 1713,
+        "instruction_count": 408,
+        "direct_calls": [
+          {
+            "site_rva": "0x1327ea0",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1327f87",
+            "target_rva": "0x1e14890",
+            "target_symbols": [
+              "?setActorFlag@SynchedActorDataAccess@@YAXAEAVEntityContext@@W4ActorFlags@@_N@Z"
+            ]
+          },
+          {
+            "site_rva": "0x1327fb7",
+            "target_rva": "0x1e14890",
+            "target_symbols": [
+              "?setActorFlag@SynchedActorDataAccess@@YAXAEAVEntityContext@@W4ActorFlags@@_N@Z"
+            ]
+          },
+          {
+            "site_rva": "0x1328028",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1328069",
+            "target_rva": "0x6acb20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1328074",
+            "target_rva": "0x1bbe110",
+            "target_symbols": [
+              "?isAnimationRegistered@AnimationComponent@@QEBA_NAEBVHashedString@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13280b9",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13280f0",
+            "target_rva": "0x6acb20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1328102",
+            "target_rva": "0x1bbb210",
+            "target_symbols": [
+              "?getActorAnimation@ActorAnimationGroup@@QEAA?AVActorSkeletalAnimationPtr@@AEBVHashedString@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x1328144",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13281a8",
+            "target_rva": "0x6acb20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13281b7",
+            "target_rva": "0x1bbe2d0",
+            "target_symbols": [
+              "?tryRegisterAnimation@AnimationComponent@@QEAA_NAEBVHashedString@@VActorSkeletalAnimationPtr@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13281fb",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13282ba",
+            "target_rva": "0x6acb20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13282ef",
+            "target_rva": "0x1bbe700",
+            "target_symbols": [
+              "?editGlobalAnimationData@AnimationComponent@@QEAA?AV?$shared_ptr@VActorAnimationControllerStatePlayer@@@std@@AEBVHashedString@@MAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@W4MolangVersion@@11@Z"
+            ]
+          },
+          {
+            "site_rva": "0x132836d",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x132837d",
+            "target_rva": "0x6acb20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1328388",
+            "target_rva": "0x6acb20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13283a6",
+            "target_rva": "0x1bbf260",
+            "target_symbols": [
+              "?playAnimation@AnimationComponent@@QEAA?AV?$shared_ptr@VActorAnimationControllerStatePlayer@@@std@@AEBVHashedString@@0AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@3@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x1328416",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x1327e53",
+            "operand": "QWORD PTR [rip+0xddd3c4f]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1327f46",
+            "operand": "QWORD PTR [rip+0xddd3b5c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1327f65",
+            "operand": "QWORD PTR [rip+0xddd3b3d]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1327f9a",
+            "operand": "QWORD PTR [rip+0xddd3b08]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1327fd1",
+            "operand": "QWORD PTR [rip+0xddd3ad1]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1327ffe",
+            "operand": "QWORD PTR [rip+0xddd3aa4]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132805a",
+            "operand": "QWORD PTR [rip+0xddd3a48]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13280d7",
+            "operand": "QWORD PTR [rip+0xddd39cb]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132822b",
+            "operand": "QWORD PTR [rip+0xddd3877]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1328241",
+            "operand": "QWORD PTR [rip+0xddd3861]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132826b",
+            "operand": "QWORD PTR [rip+0xddd3837]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1328281",
+            "operand": "QWORD PTR [rip+0xddd3821]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1328310",
+            "operand": "QWORD PTR [rip+0xddd3792]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1328326",
+            "operand": "QWORD PTR [rip+0xddd377c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13283c3",
+            "operand": "QWORD PTR [rip+0xddd36df]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13283d9",
+            "operand": "QWORD PTR [rip+0xddd36c9]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1328469",
+            "operand": "QWORD PTR [rip+0xdddbe79]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf1042e8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 168,
+      "name": "SimulationTypePacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 512,
+        "handler_rva": "0x130b740",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimulationTypePacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimulationTypePacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x130b740",
+          "0x130b883"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x130b740",
+          "LegacyClientNetworkHandler": "0x130b740"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "SimulationTypePacketPayload",
+          "type_index": "0x1ffb5",
+          "size": 1,
+          "fieldlist": "0x1ffb4",
+          "member_count": 1,
+          "fields": [
+            {
+              "name": "mSimType",
+              "offset": 0,
+              "type": "SimulationType",
+              "type_index": "0x2083",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x130b740",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimulationTypePacket@@@Z"
+        ],
+        "packet_ids": [
+          168
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 168,
+            "packet_name": "SimulationTypePacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 512
+          }
+        ],
+        "bounds": [
+          "0x130b740",
+          "0x130b883"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 323,
+        "instruction_count": 85,
+        "direct_calls": [
+          {
+            "site_rva": "0x130b7d4",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130b83a",
+            "target_rva": "0x2200860",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x130b788",
+            "operand": "QWORD PTR [rip+0xddf031a]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130b811",
+            "operand": "QWORD PTR [rip+0xddf0291]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130b85d",
+            "operand": "QWORD PTR [rip+0xddf0245]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130b873",
+            "operand": "QWORD PTR [rip+0xddf022f]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 179,
+      "name": "TickingAreasLoadStatusPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 888,
+        "handler_rva": "0x12fecc0",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTickingAreasLoadStatusPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTickingAreasLoadStatusPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x12fecc0",
+          "0x12fed4e"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x12fecc0",
+          "LegacyClientNetworkHandler": "0x12fecc0"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "TickingAreasLoadStatusPacketPayload",
+          "type_index": "0x20edc",
+          "size": 1,
+          "fieldlist": "0x20edb",
+          "member_count": 1,
+          "fields": [
+            {
+              "name": "mWaitingForPreload",
+              "offset": 0,
+              "type": "bool",
+              "type_index": "0x30",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x12fecc0",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTickingAreasLoadStatusPacket@@@Z"
+        ],
+        "packet_ids": [
+          179
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 179,
+            "packet_name": "TickingAreasLoadStatusPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 888
+          }
+        ],
+        "bounds": [
+          "0x12fecc0",
+          "0x12fed4e"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 142,
+        "instruction_count": 45,
+        "direct_calls": [
+          {
+            "site_rva": "0x12fecfa",
+            "target_rva": "0x61ac310",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x12fecf1",
+            "operand": "QWORD PTR [rip+0xddfcdb1]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x12fed3b",
+            "operand": "QWORD PTR [rip+0xddfcd67]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 199,
+      "name": "UnlockedRecipesPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 392,
+        "handler_rva": "0x130b8c0",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUnlockedRecipesPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUnlockedRecipesPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x130b8c0",
+          "0x130c911"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x130b8c0",
+          "LegacyClientNetworkHandler": "0x130b8c0"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "UnlockedRecipesPacketPayload",
+          "type_index": "0x2149c",
+          "size": 32,
+          "fieldlist": "0x2149b",
+          "member_count": 3,
+          "fields": [
+            {
+              "name": "mPacketType",
+              "offset": 0,
+              "type": "UnlockedRecipesPacketPayload::PacketType",
+              "type_index": "0x1c26",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mUnlockedRecipes",
+              "offset": 8,
+              "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+              "type_index": "0xdad6",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x130b8c0",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUnlockedRecipesPacket@@@Z"
+        ],
+        "packet_ids": [
+          199
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 199,
+            "packet_name": "UnlockedRecipesPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 392
+          }
+        ],
+        "bounds": [
+          "0x130b8c0",
+          "0x130c911"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 4177,
+        "instruction_count": 895,
+        "direct_calls": [
+          {
+            "site_rva": "0x130ba53",
+            "target_rva": "0x2214c0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bb41",
+            "target_rva": "0x21ff90",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bb57",
+            "target_rva": "0x1368580",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bb5f",
+            "target_rva": "0x2895000",
+            "target_symbols": [
+              "??0UnlockedRecipesClientComponent@@QEAA@XZ"
+            ]
+          },
+          {
+            "site_rva": "0x130bbfb",
+            "target_rva": "0x2895cb0",
+            "target_symbols": [
+              "?removeAllRecipes@UnlockedRecipesClientComponent@@QEAAXXZ"
+            ]
+          },
+          {
+            "site_rva": "0x130bc31",
+            "target_rva": "0x28959d0",
+            "target_symbols": [
+              "?removeRecipes@UnlockedRecipesClientComponent@@QEAAXAEBVRecipes@@AEBV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130bc47",
+            "target_rva": "0x1a2a3d0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bc8b",
+            "target_rva": "0x28950c0",
+            "target_symbols": [
+              "?addUnlockedRecipes@UnlockedRecipesClientComponent@@QEAAXAEBVRecipes@@AEBV?$vector@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$allocator@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@@std@@_N@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130bd70",
+            "target_rva": "0x79200",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bd83",
+            "target_rva": "0x79200",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bdb3",
+            "target_rva": "0xe46740",
+            "target_symbols": [
+              "??0ToastMessage@@QEAA@W4ToastMessageType@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@1AEBVValue@Json@@M@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130bdf8",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130be3d",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130be70",
+            "target_rva": "0x42b8b0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130be9c",
+            "target_rva": "0x42b8b0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bed7",
+            "target_rva": "0x3e1f00",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bee3",
+            "target_rva": "0x42b8b0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bf7f",
+            "target_rva": "0xe5a4df0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130bfd3",
+            "target_rva": "0xe5a6380",
+            "target_symbols": [
+              "?memCmp@bx@@YAHPEBX0_K@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c03a",
+            "target_rva": "0x2bec40",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c131",
+            "target_rva": "0x9daf0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c183",
+            "target_rva": "0xe5a62c0",
+            "target_symbols": [
+              "?memMove@bx@@YAXPEAXPEBX_K@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c225",
+            "target_rva": "0x9daf0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c23e",
+            "target_rva": "0xe5a62c0",
+            "target_symbols": [
+              "?memMove@bx@@YAXPEAXPEBX_K@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c28a",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c389",
+            "target_rva": "0x1351880",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c4c6",
+            "target_rva": "0x1351880",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c708",
+            "target_rva": "0xe7f090",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c711",
+            "target_rva": "0xe7f190",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c767",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c789",
+            "target_rva": "0x12fe850",
+            "target_symbols": [
+              "?_handleUnlockedRecipesByTag@ClientNetworkHandler@@SAXAEBVUnlockedRecipesClientComponent@@AEBV?$map@VHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@U?$less@VHashedString@@@3@V?$allocator@U?$pair@$$CBVHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@@std@@@3@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@AEBVHashedString@@AEAV?$vector@UToastIconData@@V?$allocator@UToastIconData@@@std@@@4@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c7ab",
+            "target_rva": "0x12fe850",
+            "target_symbols": [
+              "?_handleUnlockedRecipesByTag@ClientNetworkHandler@@SAXAEBVUnlockedRecipesClientComponent@@AEBV?$map@VHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@U?$less@VHashedString@@@3@V?$allocator@U?$pair@$$CBVHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@@std@@@3@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@AEBVHashedString@@AEAV?$vector@UToastIconData@@V?$allocator@UToastIconData@@@std@@@4@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c7cd",
+            "target_rva": "0x12fe850",
+            "target_symbols": [
+              "?_handleUnlockedRecipesByTag@ClientNetworkHandler@@SAXAEBVUnlockedRecipesClientComponent@@AEBV?$map@VHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@U?$less@VHashedString@@@3@V?$allocator@U?$pair@$$CBVHashedString@@V?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@2@V?$allocator@U?$pair@$$CBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$shared_ptr@VRecipe@@@2@@std@@@2@@std@@@std@@@3@@std@@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@AEBVHashedString@@AEAV?$vector@UToastIconData@@V?$allocator@UToastIconData@@@std@@@4@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c7ed",
+            "target_rva": "0x9049b0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c7fe",
+            "target_rva": "0x9049b0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c879",
+            "target_rva": "0xe5a6380",
+            "target_symbols": [
+              "?memCmp@bx@@YAHPEBX0_K@Z"
+            ]
+          },
+          {
+            "site_rva": "0x130c899",
+            "target_rva": "0x9049b0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c8bf",
+            "target_rva": "0x118a40",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c8ce",
+            "target_rva": "0xe024890",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c8e3",
+            "target_rva": "0x13684e0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c8ef",
+            "target_rva": "0xe024950",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c8fc",
+            "target_rva": "0x75a50",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c901",
+            "target_rva": "0x1202c0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c906",
+            "target_rva": "0x75a50",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x130c90b",
+            "target_rva": "0x1202c0",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x130b90c",
+            "operand": "QWORD PTR [rip+0xddf0196]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130b9a0",
+            "operand": "QWORD PTR [rip+0xddf0102]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130ba8c",
+            "operand": "QWORD PTR [rip+0xddf0016]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130babb",
+            "operand": "QWORD PTR [rip+0xddeffe7]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bad1",
+            "operand": "QWORD PTR [rip+0xddeffd1]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bba7",
+            "operand": "QWORD PTR [rip+0xddefefb]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bc1d",
+            "operand": "QWORD PTR [rip+0xddefe85]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bc6c",
+            "operand": "QWORD PTR [rip+0xddefe36]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bcbc",
+            "operand": "QWORD PTR [rip+0xddefde6]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bd1b",
+            "operand": "QWORD PTR [rip+0xddefd87]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130beb6",
+            "operand": "QWORD PTR [rip+0xddefbec]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130becd",
+            "operand": "QWORD PTR [rip+0xddefbd5]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130bf27",
+            "operand": "QWORD PTR [rip+0xddefb7b]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130c05d",
+            "operand": "QWORD PTR [rip+0xddefa45]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130c0bb",
+            "operand": "QWORD PTR [rip+0xddef9e7]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130c0d3",
+            "operand": "QWORD PTR [rip+0xddef9cf]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130c43a",
+            "operand": "QWORD PTR [rip+0xddef668]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130c472",
+            "operand": "QWORD PTR [rip+0xddef630]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x130c8b9",
+            "operand": "QWORD PTR [rip+0xddf7a29]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf1042e8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 307,
+      "name": "SetPlayerInventoryOptionsPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 360,
+        "handler_rva": "0x130cc60",
+        "public_name": null,
+        "public_symbol_names": [],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x130cc60",
+          "0x130cc9f"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x130cc60",
+          "LegacyClientNetworkHandler": "0x130cc60"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "SetPlayerInventoryOptionsPacketPayload",
+          "type_index": "0x1fd8b",
+          "size": 20,
+          "fieldlist": "0x1fd8a",
+          "member_count": 1,
+          "fields": [
+            {
+              "name": "mInventoryOptions",
+              "offset": 0,
+              "type": "InventoryOptions",
+              "type_index": "0x578c",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x130cc60",
+        "symbols": [],
+        "packet_ids": [
+          307
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 307,
+            "packet_name": "SetPlayerInventoryOptionsPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 360
+          }
+        ],
+        "bounds": [
+          "0x130cc60",
+          "0x130cc9f"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 63,
+        "instruction_count": 17,
+        "direct_calls": [],
+        "indirect_calls": [
+          {
+            "site_rva": "0x130cc76",
+            "operand": "QWORD PTR [rip+0xddeee2c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 317,
+      "name": "ContainerRegistryCleanupPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 1528,
+        "handler_rva": "0x1342b10",
+        "public_name": null,
+        "public_symbol_names": [],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x1342b10",
+          "0x1342c67"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x76bc0",
+          "LegacyClientNetworkHandler": "0x1342b10"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "ContainerRegistryCleanupPacketPayload",
+          "type_index": "0x17cfa",
+          "size": 24,
+          "fieldlist": "0x17cf9",
+          "member_count": 1,
+          "fields": [
+            {
+              "name": "mRemovedContainers",
+              "offset": 0,
+              "type": "std::vector<FullContainerName,std::allocator<FullContainerName> >",
+              "type_index": "0xd89d",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x1342b10",
+        "symbols": [],
+        "packet_ids": [
+          317
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 317,
+            "packet_name": "ContainerRegistryCleanupPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 1528
+          }
+        ],
+        "bounds": [
+          "0x1342b10",
+          "0x1342c67"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 343,
+        "instruction_count": 92,
+        "direct_calls": [
+          {
+            "site_rva": "0x1342bb4",
+            "target_rva": "0x343dac0",
+            "target_symbols": [
+              "?cleanUpDynamicContainers@HudContainerManagerModel@@QEAAXXZ"
+            ]
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x1342b36",
+            "operand": "QWORD PTR [rip+0xddb8f6c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342ba5",
+            "operand": "QWORD PTR [rip+0xddb8efd]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342bda",
+            "operand": "QWORD PTR [rip+0xddb8ec8]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342bf0",
+            "operand": "QWORD PTR [rip+0xddb8eb2]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342c0b",
+            "operand": "QWORD PTR [rip+0xddb8e97]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342c20",
+            "operand": "QWORD PTR [rip+0xddb8e82]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342c3e",
+            "operand": "QWORD PTR [rip+0xddb8e64]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1342c54",
+            "operand": "QWORD PTR [rip+0xddb8e4e]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 326,
+      "name": "PlayerLocationPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 272,
+        "handler_rva": "0x132a340",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerLocationPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerLocationPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x132a340",
+          "0x132a610"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x132a340",
+          "LegacyClientNetworkHandler": "0x132a340"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "PlayerLocationPacketPayload",
+          "type_index": "0x1d1d9",
+          "size": 32,
+          "fieldlist": "0x1d1d8",
+          "member_count": 7,
+          "fields": [
+            {
+              "name": "mId",
+              "offset": 0,
+              "type": "ActorUniqueID",
+              "type_index": "0x48fa",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mLocation",
+              "offset": 8,
+              "type": "std::variant<PlayerLocationPacketPayload::CoordinatesLocation,PlayerLocationPacketPayload::HiddenLocation>",
+              "type_index": "0xd58d",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x132a340",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerLocationPacket@@@Z"
+        ],
+        "packet_ids": [
+          326
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 326,
+            "packet_name": "PlayerLocationPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 272
+          }
+        ],
+        "bounds": [
+          "0x132a340",
+          "0x132a610"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 720,
+        "instruction_count": 172,
+        "direct_calls": [
+          {
+            "site_rva": "0x132a3ec",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x132a45a",
+            "target_rva": "0x34e6b60",
+            "target_symbols": [
+              "?hidePlayer@PlayerLocationReceiver@@QEAAXAEBUActorUniqueID@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x132a50c",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x132a54b",
+            "target_rva": "0xe021350",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x132a56c",
+            "target_rva": "0x34e6ae0",
+            "target_symbols": [
+              "?updatePlayer@PlayerLocationReceiver@@QEAAXAEBUActorUniqueID@@AEBVVec3@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x132a60a",
+            "target_rva": "0x1202c0",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x132a36e",
+            "operand": "QWORD PTR [rip+0xddd1734]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a3a6",
+            "operand": "QWORD PTR [rip+0xddd16fc]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a41e",
+            "operand": "QWORD PTR [rip+0xddd1684]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a4cf",
+            "operand": "r10",
+            "resolution": "unresolved indirect target"
+          },
+          {
+            "site_rva": "0x132a590",
+            "operand": "QWORD PTR [rip+0xddd1512]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a5a6",
+            "operand": "QWORD PTR [rip+0xddd14fc]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a5cc",
+            "operand": "QWORD PTR [rip+0xddd14d6]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a5e6",
+            "operand": "QWORD PTR [rip+0xddd14bc]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x132a604",
+            "operand": "QWORD PTR [rip+0xddd9cde]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf1042e8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 327,
+      "name": "ClientboundControlSchemeSetPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 1152,
+        "handler_rva": "0x1319120",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundControlSchemeSetPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundControlSchemeSetPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x1319120",
+          "0x13196fa"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x1319120",
+          "LegacyClientNetworkHandler": "0x1319120"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "ClientboundControlSchemeSetPacketPayload",
+          "type_index": "0x17515",
+          "size": 1,
+          "fieldlist": "0x17514",
+          "member_count": 1,
+          "fields": [
+            {
+              "name": "mControlScheme",
+              "offset": 0,
+              "type": "ControlScheme::Scheme",
+              "type_index": "0x1f55",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x1319120",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundControlSchemeSetPacket@@@Z"
+        ],
+        "packet_ids": [
+          327
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 327,
+            "packet_name": "ClientboundControlSchemeSetPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 1152
+          }
+        ],
+        "bounds": [
+          "0x1319120",
+          "0x13196fa"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 1498,
+        "instruction_count": 365,
+        "direct_calls": [
+          {
+            "site_rva": "0x131927c",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13192c3",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1319306",
+            "target_rva": "0x66ff2c0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1319315",
+            "target_rva": "0x67000c0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13193e7",
+            "target_rva": "0x920420",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x1319403",
+            "target_rva": "0x91cda0",
+            "target_symbols": [
+              "?set@IntOption@@QEAAXH_N@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13194d0",
+            "target_rva": "0x920420",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13194ef",
+            "target_rva": "0x91cda0",
+            "target_symbols": [
+              "?set@IntOption@@QEAAXH_N@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13195ab",
+            "target_rva": "0x95bf20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13195b7",
+            "target_rva": "0x434f570",
+            "target_symbols": [
+              "?onConfigChanged@ClientInputHandler@@QEAAXAEBVConfig@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13195ec",
+            "target_rva": "0x95bf20",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x13195f8",
+            "target_rva": "0x434f570",
+            "target_symbols": [
+              "?onConfigChanged@ClientInputHandler@@QEAAXAEBVConfig@@@Z"
+            ]
+          },
+          {
+            "site_rva": "0x13196f4",
+            "target_rva": "0x9b4a0",
+            "target_symbols": []
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x1319157",
+            "operand": "QWORD PTR [rip+0xdde294b]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13192e9",
+            "operand": "QWORD PTR [rip+0xdde27b9]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319328",
+            "operand": "QWORD PTR [rip+0xdde277a]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319348",
+            "operand": "QWORD PTR [rip+0xdde275a]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131935c",
+            "operand": "QWORD PTR [rip+0xdde2746]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131937b",
+            "operand": "QWORD PTR [rip+0xdde2727]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319416",
+            "operand": "QWORD PTR [rip+0xdde268c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131946f",
+            "operand": "QWORD PTR [rip+0xdde2633]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319485",
+            "operand": "QWORD PTR [rip+0xdde261d]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319502",
+            "operand": "QWORD PTR [rip+0xdde25a0]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131955b",
+            "operand": "QWORD PTR [rip+0xdde2547]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319571",
+            "operand": "QWORD PTR [rip+0xdde2531]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319615",
+            "operand": "QWORD PTR [rip+0xdde248d]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131962b",
+            "operand": "QWORD PTR [rip+0xdde2477]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319650",
+            "operand": "QWORD PTR [rip+0xdde2452]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x1319666",
+            "operand": "QWORD PTR [rip+0xdde243c]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131968c",
+            "operand": "QWORD PTR [rip+0xdde2416]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13196a2",
+            "operand": "QWORD PTR [rip+0xdde2400]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13196c0",
+            "operand": "QWORD PTR [rip+0xdde23e2]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x13196d6",
+            "operand": "QWORD PTR [rip+0xdde23cc]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 348,
+      "name": "ClientboundUpdateSoundDataPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 144,
+        "handler_rva": "0x131f6e0",
+        "public_name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundUpdateSoundDataPacket@@@Z",
+        "public_symbol_names": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundUpdateSoundDataPacket@@@Z"
+        ],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x131f6e0",
+          "0x131f7a8"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x131f6e0",
+          "LegacyClientNetworkHandler": "0x131f6e0"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "ClientboundUpdateSoundDataPacketPayload",
+          "type_index": "0x1753c",
+          "size": 24,
+          "fieldlist": "0x1753b",
+          "member_count": 3,
+          "fields": [
+            {
+              "name": "mServerSoundHandle",
+              "offset": 0,
+              "type": "ServerSoundHandle",
+              "type_index": "0x1005c",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mEvent",
+              "offset": 8,
+              "type": "std::variant<SoundDataEvent::Stop,SoundDataEvent::SetVolume,SoundDataEvent::SetPitch,SoundDataEvent::Fade,SoundDataEvent::SeekTo,SoundDataEvent::Pause,SoundDataEvent::Resume>",
+              "type_index": "0xd5d1",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x131f6e0",
+        "symbols": [
+          "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundUpdateSoundDataPacket@@@Z"
+        ],
+        "packet_ids": [
+          348
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 348,
+            "packet_name": "ClientboundUpdateSoundDataPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 144
+          }
+        ],
+        "bounds": [
+          "0x131f6e0",
+          "0x131f7a8"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 200,
+        "instruction_count": 48,
+        "direct_calls": [
+          {
+            "site_rva": "0x131f75e",
+            "target_rva": "0x289fe0",
+            "target_symbols": []
+          },
+          {
+            "site_rva": "0x131f798",
+            "target_rva": "0x174ab60",
+            "target_symbols": [
+              "?handleUpdateSoundData@LevelSoundManager@@QEAAXAEBUClientboundUpdateSoundDataPacketPayload@@@Z"
+            ]
+          }
+        ],
+        "indirect_calls": [
+          {
+            "site_rva": "0x131f719",
+            "operand": "QWORD PTR [rip+0xdddc389]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          },
+          {
+            "site_rva": "0x131f78b",
+            "operand": "QWORD PTR [rip+0xdddc317]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    },
+    {
+      "id": 351,
+      "name": "SetPlayerFurnaceOptionsPacket",
+      "handler": {
+        "dispatch_class": "LegacyClientNetworkHandler",
+        "vtable_rva": "0xe7af110",
+        "slot_offset": 352,
+        "handler_rva": "0x130cca0",
+        "public_name": null,
+        "public_symbol_names": [],
+        "verified_ret_only": false,
+        "verified_mark_handled_only": false,
+        "verified_leaf_function_range": null,
+        "unwind_function_range": [
+          "0x130cca0",
+          "0x130ccf8"
+        ],
+        "inherits_net_event_callback_target": false,
+        "class_targets": {
+          "NetEventCallback": "0x76bc0",
+          "ClientNetworkHandler": "0x130cca0",
+          "LegacyClientNetworkHandler": "0x130cca0"
+        },
+        "scope": "This virtual dispatch entry only; alternate listeners and downstream behavior remain unresolved."
+      },
+      "layouts": [
+        {
+          "name": "SetPlayerFurnaceOptionsPacketPayload",
+          "type_index": "0x1fd87",
+          "size": 16,
+          "fieldlist": "0x1fd86",
+          "member_count": 3,
+          "fields": [
+            {
+              "name": "mFurnaceType",
+              "offset": 0,
+              "type": "SetPlayerFurnaceOptionsPacketPayload::FurnaceType",
+              "type_index": "0x1764",
+              "member_kind": "instance"
+            },
+            {
+              "name": "mFurnaceOptions",
+              "offset": 4,
+              "type": "FurnaceOptions",
+              "type_index": "0x54fa",
+              "member_kind": "instance"
+            }
+          ]
+        }
+      ],
+      "calls": {
+        "rva": "0x130cca0",
+        "symbols": [],
+        "packet_ids": [
+          351
+        ],
+        "vtable_dispatch": [
+          {
+            "packet_id": 351,
+            "packet_name": "SetPlayerFurnaceOptionsPacket",
+            "dispatch_class": "LegacyClientNetworkHandler",
+            "vtable_rva": "0xe7af110",
+            "slot_offset": 352
+          }
+        ],
+        "bounds": [
+          "0x130cca0",
+          "0x130ccf8"
+        ],
+        "status": "decoded",
+        "code_size_bytes": 88,
+        "instruction_count": 25,
+        "direct_calls": [],
+        "indirect_calls": [
+          {
+            "site_rva": "0x130ccb6",
+            "operand": "QWORD PTR [rip+0xddeedec]",
+            "resolution": "unresolved indirect target",
+            "pointer_slot_rva": "0xf0fbaa8",
+            "pointer_slot_symbols": []
+          }
+        ],
+        "external_jumps": [],
+        "only_return_and_padding": false,
+        "behavioral_status": "unverified: first-level control-transfer inventory only"
+      }
+    }
+  ]
+}

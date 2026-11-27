@@ -125,18 +125,20 @@ namespace perlin::audio {
     }
 
     uint64_t AudioEngine::Start(Voice voice) {
-        if (!voice.pcm || voice.pcm->Frames() == 0)
+        if (!voice.pcm || voice.pcm->Frames() == 0 || !std::isfinite(voice.volume) ||
+            !std::isfinite(voice.pitch) || voice.pitch < 0.0f || !std::isfinite(voice.cursor) || voice.cursor < 0.0)
             return 0;
         std::lock_guard lock(mutex);
-        if (voice.positional && glm::length(voice.position - listener) > static_cast<double>(voice.range))
+        if (voice.positional && !voice.bypassRangeCheck &&
+            glm::length(voice.position - listener) > static_cast<double>(voice.range))
             return 0;
         const uint64_t nowMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                                          std::chrono::steady_clock::now().time_since_epoch())
                                                          .count());
-        if (voice.positional && !voice.loop && !voice.name.empty()) {
+        if (voice.positional && voice.allowMerge && !voice.loop && !voice.name.empty()) {
 
             for (const Voice& v : voices) {
-                if (v.stopping || v.name != voice.name || nowMs - v.startedMs > 90u)
+                if (v.stopping || !v.allowMerge || v.name != voice.name || nowMs - v.startedMs > 90u)
                     continue;
                 const glm::dvec3 d = v.position - voice.position;
                 if (glm::dot(d, d) < 1.0e-6)
@@ -175,6 +177,63 @@ namespace perlin::audio {
             v.stopping = true;
     }
 
+    bool AudioEngine::Active(uint64_t id) const {
+        std::lock_guard lock(mutex);
+        return std::ranges::any_of(voices, [id](const Voice& v) { return v.id == id && !v.stopping; });
+    }
+
+    void AudioEngine::SetVolume(uint64_t id, float volume) {
+        if (!std::isfinite(volume))
+            return;
+        std::lock_guard lock(mutex);
+        for (Voice& voice : voices)
+            if (voice.id == id) {
+                voice.volume = volume;
+                voice.volumeFadeFrames = 0.0;
+            }
+    }
+
+    void AudioEngine::SetPitch(uint64_t id, float pitch) {
+        if (!std::isfinite(pitch) || pitch < 0.0f)
+            return;
+        std::lock_guard lock(mutex);
+        for (Voice& voice : voices)
+            if (voice.id == id)
+                voice.pitch = pitch;
+    }
+
+    void AudioEngine::FadeVolume(uint64_t id, float duration, float target) {
+        if (!std::isfinite(duration) || !std::isfinite(target))
+            return;
+        std::lock_guard lock(mutex);
+        for (Voice& voice : voices)
+            if (voice.id == id) {
+                voice.volumeTarget = target;
+                voice.volumeFadeFrames = duration > 0.0f ? static_cast<double>(duration) * rate : 0.0;
+                voice.volumeFadeTotal = voice.volumeFadeFrames;
+                voice.volumeFadeStart = voice.volume;
+                if (voice.volumeFadeFrames <= 0.0)
+                    voice.volume = target;
+            }
+    }
+
+    void AudioEngine::Seek(uint64_t id, float seconds) {
+        if (!std::isfinite(seconds) || seconds < 0.0f)
+            return;
+        std::lock_guard lock(mutex);
+        for (Voice& voice : voices)
+            if (voice.id == id)
+                voice.cursor = std::min(static_cast<double>(seconds) * voice.pcm->rate,
+                                        static_cast<double>(voice.pcm->Frames()));
+    }
+
+    void AudioEngine::SetScriptPaused(uint64_t id, bool paused) {
+        std::lock_guard lock(mutex);
+        for (Voice& voice : voices)
+            if (voice.id == id)
+                voice.scriptPaused = paused;
+    }
+
     size_t AudioEngine::Active() const {
         std::lock_guard lock(mutex);
         return voices.size();
@@ -197,17 +256,22 @@ namespace perlin::audio {
         const double yaw = static_cast<double>(listenerYaw) * 3.14159265358979323846 / 180.0;
         const glm::dvec2 right(-std::cos(yaw), -std::sin(yaw));
         for (Voice& v : voices) {
+            if (v.scriptPaused) {
+                if (v.stopping)
+                    v.fade = 0.0f;
+                continue;
+            }
             const Pcm& pcm = *v.pcm;
             const size_t total = pcm.Frames();
             float left = 1.0f, rightGain = 1.0f;
-            float gain = v.volume;
+            float categoryGain = master;
             if (v.category != Category::Master)
-                gain *= volumes.Get(v.category);
-            gain = std::clamp(gain * master, 0.0f, 1.0f);
+                categoryGain *= volumes.Get(v.category);
+            float attenuation = 1.0f;
             if (v.positional) {
                 const glm::dvec3 d = v.position - listener;
                 const double dist = glm::length(d);
-                gain *= Attenuation(static_cast<float>(dist), v.range);
+                attenuation = Attenuation(static_cast<float>(dist), v.range);
                 double pan = 0.0;
                 if (dist > 1e-3) {
                     pan = (d.x * right.x + d.z * right.y) / dist;
@@ -224,19 +288,21 @@ namespace perlin::audio {
             const float fadeStep = 1.0f / (0.02f * static_cast<float>(rate));
             const int channels = pcm.channels;
             for (int i = 0; i < frames; i++) {
-                size_t i0 = static_cast<size_t>(v.cursor);
-                if (i0 >= total) {
-                    if (!v.loop) {
+                if (v.cursor >= static_cast<double>(total)) {
+                    const double cycles = std::floor(v.cursor / static_cast<double>(total));
+                    if (!v.loop && cycles > static_cast<double>(v.repeats)) {
                         v.stopping = true;
                         v.fade = 0.0f;
                         break;
                     }
+                    if (!v.loop)
+                        v.repeats -= static_cast<uint32_t>(cycles);
                     v.cursor = std::fmod(v.cursor, static_cast<double>(total));
-                    i0 = static_cast<size_t>(v.cursor);
                 }
+                const size_t i0 = static_cast<size_t>(v.cursor);
                 size_t i1 = i0 + 1;
                 if (i1 >= total)
-                    i1 = v.loop ? 0 : i0;
+                    i1 = v.loop || v.repeats > 0 ? 0 : i0;
                 const float t = static_cast<float>(v.cursor - static_cast<double>(i0));
                 float l, r;
                 if (channels == 1) {
@@ -257,6 +323,13 @@ namespace perlin::audio {
                         break;
                     }
                 }
+                if (v.volumeFadeFrames > 0.0) {
+                    v.volumeFadeFrames -= 1.0;
+                    const double fraction = std::clamp(1.0 - v.volumeFadeFrames / v.volumeFadeTotal, 0.0, 1.0);
+                    v.volume = static_cast<float>(v.volumeFadeStart +
+                                                   (static_cast<double>(v.volumeTarget) - v.volumeFadeStart) * fraction);
+                }
+                const float gain = std::clamp(v.volume * categoryGain, 0.0f, 1.0f) * attenuation;
                 const float g = gain * v.fade;
                 out[i * 2] += l * g * left;
                 out[i * 2 + 1] += r * g * rightGain;

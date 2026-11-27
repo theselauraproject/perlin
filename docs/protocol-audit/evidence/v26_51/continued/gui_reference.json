@@ -1,0 +1,6886 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "GuiData",
+      "type_index": "0x3ae32",
+      "size": 3600,
+      "fieldlist": "0x3ae31",
+      "member_count": 119,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "IConfigListener",
+          "member_kind": "base"
+        },
+        {
+          "offset": 8,
+          "type": "AppPlatformListener",
+          "member_kind": "base"
+        },
+        {
+          "offset": 40,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mScreenSizeData",
+          "offset": 64,
+          "type": "ScreenSizeData",
+          "type_index": "0x629b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mScreenSizeDataValid",
+          "offset": 88,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGuiScale",
+          "offset": 92,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInvGuiScale",
+          "offset": 96,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOverlappingControlsExist",
+          "offset": 100,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsCurrentlyActive",
+          "offset": 101,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPostedErrors",
+          "offset": 104,
+          "type": "std::set<int,std::less<int>,std::allocator<int> >",
+          "type_index": "0xca2b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMenuPointer",
+          "offset": 120,
+          "type": "MenuPointer",
+          "type_index": "0xf3ac",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPointerX",
+          "offset": 122,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPointerY",
+          "offset": 124,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHasShowPreexistingMessages",
+          "offset": 126,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mToolbarWasRendered",
+          "offset": 127,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPrevSelectedSlot",
+          "offset": 128,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPrevSelectedInventoryContainer",
+          "offset": 132,
+          "type": "ContainerID",
+          "type_index": "0x13b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlashSlotId",
+          "offset": 136,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlashSlotStartTime",
+          "offset": 144,
+          "type": "double",
+          "type_index": "0x41",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClient",
+          "offset": 152,
+          "type": "IClientInstance &",
+          "type_index": "0x19da4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mToolbarArea",
+          "offset": 160,
+          "type": "RectangleArea",
+          "type_index": "0xfa8b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mToolbarAreaContainer",
+          "offset": 176,
+          "type": "RectangleArea",
+          "type_index": "0xfa8b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastPopupText",
+          "offset": 192,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastPopupSubtitleText",
+          "offset": 224,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastJukeboxPopupText",
+          "offset": 256,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastJukeboxPopupSubtitleText",
+          "offset": 288,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTickCount",
+          "offset": 320,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemNameOverlayTime",
+          "offset": 324,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mJukeboxNameOverlayTime",
+          "offset": 328,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPopupNoticeDirty",
+          "offset": 332,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mJukeboxPopupNoticeDirty",
+          "offset": 333,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGuiMessages",
+          "offset": 336,
+          "type": "std::vector<GuiMessage,std::allocator<GuiMessage> >",
+          "type_index": "0xdca1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSubtitleMessages",
+          "offset": 360,
+          "type": "std::vector<GuiMessage,std::allocator<GuiMessage> >",
+          "type_index": "0xdca1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDevConsoleMessages",
+          "offset": 384,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxDevConsoleMessages",
+          "offset": 408,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContentLogMessages",
+          "offset": 416,
+          "type": "std::vector<ContentLogMessage,std::allocator<ContentLogMessage> >",
+          "type_index": "0xd80f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContentLogErrorCount",
+          "offset": 440,
+          "type": "unsigned long long",
+          "type_index": "0x23",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPerfTurtleMessages",
+          "offset": 448,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mModalScreenData",
+          "offset": 472,
+          "type": "std::optional<ModalScreenData>",
+          "type_index": "0xc697",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTitleMessage",
+          "offset": 848,
+          "type": "TitleMessage",
+          "type_index": "0x104c9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHudVisibilityState",
+          "offset": 1080,
+          "type": "std::array<HudVisibility,13>",
+          "type_index": "0xb92a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSettingsId",
+          "offset": 1132,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerSettings",
+          "offset": 1136,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMuteChat",
+          "offset": 1168,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentDropTicks",
+          "offset": 1172,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentDropSlot",
+          "offset": 1176,
+          "type": "PlayerInventorySlotData",
+          "type_index": "0x5eb1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastSelectedSlot",
+          "offset": 1184,
+          "type": "PlayerInventorySlotData",
+          "type_index": "0x5eb1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShowProgress",
+          "offset": 1192,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTipMessage",
+          "offset": 1200,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTipMessageLength",
+          "offset": 1232,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRcFeedbackOuter",
+          "offset": 1240,
+          "type": "mce::Mesh",
+          "type_index": "0xf3b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRcFeedbackInner",
+          "offset": 1872,
+          "type": "mce::Mesh",
+          "type_index": "0xf3b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVignette",
+          "offset": 2504,
+          "type": "mce::Mesh",
+          "type_index": "0xf3b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInvFillMat",
+          "offset": 3136,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCursorMat",
+          "offset": 3152,
+          "type": "mce::MaterialPtr",
+          "type_index": "0xf366",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDevConsoleLogger",
+          "offset": 3168,
+          "type": "gsl::not_null<Bedrock::NonOwnerPointer<DevConsoleLogger> >",
+          "type_index": "0xc42b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastTickTime",
+          "offset": 3192,
+          "type": "std::chrono::time_point<std::chrono::steady_clock,std::chrono::duration<long long,std::ratio<1,1000000000> > >",
+          "type_index": "0xcdbf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDelayedMessages",
+          "offset": 3200,
+          "type": "std::map<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::vector<GuiMessage,std::allocator<GuiMessage> >,std::less<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >,std::allocator<std::pair<const std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::vector<GuiMessage,std::allocator<GuiMessage> > > > >",
+          "type_index": "0xc26b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mQueuedDevConsoleMessages",
+          "offset": 3216,
+          "type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "type_index": "0xdad6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mQueuedDevMessagesMutex",
+          "offset": 3240,
+          "type": "std::mutex",
+          "type_index": "0x10870",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUseEditorGuiScale",
+          "offset": 3320,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHUDHotbarRectangle",
+          "offset": 3324,
+          "type": "RectangleArea",
+          "type_index": "0xfa8b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCoordinateCaptureType",
+          "offset": 3340,
+          "type": "CoordinateCaptureType",
+          "type_index": "0x13f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnGuiScaleUpdatedPublisher",
+          "offset": 3344,
+          "type": "Bedrock::PubSub::Publisher<void (),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76cf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mServerFormDataAvailable",
+          "offset": 3472,
+          "type": "Bedrock::PubSub::Publisher<void (),Bedrock::PubSub::ThreadModel::MultiThreaded,0>",
+          "type_index": "0x76cf",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "setHudVisibilityState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adf6",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::vector<HudElement,std::allocator<HudElement> > &",
+            "HudVisibility"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isHudElementVisible",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adf9",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [
+            "HudElement"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adfd",
+          "return_type": "GuiData &",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const GuiData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GuiData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adfe",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const GuiData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "GuiData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3adff",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GuiData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae00",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "IClientInstance &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "onConfigChanged",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae02",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const Config &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_addMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae04",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "GuiData::MessageConfig",
+            "ProfanityFilterContext"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_setSubtitleInternal",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "_setTitleInternal",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "addSubtitle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae07",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "SoundDirection",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculateGuiScale",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0b",
+          "return_type": "float",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const Vec2 &",
+            "const Vec2 &",
+            "const cg::math::Rect<float> &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculateMaxGuiScaleIndex",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0c",
+          "return_type": "int32_t",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [
+            "const Vec2 &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculateOptimalGuiScaleIndex",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0c",
+          "return_type": "int32_t",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [
+            "const Vec2 &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "clearPlayerMessages",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "clearSessionState",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayAnnouncementMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0f",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayChatMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae11",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayClientMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae13",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayDevConsoleMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae14",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayLocalizableMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae16",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayLocalizedMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae17",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "displaySystemMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae19",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "ProfanityFilterContext"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayTextObjectMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae1d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const TextObjectRoot &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayTextObjectWhisperMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae1e",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayTextObjectWhisperMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae1d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const TextObjectRoot &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "displayWhisperMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae11",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "flushQueuedDevConsoleMessages",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getClampedGuiScaleOffset",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae20",
+          "return_type": "int32_t",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getGuiScale",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae21",
+          "return_type": "float",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLastFilteredChatMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae22",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLayoutCustomizationMainPanelRectangle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getNewJukeboxPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae24",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getNewPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae24",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSafeScreenZoneArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getWYSIWYGBottomHudReservedArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getWYSIWYGTopReservedArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae23",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "const GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "handleClick",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae25",
+          "return_type": "bool",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "postError",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae26",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "recomputeHUDHotbarRectangle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae27",
+          "return_type": "const RectangleArea &",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "float"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setActionBarMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae17",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setScreenSizeData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae28",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const ScreenSizeData &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setSubtitle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTextToSpeechEnabled",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae29",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTitle",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae06",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setTouchToolbarArea",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2a",
+          "return_type": "RectangleArea",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const RectangleArea &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "showJukeboxPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2b",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "showPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2c",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "showPopupNotice",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae2b",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "showTipMessage",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae14",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tick",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae0d",
+          "return_type": "void",
+          "class_type": "GuiData",
+          "this_type": "GuiData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "GUI_SCALE_VALUES",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3ae30",
+          "return_type": "const std::array<float,8> &",
+          "class_type": "GuiData",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "GuiDataPickItemPacketPayload",
+      "type_index": "0x19fba",
+      "size": 72,
+      "fieldlist": "0x19fb9",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mItemName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemEffectName",
+          "offset": 32,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSlot",
+          "offset": 64,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 433752,
+      "name": "?AcaciaBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614e10",
+      "rva": "0x11deee10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 433884,
+      "name": "?AcaciaChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615020",
+      "rva": "0x11def020"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 434020,
+      "name": "?AcaciaDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614300",
+      "rva": "0x11dee300"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 434368,
+      "name": "?AcaciaHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612878",
+      "rva": "0x11dec878"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 434852,
+      "name": "?AcaciaSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6148a0",
+      "rva": "0x11dee8a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 439776,
+      "name": "?AmethystShard@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614150",
+      "rva": "0x11dee150"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 440572,
+      "name": "?Apple@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f008",
+      "rva": "0x11de9008"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 440632,
+      "name": "?ArmadilloScute@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f068",
+      "rva": "0x11de9068"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 440752,
+      "name": "?ArmorStand@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615260",
+      "rva": "0x11def260"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 440816,
+      "name": "?Arrow@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617c50",
+      "rva": "0x11df1c50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 441692,
+      "name": "?AxolotlBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617990",
+      "rva": "0x11df1990"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 447604,
+      "name": "?BakedPotato@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f128",
+      "rva": "0x11de9128"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 447668,
+      "name": "?Balloon@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6164c0",
+      "rva": "0x11df04c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 447928,
+      "name": "?BambooChestRaft@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6150b0",
+      "rva": "0x11def0b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 448064,
+      "name": "?BambooDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614480",
+      "rva": "0x11dee480"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 448412,
+      "name": "?BambooHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6128a8",
+      "rva": "0x11dec8a8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 449008,
+      "name": "?BambooRaft@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614ea0",
+      "rva": "0x11deeea0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 449208,
+      "name": "?BambooSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614990",
+      "rva": "0x11dee990"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 449720,
+      "name": "?Banner@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6173f0",
+      "rva": "0x11df13f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 450400,
+      "name": "?Bed@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6172a0",
+      "rva": "0x11df12a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 450788,
+      "name": "?Beetroot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615470",
+      "rva": "0x11def470"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 450848,
+      "name": "?BeetrootSeeds@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6146c0",
+      "rva": "0x11dee6c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 451504,
+      "name": "?BirchBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614db0",
+      "rva": "0x11deedb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 451636,
+      "name": "?BirchChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614fc0",
+      "rva": "0x11deefc0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 451768,
+      "name": "?BirchDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614330",
+      "rva": "0x11dee330"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 452116,
+      "name": "?BirchHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6128d8",
+      "rva": "0x11dec8d8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 452596,
+      "name": "?BirchSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614840",
+      "rva": "0x11dee840"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 453136,
+      "name": "?BlackBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616940",
+      "rva": "0x11df0940"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 453552,
+      "name": "?BlackCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616fa0",
+      "rva": "0x11df0fa0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 453616,
+      "name": "?BlackDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617c80",
+      "rva": "0x11df1c80"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 453752,
+      "name": "?BlackHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616c70",
+      "rva": "0x11df0c70"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 454600,
+      "name": "?BlazePowder@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f248",
+      "rva": "0x11de9248"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 454664,
+      "name": "?Bleach@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616460",
+      "rva": "0x11df0460"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 455752,
+      "name": "?BlueBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616a00",
+      "rva": "0x11df0a00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 456168,
+      "name": "?BlueCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617060",
+      "rva": "0x11df1060"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 456232,
+      "name": "?BlueDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617ce0",
+      "rva": "0x11df1ce0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 456368,
+      "name": "?BlueHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616d30",
+      "rva": "0x11df0d30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 457088,
+      "name": "?BoneMeal@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6168e0",
+      "rva": "0x11df08e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 457292,
+      "name": "?Book@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6174b0",
+      "rva": "0x11df14b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 457348,
+      "name": "?BookAndQuill@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616430",
+      "rva": "0x11df0430"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 457684,
+      "name": "?BordureIndentedBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617690",
+      "rva": "0x11df1690"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 457764,
+      "name": "?Bow@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6174e0",
+      "rva": "0x11df14e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 457820,
+      "name": "?Bowl@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f398",
+      "rva": "0x11de9398"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 458156,
+      "name": "?Bread@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6153e0",
+      "rva": "0x11def3e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 458216,
+      "name": "?BreezeRod@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615860",
+      "rva": "0x11def860"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 458348,
+      "name": "?BrewingStand@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6141b0",
+      "rva": "0x11dee1b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 458652,
+      "name": "?Brick@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6173c0",
+      "rva": "0x11df13c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 459116,
+      "name": "?BrownBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6169d0",
+      "rva": "0x11df09d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 459532,
+      "name": "?BrownCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617030",
+      "rva": "0x11df1030"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 459596,
+      "name": "?BrownDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617cb0",
+      "rva": "0x11df1cb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 459732,
+      "name": "?BrownHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616d00",
+      "rva": "0x11df0d00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 460296,
+      "name": "?Brush@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f458",
+      "rva": "0x11de9458"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 460788,
+      "name": "?Bucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617810",
+      "rva": "0x11df1810"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 460920,
+      "name": "?Bundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616c40",
+      "rva": "0x11df0c40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 471932,
+      "name": "?Cake@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6141e0",
+      "rva": "0x11dee1e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 472320,
+      "name": "?Camera@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614090",
+      "rva": "0x11dee090"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 472444,
+      "name": "?CampFire@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614240",
+      "rva": "0x11dee240"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 473796,
+      "name": "?Carrot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615410",
+      "rva": "0x11def410"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 473856,
+      "name": "?CarrotOnAStick@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6157d0",
+      "rva": "0x11def7d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 474652,
+      "name": "?Cauldron@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612908",
+      "rva": "0x11dec908"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 475164,
+      "name": "?ChalkBoard@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f638",
+      "rva": "0x11de9638"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 475472,
+      "name": "?Charcoal@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617a80",
+      "rva": "0x11df1a80"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 475888,
+      "name": "?CherryBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614ed0",
+      "rva": "0x11deeed0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 476020,
+      "name": "?CherryChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6150e0",
+      "rva": "0x11def0e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 476156,
+      "name": "?CherryDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6144b0",
+      "rva": "0x11dee4b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 476504,
+      "name": "?CherryHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612938",
+      "rva": "0x11dec938"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 476988,
+      "name": "?CherrySign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6149c0",
+      "rva": "0x11dee9c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 477592,
+      "name": "?ChestMinecart@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614c90",
+      "rva": "0x11deec90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 478836,
+      "name": "?ChorusFruit@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f6c8",
+      "rva": "0x11de96c8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 479748,
+      "name": "?ClayBall@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f6f8",
+      "rva": "0x11de96f8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 480384,
+      "name": "?Clock@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614bd0",
+      "rva": "0x11deebd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 480972,
+      "name": "?Coal@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f728",
+      "rva": "0x11de9728"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 482376,
+      "name": "?CocoaBeans@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6166a0",
+      "rva": "0x11df06a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 482440,
+      "name": "?CodBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6178d0",
+      "rva": "0x11df18d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 490264,
+      "name": "?CommandBlockMinecart@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614d50",
+      "rva": "0x11deed50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 490336,
+      "name": "?Comparator@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f7e8",
+      "rva": "0x11de97e8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 490400,
+      "name": "?Compass@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616610",
+      "rva": "0x11df0610"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 493596,
+      "name": "?Compound@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617b40",
+      "rva": "0x11df1b40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 497408,
+      "name": "?Cookie@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60f968",
+      "rva": "0x11de9968"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 498624,
+      "name": "?CopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614540",
+      "rva": "0x11dee540"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 499020,
+      "name": "?CopperIngot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615650",
+      "rva": "0x11def650"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 503808,
+      "name": "?CreeperBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6175a0",
+      "rva": "0x11df15a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 504084,
+      "name": "?CrimsonDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6143f0",
+      "rva": "0x11dee3f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 504568,
+      "name": "?CrimsonHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612968",
+      "rva": "0x11dec968"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 505056,
+      "name": "?CrimsonSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614900",
+      "rva": "0x11dee900"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 505660,
+      "name": "?Crossbow@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617510",
+      "rva": "0x11df1510"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 507116,
+      "name": "?CyanBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616a60",
+      "rva": "0x11df0a60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 507532,
+      "name": "?CyanCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6170c0",
+      "rva": "0x11df10c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 507596,
+      "name": "?CyanDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616730",
+      "rva": "0x11df0730"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 507732,
+      "name": "?CyanHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616d90",
+      "rva": "0x11df0d90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 535592,
+      "name": "?DarkOakBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614e40",
+      "rva": "0x11deee40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 535724,
+      "name": "?DarkOakChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615050",
+      "rva": "0x11def050"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 535860,
+      "name": "?DarkOakDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614360",
+      "rva": "0x11dee360"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 536136,
+      "name": "?DarkOakHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612998",
+      "rva": "0x11dec998"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 536628,
+      "name": "?DarkOakSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6148d0",
+      "rva": "0x11dee8d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 543172,
+      "name": "?Diamond@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616520",
+      "rva": "0x11df0520"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 543368,
+      "name": "?DiamondHoe@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60fde8",
+      "rva": "0x11de9de8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 545720,
+      "name": "?DragonBreath@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617780",
+      "rva": "0x11df1780"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 545984,
+      "name": "?DriedKelp@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x60fff8",
+      "rva": "0x11de9ff8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 553180,
+      "name": "?Egg@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6146f0",
+      "rva": "0x11dee6f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 553452,
+      "name": "?Elytra@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615740",
+      "rva": "0x11def740"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 553512,
+      "name": "?Emerald@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614c60",
+      "rva": "0x11deec60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 553864,
+      "name": "?EmptyMap@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6165e0",
+      "rva": "0x11df05e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 554472,
+      "name": "?EnchantedBook@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617480",
+      "rva": "0x11df1480"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 554540,
+      "name": "?EnchantedGoldenApple@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6100e8",
+      "rva": "0x11dea0e8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 554964,
+      "name": "?EndCrystal@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6151a0",
+      "rva": "0x11def1a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 555788,
+      "name": "?EnderEye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614270",
+      "rva": "0x11dee270"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 555848,
+      "name": "?EnderPearl@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614720",
+      "rva": "0x11dee720"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 557404,
+      "name": "?ExperienceBottle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614750",
+      "rva": "0x11dee750"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 558056,
+      "name": "?ExposedCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614570",
+      "rva": "0x11dee570"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 563596,
+      "name": "?Feather@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616580",
+      "rva": "0x11df0580"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 564108,
+      "name": "?FieldMasonedBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617660",
+      "rva": "0x11df1660"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 564404,
+      "name": "?FilledMap@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617d40",
+      "rva": "0x11df1d40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 565232,
+      "name": "?FireCharge@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616550",
+      "rva": "0x11df0550"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 565716,
+      "name": "?FireworkRocket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617c20",
+      "rva": "0x11df1c20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 565784,
+      "name": "?FireworkStar@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617360",
+      "rva": "0x11df1360"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 565900,
+      "name": "?FishingRod@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6157a0",
+      "rva": "0x11def7a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 566104,
+      "name": "?Flint@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610268",
+      "rva": "0x11dea268"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 566164,
+      "name": "?FlintAndSteel@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615530",
+      "rva": "0x11def530"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 566232,
+      "name": "?FlowBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617720",
+      "rva": "0x11df1720"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 566304,
+      "name": "?FlowerBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617600",
+      "rva": "0x11df1600"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 566440,
+      "name": "?FlowerPot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6129c8",
+      "rva": "0x11dec9c8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 576928,
+      "name": "?GlassBottle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615890",
+      "rva": "0x11def890"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577056,
+      "name": "?GlobeBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6176f0",
+      "rva": "0x11df16f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577128,
+      "name": "?GlowBerries@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610418",
+      "rva": "0x11dea418"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577192,
+      "name": "?GlowInkSac@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614a50",
+      "rva": "0x11deea50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577324,
+      "name": "?GlowItemFrame@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6129f8",
+      "rva": "0x11dec9f8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577460,
+      "name": "?GlowStick@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617a20",
+      "rva": "0x11df1a20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577524,
+      "name": "?GlowStoneDust@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6164f0",
+      "rva": "0x11df04f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577728,
+      "name": "?GoatHorn@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6140c0",
+      "rva": "0x11dee0c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577852,
+      "name": "?GoldIngot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6156b0",
+      "rva": "0x11def6b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 577916,
+      "name": "?GoldNugget@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6165b0",
+      "rva": "0x11df05b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 578044,
+      "name": "?GoldenApple@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6104a8",
+      "rva": "0x11dea4a8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 578960,
+      "name": "?GrayBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616ac0",
+      "rva": "0x11df0ac0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 579376,
+      "name": "?GrayCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617120",
+      "rva": "0x11df1120"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 579440,
+      "name": "?GrayDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616790",
+      "rva": "0x11df0790"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 579576,
+      "name": "?GrayHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616df0",
+      "rva": "0x11df0df0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 579996,
+      "name": "?GreenBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6169a0",
+      "rva": "0x11df09a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 580412,
+      "name": "?GreenCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617000",
+      "rva": "0x11df1000"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 580476,
+      "name": "?GreenDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616670",
+      "rva": "0x11df0670"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 580612,
+      "name": "?GreenHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616cd0",
+      "rva": "0x11df0cd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 581240,
+      "name": "?Gunpowder@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617300",
+      "rva": "0x11df1300"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 581304,
+      "name": "?GusterBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617750",
+      "rva": "0x11df1750"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 587960,
+      "name": "?HeartOfTheSea@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610838",
+      "rva": "0x11dea838"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 588416,
+      "name": "?HoneyBottle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6177e0",
+      "rva": "0x11df17e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 588480,
+      "name": "?HoneyComb@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617570",
+      "rva": "0x11df1570"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 588680,
+      "name": "?Hopper@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612a28",
+      "rva": "0x11deca28"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 588740,
+      "name": "?HopperMinecart@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614cc0",
+      "rva": "0x11deecc0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 594788,
+      "name": "?IceBomb@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614780",
+      "rva": "0x11dee780"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 596320,
+      "name": "?InkSac@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617b10",
+      "rva": "0x11df1b10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 597388,
+      "name": "?IronBoots@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610988",
+      "rva": "0x11dea988"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 597516,
+      "name": "?IronChestplate@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6109b8",
+      "rva": "0x11dea9b8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 597712,
+      "name": "?IronDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6142d0",
+      "rva": "0x11dee2d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 597772,
+      "name": "?IronHelmet@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610a18",
+      "rva": "0x11deaa18"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 597836,
+      "name": "?IronIngot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615680",
+      "rva": "0x11def680"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 597900,
+      "name": "?IronLeggings@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610aa8",
+      "rva": "0x11deaaa8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 600440,
+      "name": "?ItemFrame@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612a58",
+      "rva": "0x11deca58"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 602568,
+      "name": "?JungleBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614de0",
+      "rva": "0x11deede0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 602700,
+      "name": "?JungleChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614ff0",
+      "rva": "0x11deeff0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 602836,
+      "name": "?JungleDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614390",
+      "rva": "0x11dee390"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 603184,
+      "name": "?JungleHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612a88",
+      "rva": "0x11deca88"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 603668,
+      "name": "?JungleSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614870",
+      "rva": "0x11dee870"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 604548,
+      "name": "?Kelp@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612ab8",
+      "rva": "0x11decab8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 607716,
+      "name": "?LapisLazuli@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6166d0",
+      "rva": "0x11df06d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608040,
+      "name": "?LavaBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617870",
+      "rva": "0x11df1870"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608180,
+      "name": "?Lead@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616490",
+      "rva": "0x11df0490"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608304,
+      "name": "?Leather@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616f70",
+      "rva": "0x11df0f70"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608364,
+      "name": "?LeatherBoots@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615290",
+      "rva": "0x11def290"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608428,
+      "name": "?LeatherChestplate@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615200",
+      "rva": "0x11def200"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608500,
+      "name": "?LeatherHelmet@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6152c0",
+      "rva": "0x11def2c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608568,
+      "name": "?LeatherHorseArmor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615230",
+      "rva": "0x11def230"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 608640,
+      "name": "?LeatherLeggings@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6151d0",
+      "rva": "0x11def1d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 615572,
+      "name": "?LightBlueBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616b80",
+      "rva": "0x11df0b80"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 616012,
+      "name": "?LightBlueCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6171e0",
+      "rva": "0x11df11e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 616080,
+      "name": "?LightBlueDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616850",
+      "rva": "0x11df0850"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 616224,
+      "name": "?LightBlueHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616eb0",
+      "rva": "0x11df0eb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 616668,
+      "name": "?LightGrayBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616a90",
+      "rva": "0x11df0a90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 617108,
+      "name": "?LightGrayCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6170f0",
+      "rva": "0x11df10f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 617176,
+      "name": "?LightGrayDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616760",
+      "rva": "0x11df0760"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 617240,
+      "name": "?LightGrayHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616dc0",
+      "rva": "0x11df0dc0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 618216,
+      "name": "?LimeBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616b20",
+      "rva": "0x11df0b20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 618632,
+      "name": "?LimeCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617180",
+      "rva": "0x11df1180"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 618696,
+      "name": "?LimeDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6167f0",
+      "rva": "0x11df07f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 618832,
+      "name": "?LimeHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616e50",
+      "rva": "0x11df0e50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 619252,
+      "name": "?LingeringPotion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617390",
+      "rva": "0x11df1390"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 620060,
+      "name": "?LodestoneCompass@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617ab0",
+      "rva": "0x11df1ab0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 626076,
+      "name": "?Mace@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615560",
+      "rva": "0x11def560"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 626132,
+      "name": "?MagentaBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616bb0",
+      "rva": "0x11df0bb0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 626556,
+      "name": "?MagentaCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617210",
+      "rva": "0x11df1210"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 626624,
+      "name": "?MagentaDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616880",
+      "rva": "0x11df0880"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 626768,
+      "name": "?MagentaHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616ee0",
+      "rva": "0x11df0ee0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 627420,
+      "name": "?MangroveBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614e70",
+      "rva": "0x11deee70"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 627556,
+      "name": "?MangroveChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615080",
+      "rva": "0x11def080"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 627696,
+      "name": "?MangroveDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614450",
+      "rva": "0x11dee450"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 628052,
+      "name": "?MangroveHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612ae8",
+      "rva": "0x11decae8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 628680,
+      "name": "?MangroveSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614960",
+      "rva": "0x11dee960"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 630344,
+      "name": "?Medicine@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610c88",
+      "rva": "0x11deac88"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 630544,
+      "name": "?MelonSeeds@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614a80",
+      "rva": "0x11deea80"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 630608,
+      "name": "?MelonSlice@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610cb8",
+      "rva": "0x11deacb8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 630856,
+      "name": "?MilkBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610ce8",
+      "rva": "0x11deace8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 631212,
+      "name": "?Minecart@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614cf0",
+      "rva": "0x11deecf0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 631752,
+      "name": "?MojangBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617630",
+      "rva": "0x11df1630"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634072,
+      "name": "?MusicDisc11@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610e08",
+      "rva": "0x11deae08"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634136,
+      "name": "?MusicDisc13@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610e38",
+      "rva": "0x11deae38"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634200,
+      "name": "?MusicDiscBlocks@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610e98",
+      "rva": "0x11deae98"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634268,
+      "name": "?MusicDiscBounce@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610ec8",
+      "rva": "0x11deaec8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634336,
+      "name": "?MusicDiscCat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610ef8",
+      "rva": "0x11deaef8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634400,
+      "name": "?MusicDiscChirp@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610f28",
+      "rva": "0x11deaf28"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634468,
+      "name": "?MusicDiscFar@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610fb8",
+      "rva": "0x11deafb8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634532,
+      "name": "?MusicDiscMall@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x610fe8",
+      "rva": "0x11deafe8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634600,
+      "name": "?MusicDiscMellohi@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611018",
+      "rva": "0x11deb018"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634668,
+      "name": "?MusicDiscStal@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611108",
+      "rva": "0x11deb108"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634736,
+      "name": "?MusicDiscStrad@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611138",
+      "rva": "0x11deb138"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634804,
+      "name": "?MusicDiscWait@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6111c8",
+      "rva": "0x11deb1c8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 634872,
+      "name": "?MusicDiscWard@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6111f8",
+      "rva": "0x11deb1f8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 713444,
+      "name": "?NameTag@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615770",
+      "rva": "0x11def770"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714336,
+      "name": "?NetherSprouts@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612b18",
+      "rva": "0x11decb18"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714472,
+      "name": "?NetherWart@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612b48",
+      "rva": "0x11decb48"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714680,
+      "name": "?NetheriteBoots@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615320",
+      "rva": "0x11def320"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714748,
+      "name": "?NetheriteChestplate@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615380",
+      "rva": "0x11def380"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714820,
+      "name": "?NetheriteHelmet@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6153b0",
+      "rva": "0x11def3b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714888,
+      "name": "?NetheriteIngot@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615710",
+      "rva": "0x11def710"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 714956,
+      "name": "?NetheriteLeggings@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615350",
+      "rva": "0x11def350"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 715088,
+      "name": "?NetheriteUpgradeSmithingTemplate@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611498",
+      "rva": "0x11deb498"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 717576,
+      "name": "?OakBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614f60",
+      "rva": "0x11deef60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 717636,
+      "name": "?OakChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615170",
+      "rva": "0x11def170"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 717700,
+      "name": "?OakDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6142a0",
+      "rva": "0x11dee2a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 717964,
+      "name": "?OakHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612b78",
+      "rva": "0x11decb78"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 718356,
+      "name": "?OakSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6147e0",
+      "rva": "0x11dee7e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 720700,
+      "name": "?OminousBottle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611558",
+      "rva": "0x11deb558"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 720768,
+      "name": "?OminousTrialKey@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612ba8",
+      "rva": "0x11decba8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 725984,
+      "name": "?OrangeBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616be0",
+      "rva": "0x11df0be0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 726404,
+      "name": "?OrangeCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617240",
+      "rva": "0x11df1240"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 726472,
+      "name": "?OrangeDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6168b0",
+      "rva": "0x11df08b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 726616,
+      "name": "?OrangeHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616f10",
+      "rva": "0x11df0f10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 728424,
+      "name": "?OxidizedCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6145d0",
+      "rva": "0x11dee5d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 739572,
+      "name": "?Painting@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6155f0",
+      "rva": "0x11def5f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 740504,
+      "name": "?PaleOakBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614f00",
+      "rva": "0x11deef00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 740636,
+      "name": "?PaleOakChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615110",
+      "rva": "0x11def110"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 740772,
+      "name": "?PaleOakDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6144e0",
+      "rva": "0x11dee4e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 741124,
+      "name": "?PaleOakHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612bd8",
+      "rva": "0x11decbd8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 741616,
+      "name": "?PaleOakSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6149f0",
+      "rva": "0x11dee9f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 742480,
+      "name": "?Paper@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617330",
+      "rva": "0x11df1330"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 743836,
+      "name": "?PhantomMembrane@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615620",
+      "rva": "0x11def620"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 743904,
+      "name": "?PhotoItem@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614c00",
+      "rva": "0x11deec00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 744024,
+      "name": "?PiglinBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6176c0",
+      "rva": "0x11df16c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 744664,
+      "name": "?PinkBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616af0",
+      "rva": "0x11df0af0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 745080,
+      "name": "?PinkCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617150",
+      "rva": "0x11df1150"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 745144,
+      "name": "?PinkDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6167c0",
+      "rva": "0x11df07c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 745280,
+      "name": "?PinkHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616e20",
+      "rva": "0x11df0e20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 746108,
+      "name": "?PitcherPod@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611708",
+      "rva": "0x11deb708"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 746556,
+      "name": "?PoisonousPotato@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611768",
+      "rva": "0x11deb768"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 750128,
+      "name": "?PoplarBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614f30",
+      "rva": "0x11deef30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 750260,
+      "name": "?PoplarChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615140",
+      "rva": "0x11def140"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 750396,
+      "name": "?PoplarDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614510",
+      "rva": "0x11dee510"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 750744,
+      "name": "?PoplarHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612c08",
+      "rva": "0x11decc08"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 751160,
+      "name": "?PoplarSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614a20",
+      "rva": "0x11deea20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 751980,
+      "name": "?PortfolioBook@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611828",
+      "rva": "0x11deb828"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 752160,
+      "name": "?Potato@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615440",
+      "rva": "0x11def440"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 752448,
+      "name": "?Potion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6177b0",
+      "rva": "0x11df17b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 752576,
+      "name": "?PowderSnowBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6178a0",
+      "rva": "0x11df18a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 753788,
+      "name": "?PrismarineCrystals@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611858",
+      "rva": "0x11deb858"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 755060,
+      "name": "?PufferfishBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617960",
+      "rva": "0x11df1960"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 755252,
+      "name": "?PumpkinPie@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611948",
+      "rva": "0x11deb948"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 755316,
+      "name": "?PumpkinSeeds@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6158d0",
+      "rva": "0x11def8d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 755448,
+      "name": "?PurpleBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616a30",
+      "rva": "0x11df0a30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 755868,
+      "name": "?PurpleCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617090",
+      "rva": "0x11df1090"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 755936,
+      "name": "?PurpleDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616700",
+      "rva": "0x11df0700"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 756080,
+      "name": "?PurpleHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616d60",
+      "rva": "0x11df0d60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 757644,
+      "name": "?Quartz@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6140f0",
+      "rva": "0x11dee0f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 765944,
+      "name": "?RapidFertilizer@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611a98",
+      "rva": "0x11deba98"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 766336,
+      "name": "?RawCopper@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611af8",
+      "rva": "0x11debaf8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 766472,
+      "name": "?RawGold@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611b28",
+      "rva": "0x11debb28"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 766600,
+      "name": "?RawIron@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611b58",
+      "rva": "0x11debb58"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 767704,
+      "name": "?RecoveryCompass@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6155c0",
+      "rva": "0x11def5c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 767832,
+      "name": "?RedBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616970",
+      "rva": "0x11df0970"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 768232,
+      "name": "?RedCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616fd0",
+      "rva": "0x11df0fd0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 768296,
+      "name": "?RedDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616640",
+      "rva": "0x11df0640"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 768432,
+      "name": "?RedHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616ca0",
+      "rva": "0x11df0ca0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 769920,
+      "name": "?RedStone@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614120",
+      "rva": "0x11dee120"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 772828,
+      "name": "?Repeater@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611b88",
+      "rva": "0x11debb88"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 773360,
+      "name": "?ResinBrick@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614180",
+      "rva": "0x11dee180"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 775436,
+      "name": "?RottenFlesh@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611be8",
+      "rva": "0x11debbe8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 794956,
+      "name": "?Saddle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6152f0",
+      "rva": "0x11def2f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 795016,
+      "name": "?SalmonBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617900",
+      "rva": "0x11df1900"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 803636,
+      "name": "?Shears@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617540",
+      "rva": "0x11df1540"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 804576,
+      "name": "?Shield@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617450",
+      "rva": "0x11df1450"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 805144,
+      "name": "?ShulkerShell@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616910",
+      "rva": "0x11df0910"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 805892,
+      "name": "?SkullBannerPattern@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6175d0",
+      "rva": "0x11df15d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 806140,
+      "name": "?SlimeBall@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x611eb8",
+      "rva": "0x11debeb8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 808156,
+      "name": "?SnowBall@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614b40",
+      "rva": "0x11deeb40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 808416,
+      "name": "?SoulCampfire@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614210",
+      "rva": "0x11dee210"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 809072,
+      "name": "?Sparkler@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617a50",
+      "rva": "0x11df1a50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 809188,
+      "name": "?SpawnEggLegacy@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612d58",
+      "rva": "0x11decd58"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 809940,
+      "name": "?SplashPotion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617420",
+      "rva": "0x11df1420"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 810372,
+      "name": "?SpruceBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614d80",
+      "rva": "0x11deed80"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 810504,
+      "name": "?SpruceChestBoat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614f90",
+      "rva": "0x11deef90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 810640,
+      "name": "?SpruceDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6143c0",
+      "rva": "0x11dee3c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 810988,
+      "name": "?SpruceHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612c38",
+      "rva": "0x11decc38"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 811472,
+      "name": "?SpruceSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614810",
+      "rva": "0x11dee810"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 811960,
+      "name": "?Spyglass@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615500",
+      "rva": "0x11def500"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 813040,
+      "name": "?Stick@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6172d0",
+      "rva": "0x11df12d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 815072,
+      "name": "?StrawBed@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614ab0",
+      "rva": "0x11deeab0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 815132,
+      "name": "?String@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614ba0",
+      "rva": "0x11deeba0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 819404,
+      "name": "?Sugar@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617ae0",
+      "rva": "0x11df1ae0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 819464,
+      "name": "?SugarCane@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614ae0",
+      "rva": "0x11deeae0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 820844,
+      "name": "?SulfurCubeBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6179f0",
+      "rva": "0x11df19f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 822968,
+      "name": "?SuspiciousStew@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612248",
+      "rva": "0x11dec248"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 823036,
+      "name": "?SweetBerries@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614b10",
+      "rva": "0x11deeb10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 836524,
+      "name": "?TadpoleBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6179c0",
+      "rva": "0x11df19c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 838584,
+      "name": "?TntMinecart@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614d20",
+      "rva": "0x11deed20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 840572,
+      "name": "?TorchflowerSeeds@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614b70",
+      "rva": "0x11deeb70"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 840640,
+      "name": "?TotemOfUndying@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6154d0",
+      "rva": "0x11def4d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 841592,
+      "name": "?TrialKey@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614c30",
+      "rva": "0x11deec30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 841796,
+      "name": "?Trident@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615590",
+      "rva": "0x11def590"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 842300,
+      "name": "?TropicalFishBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617930",
+      "rva": "0x11df1930"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 843652,
+      "name": "?TurtleHelmet@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6154a0",
+      "rva": "0x11def4a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 843716,
+      "name": "?TurtleScute@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6156e0",
+      "rva": "0x11def6e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 863736,
+      "name": "?WarpedDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614420",
+      "rva": "0x11dee420"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 864144,
+      "name": "?WarpedFungusOnAStick@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615800",
+      "rva": "0x11def800"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 864288,
+      "name": "?WarpedHangingSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612c68",
+      "rva": "0x11decc68"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 864776,
+      "name": "?WarpedSign@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614930",
+      "rva": "0x11dee930"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 865660,
+      "name": "?WaterBucket@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617840",
+      "rva": "0x11df1840"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 866292,
+      "name": "?WaxedCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614600",
+      "rva": "0x11dee600"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 867528,
+      "name": "?WaxedExposedCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614630",
+      "rva": "0x11dee630"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 868972,
+      "name": "?WaxedOxidizedCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614690",
+      "rva": "0x11dee690"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 870360,
+      "name": "?WaxedWeatheredCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x614660",
+      "rva": "0x11dee660"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 871792,
+      "name": "?WeatheredCopperDoor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6145a0",
+      "rva": "0x11dee5a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 872984,
+      "name": "?Wheat@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612c98",
+      "rva": "0x11decc98"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 873044,
+      "name": "?WheatSeeds@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x612518",
+      "rva": "0x11dec518"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 873108,
+      "name": "?WhiteBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616c10",
+      "rva": "0x11df0c10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 873524,
+      "name": "?WhiteCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617270",
+      "rva": "0x11df1270"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 873588,
+      "name": "?WhiteDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x617d10",
+      "rva": "0x11df1d10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 873724,
+      "name": "?WhiteHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616f40",
+      "rva": "0x11df0f40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 874280,
+      "name": "?WindCharge@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6147b0",
+      "rva": "0x11dee7b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 874488,
+      "name": "?WolfArmor@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x615830",
+      "rva": "0x11def830"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 876768,
+      "name": "?WrittenBook@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616400",
+      "rva": "0x11df0400"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 877352,
+      "name": "?YellowBundle@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616b50",
+      "rva": "0x11df0b50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 877772,
+      "name": "?YellowCushion@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x6171b0",
+      "rva": "0x11df11b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 877840,
+      "name": "?YellowDye@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616820",
+      "rva": "0x11df0820"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 877984,
+      "name": "?YellowHarness@VanillaItemNames@@3VHashedString@@B",
+      "section": 3,
+      "section_offset": "0x616e80",
+      "rva": "0x11df0e80"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1316480,
+      "name": "?_resultItemName@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVRecipe@@@Z",
+      "section": 1,
+      "section_offset": "0x324f040",
+      "rva": "0x3250040"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1392480,
+      "name": "?_tryParseItemName@ItemRegistry@@QEAA?AUParsedName@1@AEBVInput@Puv@@@Z",
+      "section": 1,
+      "section_offset": "0x3479980",
+      "rva": "0x347a980"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1567240,
+      "name": "?appendItemLockPopupNoticeText@ItemLockHelper@@SAXAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBVItemStackBase@@@Z",
+      "section": 1,
+      "section_offset": "0x247f2b0",
+      "rva": "0x24802b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1579388,
+      "name": "?applyPreVersion@SetItemNameFunction@@UEAAXAEAVItemStackBase@@AEAVRandom@@AEAVLootTableContext@@@Z",
+      "section": 1,
+      "section_offset": "0x8c6cad0",
+      "rva": "0x8c6dad0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1670016,
+      "name": "?bind@ScriptSetItemNameFunction@ScriptModuleMinecraft@@SA?AUClassBinding@Scripting@@XZ",
+      "section": 1,
+      "section_offset": "0xd67c690",
+      "rva": "0xd67d690"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2214416,
+      "name": "?fireEventItemNamed@MinecraftEventing@@SAXPEAVPlayer@@AEBVItemDescriptor@@@Z",
+      "section": 1,
+      "section_offset": "0x11e4830",
+      "rva": "0x11e5830"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2526464,
+      "name": "?getItemNameIdForType@BannerPatternItem@@SA?AV?$basic_string_view@DU?$char_traits@D@std@@@std@@W4Type@1@@Z",
+      "section": 1,
+      "section_offset": "0x2689690",
+      "rva": "0x268a690"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2526588,
+      "name": "?getItemNameOffset@ClientInstanceScreenModel@@QEBAH_N00@Z",
+      "section": 1,
+      "section_offset": "0x187f110",
+      "rva": "0x1880110"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2588724,
+      "name": "?getNewJukeboxPopupItemText@MinecraftScreenModel@@QEAA_NAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEA_N@Z",
+      "section": 1,
+      "section_offset": "0x492c770",
+      "rva": "0x492d770"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2588868,
+      "name": "?getNewJukeboxPopupNotice@GuiData@@QEAA_NAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z",
+      "section": 1,
+      "section_offset": "0x15626f0",
+      "rva": "0x15636f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2589244,
+      "name": "?getNewPopupItemText@MinecraftScreenModel@@QEAA_NAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEA_N@Z",
+      "section": 1,
+      "section_offset": "0x492c0e0",
+      "rva": "0x492d0e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2589380,
+      "name": "?getNewPopupNotice@GuiData@@QEAA_NAEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z",
+      "section": 1,
+      "section_offset": "0x15625e0",
+      "rva": "0x15635e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2604172,
+      "name": "?getOriginalItemName@LootTableContext@@QEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+      "section": 1,
+      "section_offset": "0x1787550",
+      "rva": "0x1788550"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2695420,
+      "name": "?getSpawnedItemName@GlowItemFrameBlock@@UEBA?AVHashedString@@XZ",
+      "section": 1,
+      "section_offset": "0x7ad0f40",
+      "rva": "0x7ad1f40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2695500,
+      "name": "?getSpawnedItemName@ItemFrameBlock@@UEBA?AVHashedString@@XZ",
+      "section": 1,
+      "section_offset": "0x66bd8b0",
+      "rva": "0x66be8b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2746596,
+      "name": "?getVariantItemName@Cushion@@SA?AVHashedString@@H@Z",
+      "section": 1,
+      "section_offset": "0x204da30",
+      "rva": "0x204ea30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3580236,
+      "name": "?setAnvilPreviewItemName@ContainerAPI@GameplayUI@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x6759950",
+      "rva": "0x675a950"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3661948,
+      "name": "?setPreviewItemName@ContainerAPICommands@OreUI@@QEAAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x6c07180",
+      "rva": "0x6c08180"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3728564,
+      "name": "?showJukeboxPopupNotice@GuiData@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z",
+      "section": 1,
+      "section_offset": "0x15624f0",
+      "rva": "0x15634f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3729344,
+      "name": "?showPopupNotice@GuiData@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z",
+      "section": 1,
+      "section_offset": "0x1562400",
+      "rva": "0x1563400"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3729460,
+      "name": "?showPopupNotice@GuiData@@QEAAXAEBVItemStackBase@@@Z",
+      "section": 1,
+      "section_offset": "0x1557b20",
+      "rva": "0x1558b20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3890316,
+      "name": "?toItemDescriptor@ItemStackRequestCereal@@YA?AVItemDescriptor@@AEBV?$variant@UEmptyItemDescriptorData@ItemStackRequestCereal@@UItemNameDescriptorData@2@UMolangItemDescriptorData@2@UItemTagDescriptorData@2@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x7828460",
+      "rva": "0x7829460"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3890544,
+      "name": "?toItemDescriptorData@ItemStackRequestCereal@@YA?AV?$variant@UEmptyItemDescriptorData@ItemStackRequestCereal@@UItemNameDescriptorData@2@UMolangItemDescriptorData@2@UItemTagDescriptorData@2@@std@@AEBVItemDescriptor@@@Z",
+      "section": 1,
+      "section_offset": "0x7827dd0",
+      "rva": "0x7828dd0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11083712,
+      "name": "VanillaItemNames::AcaciaBoat",
+      "section": 3,
+      "section_offset": "0x614e10",
+      "rva": "0x11deee10"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11083804,
+      "name": "VanillaItemNames::AcaciaChestBoat",
+      "section": 3,
+      "section_offset": "0x615020",
+      "rva": "0x11def020"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11083900,
+      "name": "VanillaItemNames::AcaciaDoor",
+      "section": 3,
+      "section_offset": "0x614300",
+      "rva": "0x11dee300"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11084152,
+      "name": "VanillaItemNames::AcaciaHangingSign",
+      "section": 3,
+      "section_offset": "0x612878",
+      "rva": "0x11dec878"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11084504,
+      "name": "VanillaItemNames::AcaciaSign",
+      "section": 3,
+      "section_offset": "0x6148a0",
+      "rva": "0x11dee8a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11086116,
+      "name": "VanillaItemNames::AmethystShard",
+      "section": 3,
+      "section_offset": "0x614150",
+      "rva": "0x11dee150"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11086612,
+      "name": "VanillaItemNames::Apple",
+      "section": 3,
+      "section_offset": "0x60f008",
+      "rva": "0x11de9008"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11086652,
+      "name": "VanillaItemNames::ArmadilloScute",
+      "section": 3,
+      "section_offset": "0x60f068",
+      "rva": "0x11de9068"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11086740,
+      "name": "VanillaItemNames::ArmorStand",
+      "section": 3,
+      "section_offset": "0x615260",
+      "rva": "0x11def260"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11086784,
+      "name": "VanillaItemNames::Arrow",
+      "section": 3,
+      "section_offset": "0x617c50",
+      "rva": "0x11df1c50"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11086980,
+      "name": "VanillaItemNames::AxolotlBucket",
+      "section": 3,
+      "section_offset": "0x617990",
+      "rva": "0x11df1990"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11090704,
+      "name": "VanillaItemNames::BakedPotato",
+      "section": 3,
+      "section_offset": "0x60f128",
+      "rva": "0x11de9128"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11090748,
+      "name": "VanillaItemNames::Balloon",
+      "section": 3,
+      "section_offset": "0x6164c0",
+      "rva": "0x11df04c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11090928,
+      "name": "VanillaItemNames::BambooChestRaft",
+      "section": 3,
+      "section_offset": "0x6150b0",
+      "rva": "0x11def0b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11091024,
+      "name": "VanillaItemNames::BambooDoor",
+      "section": 3,
+      "section_offset": "0x614480",
+      "rva": "0x11dee480"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11091276,
+      "name": "VanillaItemNames::BambooHangingSign",
+      "section": 3,
+      "section_offset": "0x6128a8",
+      "rva": "0x11dec8a8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11091692,
+      "name": "VanillaItemNames::BambooRaft",
+      "section": 3,
+      "section_offset": "0x614ea0",
+      "rva": "0x11deeea0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11091836,
+      "name": "VanillaItemNames::BambooSign",
+      "section": 3,
+      "section_offset": "0x614990",
+      "rva": "0x11dee990"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11092184,
+      "name": "VanillaItemNames::Banner",
+      "section": 3,
+      "section_offset": "0x6173f0",
+      "rva": "0x11df13f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11092656,
+      "name": "VanillaItemNames::Bed",
+      "section": 3,
+      "section_offset": "0x6172a0",
+      "rva": "0x11df12a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11092916,
+      "name": "VanillaItemNames::Beetroot",
+      "section": 3,
+      "section_offset": "0x615470",
+      "rva": "0x11def470"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11092960,
+      "name": "VanillaItemNames::BeetrootSeeds",
+      "section": 3,
+      "section_offset": "0x6146c0",
+      "rva": "0x11dee6c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11093232,
+      "name": "VanillaItemNames::BirchBoat",
+      "section": 3,
+      "section_offset": "0x614db0",
+      "rva": "0x11deedb0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11093324,
+      "name": "VanillaItemNames::BirchChestBoat",
+      "section": 3,
+      "section_offset": "0x614fc0",
+      "rva": "0x11deefc0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11093420,
+      "name": "VanillaItemNames::BirchDoor",
+      "section": 3,
+      "section_offset": "0x614330",
+      "rva": "0x11dee330"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11093668,
+      "name": "VanillaItemNames::BirchHangingSign",
+      "section": 3,
+      "section_offset": "0x6128d8",
+      "rva": "0x11dec8d8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11094012,
+      "name": "VanillaItemNames::BirchSign",
+      "section": 3,
+      "section_offset": "0x614840",
+      "rva": "0x11dee840"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11094404,
+      "name": "VanillaItemNames::BlackBundle",
+      "section": 3,
+      "section_offset": "0x616940",
+      "rva": "0x11df0940"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11094704,
+      "name": "VanillaItemNames::BlackCushion",
+      "section": 3,
+      "section_offset": "0x616fa0",
+      "rva": "0x11df0fa0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11094752,
+      "name": "VanillaItemNames::BlackDye",
+      "section": 3,
+      "section_offset": "0x617c80",
+      "rva": "0x11df1c80"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11094856,
+      "name": "VanillaItemNames::BlackHarness",
+      "section": 3,
+      "section_offset": "0x616c70",
+      "rva": "0x11df0c70"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11095480,
+      "name": "VanillaItemNames::BlazePowder",
+      "section": 3,
+      "section_offset": "0x60f248",
+      "rva": "0x11de9248"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11095524,
+      "name": "VanillaItemNames::Bleach",
+      "section": 3,
+      "section_offset": "0x616460",
+      "rva": "0x11df0460"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11096096,
+      "name": "VanillaItemNames::BlueBundle",
+      "section": 3,
+      "section_offset": "0x616a00",
+      "rva": "0x11df0a00"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11096392,
+      "name": "VanillaItemNames::BlueCushion",
+      "section": 3,
+      "section_offset": "0x617060",
+      "rva": "0x11df1060"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11096436,
+      "name": "VanillaItemNames::BlueDye",
+      "section": 3,
+      "section_offset": "0x617ce0",
+      "rva": "0x11df1ce0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11096532,
+      "name": "VanillaItemNames::BlueHarness",
+      "section": 3,
+      "section_offset": "0x616d30",
+      "rva": "0x11df0d30"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097048,
+      "name": "VanillaItemNames::BoneMeal",
+      "section": 3,
+      "section_offset": "0x6168e0",
+      "rva": "0x11df08e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097184,
+      "name": "VanillaItemNames::Book",
+      "section": 3,
+      "section_offset": "0x6174b0",
+      "rva": "0x11df14b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097224,
+      "name": "VanillaItemNames::BookAndQuill",
+      "section": 3,
+      "section_offset": "0x616430",
+      "rva": "0x11df0430"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097468,
+      "name": "VanillaItemNames::BordureIndentedBannerPattern",
+      "section": 3,
+      "section_offset": "0x617690",
+      "rva": "0x11df1690"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097532,
+      "name": "VanillaItemNames::Bow",
+      "section": 3,
+      "section_offset": "0x6174e0",
+      "rva": "0x11df14e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097568,
+      "name": "VanillaItemNames::Bowl",
+      "section": 3,
+      "section_offset": "0x60f398",
+      "rva": "0x11de9398"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097816,
+      "name": "VanillaItemNames::Bread",
+      "section": 3,
+      "section_offset": "0x6153e0",
+      "rva": "0x11def3e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097856,
+      "name": "VanillaItemNames::BreezeRod",
+      "section": 3,
+      "section_offset": "0x615860",
+      "rva": "0x11def860"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11097948,
+      "name": "VanillaItemNames::BrewingStand",
+      "section": 3,
+      "section_offset": "0x6141b0",
+      "rva": "0x11dee1b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11098152,
+      "name": "VanillaItemNames::Brick",
+      "section": 3,
+      "section_offset": "0x6173c0",
+      "rva": "0x11df13c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11098436,
+      "name": "VanillaItemNames::BrownBundle",
+      "section": 3,
+      "section_offset": "0x6169d0",
+      "rva": "0x11df09d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11098736,
+      "name": "VanillaItemNames::BrownCushion",
+      "section": 3,
+      "section_offset": "0x617030",
+      "rva": "0x11df1030"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11098784,
+      "name": "VanillaItemNames::BrownDye",
+      "section": 3,
+      "section_offset": "0x617cb0",
+      "rva": "0x11df1cb0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11098888,
+      "name": "VanillaItemNames::BrownHarness",
+      "section": 3,
+      "section_offset": "0x616d00",
+      "rva": "0x11df0d00"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11099312,
+      "name": "VanillaItemNames::Brush",
+      "section": 3,
+      "section_offset": "0x60f458",
+      "rva": "0x11de9458"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11099656,
+      "name": "VanillaItemNames::Bucket",
+      "section": 3,
+      "section_offset": "0x617810",
+      "rva": "0x11df1810"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11099748,
+      "name": "VanillaItemNames::Bundle",
+      "section": 3,
+      "section_offset": "0x616c40",
+      "rva": "0x11df0c40"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11106940,
+      "name": "VanillaItemNames::Cake",
+      "section": 3,
+      "section_offset": "0x6141e0",
+      "rva": "0x11dee1e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11107128,
+      "name": "VanillaItemNames::Camera",
+      "section": 3,
+      "section_offset": "0x614090",
+      "rva": "0x11dee090"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11107212,
+      "name": "VanillaItemNames::CampFire",
+      "section": 3,
+      "section_offset": "0x614240",
+      "rva": "0x11dee240"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11107652,
+      "name": "VanillaItemNames::Carrot",
+      "section": 3,
+      "section_offset": "0x615410",
+      "rva": "0x11def410"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11107692,
+      "name": "VanillaItemNames::CarrotOnAStick",
+      "section": 3,
+      "section_offset": "0x6157d0",
+      "rva": "0x11def7d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11108208,
+      "name": "VanillaItemNames::Cauldron",
+      "section": 3,
+      "section_offset": "0x612908",
+      "rva": "0x11dec908"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11108568,
+      "name": "VanillaItemNames::ChalkBoard",
+      "section": 3,
+      "section_offset": "0x60f638",
+      "rva": "0x11de9638"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11108732,
+      "name": "VanillaItemNames::Charcoal",
+      "section": 3,
+      "section_offset": "0x617a80",
+      "rva": "0x11df1a80"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11108880,
+      "name": "VanillaItemNames::CherryBoat",
+      "section": 3,
+      "section_offset": "0x614ed0",
+      "rva": "0x11deeed0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11108972,
+      "name": "VanillaItemNames::CherryChestBoat",
+      "section": 3,
+      "section_offset": "0x6150e0",
+      "rva": "0x11def0e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11109068,
+      "name": "VanillaItemNames::CherryDoor",
+      "section": 3,
+      "section_offset": "0x6144b0",
+      "rva": "0x11dee4b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11109320,
+      "name": "VanillaItemNames::CherryHangingSign",
+      "section": 3,
+      "section_offset": "0x612938",
+      "rva": "0x11dec938"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11109672,
+      "name": "VanillaItemNames::CherrySign",
+      "section": 3,
+      "section_offset": "0x6149c0",
+      "rva": "0x11dee9c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11110108,
+      "name": "VanillaItemNames::ChestMinecart",
+      "section": 3,
+      "section_offset": "0x614c90",
+      "rva": "0x11deec90"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11111024,
+      "name": "VanillaItemNames::ChorusFruit",
+      "section": 3,
+      "section_offset": "0x60f6c8",
+      "rva": "0x11de96c8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11111684,
+      "name": "VanillaItemNames::ClayBall",
+      "section": 3,
+      "section_offset": "0x60f6f8",
+      "rva": "0x11de96f8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11111860,
+      "name": "VanillaItemNames::Clock",
+      "section": 3,
+      "section_offset": "0x614bd0",
+      "rva": "0x11deebd0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11111996,
+      "name": "VanillaItemNames::Coal",
+      "section": 3,
+      "section_offset": "0x60f728",
+      "rva": "0x11de9728"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11112868,
+      "name": "VanillaItemNames::CocoaBeans",
+      "section": 3,
+      "section_offset": "0x6166a0",
+      "rva": "0x11df06a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11112912,
+      "name": "VanillaItemNames::CodBucket",
+      "section": 3,
+      "section_offset": "0x6178d0",
+      "rva": "0x11df18d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11113404,
+      "name": "VanillaItemNames::CommandBlockMinecart",
+      "section": 3,
+      "section_offset": "0x614d50",
+      "rva": "0x11deed50"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11113460,
+      "name": "VanillaItemNames::Comparator",
+      "section": 3,
+      "section_offset": "0x60f7e8",
+      "rva": "0x11de97e8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11113504,
+      "name": "VanillaItemNames::Compass",
+      "section": 3,
+      "section_offset": "0x616610",
+      "rva": "0x11df0610"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11116260,
+      "name": "VanillaItemNames::Compound",
+      "section": 3,
+      "section_offset": "0x617b40",
+      "rva": "0x11df1b40"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11117816,
+      "name": "VanillaItemNames::Cookie",
+      "section": 3,
+      "section_offset": "0x60f968",
+      "rva": "0x11de9968"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11118380,
+      "name": "VanillaItemNames::CopperDoor",
+      "section": 3,
+      "section_offset": "0x614540",
+      "rva": "0x11dee540"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11118592,
+      "name": "VanillaItemNames::CopperIngot",
+      "section": 3,
+      "section_offset": "0x615650",
+      "rva": "0x11def650"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11120200,
+      "name": "VanillaItemNames::CreeperBannerPattern",
+      "section": 3,
+      "section_offset": "0x6175a0",
+      "rva": "0x11df15a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11120404,
+      "name": "VanillaItemNames::CrimsonDoor",
+      "section": 3,
+      "section_offset": "0x6143f0",
+      "rva": "0x11dee3f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11120760,
+      "name": "VanillaItemNames::CrimsonHangingSign",
+      "section": 3,
+      "section_offset": "0x612968",
+      "rva": "0x11dec968"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11121120,
+      "name": "VanillaItemNames::CrimsonSign",
+      "section": 3,
+      "section_offset": "0x614900",
+      "rva": "0x11dee900"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11121556,
+      "name": "VanillaItemNames::Crossbow",
+      "section": 3,
+      "section_offset": "0x617510",
+      "rva": "0x11df1510"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11122552,
+      "name": "VanillaItemNames::CyanBundle",
+      "section": 3,
+      "section_offset": "0x616a60",
+      "rva": "0x11df0a60"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11122848,
+      "name": "VanillaItemNames::CyanCushion",
+      "section": 3,
+      "section_offset": "0x6170c0",
+      "rva": "0x11df10c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11122892,
+      "name": "VanillaItemNames::CyanDye",
+      "section": 3,
+      "section_offset": "0x616730",
+      "rva": "0x11df0730"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11122988,
+      "name": "VanillaItemNames::CyanHarness",
+      "section": 3,
+      "section_offset": "0x616d90",
+      "rva": "0x11df0d90"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11143084,
+      "name": "VanillaItemNames::DarkOakBoat",
+      "section": 3,
+      "section_offset": "0x614e40",
+      "rva": "0x11deee40"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11143180,
+      "name": "VanillaItemNames::DarkOakChestBoat",
+      "section": 3,
+      "section_offset": "0x615050",
+      "rva": "0x11def050"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11143280,
+      "name": "VanillaItemNames::DarkOakDoor",
+      "section": 3,
+      "section_offset": "0x614360",
+      "rva": "0x11dee360"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11143480,
+      "name": "VanillaItemNames::DarkOakHangingSign",
+      "section": 3,
+      "section_offset": "0x612998",
+      "rva": "0x11dec998"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11143840,
+      "name": "VanillaItemNames::DarkOakSign",
+      "section": 3,
+      "section_offset": "0x6148d0",
+      "rva": "0x11dee8d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11147580,
+      "name": "VanillaItemNames::Diamond",
+      "section": 3,
+      "section_offset": "0x616520",
+      "rva": "0x11df0520"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11147716,
+      "name": "VanillaItemNames::DiamondHoe",
+      "section": 3,
+      "section_offset": "0x60fde8",
+      "rva": "0x11de9de8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11148900,
+      "name": "VanillaItemNames::DragonBreath",
+      "section": 3,
+      "section_offset": "0x617780",
+      "rva": "0x11df1780"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11149092,
+      "name": "VanillaItemNames::DriedKelp",
+      "section": 3,
+      "section_offset": "0x60fff8",
+      "rva": "0x11de9ff8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11153500,
+      "name": "VanillaItemNames::Egg",
+      "section": 3,
+      "section_offset": "0x6146f0",
+      "rva": "0x11dee6f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11153672,
+      "name": "VanillaItemNames::Elytra",
+      "section": 3,
+      "section_offset": "0x615740",
+      "rva": "0x11def740"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11153712,
+      "name": "VanillaItemNames::Emerald",
+      "section": 3,
+      "section_offset": "0x614c60",
+      "rva": "0x11deec60"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11153968,
+      "name": "VanillaItemNames::EmptyMap",
+      "section": 3,
+      "section_offset": "0x6165e0",
+      "rva": "0x11df05e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11154112,
+      "name": "VanillaItemNames::EnchantedBook",
+      "section": 3,
+      "section_offset": "0x617480",
+      "rva": "0x11df1480"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11154160,
+      "name": "VanillaItemNames::EnchantedGoldenApple",
+      "section": 3,
+      "section_offset": "0x6100e8",
+      "rva": "0x11dea0e8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11154420,
+      "name": "VanillaItemNames::EndCrystal",
+      "section": 3,
+      "section_offset": "0x6151a0",
+      "rva": "0x11def1a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11155008,
+      "name": "VanillaItemNames::EnderEye",
+      "section": 3,
+      "section_offset": "0x614270",
+      "rva": "0x11dee270"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11155052,
+      "name": "VanillaItemNames::EnderPearl",
+      "section": 3,
+      "section_offset": "0x614720",
+      "rva": "0x11dee720"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11155208,
+      "name": "VanillaItemNames::ExperienceBottle",
+      "section": 3,
+      "section_offset": "0x614750",
+      "rva": "0x11dee750"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11155692,
+      "name": "VanillaItemNames::ExposedCopperDoor",
+      "section": 3,
+      "section_offset": "0x614570",
+      "rva": "0x11dee570"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11159212,
+      "name": "VanillaItemNames::Feather",
+      "section": 3,
+      "section_offset": "0x616580",
+      "rva": "0x11df0580"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11159496,
+      "name": "VanillaItemNames::FieldMasonedBannerPattern",
+      "section": 3,
+      "section_offset": "0x617660",
+      "rva": "0x11df1660"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11159596,
+      "name": "VanillaItemNames::FilledMap",
+      "section": 3,
+      "section_offset": "0x617d40",
+      "rva": "0x11df1d40"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11159680,
+      "name": "VanillaItemNames::FireCharge",
+      "section": 3,
+      "section_offset": "0x616550",
+      "rva": "0x11df0550"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160012,
+      "name": "VanillaItemNames::FireworkRocket",
+      "section": 3,
+      "section_offset": "0x617c20",
+      "rva": "0x11df1c20"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160060,
+      "name": "VanillaItemNames::FireworkStar",
+      "section": 3,
+      "section_offset": "0x617360",
+      "rva": "0x11df1360"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160148,
+      "name": "VanillaItemNames::FishingRod",
+      "section": 3,
+      "section_offset": "0x6157a0",
+      "rva": "0x11def7a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160244,
+      "name": "VanillaItemNames::Flint",
+      "section": 3,
+      "section_offset": "0x610268",
+      "rva": "0x11dea268"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160284,
+      "name": "VanillaItemNames::FlintAndSteel",
+      "section": 3,
+      "section_offset": "0x615530",
+      "rva": "0x11def530"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160332,
+      "name": "VanillaItemNames::FlowBannerPattern",
+      "section": 3,
+      "section_offset": "0x617720",
+      "rva": "0x11df1720"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160384,
+      "name": "VanillaItemNames::FlowerBannerPattern",
+      "section": 3,
+      "section_offset": "0x617600",
+      "rva": "0x11df1600"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11160484,
+      "name": "VanillaItemNames::FlowerPot",
+      "section": 3,
+      "section_offset": "0x6129c8",
+      "rva": "0x11dec9c8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163144,
+      "name": "VanillaItemNames::GlassBottle",
+      "section": 3,
+      "section_offset": "0x615890",
+      "rva": "0x11def890"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163236,
+      "name": "VanillaItemNames::GlobeBannerPattern",
+      "section": 3,
+      "section_offset": "0x6176f0",
+      "rva": "0x11df16f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163288,
+      "name": "VanillaItemNames::GlowBerries",
+      "section": 3,
+      "section_offset": "0x610418",
+      "rva": "0x11dea418"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163332,
+      "name": "VanillaItemNames::GlowInkSac",
+      "section": 3,
+      "section_offset": "0x614a50",
+      "rva": "0x11deea50"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163428,
+      "name": "VanillaItemNames::GlowItemFrame",
+      "section": 3,
+      "section_offset": "0x6129f8",
+      "rva": "0x11dec9f8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163524,
+      "name": "VanillaItemNames::GlowStick",
+      "section": 3,
+      "section_offset": "0x617a20",
+      "rva": "0x11df1a20"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163568,
+      "name": "VanillaItemNames::GlowStoneDust",
+      "section": 3,
+      "section_offset": "0x6164f0",
+      "rva": "0x11df04f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163716,
+      "name": "VanillaItemNames::GoatHorn",
+      "section": 3,
+      "section_offset": "0x6140c0",
+      "rva": "0x11dee0c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163808,
+      "name": "VanillaItemNames::GoldIngot",
+      "section": 3,
+      "section_offset": "0x6156b0",
+      "rva": "0x11def6b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163852,
+      "name": "VanillaItemNames::GoldNugget",
+      "section": 3,
+      "section_offset": "0x6165b0",
+      "rva": "0x11df05b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11163940,
+      "name": "VanillaItemNames::GoldenApple",
+      "section": 3,
+      "section_offset": "0x6104a8",
+      "rva": "0x11dea4a8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11164596,
+      "name": "VanillaItemNames::GrayBundle",
+      "section": 3,
+      "section_offset": "0x616ac0",
+      "rva": "0x11df0ac0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11164892,
+      "name": "VanillaItemNames::GrayCushion",
+      "section": 3,
+      "section_offset": "0x617120",
+      "rva": "0x11df1120"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11164936,
+      "name": "VanillaItemNames::GrayDye",
+      "section": 3,
+      "section_offset": "0x616790",
+      "rva": "0x11df0790"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11165032,
+      "name": "VanillaItemNames::GrayHarness",
+      "section": 3,
+      "section_offset": "0x616df0",
+      "rva": "0x11df0df0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11165332,
+      "name": "VanillaItemNames::GreenBundle",
+      "section": 3,
+      "section_offset": "0x6169a0",
+      "rva": "0x11df09a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11165632,
+      "name": "VanillaItemNames::GreenCushion",
+      "section": 3,
+      "section_offset": "0x617000",
+      "rva": "0x11df1000"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11165680,
+      "name": "VanillaItemNames::GreenDye",
+      "section": 3,
+      "section_offset": "0x616670",
+      "rva": "0x11df0670"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11165784,
+      "name": "VanillaItemNames::GreenHarness",
+      "section": 3,
+      "section_offset": "0x616cd0",
+      "rva": "0x11df0cd0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11166232,
+      "name": "VanillaItemNames::Gunpowder",
+      "section": 3,
+      "section_offset": "0x617300",
+      "rva": "0x11df1300"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11166276,
+      "name": "VanillaItemNames::GusterBannerPattern",
+      "section": 3,
+      "section_offset": "0x617750",
+      "rva": "0x11df1750"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11170136,
+      "name": "VanillaItemNames::HeartOfTheSea",
+      "section": 3,
+      "section_offset": "0x610838",
+      "rva": "0x11dea838"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11170452,
+      "name": "VanillaItemNames::HoneyBottle",
+      "section": 3,
+      "section_offset": "0x6177e0",
+      "rva": "0x11df17e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11170496,
+      "name": "VanillaItemNames::HoneyComb",
+      "section": 3,
+      "section_offset": "0x617570",
+      "rva": "0x11df1570"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11170636,
+      "name": "VanillaItemNames::Hopper",
+      "section": 3,
+      "section_offset": "0x612a28",
+      "rva": "0x11deca28"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11170676,
+      "name": "VanillaItemNames::HopperMinecart",
+      "section": 3,
+      "section_offset": "0x614cc0",
+      "rva": "0x11deecc0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11174452,
+      "name": "VanillaItemNames::IceBomb",
+      "section": 3,
+      "section_offset": "0x614780",
+      "rva": "0x11dee780"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11175224,
+      "name": "VanillaItemNames::InkSac",
+      "section": 3,
+      "section_offset": "0x617b10",
+      "rva": "0x11df1b10"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11175732,
+      "name": "VanillaItemNames::IronBoots",
+      "section": 3,
+      "section_offset": "0x610988",
+      "rva": "0x11dea988"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11175824,
+      "name": "VanillaItemNames::IronChestplate",
+      "section": 3,
+      "section_offset": "0x6109b8",
+      "rva": "0x11dea9b8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11175964,
+      "name": "VanillaItemNames::IronDoor",
+      "section": 3,
+      "section_offset": "0x6142d0",
+      "rva": "0x11dee2d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11176008,
+      "name": "VanillaItemNames::IronHelmet",
+      "section": 3,
+      "section_offset": "0x610a18",
+      "rva": "0x11deaa18"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11176052,
+      "name": "VanillaItemNames::IronIngot",
+      "section": 3,
+      "section_offset": "0x615680",
+      "rva": "0x11def680"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11176096,
+      "name": "VanillaItemNames::IronLeggings",
+      "section": 3,
+      "section_offset": "0x610aa8",
+      "rva": "0x11deaaa8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11177068,
+      "name": "VanillaItemNames::ItemFrame",
+      "section": 3,
+      "section_offset": "0x612a58",
+      "rva": "0x11deca58"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11178556,
+      "name": "VanillaItemNames::JungleBoat",
+      "section": 3,
+      "section_offset": "0x614de0",
+      "rva": "0x11deede0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11178648,
+      "name": "VanillaItemNames::JungleChestBoat",
+      "section": 3,
+      "section_offset": "0x614ff0",
+      "rva": "0x11deeff0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11178744,
+      "name": "VanillaItemNames::JungleDoor",
+      "section": 3,
+      "section_offset": "0x614390",
+      "rva": "0x11dee390"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11178996,
+      "name": "VanillaItemNames::JungleHangingSign",
+      "section": 3,
+      "section_offset": "0x612a88",
+      "rva": "0x11deca88"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11179348,
+      "name": "VanillaItemNames::JungleSign",
+      "section": 3,
+      "section_offset": "0x614870",
+      "rva": "0x11dee870"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11179904,
+      "name": "VanillaItemNames::Kelp",
+      "section": 3,
+      "section_offset": "0x612ab8",
+      "rva": "0x11decab8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11181920,
+      "name": "VanillaItemNames::LapisLazuli",
+      "section": 3,
+      "section_offset": "0x6166d0",
+      "rva": "0x11df06d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182148,
+      "name": "VanillaItemNames::LavaBucket",
+      "section": 3,
+      "section_offset": "0x617870",
+      "rva": "0x11df1870"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182248,
+      "name": "VanillaItemNames::Lead",
+      "section": 3,
+      "section_offset": "0x616490",
+      "rva": "0x11df0490"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182336,
+      "name": "VanillaItemNames::Leather",
+      "section": 3,
+      "section_offset": "0x616f70",
+      "rva": "0x11df0f70"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182376,
+      "name": "VanillaItemNames::LeatherBoots",
+      "section": 3,
+      "section_offset": "0x615290",
+      "rva": "0x11def290"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182424,
+      "name": "VanillaItemNames::LeatherChestplate",
+      "section": 3,
+      "section_offset": "0x615200",
+      "rva": "0x11def200"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182476,
+      "name": "VanillaItemNames::LeatherHelmet",
+      "section": 3,
+      "section_offset": "0x6152c0",
+      "rva": "0x11def2c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182524,
+      "name": "VanillaItemNames::LeatherHorseArmor",
+      "section": 3,
+      "section_offset": "0x615230",
+      "rva": "0x11def230"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11182576,
+      "name": "VanillaItemNames::LeatherLeggings",
+      "section": 3,
+      "section_offset": "0x6151d0",
+      "rva": "0x11def1d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11187136,
+      "name": "VanillaItemNames::LightBlueBundle",
+      "section": 3,
+      "section_offset": "0x616b80",
+      "rva": "0x11df0b80"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11187460,
+      "name": "VanillaItemNames::LightBlueCushion",
+      "section": 3,
+      "section_offset": "0x6171e0",
+      "rva": "0x11df11e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11187512,
+      "name": "VanillaItemNames::LightBlueDye",
+      "section": 3,
+      "section_offset": "0x616850",
+      "rva": "0x11df0850"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11187624,
+      "name": "VanillaItemNames::LightBlueHarness",
+      "section": 3,
+      "section_offset": "0x616eb0",
+      "rva": "0x11df0eb0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11187964,
+      "name": "VanillaItemNames::LightGrayBundle",
+      "section": 3,
+      "section_offset": "0x616a90",
+      "rva": "0x11df0a90"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11188288,
+      "name": "VanillaItemNames::LightGrayCushion",
+      "section": 3,
+      "section_offset": "0x6170f0",
+      "rva": "0x11df10f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11188340,
+      "name": "VanillaItemNames::LightGrayDye",
+      "section": 3,
+      "section_offset": "0x616760",
+      "rva": "0x11df0760"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11188388,
+      "name": "VanillaItemNames::LightGrayHarness",
+      "section": 3,
+      "section_offset": "0x616dc0",
+      "rva": "0x11df0dc0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11189040,
+      "name": "VanillaItemNames::LimeBundle",
+      "section": 3,
+      "section_offset": "0x616b20",
+      "rva": "0x11df0b20"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11189336,
+      "name": "VanillaItemNames::LimeCushion",
+      "section": 3,
+      "section_offset": "0x617180",
+      "rva": "0x11df1180"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11189380,
+      "name": "VanillaItemNames::LimeDye",
+      "section": 3,
+      "section_offset": "0x6167f0",
+      "rva": "0x11df07f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11189476,
+      "name": "VanillaItemNames::LimeHarness",
+      "section": 3,
+      "section_offset": "0x616e50",
+      "rva": "0x11df0e50"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11189776,
+      "name": "VanillaItemNames::LingeringPotion",
+      "section": 3,
+      "section_offset": "0x617390",
+      "rva": "0x11df1390"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11190312,
+      "name": "VanillaItemNames::LodestoneCompass",
+      "section": 3,
+      "section_offset": "0x617ab0",
+      "rva": "0x11df1ab0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11194760,
+      "name": "VanillaItemNames::Mace",
+      "section": 3,
+      "section_offset": "0x615560",
+      "rva": "0x11def560"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11194800,
+      "name": "VanillaItemNames::MagentaBundle",
+      "section": 3,
+      "section_offset": "0x616bb0",
+      "rva": "0x11df0bb0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11195120,
+      "name": "VanillaItemNames::MagentaCushion",
+      "section": 3,
+      "section_offset": "0x617210",
+      "rva": "0x11df1210"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11195168,
+      "name": "VanillaItemNames::MagentaDye",
+      "section": 3,
+      "section_offset": "0x616880",
+      "rva": "0x11df0880"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11195272,
+      "name": "VanillaItemNames::MagentaHarness",
+      "section": 3,
+      "section_offset": "0x616ee0",
+      "rva": "0x11df0ee0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11195748,
+      "name": "VanillaItemNames::MangroveBoat",
+      "section": 3,
+      "section_offset": "0x614e70",
+      "rva": "0x11deee70"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11195848,
+      "name": "VanillaItemNames::MangroveChestBoat",
+      "section": 3,
+      "section_offset": "0x615080",
+      "rva": "0x11def080"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11195948,
+      "name": "VanillaItemNames::MangroveDoor",
+      "section": 3,
+      "section_offset": "0x614450",
+      "rva": "0x11dee450"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11196216,
+      "name": "VanillaItemNames::MangroveHangingSign",
+      "section": 3,
+      "section_offset": "0x612ae8",
+      "rva": "0x11decae8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11196684,
+      "name": "VanillaItemNames::MangroveSign",
+      "section": 3,
+      "section_offset": "0x614960",
+      "rva": "0x11dee960"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11197436,
+      "name": "VanillaItemNames::Medicine",
+      "section": 3,
+      "section_offset": "0x610c88",
+      "rva": "0x11deac88"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11197584,
+      "name": "VanillaItemNames::MelonSeeds",
+      "section": 3,
+      "section_offset": "0x614a80",
+      "rva": "0x11deea80"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11197628,
+      "name": "VanillaItemNames::MelonSlice",
+      "section": 3,
+      "section_offset": "0x610cb8",
+      "rva": "0x11deacb8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11197804,
+      "name": "VanillaItemNames::MilkBucket",
+      "section": 3,
+      "section_offset": "0x610ce8",
+      "rva": "0x11deace8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11198036,
+      "name": "VanillaItemNames::Minecart",
+      "section": 3,
+      "section_offset": "0x614cf0",
+      "rva": "0x11deecf0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11198432,
+      "name": "VanillaItemNames::MojangBannerPattern",
+      "section": 3,
+      "section_offset": "0x617630",
+      "rva": "0x11df1630"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11199992,
+      "name": "VanillaItemNames::MusicDisc11",
+      "section": 3,
+      "section_offset": "0x610e08",
+      "rva": "0x11deae08"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200036,
+      "name": "VanillaItemNames::MusicDisc13",
+      "section": 3,
+      "section_offset": "0x610e38",
+      "rva": "0x11deae38"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200080,
+      "name": "VanillaItemNames::MusicDiscBlocks",
+      "section": 3,
+      "section_offset": "0x610e98",
+      "rva": "0x11deae98"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200128,
+      "name": "VanillaItemNames::MusicDiscBounce",
+      "section": 3,
+      "section_offset": "0x610ec8",
+      "rva": "0x11deaec8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200176,
+      "name": "VanillaItemNames::MusicDiscCat",
+      "section": 3,
+      "section_offset": "0x610ef8",
+      "rva": "0x11deaef8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200224,
+      "name": "VanillaItemNames::MusicDiscChirp",
+      "section": 3,
+      "section_offset": "0x610f28",
+      "rva": "0x11deaf28"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200272,
+      "name": "VanillaItemNames::MusicDiscFar",
+      "section": 3,
+      "section_offset": "0x610fb8",
+      "rva": "0x11deafb8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200320,
+      "name": "VanillaItemNames::MusicDiscMall",
+      "section": 3,
+      "section_offset": "0x610fe8",
+      "rva": "0x11deafe8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200368,
+      "name": "VanillaItemNames::MusicDiscMellohi",
+      "section": 3,
+      "section_offset": "0x611018",
+      "rva": "0x11deb018"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200420,
+      "name": "VanillaItemNames::MusicDiscStal",
+      "section": 3,
+      "section_offset": "0x611108",
+      "rva": "0x11deb108"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200468,
+      "name": "VanillaItemNames::MusicDiscStrad",
+      "section": 3,
+      "section_offset": "0x611138",
+      "rva": "0x11deb138"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200516,
+      "name": "VanillaItemNames::MusicDiscWait",
+      "section": 3,
+      "section_offset": "0x6111c8",
+      "rva": "0x11deb1c8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11200564,
+      "name": "VanillaItemNames::MusicDiscWard",
+      "section": 3,
+      "section_offset": "0x6111f8",
+      "rva": "0x11deb1f8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11249088,
+      "name": "VanillaItemNames::NameTag",
+      "section": 3,
+      "section_offset": "0x615770",
+      "rva": "0x11def770"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11249740,
+      "name": "VanillaItemNames::NetherSprouts",
+      "section": 3,
+      "section_offset": "0x612b18",
+      "rva": "0x11decb18"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11249836,
+      "name": "VanillaItemNames::NetherWart",
+      "section": 3,
+      "section_offset": "0x612b48",
+      "rva": "0x11decb48"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11249984,
+      "name": "VanillaItemNames::NetheriteBoots",
+      "section": 3,
+      "section_offset": "0x615320",
+      "rva": "0x11def320"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11250032,
+      "name": "VanillaItemNames::NetheriteChestplate",
+      "section": 3,
+      "section_offset": "0x615380",
+      "rva": "0x11def380"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11250084,
+      "name": "VanillaItemNames::NetheriteHelmet",
+      "section": 3,
+      "section_offset": "0x6153b0",
+      "rva": "0x11def3b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11250132,
+      "name": "VanillaItemNames::NetheriteIngot",
+      "section": 3,
+      "section_offset": "0x615710",
+      "rva": "0x11def710"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11250180,
+      "name": "VanillaItemNames::NetheriteLeggings",
+      "section": 3,
+      "section_offset": "0x615350",
+      "rva": "0x11def350"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11250280,
+      "name": "VanillaItemNames::NetheriteUpgradeSmithingTemplate",
+      "section": 3,
+      "section_offset": "0x611498",
+      "rva": "0x11deb498"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11251748,
+      "name": "VanillaItemNames::OakBoat",
+      "section": 3,
+      "section_offset": "0x614f60",
+      "rva": "0x11deef60"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11251788,
+      "name": "VanillaItemNames::OakChestBoat",
+      "section": 3,
+      "section_offset": "0x615170",
+      "rva": "0x11def170"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11251836,
+      "name": "VanillaItemNames::OakDoor",
+      "section": 3,
+      "section_offset": "0x6142a0",
+      "rva": "0x11dee2a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11252024,
+      "name": "VanillaItemNames::OakHangingSign",
+      "section": 3,
+      "section_offset": "0x612b78",
+      "rva": "0x11decb78"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11252304,
+      "name": "VanillaItemNames::OakSign",
+      "section": 3,
+      "section_offset": "0x6147e0",
+      "rva": "0x11dee7e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11253336,
+      "name": "VanillaItemNames::OminousBottle",
+      "section": 3,
+      "section_offset": "0x611558",
+      "rva": "0x11deb558"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11253384,
+      "name": "VanillaItemNames::OminousTrialKey",
+      "section": 3,
+      "section_offset": "0x612ba8",
+      "rva": "0x11decba8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11253700,
+      "name": "VanillaItemNames::OrangeBundle",
+      "section": 3,
+      "section_offset": "0x616be0",
+      "rva": "0x11df0be0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11254004,
+      "name": "VanillaItemNames::OrangeCushion",
+      "section": 3,
+      "section_offset": "0x617240",
+      "rva": "0x11df1240"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11254052,
+      "name": "VanillaItemNames::OrangeDye",
+      "section": 3,
+      "section_offset": "0x6168b0",
+      "rva": "0x11df08b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11254156,
+      "name": "VanillaItemNames::OrangeHarness",
+      "section": 3,
+      "section_offset": "0x616f10",
+      "rva": "0x11df0f10"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11255348,
+      "name": "VanillaItemNames::OxidizedCopperDoor",
+      "section": 3,
+      "section_offset": "0x6145d0",
+      "rva": "0x11dee5d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11261560,
+      "name": "VanillaItemNames::Painting",
+      "section": 3,
+      "section_offset": "0x6155f0",
+      "rva": "0x11def5f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11262076,
+      "name": "VanillaItemNames::PaleOakBoat",
+      "section": 3,
+      "section_offset": "0x614f00",
+      "rva": "0x11deef00"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11262172,
+      "name": "VanillaItemNames::PaleOakChestBoat",
+      "section": 3,
+      "section_offset": "0x615110",
+      "rva": "0x11def110"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11262272,
+      "name": "VanillaItemNames::PaleOakDoor",
+      "section": 3,
+      "section_offset": "0x6144e0",
+      "rva": "0x11dee4e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11262528,
+      "name": "VanillaItemNames::PaleOakHangingSign",
+      "section": 3,
+      "section_offset": "0x612bd8",
+      "rva": "0x11decbd8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11262888,
+      "name": "VanillaItemNames::PaleOakSign",
+      "section": 3,
+      "section_offset": "0x6149f0",
+      "rva": "0x11dee9f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11263592,
+      "name": "VanillaItemNames::Paper",
+      "section": 3,
+      "section_offset": "0x617330",
+      "rva": "0x11df1330"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11264152,
+      "name": "VanillaItemNames::PhantomMembrane",
+      "section": 3,
+      "section_offset": "0x615620",
+      "rva": "0x11def620"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11264200,
+      "name": "VanillaItemNames::PhotoItem",
+      "section": 3,
+      "section_offset": "0x614c00",
+      "rva": "0x11deec00"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11264284,
+      "name": "VanillaItemNames::PiglinBannerPattern",
+      "section": 3,
+      "section_offset": "0x6176c0",
+      "rva": "0x11df16c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11264576,
+      "name": "VanillaItemNames::PinkBundle",
+      "section": 3,
+      "section_offset": "0x616af0",
+      "rva": "0x11df0af0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11264872,
+      "name": "VanillaItemNames::PinkCushion",
+      "section": 3,
+      "section_offset": "0x617150",
+      "rva": "0x11df1150"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11264916,
+      "name": "VanillaItemNames::PinkDye",
+      "section": 3,
+      "section_offset": "0x6167c0",
+      "rva": "0x11df07c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11265012,
+      "name": "VanillaItemNames::PinkHarness",
+      "section": 3,
+      "section_offset": "0x616e20",
+      "rva": "0x11df0e20"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11265604,
+      "name": "VanillaItemNames::PitcherPod",
+      "section": 3,
+      "section_offset": "0x611708",
+      "rva": "0x11deb708"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11265904,
+      "name": "VanillaItemNames::PoisonousPotato",
+      "section": 3,
+      "section_offset": "0x611768",
+      "rva": "0x11deb768"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11268592,
+      "name": "VanillaItemNames::PoplarBoat",
+      "section": 3,
+      "section_offset": "0x614f30",
+      "rva": "0x11deef30"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11268684,
+      "name": "VanillaItemNames::PoplarChestBoat",
+      "section": 3,
+      "section_offset": "0x615140",
+      "rva": "0x11def140"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11268780,
+      "name": "VanillaItemNames::PoplarDoor",
+      "section": 3,
+      "section_offset": "0x614510",
+      "rva": "0x11dee510"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11269032,
+      "name": "VanillaItemNames::PoplarHangingSign",
+      "section": 3,
+      "section_offset": "0x612c08",
+      "rva": "0x11decc08"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11269336,
+      "name": "VanillaItemNames::PoplarSign",
+      "section": 3,
+      "section_offset": "0x614a20",
+      "rva": "0x11deea20"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11269812,
+      "name": "VanillaItemNames::PortfolioBook",
+      "section": 3,
+      "section_offset": "0x611828",
+      "rva": "0x11deb828"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11269860,
+      "name": "VanillaItemNames::Potato",
+      "section": 3,
+      "section_offset": "0x615440",
+      "rva": "0x11def440"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11270040,
+      "name": "VanillaItemNames::Potion",
+      "section": 3,
+      "section_offset": "0x6177b0",
+      "rva": "0x11df17b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11270128,
+      "name": "VanillaItemNames::PowderSnowBucket",
+      "section": 3,
+      "section_offset": "0x6178a0",
+      "rva": "0x11df18a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11270908,
+      "name": "VanillaItemNames::PrismarineCrystals",
+      "section": 3,
+      "section_offset": "0x611858",
+      "rva": "0x11deb858"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11271368,
+      "name": "VanillaItemNames::PufferfishBucket",
+      "section": 3,
+      "section_offset": "0x617960",
+      "rva": "0x11df1960"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11271504,
+      "name": "VanillaItemNames::PumpkinPie",
+      "section": 3,
+      "section_offset": "0x611948",
+      "rva": "0x11deb948"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11271548,
+      "name": "VanillaItemNames::PumpkinSeeds",
+      "section": 3,
+      "section_offset": "0x6158d0",
+      "rva": "0x11def8d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11271644,
+      "name": "VanillaItemNames::PurpleBundle",
+      "section": 3,
+      "section_offset": "0x616a30",
+      "rva": "0x11df0a30"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11271948,
+      "name": "VanillaItemNames::PurpleCushion",
+      "section": 3,
+      "section_offset": "0x617090",
+      "rva": "0x11df1090"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11271996,
+      "name": "VanillaItemNames::PurpleDye",
+      "section": 3,
+      "section_offset": "0x616700",
+      "rva": "0x11df0700"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11272100,
+      "name": "VanillaItemNames::PurpleHarness",
+      "section": 3,
+      "section_offset": "0x616d60",
+      "rva": "0x11df0d60"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11272700,
+      "name": "VanillaItemNames::Quartz",
+      "section": 3,
+      "section_offset": "0x6140f0",
+      "rva": "0x11dee0f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279140,
+      "name": "VanillaItemNames::RapidFertilizer",
+      "section": 3,
+      "section_offset": "0x611a98",
+      "rva": "0x11deba98"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279232,
+      "name": "VanillaItemNames::RawCopper",
+      "section": 3,
+      "section_offset": "0x611af8",
+      "rva": "0x11debaf8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279328,
+      "name": "VanillaItemNames::RawGold",
+      "section": 3,
+      "section_offset": "0x611b28",
+      "rva": "0x11debb28"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279416,
+      "name": "VanillaItemNames::RawIron",
+      "section": 3,
+      "section_offset": "0x611b58",
+      "rva": "0x11debb58"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279548,
+      "name": "VanillaItemNames::RecoveryCompass",
+      "section": 3,
+      "section_offset": "0x6155c0",
+      "rva": "0x11def5c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279596,
+      "name": "VanillaItemNames::RedBundle",
+      "section": 3,
+      "section_offset": "0x616970",
+      "rva": "0x11df0970"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279892,
+      "name": "VanillaItemNames::RedCushion",
+      "section": 3,
+      "section_offset": "0x616fd0",
+      "rva": "0x11df0fd0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11279936,
+      "name": "VanillaItemNames::RedDye",
+      "section": 3,
+      "section_offset": "0x616640",
+      "rva": "0x11df0640"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11280032,
+      "name": "VanillaItemNames::RedHarness",
+      "section": 3,
+      "section_offset": "0x616ca0",
+      "rva": "0x11df0ca0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11281036,
+      "name": "VanillaItemNames::RedStone",
+      "section": 3,
+      "section_offset": "0x614120",
+      "rva": "0x11dee120"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11281924,
+      "name": "VanillaItemNames::Repeater",
+      "section": 3,
+      "section_offset": "0x611b88",
+      "rva": "0x11debb88"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11282204,
+      "name": "VanillaItemNames::ResinBrick",
+      "section": 3,
+      "section_offset": "0x614180",
+      "rva": "0x11dee180"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11283532,
+      "name": "VanillaItemNames::RottenFlesh",
+      "section": 3,
+      "section_offset": "0x611be8",
+      "rva": "0x11debbe8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11297324,
+      "name": "VanillaItemNames::Saddle",
+      "section": 3,
+      "section_offset": "0x6152f0",
+      "rva": "0x11def2f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11297364,
+      "name": "VanillaItemNames::SalmonBucket",
+      "section": 3,
+      "section_offset": "0x617900",
+      "rva": "0x11df1900"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11299016,
+      "name": "VanillaItemNames::Shears",
+      "section": 3,
+      "section_offset": "0x617540",
+      "rva": "0x11df1540"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11299384,
+      "name": "VanillaItemNames::Shield",
+      "section": 3,
+      "section_offset": "0x617450",
+      "rva": "0x11df1450"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11299720,
+      "name": "VanillaItemNames::ShulkerShell",
+      "section": 3,
+      "section_offset": "0x616910",
+      "rva": "0x11df0910"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11300024,
+      "name": "VanillaItemNames::SkullBannerPattern",
+      "section": 3,
+      "section_offset": "0x6175d0",
+      "rva": "0x11df15d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11300124,
+      "name": "VanillaItemNames::SlimeBall",
+      "section": 3,
+      "section_offset": "0x611eb8",
+      "rva": "0x11debeb8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11301576,
+      "name": "VanillaItemNames::SnowBall",
+      "section": 3,
+      "section_offset": "0x614b40",
+      "rva": "0x11deeb40"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11301716,
+      "name": "VanillaItemNames::SoulCampfire",
+      "section": 3,
+      "section_offset": "0x614210",
+      "rva": "0x11dee210"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11302180,
+      "name": "VanillaItemNames::Sparkler",
+      "section": 3,
+      "section_offset": "0x617a50",
+      "rva": "0x11df1a50"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11302264,
+      "name": "VanillaItemNames::SpawnEggLegacy",
+      "section": 3,
+      "section_offset": "0x612d58",
+      "rva": "0x11decd58"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11302560,
+      "name": "VanillaItemNames::SplashPotion",
+      "section": 3,
+      "section_offset": "0x617420",
+      "rva": "0x11df1420"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11302788,
+      "name": "VanillaItemNames::SpruceBoat",
+      "section": 3,
+      "section_offset": "0x614d80",
+      "rva": "0x11deed80"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11302880,
+      "name": "VanillaItemNames::SpruceChestBoat",
+      "section": 3,
+      "section_offset": "0x614f90",
+      "rva": "0x11deef90"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11302976,
+      "name": "VanillaItemNames::SpruceDoor",
+      "section": 3,
+      "section_offset": "0x6143c0",
+      "rva": "0x11dee3c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11303228,
+      "name": "VanillaItemNames::SpruceHangingSign",
+      "section": 3,
+      "section_offset": "0x612c38",
+      "rva": "0x11decc38"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11303580,
+      "name": "VanillaItemNames::SpruceSign",
+      "section": 3,
+      "section_offset": "0x614810",
+      "rva": "0x11dee810"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11303928,
+      "name": "VanillaItemNames::Spyglass",
+      "section": 3,
+      "section_offset": "0x615500",
+      "rva": "0x11def500"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11304412,
+      "name": "VanillaItemNames::Stick",
+      "section": 3,
+      "section_offset": "0x6172d0",
+      "rva": "0x11df12d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11305684,
+      "name": "VanillaItemNames::StrawBed",
+      "section": 3,
+      "section_offset": "0x614ab0",
+      "rva": "0x11deeab0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11305728,
+      "name": "VanillaItemNames::String",
+      "section": 3,
+      "section_offset": "0x614ba0",
+      "rva": "0x11deeba0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11307604,
+      "name": "VanillaItemNames::Sugar",
+      "section": 3,
+      "section_offset": "0x617ae0",
+      "rva": "0x11df1ae0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11307644,
+      "name": "VanillaItemNames::SugarCane",
+      "section": 3,
+      "section_offset": "0x614ae0",
+      "rva": "0x11deeae0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11308732,
+      "name": "VanillaItemNames::SulfurCubeBucket",
+      "section": 3,
+      "section_offset": "0x6179f0",
+      "rva": "0x11df19f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11309644,
+      "name": "VanillaItemNames::SuspiciousStew",
+      "section": 3,
+      "section_offset": "0x612248",
+      "rva": "0x11dec248"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11309692,
+      "name": "VanillaItemNames::SweetBerries",
+      "section": 3,
+      "section_offset": "0x614b10",
+      "rva": "0x11deeb10"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11317052,
+      "name": "VanillaItemNames::TadpoleBucket",
+      "section": 3,
+      "section_offset": "0x6179c0",
+      "rva": "0x11df19c0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11318304,
+      "name": "VanillaItemNames::TntMinecart",
+      "section": 3,
+      "section_offset": "0x614d20",
+      "rva": "0x11deed20"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11318660,
+      "name": "VanillaItemNames::TorchflowerSeeds",
+      "section": 3,
+      "section_offset": "0x614b70",
+      "rva": "0x11deeb70"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11318712,
+      "name": "VanillaItemNames::TotemOfUndying",
+      "section": 3,
+      "section_offset": "0x6154d0",
+      "rva": "0x11def4d0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11319368,
+      "name": "VanillaItemNames::TrialKey",
+      "section": 3,
+      "section_offset": "0x614c30",
+      "rva": "0x11deec30"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11319508,
+      "name": "VanillaItemNames::Trident",
+      "section": 3,
+      "section_offset": "0x615590",
+      "rva": "0x11def590"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11319868,
+      "name": "VanillaItemNames::TropicalFishBucket",
+      "section": 3,
+      "section_offset": "0x617930",
+      "rva": "0x11df1930"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11320748,
+      "name": "VanillaItemNames::TurtleHelmet",
+      "section": 3,
+      "section_offset": "0x6154a0",
+      "rva": "0x11def4a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11320796,
+      "name": "VanillaItemNames::TurtleScute",
+      "section": 3,
+      "section_offset": "0x6156e0",
+      "rva": "0x11def6e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11333676,
+      "name": "VanillaItemNames::WarpedDoor",
+      "section": 3,
+      "section_offset": "0x614420",
+      "rva": "0x11dee420"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11333964,
+      "name": "VanillaItemNames::WarpedFungusOnAStick",
+      "section": 3,
+      "section_offset": "0x615800",
+      "rva": "0x11def800"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11334076,
+      "name": "VanillaItemNames::WarpedHangingSign",
+      "section": 3,
+      "section_offset": "0x612c68",
+      "rva": "0x11decc68"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11334424,
+      "name": "VanillaItemNames::WarpedSign",
+      "section": 3,
+      "section_offset": "0x614930",
+      "rva": "0x11dee930"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11335020,
+      "name": "VanillaItemNames::WaterBucket",
+      "section": 3,
+      "section_offset": "0x617840",
+      "rva": "0x11df1840"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11335476,
+      "name": "VanillaItemNames::WaxedCopperDoor",
+      "section": 3,
+      "section_offset": "0x614600",
+      "rva": "0x11dee600"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11336392,
+      "name": "VanillaItemNames::WaxedExposedCopperDoor",
+      "section": 3,
+      "section_offset": "0x614630",
+      "rva": "0x11dee630"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11337496,
+      "name": "VanillaItemNames::WaxedOxidizedCopperDoor",
+      "section": 3,
+      "section_offset": "0x614690",
+      "rva": "0x11dee690"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11338556,
+      "name": "VanillaItemNames::WaxedWeatheredCopperDoor",
+      "section": 3,
+      "section_offset": "0x614660",
+      "rva": "0x11dee660"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11339628,
+      "name": "VanillaItemNames::WeatheredCopperDoor",
+      "section": 3,
+      "section_offset": "0x6145a0",
+      "rva": "0x11dee5a0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11340496,
+      "name": "VanillaItemNames::Wheat",
+      "section": 3,
+      "section_offset": "0x612c98",
+      "rva": "0x11decc98"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11340536,
+      "name": "VanillaItemNames::WheatSeeds",
+      "section": 3,
+      "section_offset": "0x612518",
+      "rva": "0x11dec518"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11340580,
+      "name": "VanillaItemNames::WhiteBundle",
+      "section": 3,
+      "section_offset": "0x616c10",
+      "rva": "0x11df0c10"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11340880,
+      "name": "VanillaItemNames::WhiteCushion",
+      "section": 3,
+      "section_offset": "0x617270",
+      "rva": "0x11df1270"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11340928,
+      "name": "VanillaItemNames::WhiteDye",
+      "section": 3,
+      "section_offset": "0x617d10",
+      "rva": "0x11df1d10"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11341032,
+      "name": "VanillaItemNames::WhiteHarness",
+      "section": 3,
+      "section_offset": "0x616f40",
+      "rva": "0x11df0f40"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11341444,
+      "name": "VanillaItemNames::WindCharge",
+      "section": 3,
+      "section_offset": "0x6147b0",
+      "rva": "0x11dee7b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11341592,
+      "name": "VanillaItemNames::WolfArmor",
+      "section": 3,
+      "section_offset": "0x615830",
+      "rva": "0x11def830"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11342292,
+      "name": "VanillaItemNames::WrittenBook",
+      "section": 3,
+      "section_offset": "0x616400",
+      "rva": "0x11df0400"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11342632,
+      "name": "VanillaItemNames::YellowBundle",
+      "section": 3,
+      "section_offset": "0x616b50",
+      "rva": "0x11df0b50"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11342936,
+      "name": "VanillaItemNames::YellowCushion",
+      "section": 3,
+      "section_offset": "0x6171b0",
+      "rva": "0x11df11b0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11342984,
+      "name": "VanillaItemNames::YellowDye",
+      "section": 3,
+      "section_offset": "0x616820",
+      "rva": "0x11df0820"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11343088,
+      "name": "VanillaItemNames::YellowHarness",
+      "section": 3,
+      "section_offset": "0x616e80",
+      "rva": "0x11df0e80"
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "EntitySystemsManager",
+      "type_index": "0x38ff6",
+      "size": 48,
+      "fieldlist": "0x38ff5",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mEntitySystems",
+          "offset": 0,
+          "type": "std::unique_ptr<EntitySystems,std::default_delete<EntitySystems> >",
+          "type_index": "0xcfd9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsClientSide",
+          "offset": 8,
+          "type": "const bool",
+          "type_index": "0x15681",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSubClientId",
+          "offset": 9,
+          "type": "const SubClientId",
+          "type_index": "0x14d06",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntityRegistry",
+          "offset": 16,
+          "type": "WeakRef<EntityRegistry>",
+          "type_index": "0x7bd6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPauseManager",
+          "offset": 32,
+          "type": "WeakRef<PauseManager>",
+          "type_index": "0x7bdf",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "EntitySystemsManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38fef",
+          "return_type": "void",
+          "class_type": "EntitySystemsManager",
+          "this_type": "EntitySystemsManager *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "EntitySystemsManager",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x38ff3",
+          "return_type": "void",
+          "class_type": "EntitySystemsManager",
+          "this_type": "EntitySystemsManager *",
+          "argument_types": [
+            "bool",
+            "SubClientId",
+            "const gsl::not_null<StackRefResult<EntityRegistry> > &",
+            "const gsl::not_null<StackRefResult<PauseManager> > &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ILocalServerPauseCommunication",
+      "type_index": "0x3c0e2",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 94016,
+      "name": "??0EntitySystemsManager@@QEAA@_NW4SubClientId@@AEBV?$not_null@V?$StackRefResult@VEntityRegistry@@@@@gsl@@AEBV?$not_null@V?$StackRefResult@VPauseManager@@@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x1132190",
+      "rva": "0x1133190"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3496220,
+      "name": "?requestInGamePause@ClientInstance@@UEAA_N_N@Z",
+      "section": 1,
+      "section_offset": "0x5dd4030",
+      "rva": "0x5dd5030"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3496284,
+      "name": "?requestInGamePause@MinecraftGame@@UEAA_NAEBW4SubClientId@@_N@Z",
+      "section": 1,
+      "section_offset": "0x7f0d30",
+      "rva": "0x7f1d30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3496364,
+      "name": "?requestInGamePause@ServerInstance@@QEAA_N_N@Z",
+      "section": 1,
+      "section_offset": "0x2904480",
+      "rva": "0x2905480"
+    }
+  ]
+}

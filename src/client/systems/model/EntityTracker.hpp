@@ -207,6 +207,7 @@ namespace perlin::entity {
         void MoveDelta(uint64_t rid, const double* x, const double* y, const double* z, const float* pitch,
                        const float* yaw, const float* headYaw, bool onGround, bool teleport = false,
                        uint64_t ticks = 0, bool forceCompletion = false);
+        void RotateHead(uint64_t rid, float pitch, float headYaw, bool onGround);
 
         void TickInterpolation();
         void SetFlags(uint64_t rid, uint64_t flags);

@@ -1,0 +1,39 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "SerializationMode",
+    "ClientboundUpdateSoundDataPacket",
+    "ClientboundUpdateSoundDataPacketPayload",
+    "ServerSoundHandle",
+    "SoundDataEvent::Stop",
+    "SoundDataEvent::SetVolume",
+    "SoundDataEvent::SetPitch",
+    "SoundDataEvent::Fade",
+    "SoundDataEvent::SeekTo",
+    "SoundDataEvent::Pause",
+    "SoundDataEvent::Resume",
+    "ActorUniqueID",
+    "ClientMovementPredictionSyncPacketPayload",
+    "cereal::BinarySchemaWriter",
+    "cereal::SchemaWriter",
+    "cereal::SchemaRWType",
+    "cereal::internal::BasicSchema",
+    "cereal::internal::GenericCompositeSchema"
+  ],
+  "symbol_rvas": [
+    "0x38c6870",
+    "0x38c7050",
+    "0x38c7440",
+    "0x38c76e0",
+    "0x131f6e0",
+    "0x174ab60",
+    "0x3505670",
+    "0x41019b0",
+    "0x4101cb0",
+    "0x4117050",
+    "0x41123d0",
+    "0x40f2fc0",
+    "0x83ef520",
+    "0x852a100"
+  ]
+}

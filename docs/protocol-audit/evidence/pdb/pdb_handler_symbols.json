@@ -1,0 +1,1619 @@
+[
+  {
+    "kind": "0x110e",
+    "record_offset": 2761080,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVActorEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1307500"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761180,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAddVolumeEntityPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130a1b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761284,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAgentActionEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1327e50"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761388,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAgentAnimationPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1328770"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761492,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimateEntityPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1326de0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761592,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAutomationClientConnectPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1321ae0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761704,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAvailableActorIdentifiersPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1323cc0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761816,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVBiomeDefinitionListPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1324090"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2761924,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVBossEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131cd80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762020,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraAimAssistActorPriorityPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131b180"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762136,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraAimAssistPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1319c70"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762240,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraAimAssistPresetsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131af50"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762352,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraInstructionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131a260"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762456,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131a590"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762552,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraPresetsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131ac60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762652,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraShakePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131b3a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762752,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraSplinePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131b750"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762852,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVChunkRadiusUpdatedPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1318040"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2762960,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundControlSchemeSetPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1318120"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763076,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundMapItemDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130fe80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763188,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundTextureShiftPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1329670"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763300,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientboundUpdateSoundDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131e6e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763416,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCodeBuilderPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1318db0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763516,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCommandOutputPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13057c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763616,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCompletedUsingItemPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1305470"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763724,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCorrectPlayerMovePredictionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1319b90"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763840,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCraftingDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1311120"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2763940,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVDeathInfoPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1328140"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764036,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEditorNetworkPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1328340"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764136,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEduUriResourcePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1326330"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764240,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEducationSettingsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1326060"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764344,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmoteListPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1309500"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764440,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmotePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1309c60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764532,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVFeatureRegistryPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130fd60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764636,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVGuiDataPickItemPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1307820"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764740,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVItemStackResponsePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1307d20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764844,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVJigsawStructureDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1325fc0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2764952,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLabTablePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1322d10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765048,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLegacyTelemetryEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130e7c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765156,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLessonProgressPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130f870"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765260,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLevelEventGenericPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1309140"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765364,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLevelEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1308790"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765464,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLevelSoundEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1308070"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765568,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVModalFormRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131fee0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765672,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMultiplayerSettingsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1326450"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765780,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVNpcDialoguePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1318840"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765880,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVOpenSignPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1328e10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2765976,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPhotoTransferPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1322870"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766076,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlaySoundPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131e2a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766172,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayStatusPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1304650"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766272,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerArmorDamagePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1309f90"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766376,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerFogPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1327820"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766472,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerLocationPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1329340"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766576,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerStartItemCooldownPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130a0c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766688,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerVideoCapturePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130bfc0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766796,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPositionTrackingDBServerBroadcastPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1305330"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2766916,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPrimitiveShapesPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130c5d0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767020,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRecordStartedPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131e7b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767120,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRemoveObjectivePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1322e80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767224,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRemoveVolumeEntityPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130a530"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767332,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVResourcePackChunkDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131cbe0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767440,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVResourcePackDataInfoPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131b8a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767548,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVResourcePackStackPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1300580"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767652,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVResourcePacksInfoPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x12fff10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767756,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVScriptMessagePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1320310"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767856,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSendPartyDestinationCookiePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1329fd0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2767972,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerPlayerPostMovePositionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13206a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768088,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerPresenceInfoPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1329bf0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768196,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerSettingsResponsePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1320730"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768308,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerToClientHandshakePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x12fdd90"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768420,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetDisplayObjectivePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1323010"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768528,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetScorePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13232b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768624,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetScoreboardIdentityPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1323810"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768732,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetTitlePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1321160"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768828,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVShowCreditsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131d480"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2768928,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVShowProfilePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1320940"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769028,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVShowStoreOfferPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131fda0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769132,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimpleEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1307e20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769232,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimulationTypePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130a740"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769336,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVStopSoundPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131e5e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769432,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVStructureTemplateDataResponsePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1320b20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769548,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSubChunkPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131e8c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769644,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSyncActorPropertyPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1327740"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769748,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSyncWorldClocksPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1329710"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769852,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTakeItemActorPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130d970"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2769952,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTextPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1305a90"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770044,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTickingAreasLoadStatusPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x12fdcc0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770156,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTransferPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x131d730"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770252,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTrimDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1328b50"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770348,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUnlockedRecipesPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130a8c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770452,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateEquipPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1320da0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770552,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdatePlayerGameTypePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130d4e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770660,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateSoftEnumPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1323ad0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770764,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateSubChunkBlocksPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1327b70"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770872,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateTradePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1320a10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2770972,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVVoxelShapesPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x130d220"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2771072,
+    "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VUpdateAttributesPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x1310d80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2771876,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAddActorPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1339660"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2771980,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAddItemActorPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133ce60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772088,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAddPaintingPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1338e20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772192,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAddPlayerPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133a880"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772296,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimatePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340d60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772396,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVBlockEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133f450"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772500,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVChangeDimensionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1347980"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772608,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVContainerClosePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1341690"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772716,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVContainerOpenPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1341340"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772824,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCreativeContentPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1342ab0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2772932,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVDimensionDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1349e70"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773040,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVDisconnectPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x132e830"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773144,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVGameRulesChangedPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133fa10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773256,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVHurtArmorPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13411a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773360,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVInventoryContentPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13431c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773472,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVInventorySlotPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1341cd0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773580,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVItemRegistryPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1343000"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773688,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMobArmorEquipmentPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340340"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773800,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMobEffectPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133f700"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2773904,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMotionPredictionHintsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340b60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774020,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMoveActorAbsolutePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133de10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774132,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMoveActorDeltaPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133df30"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774240,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMovePlayerPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133d990"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774344,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMovementEffectPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133e140"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774452,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVNetworkSettingsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x132f030"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774560,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVNetworkStackLatencyPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1349db0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774672,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerListPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1347a10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774776,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerSkinPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13494c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2774880,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerUpdateEntityOverridesPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x134aa60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775000,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRemoveActorPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133c700"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775104,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetActorDataPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340480"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775212,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetActorLinkPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13446e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775320,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetActorMotionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340750"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775428,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetCommandsEnabledPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1338c20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775540,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetDefaultGameTypePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13444d0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775652,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetDifficultyPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1338d20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775760,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetHealthPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340f50"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775864,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetSpawnPositionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1340fd0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2775976,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetTimePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13388b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776076,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSpawnParticleEffectPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x133eb50"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776188,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVStartGamePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x13313c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776292,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateAbilitiesPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x134a6b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776400,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateAdventureSettingsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x134a950"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776516,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VBlockActorDataPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x133f560"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776640,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VClientCacheMissResponsePacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x1347160"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776776,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VInventoryTransactionPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x1344120"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2776908,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VLevelChunkPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x13456f0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777028,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VMobEquipmentPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x133fd60"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777152,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VUpdateBlockPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x133e770"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777276,
+    "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VUpdateBlockSyncedPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x133e5f0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777404,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VBlockActorDataPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777520,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VClientCacheMissResponsePacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777644,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VInventoryTransactionPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777764,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VLevelChunkPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777876,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VLoginPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2777984,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VMobEquipmentPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778096,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VSubClientLoginPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778212,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VUpdateAttributesPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778328,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VUpdateBlockPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778440,
+    "name": "?handle@NetEventCallback@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VUpdateBlockSyncedPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x49aac0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778560,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVActorEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1712fe0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778660,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVActorPickRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ee720"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778764,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnimatePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1712ed0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778860,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVAnvilDamagePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x171a220"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2778960,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVBlockPickRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ee6b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779064,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVBookEditPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x17181d0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779160,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVBossEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ec4c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779256,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientCacheBlobStatusPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1702f80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779364,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientCacheStatusPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1702b40"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779468,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientCameraAimAssistPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ec830"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779576,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientMovementPredictionSyncPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1703c30"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779692,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVClientToServerHandshakePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x17042b0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779804,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCodeBuilderSourcePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x171be80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2779908,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCommandBlockUpdatePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e6a90"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780016,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCommandRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e6850"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780120,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVContainerClosePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1714650"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780224,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVDisconnectPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x17026c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780324,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEditorNetworkPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ef370"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780424,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmoteListPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f1cd0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780520,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVEmotePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f20c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780612,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVGameTestRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ef7f0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780716,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVInteractPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1712940"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780812,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVItemStackRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1714520"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2780916,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLabTablePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x171a0a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781012,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLecternUpdatePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1717ed0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781112,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLevelSoundEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1716770"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781216,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMapCreateLockedCopyPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e8a20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781324,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMapInfoRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e9120"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781428,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVModalFormResponsePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ef990"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781532,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVMultiplayerSettingsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e5ef0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781640,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVNetworkStackLatencyPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f0ae0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781748,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVNpcRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1719e20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781848,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPartyChangedPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1702c20"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2781948,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPartyDestinationCookieResponsePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e9db0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782068,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerActionPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1713230"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782168,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerAuthInputPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1715a00"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782272,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerHotbarPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x17149a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782372,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerSkinPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1716f00"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782472,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPlayerToggleCrafterSlotRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1717d10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782592,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVPositionTrackingDBClientRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x17180e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782712,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRequestAbilityPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x171c370"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782816,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRequestChunkRadiusPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e89e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2782924,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRequestNetworkSettingsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1703e90"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783036,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRequestPermissionsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x171c8d0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783144,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVResourcePackChunkRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ea3e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783256,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVResourcePacksReadyForValidationPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ec290"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783376,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVRespawnPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f28a0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783472,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVScriptMessagePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e9790"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783572,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerboundDataDrivenScreenClosedPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e7a80"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783692,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerboundDataStorePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e7a30"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783800,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerboundDiagnosticsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e80f0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2783912,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerboundLoadingScreenPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e7c30"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784024,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVServerboundPackSettingChangePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e8860"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784140,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetDefaultGameTypePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1716170"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784248,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetDifficultyPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16eea10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784348,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetLocalPlayerAsInitializedPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f0b10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784464,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetPlayerFurnaceOptionsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ef930"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784576,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetPlayerGameTypePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1716030"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784680,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSetPlayerInventoryOptionsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ef8f0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784792,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSettingsCommandPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f1a30"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784896,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVShowCreditsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ea170"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2784996,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSimpleEventPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1716ba0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785096,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSpawnExperienceOrbPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e88f0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785204,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVStructureBlockUpdatePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16ed400"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785312,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVStructureTemplateDataRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16f0fe0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785428,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVSubChunkRequestPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x171a430"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785532,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTextPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e3f10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785624,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateClientOptionsPacket@@@Z",
+    "section": 1,
+    "section_offset": "0x16e87c0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785732,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdatePlayerGameTypePacket@@@Z",
+    "section": 1,
+    "section_offset": "0x1716150"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785840,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VBlockActorDataPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x1714a10"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2785960,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VInventoryTransactionPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x1714690"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2786084,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VLoginPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x16f67e0"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2786196,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VMobEquipmentPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x1712560"
+  },
+  {
+    "kind": "0x110e",
+    "record_offset": 2786312,
+    "name": "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@V?$shared_ptr@VSubClientLoginPacket@@@std@@@Z",
+    "section": 1,
+    "section_offset": "0x16fe9b0"
+  }
+]

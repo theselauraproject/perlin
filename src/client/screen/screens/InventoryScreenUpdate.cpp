@@ -15,6 +15,34 @@
 #include "util/Log.hpp"
 
 namespace perlin::screen {
+    void InventoryScreen::ApplyServerOptions(BedrockSession& live) {
+        const auto options = live.GetInventoryUiOptions();
+        if (optionsSession != &live || options.serial == 0) {
+            optionsSession = &live;
+            optionsSerialSeen = 0;
+            recipeFilter = false;
+        }
+        if (options.serial == 0 ||
+            (options.serial == optionsSerialSeen && workbench == optionsWorkbench))
+            return;
+        optionsSerialSeen = options.serial;
+        optionsWorkbench = workbench;
+        recipeFilter = options.filtering;
+        if (options.leftTab >= 1 && options.leftTab <= 6) {
+            creative.tab = options.leftTab - 1;
+            creative.scroll = 0.0f;
+            creative.signature.clear();
+        }
+        const int layout = workbench ? options.craftingLayout : options.layout;
+        if (layout >= 1 && layout <= 3) {
+            book = layout != 1;
+            bookInit = true;
+        }
+        bookPage = 0;
+        recipeAt = {};
+        signature.clear();
+    }
+
     Claim InventoryScreen::Update(Frame& frame) {
         UpdateInventory(frame.hud, frame.live, frame.fbW, frame.fbH);
         return Claim::None;
@@ -71,6 +99,8 @@ namespace perlin::screen {
         this->horse = live && live->HorseOpen();
         const char* previewChest = preview ? PERLIN_ENV("PERLIN_PREVIEW_CHEST") : nullptr;
         this->chest = (live && live->ChestOpen()) || previewChest;
+        if (live)
+            ApplyServerOptions(*live);
         if (preview && !this->bookInit && PERLIN_ENV("PERLIN_PREVIEW_BOOK")) {
             this->bookInit = true;
             this->book = true;
@@ -269,6 +299,8 @@ namespace perlin::screen {
             }
             std::ranges::stable_sort(
                 all, [](const auto& a, const auto& b) { return a.craftable && !b.craftable; });
+            if (recipeFilter)
+                std::erase_if(all, [](const auto& recipe) { return !recipe.craftable; });
             this->recipeAll = std::move(all);
         }
         if (this->book) {
