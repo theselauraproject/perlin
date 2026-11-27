@@ -1,3 +1,4 @@
+#include "client/screen/screens/CreativeScroll.hpp"
 #include "client/ui/GuiViewport.hpp"
 #include "client/screen/screens/InventoryScreen.hpp"
 #include "client/screen/screens/CreativeScreen.hpp"
@@ -591,13 +592,9 @@ namespace perlin::screen {
         const int maxRow = std::max(0, rows - 5);
         if (!scrollable)
             creative.scroll = 0.0f;
-        if (scrollable && std::fabs(host.inputManager.Scroll()) > 0.0f &&
-            creative.tab != ui::kCreativeSurvivalTab) {
-            const float step = 1.0f / static_cast<float>(maxRow);
-            creative.scroll =
-                std::clamp(creative.scroll - (host.inputManager.Scroll() > 0 ? step : -step), 0.0f, 1.0f);
-        }
-        int firstRow = static_cast<int>(std::lround(creative.scroll * static_cast<float>(maxRow)));
+        if (scrollable && creative.tab != ui::kCreativeSurvivalTab)
+            creative.scroll = creative_scroll::Wheel(creative.scroll, host.inputManager.Scroll(), rows);
+        int firstRow = creative_scroll::FirstRow(creative.scroll, rows);
         if (const char* row = PERLIN_ENV("PERLIN_PREVIEW_ROW"))
             firstRow = std::clamp(std::atoi(row), 0, maxRow);
 
@@ -704,8 +701,20 @@ namespace perlin::screen {
                     creative.scroll = 0.0f;
                     creative.signature.clear();
                 }
-            } else if (hoverId == "sbar" && leftEdge && scrollable) {
+            } else if (leftEdge && scrollable &&
+                       gx >= static_cast<float>(px + 174) && gx < static_cast<float>(px + 190) &&
+                       gy >= static_cast<float>(py + 18) && gy < static_cast<float>(py + 130)) {
+                // Hit-test the entire track, not just an overlay hover ID. The
+                // moving thumb can otherwise prevent subsequent drag events.
                 creative.dragging = true;
+                const float thumbTop = static_cast<float>(py + 18) + 97.0f * creative.scroll;
+                // Keep the cursor's offset inside the thumb during a drag.
+                // Clicking the empty track instead jumps toward that position.
+                const bool onThumb = gy >= thumbTop && gy < thumbTop + 15.0f;
+                creative.dragOffset = onThumb ? gy - thumbTop : 7.5f;
+                if (!onThumb)
+                    creative.scroll = creative_scroll::Track(gy, static_cast<float>(py + 18) +
+                                                                 creative.dragOffset, 97.0f);
             } else if (!hoverId.empty() && hoverId[0] == 'g') {
                 const int n = std::atoi(hoverId.c_str() + 1);
                 if (n >= 0 && n < 45) {
@@ -783,11 +792,14 @@ namespace perlin::screen {
         if (!left)
             creative.dragging = false;
         if (creative.dragging && scrollable) {
-            const float t = std::clamp((gy - static_cast<float>(py + 18) - 7.5f) / 97.0f, 0.0f, 1.0f);
-            creative.scroll = t;
+            creative.scroll = creative_scroll::Track(gy, static_cast<float>(py + 18) + creative.dragOffset, 97.0f);
         }
         this->leftDown = left;
         this->rightDown = right;
+        // The thumb and visible rows must reflect this frame's drag value,
+        // rather than the value captured before pointer processing.
+        v.scroll = creative.scroll;
+        v.scrollable = scrollable;
 
         std::string signature = std::to_string(guiW) + "x" + std::to_string(guiH) + "|" + hoverId + "|" +
                                 std::to_string(creative.tab) + "|" +

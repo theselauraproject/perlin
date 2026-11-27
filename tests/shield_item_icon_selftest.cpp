@@ -17,6 +17,17 @@ int main() {
         coverage += img[i] != 0;
     assert(coverage > 90 && coverage < 300); // a narrow item, not a full atlas square
     assert(img[3] == 0); // transparent border
+    int xmin = 32, xmax = -1, ymin = 32, ymax = -1;
+    for (int y = 0; y < 32; ++y)
+        for (int x = 0; x < 32; ++x)
+            if (img[(y * 32 + x) * 4 + 3] != 0) {
+                xmin = std::min(xmin, x);
+                xmax = std::max(xmax, x);
+                ymin = std::min(ymin, y);
+                ymax = std::max(ymax, y);
+            }
+    assert(xmax > xmin + 6 && xmax < xmin + 19); // recognizable angled plate
+    assert(ymax > ymin + 17); // not collapsed into a line
     const auto missing = perlin::ui::BuildShieldItemIcon({}, 64, 64);
     assert(missing.size() == img.size() && missing[3] == 0);
     std::cout << "shield preview shape and bounds passed\n";

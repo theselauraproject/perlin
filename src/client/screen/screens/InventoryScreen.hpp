@@ -17,6 +17,7 @@ namespace perlin::screen {
         bool dollVisible = false;
         float scroll = 0.0f;
         bool dragging = false;
+        float dragOffset = 7.5f;
         std::string search, signature;
         std::set<size_t> expandedGroups;
     };

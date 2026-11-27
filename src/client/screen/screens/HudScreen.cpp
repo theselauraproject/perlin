@@ -616,14 +616,15 @@ namespace perlin::screen {
             pause.IsOpen() || hudState.mode == ui::GameMode::Spectator)
             return;
         const auto [scale, guiW, guiH] = ui::OverlayViewport(*hud, fbW, fbH);
-        (void)guiW;
-        (void)guiH;
-        // The HUD player renderer can be anchored at the extreme viewport edge by
-        // vanilla UI layouts. Give the paper doll a dedicated safe-area anchor so
-        // neither its head nor shoulders end up outside the frame.
-        const float block = std::clamp(guiH * 0.035f, 12.0f, 22.0f);
-        const float cx = 10.0f + block * 0.55f;
-        const float feetY = 10.0f + block * 2.15f;
+        // The player renderer is a HUD control. Respect its actual layout and
+        // GUI scaling rather than placing the doll at an independent screen
+        // coordinate. Constrain it to the viewport when a pack anchors the
+        // control partially off-screen.
+        const float block = std::clamp(std::min(r.w, r.h * 0.48f), 10.0f, 22.0f);
+        const float cx = std::clamp(r.x + r.w * 0.5f, block * 0.6f + 2.0f,
+                                    guiW - block * 0.6f - 2.0f);
+        const float feetY = std::clamp(r.y + r.h * 0.93f, block * 2.05f + 2.0f,
+                                       guiH - 2.0f);
         entity::Entity doll = *dollSelf;
         doll.runtimeId = 0xFFFFFFFFFFFF0004ull;
         doll.isSelf = true;
@@ -645,10 +646,13 @@ namespace perlin::screen {
         auto& startedAt = loop->startedAt;
         lastGuiW = ui::OverlayViewport(*hud, fbW, fbH).w;
         drawModTint(fbW, fbH);
+        // This model belongs to the HUD player-renderer control. Render its
+        // 3-D part first, then compose the normal 2-D HUD controls and debug
+        // overlay at their normal layers. It does not become a world entity.
+        DrawPaperDoll(f, fbW, fbH);
         drawModGfx(fbW, fbH, true);
         hud->Render();
         drawModGfx(fbW, fbH, false);
-        DrawPaperDoll(f, fbW, fbH);
         const bool creativeUi =
             hudState.mode == ui::GameMode::Creative || PERLIN_ENV("PERLIN_PREVIEW_CREATIVE");
         if (inventory.IsOpen() && dollSelf && !inventory.workbench && !inventory.horse && !inventory.chest &&
