@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "target_version": "1.26.51.1",
+  "protocol": 2193,
+  "scope": "Matched native spline routing and selected animation behavior; no proprietary code bytes or disassembly included.",
+  "facts": [
+    {
+      "contract": "The spline instruction stores mLoadFromJson as a bool at offset37. Core checks its true value to choose named playback; false selects inline data.",
+      "anchors": [
+        "CameraInstruction::mSpline offset176",
+        "CameraInstructionOptions::SplineInstruction::mLoadFromJson offset37",
+        "0x66F2ABF",
+        "0x66F36CF",
+        "0x66F3EF1"
+      ]
+    },
+    {
+      "contract": "Named playback searches the registered definition vector in order using exact string length and byte comparison. A missing name returns before replacing the path.",
+      "anchors": [
+        "0x66F05C0",
+        "0x66F0630",
+        "0x66F0654",
+        "0x66F0A25",
+        "0x66F0F79"
+      ]
+    },
+    {
+      "contract": "Named playback uses registered definition duration at offset32, not instruction duration. Inline playback reads its instruction duration.",
+      "anchors": [
+        "0x66F0E7E",
+        "0x66F0E89",
+        "0x66F0225",
+        "0x66F022A"
+      ]
+    },
+    {
+      "contract": "Named types pass through Util::toLower and recognize only catmullrom and linear; inline enum values are CatmullRom0 and Linear1, and other values do not create a recognized curve.",
+      "anchors": [
+        "0x3201D0",
+        "0x66F08B6",
+        "0x66F0AC3",
+        "0x66F0CEC",
+        "0x66EFB6A",
+        "0x66EFC95"
+      ]
+    },
+    {
+      "contract": "Named definition construction supplies catmullrom as its default type. Omitted inline wire-field initialization is not established by this observation.",
+      "anchors": [
+        "0x567DC08",
+        "0x567DC2B"
+      ]
+    },
+    {
+      "contract": "Keyframe time fields are seconds and copied unchanged into runtime layers. Runtime interpolation uses the starting keyframe easing, and directly interpolates all three rotation components.",
+      "anchors": [
+        "SharedTypes::v1_26_0::CameraSplineProgressKeyFrame::mTimeSeconds offset4",
+        "SharedTypes::v1_26_0::CameraSplineRotationKeyFrame::mTimeSeconds offset12",
+        "0x66F1009",
+        "0x66F10A4",
+        "0x66FD64F",
+        "0x66FD86C",
+        "0x66FD8D2",
+        "0x66FD91C"
+      ]
+    },
+    {
+      "contract": "CameraAnimationDataComponent current time is incremented by delta time. If current time exceeds duration without looping, animation storage/data are cleared and components removed. The subsequent selected pose is not established here.",
+      "anchors": [
+        "CameraAnimationDataComponent::mDuration offset56",
+        "CameraAnimationDataComponent::mCurrentTime offset60",
+        "CameraAnimationDataComponent::mLoop offset64",
+        "0x66FD0F1",
+        "0x66FD0FE",
+        "0x66FD108",
+        "0x66FD111",
+        "0x66FD23F",
+        "0x66FD483",
+        "0x66FD501",
+        "0x66FD595"
+      ]
+    }
+  ],
+  "limits": [
+    "No proof of every supported protocol wire schema.",
+    "No proof of omitted inline curve-type initialization.",
+    "Full spline curve construction, degenerate points and numeric endpoint behavior remain unclosed.",
+    "Animation cleanup alone does not establish the post-animation camera pose.",
+    "No general native malformed-packet/disconnect policy inferred."
+  ]
+}

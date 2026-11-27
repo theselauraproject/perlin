@@ -1,0 +1,1097 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "Abilities",
+      "type_index": "0x30422",
+      "size": 240,
+      "fieldlist": "0x30421",
+      "member_count": 18,
+      "fields": [
+        {
+          "name": "mAbilities",
+          "offset": 0,
+          "type": "std::array<Ability,20>",
+          "type_index": "0xb909",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30401",
+          "return_type": "Abilities &",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [
+            "const Abilities &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "Abilities",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30402",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "Abilities",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30403",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [
+            "const Abilities &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "Abilities",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30404",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "addSaveData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30407",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "const Abilities *",
+          "argument_types": [
+            "CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3040b",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [
+            "const std::function<void (Ability &, AbilitiesIndex)> &",
+            "Ability::Options"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3040f",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "const Abilities *",
+          "argument_types": [
+            "const std::function<void (const Ability &, const char *)> &",
+            "Ability::Options"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30413",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "const Abilities *",
+          "argument_types": [
+            "const std::function<void (const Ability &, AbilitiesIndex)> &",
+            "Ability::Options"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "loadSaveData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30415",
+          "return_type": "bool",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [
+            "const CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setFromPermissions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30417",
+          "return_type": "void",
+          "class_type": "Abilities",
+          "this_type": "Abilities *",
+          "argument_types": [
+            "PlayerPermissionLevel"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_initDefaultAbilities",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30418",
+          "return_type": "std::array<const Ability,20>",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDiff",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3041a",
+          "return_type": "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const Abilities &",
+            "const Abilities &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "nameToAbilityIndex",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3041b",
+          "return_type": "AbilitiesIndex",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "ABILITY_NAMES",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3041d",
+          "return_type": "std::array<const char *,20> &",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "DIFF_ABILITIY_AT",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3041e",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "INVALID_ABILITY",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30420",
+          "return_type": "Ability &",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "SERIALIZATION_TAG",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3041e",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "Abilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "AbilitiesIndex",
+      "type_index": "0x1009",
+      "fieldlist": "0x1008",
+      "underlying": 16,
+      "member_count": 22,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Invalid",
+          "value": -1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Build",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Mine",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DoorsAndSwitches",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OpenContainers",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "AttackPlayers",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "AttackMobs",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OperatorCommands",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Teleport",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Invulnerable",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Flying",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MayFly",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Instabuild",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Lightning",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FlySpeed",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WalkSpeed",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Muted",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WorldBuilder",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "NoClip",
+          "value": 17,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PrivilegedBuilder",
+          "value": 18,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "VerticalFlySpeed",
+          "value": 19,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "AbilityCount",
+          "value": 20,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "AbilitiesLayer",
+      "type_index": "0x100b",
+      "fieldlist": "0x100a",
+      "underlying": 33,
+      "member_count": 7,
+      "enum": true,
+      "fields": [
+        {
+          "name": "CustomCache",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Base",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Spectator",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Commands",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Editor",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "LoadingScreen",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 6,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "Ability",
+      "type_index": "0x30429",
+      "size": 12,
+      "fieldlist": "0x30428",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mType",
+          "offset": 0,
+          "type": "Ability::Type",
+          "type_index": "0x233a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mValue",
+          "offset": 4,
+          "type": "Ability::Value",
+          "type_index": "0x2582",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOptions",
+          "offset": 8,
+          "type": "Ability::Options",
+          "type_index": "0x1bd3",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator!=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30427",
+          "return_type": "bool",
+          "class_type": "Ability",
+          "this_type": "const Ability *",
+          "argument_types": [
+            "const Ability &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "Ability::Options",
+      "type_index": "0x1bd3",
+      "fieldlist": "0x1bd2",
+      "underlying": 32,
+      "member_count": 4,
+      "enum": true,
+      "fields": [
+        {
+          "name": "None",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "NoSave",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CommandExposed",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PermissionsInterfaceExposed",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "Ability::Type",
+      "type_index": "0x233a",
+      "fieldlist": "0x2339",
+      "underlying": 32,
+      "member_count": 4,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Invalid",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Unset",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Bool",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Float",
+          "value": 3,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "LayeredAbilities",
+      "type_index": "0x3e42c",
+      "size": 1464,
+      "fieldlist": "0x3e42b",
+      "member_count": 21,
+      "fields": [
+        {
+          "name": "mPermissions",
+          "offset": 0,
+          "type": "PermissionsHandler",
+          "type_index": "0xf755",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLayers",
+          "offset": 24,
+          "type": "std::array<Abilities,6>",
+          "type_index": "0xb908",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e407",
+          "return_type": "Ability &",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "AbilitiesIndex"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e409",
+          "return_type": "Ability &",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "AbilitiesLayer",
+            "AbilitiesIndex"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e40b",
+          "return_type": "const Ability &",
+          "class_type": "LayeredAbilities",
+          "this_type": "const LayeredAbilities *",
+          "argument_types": [
+            "AbilitiesIndex"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e40e",
+          "return_type": "bool",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "AbilitiesIndex",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "setAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e410",
+          "return_type": "bool",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "AbilitiesIndex",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "LayeredAbilities",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e413",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "const LayeredAbilities &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "LayeredAbilities",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e414",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "addSaveData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e416",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "const LayeredAbilities *",
+          "argument_types": [
+            "CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e417",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "const LayeredAbilities *",
+          "argument_types": [
+            "const std::function<void (const Ability &, const char *)> &",
+            "Ability::Options"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachAbility",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e418",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "const LayeredAbilities *",
+          "argument_types": [
+            "const std::function<void (const Ability &, AbilitiesIndex)> &",
+            "Ability::Options"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachLayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e41d",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "const std::function<void (AbilitiesLayer, Abilities &)> &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "forEachLayer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e421",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "const LayeredAbilities *",
+          "argument_types": [
+            "const std::function<void (AbilitiesLayer, const Abilities &)> &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBool",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e423",
+          "return_type": "bool",
+          "class_type": "LayeredAbilities",
+          "this_type": "const LayeredAbilities *",
+          "argument_types": [
+            "AbilitiesIndex"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "loadSaveData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e424",
+          "return_type": "bool",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "const CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e425",
+          "return_type": "LayeredAbilities &",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "const LayeredAbilities &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setPlayerPermissions",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e426",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [
+            "PlayerPermissionLevel"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~LayeredAbilities",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e427",
+          "return_type": "void",
+          "class_type": "LayeredAbilities",
+          "this_type": "LayeredAbilities *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDiff",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e429",
+          "return_type": "std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >",
+          "class_type": "LayeredAbilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const LayeredAbilities &",
+            "const LayeredAbilities &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "DIFF_LAYER_AT",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3e42a",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "LayeredAbilities",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "PlayerPermissionLevel",
+      "type_index": "0x1ce4",
+      "fieldlist": "0x1ce3",
+      "underlying": 16,
+      "member_count": 4,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Visitor",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Member",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Operator",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Custom",
+          "value": 3,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SerializedAbilitiesData",
+      "type_index": "0x1fa82",
+      "size": 40,
+      "fieldlist": "0x1fa81",
+      "member_count": 12,
+      "fields": [
+        {
+          "name": "mTargetPlayer",
+          "offset": 0,
+          "type": "ActorUniqueID",
+          "type_index": "0x48fa",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCommandPermissions",
+          "offset": 8,
+          "type": "CommandPermissionLevel",
+          "type_index": "0x1332",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayerPermissions",
+          "offset": 9,
+          "type": "PlayerPermissionLevel",
+          "type_index": "0x1ce4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLayers",
+          "offset": 16,
+          "type": "std::vector<SerializedAbilitiesData::SerializedLayer,std::allocator<SerializedAbilitiesData::SerializedLayer> >",
+          "type_index": "0xd9e8",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "SerializedAbilitiesData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1fa72",
+          "return_type": "void",
+          "class_type": "SerializedAbilitiesData",
+          "this_type": "SerializedAbilitiesData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "SerializedAbilitiesData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1fa76",
+          "return_type": "void",
+          "class_type": "SerializedAbilitiesData",
+          "this_type": "SerializedAbilitiesData *",
+          "argument_types": [
+            "ActorUniqueID",
+            "const LayeredAbilities &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "fillIn",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1fa7c",
+          "return_type": "void",
+          "class_type": "SerializedAbilitiesData",
+          "this_type": "const SerializedAbilitiesData *",
+          "argument_types": [
+            "LayeredAbilities &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~SerializedAbilitiesData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1fa7d",
+          "return_type": "void",
+          "class_type": "SerializedAbilitiesData",
+          "this_type": "SerializedAbilitiesData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "ABILITIES_LAYER_MAP",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1fa80",
+          "return_type": "const std::array<SerializedAbilitiesData::SerializedAbilitiesLayer,6> &",
+          "class_type": "SerializedAbilitiesData",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SerializedAbilitiesData::SerializedLayer",
+      "type_index": "0x1fa96",
+      "size": 24,
+      "fieldlist": "0x1fa95",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mSerializedLayer",
+          "offset": 0,
+          "type": "SerializedAbilitiesData::SerializedAbilitiesLayer",
+          "type_index": "0x2003",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAbilitiesSet",
+          "offset": 4,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAbilityValues",
+          "offset": 8,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlySpeed",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVerticalFlySpeed",
+          "offset": 16,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mWalkSpeed",
+          "offset": 20,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 142416,
+      "name": "??0LayeredAbilities@@QEAA@XZ",
+      "section": 1,
+      "section_offset": "0x1d5600",
+      "rva": "0x1d6600"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 591780,
+      "name": "?INVALID_ABILITY@Abilities@@2VAbility@@A",
+      "section": 3,
+      "section_offset": "0x541e68",
+      "rva": "0x11d1be68"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1106756,
+      "name": "?_initDefaultAbilities@Abilities@@SA?AV?$array@$$CBVAbility@@$0BE@@std@@XZ",
+      "section": 1,
+      "section_offset": "0x1cede0",
+      "rva": "0x1cfde0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2177492,
+      "name": "?fillIn@SerializedAbilitiesData@@QEBAXAEAVLayeredAbilities@@@Z",
+      "section": 1,
+      "section_offset": "0xc4c650",
+      "rva": "0xc4d650"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2314832,
+      "name": "?getAbility@LayeredAbilities@@QEBAAEBVAbility@@W4AbilitiesIndex@@@Z",
+      "section": 1,
+      "section_offset": "0x1d67c0",
+      "rva": "0x1d77c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2365224,
+      "name": "?getBool@LayeredAbilities@@QEBA_NW4AbilitiesIndex@@@Z",
+      "section": 1,
+      "section_offset": "0x1d6830",
+      "rva": "0x1d7830"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2776292,
+      "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVUpdateAbilitiesPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x134a6b0",
+      "rva": "0x134b6b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3575872,
+      "name": "?setAbilities@LocalPlayer@@UEAAXAEBVLayeredAbilities@@@Z",
+      "section": 1,
+      "section_offset": "0x476be40",
+      "rva": "0x476ce40"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3622904,
+      "name": "?setFromPermissions@Abilities@@QEAAXW4PlayerPermissionLevel@@@Z",
+      "section": 1,
+      "section_offset": "0x1d03f0",
+      "rva": "0x1d13f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11172556,
+      "name": "Abilities::INVALID_ABILITY",
+      "section": 3,
+      "section_offset": "0x541e68",
+      "rva": "0x11d1be68"
+    }
+  ]
+}

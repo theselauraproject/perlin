@@ -3,6 +3,7 @@
 #include "client/systems/player/BlockCollision.hpp"
 #include "world/movement/PerlinPowderSnow.hpp"
 #include "world/movement/PerlinScaffolding.hpp"
+#include "world/movement/PerlinSineTable.hpp"
 #include "world/movement/PerlinStatusEffect.hpp"
 #include "protocol/Packets.hpp"
 #include "world/level/block/BlockPalette.hpp"
@@ -17,6 +18,7 @@
 #include <limits>
 #include <sstream>
 #include <string_view>
+#include <utility>
 #include "util/Log.hpp"
 
 namespace perlin {
@@ -61,6 +63,127 @@ namespace perlin {
             state.hasBox = false;
         }
 
+        std::optional<BedrockSession::EffectState> FindEffect(
+            const std::vector<BedrockSession::EffectState>& effects, int id) {
+            const auto found = std::find_if(effects.begin(), effects.end(),
+                                             [id](const auto& effect) { return effect.id == id; });
+            return found == effects.end() ? std::nullopt : std::optional{*found};
+        }
+
+        BedrockSession::EffectUpdate AgeEffectUpdate(BedrockSession::EffectUpdate update,
+                                                     uint64_t beforeTick) {
+            update.duration = physics::bds::StatusEffectTicksAt(update.duration, update.tick, beforeTick);
+            update.tick = beforeTick;
+            return update;
+        }
+
+        BedrockSession::EffectUpdate EffectUpdateAt(BedrockSession::EffectUpdate update,
+                                                    uint64_t frameTick) {
+            const uint64_t beforeTick = frameTick > 0 ? frameTick - 1 : 0;
+            if (update.tick == 0)
+                update.tick = beforeTick;
+            return AgeEffectUpdate(update, beforeTick);
+        }
+
+        std::optional<BedrockSession::EffectState> MergeEffectUpdate(
+            std::optional<BedrockSession::EffectState> current,
+            const BedrockSession::EffectUpdate& update) {
+            if (!update.active)
+                return std::nullopt;
+            physics::bds::StatusEffectValue value{update.amplifier, update.duration, update.ambient,
+                                                   update.particles};
+            if (current && current->ticks != 0)
+                value = physics::bds::MergeStatusEffect(
+                    {current->amplifier, current->ticks, current->ambient, current->particles}, value);
+            if (value.duration == 0)
+                return std::nullopt;
+            return BedrockSession::EffectState{update.id, value.amplifier, value.duration, value.ambient,
+                                                value.particles};
+        }
+
+        void StoreEffect(std::vector<BedrockSession::EffectState>& effects, int id,
+                         const std::optional<BedrockSession::EffectState>& value) {
+            const auto found = std::find_if(effects.begin(), effects.end(),
+                                             [id](const auto& effect) { return effect.id == id; });
+            if (value) {
+                if (found == effects.end())
+                    effects.push_back(*value);
+                else
+                    *found = *value;
+            } else if (found != effects.end()) {
+                effects.erase(found);
+            }
+        }
+
+        bool ApplyEffectAttribute(physics::Attributes& attributes, int id,
+                                  const std::optional<BedrockSession::EffectState>& effect) {
+            const auto assign = [](auto& target, auto value) {
+                const bool changed = target != value;
+                target = value;
+                return changed;
+            };
+            switch (id) {
+            case 8:
+                return assign(attributes.jumpBoost, effect ? effect->amplifier + 1 : 0);
+            case 24:
+                return assign(attributes.levitation, effect ? effect->amplifier + 1 : 0);
+            case 27:
+                return assign(attributes.slowFalling, effect.has_value());
+            case 33:
+                return assign(attributes.weaving, effect.has_value());
+            default:
+                return false;
+            }
+        }
+
+        size_t MovementAttributeIndex(std::string_view name) {
+            if (name == "minecraft:movement")
+                return 0;
+            if (name == "minecraft:underwater_movement")
+                return 1;
+            if (name == "minecraft:lava_movement")
+                return 2;
+            if (name == "minecraft:air_drag_modifier")
+                return 3;
+            return 4;
+        }
+
+        float MovementAttributeValue(const physics::Attributes& attributes, size_t index) {
+            switch (index) {
+            case 0:
+                return attributes.speed;
+            case 1:
+                return attributes.underwaterSpeed.value_or(0.02f);
+            case 2:
+                return attributes.lavaSpeed;
+            default:
+                return attributes.airDrag.value_or(0.0f);
+            }
+        }
+
+        void ApplyReplayAttribute(BedrockSession::MovementAttributeState& movement,
+                                  physics::Attributes& attributes, std::array<bool, 4>& presence,
+                                  const proto::PlayerAttributesEntry& entry) {
+            const size_t index = MovementAttributeIndex(entry.name);
+            if (index >= presence.size())
+                return;
+            presence[index] = true;
+            switch (index) {
+            case 0:
+                BedrockSession::ApplyMovementAttribute(movement, entry);
+                break;
+            case 1:
+                attributes.underwaterSpeed = entry.current;
+                break;
+            case 2:
+                attributes.lavaSpeed = entry.current;
+                break;
+            case 3:
+                attributes.airDrag = entry.current;
+                break;
+            }
+        }
+
         namespace Flag {
             constexpr uint32_t Ascend = 0;
             constexpr uint32_t Descend = 1;
@@ -100,44 +223,129 @@ namespace perlin {
         }
     }
 
+    void LocalPlayer::ApplyAttributeUpdates(BedrockSession& session) {
+        size_t first = history.size();
+        bool pendingCorrection = false;
+        for (auto update : session.TakeAttributeUpdates()) {
+            std::erase_if(update.attributes, [](const auto& entry) {
+                return MovementAttributeIndex(entry.name) >= 4;
+            });
+            if (update.attributes.empty())
+                continue;
+
+            // The native listener requires a nonzero retained stamp and compares the
+            // following frame. Do not invent a rewind boundary across missing input ticks.
+            size_t boundary = history.size();
+            bool retained = false;
+            if (update.tick != 0 && update.tick != std::numeric_limits<uint64_t>::max()) {
+                retained = std::ranges::any_of(history, [&](const Record& record) {
+                    return record.tick == update.tick;
+                });
+                if (retained)
+                    for (size_t i = 0; i < history.size(); ++i)
+                        if (history[i].tick == update.tick + 1) {
+                            boundary = i;
+                            break;
+                        }
+            }
+            size_t comparison = boundary;
+            if (comparison == history.size() && retained && history.back().tick == update.tick &&
+                update.tick == session.LastAuthTick())
+                comparison = history.size() - 1;
+            if (comparison == history.size()) {
+                session.ApplyAttributeUpdate(update);
+                // Keep this live boundary when an older correction later crosses it.
+                // Erasure waits for an accepted input frame, just as for effect updates.
+                futureAttributeUpdates.push_back(std::move(update));
+                continue;
+            }
+
+            BedrockSession::AttributeUpdate live{update.tick, {}};
+            const Record& atBoundary = history[comparison];
+            for (const auto& entry : update.attributes) {
+                const size_t index = MovementAttributeIndex(entry.name);
+                if (pendingCorrection || !atBoundary.attributePresence[index] ||
+                    entry.current != MovementAttributeValue(atBoundary.attributes, index))
+                    live.attributes.push_back(entry);
+            }
+            // Native RewindIfDifferentPreservePrediction leaves the current live
+            // attribute alone when the server confirms its saved next-frame value.
+            if (live.attributes.empty())
+                continue;
+            session.ApplyAttributeUpdate(live);
+            pendingCorrection = true;
+            if (boundary == history.size()) {
+                // At the latest retained stamp, native comparison reads the live
+                // evaluated component. Changed values belong to the next input frame.
+                futureAttributeUpdates.push_back(std::move(update));
+                continue;
+            }
+
+            history[boundary].attributeUpdates.push_back(update);
+            auto movement = history[boundary].movementAttribute;
+            auto attributes = history[boundary].attributes;
+            auto presence = history[boundary].attributePresence;
+            for (size_t i = boundary; i < history.size(); ++i) {
+                Record& record = history[i];
+                if (i == boundary) {
+                    for (const auto& entry : update.attributes)
+                        ApplyReplayAttribute(movement, attributes, presence, entry);
+                } else {
+                    for (const auto& later : record.attributeUpdates)
+                        for (const auto& entry : later.attributes)
+                            ApplyReplayAttribute(movement, attributes, presence, entry);
+                }
+                attributes.speed =
+                    BedrockSession::PredictedMovementSpeed(movement, record.input.sprint, record.freeze);
+                record.attributes.speed = attributes.speed;
+                record.attributes.underwaterSpeed = attributes.underwaterSpeed;
+                record.attributes.lavaSpeed = attributes.lavaSpeed;
+                record.attributes.airDrag = attributes.airDrag;
+                record.movementAttribute = movement;
+                record.attributePresence = presence;
+            }
+            first = std::min(first, boundary);
+        }
+        ReplayFrom(session, first);
+    }
+
     void LocalPlayer::ApplyEffectUpdates(BedrockSession& session) {
         const auto updates = session.TakeEffectUpdates();
         size_t first = history.size();
         for (const auto& update : updates) {
+            size_t boundary = history.size();
             for (size_t i = 0; i < history.size(); ++i) {
+                if (physics::bds::ReplaysStatusEffectAt(update.tick, history[i].tick)) {
+                    boundary = i;
+                    break;
+                }
+            }
+            if (boundary == history.size()) {
+                // The live component already received this event. Retain its boundary for a
+                // later correction that replays across the next recorded simulation tick.
+                futureEffectUpdates.push_back(EffectUpdateAt(update, session.LastAuthTick() + 1));
+                continue;
+            }
+            const auto event = EffectUpdateAt(update, history[boundary].tick);
+            history[boundary].effectUpdates.push_back(event);
+            auto effect = MergeEffectUpdate(FindEffect(history[boundary].effects, update.id), event);
+            for (size_t i = boundary; i < history.size(); ++i) {
                 Record& record = history[i];
-                // The first retained record already holds the corrected starting state.
-                if (!physics::bds::ReplaysStatusEffectAt(update.tick, record.tick))
-                    continue;
-                const bool active = update.active && physics::bds::StatusEffectTicksAt(
-                                                         update.duration, update.tick, record.tick - 1) != 0;
-                auto& a = record.attributes;
-                bool changed = false;
-                switch (update.id) {
-                case 8: {
-                    const int value = active ? update.amplifier + 1 : 0;
-                    changed = a.jumpBoost != value;
-                    a.jumpBoost = value;
-                    break;
+                if (i != boundary) {
+                    if (effect) {
+                        effect->ticks = physics::bds::StatusEffectTicksAt(
+                            effect->ticks, history[i - 1].tick, record.tick);
+                        if (effect->ticks == 0)
+                            effect.reset();
+                    }
+                    for (const auto& later : record.effectUpdates)
+                        if (later.id == update.id)
+                            effect = MergeEffectUpdate(effect, later);
                 }
-                case 24: {
-                    const int value = active ? update.amplifier + 1 : 0;
-                    changed = a.levitation != value;
-                    a.levitation = value;
-                    break;
-                }
-                case 27:
-                    changed = a.slowFalling != active;
-                    a.slowFalling = active;
-                    break;
-                case 33:
-                    changed = a.weaving != active;
-                    a.weaving = active;
-                    break;
-                default:
-                    break;
-                }
-                if (changed)
+                // Propagate the effective merge, not the original packet on every frame:
+                // an ignored weaker update must stay ignored when the stronger effect expires.
+                StoreEffect(record.effects, update.id, effect);
+                if (ApplyEffectAttribute(record.attributes, update.id, effect))
                     first = std::min(first, i);
             }
         }
@@ -444,8 +652,22 @@ namespace perlin {
     void LocalPlayer::Tick(BedrockSession& session, const InputManager& input, const Camera& cameraIn,
                            const physics::World& world) {
         session.TickItemCooldowns();
+        const bool asleep = session.Sleeping();
+        const int dimension = session.DimensionId();
+        const bool dimensionChanged = replayDimension && *replayDimension != dimension;
+        replayDimension = dimension;
+        const bool dimensionChanging = session.DimensionChanging();
+        const bool savePrediction = !asleep && !rideLock && !dimensionChanged && !dimensionChanging;
+        if (!savePrediction)
+            history.clear();
+        ApplyAttributeUpdates(session);
         Camera camera = cameraIn;
         forcedYaw.reset();
+        forcedPitch.reset();
+        if (std::exchange(resetControlPitch, false)) {
+            camera.pitch = 0.0f;
+            forcedPitch = camera.pitch;
+        }
         const uint64_t nextTick = session.LastAuthTick() + 1;
         std::optional<BedrockSession::ServerMotion> tickTeleport;
         for (auto it = futureTeleports.begin(); it != futureTeleports.end();) {
@@ -459,45 +681,13 @@ namespace perlin {
         ApplyTeleport(state, tickTeleport);
         previous = state;
         const physics::State before = state;
+        const auto effects = session.GetEffects();
         const bool currentWater = physics::TouchingWater(state, world);
         const bool itemSlow =
             this->itemSlow && input.IsDown(Action::Use) && (!itemSlowUntil || tickCounter < itemSlowUntil);
 
-        const bool asleep = session.Sleeping();
-        const int dimension = session.DimensionId();
-        const bool dimensionChanged = replayDimension && *replayDimension != dimension;
-        replayDimension = dimension;
-        const bool dimensionChanging = session.DimensionChanging();
-        const bool savePrediction = !asleep && !rideLock && !dimensionChanged && !dimensionChanging;
-        if (!savePrediction)
-            history.clear();
-        float forwardKeys = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
-        float strafeKeys = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
-        if (cameraScheme >= 0 && cameraScheme <= 2 && !asleep && !rideLock) {
-
-            const float cy = glm::radians(cameraControlYaw);
-            if (cameraScheme == 1 || cameraScheme == 2) {
-                const float wx = forwardKeys * std::cos(cy) - strafeKeys * std::sin(cy);
-                const float wz = forwardKeys * std::sin(cy) + strafeKeys * std::cos(cy);
-                const float len = std::sqrt(wx * wx + wz * wz);
-                if (cameraScheme == 1) {
-
-                    if (len > 0.001f) {
-                        camera.yaw = glm::degrees(std::atan2(wz, wx)), forcedYaw = camera.yaw;
-                        forwardKeys = std::min(len, 1.0f);
-                        strafeKeys = 0.0f;
-                    }
-                } else {
-
-                    camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
-                }
-            } else {
-
-                camera.yaw = cameraControlYaw, forcedYaw = camera.yaw;
-            }
-        }
-        const float forward = forwardKeys;
-        const float strafe = strafeKeys;
+        const float forward = asleep ? 0.0f : input.Axis(Action::Forward, Action::Back);
+        const float strafe = asleep ? 0.0f : input.Axis(Action::Right, Action::Left);
         const bool jump = !asleep && input.IsDown(Action::Jump);
         const bool sneakHeldKey = input.IsDown(Action::Sneak);
         const bool sneakKey = sneakToggle ? sneakLatch : sneakHeldKey;
@@ -509,15 +699,65 @@ namespace perlin {
         const bool wasSprinting = sprinting;
 
         const bool sneakScaled = (sneakKey || sneaking) && !flying && !swimming;
-        const physics::MoveVector move = physics::ProcessMoveInput(forward, strafe, sneakScaled, currentWater,
-                                                                   itemSlow ? 0.35f : 1.0f, sneakSpeed);
+        physics::MoveVector move =
+            physics::ProcessMoveInput(forward, strafe, sneakScaled, currentWater, 1.0f, sneakSpeed);
+        // CameraInputTransformSystem follows normalized/sneak-scaled input and precedes
+        // ItemUseSlowdownApplySystem in the matched 1.26.51 client.
+        const float moveLength = std::sqrt(move.forward * move.forward + move.strafe * move.strafe);
+        if (!asleep && !rideLock && moveLength > std::numeric_limits<float>::epsilon()) {
+            if (cameraScheme == 1) {
+                const float cy = glm::radians(cameraControlYaw);
+                const float wx = move.forward * std::cos(cy) - move.strafe * std::sin(cy);
+                const float wz = move.forward * std::sin(cy) + move.strafe * std::cos(cy);
+                camera.yaw = glm::degrees(std::atan2(wz, wx));
+                forcedYaw = camera.yaw;
+                camera.pitch = 0.0f;
+                forcedPitch = camera.pitch;
+                move.forward = moveLength;
+                move.strafe = 0.0f;
+            } else if (cameraScheme == 2) {
+                camera.pitch = 0.0f;
+                forcedPitch = camera.pitch;
+                const float coordinate = physics::bds::detail::Round(
+                    physics::bds::detail::Round((cameraControlYaw - camera.yaw) * 0.017453292f) *
+                    10430.378f);
+                const float sine = physics::bds::CurrentSineEntry(physics::bds::SineIndex(coordinate));
+                const float cosine = physics::bds::CurrentSineEntry(
+                    physics::bds::SineIndex(physics::bds::detail::Round(coordinate + 16384.0f)));
+                const float relativeForward = move.forward * cosine - move.strafe * sine;
+                move.strafe = move.strafe * cosine + move.forward * sine;
+                move.forward = relativeForward;
+            } else if (cameraScheme == 3) {
+                if (moveLength <= 0.1f) {
+                    move = {};
+                } else {
+                    camera.pitch = 0.0f;
+                    forcedPitch = camera.pitch;
+                    const float fromForward = 1.0f - move.forward;
+                    const float turn = move.forward < 0.0f ? 2.0f - fromForward : fromForward;
+                    if (turn > 0.23f) {
+                        const float shifted = turn - 1.0f;
+                        const float amount = (1.0f + shifted * shifted * shifted) * 10.0f;
+                        camera.yaw += move.strafe > 0.0f ? amount : -amount;
+                        forcedYaw = camera.yaw;
+                    }
+                    if (turn > 0.66f)
+                        move = {};
+                }
+            }
+        }
+        if (itemSlow) {
+            const float useScale = itemSlowModifier * itemSlowModifier;
+            move.forward *= useScale;
+            move.strafe *= useScale;
+        }
 
         sneakSpeed = physics::SneakSpeed(session.SwiftSneakEnchant(), sneaking);
 
         const BedrockSession::Vitals vitals = session.GetVitals();
         tooHungryToSprint = vitals.known && vitals.hunger <= 6.0f && !session.MayFly();
         bool blind = false;
-        for (const auto& effect : session.GetEffects())
+        for (const auto& effect : effects)
             if (effect.id == 15)
                 blind = true;
 
@@ -658,7 +898,7 @@ namespace perlin {
         }
 
         if (swimming && !physics::PoseFits(state, world, physics::kStandHeight)) {
-            const float moveSq = forwardKeys * forwardKeys + strafeKeys * strafeKeys;
+            const float moveSq = forward * forward + strafe * strafe;
             const bool sneakGap = physics::PoseFits(state, world, physics::kSneakHeight);
             const bool leaveSwim =
                 sneakGap ? moveSq < 0.49999997f
@@ -786,7 +1026,8 @@ namespace perlin {
             session.GameType() == 6 || (session.GameType() == 5 && session.World().worldGameMode == 6);
 
         physics::Attributes attributes;
-        attributes.speed = session.PredictedMovementSpeed(sprinting, freezeStrength);
+        BedrockSession::MovementAttributeState movementAttribute;
+        attributes.speed = session.PredictedMovementSpeed(sprinting, freezeStrength, movementAttribute);
         attributes.flySpeed = session.FlySpeed();
         attributes.verticalFlySpeed = session.VFlySpeed();
         attributes.airDrag = session.AirDragAttribute();
@@ -794,7 +1035,7 @@ namespace perlin {
         attributes.soulSpeed = session.SoulSpeedEnchant() > 0;
         attributes.underwaterSpeed = session.UnderwaterMovementSpeedAttribute();
         attributes.lavaSpeed = session.LavaMovementSpeedAttribute();
-        for (const auto& effect : session.GetEffects()) {
+        for (const auto& effect : effects) {
             if (effect.id == 8)
                 attributes.jumpBoost = effect.amplifier + 1;
             else if (effect.id == 24)
@@ -819,6 +1060,14 @@ namespace perlin {
         Record rec;
         rec.input = in;
         rec.attributes = attributes;
+        rec.movementAttribute = std::move(movementAttribute);
+        rec.attributePresence = session.MovementAttributePresence();
+        const size_t recordedAttributeCount = futureAttributeUpdates.size();
+        rec.attributeUpdates = futureAttributeUpdates;
+        rec.effects = effects;
+        const size_t recordedEffectCount = futureEffectUpdates.size();
+        for (const auto& update : futureEffectUpdates)
+            rec.effectUpdates.push_back(AgeEffectUpdate(update, nextTick - 1));
         rec.yaw = state.yaw;
         rec.before = state;
         rec.simulated = simulate;
@@ -862,7 +1111,7 @@ namespace perlin {
         ++tickCounter;
 
         int slownessAmplifier = -1;
-        for (const auto& effect : session.GetEffects())
+        for (const auto& effect : effects)
             if (effect.id == 2)
                 slownessAmplifier = effect.amplifier;
         fov.Tick(MovementFovTarget(session.MovementSpeedAttribute(), session.WalkSpeed(), flying,
@@ -981,6 +1230,7 @@ namespace perlin {
         packet.interaction = input.Interaction();
         packet.yaw = BedrockYaw(camera.yaw);
         packet.pitch = BedrockPitch(camera.pitch);
+        packet.cameraOrientation = cameraView;
         packet.eyeHeight = kPlayerEyeHeight;
         packet.position[0] = static_cast<float>(state.x);
         packet.position[1] = static_cast<float>(state.y);
@@ -1015,6 +1265,13 @@ namespace perlin {
             packet.predictedVehicle = horseUid;
         }
         if (session.SendMoveInput(packet)) {
+            futureAttributeUpdates.erase(
+                futureAttributeUpdates.begin(),
+                futureAttributeUpdates.begin() +
+                    std::min(recordedAttributeCount, futureAttributeUpdates.size()));
+            futureEffectUpdates.erase(
+                futureEffectUpdates.begin(),
+                futureEffectUpdates.begin() + std::min(recordedEffectCount, futureEffectUpdates.size()));
             if (drivingVehicle && boatActive && !boatHistory.empty())
                 boatHistory.back().tick = session.LastAuthTick();
             if (drivingVehicle && horseActive && !horseHistory.empty())
@@ -1302,6 +1559,8 @@ namespace perlin {
             history.clear();
             futureMotion.clear();
             futureTeleports.clear();
+            futureEffectUpdates.clear();
+            futureAttributeUpdates.clear();
             accumulator = 0.0;
             smoothOffset[0] = smoothOffset[1] = smoothOffset[2] = 0.0;
         }
@@ -1330,6 +1589,8 @@ namespace perlin {
         if (session.Sleeping() || (replayDimension && *replayDimension != session.DimensionId()))
             history.clear();
         if (rideLock) {
+            history.clear();
+            ApplyAttributeUpdates(session);
             session.TakeEffectUpdates();
             futureMotion.clear();
             futureTeleports.clear();
@@ -1338,6 +1599,7 @@ namespace perlin {
             history.clear();
             ApplyVehicleCorrections(session);
         } else {
+            ApplyAttributeUpdates(session);
             ApplyEffectUpdates(session);
             ApplyMovementEffectUpdates(session);
             BedrockSession::ServerMotion motion;
@@ -1393,6 +1655,8 @@ namespace perlin {
             Tick(session, input, camera, world);
             if (forcedYaw)
                 camera.yaw = *forcedYaw;
+            if (forcedPitch)
+                camera.pitch = *forcedPitch;
 
             const float standEye = static_cast<float>(physics::kStandEye);
 

@@ -1,0 +1,16 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "Item",
+    "ItemStackBase",
+    "ItemStackBase::ComparisonOptions",
+    "PlayerItemInUse",
+    "PlayerInventorySlotData"
+  ],
+  "symbol_regex": "sameItem@ItemStackBase|hasSameRelevantUserData|stopUsingItem@Player@@|releaseUsingItem@Player@@|setSelectedSlot@Player@@|selectSlot@PlayerInventory|\\?\\?0(Item|ComponentItem|BowItem|CrossbowItem)@@|\\?\\?_7(PotionItem|ShieldItem|MapItem|FireworkChargeItem)@@6B@|\\?use@TridentItem",
+  "symbol_rvas": [
+    "0x1e8570",
+    "0x1ebb00",
+    "0x2483880"
+  ]
+}

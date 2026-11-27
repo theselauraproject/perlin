@@ -102,6 +102,19 @@ namespace perlin {
         return true;
     }
 
+    bool Cells16::Equals(const Cells16& other) const {
+        if (Empty() || other.Empty())
+            return Empty() && other.Empty();
+        if (wide && other.wide)
+            return std::memcmp(wide.get(), other.wide.get(), 4096 * sizeof(uint16_t)) == 0;
+        if (narrow && other.narrow && palette == other.palette)
+            return std::memcmp(narrow.get(), other.narrow.get(), 4096) == 0;
+        for (int cell = 0; cell < 4096; ++cell)
+            if (Get(cell) != other.Get(cell))
+                return false;
+        return true;
+    }
+
     size_t Cells16::Bytes() const {
         return (narrow ? 4096 + palette.capacity() * sizeof(uint16_t) : 0) + (wide ? 8192 : 0);
     }
@@ -131,6 +144,7 @@ namespace perlin {
         Chunk c;
         c.version = version;
         c.borderVersion = borderVersion;
+        c.incarnation = incarnation;
         c.streaming = streaming;
         c.readyAt = readyAt;
         c.firstSeen = firstSeen;
@@ -326,33 +340,59 @@ namespace perlin {
         }
     }
 
-    void Chunk::SetSection(int section, const uint16_t* cells, const uint16_t* liquidCells) {
-        Section& s = Ensure(section);
+    Chunk::PreparedSection Chunk::PrepareSection(const uint16_t* cells, const uint16_t* liquidCells) {
+        PreparedSection prepared;
         const uint16_t first = cells[0];
         uint16_t local[4096];
         if (std::all_of(cells, cells + 4096, [first](uint16_t v) { return v == first; })) {
-            s.blocks.Reset();
-            s.uniform = first;
+            prepared.uniform = first;
         } else {
             for (int x = 0; x < 16; x++)
                 for (int z = 0; z < 16; z++)
                     for (int y = 0; y < 16; y++)
                         local[(y * 16 + z) * 16 + x] = cells[x * 256 + z * 16 + y];
-            s.blocks.Load(local);
+            prepared.blocks.Load(local);
         }
         bool any = false;
         if (liquidCells)
             for (int i = 0; i < 4096 && !any; i++)
                 any = liquidCells[i] != 0;
         if (!any) {
-            s.liquid.Reset();
-            return;
+            return prepared;
         }
         for (int x = 0; x < 16; x++)
             for (int z = 0; z < 16; z++)
                 for (int y = 0; y < 16; y++)
                     local[(y * 16 + z) * 16 + x] = liquidCells[x * 256 + z * 16 + y];
-        s.liquid.Load(local);
+        prepared.liquid.Load(local);
+        return prepared;
+    }
+
+    void Chunk::SetSection(int section, const uint16_t* cells, const uint16_t* liquidCells) {
+        SetSection(section, PrepareSection(cells, liquidCells));
+    }
+
+    void Chunk::SetSection(int section, PreparedSection&& prepared) {
+        Section& s = Ensure(section);
+        s.blocks = std::move(prepared.blocks);
+        s.liquid = std::move(prepared.liquid);
+        s.uniform = prepared.uniform;
+    }
+
+    bool Chunk::SectionEquals(int section, const PreparedSection& prepared) const {
+        const auto& stored = sections[static_cast<size_t>(section)];
+        if (!stored || !stored->liquid.Equals(prepared.liquid))
+            return false;
+        if (stored->blocks.Empty() && prepared.blocks.Empty())
+            return stored->uniform == prepared.uniform;
+        if (!stored->blocks.Empty() && !prepared.blocks.Empty())
+            return stored->blocks.Equals(prepared.blocks);
+        for (int cell = 0; cell < 4096; ++cell) {
+            const uint16_t value = prepared.blocks.Empty() ? prepared.uniform : prepared.blocks.Get(cell);
+            if (stored->Block(cell) != value)
+                return false;
+        }
+        return true;
     }
 
     void Chunk::SetBiomeSection(int section, const uint8_t* cells) {
@@ -373,6 +413,7 @@ namespace perlin {
 
     void Level::Clear() {
         std::lock_guard lock(mutex);
+        ingestGeneration.fetch_add(1, std::memory_order_release);
         changeCounter++;
         clearCounter++;
         chunks.clear();
@@ -437,6 +478,7 @@ namespace perlin {
         std::lock_guard lock(mutex);
         if (!undoOn || epoch < undoFloor)
             return false;
+        ingestGeneration.fetch_add(1, std::memory_order_release);
         while (!undo.empty() && undo.back().epoch >= epoch) {
             UndoEntry& e = undo.back();
             const auto cur = chunks.find(e.pos);
@@ -471,6 +513,8 @@ namespace perlin {
         if (&other == this)
             return;
         std::scoped_lock lock(mutex, other.mutex);
+        ingestGeneration.fetch_add(1, std::memory_order_release);
+        other.ingestGeneration.fetch_add(1, std::memory_order_release);
         chunks = std::move(other.chunks);
         other.chunks.clear();
         lightCache.reset();
@@ -662,7 +706,8 @@ namespace perlin {
             if (lodOnly)
                 lodOnlyCount++;
             static std::atomic<uint64_t> loads{0};
-            it->second.version = (loads.fetch_add(1, std::memory_order_relaxed) + 1) << 24;
+            it->second.incarnation = loads.fetch_add(1, std::memory_order_relaxed) + 1;
+            it->second.version = it->second.incarnation << 24;
             it->second.streaming = streaming;
             it->second.firstSeen = NowMs();
             it->second.readyAt = streaming ? 0 : it->second.firstSeen;
@@ -705,23 +750,42 @@ namespace perlin {
     }
 
     void Level::SetSubChunk(int cx, int cz, int absSubY, const uint16_t* cells, const uint16_t* liquidCells) {
-        const int baseY = absSubY * 16;
-        if (baseY < Chunk::MIN_Y || baseY + 16 > Chunk::MIN_Y + Chunk::HEIGHT)
+        if (absSubY < Chunk::MIN_Y / 16 || absSubY >= (Chunk::MIN_Y + Chunk::HEIGHT) / 16)
             return;
+        const ChunkWriteTarget target = CaptureChunkWriteTarget(cx, cz);
+        if (!target.incarnation)
+            return;
+        auto prepared = Chunk::PrepareSection(cells, liquidCells);
+        SetPreparedSubChunk(cx, cz, absSubY, std::move(prepared), target);
+    }
 
+    Level::ChunkWriteTarget Level::CaptureChunkWriteTarget(int cx, int cz) const {
         std::lock_guard lock(mutex);
         const auto found = chunks.find({cx, cz});
-        if (found == chunks.end())
-            return;
-        if (found->second.SectionEquals((baseY - Chunk::MIN_Y) >> 4, cells, liquidCells))
-            return;
+        return {IngestGeneration(), found == chunks.end() ? 0 : found->second.incarnation};
+    }
+
+    bool Level::SetPreparedSubChunk(int cx, int cz, int absSubY, Chunk::PreparedSection&& prepared,
+                                    ChunkWriteTarget target) {
+        if (absSubY < Chunk::MIN_Y / 16 || absSubY >= (Chunk::MIN_Y + Chunk::HEIGHT) / 16)
+            return false;
+        const int section = absSubY - Chunk::MIN_Y / 16;
+        std::lock_guard lock(mutex);
+        if (target.generation != IngestGeneration())
+            return false;
+        const auto found = chunks.find({cx, cz});
+        if (found == chunks.end() || found->second.incarnation != target.incarnation)
+            return false;
+        if (found->second.SectionEquals(section, prepared))
+            return true;
         LogBefore(found->first);
         changeCounter++;
         Chunk& chunk = found->second;
-        chunk.SetSection((baseY - Chunk::MIN_Y) >> 4, cells, liquidCells);
+        chunk.SetSection(section, std::move(prepared));
         chunk.version++;
         chunk.borderVersion++;
         Touch(found->first, chunk);
+        return true;
     }
 
     void Level::SetBiomeSubChunk(int cx, int cz, int absSubY, const uint8_t* cells) {

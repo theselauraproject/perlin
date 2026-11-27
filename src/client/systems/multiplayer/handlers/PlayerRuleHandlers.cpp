@@ -13,33 +13,48 @@ namespace perlin {
                     if (t.uid == p.entityUniqueId)
                         t.perm = static_cast<int>(p.permissionLevel);
             }
-            if (runtimeId != 0 && p.entityUniqueId != 0 && uniqueId != 0 && p.entityUniqueId != uniqueId)
+            if (runtimeId == 0 || p.entityUniqueId != uniqueId)
                 return;
-            bool fly = false, flying = false, clip = false, build = false, mine = true;
-            for (const AbilityLayers& layer : p.abilities) {
-                if (layer.allowed & (1u << 1))
-                    mine = (layer.enabled & (1u << 1)) != 0;
-                if (layer.allowed & (1u << 10))
-                    fly = (layer.enabled & (1u << 10)) != 0;
-                if (layer.allowed & (1u << 11))
-                    build = (layer.enabled & (1u << 11)) != 0;
-                if (layer.allowed & (1u << 9))
-                    flying = (layer.enabled & (1u << 9)) != 0;
-                if (layer.allowed & (1u << 17))
-                    clip = (layer.enabled & (1u << 17)) != 0;
-                if (layer.allowed & (1u << 13))
-                    flySpeed = layer.flySpeed;
-                if (layer.allowed & (1u << 19))
-                    vFlySpeed = layer.verticalFlySpeed;
-                if (layer.allowed & (1u << 14))
-                    walkSpeed = layer.walkSpeed;
+            // SerializedAbilitiesData replaces each named layer. Its resolved
+            // value comes from the highest set layer, independent of wire order.
+            // A later record for the same layer replaces that entire layer,
+            // including abilities omitted by its allowed mask.
+            std::array<const AbilityLayers*, 6> layers{};
+            AbilityLayers permissions;
+            const auto permission = static_cast<unsigned>(p.permissionLevel);
+            if (permission <= 2) {
+                permissions.allowed = 0xffu;
+                permissions.enabled = permission == 2 ? 0xffu : permission == 1 ? 0x3fu : 0u;
+                layers[1] = &permissions;
             }
-            mayFly = fly;
-            mayMine = mine;
-            instabuild = build;
-            isFlying = flying;
+            for (const AbilityLayers& layer : p.abilities) {
+                const auto type = static_cast<unsigned>(layer.type);
+                layers[type < layers.size() ? type : 1] = &layer;
+            }
+            const auto source = [&](unsigned bit) -> const AbilityLayers* {
+                for (size_t i = layers.size(); i-- > 0;)
+                    if (layers[i] && (layers[i]->allowed & (1u << bit)))
+                        return layers[i];
+                return nullptr;
+            };
+            const auto enabled = [&](unsigned bit) {
+                const auto* layer = source(bit);
+                return layer && (layer->enabled & (1u << bit)) != 0;
+            };
+            mayFly = enabled(10);
+            mayMine = enabled(1);
+            instabuild = enabled(11);
+            isFlying = enabled(9);
+            noClip = enabled(17);
+            // An unset ability resolves to the native null ability's zero
+            // value; it does not retain the previous packet's speed.
+            const auto* fly = source(13);
+            const auto* vertical = source(19);
+            const auto* walk = source(14);
+            flySpeed = fly ? fly->flySpeed : 0.0f;
+            vFlySpeed = vertical ? vertical->verticalFlySpeed : 0.0f;
+            walkSpeed = walk ? walk->walkSpeed : 0.0f;
             ++abilitiesSeq;
-            noClip = clip;
             Log("bedrock", "abilities mayFly={} flying={} noclip={} fly={}", mayFly, isFlying, noClip,
                 flySpeed);
         });

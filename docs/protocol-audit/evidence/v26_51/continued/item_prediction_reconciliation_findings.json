@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Static inspection of the matched executable, public symbols, field layouts and virtual slots. No executable was run. This file contains metadata and bounded conclusions, not code bytes or disassembly."
+  },
+  "reproducible_metadata": [
+    "item_prediction_reconciliation_query.json",
+    "item_prediction_reconciliation_reference.json"
+  ],
+  "supersedes_limits_in": [
+    "air_use_transaction_findings.json: ordinary HUD creation/lifetime and legacy-versus-ordinary request identity mapping"
+  ],
+  "facts": [
+    {
+      "topic": "Ordinary StartGame initializes the base HUD request screen",
+      "contract": "The matched StartGame path assigns ItemStackNetManagerClient to the player before calling onClientCreatedLevel. That client callback adds the player to the level; Level::addUser invokes initHUDContainerManager, whose LocalPlayer target obtains the HUD model and calls postInit. postInit opens an item-stack manager screen whenever the manager pointer exists. The recovered opening chain does not gate that operation on mEnabled. This establishes the normal joined-player HUD screen used by a legacy-use scope; it does not establish every exceptional player-creation path.",
+      "anchors": [
+        "StartGame manager assignment RVA0x1336CDA; onClientCreatedLevel virtual slot0x458 call RVA0x13372BB",
+        "IClientInstance PDB onClientCreatedLevel explicit slot1112; concrete ClientInstance::onClientCreatedLevel RVA0x5DBEE60 calls ILevel::addUser slot0x170 at RVA0x5DBF32A",
+        "ILevel::addUser explicit PDB slot368; Level::addUser RVA0x1175040 calls Player::initHUDContainerManager slot0x698 at RVA0x1175D75 for a valid player",
+        "Player explicit PDB initHUDContainerManager slot1688; LocalPlayer vtable RVA0xE8E1BC0 slot0x698 -> RVA0x209E90",
+        "RVA0x209E90 locks PlayerInventory HUD weak reference at0xD8 and calls ContainerManagerModel::postInit RVA0x34341A0 at RVA0x209F03",
+        "postInit loads player manager at player+0xAB8 and invokes onContainerScreenOpen slot0x30 at RVA0x3434222 when nonnull"
+      ]
+    },
+    {
+      "topic": "Screen push, fallback selection, and base-screen lifetime",
+      "contract": "Opening a screen pushes an entity with ContainerScreenContext and calls the concrete client screen initializer, which creates ClientScreenData. Current-screen lookup first tries the active request-screen weak reference, then falls back to the top screen stack entry. Closing a screen only pops when at least two entries exist, preserving the base screen. No isEnabled gate occurs in the recovered open, current-screen lookup, or close bodies.",
+      "anchors": [
+        "onContainerScreenOpen RVA0x25AB6E0 -> _pushScreen RVA0x25AB740; concrete _initScreen slot0x50 call RVA0x25AB8C9",
+        "Client _initScreen RVA0x25AF950..RVA0x25B02B3; ClientScreenData component hash0x763ED7F4",
+        "_tryGetCurrentClientScreen RVA0x25AC3E0..RVA0x25AC5DF; request weak reference manager+0x70, fallback screen stack manager+0x38",
+        "onContainerScreenClose RVA0x25AB930..RVA0x25AB9A0 checks screen count>=2 before pop"
+      ]
+    },
+    {
+      "topic": "Legacy counter is process-global and separate from the active scope",
+      "contract": "The legacy-ID allocator uses a zero-initialized process-global int32 counter and advances it as min(counter,-2)-2. Its first allocation in a fresh process is -4. A separate typed-ID constructor and the inlined begin-scope path share that counter, so the first ID observed in one session can be later. Opening or ending a scope does not reset the global in the recovered code. Scope cleanup resets the manager active ID to0 and clears its changed-slot map. The scan of direct RIP-relative reads and writes found two allocator bodies, both advancing rather than resetting the counter; this is not an exhaustive indirect-memory-write proof.",
+      "anchors": [
+        "Counter RVA0x11D68B80 lies within .data virtual size beyond its raw-file size, hence the PE zero-initialized tail",
+        "Typed legacy-ID constructor leaf RVA0x25A8040..RVA0x25A805D; global read RVA0x25A8040, write RVA0x25A8054",
+        "Client begin scope RVA0x25B0840..RVA0x25B09A5; global read RVA0x25B085E, write RVA0x25B0872, manager active raw ID store RVA0x25B0878",
+        "Scope cleanup callback RVA0x25BE9E0..RVA0x25BEAF4 resets manager+0x50 at RVA0x25BE9EB"
+      ]
+    },
+    {
+      "topic": "Nonempty predicted use uses the legacy-ID branch independently of mEnabled",
+      "contract": "For the recovered local-client selected-inventory path, setPlayerContainer rejects empty proposed items before manager processing. With an active negative-even ID below -1, a changed nonempty stack receives legacy variant index2 and the affected slot is registered. The recovered branch does not read mEnabled. A same-item same-count assignment does not create this change. This complements the pre-use held descriptor and old-to-new transaction-action facts in air_use_transaction_findings.json.",
+      "anchors": [
+        "setPlayerContainer RVA0x25ABD60..RVA0x25AC021; empty/invalid checks RVA0x25ABD83..RVA0x25ABDCA",
+        "Client retained-ID virtual slot0x18 resolves false leaf RVA0x76C20; current-level client check RVA0x25ABE51..RVA0x25ABE75",
+        "Active legacy ID validity RVA0x25ABE77..RVA0x25ABE84; local-player check RVA0x25ABE86 -> RVA0x1A017F0",
+        "Changed nonempty stack copy RVA0x25ABEB8; variant index2 construction RVA0x25ABF9C..RVA0x25ABFAB; changed-slot call RVA0x25ABFE6"
+      ]
+    },
+    {
+      "topic": "Empty consumption and ordinary source fields",
+      "contract": "In the traced ordinary inventory setter chain, a last-item consumption falls back to FillingContainer because the manager helper rejects an empty proposed stack. The transaction context still records old-to-empty action. That helper does not register the empty slot, and outgoing legacy decoration becomes0 when the collected slot vector is empty. The change callback initializes InventorySource type0, container0 for main inventory or119 for offhand, and memory flags0; main slot is the supplied selected slot, offhand slot0. Instabuild skips the native consumption decrement, so this chain has no count-change action when the stack remains unchanged. Dynamic event listeners were not exhaustively enumerated; the empty-slot conclusion is bounded to the recovered ordinary setter/callback path.",
+      "anchors": [
+        "Inventory::setItemWithForceBalance RVA0x1D5170 calls helper RVA0x25ABD60; false fallback RVA0x1D53F6..RVA0x1D5402 -> FillingContainer::setItemWithForceBalance RVA0x25A4AE0",
+        "Container transaction change callback RVA0x25B87B0..RVA0x25B88DC; InventoryAction construction RVA0x25B8817/RVA0x25B884C -> RVA0x1D4AD0",
+        "LocalPlayer::_populateLegacyTransactionRequest RVA0x476A4A0; empty-vector outgoing ID reset RVA0x476A7F0",
+        "InventorySource PDB mType0, mContainerId4, mFlags8; memory flags0 is not independently a wire optional-presence proof",
+        "Native consumption and Instabuild details are retained in projectile_item_use_findings.json; normal current2225 optional source fields are documented in upstream json/InventorySource.json"
+      ]
+    },
+    {
+      "topic": "Server records legacy IDs by supported player container and slot",
+      "contract": "The matched integrated-server legacy-request helper accepts only negative even IDs below -1. It recognizes InventoryContainer29, ArmorContainer6 and OffhandContainer34. For listed in-range slots whose current stack has the server-ID alternative, it records the supplied legacy ID and current server stack ID in the corresponding player container slot mapping. The recovered helper itself does not construct or send ItemStackResponse. This evidence describes the bundled server implementation, not every custom server.",
+      "anchors": [
+        "ItemStackNetManagerServer::_handleLegacyTransactionRequest RVA0x7C88600..RVA0x7C88EC8; raw ID validity branch RVA0x7C88629 onward",
+        "Container selection RVA0x7C888D2 onward; bounds and current server-variant check RVA0x7C88AAC..RVA0x7C88AE0",
+        "Legacy ID store RVA0x7C88B41; current server-ID store RVA0x7C88B48",
+        "PDB ItemStackRequestActionHandler mPlayerLegacyRequests offset32; PlayerLegacyRequestSlotIdAssignment contains container name0, runtime ID4, vector of legacy/server ID pairs8"
+      ]
+    },
+    {
+      "topic": "A later request can refer to a predicted legacy stack ID",
+      "contract": "The request-slot validator distinguishes server-ID variant0, ordinary client-request variant1 and legacy variant2. For legacy variant2, it requires a negative even ID below -1, finds the corresponding supported player container by runtime ID, bounds-checks the requested slot, requires that slot stored exactly that legacy ID, then uses the paired server stack ID. Thus a surviving predicted stack can be referenced before receiving a new positive server ID, but an unrelated or stale legacy ID does not pass this mapping lookup.",
+      "anchors": [
+        "ItemStackRequestActionHandler::_validateRequestSlot RVA0x7C8E8C0..RVA0x7C8F1FC; variant discriminator RVA0x7C8E926..RVA0x7C8E945",
+        "Legacy ID sign/parity check RVA0x7C8ED36..RVA0x7C8ED48",
+        "Player-container runtime matching RVA0x7C8EDFC..RVA0x7C8EE1E; slot bound check RVA0x7C8EE47",
+        "Exact legacy-ID comparison RVA0x7C8EE54; paired server ID read RVA0x7C8EE67"
+      ]
+    },
+    {
+      "topic": "Ordinary ItemStackResponse does not acknowledge the legacy-ID family",
+      "contract": "The client ItemStackResponse consumer loops over responses and accepts only negative odd request IDs at its initial request-ID gate. Other IDs enter an invalid-ID diagnostic path and are skipped before normal lookup/correction handling. Negative even legacy IDs therefore must not be put into the ordinary odd-request response or rollback queue. Further validation and missing-request behavior remain separate conditions.",
+      "anchors": [
+        "Client ItemStackResponse dispatch RVA0x1308D20 -> consumer RVA0x25B2650",
+        "Response raw ID read RVA0x25B26B6 from response+0x10; NOT/test0x80000001 gate immediately afterward",
+        "Invalid-ID path RVA0x25B28A0..RVA0x25B2921 loops to next response",
+        "PDB ItemStackResponseInfo: result0, typed request ID8 with raw field at16, containers vector24"
+      ]
+    },
+    {
+      "topic": "Incoming InventorySlot replaces the main inventory stack without a legacy ack wait",
+      "contract": "For main inventory container0 and an in-range slot, the client decodes the incoming descriptor to ItemStack, records the old-to-new pending action, then invokes Inventory::setItemWithForceBalance with forceBalance=false. No legacy request-ID match or acknowledgement gate appears before this replacement in the recovered path. This provides the ordinary server slot correction path; the full behavior of every sparse/custom container and concurrent ordinary request is outside this conclusion.",
+      "anchors": [
+        "InventorySlot client handler RVA0x1342CD0..RVA0x1343515; descriptor conversion RVA0x1342D75 -> ItemStack::fromDescriptor RVA0x2484090",
+        "Container0 selection RVA0x1342ED2..RVA0x1342ED4; slot bounds RVA0x13430E3..RVA0x1343106",
+        "Pending action construction RVA0x1343152 -> RVA0x1D4AD0",
+        "Inventory setter vslot0x68 call RVA0x134341A with r9d=0 at RVA0x1343417"
+      ]
+    },
+    {
+      "topic": "Net-ID decoding uses sign and parity to select its variant",
+      "contract": "ItemStackNetIdVariant::deserialize peeks a signed VarInt and restores the stream cursor before decoding the selected typed alternative. Nonnegative values choose server IDs, negative odd values choose ordinary client request IDs, and negative even values choose legacy request IDs. This establishes the raw ID-family selection; it is not a complete proof of ItemV4 optional presence or every descriptor serialization option.",
+      "anchors": [
+        "ItemStackNetIdVariant::deserialize RVA0x25A85A0..RVA0x25A95D1",
+        "Signed VarInt peek RVA0x25A85D9 -> named ReadOnlyBinaryStream::getVarInt RVA0x670A30; stream cursor restoration RVA0x25A8699",
+        "Sign branch RVA0x25A869D..RVA0x25A869F; negative parity branch RVA0x25A86E5..RVA0x25A86E7",
+        "Typed server decode helper RVA0x25A7450, ordinary request helper RVA0x25A7A40, legacy helper RVA0x25A8060"
+      ]
+    },
+    {
+      "topic": "Item and ComponentItem default max stack size is64",
+      "contract": "The matched Item constructor initializes mMaxStackSize to64. The verified Item and ComponentItem vtables both resolve getMaxStackSize to a leaf returning that byte. ItemStackBase forwards through that virtual getter. A definition can still override the field later. This supports using64 when a component item definition has no max_stack_size override, but a specific wind-charge definition is an external asset fact rather than a value recovered from this executable.",
+      "anchors": [
+        "PDB Item mMaxStackSize byte offset168 (0xA8); Item ctor RVA0x24B1930 writes64 at RVA0x24B1A00",
+        "Item constructor-installed vtable RVA0xE818C90 and ComponentItem constructor-installed vtable RVA0xE8AE710 each slot0x320 -> RVA0xC19F0",
+        "RVA0xC19F0 returns Item+0xA8; ItemStackBase::getMaxStackSize RVA0x247DF40 invokes slot0x320 at RVA0x247DF84",
+        "Item/ComponentItem vtable identity anchors are retained in item_use_identity_findings.json"
+      ]
+    },
+    {
+      "topic": "Client ItemUse descriptors omit net IDs on the matched cereal wire path",
+      "contract": "The ordinary client baseUseItem path captures its held descriptor before item use, and builds action old/new descriptors from their corresponding stack snapshots. Their ItemStack constructor copies the net-ID variant but initializes mIncludeNetIds=false. The packet Transaction property getter enables new-action descriptor IDs only for a server-side payload; the client branch skips that loop. The actual mode5 NetworkItemStackDescriptor conversion creates its optional Net Id Variant only when mIncludeNetIds is true. The optional writer emits its presence Boolean and only writes the ID when present. Therefore the recovered outgoing client ItemUse held, from-item and to-item descriptors have an absent Net Id Variant, while a surviving locally predicted raw ItemStack may still retain its negative-even legacy ID for later ItemStackRequest references. This conclusion is for this recovered constructor/send path, not arbitrary descriptor producers or other packets.",
+      "anchors": [
+        "NetworkItemStackDescriptor(ItemStack) RVA0x24A2C90: mIncludeNetIds=false at RVA0x24A2D3F; net-ID variant copied at RVA0x24A2D8F -> RVA0x25B6A40",
+        "ItemUseInventoryTransaction::setSelectedItem RVA0x25B5F50 called before use at RVA0x25B6182; descriptor constructor call RVA0x25B5F67, include flag copied to held descriptor+0x18 at RVA0x25B5FBA",
+        "InventoryAction ctor RVA0x1D4AD0 constructs from/to descriptors via RVA0x24A2C90 at RVAs0x1D4B0C/0x1D4B1C",
+        "LocalPlayer::sendComplexInventoryTransaction RVA0x476A960 obtains ILevel::isClientSide via slot0x9E8 at RVA0x476A997 and passes result into payload ctor RVA0x27324A0 at RVA0x476A9C3; ctor stores mIsClientSide at RVA0x2732558",
+        "InventoryTransaction reflected Transaction getter RVA0x2820CA0 tests payload+0x148 at RVA0x2820E28; true jumps to RVA0x282106B, skipping server-only action+0x88 include flag write RVA0x2820E56; client re-copies the complex transaction at RVA0x282106F -> RVA0x2732730",
+        "Packet write RVA0x272CFF0 registers its reflection context through RVA0x272D270 -> RVA0x272E730 before the mode5 writeWithSerializationMode path RVA0x272C810; InventoryAction context RVA0x7826CD0 calls NetworkItemStackDescriptor context RVA0x7DFDE10 at RVA0x7826D08",
+        "Descriptor context names NetworkItemStackDescriptor at RVA0x7DFF089 and registers serialized conversion getter RVA0x7EC3160 at RVA0x7DFF8A9",
+        "Conversion RVA0x7EC3160 initializes optional absent at RVA0x7EC3201; source mIncludeNetIds check RVA0x7EC3706; false skips ID copy at RVA0x7EC370A -> RVA0x7EC3773; true copies the variant and marks presence at RVA0x7EC376F",
+        "Net Id Variant property binding: name RVA0x7DFEABB, vtable0xEA0A140 installation RVA0x7DFEB16; optional writer slot0x30 -> RVA0x7EC0510",
+        "Optional writer reads presence at RVA0x7EC0683, invokes archive slot0x88 at RVA0x7EC0695, and checks presence before ID write at RVA0x7EC069B; concrete archive vtable0xE8BC140 slot0x88 -> RVA0x40F2FA0 -> BinaryStream writeBool",
+        "Distinct InventoryContent legacy vector callback RVA0x27FB2F0 -> helper0x27FB440 forces include=true at RVAs0x27FB448/0x27FB46E; it is not the recovered mode5 transaction conversion and is not evidence for client ItemUse ID inclusion"
+      ]
+    },
+    {
+      "topic": "ComponentItem isThrowable is based on the throwable component",
+      "contract": "ComponentItem::isThrowable queries its minecraft:throwable component and returns whether the pointer exists. This supports the same throwable BuildAction retention branch for a component item whose supplied definition contains that component. It does not independently establish every use-success, cooldown, or repeat timing rule.",
+      "anchors": [
+        "ComponentItem::isThrowable RVA0x3FD21C0 initializes hashed key from literal minecraft:throwable RVA0xEC73D73 at RVA0x3FD223A",
+        "Main query invokes virtual slot0xC0 at RVA0x3FD220B; nonnull test/return at RVAs0x3FD2211/0x3FD2214",
+        "The shared held-build isThrowable branch is separately anchored at RVAs0x5D95E24/0x5D95E36 in air-use findings; component metadata alone does not prove all input timing"
+      ]
+    }
+  ],
+  "limits": [
+    "These code/data-flow facts are from the matched protocol2193 executable and its PDB. No protocol2225 equivalence is implied.",
+    "The bundled integrated-server mapping is useful for protocol interpretation; custom servers may implement different authority or reconciliation policies.",
+    "The ordinary main-inventory empty-item callback path is established. All ActorGameplayEvent listeners, offhand variants, custom containers, and all interleavings with normal odd stack requests were not exhaustively reconstructed.",
+    "The ItemUse descriptor optional-ID rule is closed for the recovered mode5 client send path, but no full byte-for-byte transaction serializer trace is claimed. InventorySource memory flags0 must not be confused with wire optional presence.",
+    "The static default64 is independent of external wind-charge asset contents. An asset-version mismatch must remain explicit when using a nearby pinned Mojang sample.",
+    "Normal vanilla rule registration contains39 entries and does not register PDB Education rule index40 AllowDestructiveObjects. No Education network key was recovered; it must not be equated to mayFly, immutableWorld or worldBuilder.",
+    "This export contains metadata, addresses and bounded conclusions only. It contains no executable, PDB, machine-code bytes, or disassembly."
+  ]
+}

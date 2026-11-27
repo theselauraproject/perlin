@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu_affinity": [
+      0
+    ],
+    "radius": 2,
+    "rounds": 8,
+    "repeats": 1,
+    "chunks": 25,
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "samples": null,
+    "scope": "CPU full meshing, synthetic world; no GPU or renderer timing",
+    "binary_sha256": {
+      "before": "7a77f211d2a2e4acdfc93fafec9b3f560dbb0b957e872794b84aa407e67649a6",
+      "after": "4f00fb173859cbc4dc3a4ef513dab941a1f271090a4a5ff87537052a43b132c4"
+    },
+    "source_sha256": {
+      "src/client/systems/renderer/chunk/SectionConnectivity.hpp": "f3828a36b60b8b038b4708f4df904f4a6340a1a348d4fca813e58c2e07d98221",
+      "src/client/systems/renderer/chunk/ChunkMesher.cpp": "e0813f43a586df4005eea91c06af1e835bfd9fd225389815049d2b687d8f6e78",
+      "src/client/systems/renderer/chunk/MeshBench.cpp": "4bd992ec34971ecb58706c0c040374abad9f5e2cf59fc85782b27e1fdb94c7ae",
+      "tools/benchmark_mesh_pair.py": "3cf9ae50aabfb672b9257c410595fe0133196d31a9b6d5771ba5298419b8a167"
+    },
+    "build_comparison": "GNU c++ 14, existing Release Perlin flags; same pre-optimization linked objects and Level header. Candidate recompiles only ChunkMesher.cpp with final SectionConnectivity.hpp. Includes old Level.hpp overlay to preserve dependency ABI while isolating the mesher change.",
+    "texturing": "PERLIN_SAMPLES unset: untextured synthetic scene with real geometry, light propagation, face merging, and full/partial edits."
+  },
+  "runs": [
+    {
+      "run": 0,
+      "variant": "before",
+      "log": "full-mesher-abba-2026-11-27-0-before.log",
+      "wall_seconds": 1.7941307470000538,
+      "mean_ms": 3.802,
+      "median_ms": 3.612,
+      "p90_ms": 5.178,
+      "vertices_per_chunk": 18822,
+      "checksum": "466c21ae50e4e75b",
+      "merge_flat_vertices": 794928,
+      "merge_merged_vertices": 470544,
+      "merge_sample_points": 1589856,
+      "merge_mismatches": 0,
+      "full_partial_edits_passed": 10
+    },
+    {
+      "run": 1,
+      "variant": "after",
+      "log": "full-mesher-abba-2026-11-27-1-after.log",
+      "wall_seconds": 1.6018586260006487,
+      "mean_ms": 3.273,
+      "median_ms": 3.135,
+      "p90_ms": 4.024,
+      "vertices_per_chunk": 18822,
+      "checksum": "466c21ae50e4e75b",
+      "merge_flat_vertices": 794928,
+      "merge_merged_vertices": 470544,
+      "merge_sample_points": 1589856,
+      "merge_mismatches": 0,
+      "full_partial_edits_passed": 10
+    },
+    {
+      "run": 2,
+      "variant": "after",
+      "log": "full-mesher-abba-2026-11-27-2-after.log",
+      "wall_seconds": 1.5553942050000842,
+      "mean_ms": 3.158,
+      "median_ms": 3.147,
+      "p90_ms": 3.792,
+      "vertices_per_chunk": 18822,
+      "checksum": "466c21ae50e4e75b",
+      "merge_flat_vertices": 794928,
+      "merge_merged_vertices": 470544,
+      "merge_sample_points": 1589856,
+      "merge_mismatches": 0,
+      "full_partial_edits_passed": 10
+    },
+    {
+      "run": 3,
+      "variant": "before",
+      "log": "full-mesher-abba-2026-11-27-3-before.log",
+      "wall_seconds": 1.7429222479995587,
+      "mean_ms": 3.716,
+      "median_ms": 3.419,
+      "p90_ms": 5.068,
+      "vertices_per_chunk": 18822,
+      "checksum": "466c21ae50e4e75b",
+      "merge_flat_vertices": 794928,
+      "merge_merged_vertices": 470544,
+      "merge_sample_points": 1589856,
+      "merge_mismatches": 0,
+      "full_partial_edits_passed": 10
+    }
+  ],
+  "exactness_matches": true,
+  "summary": {
+    "before_ms_per_chunk": 3.7590000000000003,
+    "after_ms_per_chunk": 3.2155,
+    "reduction_percent": 14.458632615057198,
+    "speedup": 1.1690250349867828
+  }
+}

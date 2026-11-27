@@ -42,6 +42,9 @@ namespace perlin {
         std::string displayName;
         int armorSlot = -1;
         int useTicks = 0;
+        // Native ComponentItem defaults to .35 without UseModifiers, but to
+        // 1.0 when that component exists and omits movement_modifier.
+        float useMovementModifier = 0.35f;
     };
 
     class ServerBlocks {

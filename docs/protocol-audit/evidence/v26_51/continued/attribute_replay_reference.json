@@ -1,0 +1,1641 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "ActorHistory",
+      "type_index": "0x30c31",
+      "size": 96,
+      "fieldlist": "0x30c30",
+      "member_count": 14,
+      "fields": [
+        {
+          "name": "mHistoryWindow",
+          "offset": 0,
+          "type": "const unsigned long long",
+          "type_index": "0x14549",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSnapshots",
+          "offset": 8,
+          "type": "std::deque<ActorHistory::Snapshot,std::allocator<ActorHistory::Snapshot> >",
+          "type_index": "0xba28",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOldestFrame",
+          "offset": 48,
+          "type": "unsigned long long",
+          "type_index": "0x23",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPendingCorrections",
+          "offset": 56,
+          "type": "std::bitset<2>",
+          "type_index": "0xb98f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mQueuedCorrection",
+          "offset": 64,
+          "type": "std::vector<std::shared_ptr<IMovementCorrection>,std::allocator<std::shared_ptr<IMovementCorrection> > >",
+          "type_index": "0xdb5c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNextInput",
+          "offset": 88,
+          "type": "std::unique_ptr<IReplayableActorInput,std::default_delete<IReplayableActorInput> >",
+          "type_index": "0xce6e",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "ActorHistory",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30c26",
+          "return_type": "void",
+          "class_type": "ActorHistory",
+          "this_type": "ActorHistory *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "ActorHistory",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30c27",
+          "return_type": "void",
+          "class_type": "ActorHistory",
+          "this_type": "ActorHistory *",
+          "argument_types": [
+            "unsigned long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "addCorrectionToFrame",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30c2a",
+          "return_type": "void",
+          "class_type": "ActorHistory",
+          "this_type": "ActorHistory *",
+          "argument_types": [
+            "std::shared_ptr<IMovementCorrection>",
+            "unsigned long long"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "addFrame",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30c2c",
+          "return_type": "void",
+          "class_type": "ActorHistory",
+          "this_type": "ActorHistory *",
+          "argument_types": [
+            "EntityContext &",
+            "unsigned long long",
+            "EntityRegistry &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "~ActorHistory",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30c2d",
+          "return_type": "void",
+          "class_type": "ActorHistory",
+          "this_type": "ActorHistory *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "prepareEntityForRewindFromCapture",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x30c2f",
+          "return_type": "void",
+          "class_type": "ActorHistory",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const EntityContext &",
+            "const EntityContext &",
+            "EntityContext &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "AttributeData",
+      "type_index": "0x15e0e",
+      "size": 96,
+      "fieldlist": "0x15e0d",
+      "member_count": 13,
+      "fields": [
+        {
+          "name": "mCurrentValue",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMinValue",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxValue",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDefaultValue",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDefaultMinValue",
+          "offset": 16,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDefaultMaxValue",
+          "offset": 20,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mName",
+          "offset": 24,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mModifiers",
+          "offset": 72,
+          "type": "std::vector<AttributeModifier,std::allocator<AttributeModifier> >",
+          "type_index": "0xdc63",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "AttributeData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15e01",
+          "return_type": "void",
+          "class_type": "AttributeData",
+          "this_type": "AttributeData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "AttributeData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15e05",
+          "return_type": "void",
+          "class_type": "AttributeData",
+          "this_type": "AttributeData *",
+          "argument_types": [
+            "const AttributeInstance &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "read",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15e07",
+          "return_type": "Bedrock::Result<void,std::error_code>",
+          "class_type": "AttributeData",
+          "this_type": "AttributeData *",
+          "argument_types": [
+            "ReadOnlyBinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "write",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15e0b",
+          "return_type": "void",
+          "class_type": "AttributeData",
+          "this_type": "const AttributeData *",
+          "argument_types": [
+            "BinaryStream &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~AttributeData",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x15e0c",
+          "return_type": "void",
+          "class_type": "AttributeData",
+          "this_type": "AttributeData *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "History::AttributeReplay",
+      "type_index": "0x31c02",
+      "size": 160,
+      "fieldlist": "0x31c01",
+      "member_count": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "IMovementCorrection",
+          "member_kind": "base"
+        },
+        {
+          "name": "mPacket",
+          "offset": 8,
+          "type": "std::shared_ptr<UpdateAttributesPacket>",
+          "type_index": "0xcd3a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMovementAttributes",
+          "offset": 24,
+          "type": "MovementAttributesComponent",
+          "type_index": "0x5b50",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMovementAttributesInfo",
+          "offset": 96,
+          "type": "std::unordered_map<unsigned long long,History::AttributeReplay::MovementAttributeInfo,std::hash<unsigned long long>,std::equal_to<unsigned long long>,std::allocator<std::pair<const unsigned long long,History::AttributeReplay::MovementAttributeInfo> > >",
+          "type_index": "0xd50d",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "AttributeReplay",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x31bf7",
+          "return_type": "void",
+          "class_type": "History::AttributeReplay",
+          "this_type": "History::AttributeReplay *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "AttributeReplay",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x31bf9",
+          "return_type": "void",
+          "class_type": "History::AttributeReplay",
+          "this_type": "History::AttributeReplay *",
+          "argument_types": [
+            "std::shared_ptr<UpdateAttributesPacket>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAdvanceFrameResult",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x31bfb",
+          "return_type": "AdvanceFrameResult",
+          "class_type": "History::AttributeReplay",
+          "this_type": "History::AttributeReplay *",
+          "argument_types": [
+            "const MovementDataExtractionUtility::SnapshotAccessor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "advanceFrame",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x31bfe",
+          "return_type": "void",
+          "class_type": "History::AttributeReplay",
+          "this_type": "const History::AttributeReplay *",
+          "argument_types": [
+            "EntityContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "advanceLiveFrame",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x31bff",
+          "return_type": "void",
+          "class_type": "History::AttributeReplay",
+          "this_type": "History::AttributeReplay *",
+          "argument_types": [
+            "Actor &",
+            "std::optional<unsigned long long>"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCorrectionTypeBitset",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x31c00",
+          "return_type": "std::bitset<2>",
+          "class_type": "History::AttributeReplay",
+          "this_type": "const History::AttributeReplay *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "History::AttributeReplay::MovementAttributeInfo",
+      "type_index": "0x1bf66",
+      "size": 16,
+      "fieldlist": "0x1bf65",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mMovementAttributeComponentMemberPtr",
+          "offset": 0,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAccess",
+          "offset": 8,
+          "type": "MovementAttributeAccess",
+          "type_index": "0x1b03",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCorrectionMode",
+          "offset": 9,
+          "type": "MovementAttributeCorrectionMode",
+          "type_index": "0x1b05",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSkipUpdate",
+          "offset": 10,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "IMovementCorrection",
+      "type_index": "0x1a28e",
+      "size": 8,
+      "fieldlist": "0x1a28d",
+      "member_count": 6,
+      "fields": [],
+      "methods": [
+        {
+          "name": "~IMovementCorrection",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 0,
+          "type_index": "0x1a286",
+          "return_type": "void",
+          "class_type": "IMovementCorrection",
+          "this_type": "IMovementCorrection *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAdvanceFrameResult",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x1a287",
+          "return_type": "AdvanceFrameResult",
+          "class_type": "IMovementCorrection",
+          "this_type": "IMovementCorrection *",
+          "argument_types": [
+            "const MovementDataExtractionUtility::SnapshotAccessor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "advanceLiveFrame",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x1a288",
+          "return_type": "void",
+          "class_type": "IMovementCorrection",
+          "this_type": "IMovementCorrection *",
+          "argument_types": [
+            "Actor &",
+            "std::optional<unsigned long long>"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCorrectionTypeBitset",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x1a28b",
+          "return_type": "std::bitset<2>",
+          "class_type": "IMovementCorrection",
+          "this_type": "const IMovementCorrection *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "advanceFrame",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x1a28c",
+          "return_type": "void",
+          "class_type": "IMovementCorrection",
+          "this_type": "const IMovementCorrection *",
+          "argument_types": [
+            "EntityContext &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "MovementAttributeAccess",
+      "type_index": "0x1b03",
+      "fieldlist": "0x1b02",
+      "underlying": 32,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Write",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ReadOnly",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MovementAttributeCorrectionMode",
+      "type_index": "0x1b05",
+      "fieldlist": "0x1b04",
+      "underlying": 32,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "RewindIfDifferentPreservePrediction",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "NoRewindNoPrediction",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MovementAttributeEntry",
+      "type_index": "0x1bf64",
+      "size": 24,
+      "fieldlist": "0x1bf63",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mMovementAttribute",
+          "offset": 0,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAccess",
+          "offset": 8,
+          "type": "MovementAttributeAccess",
+          "type_index": "0x1b03",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCorrectionMode",
+          "offset": 9,
+          "type": "MovementAttributeCorrectionMode",
+          "type_index": "0x1b05",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAttribute",
+          "offset": 16,
+          "type": "gsl::not_null<const Attribute *>",
+          "type_index": "0xc3c7",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MovementAttributesComponent",
+      "type_index": "0x1bf6c",
+      "size": 72,
+      "fieldlist": "0x1bf6b",
+      "member_count": 11,
+      "fields": [
+        {
+          "name": "mMovementSpeed",
+          "offset": 0,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterMovementSpeed",
+          "offset": 8,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLavaMovementSpeed",
+          "offset": 16,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mJumpStrength",
+          "offset": 24,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHealth",
+          "offset": 32,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHunger",
+          "offset": 40,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFrictionModifier",
+          "offset": 48,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBounciness",
+          "offset": 56,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAirDragModifier",
+          "offset": 64,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1bf69",
+          "return_type": "bool",
+          "class_type": "MovementAttributesComponent",
+          "this_type": "const MovementAttributesComponent *",
+          "argument_types": [
+            "const MovementAttributesComponent &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "MovementDataExtractionUtility::MovementSnapshotComponent",
+      "type_index": "0x1bfa9",
+      "size": 1536,
+      "fieldlist": "0x1bfa8",
+      "member_count": 76,
+      "fields": [
+        {
+          "name": "mUnkf998bb",
+          "offset": 0,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk909d69",
+          "offset": 16,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkfba5b6",
+          "offset": 17,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkf9bfaf",
+          "offset": 18,
+          "type": "unsigned char [bytes=2]",
+          "type_index": "0x153a1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkaddc03",
+          "offset": 20,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnka7cd33",
+          "offset": 24,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk7f3a7d",
+          "offset": 28,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc8b53c",
+          "offset": 32,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk9b55e4",
+          "offset": 36,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk6ce54f",
+          "offset": 40,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk655015",
+          "offset": 44,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk470ef4",
+          "offset": 48,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk7a5b2e",
+          "offset": 52,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk81c817",
+          "offset": 56,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc192bd",
+          "offset": 60,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk77af84",
+          "offset": 68,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk6f0fde",
+          "offset": 72,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc3b56c",
+          "offset": 76,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnka62503",
+          "offset": 80,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc2462c",
+          "offset": 84,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk20f622",
+          "offset": 88,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk7e2d1a",
+          "offset": 92,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc22eef",
+          "offset": 96,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk9a7831",
+          "offset": 100,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkb0450e",
+          "offset": 104,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkec4f09",
+          "offset": 108,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk7e8ad0",
+          "offset": 120,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk9f5e3f",
+          "offset": 128,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk6ced02",
+          "offset": 136,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkda0888",
+          "offset": 144,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk607132",
+          "offset": 152,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk3c1cf5",
+          "offset": 160,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk11d9bc",
+          "offset": 168,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk4102a5",
+          "offset": 176,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkb451ea",
+          "offset": 184,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkf726d8",
+          "offset": 192,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk615382",
+          "offset": 200,
+          "type": "unsigned char [bytes=8]",
+          "type_index": "0x108fe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkbe52e5",
+          "offset": 208,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5739c3",
+          "offset": 220,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk92d17b",
+          "offset": 232,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkf8a3ba",
+          "offset": 244,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5335d5",
+          "offset": 256,
+          "type": "unsigned char [bytes=20]",
+          "type_index": "0x1572b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk6e5575",
+          "offset": 276,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk6c32a0",
+          "offset": 288,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkd70513",
+          "offset": 304,
+          "type": "unsigned char [bytes=12]",
+          "type_index": "0x112c0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk1fee59",
+          "offset": 316,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5bcd09",
+          "offset": 336,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk3bf9dc",
+          "offset": 352,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkff91d9",
+          "offset": 376,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk6587d6",
+          "offset": 400,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk5bd1cb",
+          "offset": 424,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk2540fe",
+          "offset": 448,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk8cd0f9",
+          "offset": 464,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk15d7d5",
+          "offset": 480,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc0b9c9",
+          "offset": 504,
+          "type": "unsigned char [bytes=32]",
+          "type_index": "0x10ba6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk65769d",
+          "offset": 536,
+          "type": "unsigned char [bytes=36]",
+          "type_index": "0x1bf9d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk75c6c8",
+          "offset": 572,
+          "type": "unsigned char [bytes=36]",
+          "type_index": "0x1bf9d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkba7c80",
+          "offset": 608,
+          "type": "unsigned char [bytes=40]",
+          "type_index": "0x1546d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk618eb6",
+          "offset": 648,
+          "type": "unsigned char [bytes=20]",
+          "type_index": "0x1572b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk4e5dd6",
+          "offset": 672,
+          "type": "unsigned char [bytes=48]",
+          "type_index": "0x15cfe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkccce64",
+          "offset": 720,
+          "type": "unsigned char [bytes=72]",
+          "type_index": "0x1858b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk97019d",
+          "offset": 792,
+          "type": "unsigned char [bytes=80]",
+          "type_index": "0x163c8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkcc34f4",
+          "offset": 872,
+          "type": "unsigned char [bytes=56]",
+          "type_index": "0x113f5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkee5855",
+          "offset": 928,
+          "type": "unsigned char [bytes=56]",
+          "type_index": "0x113f5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc563d3",
+          "offset": 984,
+          "type": "unsigned char [bytes=68]",
+          "type_index": "0x176b1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk93b58c",
+          "offset": 1052,
+          "type": "unsigned char [bytes=4]",
+          "type_index": "0x1092f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkcf510d",
+          "offset": 1056,
+          "type": "unsigned char [bytes=80]",
+          "type_index": "0x163c8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk2a0baf",
+          "offset": 1136,
+          "type": "unsigned char [bytes=88]",
+          "type_index": "0x159bf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk27f3f6",
+          "offset": 1224,
+          "type": "unsigned char [bytes=80]",
+          "type_index": "0x163c8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnk3a040c",
+          "offset": 1304,
+          "type": "unsigned char [bytes=100]",
+          "type_index": "0x1bf9e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnke83d64",
+          "offset": 1408,
+          "type": "unsigned char [bytes=96]",
+          "type_index": "0x16afb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkac54aa",
+          "offset": 1504,
+          "type": "unsigned char [bytes=24]",
+          "type_index": "0x113f2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnkc8b5f1",
+          "offset": 1528,
+          "type": "unsigned char [bytes=1]",
+          "type_index": "0x10934",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1bfa4",
+          "return_type": "MovementDataExtractionUtility::MovementSnapshotComponent &",
+          "class_type": "MovementDataExtractionUtility::MovementSnapshotComponent",
+          "this_type": "MovementDataExtractionUtility::MovementSnapshotComponent *",
+          "argument_types": [
+            "const MovementDataExtractionUtility::MovementSnapshotComponent &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "MovementSnapshotComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1bfa5",
+          "return_type": "void",
+          "class_type": "MovementDataExtractionUtility::MovementSnapshotComponent",
+          "this_type": "MovementDataExtractionUtility::MovementSnapshotComponent *",
+          "argument_types": [
+            "const MovementDataExtractionUtility::MovementSnapshotComponent &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "MovementSnapshotComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1bfa6",
+          "return_type": "void",
+          "class_type": "MovementDataExtractionUtility::MovementSnapshotComponent",
+          "this_type": "MovementDataExtractionUtility::MovementSnapshotComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "MovementDataExtractionUtility::SnapshotAccessor",
+      "type_index": "0x4a87f",
+      "size": 16,
+      "fieldlist": "0x4a87e",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mUnk6087d4",
+          "offset": 0,
+          "type": "unsigned char [bytes=16]",
+          "type_index": "0x108dc",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a87a",
+          "return_type": "MovementDataExtractionUtility::SnapshotAccessor &",
+          "class_type": "MovementDataExtractionUtility::SnapshotAccessor",
+          "this_type": "MovementDataExtractionUtility::SnapshotAccessor *",
+          "argument_types": [
+            "const MovementDataExtractionUtility::SnapshotAccessor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SnapshotAccessor",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a87b",
+          "return_type": "void",
+          "class_type": "MovementDataExtractionUtility::SnapshotAccessor",
+          "this_type": "MovementDataExtractionUtility::SnapshotAccessor *",
+          "argument_types": [
+            "const MovementDataExtractionUtility::SnapshotAccessor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SnapshotAccessor",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4a87c",
+          "return_type": "void",
+          "class_type": "MovementDataExtractionUtility::SnapshotAccessor",
+          "this_type": "MovementDataExtractionUtility::SnapshotAccessor *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ReplayStateComponent",
+      "type_index": "0x45a7e",
+      "size": 32,
+      "fieldlist": "0x45a7d",
+      "member_count": 11,
+      "fields": [
+        {
+          "name": "mForceCorrection",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShouldReportNextCorrectionTelemetry",
+          "offset": 1,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsCorrectionTelemetryEnabled",
+          "offset": 2,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDivergenceCounter",
+          "offset": 3,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHistory",
+          "offset": 8,
+          "type": "std::unique_ptr<ActorHistory,std::default_delete<ActorHistory> >",
+          "type_index": "0xcef9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPolicy",
+          "offset": 16,
+          "type": "std::unique_ptr<IReplayStatePolicy,std::default_delete<IReplayStatePolicy> >",
+          "type_index": "0xce6d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentTick",
+          "offset": 24,
+          "type": "unsigned long long",
+          "type_index": "0x23",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "_applyCorrection",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x45a78",
+          "return_type": "AdvanceFrameResult",
+          "class_type": "ReplayStateComponent",
+          "this_type": "const ReplayStateComponent *",
+          "argument_types": [
+            "std::shared_ptr<IMovementCorrection>",
+            "Actor &",
+            "unsigned long long",
+            "bool"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "applyFrameCorrection",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x45a7a",
+          "return_type": "ReplayCorrectionResult",
+          "class_type": "ReplayStateComponent",
+          "this_type": "ReplayStateComponent *",
+          "argument_types": [
+            "Actor &",
+            "std::shared_ptr<IMovementCorrection>",
+            "unsigned long long"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCurrentCapturedInput",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x45a7b",
+          "return_type": "IReplayableActorInput *",
+          "class_type": "ReplayStateComponent",
+          "this_type": "ReplayStateComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "~ReplayStateComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x45a7c",
+          "return_type": "void",
+          "class_type": "ReplayStateComponent",
+          "this_type": "ReplayStateComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 429312,
+      "name": "?AIR_DRAG_MODIFIER@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb3a8",
+      "rva": "0x11dc53a8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 446884,
+      "name": "?BOUNCINESS@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb370",
+      "rva": "0x11dc5370"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 562192,
+      "name": "?FRICTION_MODIFIER@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb338",
+      "rva": "0x11dc5338"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 582100,
+      "name": "?HEALTH@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb4f0",
+      "rva": "0x11dc54f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 583220,
+      "name": "?HUNGER@Player@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x544cf8",
+      "rva": "0x11d1ecf8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 602244,
+      "name": "?JUMP_STRENGTH@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb3e0",
+      "rva": "0x11dc53e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 605196,
+      "name": "?LAVA_MOVEMENT_SPEED@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb2b8",
+      "rva": "0x11dc52b8"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 624956,
+      "name": "?MOVEMENT_SPEED@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb488",
+      "rva": "0x11dc5488"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 844240,
+      "name": "?UNDERWATER_MOVEMENT_SPEED@SharedAttributes@@2VAttribute@@B",
+      "section": 3,
+      "section_offset": "0x5eb280",
+      "rva": "0x11dc5280"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1175992,
+      "name": "?_onUpdateAttributesPacketReceived@ClientPlayerRewindListener@@SA?AW4EventResult@@AEAVActor@@V?$shared_ptr@VUpdateAttributesPacket@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x43586b0",
+      "rva": "0x43596b0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1472848,
+      "name": "?addFrame@ActorHistory@@QEAAXAEAVEntityContext@@_KAEAVEntityRegistry@@@Z",
+      "section": 1,
+      "section_offset": "0x2bbb060",
+      "rva": "0x2bbc060"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1533092,
+      "name": "?advanceFrame@AttributeReplay@History@@UEBAXAEAVEntityContext@@@Z",
+      "section": 1,
+      "section_offset": "0x4374a50",
+      "rva": "0x4375a50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1533336,
+      "name": "?advanceLiveFrame@AttributeReplay@History@@UEAAXAEAVActor@@V?$optional@_K@std@@@Z",
+      "section": 1,
+      "section_offset": "0x4374560",
+      "rva": "0x4375560"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1935532,
+      "name": "?create@MovementAttributesComponentExt@@YA?AUMovementAttributesComponent@@AEBV?$vector@UAttributeData@@V?$allocator@UAttributeData@@@std@@@std@@@Z",
+      "section": 1,
+      "section_offset": "0x28781d0",
+      "rva": "0x28791d0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2324392,
+      "name": "?getAdvanceFrameResult@AttributeReplay@History@@UEAA?AW4AdvanceFrameResult@@AEBVSnapshotAccessor@MovementDataExtractionUtility@@@Z",
+      "section": 1,
+      "section_offset": "0x4374410",
+      "rva": "0x4375410"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2341392,
+      "name": "?getAttributeMap@MovementAttributesComponentExt@@YAAEBV?$flat_map@VHashedString@@UMovementAttributeEntry@@U?$less@VHashedString@@@std@@V?$vector@VHashedString@@V?$allocator@VHashedString@@@std@@@4@V?$vector@UMovementAttributeEntry@@V?$allocator@UMovementAttributeEntry@@@std@@@4@@brstd@@XZ",
+      "section": 1,
+      "section_offset": "0x2877130",
+      "rva": "0x2878130"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3884712,
+      "name": "?tickUpdateAttributesSystem@UpdateAttributesSystemImpl@@YAXAEBUAttributesComponent@@AEAUMovementAttributesComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x2899180",
+      "rva": "0x289a180"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3993016,
+      "name": "?updateAttribute@BaseAttributeMap@@SAXAEBUAttributeData@@VAttributeInstanceRef@@AEAUAttributeModificationContext@@@Z",
+      "section": 1,
+      "section_offset": "0x31a0be0",
+      "rva": "0x31a1be0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11081008,
+      "name": "SharedAttributes::AIR_DRAG_MODIFIER",
+      "section": 3,
+      "section_offset": "0x5eb3a8",
+      "rva": "0x11dc53a8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11090300,
+      "name": "SharedAttributes::BOUNCINESS",
+      "section": 3,
+      "section_offset": "0x5eb370",
+      "rva": "0x11dc5370"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11158456,
+      "name": "SharedAttributes::FRICTION_MODIFIER",
+      "section": 3,
+      "section_offset": "0x5eb338",
+      "rva": "0x11dc5338"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11166680,
+      "name": "SharedAttributes::HEALTH",
+      "section": 3,
+      "section_offset": "0x5eb4f0",
+      "rva": "0x11dc54f0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11167356,
+      "name": "Player::HUNGER",
+      "section": 3,
+      "section_offset": "0x544cf8",
+      "rva": "0x11d1ecf8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11178328,
+      "name": "SharedAttributes::JUMP_STRENGTH",
+      "section": 3,
+      "section_offset": "0x5eb3e0",
+      "rva": "0x11dc53e0"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11180292,
+      "name": "SharedAttributes::LAVA_MOVEMENT_SPEED",
+      "section": 3,
+      "section_offset": "0x5eb2b8",
+      "rva": "0x11dc52b8"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11193896,
+      "name": "SharedAttributes::MOVEMENT_SPEED",
+      "section": 3,
+      "section_offset": "0x5eb488",
+      "rva": "0x11dc5488"
+    },
+    {
+      "kind": "0x110d",
+      "record_offset": 11321084,
+      "name": "SharedAttributes::UNDERWATER_MOVEMENT_SPEED",
+      "section": 3,
+      "section_offset": "0x5eb280",
+      "rva": "0x11dc5280"
+    }
+  ]
+}

@@ -9,6 +9,16 @@ namespace perlin::session {
 
     BatchCompression SelectBatchCompression(uint16_t algorithm, uint16_t threshold, size_t size);
 
+    struct LoginProtocolSelection {
+        enum class Source { Transport, Override, Advertisement, Transfer };
+        int protocol = 0;
+        Source source = Source::Transport;
+    };
+
+    LoginProtocolSelection SelectLoginProtocol(int transportProtocol, int advertisedProtocol,
+                                                int previousProtocol, bool transfer,
+                                                int overrideProtocol = 0);
+
     enum class PlayStatusKind { LoginSuccess, FailedClient, FailedSpawn, PlayerSpawn, Other };
 
     enum class Phase { WaitingPlayStatus, InGame, Other };

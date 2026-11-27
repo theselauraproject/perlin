@@ -1,0 +1,754 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "CameraInstruction",
+      "type_index": "0x16e18",
+      "size": 336,
+      "fieldlist": "0x16e17",
+      "member_count": 17,
+      "fields": [
+        {
+          "name": "mAttachToEntity",
+          "offset": 0,
+          "type": "std::optional<CameraInstructionOptions::AttachToEntityInstruction>",
+          "type_index": "0xc5c9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFade",
+          "offset": 24,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction>",
+          "type_index": "0xc643",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFieldOfView",
+          "offset": 60,
+          "type": "std::optional<CameraInstructionOptions::FovInstruction>",
+          "type_index": "0xc65b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSet",
+          "offset": 80,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction>",
+          "type_index": "0xc71e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSpline",
+          "offset": 176,
+          "type": "std::optional<CameraInstructionOptions::SplineInstruction>",
+          "type_index": "0xc72d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTarget",
+          "offset": 296,
+          "type": "std::optional<CameraInstructionOptions::TargetInstruction>",
+          "type_index": "0xc741",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClear",
+          "offset": 328,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDetachFromEntity",
+          "offset": 330,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRemoveTarget",
+          "offset": 332,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e15",
+          "return_type": "bool",
+          "class_type": "CameraInstruction",
+          "this_type": "const CameraInstruction *",
+          "argument_types": [
+            "const CameraInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e16",
+          "return_type": "void",
+          "class_type": "CameraInstruction",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraInstructionOptions::SplineInstruction",
+      "type_index": "0x2034e",
+      "size": 112,
+      "fieldlist": "0x2034d",
+      "member_count": 17,
+      "fields": [
+        {
+          "name": "mSplineIdentifier",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTotalTime",
+          "offset": 32,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurveType",
+          "offset": 36,
+          "type": "CameraSplineUtils::SplineType",
+          "type_index": "0x20eb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLoadFromJson",
+          "offset": 37,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurve",
+          "offset": 40,
+          "type": "std::vector<Vec3,std::allocator<Vec3> >",
+          "type_index": "0xdd1a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mProgressKeyFrames",
+          "offset": 64,
+          "type": "std::vector<CameraInstructionOptions::SplineInstruction::SplineProgressOption,std::allocator<CameraInstructionOptions::SplineInstruction::SplineProgressOption> >",
+          "type_index": "0xda16",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSplineRotationOption",
+          "offset": 88,
+          "type": "std::vector<CameraInstructionOptions::SplineInstruction::SplineRotationOption,std::allocator<CameraInstructionOptions::SplineInstruction::SplineRotationOption> >",
+          "type_index": "0xda17",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "SplineInstruction",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x2033e",
+          "return_type": "void",
+          "class_type": "CameraInstructionOptions::SplineInstruction",
+          "this_type": "CameraInstructionOptions::SplineInstruction *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "SplineInstruction",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20342",
+          "return_type": "void",
+          "class_type": "CameraInstructionOptions::SplineInstruction",
+          "this_type": "CameraInstructionOptions::SplineInstruction *",
+          "argument_types": [
+            "const CameraInstructionOptions::SplineInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20347",
+          "return_type": "CameraInstructionOptions::SplineInstruction &",
+          "class_type": "CameraInstructionOptions::SplineInstruction",
+          "this_type": "CameraInstructionOptions::SplineInstruction *",
+          "argument_types": [
+            "CameraInstructionOptions::SplineInstruction &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20348",
+          "return_type": "CameraInstructionOptions::SplineInstruction &",
+          "class_type": "CameraInstructionOptions::SplineInstruction",
+          "this_type": "CameraInstructionOptions::SplineInstruction *",
+          "argument_types": [
+            "const CameraInstructionOptions::SplineInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x2034b",
+          "return_type": "bool",
+          "class_type": "CameraInstructionOptions::SplineInstruction",
+          "this_type": "const CameraInstructionOptions::SplineInstruction *",
+          "argument_types": [
+            "const CameraInstructionOptions::SplineInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~SplineInstruction",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x2034c",
+          "return_type": "void",
+          "class_type": "CameraInstructionOptions::SplineInstruction",
+          "this_type": "CameraInstructionOptions::SplineInstruction *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraInstructionOptions::SplineInstruction::SplineProgressOption",
+      "type_index": "0x20350",
+      "size": 12,
+      "fieldlist": "0x2034f",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mProgressKeyFrameValue",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mProgressKeyFrameTime",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mProgressKeyFramesEasingFunc",
+          "offset": 8,
+          "type": "EasingType",
+          "type_index": "0x156f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::SplineInstruction::SplineRotationOption",
+      "type_index": "0x20352",
+      "size": 20,
+      "fieldlist": "0x20351",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mRotationKeyFrameValue",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRotationKeyFrameTime",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRotationKeyFramesEasingFunc",
+          "offset": 16,
+          "type": "EasingType",
+          "type_index": "0x156f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraSplineUtils::Keyframe",
+      "type_index": "0x1b112",
+      "size": 20,
+      "fieldlist": "0x1b111",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mValue",
+          "offset": 0,
+          "type": "glm::vec<3,float,0>",
+          "type_index": "0x47d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTime",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEasingFunc",
+          "offset": 16,
+          "type": "EasingType",
+          "type_index": "0x156f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraSplineUtils::Layer",
+      "type_index": "0x1b1b9",
+      "size": 40,
+      "fieldlist": "0x1b1b8",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mFrames",
+          "offset": 0,
+          "type": "std::vector<CameraSplineUtils::Keyframe,std::allocator<CameraSplineUtils::Keyframe> >",
+          "type_index": "0xd8e6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurveRef",
+          "offset": 24,
+          "type": "std::weak_ptr<CameraSplineUtils::Spline3d>",
+          "type_index": "0xdd6a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraSplineUtils::SplineType",
+      "type_index": "0x20eb",
+      "fieldlist": "0x20ea",
+      "underlying": 32,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "CatmullRom",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Linear",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraAnimationDataComponent",
+      "type_index": "0x16d94",
+      "size": 72,
+      "fieldlist": "0x16d93",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mLayers",
+          "offset": 0,
+          "type": "Bedrock::DenseEnumMap<MinecraftCamera::LayerType,std::shared_ptr<CameraSplineUtils::Layer>,2>",
+          "type_index": "0x6fbe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCache",
+          "offset": 32,
+          "type": "Bedrock::DenseEnumMap<MinecraftCamera::LayerType,glm::vec<3,float,0>,2>",
+          "type_index": "0x6fbd",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDuration",
+          "offset": 56,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentTime",
+          "offset": 60,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLoop",
+          "offset": 64,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraAnimationStorageComponent",
+      "type_index": "0x16d96",
+      "size": 56,
+      "fieldlist": "0x16d95",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mCurveOwner",
+          "offset": 0,
+          "type": "std::shared_ptr<CameraSplineUtils::Spline3d>",
+          "type_index": "0xcb1b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLayers",
+          "offset": 16,
+          "type": "Bedrock::DenseEnumMap<MinecraftCamera::LayerType,std::shared_ptr<CameraSplineUtils::Layer>,2>",
+          "type_index": "0x6fbe",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDuration",
+          "offset": 48,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraGlobalSplineComponent",
+      "type_index": "0x16e0c",
+      "size": 24,
+      "fieldlist": "0x16e0b",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mSplines",
+          "offset": 0,
+          "type": "std::vector<SharedTypes::v1_26_0::CameraSplineDefinition,std::allocator<SharedTypes::v1_26_0::CameraSplineDefinition> >",
+          "type_index": "0xd7da",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraTimeComponent",
+      "type_index": "0x16ef1",
+      "size": 8,
+      "fieldlist": "0x16ef0",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mUpdatedAt",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDeltaTime",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::v1_26_0::CameraSplineDefinition",
+      "type_index": "0x16ec8",
+      "size": 144,
+      "fieldlist": "0x16ec7",
+      "member_count": 13,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTotalTime",
+          "offset": 32,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSplineType",
+          "offset": 40,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSplineControlPoints",
+          "offset": 72,
+          "type": "std::vector<SharedTypes::v1_26_0::CameraSplineControlPoint,std::allocator<SharedTypes::v1_26_0::CameraSplineControlPoint> >",
+          "type_index": "0xd7d9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSplineProgressFrames",
+          "offset": 96,
+          "type": "std::vector<SharedTypes::v1_26_0::CameraSplineProgressKeyFrame,std::allocator<SharedTypes::v1_26_0::CameraSplineProgressKeyFrame> >",
+          "type_index": "0xd7db",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSplineRotationFrames",
+          "offset": 120,
+          "type": "std::vector<SharedTypes::v1_26_0::CameraSplineRotationKeyFrame,std::allocator<SharedTypes::v1_26_0::CameraSplineRotationKeyFrame> >",
+          "type_index": "0xd7dc",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "CameraSplineDefinition",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16eb7",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "SharedTypes::v1_26_0::CameraSplineDefinition *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "CameraSplineDefinition",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16ebb",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "SharedTypes::v1_26_0::CameraSplineDefinition *",
+          "argument_types": [
+            "const SharedTypes::v1_26_0::CameraSplineDefinition &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16ec0",
+          "return_type": "SharedTypes::v1_26_0::CameraSplineDefinition &",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "SharedTypes::v1_26_0::CameraSplineDefinition *",
+          "argument_types": [
+            "SharedTypes::v1_26_0::CameraSplineDefinition &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16ec1",
+          "return_type": "SharedTypes::v1_26_0::CameraSplineDefinition &",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "SharedTypes::v1_26_0::CameraSplineDefinition *",
+          "argument_types": [
+            "const SharedTypes::v1_26_0::CameraSplineDefinition &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16ec4",
+          "return_type": "bool",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "const SharedTypes::v1_26_0::CameraSplineDefinition *",
+          "argument_types": [
+            "const SharedTypes::v1_26_0::CameraSplineDefinition &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~CameraSplineDefinition",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16ec5",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "SharedTypes::v1_26_0::CameraSplineDefinition *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16ec6",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_26_0::CameraSplineDefinition",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SharedTypes::v1_26_0::CameraSplineProgressKeyFrame",
+      "type_index": "0x16ed3",
+      "size": 16,
+      "fieldlist": "0x16ed2",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mAlpha",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTimeSeconds",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEasingType",
+          "offset": 8,
+          "type": "std::optional<EasingType>",
+          "type_index": "0xc921",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::v1_26_0::CameraSplineRotationKeyFrame",
+      "type_index": "0x16ed5",
+      "size": 24,
+      "fieldlist": "0x16ed4",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mRotation",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTimeSeconds",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEasingType",
+          "offset": 16,
+          "type": "std::optional<EasingType>",
+          "type_index": "0xc921",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 1852096,
+      "name": "?catmullrom@CameraSplineUtils@@YA?AV?$optional@UHermite3d@CameraSplineUtils@@@std@@V?$vector@U?$vec@$02M$0A@@glm@@V?$allocator@U?$vec@$02M$0A@@glm@@@std@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x677b280",
+      "rva": "0x677c280"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2972780,
+      "name": "?linear@CameraSplineUtils@@YA?AV?$optional@ULinear3d@CameraSplineUtils@@@std@@V?$vector@U?$vec@$02M$0A@@glm@@V?$allocator@U?$vec@$02M$0A@@glm@@@std@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x677b8a0",
+      "rva": "0x677c8a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3068992,
+      "name": "?memCmp@bx@@YAHPEBX0_K@Z",
+      "section": 1,
+      "section_offset": "0xe5a5380",
+      "rva": "0xe5a6380"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3892780,
+      "name": "?toLower@Util@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V?$basic_string_view@DU?$char_traits@D@std@@@3@@Z",
+      "section": 1,
+      "section_offset": "0x31f1d0",
+      "rva": "0x3201d0"
+    }
+  ]
+}

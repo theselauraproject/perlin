@@ -26,7 +26,10 @@ namespace perlin {
     }
 
     void Input::OnMouseDown(int button) {
-        buttons[button & 7] = true;
+        // A press is a released-to-held transition. A duplicate backend down
+        // notification must not restart item use or placement on another frame.
+        if (buttons[button & 7].exchange(true, std::memory_order_relaxed))
+            return;
         events.enqueue({InputEvent::MouseDown, button, mouseX, mouseY});
     }
 

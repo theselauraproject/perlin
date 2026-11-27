@@ -1,5 +1,6 @@
 #include "client/selftest/Check.hpp"
 #include "client/selftest/MovementProtocolFixtures.hpp"
+#include "client/systems/player/BlockCollision.hpp"
 #include "network/Stream.hpp"
 
 #include <algorithm>
@@ -77,6 +78,8 @@ namespace {
                 attributes.attributes.push_back(std::move(entry));
             }
             Inject(session, attributes);
+            for (const auto& update : session.TakeAttributeUpdates())
+                session.ApplyAttributeUpdate(update);
         }
     };
 }
@@ -84,6 +87,233 @@ namespace {
 namespace perlin::selftest {
     int MovementProtocol() {
         Checker t("movement_protocol_test");
+        for (int protocol : {944, 2193, kBedrockProtocol}) {
+            Rig rig(protocol);
+            rig.session.NetLevel().EnsureChunk(0, 0);
+            MovementProtocolTestAccess::SettleColumn(rig.session, 0, 0);
+            LevelCollision world(rig.session.NetLevel(), nullptr);
+            Input input;
+            Options options;
+            InputManager controls(input, options);
+            input.OnKeyDown(options.GetKey(Action::Forward).code);
+            input.OnMouseDown(Mouse::Right);
+            LocalPlayer player;
+            Camera camera;
+            camera.yaw = 90;
+            physics::State state;
+            state.x = state.z = 8;
+            state.y = 64;
+            MovementProtocolTestAccess::Place(player, state);
+            const std::array<float, 5> modifiers{0.5f, 0.2f, 1.0f, 0.0f, -0.5f};
+            for (const float modifier : modifiers) {
+                player.SetItemSlow(true, 0, false, modifier);
+                const size_t before = rig.attempts.size();
+                MovementProtocolTestAccess::Tick(player, rig.session, controls, camera, world);
+                t.Check(rig.decodeOk && rig.attempts.size() == before + 1,
+                        "custom item-use movement produces a fully decoded auth-input packet");
+                t.Check(rig.attempts.size() > before &&
+                            rig.attempts.back().moveVector.z == modifier * modifier &&
+                            rig.attempts.back().moveVector.x == 0,
+                        "item-use movement squares the configured modifier once without clamping it");
+            }
+            bool snapshot = player.PredictionHistorySize() == modifiers.size();
+            if (snapshot)
+                for (size_t i = 0; i < modifiers.size(); ++i)
+                    snapshot &= MovementProtocolTestAccess::FrameInput(player, i).forward ==
+                                modifiers[i] * modifiers[i];
+            t.Check(snapshot, "prediction records retain each tick's already attenuated movement input");
+            const auto predicted = player.State();
+            player.SetItemSlow(true, 0, false, 0.8f);
+            MovementProtocolTestAccess::Replay(player, rig.session, 0);
+            t.Check(player.State().x == predicted.x && player.State().y == predicted.y &&
+                        player.State().z == predicted.z && player.State().vx == predicted.vx &&
+                        player.State().vy == predicted.vy && player.State().vz == predicted.vz,
+                    "replaying earlier movement uses its saved modifiers after the active item changes");
+        }
+        for (int protocol : {944, 2193, kBedrockProtocol}) {
+            struct Air final : physics::World {
+                physics::BlockShape Query(int, int, int) const override { return {}; }
+            } world;
+            Rig rig(protocol);
+            MovementProtocolTestAccess::SettleColumn(rig.session, 0, 0);
+            Input input;
+            Options options;
+            InputManager controls(input, options);
+            LocalPlayer player;
+            Camera actorView;
+            actorView.yaw = 90;
+            actorView.pitch = 23;
+            const auto step = [&] {
+                physics::State state;
+                state.x = state.z = 0.5;
+                state.y = 64;
+                MovementProtocolTestAccess::Place(player, state);
+                const size_t before = rig.attempts.size();
+                MovementProtocolTestAccess::Tick(player, rig.session, controls, actorView, world);
+                t.Check(rig.decodeOk && rig.attempts.size() == before + 1,
+                        "camera control simulation emits one fully decoded movement packet");
+            };
+            const auto orientation = [&] {
+                if (rig.attempts.empty())
+                    return false;
+                const auto& packet = rig.attempts.back();
+                return packet.yaw == 0 && packet.pitch == -23 && player.State().yaw == 0;
+            };
+            player.SetCameraControl(0, 0);
+            player.SetCameraView(std::array<float, 3>{0.8f, 0.6f, 0});
+            step();
+            t.Check(orientation() && player.State().vx == 0 && player.State().vz == 0,
+                    "locked player-relative control does not turn an idle actor toward a detached camera");
+            t.Check(!rig.attempts.empty() && rig.attempts.back().cameraOrientation.x == 0.8f &&
+                        rig.attempts.back().cameraOrientation.y == 0.6f &&
+                        rig.attempts.back().cameraOrientation.z == 0 &&
+                        rig.attempts.back().interactRotation.x == -23 &&
+                        rig.attempts.back().interactRotation.z == 0,
+                    "auth input carries independent camera direction without replacing actor or interaction rotation");
+            input.OnKeyDown(options.GetKey(Action::Forward).code);
+            step();
+            t.Check(orientation() && player.State().vz > 0 && std::fabs(player.State().vx) < 0.00001,
+                    "locked player-relative forward motion follows actor yaw rather than detached camera yaw");
+            input.OnKeyUp(options.GetKey(Action::Forward).code);
+            input.OnKeyDown(options.GetKey(Action::Right).code);
+            player.SetCameraControl(0, -90);
+            step();
+            t.Check(orientation() && player.State().vx < 0 && std::fabs(player.State().vz) < 0.00001,
+                    "locked player-relative strafe preserves actor orientation while the detached camera turns");
+            player.SetCameraControl(-1, 180);
+            step();
+            t.Check(orientation() && player.State().vx < 0,
+                    "clearing camera controls resumes the same player-relative movement and look");
+            player.SetCameraView(std::nullopt);
+            step();
+            t.Check(orientation() && !rig.attempts.empty() &&
+                        std::fabs(rig.attempts.back().cameraOrientation.x) < 0.00001f &&
+                        std::fabs(rig.attempts.back().cameraOrientation.y - std::sin(glm::radians(23.0f))) <
+                            0.00001f &&
+                        std::fabs(rig.attempts.back().cameraOrientation.z - std::cos(glm::radians(23.0f))) <
+                            0.00001f,
+                    "clearing a camera view restores the existing actor-derived direction fallback");
+        }
+        for (int protocol : {944, 2193, kBedrockProtocol}) {
+            struct Air final : physics::World {
+                physics::BlockShape Query(int, int, int) const override { return {}; }
+            } world;
+            Rig rig(protocol);
+            MovementProtocolTestAccess::SettleColumn(rig.session, 0, 0);
+            const auto near = [](float a, float b) { return std::fabs(a - b) < 0.00002f; };
+            struct Sample {
+                proto::PlayerAuthInputPacket packet;
+                physics::State state;
+            };
+            const auto simulate = [&](int scheme, float forward, float strafe, bool itemSlow = false,
+                                      bool sneak = false) {
+                Input input;
+                Options options;
+                InputManager controls(input, options);
+                input.NoteDevice(InputDevice::Gamepad);
+                input.SetPadMove(strafe, -forward);
+                if (itemSlow)
+                    input.OnMouseDown(Mouse::Right);
+                if (sneak)
+                    input.OnKeyDown(options.GetKey(Action::Sneak).code);
+                LocalPlayer player;
+                player.SetCameraControl(scheme, 0);
+                player.SetItemSlow(itemSlow);
+                Camera actorView;
+                actorView.yaw = 90;
+                actorView.pitch = 23;
+                physics::State state;
+                state.x = state.z = 0.5;
+                state.y = 64;
+                MovementProtocolTestAccess::Place(player, state);
+                const size_t before = rig.attempts.size();
+                MovementProtocolTestAccess::Tick(player, rig.session, controls, actorView, world);
+                t.Check(rig.decodeOk && rig.attempts.size() == before + 1,
+                        "native camera movement transform emits one decodable auth-input packet");
+                return Sample{rig.attempts.size() > before ? rig.attempts.back()
+                                                          : proto::PlayerAuthInputPacket{},
+                              player.State()};
+            };
+            const auto relative = simulate(1, 0.25f, 0);
+            t.Check(near(relative.packet.yaw, -90) && relative.packet.pitch == 0 &&
+                        near(relative.packet.moveVector.z, 0.25f) && relative.packet.moveVector.x == 0 &&
+                        relative.state.vx > 0 && std::fabs(relative.state.vz) < 0.00001,
+                    "camera-relative movement faces its travel direction without losing analog magnitude");
+            const auto independent = simulate(2, 1, 0);
+            t.Check(independent.packet.yaw == 0 && independent.packet.pitch == 0 &&
+                        near(independent.packet.moveVector.x, 1) &&
+                        std::fabs(independent.packet.moveVector.z) < 0.00001 &&
+                        independent.state.vx > 0 && std::fabs(independent.state.vz) < 0.00001,
+                    "camera-relative strafe rotates movement into actor space and preserves actor yaw");
+            const auto diagonal = simulate(2, 0.6f, 0.8f);
+            t.Check(diagonal.packet.yaw == 0 && near(diagonal.packet.moveVector.x, 0.6f) &&
+                        near(diagonal.packet.moveVector.z, 0.8f),
+                    "camera-relative strafe preserves both components and length of diagonal input");
+            const auto right = simulate(3, 0, 1);
+            t.Check(near(right.packet.yaw, 10) && right.packet.pitch == 0 &&
+                        right.packet.moveVector.x == 0 && right.packet.moveVector.z == 0 &&
+                        right.state.vx == 0 && right.state.vz == 0 &&
+                        Has(right.packet, proto::InputData::Right),
+                    "player-relative right input turns ten degrees without lateral travel or erasing raw intent");
+            const auto left = simulate(3, 0, -1);
+            t.Check(near(left.packet.yaw, -10) && left.packet.moveVector.x == 0 &&
+                        left.packet.moveVector.z == 0,
+                    "player-relative left input turns in the opposite direction without strafing");
+            const auto forward = simulate(3, 1, 0);
+            t.Check(forward.packet.yaw == 0 && forward.packet.pitch == 0 &&
+                        near(forward.packet.moveVector.z, 1) && forward.state.vz > 0,
+                    "player-relative full forward input follows actor orientation and clears pitch");
+            const auto back = simulate(3, -1, 0);
+            t.Check(back.packet.yaw == 0 && near(back.packet.moveVector.z, -1) && back.state.vz < 0,
+                    "player-relative full backward input keeps actor yaw");
+            const auto turn = simulate(3, 0.75f, 0.25f);
+            t.Check(near(turn.packet.yaw, 5.78125f) && near(turn.packet.moveVector.z, 0.75f) &&
+                        near(turn.packet.moveVector.x, -0.25f),
+                    "player-relative partial turn uses the recovered cubic curve and retains shallow travel");
+            const auto slowed = simulate(3, 0.75f, 0.25f, true);
+            t.Check(near(slowed.packet.yaw, 5.78125f) &&
+                        near(slowed.packet.moveVector.z, 0.091875f) &&
+                        near(slowed.packet.moveVector.x, -0.030625f),
+                    "item-use slowdown follows camera turning rather than changing the turn threshold");
+            const auto sneak = simulate(3, 1, 0, false, true);
+            t.Check(near(sneak.packet.yaw, -9.73f) && sneak.packet.moveVector.x == 0 &&
+                        sneak.packet.moveVector.z == 0,
+                    "native player-relative transform sees the already sneak-scaled movement vector");
+            const auto deadzone = simulate(3, 0, 0.1f);
+            t.Check(deadzone.packet.yaw == 0 && deadzone.packet.pitch == -23 &&
+                        deadzone.packet.moveVector.x == 0 && deadzone.packet.moveVector.z == 0,
+                    "player-relative movement at the native deadzone neither travels nor resets pitch");
+            const auto above = simulate(3, 0, 0.1001f);
+            t.Check(near(above.packet.yaw, 10) && above.packet.pitch == 0 &&
+                        above.packet.moveVector.x == 0 && above.packet.moveVector.z == 0,
+                    "player-relative movement above the deadzone applies turning and pitch reset");
+
+            Input input;
+            Options options;
+            InputManager controls(input, options);
+            LocalPlayer player;
+            Camera actorView;
+            actorView.yaw = 90;
+            actorView.pitch = 23;
+            physics::State state;
+            state.x = state.z = 0.5;
+            state.y = 64;
+            for (int scheme : {2, 4}) {
+                player.SetCameraControl(scheme, 0);
+                MovementProtocolTestAccess::Place(player, state);
+                MovementProtocolTestAccess::Tick(player, rig.session, controls, actorView, world);
+                t.Check(!rig.attempts.empty() && rig.attempts.back().pitch == 0 &&
+                            rig.attempts.back().yaw == 0,
+                        "entering an absolute-aim strafe control resets pitch even without movement");
+                player.RequestCameraControlPitchReset();
+                actorView.pitch = 47;
+                MovementProtocolTestAccess::Place(player, state);
+                MovementProtocolTestAccess::Tick(player, rig.session, controls, actorView, world);
+                t.Check(!rig.attempts.empty() && rig.attempts.back().pitch == 0 &&
+                            rig.attempts.back().yaw == 0,
+                        "a repeated strafe control packet can request another idle pitch reset");
+            }
+        }
         for (int protocol : {944, 2193, kBedrockProtocol}) {
             Rig rig(protocol);
             rig.Teleport(4);
@@ -109,6 +339,12 @@ namespace perlin::selftest {
             t.Check(!rig.session.SendMoveInput(malformed) && rig.session.LastAuthTick() == 0 &&
                         rig.attempts.empty(),
                     "invalid raw input leaves the movement frame and pending actions intact");
+            malformed = rig.move;
+            malformed.cameraOrientation =
+                std::array<float, 3>{0, std::numeric_limits<float>::quiet_NaN(), 1};
+            t.Check(!rig.session.SendMoveInput(malformed) && rig.session.LastAuthTick() == 0 &&
+                        rig.attempts.empty(),
+                    "invalid camera direction leaves the movement frame and pending actions intact");
 
             MovementProtocolTestAccess::ReplayTransport(rig.session, false);
             t.Check(!rig.session.SendMoveInput(rig.move) && rig.session.LastAuthTick() == 1,

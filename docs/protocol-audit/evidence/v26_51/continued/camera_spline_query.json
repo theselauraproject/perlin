@@ -1,0 +1,25 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "CameraInstruction",
+    "CameraInstructionOptions::SplineInstruction",
+    "CameraInstructionOptions::SplineInstruction::SplineProgressOption",
+    "CameraInstructionOptions::SplineInstruction::SplineRotationOption",
+    "MinecraftCamera::CameraGlobalSplineComponent",
+    "SharedTypes::v1_26_0::CameraSplineDefinition",
+    "SharedTypes::v1_26_0::CameraSplineProgressKeyFrame",
+    "SharedTypes::v1_26_0::CameraSplineRotationKeyFrame",
+    "CameraSplineUtils::SplineType",
+    "CameraSplineUtils::Keyframe",
+    "CameraSplineUtils::Layer",
+    "MinecraftCamera::CameraAnimationDataComponent",
+    "MinecraftCamera::CameraAnimationStorageComponent",
+    "MinecraftCamera::CameraTimeComponent"
+  ],
+  "symbol_rvas": [
+    "0x677c280",
+    "0x677c8a0",
+    "0x3201d0",
+    "0xe5a6380"
+  ]
+}

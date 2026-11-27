@@ -1,6 +1,7 @@
 #include "client/systems/blocks/BlockUse.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <string_view>
 #include <unordered_map>
 
@@ -122,7 +123,15 @@ namespace perlin::blockuse {
         return r;
     }
 
-    int VanillaUseTicks(const std::string& itemName, bool food) {
+    int VanillaUseTicks(const std::string& itemName, bool food, int quickChargeLevel) {
+
+        if (Bare(itemName) == "crossbow" && quickChargeLevel > 0) {
+            // The native getter falls back only for a nonpositive enchantment
+            // level; it does not clamp zero/negative calculated durations.
+            // Preserve the x64 getter's 32-bit arithmetic without signed UB.
+            return std::bit_cast<int32_t>(uint32_t{25} - uint32_t{5} *
+                                                           static_cast<uint32_t>(quickChargeLevel));
+        }
 
         static const std::unordered_map<std::string_view, int> kVanilla = {
             {"bow", 72000},      {"crossbow", 25},     {"trident", 72000},

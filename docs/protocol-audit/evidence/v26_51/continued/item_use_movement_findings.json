@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only disassembly and matching PDB metadata. The executable was not run."
+  },
+  "facts": [
+    {
+      "topic": "base input vector",
+      "contract": "PlayerMovement::calculateMoveVector forms the movement vector from analog input or digital fallback, normalizes over-length analog input, and applies the sneaking factor. The observed client input callback writes this vector into MoveInputComponent.mMove. Item-use attenuation is performed by a separate component consumer.",
+      "anchors": [
+        "PlayerMovement::calculateMoveVector RVA0x4495E0",
+        "ClientInputUpdateSystemInternal::tickUpdateClientInputView RVA0x66983A0",
+        "calculateMoveVector call RVA0x6698912",
+        "MoveInputComponent.mMove stores RVA0x6698920/RVA0x669892E",
+        "PDB MoveInputComponent.mMove offset36"
+      ]
+    },
+    {
+      "topic": "default and component-defined modifier",
+      "contract": "The setup helper begins with 0.35f. For an item whose isComponentBased virtual method returns true, it calls ComponentItem::getMovementModifier. That getter returns 0.35f when UseModifiersItemComponent is absent, 1.0f when the component exists without its optional mMovementModifier, or the component's configured float when present. The helper writes the selected float into ItemUseSlowdownModifierComponent when its distance from 1.0f exceeds the observed float epsilon comparison.",
+      "anchors": [
+        "setup helper RVA0xC5F5E00",
+        "default constant load RVA0xC5F5E15",
+        "Item::isComponentBased vslot0x48 call RVA0xC5F5E34",
+        "ComponentItem::getMovementModifier call RVA0xC5F5E44",
+        "getter RVA0x3FD7E10",
+        "Item::getComponent vslot0xC0",
+        "getter optional presence test at component+0x4C",
+        "getter return1 RVA0x3FD7E6C",
+        "getter return0.35 RVA0x3FD7E76",
+        "getter configured return RVA0x3FD7E80",
+        "0.35f constant RVA0xE7F8A98, bits0x3EB33333",
+        "epsilon constant RVA0xE6AE4C0, bits0x34000000",
+        "component write RVA0xC5F5EFC",
+        "PDB ItemUseSlowdownModifierComponent.mModifier offset0",
+        "FNV1a(ItemUseSlowdownModifierComponent)=0x867FC92C"
+      ]
+    },
+    {
+      "topic": "squared application to movement input",
+      "contract": "The observed consumer loads ItemUseSlowdownModifierComponent.mModifier, multiplies the float by itself, and multiplies both components of MoveInputComponent.mMove by that square. Thus the ordinary 0.35f modifier produces approximately 0.1225 input scaling. Applying the modifier only once would differ from this matched path.",
+      "anchors": [
+        "consumer RVA0xC60F9A0",
+        "ItemUseSlowdownModifierComponent lookup RVA0xC60FA46",
+        "MoveInputComponent lookup RVA0xC60FA56",
+        "FNV1a(MoveInputComponent)=0x018B1887",
+        "modifier load RVA0xC60FB6C",
+        "modifier square RVA0xC60FB72",
+        "mMove.x multiply and store RVA0xC60FB7D/RVA0xC60FB81",
+        "mMove.y multiply and store RVA0xC60FB88/RVA0xC60FB8F",
+        "PDB MoveInputComponent.mMove offset36 (0x24), second float offset40 (0x28)"
+      ]
+    }
+  ],
+  "comparison": {
+    "default_factor": "Perlin's ProcessMoveInput already squares its itemUseModifier argument. LocalPlayer supplies 0.35f for the active default item-use path. This coefficient and square are consistent with the matched native consumer; no production factor change was made for this investigation.",
+    "existing_regressions": "tests/physics_selftest.cpp checks 0.1225 axial and normalized diagonal input for the default modifier and steady movement under use slowdown. The isolated physics selftest passed after the slow-falling numeric regressions were added.",
+    "remaining_metadata_gap": "LocalPlayer still supplies a fixed default modifier rather than a per-item UseModifiersItemComponent value. Correct start/stop gating of active item use is a separate interaction-state change. This evidence does not establish that every item uses the default coefficient."
+  },
+  "limitations": [
+    "These static facts are specific to the matched 1.26.51.1/protocol2193 executable; equivalence with the incident's protocol2225 client build has not been established here.",
+    "The setup and consumer are connected by their identified component storage and field layout. This artifact does not reconstruct every condition that creates, removes or filters that component, or every scheduler/replay mode.",
+    "This artifact does not establish full custom-item metadata conversion, full movement trajectories, server acceptance, or a cause for the reported disconnect."
+  ]
+}

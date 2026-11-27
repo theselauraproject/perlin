@@ -2,6 +2,7 @@
 #include <cstring>
 #include <mutex>
 #include "client/systems/renderer/chunk/ChunkMesher.hpp"
+#include "client/systems/renderer/chunk/SectionConnectivity.hpp"
 #include "util/Log.hpp"
 #include "world/level/Level.hpp"
 #include "client/systems/blocks/BiomeTints.hpp"
@@ -878,74 +879,7 @@ namespace perlin {
     }
 
     static uint16_t SectionConnectivity(const BlockCache& cache, int sy) {
-        const int y0 = sy * 16;
-        static thread_local std::vector<uint8_t> seen;
-        static thread_local std::vector<uint16_t> stack;
-        seen.assign(4096, 0);
-        int opaque = 0;
-        for (int i = 0; i < 4096; i++) {
-            const int x = i & 15, z = (i >> 4) & 15, y = i >> 8;
-            if (cache.Occ(x, y0 + y, z)) {
-                seen[i] = 1;
-                opaque++;
-            }
-        }
-        if (opaque == 0)
-            return 0x7FFF;
-        if (opaque == 4096)
-            return 0;
-        uint16_t conn = 0;
-        for (int start = 0; start < 4096; start++) {
-            if (seen[start])
-                continue;
-            int mask = 0;
-            stack.clear();
-            stack.push_back(static_cast<uint16_t>(start));
-            seen[start] = 1;
-            while (!stack.empty()) {
-                const int i = stack.back();
-                stack.pop_back();
-                const int x = i & 15, z = (i >> 4) & 15, y = i >> 8;
-                if (y == 0)
-                    mask |= 1;
-                if (y == 15)
-                    mask |= 2;
-                if (z == 0)
-                    mask |= 4;
-                if (z == 15)
-                    mask |= 8;
-                if (x == 0)
-                    mask |= 16;
-                if (x == 15)
-                    mask |= 32;
-                auto push = [&](int ni) {
-                    if (!seen[ni]) {
-                        seen[ni] = 1;
-                        stack.push_back(static_cast<uint16_t>(ni));
-                    }
-                };
-                if (x > 0)
-                    push(i - 1);
-                if (x < 15)
-                    push(i + 1);
-                if (z > 0)
-                    push(i - 16);
-                if (z < 15)
-                    push(i + 16);
-                if (y > 0)
-                    push(i - 256);
-                if (y < 15)
-                    push(i + 256);
-            }
-            for (int a = 0; a < 6; a++)
-                if (mask & (1 << a))
-                    for (int b = a + 1; b < 6; b++)
-                        if (mask & (1 << b))
-                            conn |= static_cast<uint16_t>((1u << (a * (11 - a) / 2 + (b - a - 1))));
-            if (conn == 0x7FFF)
-                break;
-        }
-        return conn;
+        return sectionvis::ComputePadded(cache.solid, cache.yBase, sy);
     }
 
     namespace {

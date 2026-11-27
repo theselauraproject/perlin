@@ -17,6 +17,8 @@ namespace perlin::detail {
     inline bool HasAmmo(const ui::HudState& st, BedrockSession* live, const std::string& weapon) {
         if ((weapon != "minecraft:bow" && weapon != "minecraft:crossbow") || !st.Survival())
             return true;
+        if (weapon == "minecraft:crossbow" && live && live->HeldItemIsChargedCrossbow())
+            return true;
         const auto ammo = [&](const auto& stack) { return !stack.Empty() && IsAmmoFor(weapon, stack.name); };
         if (ammo(st.offhand))
             return true;

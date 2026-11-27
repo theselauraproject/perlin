@@ -1,0 +1,1303 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "ContainerExpandStatus",
+      "type_index": "0x13af",
+      "fieldlist": "0x13ae",
+      "underlying": 116,
+      "member_count": 5,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Normal",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Expanded",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Contracted",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Child",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CreativeContentPacketPayload",
+      "type_index": "0x18237",
+      "size": 48,
+      "fieldlist": "0x18236",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mGroups",
+          "offset": 0,
+          "type": "std::vector<CreativeGroupInfoPayload,std::allocator<CreativeGroupInfoPayload> >",
+          "type_index": "0xd81b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntries",
+          "offset": 24,
+          "type": "std::vector<CreativeItemEntryPayload,std::allocator<CreativeItemEntryPayload> >",
+          "type_index": "0xd81c",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "CreativeContentPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x18232",
+          "return_type": "void",
+          "class_type": "CreativeContentPacketPayload",
+          "this_type": "CreativeContentPacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "CreativeContentPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x18234",
+          "return_type": "void",
+          "class_type": "CreativeContentPacketPayload",
+          "this_type": "CreativeContentPacketPayload *",
+          "argument_types": [
+            "Bedrock::NonOwnerPointer<const CreativeItemRegistry>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CreativeGroupInfo",
+      "type_index": "0x367a2",
+      "size": 248,
+      "fieldlist": "0x367a1",
+      "member_count": 9,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mCategory",
+          "offset": 24,
+          "type": "SharedTypes::CreativeItemCategory",
+          "type_index": "0x142a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRegistry",
+          "offset": 32,
+          "type": "CreativeItemRegistry *",
+          "type_index": "0x233be",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mName",
+          "offset": 40,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIcon",
+          "offset": 88,
+          "type": "ItemInstance",
+          "type_index": "0xf0cd",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIndex",
+          "offset": 216,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemIndexes",
+          "offset": 224,
+          "type": "std::vector<unsigned int,std::allocator<unsigned int> >",
+          "type_index": "0xd66c",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~CreativeGroupInfo",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3679e",
+          "return_type": "void",
+          "class_type": "CreativeGroupInfo",
+          "this_type": "CreativeGroupInfo *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_addCreativeItemEntry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367a0",
+          "return_type": "void",
+          "class_type": "CreativeGroupInfo",
+          "this_type": "CreativeGroupInfo *",
+          "argument_types": [
+            "CreativeItemEntry *"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CreativeGroupInfoPayload",
+      "type_index": "0x1823b",
+      "size": 104,
+      "fieldlist": "0x1823a",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mCreativeItemCategory",
+          "offset": 0,
+          "type": "SharedTypes::CreativeItemCategory",
+          "type_index": "0x142a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mName",
+          "offset": 8,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIcon",
+          "offset": 40,
+          "type": "NetworkItemInstanceDescriptor",
+          "type_index": "0xf532",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~CreativeGroupInfoPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x18239",
+          "return_type": "void",
+          "class_type": "CreativeGroupInfoPayload",
+          "this_type": "CreativeGroupInfoPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CreativeItemEntry",
+      "type_index": "0x367a4",
+      "size": 176,
+      "fieldlist": "0x367a3",
+      "member_count": 6,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mRegistry",
+          "offset": 24,
+          "type": "CreativeItemRegistry *",
+          "type_index": "0x233be",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGroupIndex",
+          "offset": 32,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeNetId",
+          "offset": 36,
+          "type": "TypedServerNetId<CreativeItemNetIdTag,unsigned int,0>",
+          "type_index": "0x7a19",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemInstance",
+          "offset": 40,
+          "type": "ItemInstance",
+          "type_index": "0xf0cd",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIndex",
+          "offset": 168,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CreativeItemEntryPayload",
+      "type_index": "0x1823d",
+      "size": 80,
+      "fieldlist": "0x1823c",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mCreativeItemNetId",
+          "offset": 0,
+          "type": "TypedServerNetId<CreativeItemNetIdTag,unsigned int,0>",
+          "type_index": "0x7a19",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemDescriptor",
+          "offset": 8,
+          "type": "NetworkItemInstanceDescriptor",
+          "type_index": "0xf532",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGroupIndex",
+          "offset": 72,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CreativeItemGroupCategory",
+      "type_index": "0x367ac",
+      "size": 160,
+      "fieldlist": "0x367ab",
+      "member_count": 10,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mName",
+          "offset": 24,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCategory",
+          "offset": 56,
+          "type": "SharedTypes::CreativeItemCategory",
+          "type_index": "0x142a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRegistry",
+          "offset": 64,
+          "type": "CreativeItemRegistry *",
+          "type_index": "0x233be",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNamedGroupIndex",
+          "offset": 72,
+          "type": "std::unordered_map<HashedString,unsigned int,std::hash<HashedString>,std::equal_to<HashedString>,std::allocator<std::pair<const HashedString,unsigned int> > >",
+          "type_index": "0xd45f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGroupIndexes",
+          "offset": 136,
+          "type": "std::vector<unsigned int,std::allocator<unsigned int> >",
+          "type_index": "0xd66c",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~CreativeItemGroupCategory",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367a6",
+          "return_type": "void",
+          "class_type": "CreativeItemGroupCategory",
+          "this_type": "CreativeItemGroupCategory *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "addAnonymousGroup",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367a7",
+          "return_type": "CreativeGroupInfo *",
+          "class_type": "CreativeItemGroupCategory",
+          "this_type": "CreativeItemGroupCategory *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "addChildGroup",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367a9",
+          "return_type": "CreativeGroupInfo *",
+          "class_type": "CreativeItemGroupCategory",
+          "this_type": "CreativeItemGroupCategory *",
+          "argument_types": [
+            "const HashedString &",
+            "const ItemInstance &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getChildGroup",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367aa",
+          "return_type": "CreativeGroupInfo *",
+          "class_type": "CreativeItemGroupCategory",
+          "this_type": "CreativeItemGroupCategory *",
+          "argument_types": [
+            "const HashedString &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CreativeItemRegistry",
+      "type_index": "0x367cd",
+      "size": 200,
+      "fieldlist": "0x367cc",
+      "member_count": 11,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "Bedrock::EnableNonOwnerReferences",
+          "member_kind": "base"
+        },
+        {
+          "name": "mCreativeItems",
+          "offset": 24,
+          "type": "std::vector<CreativeItemEntry,std::allocator<CreativeItemEntry> >",
+          "type_index": "0xdc82",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeGroups",
+          "offset": 48,
+          "type": "std::vector<CreativeGroupInfo,std::allocator<CreativeGroupInfo> >",
+          "type_index": "0xdc81",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeGroupCategories",
+          "offset": 72,
+          "type": "std::unordered_map<SharedTypes::CreativeItemCategory,CreativeItemGroupCategory,std::hash<SharedTypes::CreativeItemCategory>,std::equal_to<SharedTypes::CreativeItemCategory>,std::allocator<std::pair<const SharedTypes::CreativeItemCategory,CreativeItemGroupCategory> > >",
+          "type_index": "0xd4df",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeNetIdIndex",
+          "offset": 136,
+          "type": "std::unordered_map<TypedServerNetId<CreativeItemNetIdTag,unsigned int,0>,unsigned long long,std::hash<TypedServerNetId<CreativeItemNetIdTag,unsigned int,0> >,std::equal_to<TypedServerNetId<CreativeItemNetIdTag,unsigned int,0> >,std::allocator<std::pair<const TypedServerNetId<CreativeItemNetIdTag,unsigned int,0>,unsigned long long> > >",
+          "type_index": "0xd35b",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~CreativeItemRegistry",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367c3",
+          "return_type": "void",
+          "class_type": "CreativeItemRegistry",
+          "this_type": "CreativeItemRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "CreativeItemRegistry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367c4",
+          "return_type": "void",
+          "class_type": "CreativeItemRegistry",
+          "this_type": "CreativeItemRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "createCategories",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367c5",
+          "return_type": "brstd::flat_map<SharedTypes::CreativeItemCategory,gsl::not_null<CreativeItemGroupCategory *>,std::less<SharedTypes::CreativeItemCategory>,std::vector<SharedTypes::CreativeItemCategory,std::allocator<SharedTypes::CreativeItemCategory> >,std::vector<gsl::not_null<CreativeItemGroupCategory *>,std::allocator<gsl::not_null<CreativeItemGroupCategory *> > > >",
+          "class_type": "CreativeItemRegistry",
+          "this_type": "CreativeItemRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "initializeFromCreativeContentPacket",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367c8",
+          "return_type": "void",
+          "class_type": "CreativeItemRegistry",
+          "this_type": "CreativeItemRegistry *",
+          "argument_types": [
+            "const CreativeContentPacket &",
+            "const BlockPalette &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "newItemEntry",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367cb",
+          "return_type": "CreativeItemEntry *",
+          "class_type": "CreativeItemRegistry",
+          "this_type": "CreativeItemRegistry *",
+          "argument_types": [
+            "const TypedServerNetId<CreativeItemNetIdTag,unsigned int,0> &",
+            "const ItemInstance &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateNetIdMap",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x367c3",
+          "return_type": "void",
+          "class_type": "CreativeItemRegistry",
+          "this_type": "CreativeItemRegistry *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ExpandoContainerModel",
+      "type_index": "0x39222",
+      "size": 440,
+      "fieldlist": "0x39221",
+      "member_count": 26,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ContainerModel",
+          "member_kind": "base"
+        },
+        {
+          "name": "mItems",
+          "offset": 280,
+          "type": "std::vector<std::pair<ItemInstance,unsigned int>,std::allocator<std::pair<ItemInstance,unsigned int> > >",
+          "type_index": "0xd742",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentItems",
+          "offset": 304,
+          "type": "std::vector<ExpandoModelElement,std::allocator<ExpandoModelElement> >",
+          "type_index": "0xd86f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeItemRegistry",
+          "offset": 328,
+          "type": "gsl::not_null<Bedrock::NonOwnerPointer<CreativeItemRegistry> >",
+          "type_index": "0xc428",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mExpandedItems",
+          "offset": 352,
+          "type": "std::vector<ExpandoModelElement,std::allocator<ExpandoModelElement> >",
+          "type_index": "0xd86f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnItemExpanded",
+          "offset": 376,
+          "type": "std::function<void (const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &, int, int)>",
+          "type_index": "0xbc55",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~ExpandoContainerModel",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39210",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "containerContentChanged",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39211",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemInstance",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39214",
+          "return_type": "const ItemInstance &",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setItemInstance",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 208,
+          "type_index": "0x39216",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t",
+            "const ItemInstance &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isItemInstanceBased",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39217",
+          "return_type": "bool",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setItem",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39218",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t",
+            "const ItemStack &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemStack",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39219",
+          "return_type": "const ItemStack &",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItems",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921a",
+          "return_type": "const std::vector<ItemStack,std::allocator<ItemStack> > &",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemStackBase",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921b",
+          "return_type": "const ItemStackBase &",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getContainerSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921c",
+          "return_type": "int32_t",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getFilteredContainerSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921c",
+          "return_type": "int32_t",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemExpandStatus",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921d",
+          "return_type": "ContainerExpandStatus",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemGroupName",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921e",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "switchItemExpando",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39211",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "refreshContainer",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921f",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getIndexForCreativeItem",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 216,
+          "type_index": "0x39220",
+          "return_type": "int32_t",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "const ExpandoContainerModel *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_init",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39210",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_generateCurrentItems",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39210",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_refreshContainer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3921f",
+          "return_type": "void",
+          "class_type": "ExpandoContainerModel",
+          "this_type": "ExpandoContainerModel *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ExpandoModelElement",
+      "type_index": "0x194cb",
+      "size": 168,
+      "fieldlist": "0x194ca",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "item",
+          "offset": 0,
+          "type": "const ItemInstance",
+          "type_index": "0x14c10",
+          "member_kind": "instance"
+        },
+        {
+          "name": "status",
+          "offset": 128,
+          "type": "ContainerExpandStatus",
+          "type_index": "0x13af",
+          "member_kind": "instance"
+        },
+        {
+          "name": "groupName",
+          "offset": 136,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "ExpandoModelElement",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x194c6",
+          "return_type": "void",
+          "class_type": "ExpandoModelElement",
+          "this_type": "ExpandoModelElement *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "ExpandoModelElement",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x194c8",
+          "return_type": "void",
+          "class_type": "ExpandoModelElement",
+          "this_type": "ExpandoModelElement *",
+          "argument_types": [
+            "const ItemInstance &",
+            "ContainerExpandStatus",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "FilteredContainerModel",
+      "type_index": "0x39bf8",
+      "size": 560,
+      "fieldlist": "0x39bf7",
+      "member_count": 21,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "ExpandoContainerModel",
+          "member_kind": "base"
+        },
+        {
+          "name": "mDoExpandoGroups",
+          "offset": 440,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsFiltering",
+          "offset": 441,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFilteredItemCount",
+          "offset": 444,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSavedItems",
+          "offset": 448,
+          "type": "std::vector<std::pair<ItemInstance,unsigned int>,std::allocator<std::pair<ItemInstance,unsigned int> > >",
+          "type_index": "0xd742",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mActiveFilteredExpandableSetHeads",
+          "offset": 472,
+          "type": "std::vector<std::pair<ItemInstance,unsigned int>,std::allocator<std::pair<ItemInstance,unsigned int> > >",
+          "type_index": "0xd742",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFilterRule",
+          "offset": 496,
+          "type": "std::function<FilterResult (const ItemInstance &, bool)>",
+          "type_index": "0xbb76",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "FilteredContainerModel",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39be9",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "FilteredContainerModel",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39beb",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [
+            "const FullContainerName &",
+            "int32_t",
+            "ContainerCategory",
+            "gsl::not_null<Bedrock::NonOwnerPointer<CreativeItemRegistry> >",
+            "bool",
+            "bool",
+            "std::function<FilterResult (const ItemInstance &, bool)>"
+          ],
+          "argument_count": 7,
+          "this_adjust": 0
+        },
+        {
+          "name": "~FilteredContainerModel",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bed",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "containerContentChanged",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bee",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemInstance",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf1",
+          "return_type": "const ItemInstance &",
+          "class_type": "FilteredContainerModel",
+          "this_type": "const FilteredContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setItemInstance",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf2",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [
+            "int32_t",
+            "const ItemInstance &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "refreshContainer",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf3",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getContainerSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf4",
+          "return_type": "int32_t",
+          "class_type": "FilteredContainerModel",
+          "this_type": "const FilteredContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getFilteredContainerSize",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf4",
+          "return_type": "int32_t",
+          "class_type": "FilteredContainerModel",
+          "this_type": "const FilteredContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isExpanableItemFiltered",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf5",
+          "return_type": "bool",
+          "class_type": "FilteredContainerModel",
+          "this_type": "const FilteredContainerModel *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getIndexForCreativeItem",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf6",
+          "return_type": "int32_t",
+          "class_type": "FilteredContainerModel",
+          "this_type": "const FilteredContainerModel *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_init",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bed",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_refreshContainer",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x39bf3",
+          "return_type": "void",
+          "class_type": "FilteredContainerModel",
+          "this_type": "FilteredContainerModel *",
+          "argument_types": [
+            "bool"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SharedTypes::CreativeItemCategory",
+      "type_index": "0x142a",
+      "fieldlist": "0x1429",
+      "underlying": 32,
+      "member_count": 8,
+      "enum": true,
+      "fields": [
+        {
+          "name": "All",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Construction",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Nature",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Equipment",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Items",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ItemCommandOnly",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Undefined",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "NumCategories",
+          "value": 7,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 884988,
+      "name": "?_addCreativeItemEntry@CreativeGroupInfo@@QEAAXPEAVCreativeItemEntry@@@Z",
+      "section": 1,
+      "section_offset": "0x3468220",
+      "rva": "0x3469220"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 951976,
+      "name": "?_createContainerModel@CraftingContainerManagerModel@@QEAA?AV?$shared_ptr@VFilteredContainerModel@@@std@@W4ContainerEnumName@@QEAVCreativeItemGroupCategory@@_NV?$function@$$A6A?AW4FilterResult@@AEBVItemInstance@@_N@Z@3@@Z",
+      "section": 1,
+      "section_offset": "0x3437210",
+      "rva": "0x3438210"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1009780,
+      "name": "?_generateCurrentItems@ExpandoContainerModel@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x3446710",
+      "rva": "0x3447710"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1283672,
+      "name": "?_refreshContainer@ExpandoContainerModel@@QEAAX_N@Z",
+      "section": 1,
+      "section_offset": "0x3445b90",
+      "rva": "0x3446b90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1443084,
+      "name": "?addAnonymousGroup@CreativeItemGroupCategory@@QEAAPEAVCreativeGroupInfo@@XZ",
+      "section": 1,
+      "section_offset": "0x3468790",
+      "rva": "0x3469790"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1449548,
+      "name": "?addChildGroup@CreativeItemGroupCategory@@QEAAPEAVCreativeGroupInfo@@AEBVHashedString@@AEBVItemInstance@@@Z",
+      "section": 1,
+      "section_offset": "0x3468320",
+      "rva": "0x3469320"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1950156,
+      "name": "?createCategories@CreativeItemRegistry@@QEAA?AV?$flat_map@W4CreativeItemCategory@SharedTypes@@V?$not_null@PEAVCreativeItemGroupCategory@@@gsl@@U?$less@W4CreativeItemCategory@SharedTypes@@@std@@V?$vector@W4CreativeItemCategory@SharedTypes@@V?$allocator@W4CreativeItemCategory@SharedTypes@@@std@@@6@V?$vector@V?$not_null@PEAVCreativeItemGroupCategory@@@gsl@@V?$allocator@V?$not_null@PEAVCreativeItemGroupCategory@@@gsl@@@std@@@6@@brstd@@XZ",
+      "section": 1,
+      "section_offset": "0x3468b00",
+      "rva": "0x3469b00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2379472,
+      "name": "?getChildGroup@CreativeItemGroupCategory@@QEAAPEAVCreativeGroupInfo@@AEBVHashedString@@@Z",
+      "section": 1,
+      "section_offset": "0x3468620",
+      "rva": "0x3469620"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2772824,
+      "name": "?handle@LegacyClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCreativeContentPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x1342ab0",
+      "rva": "0x1343ab0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2853928,
+      "name": "?initCreativeItemsClient@ItemRegistryRef@@QEBAXAEBVCreativeContentPacket@@AEBVBlockPalette@@@Z",
+      "section": 1,
+      "section_offset": "0x348ef50",
+      "rva": "0x348ff50"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2879848,
+      "name": "?initializeFromCreativeContentPacket@CreativeItemRegistry@@QEAAXAEBVCreativeContentPacket@@AEBVBlockPalette@@@Z",
+      "section": 1,
+      "section_offset": "0x346a880",
+      "rva": "0x346b880"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3099724,
+      "name": "?newItemEntry@CreativeItemRegistry@@QEAAPEAVCreativeItemEntry@@AEBV?$TypedServerNetId@UCreativeItemNetIdTag@@I$0A@@@AEBVItemInstance@@@Z",
+      "section": 1,
+      "section_offset": "0x3469ea0",
+      "rva": "0x346aea0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3396828,
+      "name": "?refreshContainer@ExpandoContainerModel@@UEAAX_N@Z",
+      "section": 1,
+      "section_offset": "0x3445b90",
+      "rva": "0x3446b90"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 4002396,
+      "name": "?updateNetIdMap@CreativeItemRegistry@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x346a030",
+      "rva": "0x346b030"
+    }
+  ]
+}

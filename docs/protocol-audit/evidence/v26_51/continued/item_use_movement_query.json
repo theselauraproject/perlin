@@ -1,0 +1,17 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "Item",
+    "ItemUseSlowdownModifierComponent",
+    "UseModifiersItemComponent",
+    "MoveInputComponent",
+    "MoveInputState",
+    "SharedTypes::v1_20_50::UseModifiersItemComponent"
+  ],
+  "symbol_regex": "getMovementModifier@ComponentItem|calculateMoveVector@PlayerMovement|tickUpdateClientInputView",
+  "symbol_rvas": [
+    "0x3fd7e10",
+    "0xc5f5e00",
+    "0xc60f9a0"
+  ]
+}

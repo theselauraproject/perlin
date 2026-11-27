@@ -54,6 +54,9 @@ namespace perlin::interaction {
             }
         }
         if (newSlot >= 0 && newSlot != hudState.selectedSlot) {
+            // A selection change cancels ItemInUse; it is not a manual release
+            // of a charged weapon and must not trigger a Riptide launch.
+            StopHeldItemUse();
             hudState.selectedSlot = newSlot;
             if (live)
                 live->SelectHotbarSlot(newSlot);
@@ -437,6 +440,7 @@ namespace perlin::interaction {
         auto& earlyItemUse = f.earlyItemUse;
         auto& blockedFoodUse = f.blockedFoodUse;
         auto& previewLevel = *view.previewLevel;
+        ReconcileHeldItemUse(held);
         const float eyeF[3] = {camera.x, camera.y, camera.z};
         const auto clickOf = [](const AimHit& aim, float out[3]) {
             out[0] = static_cast<float>(aim.point.x) - static_cast<float>(aim.bx);
@@ -489,8 +493,10 @@ namespace perlin::interaction {
             }
         }
         const bool ammoBlocked = !detail::HasAmmo(hudState, live, held.name);
-        const bool useHeld = inputManager.IsDown(Action::Use) && !ammoBlocked;
-        const bool usePressed = inputManager.Pressed(Action::Use) && !ammoBlocked;
+        // A block or entity handles interaction before the held item's use
+        // method. Missing ammunition must not prevent opening a chest.
+        const bool useHeld = inputManager.IsDown(Action::Use);
+        const bool usePressed = inputManager.Pressed(Action::Use);
         const bool holdsItem = !held.Empty();
         const bool holdsBlock = holdsItem && held.blockRuntimeId != 0;
         blockuse::Use use = blockuse::Use::Nothing;
@@ -539,7 +545,7 @@ namespace perlin::interaction {
                 intoBody = true;
             }
         }
-        if (usePressed || (useHeld && repeatReady)) {
+        if (!usingItem && (usePressed || (useHeld && repeatReady))) {
             lastUseSent = Clock::now();
             useClock = 0;
             bool interactedEntity = false;
@@ -621,22 +627,34 @@ namespace perlin::interaction {
                     audioDirector.NoteLocalPlace(dest[0], dest[1], dest[2], std::chrono::steady_clock::now());
                 }
             }
-            if (usePressed && !earlyItemUse && !blockedFoodUse && live && holdsItem &&
+            const bool continueAirUse = useHeld && repeatReady && (useConsumed || repeatAirUse);
+            if ((usePressed || continueAirUse) && !useRestartBlocked &&
+                !earlyItemUse && !blockedFoodUse && live && holdsItem &&
                 use == blockuse::Use::Nothing && !interactedEntity && !intoBody &&
                 !dispatchModInteract(abi::InteractKind::UseItem, 0, 0, 0, 0, 0)) {
-                CustomItemDef custom;
+                const bool wet = held.name == "minecraft:trident" &&
+                                 (player.State().inWater || RainingOnPlayer(*live));
                 const bool heldUse =
-                    (OffhandExperiment() && held.name == "minecraft:shield") ||
-                    (serverBlocks.Item(held.name, custom)
-                         ? custom.useTicks > 0
-                         : blockuse::VanillaUseTicks(held.name, ui::IsFood(held.name)) > 0);
+                    !ammoBlocked && live->CanStartUsingHeldItem(wet) &&
+                    ((OffhandExperiment() && held.name == "minecraft:shield") ||
+                     held.name == "minecraft:crossbow" || HeldUseDuration(held, *live) > 0);
                 const bool onCooldown = live->HeldItemUseOnCooldown();
                 const bool sent = live->SendUseItemInAir(eyeF, heldUse);
                 if (sent && !onCooldown && held.name == "minecraft:firework_rocket")
                     player.UseFirework();
                 usingItem = sent && heldUse && !onCooldown;
                 if (usingItem)
-                    player.BeginItemUse();
+                    BeginHeldItemUse(held, *live);
+                if (sent && (held.name == "minecraft:ender_pearl" || held.name == "minecraft:wind_charge")) {
+                    const auto inventory = live->GetInventory();
+                    const auto& remaining = offhandUse
+                                                ? inventory.offhand
+                                                : inventory.hotbar[std::clamp(inventory.selected, 0, 8)];
+                    repeatAirUse = !remaining.Empty() && remaining.name == held.name;
+                    useItemName = held.name;
+                    useItemSlot = hudState.selectedSlot;
+                    useItemOffhand = offhandUse;
+                }
             }
         }
         if (!useHeld && live)
@@ -667,6 +685,8 @@ namespace perlin::interaction {
         if (inputManager.Pressed(Action::ToggleHud))
             options.showHud = !options.showHud;
         if (!(live || preview) || !input.Captured() || input.TextMode() || replayPlaying()) {
+            if (!live)
+                StopHeldItemUse();
             if (live)
                 live->SetUseOffhand(false);
             aimHit = AimHit{};
@@ -712,9 +732,19 @@ namespace perlin::interaction {
         offhandUse = offhand::UseOffhand(mainHeld, hudState.offhand);
         live.SetUseOffhand(offhandUse);
         const auto& held = offhandUse ? hudState.offhand : mainHeld;
+        ReconcileHeldItemUse(held);
         const auto& name = held.name;
-        const bool use =
-            input.Captured() && inputManager.IsDown(Action::Use) && detail::HasAmmo(hudState, &live, name);
+        const bool use = input.Captured() && inputManager.IsDown(Action::Use);
+        if (!use) {
+            useRestartBlocked = false;
+            repeatAirUse = false;
+        }
+        // FinishedChargingItem can precede the chargedItem inventory update.
+        // The native callback retains its reset flag until the held stack is
+        // charged, then clears the retained use intention. It does not release
+        // the weapon or stop an independently active item-use timer.
+        if (live.HeldItemIsChargedCrossbow() && live.TakeChargedItemUseReset())
+            useRestartBlocked = use;
         const bool drink = name == "minecraft:potion" || name == "minecraft:milk_bucket" ||
                            name == "minecraft:honey_bottle" || name == "minecraft:ominous_bottle";
         const bool always = drink || name == "minecraft:golden_apple" ||
@@ -732,94 +762,137 @@ namespace perlin::interaction {
             entity::Entity target;
             aimInteracts = !live.Entities().Find(aimHit.entity, target) || frame::TakesItemUse(target.type);
         }
-        if (use && eating && !aimInteracts && inputManager.Pressed(Action::Use) &&
+        if (use && !usingItem && eating && !aimInteracts && inputManager.Pressed(Action::Use) &&
             !dispatchModInteract(abi::InteractKind::UseItem, 0, 0, 0, 0, 0)) {
             const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
                                   static_cast<float>(camera.z)};
             earlyItemUse = live.SendUseItemInAir(eye, true);
             usingItem = earlyItemUse && !live.HeldItemUseOnCooldown();
+            if (usingItem)
+                BeginHeldItemUse(held, live);
         }
         if (!use && usingItem) {
             const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
                                   static_cast<float>(camera.z)};
             ReleaseHeldItem(&live, held, eye);
         }
-        const uint32_t useTicks = eating ? (name == "minecraft:dried_kelp"     ? 16
-                                            : name == "minecraft:honey_bottle" ? 40
-                                                                               : 32)
-                                         : 0;
         {
-            const bool consumable = eating || drink || name == "minecraft:chorus_fruit" ||
-                                    name == "minecraft:suspicious_stew" || name == "minecraft:dried_kelp";
             const uint64_t now = player.TickCount();
-            const bool held_ = use && usingItem && consumable;
+            const bool held_ = use && usingItem;
             if (held_ && !useWasHeld) {
                 Log("item", "started using {}", name);
                 useStartTick = now;
                 useConsumed = false;
             }
             if (held_ && !useConsumed) {
-                CustomItemDef custom;
-                int need = serverBlocks.Item(name, custom) && custom.useTicks > 0
-                               ? custom.useTicks
-                               : blockuse::VanillaUseTicks(name, true);
-                if (name == "minecraft:dried_kelp")
-                    need = 16;
-                if (now >= useStartTick + static_cast<uint64_t>(need) + 1) {
+                const int need = useDuration;
+                // Native positive durations count down; zero completes and a
+                // negative duration is retained. Quick Charge can produce all
+                // three, so do not cast a negative duration to unsigned ticks.
+                const bool finite = need > 0 || (need == 0 && name == "minecraft:crossbow");
+                if (finite && now >= useStartTick && now - useStartTick > static_cast<uint64_t>(need)) {
                     Log("item", "finished using {} after {} ticks", name, now - useStartTick);
                     useConsumed = true;
                     usingItem = false;
                 }
             }
-            useWasHeld = held_ || (use && consumable && useConsumed);
-            if (!use)
+            useWasHeld = held_ || (use && useConsumed);
+            if (!use) {
                 useWasHeld = false;
+                useConsumed = false;
+            }
         }
         const bool shieldSlow = OffhandExperiment() && live.previewOffhand && name == "minecraft:shield";
-        const bool canUse = usingItem || !live.HeldItemUseOnCooldown();
-        player.SetItemSlow(use && canUse && (eating || name == "minecraft:bow" || name == "minecraft:trident" ||
-                                   name == "minecraft:spyglass" || shieldSlow),
-                           useTicks, inputManager.Pressed(Action::Use));
+        CustomItemDef custom;
+        const bool customUse = serverBlocks.Item(name, custom) && custom.useTicks > 0;
+        // Use state owns the slowdown lifetime. A timer tied only to the first
+        // physical press expires incorrectly when held food starts another use.
+        player.SetItemSlow(use && usingItem &&
+                               (customUse || ui::IsFood(name) || drink || name == "minecraft:bow" ||
+                                name == "minecraft:crossbow" || name == "minecraft:trident" ||
+                                name == "minecraft:spyglass" || shieldSlow),
+                           0, false, customUse ? custom.useMovementModifier : 0.35f);
+    }
+
+    int Player::HeldUseDuration(const ui::HudItem& held, BedrockSession& live) const {
+        if (held.name == "minecraft:crossbow")
+            return blockuse::VanillaUseTicks(held.name, false, live.HeldItemEnchantLevel(35));
+        CustomItemDef custom;
+        if (serverBlocks.Item(held.name, custom) && custom.useTicks > 0)
+            return custom.useTicks;
+        if (held.name == "minecraft:dried_kelp")
+            return 16;
+        return blockuse::VanillaUseTicks(held.name, ui::IsFood(held.name));
+    }
+
+    void Player::BeginHeldItemUse(const ui::HudItem& held, BedrockSession& live) {
+        usingItem = true;
+        useConsumed = false;
+        useWasHeld = false;
+        useRestartBlocked = false;
+        repeatAirUse = false;
+        useDuration = HeldUseDuration(held, live);
+        useItemName = held.name;
+        useItemSlot = hudState.selectedSlot;
+        useItemOffhand = offhandUse;
+        player.BeginItemUse();
+    }
+
+    void Player::StopHeldItemUse() {
+        usingItem = false;
+        useConsumed = false;
+        useWasHeld = false;
+        useRestartBlocked = false;
+        repeatAirUse = false;
+        useStartTick = 0;
+        useDuration = 0;
+        useItemName.clear();
+        player.SetItemSlow(false);
+    }
+
+    void Player::ReconcileHeldItemUse(const ui::HudItem& held) {
+        // For the ordinary supported use-item classes, the matched client's
+        // relevant-user-data comparison returns true and its continuity check
+        // explicitly excludes aux/durability. Count changes refresh the copied
+        // stack; only an empty stack cancels it.
+        if ((usingItem || useConsumed || repeatAirUse) &&
+            (held.Empty() || held.name != useItemName || hudState.selectedSlot != useItemSlot ||
+             offhandUse != useItemOffhand))
+            StopHeldItemUse();
+    }
+
+    bool Player::RainingOnPlayer(BedrockSession& live) const {
+        if (live.DimensionId() != 0)
+            return false;
+        const float delta = rainLevel - previousRainLevel;
+        if (!(delta + previousRainLevel > 0.2f) || !levelRenderer)
+            return false;
+        const physics::State& pst = player.State();
+        const float eyeY = static_cast<float>(pst.y) + static_cast<float>(physics::kStandEye);
+        const int x = static_cast<int>(std::floor(static_cast<float>(pst.x)));
+        const int y = static_cast<int>(std::floor(eyeY + pst.collisionHeight));
+        const int z = static_cast<int>(std::floor(static_cast<float>(pst.z)));
+        auto& level = live.NetLevel();
+        for (int top = 319; top >= y; --top) {
+            bool loaded = false;
+            const uint16_t id = level.GetBlock(x, top, z, loaded);
+            if (!loaded || weather.BlocksRain(level, id) || level.GetLiquid(x, top, z) != 0)
+                return false;
+        }
+        const BiomeTints& tints = levelRenderer->Tints();
+        float temperature = 0.5f, downfall = 0.5f;
+        if (!tints.Ready() ||
+            !tints.Climate(tints.NameForId(level.GetBiome(x, y, z)), temperature, downfall))
+            return false;
+        return downfall > 0.0f && temperature > 0.15f;
     }
 
     void Player::ReleaseHeldItem(BedrockSession* live, const ui::HudItem& held, const float eye[3]) {
-        usingItem = false;
+        StopHeldItemUse();
         if (!live)
             return;
         live->SendReleaseItem(eye);
-
-        if (held.name != "minecraft:trident")
-            return;
-
-        const auto rainingOnPlayer = [&] {
-            if (live->DimensionId() != 0)
-                return false;
-            const float delta = rainLevel - previousRainLevel;
-            if (!(delta + previousRainLevel > 0.2f))
-                return false;
-            const physics::State& pst = player.State();
-            const float eyeY = static_cast<float>(pst.y) + static_cast<float>(physics::kStandEye);
-            const int x = static_cast<int>(std::floor(static_cast<float>(pst.x)));
-            const int y = static_cast<int>(std::floor(eyeY + pst.collisionHeight));
-            const int z = static_cast<int>(std::floor(static_cast<float>(pst.z)));
-            auto& level = live->NetLevel();
-            for (int top = 319; top >= y; --top) {
-                bool loaded = false;
-                const uint16_t id = level.GetBlock(x, top, z, loaded);
-                if (!loaded || weather.BlocksRain(level, id) || level.GetLiquid(x, top, z) != 0)
-                    return false;
-            }
-            const BiomeTints& tints = levelRenderer->Tints();
-            float temperature = 0.5f, downfall = 0.5f;
-            if (!tints.Ready() ||
-                !tints.Climate(tints.NameForId(level.GetBiome(x, y, z)), temperature, downfall))
-                return false;
-
-            return downfall > 0.0f && temperature > 0.15f;
-        };
-        const bool raining = rainingOnPlayer();
-        for (const auto& [id, level] : held.enchants)
-            if (id == 30)
-                player.ReleaseTrident(level, raining);
+        if (held.name == "minecraft:trident")
+            player.ReleaseTrident(live->HeldItemEnchantLevel(30), RainingOnPlayer(*live));
     }
 }

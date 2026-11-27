@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "kind": "Official published Mojang resource-pack assets",
+    "sources": "creative_ui_assets_sources.json",
+    "revisions": [
+      {
+        "tag": "v1.26.50.4",
+        "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d"
+      },
+      {
+        "tag": "v1.26.60.5",
+        "commit": "15701fa9c13923f12662984c32c124327e40e3d3"
+      }
+    ],
+    "version_boundary": "The supplied executable/PDB is1.26.51.1. No corresponding resource pack was supplied, and no26.51 tag was present in the100 published tags inspected. The facts below are independently verified in the surrounding official26.50.4 and26.60.5 resource revisions; they do not establish a GUID-matched26.51 asset pack.",
+    "method": "Read-only download of pinned official files, SHA-256 comparison, inspection of UI property bindings and original raster sprites. No game execution."
+  },
+  "facts": [
+    {
+      "topic": "Desktop category order",
+      "contract": "The horizontal navigation content lists Construction, Equipment, Items and Nature, followed by a filler and Search. Matching keyboard focus overrides confirm that sequence. Construction is the default selected category. Visibility is supplied by controller bindings.",
+      "wire_category_ids_in_visual_order": [
+        1,
+        3,
+        4,
+        2
+      ],
+      "anchors": [
+        "ui/inventory_screen.json:tab_navigation_panel_layout.controls/navigation_tabs/content.controls",
+        "ui/inventory_screen.json:construction_tab/equipment_tab/items_tab/nature_tab focus overrides",
+        "ui/inventory_screen.json:top_tab.$toggle_group_default_selected"
+      ]
+    },
+    {
+      "topic": "Fixed category header pictures",
+      "contract": "Each category tab selects a fixed17x17 UI image through common.tab_icon_image. These pictures are not chosen from the incoming creative group icon or first catalog item. Several pictures combine multiple objects and therefore are not exactly represented by a single inventory item renderer.",
+      "icons": [
+        {
+          "category": "Construction",
+          "wire_category": 1,
+          "texture": "textures/ui/icon_recipe_construction",
+          "pixels": [
+            17,
+            17
+          ],
+          "visual_description": "Brick wall."
+        },
+        {
+          "category": "Equipment",
+          "wire_category": 3,
+          "texture": "textures/ui/icon_recipe_equipment",
+          "pixels": [
+            17,
+            17
+          ],
+          "visual_description": "Diamond sword and iron helmet."
+        },
+        {
+          "category": "Items",
+          "wire_category": 4,
+          "texture": "textures/ui/icon_recipe_item",
+          "pixels": [
+            17,
+            17
+          ],
+          "visual_description": "Red bed and a bucket."
+        },
+        {
+          "category": "Nature",
+          "wire_category": 2,
+          "texture": "textures/ui/icon_recipe_nature",
+          "pixels": [
+            17,
+            17
+          ],
+          "visual_description": "Grass-topped terrain and flowers."
+        }
+      ],
+      "anchors": [
+        "ui/inventory_screen.json:construction_icon/equipment_icon/items_icon/nature_icon",
+        "ui/ui_common.json:tab_icon_image",
+        "textures/ui/icon_recipe_construction.png",
+        "textures/ui/icon_recipe_equipment.png",
+        "textures/ui/icon_recipe_item.png",
+        "textures/ui/icon_recipe_nature.png"
+      ]
+    },
+    {
+      "topic": "Search picture",
+      "contract": "Both desktop and pocket Search tabs use common.search_icon, whose texture is textures/ui/magnifyingGlass. The image asset is16x16 and is displayed through the17x17 tab-icon control. A compass item is not the reference header.",
+      "anchors": [
+        "ui/inventory_screen.json:search_tab.$tab_icon",
+        "ui/inventory_screen_pocket.json:search_tab.$tab_icon",
+        "ui/ui_common.json:search_icon",
+        "textures/ui/magnifyingGlass.png"
+      ]
+    },
+    {
+      "topic": "Inventory and layout controls",
+      "contract": "The desktop survival layout toggle selects common.inventory_icon, a19x13 chest picture. The creative layout toggle selects common.creative_icon, a19x13 open-book picture. These are layout controls rather than an additional wire category. Pocket has a separate inventory tab using a chest inventory-item renderer; its id_aux is3538944 and its source comment names Chest.",
+      "anchors": [
+        "ui/ui_common.json:survival_layout_toggle.$icon_control",
+        "ui/ui_common.json:inventory_icon",
+        "ui/inventory_screen.json:creative_layout_toggle.$icon_control",
+        "ui/ui_common.json:creative_icon",
+        "ui/inventory_screen_pocket.json:survival_icon",
+        "ui/inventory_screen_pocket.json:inventory_tab"
+      ]
+    },
+    {
+      "topic": "Pocket order differs from desktop placement",
+      "contract": "The pocket left navigation stack begins Search, Construction, Equipment, Items, Nature, then a filler and the inventory tab. The category subsequence is the same as desktop, but Search and inventory placement differ. Right-side pocket controls for fullscreen/crafting/armor are separate.",
+      "anchors": [
+        "ui/inventory_screen_pocket.json:left_tab_navigation_panel_pocket",
+        "ui/inventory_screen_pocket.json:right_tab_navigation_panel_pocket"
+      ]
+    },
+    {
+      "topic": "Group visual states",
+      "contract": "Recipe-group background definitions bind container_item_background values0=ordinary,1=collapsed header,2=expanded header,3=group child,4=selected and5=red. The group overlay uses container_item_modifier1=contract and2=expand, with7x7 icons at the bottom-right. These resource bindings do not establish the controller default collapse state or search filtering policy.",
+      "anchors": [
+        "ui/inventory_screen.json:cell_image_recipe_default",
+        "ui/inventory_screen.json:cell_image_recipe_group_head_collapsed",
+        "ui/inventory_screen.json:cell_image_recipe_group_head_expanded",
+        "ui/inventory_screen.json:cell_image_recipe_group_item",
+        "ui/inventory_screen.json:item_overlay_contract",
+        "ui/inventory_screen.json:item_overlay_expand"
+      ]
+    },
+    {
+      "topic": "Surrounding published-version consistency",
+      "contract": "The two inventory UI JSON files, global variables file, all four category sprites, magnifier, inventory/creative/recipe-book layout sprites, crafting icon and armor icon have identicalSHA256 values across the inspected revisions. ui_common.json differs only in text-edit clip-offset properties; the icon and layout bindings described here are unchanged.",
+      "anchors": [
+        "creative_ui_assets_sources.json:files"
+      ]
+    }
+  ],
+  "implementation_guidance": {
+    "asset_lookup": "Reference the exact texture paths through Perlin existing UiAssets lookup, which allows the active pack and downloaded sample resources to supply the images. The research change does not add original artwork to the source repository.",
+    "inventory_control": "If a Perlin inventory control is retained in its existing position, the desktop inventory_icon matches its inventory meaning, but that does not make Perlin complete layout pixel-identical to Bedrock.",
+    "catalog_separation": "Retain creative-group IconItem as the collapsible group header; do not reuse it for the category-tab picture."
+  },
+  "limitations": [
+    "No corresponding26.51.1 resource pack was supplied; surrounding official releases agree on these facts.",
+    "This is asset and binding evidence, not proof of every creative-screen controller behavior or every device/profile/layout.",
+    "Group initial collapse state, native search matching and native catalog projection require separate controller analysis.",
+    "Wire category IDs are supported separately by the matched native CreativeItemCategory metadata; UI control indices are not assumed to equal wire category IDs.",
+    "This record does not authorize or assume redistribution of copyrighted artwork and does not claim full screen pixel equivalence."
+  ]
+}

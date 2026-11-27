@@ -36,16 +36,23 @@ namespace perlin::worldview {
             envIn.dimension = static_cast<Dimension>(std::clamp(live->DimensionId(), 0, 2));
         dimension = envIn.dimension;
         env = SampleEnvironment(envIn);
+        const bool playerEffects = !live || live->Camera().PlayerEffectsEnabled();
 
         glm::mat4 bobMatrix(1.0f);
-        if (live && modHost.ModHand().viewBobbing && camera.mode == PerspectiveMode::FirstPerson &&
+        if (live && playerEffects && modHost.ModHand().viewBobbing && camera.mode == PerspectiveMode::FirstPerson &&
             !modHost.CameraDetachActive())
             bobMatrix = BobViewMatrix(player.Bob(), player.PartialTick(), modHost.ModHand().bobStrength);
         const glm::mat4 hurtMatrix =
-            sessionReady ? damage.ViewMatrix(partial, options.damageTilt) : glm::mat4(1.0f);
+            sessionReady && playerEffects ? damage.ViewMatrix(partial, options.damageTilt) : glm::mat4(1.0f);
         camera.viewEffect = hurtMatrix * (modHost.ModHand().bobCamera ? bobMatrix : glm::mat4(1.0f));
-        if (sessionReady && session)
+        if (sessionReady && session) {
             camera.viewEffect = session->Camera().ShakeMatrix() * camera.viewEffect;
+            if (session->Camera().PoseActive()) {
+                const float roll = session->Camera().Pose().roll;
+                camera.viewEffect = glm::rotate(glm::mat4(1.0f), glm::radians(roll), glm::vec3(0, 0, 1)) *
+                                    camera.viewEffect;
+            }
+        }
         handViewEffect = hurtMatrix * (modHost.ModHand().bobHand ? bobMatrix : glm::mat4(1.0f));
         {
             camera.farPlane = std::max(static_cast<float>(options.renderDistance * 16) * 1.6f,
@@ -241,7 +248,7 @@ namespace perlin::worldview {
         params.playerMaxAir = static_cast<float>(hudState.maxAir);
         params.playerArmor = hudState.armor;
         params.playerSpectator = hudState.mode == ui::GameMode::Spectator;
-        params.playerBurning = hudState.burning;
+        params.playerBurning = hudState.burning && (!f.live || f.live->Camera().PlayerEffectsEnabled());
         params.playerSneaking = player.Sneaking();
         params.playerSprinting = player.Sprinting();
         params.playerOnGround = player.State().onGround;
@@ -447,8 +454,9 @@ namespace perlin::worldview {
         params.screenTint[0] = 1.0f;
         params.screenTint[1] = 0.0f;
         params.screenTint[2] = 0.0f;
-        params.screenTint[3] = options.damageTint ? damage.TintAlpha() : 0.0f;
-        params.portalOverlay = view.portalTime;
+        const bool playerEffects = !f.live || f.live->Camera().PlayerEffectsEnabled();
+        params.screenTint[3] = options.damageTint && playerEffects ? damage.TintAlpha() : 0.0f;
+        params.portalOverlay = playerEffects ? view.portalTime : 0.0f;
         if (sessionReady && session) {
             const glm::vec4 fade = session->Camera().Tint();
             if (fade.a > 0.0f) {
@@ -513,7 +521,7 @@ namespace perlin::worldview {
         lightmap.blockLightTint = env.blockLightTint;
         lightmap.nightVisionColor = env.nightVisionColor;
 
-        if (sessionReady && session) {
+        if (sessionReady && session && session->Camera().PlayerEffectsEnabled()) {
             bool active = false;
             int ticks = 0;
             for (const auto& fx : session->GetEffects())

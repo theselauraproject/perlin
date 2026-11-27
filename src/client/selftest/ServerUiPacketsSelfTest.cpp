@@ -129,6 +129,136 @@ namespace perlin::selftest {
                         invalid.GetTrackedPlayerLocations().empty(),
                     "invalid location triggers BadPacket without contaminating locator state");
         }
+        for (int protocol : {944, 2193, kBedrockProtocol}) {
+            const net::context::ScopedSettings context({protocol, -1});
+            BedrockSession containers;
+            containers.BeginReplayMode("container-lifecycle", 7, protocol);
+            std::vector<proto::PacketViolationWarningPacket> warnings;
+            std::vector<proto::ContainerClosePacket> closes;
+            std::vector<std::vector<uint8_t>> warningBytes;
+            bool decoded = true;
+            containers.SetSentTap([&](uint32_t id, const std::vector<uint8_t>& body) {
+                net::ReadStream stream(body.data(), body.size());
+                if (id == proto::PacketViolationWarningPacket::kId) {
+                    proto::PacketViolationWarningPacket warning;
+                    decoded &= proto::Read(stream, warning) && stream.remaining() == 0;
+                    warnings.push_back(std::move(warning));
+                    warningBytes.push_back(body);
+                } else if (id == proto::ContainerClosePacket::kId) {
+                    proto::ContainerClosePacket close;
+                    decoded &= proto::Read(stream, close) && stream.remaining() == 0;
+                    closes.push_back(close);
+                }
+            });
+            const auto deliver = [&]<class P>(const P& packet) {
+                containers.InjectIncoming(P::kId, net::Encode(packet));
+            };
+            proto::ContainerOpenPacket open;
+            open.windowId = static_cast<proto::WindowID>(4);
+            open.runtimeEntityId = -1;
+            proto::ContainerClosePacket close;
+            close.windowId = static_cast<proto::WindowID>(99);
+            close.windowType = proto::WindowType::None;
+            close.server = false;
+            deliver(close);
+            close.server = true;
+            deliver(close);
+            t.Check(warnings.empty() && closes.empty() && !containers.TakeServerClosedInventory(),
+                    "container close without an active manager neither warns nor acknowledges");
+
+            for (auto type : {proto::WindowType::Container, proto::WindowType::Workbench,
+                              proto::WindowType::Furnace, proto::WindowType::Horse,
+                              proto::WindowType::Inventory}) {
+                warnings.clear();
+                warningBytes.clear();
+                closes.clear();
+                open.windowType = type;
+                deliver(open);
+                t.Check(containers.InventoryIsOpen(), "container open establishes the current manager");
+                close.server = false;
+                close.windowType = proto::WindowType::None;
+                deliver(close);
+                t.Check(containers.InventoryIsOpen() && !containers.TakeServerClosedInventory() &&
+                            warnings.size() == 1 && closes.empty(),
+                        "unsolicited close response preserves the manager and sends only a warning");
+                if (!warnings.empty()) {
+                    const auto& warning = warnings.back();
+                    t.Check(static_cast<int32_t>(warning.violationType) == -1 &&
+                                static_cast<int32_t>(warning.severity) == 0 && warning.packetId == 156 &&
+                                warning.reason == "Server sent a ContainerClosePacket response packet when it should have sent the server initiated packet",
+                            "container warning uses the recovered type, severity, cause and exact context");
+                    const auto& raw = warningBytes.back();
+                    t.Check(raw.size() > 5 && raw[0] == 1 && raw[1] == 0 &&
+                                raw[2] == 0xb8 && raw[3] == 2,
+                            "warning serializes literal signed -1, zero and packet cause 156");
+                }
+                close.server = true;
+                close.windowType = type == proto::WindowType::Container
+                                       ? proto::WindowType::Workbench : proto::WindowType::Container;
+                deliver(close);
+                t.Check(containers.InventoryIsOpen() && !containers.TakeServerClosedInventory() &&
+                            closes.empty(),
+                        "server close waits for a matching screen type and sends no early response");
+                close.windowType = type;
+                deliver(close);
+                t.Check(containers.InventoryIsOpen() && containers.TakeServerClosedInventory() &&
+                            !containers.TakeServerClosedInventory() && closes.empty(),
+                        "matching server close is consumed once by the screen without an early response");
+                containers.CloseInventory();
+                t.Check(!containers.InventoryIsOpen() && !containers.ChestOpen() &&
+                            !containers.HorseOpen() && !containers.WorkbenchOpen() && closes.size() == 1,
+                        "screen closure removes the manager and sends one close");
+                if (!closes.empty()) {
+                    t.Check(closes[0].windowId == open.windowId &&
+                                closes[0].windowType == proto::WindowType::None && !closes[0].server,
+                            "close uses the current manager ID, type None and response flag");
+                }
+                close.server = false;
+                deliver(close);
+                containers.CloseInventory();
+                t.Check(warnings.size() == 1 && closes.size() == 1 && !containers.InventoryIsOpen(),
+                        "later response and repeated UI close do not send a second close or warning");
+            }
+
+            warnings.clear();
+            closes.clear();
+            open.windowType = proto::WindowType::Workbench;
+            deliver(open);
+            containers.CloseInventory();
+            t.Check(closes.size() == 1 && closes[0].windowId == open.windowId &&
+                        closes[0].windowType == proto::WindowType::None,
+                    "ordinary player-initiated close uses the same manager deletion packet");
+            open.windowId = static_cast<proto::WindowID>(5);
+            deliver(open);
+            close.server = false;
+            deliver(close);
+            t.Check(warnings.size() == 1 && containers.InventoryIsOpen(),
+                    "a late response while a new manager exists warns without comparing window IDs");
+            close.server = true;
+            close.windowType = open.windowType;
+            deliver(close);
+            auto truncated = net::Encode(close);
+            truncated.pop_back();
+            containers.InjectIncoming(close.kId, truncated);
+            t.Check(containers.TakeServerClosedInventory(),
+                    "a truncated close cannot overwrite a pending valid close");
+            deliver(close);
+            containers.BeginReplayMode("new-container-session", 7, protocol);
+            t.Check(!containers.InventoryIsOpen() && !containers.TakeServerClosedInventory() &&
+                        !containers.TakeWorkbenchOpened() && !containers.ChestOpen(),
+                    "session reset clears container lifecycle and pending UI-open/close signals");
+            t.Check(decoded, "all container responses decode completely in the negotiated profile");
+            containers.SetSentTap({});
+
+            BedrockSession absent;
+            size_t absentReplies = 0;
+            absent.SetSentTap([&](uint32_t, const std::vector<uint8_t>&) { ++absentReplies; });
+            absent.InjectIncoming(open.kId, net::Encode(open));
+            absent.InjectIncoming(close.kId, net::Encode(close));
+            t.Check(!absent.InventoryIsOpen() && absentReplies == 0,
+                    "container packets before a local player exists do not establish state or reply");
+            absent.SetSentTap({});
+        }
         {
             const auto previousProtocol = net::context::Protocol();
             BedrockSession camera;

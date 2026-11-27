@@ -1,0 +1,113 @@
+{
+  "scope": "Static contracts recovered from identity-matched Minecraft Windows 1.26.51.1 (protocol2193). These are bounded paths, not a whole-client parity claim.",
+  "packet_id": 28,
+  "packet_name": "MobEffectPacket",
+  "contracts": [
+    {
+      "name": "client_dispatch",
+      "anchors": [
+        "0x1340700",
+        "0x1340819",
+        "0x1340823",
+        "0x134098d",
+        "0x134099a"
+      ],
+      "description": "Resolves target actor. When event is nonzero, tick is nonzero, and ReplayStateComponent exists, constructs MobEffectsReplay and applies a frame correction. Otherwise invokes immediate packet-effect helper."
+    },
+    {
+      "name": "recognized_events",
+      "anchors": [
+        "0x2eaffea",
+        "0x2eafff2",
+        "0x2eb019e",
+        "0x2eb01c5",
+        "0x2eb01d7"
+      ],
+      "description": "Events1 and2 share Actor::addEffect. Event3 calls Actor::removeEffect. Other byte event values produce no effect mutation in this helper; historical advanceFrame has the same event split."
+    },
+    {
+      "name": "duration_at_reception",
+      "anchors": [
+        "0x2eb00e4",
+        "0x2eb00e9",
+        "0x2eb00ed",
+        "0x2eb0100",
+        "0x2eb0109",
+        "0x2eb0110"
+      ],
+      "description": "If packet tick is nonzero and older than current replay tick, finite duration is shortened by elapsed ticks and floored at0. Duration-1 remains infinite. A zero or future/equal timestamp leaves the full received duration for immediate live application."
+    },
+    {
+      "name": "live_merge",
+      "anchors": [
+        "0x1a25eb9",
+        "0x1a25ec6",
+        "0x1a25ec8",
+        "0x1a25ece",
+        "0x1a25ef0",
+        "0x1a25efe",
+        "0x1a262fe",
+        "0x1a2630c",
+        "0x1a26318"
+      ],
+      "description": "A higher amplifier replaces amplifier,duration,ambient. Equal amplifier replaces duration and ambient only when extending finite duration or upgrading finite to-1. Existing-1 cannot be shortened by equal amplifier. Weaker amplifier never changes magnitude/duration. An incoming nonambient effect clears ambient when duration is not replaced. Particle visibility is copied regardless of replacement."
+    },
+    {
+      "name": "historical_merge",
+      "anchors": [
+        "0x4375c80",
+        "0x4375dc0",
+        "0x4375f1b",
+        "0x4376036",
+        "0x4376043",
+        "0x4376049",
+        "0x43760c7"
+      ],
+      "description": "History::MobEffectsReplay::advanceFrame merges amplifier/duration using the same priority and infinity rules against the historical component. Its constructed historical MobEffectInstance uses ambient=false; live application uses the packet ambient field."
+    },
+    {
+      "name": "live_and_history_application",
+      "anchors": [
+        "0x2890572",
+        "0x289058f",
+        "0x28905cf",
+        "0x2890642",
+        "0x4375c60"
+      ],
+      "description": "ReplayStateComponent::_applyCorrection calls advanceLiveFrame directly, then may attach the correction to the following historical frame. MobEffectsReplay::advanceLiveFrame tailcalls the live effect helper; it does not wait for a future packet tick. Full later component reconciliation has not been reconstructed."
+    },
+    {
+      "name": "duration_countdown",
+      "anchors": [
+        "0x90c39ef",
+        "0x90c3a21",
+        "0x90d8528",
+        "0x90d80d0",
+        "0x90d818a",
+        "0x90d81a0",
+        "0x90d81ac",
+        "0x90d81b7"
+      ],
+      "description": "MobEffectsTick registered by TickMobEffectsSystem uses vtable0xea51f30,tick0x90d84d0,callback0x90d80d0. Counter-paused-this-tick clears/skips. Duration-1 is retained. Other nonzero durations decrement by1. Effects with prior duration<=1, including0, are queued for removal. Exact intra-tick placement and all pause producers remain unverified."
+    },
+    {
+      "name": "integer_widths",
+      "anchors": [
+        "0x2eb0121",
+        "0x2eb0125",
+        "0x2eb0128",
+        "0x2eb013b",
+        "0x4375dba",
+        "0x4375dfa"
+      ],
+      "description": "The packet/helper and MobEffectInstance use full32-bit effect ID and signed32-bit amplifier. No narrowing to8-bit was observed on these paths. This does not establish validity of every out-of-range effect ID or amplifier."
+    }
+  ],
+  "remaining_limits": [
+    "Exact effect processing/order for protocol944 and2225 has not been independently recovered from matching executables.",
+    "Effect counter pause producers and the precise same-tick removal/physics order remain unresolved.",
+    "UpdateAttributes native dispatch enters ClientPlayerRewindListener at0x43596b0; Perlin currently applies attributes live without that historical packet route.",
+    "SetActorData native dispatch queues timestamped SynchedActorData assignment at0x2a1e830; Perlin gravity flags currently update live only.",
+    "The user log shows six MobEffect packet receipts but contains no effect IDs,amplifiers,durations,ticks or raw effect payloads, and cannot identify the banned movement cause."
+  ]
+}

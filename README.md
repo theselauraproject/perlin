@@ -2,6 +2,10 @@
 
 A cross-platform Minecraft: Bedrock Edition client written in C++23. It speaks the Bedrock protocol (generated from `protocol/`), renders through [conduit](https://github.com/theperlinproject/conduit) and SDL3, and runs WebAssembly plugins through [perlin-api](https://github.com/theperlinproject/perlin-api).
 
+## Compatibility and performance source bundle
+
+This tree includes the Bedrock movement, item, camera, inventory and packet corrections documented in [the compatibility notes](docs/protocol-audit/BEHAVIOR_FIXES.md), together with the [chunk and rendering optimizations](docs/performance/README.md). Conduit is maintained and distributed separately in its own repository. [Validation and Windows build instructions](docs/protocol-audit/VALIDATION.md) distinguish completed tests from platform checks.
+
 ## Layout
 
 | Path | Contents |
@@ -42,18 +46,23 @@ Run the Windows presets from a Developer PowerShell (or let Visual Studio / VS C
 
 Perlin keeps all of its files in **Internal storage › games › Perlin**. On first launch it asks for "All files access", which puts worlds, texture packs, shader packs, screenshots, logs and settings where any file manager or a PC over USB can reach them, and moves anything already in the private folder there. Perlin always uses this folder and asks again on launch until the access is granted.
 
-## Rendering
+## Rendering / separate Conduit dependency
 
-Perlin renders through [conduit](https://github.com/theperlinproject/conduit). CMake fetches it automatically.
+Perlin renders through the independent [Conduit repository](https://github.com/theperlinproject/conduit). **No Conduit source is bundled in Perlin.** Push the companion Conduit archive to that repository first, then build this Perlin archive. By default CMake fetches Conduit from `main`. For reproducible builds, pin `PERLIN_CONDUIT_TAG` to the pushed Conduit commit.
 
-| Cache variable       | Default | Effect                                                   |
-|----------------------|---------|----------------------------------------------------------|
-| `PERLIN_CONDUIT_DIR` | empty   | build a local conduit checkout instead of fetching one   |
-| `PERLIN_CONDUIT_TAG` | `main`  | the conduit revision to fetch                            |
+| Cache variable | Default | Effect |
+| --- | --- | --- |
+| `PERLIN_CONDUIT_DIR` | empty | Build from a separate local Conduit checkout |
+| `PERLIN_CONDUIT_TAG` | `main` | Revision fetched from the Conduit GitHub repository |
+| `CONDUIT_BUILD_TESTS` | `OFF` | Also build Conduit's tests |
+
+Local sibling checkout example:
 
 ```sh
-cmake --preset <preset> -DPERLIN_CONDUIT_DIR=../conduit
+cmake --preset windows-clang-cl-fast -DPERLIN_CONDUIT_DIR=../conduit
 ```
+
+This option does **not** copy or vendor Conduit into Perlin. If your build directory previously cached `PERLIN_USE_BUNDLED_CONDUIT`, it is ignored; use a fresh build directory when switching sources.
 
 ## Mod API
 

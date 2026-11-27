@@ -1,0 +1,26 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "ContainerClosePacketPayload",
+    "PacketViolationWarningPacketPayload",
+    "PacketViolationSeverity",
+    "PacketViolationType",
+    "LocalPlayer::ContainerCloseInfo",
+    "LocalPlayer",
+    "Player",
+    "ContainerScreenController",
+    "ScreenController",
+    "IContainerManager",
+    "ItemStackNetManagerBase",
+    "SharedTypes::Legacy::ContainerType"
+  ],
+  "symbol_rvas": [
+    "0x1342690",
+    "0x3c632c0",
+    "0x4df8280",
+    "0x47613f0",
+    "0x475ee60",
+    "0x1eee80",
+    "0x25ab930"
+  ]
+}

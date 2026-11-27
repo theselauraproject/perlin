@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only disassembly, matched public symbols, C++ field layouts and explicit base virtual slots. The executable was not run. This artifact contains conclusions and address anchors, not code bytes or disassembly."
+  },
+  "facts": [
+    {
+      "topic": "food starts the common item-use timer",
+      "contract": "FoodItemComponentLegacy::use applies its hunger/game-mode checks, including mCanAlwaysEat, obtains the selected item's maximum use duration and calls Player::startUsingItem. The exact golden-apple duration data initializer is not reconstructed here.",
+      "anchors": [
+        "FoodItemComponentLegacy::use RVA0x24BBD20",
+        "mCanAlwaysEat check RVA0x24BBDBA (component offset0x7C)",
+        "Item::getMaxUseDuration virtual slot0x28 at RVA0x24BBDD8/RVA0x24BBDDF",
+        "Player::startUsingItem call RVA0x24BBDEE -> RVA0x1EC3A0",
+        "Item::getMaxUseDuration RVA0x24D1630 reads Item offset0x154"
+      ]
+    },
+    {
+      "topic": "duration decrement",
+      "contract": "The common duration callback decrements ItemInUseComponent.mDuration by one only when the signed value is positive. Zero and negative values are unchanged. The component stores the item at offset0 and duration at offset8.",
+      "anchors": [
+        "PDB ItemInUseComponent, size16",
+        "callback RVA0xC6109B0..RVA0xC6109BC",
+        "ItemUseTickDurationSystem::registerSystems RVA0xC5F6470",
+        "movement-system vtable RVA0xEB40830, tick slot0x28 -> RVA0xC610B00",
+        "movement callback reference RVA0xC610B5E",
+        "other duration-system vtable RVA0xEB40870, tick slot0x28 -> RVA0xC611930",
+        "other callback reference RVA0xC611975"
+      ]
+    },
+    {
+      "topic": "normal player completion and item continuity",
+      "contract": "Player::normalTick compares the held item and selected slot/hand with PlayerItemInUse. A changed count or matching-item state can refresh the copied in-use stack; an incompatible item/slot/hand stops use. At duration zero it optionally calls Player::eat for food and then calls nonvirtual Player::completeUsingItem. No Item::useTimeDepleted invocation is present in that recovered pre-complete branch.",
+      "anchors": [
+        "Player::normalTick RVA0x1E8570",
+        "Player.mItemInUse offset0x728; embedded item offset0x730",
+        "sameItem call RVA0x1E9751",
+        "selected slot comparison RVA0x1E976B",
+        "hand comparison RVA0x1E977B",
+        "copied-item refresh RVA0x1E97A9",
+        "stopUsingItem call RVA0x1E991E",
+        "ItemInUseComponent hash0x05B90AEF and duration-zero check RVA0x1EA813",
+        "optional Player::eat call RVA0x1EA844 -> RVA0x1EAE60",
+        "completeUsingItem call RVA0x1EA84C -> RVA0x1EB190",
+        "PDB Player::completeUsingItem has no virtual slot"
+      ]
+    },
+    {
+      "topic": "client/server split in common completion",
+      "contract": "Player::completeUsingItem publishes ItemCompleteUseEvent before testing ILevel::isClientSide. The client branch goes directly to stopUsingItem, skipping the subsequent item-depletion callback, ItemRelease transaction and CompletedUsingItem packet construction. The server section uses ItemRelease action Use=1 and invokes Item::useTimeDepleted. This is a branch-specific finding; arbitrary event-listener side effects were not completely reconstructed.",
+      "anchors": [
+        "Player::completeUsingItem RVA0x1EB190..RVA0x1EB8C1",
+        "ItemCompleteUseEvent alternative7 at RVA0x1EB3C2",
+        "event dispatcher call RVA0x1EB3D4 -> RVA0x2FEE870",
+        "ILevel::isClientSide virtual slot0x9E8 loaded RVA0x1EB3FE, called RVA0x1EB405",
+        "client branch RVA0x1EB40D -> RVA0x1EB86A",
+        "stopUsingItem call RVA0x1EB86D -> RVA0x1EBB00",
+        "server callback RVA0x21E6E0, ItemRelease Use=1 store RVA0x21E732",
+        "server Item::useTimeDepleted virtual slot0x2B0 call RVA0x21E7A2"
+      ]
+    },
+    {
+      "topic": "food depletion helper is separate from the recovered client branch",
+      "contract": "Item::useTimeDepleted checks that a player and food component exist and that Actor.mRemoved is false, then invokes IFoodItemComponent::useTimeDepleted. The legacy food helper applies food effects, calls the player's use-item and eat operations and handles item conversion. Neither inspected helper contains a direct GameMode::baseUseItem call. These helpers are invoked by the server section of common completion; their existence alone does not establish a client completion transaction.",
+      "anchors": [
+        "Item::useTimeDepleted RVA0x24C9BC0..RVA0x24C9DD8",
+        "Actor.mRemoved offset0x269 checked RVA0x24C9C0F",
+        "IFoodItemComponent virtual slot0x30 call RVA0x24C9C9D",
+        "FoodItemComponentLegacy::useTimeDepleted RVA0x24BC480..RVA0x24BC88C",
+        "ItemUseMethod Eat=1 store RVA0x24BC4BD",
+        "effects helper call RVA0x24BC4C9 -> RVA0x24BC230",
+        "Player useItem virtual slot0x370 call RVA0x24BC591",
+        "Player::eat call RVA0x24BC59E"
+      ]
+    },
+    {
+      "topic": "continued use intention can start another use",
+      "contract": "ClientInputCallbacks::handleBuildAction blocks ordinary food re-entry while the local in-use item remains nonempty. After starting a timed use, it calls IClientInstance::resetBai(0x10). The concrete resetBai implementation stores that exact mask in a replacement in-progress intention; it does not clear the intention. ClientInstance::_tickBuildAction can invoke handleBuildAction again on later ticks with the retained mask. When the in-use state is empty and the use-intention path is eligible, it calls GameMode::baseUseItem. Thus continued input can start another use after common completion clears local use state.",
+      "anchors": [
+        "ClientInputCallbacks::handleBuildAction RVA0x5D94C50..RVA0x5D95FB1",
+        "in-use item test RVA0x5D950E4/RVA0x5D950F2",
+        "ordinary in-use early-return path RVA0x5D951BE..RVA0x5D951D3",
+        "use-intention bit0x10 path RVA0x5D958B7..RVA0x5D958D5",
+        "empty in-use branch RVA0x5D95972 -> RVA0x5D95D5C",
+        "GameMode::baseUseItem call RVA0x5D95D8F",
+        "post-use in-use test RVA0x5D95DF1/RVA0x5D95DFB",
+        "IClientInstance::resetBai virtual slot0x9D0, mask0x10 call RVA0x5D95F1F",
+        "ClientInstance::resetBai RVA0x5DCF490..RVA0x5DCF5DD",
+        "exact supplied mask stored RVA0x5DCF4FB; replacement pointer at ClientInstance offset0x290 stored RVA0x5DCF4FD",
+        "ClientInstance::_tickBuildAction RVA0x5DB3850..RVA0x5DB3FBF",
+        "retained intention load RVA0x5DB3A01 and reuse RVA0x5DB3BAA",
+        "later handleBuildAction call RVA0x5DB3BBF"
+      ]
+    },
+    {
+      "topic": "native use deadline has a shared block-action role",
+      "contract": "The recovered air-use path reads the current clock and sets IClientInstance::setNoBlockBreakUntil to that time plus 200,000,000 nanoseconds immediately before baseUseItem. The same deadline is checked in this input path. Its actual interface name is NoBlockBreakUntil; it is not evidence for a dedicated food-completion delay or a global repeat interval for all interactions.",
+      "anchors": [
+        "clock read RVA0x5D95D60",
+        "200000000 increment RVA0x5D95D65",
+        "IClientInstance::setNoBlockBreakUntil slot0xBD0 load/call RVA0x5D95D71/RVA0x5D95D7B",
+        "PDB IClientInstance::getNoBlockBreakUntil / setNoBlockBreakUntil"
+      ]
+    },
+    {
+      "topic": "ordinary air-use transaction",
+      "contract": "GameMode::baseUseItem constructs an ItemUseInventoryTransaction and, on the client, begins the manager's legacy transaction-request scope, invokes the local use operation, and forwards the complex transaction. Its population callback selects action Use=1, current hand/slot/item, zero block and click positions, face0xFF and the player's current position. This is an ordinary Use/ClickAir transaction, not ItemRelease Use=1.",
+      "anchors": [
+        "GameMode::baseUseItem RVA0x259EB30..RVA0x259EF0B",
+        "ItemStackNetManagerBase::_tryBeginClientLegacyTransactionRequest virtual slot0x28 call RVA0x259ECF9",
+        "population callback RVA0x25B6150..RVA0x25B630D",
+        "selected item helper call RVA0x25B6182 -> RVA0x25B5F50",
+        "slot/hand stores RVA0x25B61AD/RVA0x25B61B3",
+        "zero block-position stores RVA0x25B61C0/RVA0x25B61C8",
+        "face0xFF store RVA0x25B61D6",
+        "zero click-position stores RVA0x25B61E4/RVA0x25B61EE",
+        "player-position stores RVA0x25B620E/RVA0x25B6217",
+        "ItemUse action Use=1 store RVA0x25B6225",
+        "GameMode::useItem virtual slot0x58 call RVA0x25B628A",
+        "client Player::sendComplexInventoryTransaction virtual slot0x718 call RVA0x259EE7E"
+      ]
+    },
+    {
+      "topic": "local client transaction forwarding with inventory-manager metadata",
+      "contract": "The LocalPlayer send-complex-transaction implementation constructs InventoryTransactionPacketPayload and InventoryTransactionPacket, calls _populateLegacyTransactionRequest using the player's inventory manager, then invokes sendNetworkPacket. Having the inventory manager enabled therefore does not by itself prove that ordinary air-use transactions are replaced by Consume stack requests. The complete inventory-request coupling is outside this finding.",
+      "anchors": [
+        "LocalPlayer vtable RVA0xE8E1BC0, matched using multiple named slot anchors and PDB base slots (not an RTTI COL)",
+        "named normalTick slot0xC0 -> RVA0x475EE60",
+        "named handleEntityEvent slot0x220 -> RVA0x476DAC0",
+        "named sendInventoryTransaction slot0x710 -> RVA0x476A440",
+        "sendComplexInventoryTransaction slot0x718 -> RVA0x476A960..RVA0x476AA51",
+        "payload constructor call RVA0x476A9C3 -> RVA0x27324A0",
+        "packet constructor call RVA0x476A9D3 -> RVA0x272C690",
+        "ItemStackNetManagerBase pointer read at Player offset0xAB8, RVA0x476A9D8",
+        "_populateLegacyTransactionRequest call RVA0x476A9ED -> RVA0x476A4A0",
+        "Player::sendNetworkPacket slot0x720 call RVA0x476AA06"
+      ]
+    },
+    {
+      "topic": "version-specific enum names",
+      "contract": "The matched PDB calls ItemRelease action0 Release and action1 Use. ItemUse action0 is Place, action1 Use, action2 Destroy and action3 UseAsAttack. ActorEvent has no enumerator with value9 in this build. These enum facts do not authorize inventing an outgoing completion packet or establish the behavior of other protocol versions.",
+      "anchors": [
+        "PDB ItemReleaseInventoryTransaction::ActionType",
+        "PDB ItemUseInventoryTransaction::ActionType",
+        "PDB ActorEvent"
+      ]
+    }
+  ],
+  "comparison": {
+    "perlin_issue": "At the time of investigation, Perlin started food only on a fresh Use press, ended local use at its timer boundary and retained a useConsumed latch until release. The recovered native retained-intention path supports restarting eligible use while input continues. This is a concrete behavioral difference, separate from any unproven dedicated completion-transaction claim.",
+    "custom_server": "The supplied log is from a custom PocketMine-derived server. A vanilla-client static branch does not fully specify that server's consumption state machine, and this artifact does not claim a tested end-to-end fix or exact repeated-eating cadence on it."
+  },
+  "limitations": [
+    "Proof is specific to the supplied matched 1.26.51.1/protocol2193 executable. The same behavior in protocol2225 and earlier profiles is not verified by these addresses.",
+    "The recovered common client timer branch does not construct a completion ItemRelease Use=1, CompletedUsingItem or ActorEvent9 packet. This is not a global proof that no indirect listener, platform path or other subsystem can send another operation.",
+    "ItemCompleteUseEvent dispatch occurs before the client/server branch. Its complete dynamic listener set and side effects were not reconstructed.",
+    "The duration callback is proven, but its exact first-tick ordering relative to input was not closed. No exact 32-versus-33 elapsed-tick boundary is asserted here.",
+    "Golden apple and enchanted golden apple data initializers, complete consumption inventory actions, full legacy-request decoration, and every custom component use callback remain outside this scoped result.",
+    "No native executable was run, no server acceptance test was performed, and no guarantee concerning anti-cheat results is made."
+  ]
+}

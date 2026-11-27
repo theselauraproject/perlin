@@ -6,9 +6,11 @@
 #include <cstdlib>
 #include "client/systems/multiplayer/BedrockSession.hpp"
 #include "world/movement/PlayerPhysics.hpp"
+#include "world/movement/PerlinStatusEffect.hpp"
 #include "world/level/block/BlockPalette.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -99,6 +101,18 @@ namespace perlin {
             return nullptr;
         }
 
+        bool IsChargedCrossbow(const BedrockSession::ItemStackInfo& item,
+                               const std::map<int, std::string>& registry) {
+            if (item.Empty() || item.name != "minecraft:crossbow" || item.chargedItemCount <= 0 ||
+                item.chargedItemName.empty() || item.chargedItemName == "minecraft:air")
+                return false;
+            // Native loaded-state detection checks a resolved non-null item,
+            // without restricting it to the vanilla projectile whitelist.
+            return std::ranges::any_of(registry, [&](const auto& entry) {
+                return entry.first != 0 && entry.second == item.chargedItemName;
+            });
+        }
+
         bool IntegerOf(const MetadataDictionaryEntry& e, int& out) {
             bool found = false;
             std::visit(
@@ -126,15 +140,50 @@ namespace perlin {
         }
     }
 
+    void BedrockSession::ResetPlayerAbilities() {
+        mayFly = noClip = instabuild = isFlying = false;
+        mayMine = true;
+        flySpeed = 0.05f;
+        vFlySpeed = 1.0f;
+        walkSpeed = 0.1f;
+        ++abilitiesSeq;
+    }
+
+    void BedrockSession::ResetPlayerAttributes() {
+        std::lock_guard lock(attrMutex);
+        ownFlagWords = {};
+        ownFlagWordsKnown = {};
+        ownPlayerFlags = 0;
+        inputLocks = 0;
+        immobile = false;
+        ownAttributes.clear();
+        movementAttribute.reset();
+        movementState = {};
+        pendingAttributeUpdates.clear();
+        freezeUpdates.clear();
+        ownScale = 1.0f;
+        ownWidth = 0.6f;
+        ownHeight = 1.8f;
+        ownNameTag.clear();
+        ownSeatOffset.reset();
+    }
+
     void BedrockSession::ResetPlayerState() {
+        ResetPlayerAbilities();
+        ResetPlayerAttributes();
+        chargedItemUseReset = false;
         shieldItemId = -1;
         ResetServerGui();
+        cameraEffects.Reset();
         {
             std::lock_guard locatorLock(locatorMutex);
             locatorWaypoints.clear();
             trackedPlayerLocations.clear();
         }
         std::lock_guard lock(statusMutex);
+        ++itemStateRevision;
+        itemSlotRevisions.fill(0);
+        itemCooldownRevisions.clear();
         vitals = Vitals{};
         activeEffects.clear();
         itemCooldowns.Clear();
@@ -143,6 +192,7 @@ namespace perlin {
         serverMotions.clear();
         pendingMovementEffects.clear();
         inventory = InventoryView{};
+        ResetContainerStateLocked();
         for (ItemV4& raw : inventoryRaw)
             raw = ItemV4{};
         for (ItemV4& raw : extraRaw)
@@ -155,13 +205,40 @@ namespace perlin {
         immobile = false;
         recipes.clear();
         recipeUnlocks.Clear();
+        creative.groups.clear();
+        creative.items.clear();
+        ++creative.version;
+        creativeRaw.clear();
         craftedRecipe = -1;
         titleText = TitleText{};
     }
 
     BedrockSession::Vitals BedrockSession::GetVitals() const {
         std::lock_guard lock(statusMutex);
-        return vitals;
+        Vitals current = vitals;
+        current.regeneration = current.hungerEffect = current.poison = current.wither = false;
+        const uint64_t now = LastAuthTick();
+        for (const ActiveEffect& effect : activeEffects) {
+            if (physics::bds::StatusEffectTicksAt(effect.duration, effect.appliedTick, now) == 0)
+                continue;
+            switch (effect.id) {
+            case 10:
+                current.regeneration = true;
+                break;
+            case 17:
+                current.hungerEffect = true;
+                break;
+            case 19:
+                current.poison = true;
+                break;
+            case 20:
+                current.wither = true;
+                break;
+            default:
+                break;
+            }
+        }
+        return current;
     }
 
     BedrockSession::InventoryView BedrockSession::GetInventory() const {
@@ -192,6 +269,62 @@ namespace perlin {
         const int selected = std::clamp(inventory.selected, 0, 8);
         const ItemV4& item = useOffhand ? extraRaw[kInvOffhand - kInvArmor0] : inventoryRaw[selected];
         return ItemOnCooldownLocked(item, itemcooldown::Type::Use);
+    }
+
+    bool BedrockSession::HeldItemIsChargedCrossbow() const {
+        std::lock_guard lock(statusMutex);
+        const auto& item = useOffhand ? inventory.offhand
+                                     : inventory.hotbar[std::clamp(inventory.selected, 0, 8)];
+        return IsChargedCrossbow(item, itemNames);
+    }
+
+    bool BedrockSession::CanStartUsingHeldItem(bool inWaterOrRain) const {
+        std::lock_guard lock(statusMutex);
+        const int selected = std::clamp(inventory.selected, 0, 8);
+        const auto& item = useOffhand ? inventory.offhand : inventory.hotbar[selected];
+        if (item.Empty())
+            return false;
+        if (item.name == "minecraft:crossbow")
+            return !IsChargedCrossbow(item, itemNames);
+        if (item.name != "minecraft:trident")
+            return true;
+        const ItemV4& raw = useOffhand ? extraRaw[kInvOffhand - kInvArmor0] : inventoryRaw[selected];
+        const auto* nbt = ItemNbt(raw);
+        if (!nbt)
+            return true;
+        const ItemNbtInfo parsed = ParseItemNbt(*nbt);
+        if (!parsed.ok)
+            return true;
+        // TridentItem::use reads the low signed short of the root IntTag.
+        // The matched builtin is registered with maximum damage 250.
+        const int16_t damage = parsed.damageTagType == 3
+                                   ? std::bit_cast<int16_t>(static_cast<uint16_t>(parsed.damage))
+                                   : 0;
+        if (damage >= 250)
+            return false;
+        // EnchantUtils::getEnchantLevel uses the active "ench" list, not
+        // StoredEnchantments, and selects the first matching enchantment.
+        for (const auto& [id, level] : parsed.activeEnchants)
+            if (id == 30)
+                return level == 0 || inWaterOrRain;
+        return true;
+    }
+
+    int BedrockSession::HeldItemEnchantLevel(int id) const {
+        std::lock_guard lock(statusMutex);
+        const int selected = std::clamp(inventory.selected, 0, 8);
+        const ItemV4& raw = useOffhand ? extraRaw[kInvOffhand - kInvArmor0] : inventoryRaw[selected];
+        if (raw.networkId == 0 || raw.count == 0)
+            return 0;
+        const auto* nbt = ItemNbt(raw);
+        if (!nbt)
+            return 0;
+        const ItemNbtInfo parsed = ParseItemNbt(*nbt);
+        if (parsed.ok)
+            for (const auto& [enchant, level] : parsed.activeEnchants)
+                if (enchant == id)
+                    return level;
+        return 0;
     }
 
     bool BedrockSession::ItemOnCooldownLocked(const ItemV4& item,
@@ -274,23 +407,55 @@ namespace perlin {
     }
 
     void BedrockSession::ApplyMovementAttribute(const PlayerAttributesEntry& entry) {
-        movementModifiers = entry.modifiers;
-        const float baseMin = std::fmin(entry.defaultMax, entry.defaultMin);
-        movementBase = {baseMin, entry.defaultMax,
-                        entry.defaultMax < entry.default_ ? entry.defaultMax
-                                                          : std::fmax(entry.default_, baseMin)};
-        movementLimits = {std::fmin(entry.max, entry.min), entry.max};
-        movementValue = physics::ClampAttribute(entry.current, movementLimits[0], movementLimits[1],
-                                                ModifierValues(movementModifiers));
+        ApplyMovementAttribute(movementState, entry);
+    }
+
+    void BedrockSession::ApplyAttributeUpdate(const AttributeUpdate& update) {
+        std::lock_guard lock(attrMutex);
+        for (const PlayerAttributesEntry& entry : update.attributes) {
+            if (!IsMovementAttribute(entry.name))
+                continue;
+            ownAttributes[entry.name] = entry.current;
+            if (entry.name == "minecraft:movement") {
+                movementAttribute = entry;
+                ApplyMovementAttribute(entry);
+            }
+        }
     }
 
     float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength) {
         std::lock_guard lock(attrMutex);
+        return PredictedMovementSpeed(movementState, sprinting, freezeStrength);
+    }
+
+    float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength,
+                                                 MovementAttributeState& snapshot) {
+        std::lock_guard lock(attrMutex);
+        const float result = PredictedMovementSpeed(movementState, sprinting, freezeStrength);
+        snapshot = movementState;
+        return result;
+    }
+
+    void BedrockSession::ApplyMovementAttribute(MovementAttributeState& state,
+                                                const PlayerAttributesEntry& entry) {
+        state.known = true;
+        state.modifiers = entry.modifiers;
+        const float baseMin = std::fmin(entry.defaultMax, entry.defaultMin);
+        state.base = {baseMin, entry.defaultMax,
+                        entry.defaultMax < entry.default_ ? entry.defaultMax
+                                                          : std::fmax(entry.default_, baseMin)};
+        state.limits = {std::fmin(entry.max, entry.min), entry.max};
+        state.value = physics::ClampAttribute(entry.current, state.limits[0], state.limits[1],
+                                                ModifierValues(state.modifiers));
+    }
+
+    float BedrockSession::PredictedMovementSpeed(MovementAttributeState& state, bool sprinting,
+                                                 std::optional<float> freezeStrength) {
 
         std::optional<float> freeze;
         if (freezeStrength && std::fabs(*freezeStrength) > 0.00000011920929f)
             freeze = *freezeStrength * -0.05f;
-        if (!movementAttribute) {
+        if (!state.known) {
             const float factor = 0.3f + 1.0f;
             const float value = freeze ? *freeze + 0.1f : 0.1f;
             return sprinting ? factor * value : value;
@@ -303,22 +468,22 @@ namespace perlin {
                 return m.name == "Freeze effect";
             };
             std::optional<float> sent;
-            for (const auto& m : movementModifiers)
+            for (const auto& m : state.modifiers)
                 if (isFreeze(m))
                     sent = m.amount;
             if (sent == freeze)
                 return value;
-            std::vector<PlayerAttributesEntryModifiersEntry> modifiers = movementModifiers;
+            std::vector<PlayerAttributesEntryModifiersEntry> modifiers = state.modifiers;
             std::erase_if(modifiers, isFreeze);
             auto values = ModifierValues(modifiers);
             if (freeze)
                 values.push_back({*freeze, 0, 2});
-            std::array<float, 2> limits = movementLimits;
-            return physics::RecalculateAttribute(movementBase, values, value, limits);
+            std::array<float, 2> limits = state.limits;
+            return physics::RecalculateAttribute(state.base, values, value, limits);
         };
-        const bool present = std::ranges::any_of(movementModifiers, IsSprintModifier);
+        const bool present = std::ranges::any_of(state.modifiers, IsSprintModifier);
         if (sprinting == present)
-            return withFreeze(movementValue);
+            return withFreeze(state.value);
         if (sprinting) {
             PlayerAttributesEntryModifiersEntry boost;
             boost.id = "d208fc00-42aa-4aad-9276-d5446530de43";
@@ -327,13 +492,13 @@ namespace perlin {
             boost.operation = 2;
             boost.operand = 2;
             boost.serializable = false;
-            movementModifiers.push_back(boost);
+            state.modifiers.push_back(boost);
         } else {
-            std::erase_if(movementModifiers, IsSprintModifier);
+            std::erase_if(state.modifiers, IsSprintModifier);
         }
-        movementValue = physics::RecalculateAttribute(movementBase, ModifierValues(movementModifiers),
-                                                      movementValue, movementLimits);
-        return withFreeze(movementValue);
+        state.value = physics::RecalculateAttribute(state.base, ModifierValues(state.modifiers),
+                                                      state.value, state.limits);
+        return withFreeze(state.value);
     }
 
     BedrockSession::TitleText BedrockSession::GetTitleText() const {
@@ -465,10 +630,13 @@ namespace perlin {
                 info.color = parsed.color;
                 info.enchants = parsed.enchants;
                 info.lore = parsed.lore;
-                if (!parsed.customName.empty())
-                    info.customName = parsed.customName;
-                if (parsed.hasDamage)
-                    info.damage = std::max(0, parsed.damage);
+                info.chargedItemName = parsed.chargedItemName;
+                info.chargedItemCount = parsed.chargedItemCount;
+                // A charged projectile has its own Name and Damage fields.
+                // Successful structured parsing takes precedence over byte
+                // searches that cannot distinguish nested item metadata.
+                info.customName = parsed.customName;
+                info.damage = parsed.hasDamage ? std::max(0, parsed.damage) : 0;
             }
             info.enchanted = !info.enchants.empty() || Contains(*nbt, "ench") ||
                              Contains(*nbt, "Enchantments") || Contains(*nbt, "StoredEnchantments") ||
@@ -545,6 +713,7 @@ namespace perlin {
                 if (c >= 0 && c < kInvChestCount) {
                     inventory.chest[c] = ConvertItemStack(items[i]);
                     chestRaw[c] = items[i];
+                    ++itemSlotRevisions[kInvChest0 + c];
                 }
                 continue;
             }
@@ -556,6 +725,7 @@ namespace perlin {
                 if (h >= 0 && h < kInvHorseCount) {
                     inventory.horse[h] = ConvertItemStack(items[i]);
                     horseRaw[h] = items[i];
+                    ++itemSlotRevisions[kInvHorse0 + h];
                     if (h >= 2)
                         inventory.horseChestSlots = std::max(inventory.horseChestSlots, h - 1);
                 }
@@ -581,6 +751,7 @@ namespace perlin {
                 if (addr >= 0) {
                     InvInfoLocked(addr) = info;
                     InvRawLocked(addr) = items[i];
+                    ++itemSlotRevisions[addr];
                     if (IsCraftAddr(addr))
                         InvRecomputeOutputLocked();
                 }
@@ -588,11 +759,13 @@ namespace perlin {
                 if (slot == 0) {
                     inventory.offhand = info;
                     extraRaw[kInvOffhand - 36] = items[i];
+                    ++itemSlotRevisions[kInvOffhand];
                 }
             } else if (armor) {
                 if (slot >= 0 && slot < 4) {
                     inventory.armor[slot] = info;
                     extraRaw[kInvArmor0 - 36 + slot] = items[i];
+                    ++itemSlotRevisions[kInvArmor0 + slot];
                 }
             } else if (playerInventory && window != WindowIDVarint::Ui) {
                 const auto stamp = std::chrono::steady_clock::now();
@@ -601,15 +774,18 @@ namespace perlin {
                         inventory.main[slot] = info;
                         inventoryRaw[slot + 9] = items[i];
                         invServerAt[slot + 9] = stamp;
+                        ++itemSlotRevisions[slot + 9];
                     }
                 } else if (slot >= 0 && slot < 9) {
                     inventory.hotbar[slot] = info;
                     inventoryRaw[slot] = items[i];
                     invServerAt[slot] = stamp;
+                    ++itemSlotRevisions[slot];
                 } else if (slot >= 9 && slot < 36) {
                     inventory.main[slot - 9] = info;
                     inventoryRaw[slot] = items[i];
                     invServerAt[slot] = stamp;
+                    ++itemSlotRevisions[slot];
                 }
             }
         }
@@ -674,6 +850,12 @@ namespace perlin {
                 std::lock_guard lock(statusMutex);
                 static const bool debug = PERLIN_ENV("PERLIN_INV_DEBUG") != nullptr;
                 for (const ItemStackResponsesEntry& r : p.responses) {
+                    // Legacy use predictions have negative even IDs. They are
+                    // reconciled by slot/content updates, not this odd request
+                    // response family. Invalid IDs must not mutate inventory
+                    // or release a pending ordinary request.
+                    if (r.requestId >= 0 || (static_cast<uint32_t>(r.requestId) & 1u) == 0)
+                        continue;
                     if (const auto pending = pendingDrops.find(r.requestId); pending != pendingDrops.end()) {
                         if (r.status == ItemStackResponsesEntryStatus::Ok) {
                             dropForm = pending->second.attempt;
@@ -706,6 +888,8 @@ namespace perlin {
                                       std::begin(chestRaw));
                             std::copy(std::begin(snap->second.horse), std::end(snap->second.horse),
                                       std::begin(horseRaw));
+                            for (auto& revision : itemSlotRevisions)
+                                ++revision;
                             InvRecomputeOutputLocked();
                         }
                         invSnapshots.erase(snap);
@@ -722,6 +906,7 @@ namespace perlin {
                                 type, s.slot, {inventory.chestOpen, inventory.horseOpen, inventory.furnaceKind});
                             if (slot < 0)
                                 continue;
+                            ++itemSlotRevisions[slot];
                             ItemStackInfo& info = InvInfoLocked(slot);
                             ItemV4& raw = InvRawLocked(slot);
 
@@ -767,14 +952,14 @@ namespace perlin {
 
         On<CreativeContentPacket>([this](const CreativeContentPacket& p) {
             std::lock_guard lock(statusMutex);
-            const auto info = [this](const ItemLegacy& o) {
-                ItemStackInfo r;
-                const auto it = itemNames.find(o.networkId);
+            const auto stack = [](const ItemLegacy& o) {
+                ItemV4 r;
                 if (o.networkId != 0) {
-                    r.name = it == itemNames.end() ? std::string("minecraft:unknown") : it->second;
-                    r.count = std::max<int>(1, o.count);
-                    r.aux = static_cast<int>(o.metadata);
+                    r.networkId = static_cast<int16_t>(o.networkId);
+                    r.count = static_cast<uint16_t>(std::max<int>(1, o.count));
+                    r.metadata = o.metadata;
                     r.blockRuntimeId = static_cast<uint32_t>(o.blockRuntimeId);
+                    r.extra = o.extra;
                 }
                 return r;
             };
@@ -784,22 +969,18 @@ namespace perlin {
                 CreativeGroup group;
                 group.category = static_cast<int>(g.category);
                 group.name = g.name;
-                group.icon = info(g.iconItem);
+                group.icon = ConvertItemStack(stack(g.iconItem));
                 next.groups.push_back(std::move(group));
             }
             for (const auto& i : p.items) {
                 CreativeItem item;
                 item.entryId = i.entryId;
-                item.info = info(i.item);
-                item.group = static_cast<int>(i.groupIndex);
+                ItemV4 raw = stack(i.item);
+                item.info = ConvertItemStack(raw);
+                item.group = i.groupIndex < p.groups.size() ? static_cast<int>(i.groupIndex) : -1;
                 if (item.info.name.empty())
                     continue;
-                ItemV4 raw;
-                raw.networkId = static_cast<int16_t>(i.item.networkId);
-                raw.count = static_cast<uint16_t>(item.info.count);
-                raw.metadata = i.item.metadata;
-                raw.blockRuntimeId = static_cast<uint32_t>(i.item.blockRuntimeId);
-                creativeRaw[i.entryId] = raw;
+                creativeRaw[i.entryId] = std::move(raw);
                 next.items.push_back(std::move(item));
             }
             next.version = creative.version + 1;
@@ -890,10 +1071,15 @@ namespace perlin {
 
     void BedrockSession::RegisterContainerHandlers() {
         On<ContainerOpenPacket>([this](const ContainerOpenPacket& p) {
+            if (runtimeId == 0)
+                return;
             Log("bedrock", "container open window {} type {}", static_cast<int>(p.windowId),
                 static_cast<int>(p.windowType));
             std::lock_guard lock(statusMutex);
             inventoryWindow = static_cast<int>(p.windowId);
+            inventoryWindowType = p.windowType;
+            serverClosedInventory = false;
+            serverCloseWindowType = WindowType::None;
             inventoryOpen = true;
             workbenchOpen = p.windowType == WindowType::Workbench;
             if (p.windowType == WindowType::Horse) {
@@ -1006,24 +1192,32 @@ namespace perlin {
             }
         });
         On<ContainerClosePacket>([this](const ContainerClosePacket& p) {
+            if (runtimeId == 0)
+                return;
             Log("bedrock", "container close window {}{}", static_cast<int>(p.windowId),
                 (p.server ? " (server)" : ""));
-            std::lock_guard lock(statusMutex);
-            inventoryOpen = false;
-            workbenchOpen = false;
-            inventory.horseOpen = false;
-            horseWindow = -1;
-            inventory.chestOpen = false;
-            inventory.furnaceKind = -1;
-            chestWindow = -1;
-            for (auto& w : inventory.work)
-                w = ItemStackInfo{};
-            if (p.server) {
-                serverClosedInventory = true;
-                ContainerClosePacket ack = p;
-                ack.server = false;
-                Send(ack);
+            {
+                std::lock_guard lock(statusMutex);
+                if (!inventoryOpen)
+                    return;
+                if (p.server) {
+                    // The native handler requests a screen close. The screen
+                    // controller checks the container type, and deleting the
+                    // current manager sends the one ordinary close response.
+                    serverClosedInventory = true;
+                    serverCloseWindowType = p.windowType;
+                    return;
+                }
             }
+            // A response while a manager still exists is a protocol violation,
+            // not an instruction to close it. Native 2193 deliberately names
+            // the warning packet itself as the cause and does not compare IDs.
+            PacketViolationWarningPacket warning;
+            warning.violationType = static_cast<PacketViolationWarningPacketViolationType>(-1);
+            warning.severity = PacketViolationWarningPacketSeverity::Warning;
+            warning.packetId = PacketViolationWarningPacket::kId;
+            warning.reason = "Server sent a ContainerClosePacket response packet when it should have sent the server initiated packet";
+            Send(warning);
         });
     }
 
@@ -1033,25 +1227,25 @@ namespace perlin {
                 return;
             std::lock_guard lock(statusMutex);
             itemCooldowns.Start(p.category, p.duration);
+            ++itemCooldownRevisions[itemcooldown::CategoryKey(p.category)];
         });
 
         On<PlayerHotbarPacket>([this](const PlayerHotbarPacket& p) {
-            if (!p.selectSlot)
+            if (runtimeId == 0 || !p.selectSlot || p.selectedSlot > 8)
                 return;
             std::lock_guard lock(statusMutex);
-            inventory.selected = static_cast<int>(std::min<uint32_t>(p.selectedSlot, 8));
+            inventory.selected = static_cast<int>(p.selectedSlot);
         });
 
         On<MobEquipmentPacket>([this](const MobEquipmentPacket& p) {
-            if (runtimeId != 0 && p.runtimeEntityId != runtimeId)
+            if (runtimeId == 0 || p.runtimeEntityId != runtimeId || p.windowId != WindowID::Inventory ||
+                p.selectedSlot > 8)
                 return;
             std::lock_guard lock(statusMutex);
-            const int selected = std::min<int>(p.selectedSlot, 8);
-            inventory.selected = selected;
-            if (p.slot < 9) {
-                inventory.hotbar[p.slot] = ConvertItemStack(p.item);
-                inventoryRaw[p.slot] = p.item;
-            }
+            // The native local-player branch only selects the hotbar slot.
+            // InventorySlot/Content own item replacement; equipment updates for
+            // remote actors are handled separately by EntityStateHandlers.
+            inventory.selected = p.selectedSlot;
         });
 
         On<MobArmorEquipmentPacket>([this](const MobArmorEquipmentPacket& p) {
@@ -1062,6 +1256,7 @@ namespace perlin {
             for (int slot = 0; slot < 4; slot++) {
                 inventory.armor[slot] = ConvertItemStack(*items[slot]);
                 extraRaw[kInvArmor0 - 36 + slot] = *items[slot];
+                ++itemSlotRevisions[kInvArmor0 + slot];
             }
         });
 
@@ -1074,8 +1269,10 @@ namespace perlin {
                 if (slot < 0 || slot >= 4)
                     continue;
                 ItemV4& raw = extraRaw[kInvArmor0 - 36 + slot];
-                if (SetItemDamage(raw, entry.damage))
+                if (SetItemDamage(raw, entry.damage)) {
                     inventory.armor[slot] = ConvertItemStack(raw);
+                    ++itemSlotRevisions[kInvArmor0 + slot];
+                }
             }
         });
 
@@ -1115,43 +1312,54 @@ namespace perlin {
         });
 
         On<MobEffectPacket>([this](const MobEffectPacket& p) {
-            if (runtimeId != 0 && p.runtimeEntityId != runtimeId)
+            if (runtimeId == 0 || p.runtimeEntityId != runtimeId)
+                return;
+            if (p.eventId != MobEffectPacketEventId::Add &&
+                p.eventId != MobEffectPacketEventId::Update &&
+                p.eventId != MobEffectPacketEventId::Remove)
                 return;
             if (PERLIN_ENV("PERLIN_BLOCK_DEBUG"))
                 Log("effect", "id={} event={} duration={} serverTick={} afterAuthTick={}", p.effectId,
                     static_cast<int>(p.eventId), p.duration, p.tick, LastAuthTick());
             const bool on = p.eventId != MobEffectPacketEventId::Remove;
             std::lock_guard lock(statusMutex);
-            pendingEffectUpdates.push_back({p.tick, p.effectId, p.amplifier, on, p.duration});
-            activeEffects.erase(std::remove_if(activeEffects.begin(), activeEffects.end(),
-                                               [&](const ActiveEffect& e) { return e.id == p.effectId; }),
-                                activeEffects.end());
-            if (on) {
-                ActiveEffect e;
-                e.id = p.effectId;
-                e.amplifier = p.amplifier;
-                e.ambient = p.ambient;
-                e.particles = p.particles;
-                e.duration = p.duration;
-                e.appliedTick = p.tick != 0 ? p.tick : LastAuthTick();
-                activeEffects.push_back(e);
+            pendingEffectUpdates.push_back(
+                {p.tick, p.effectId, p.amplifier, on, p.duration, p.ambient, p.particles});
+            auto existing = std::find_if(activeEffects.begin(), activeEffects.end(),
+                                         [&](const ActiveEffect& effect) { return effect.id == p.effectId; });
+            if (!on) {
+                if (existing != activeEffects.end())
+                    activeEffects.erase(existing);
+                return;
             }
-            switch (p.effectId) {
-            case 10:
-                vitals.regeneration = on;
-                break;
-            case 17:
-                vitals.hungerEffect = on;
-                break;
-            case 19:
-                vitals.poison = on;
-                break;
-            case 20:
-                vitals.wither = on;
-                break;
-            default:
-                break;
+
+            const uint64_t now = LastAuthTick();
+            const uint64_t stamp = p.tick != 0 ? p.tick : now;
+            physics::bds::StatusEffectValue value{
+                p.amplifier, physics::bds::StatusEffectTicksAt(p.duration, stamp, now),
+                p.ambient, p.particles};
+            if (existing != activeEffects.end()) {
+                const int32_t remaining = physics::bds::StatusEffectTicksAt(
+                    existing->duration, existing->appliedTick, now);
+                if (remaining != 0)
+                    value = physics::bds::MergeStatusEffect(
+                        {existing->amplifier, remaining, existing->ambient, existing->particles}, value);
             }
+
+            // The packet tick corrects history and shortens an already old
+            // duration. Even a future-stamped effect begins its live countdown
+            // immediately; the future timestamp is not an expiry-clock origin.
+            ActiveEffect effect;
+            effect.id = p.effectId;
+            effect.amplifier = value.amplifier;
+            effect.duration = value.duration;
+            effect.appliedTick = now;
+            effect.ambient = value.ambient;
+            effect.particles = value.particles;
+            if (existing != activeEffects.end())
+                *existing = effect;
+            else
+                activeEffects.push_back(effect);
         });
 
         On<SetEntityDataPacket>([this](const SetEntityDataPacket& p) {

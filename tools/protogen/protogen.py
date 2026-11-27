@@ -672,17 +672,24 @@ class Generator:
         for body in distinct:
             keys = [k for k, b in args["fields"].items() if b == body]
             groups.append((body, keys))
+        conditions = {key: self.condition(scope, args["compareTo"], key)
+                      for key in args["fields"]}
+        # A default excludes every explicit case, including cases with no
+        # payload. Payload grouping must not erase those discriminator values.
+        excluded = " || ".join(f"({cond})" for cond in conditions.values())
+        has_void_case = any(self.is_void(body) for body in args["fields"].values())
         first = True
         single = len(distinct) == 1
         for index, (body, keys) in enumerate(groups):
-            is_default = default is not None and not self.is_void(default) and body == default and not keys
             cpp = self.cpp_type(body, hint if single else f"{hint}_case{index}")
             pointer = f"p{depth}"
             inner = self.emit(body, f"(*{pointer})", scope, hint, s, S, depth + 1)
-            if is_default:
+            parts = [conditions[key] for key in keys]
+            if body == default and excluded and (keys or has_void_case):
+                parts.append(f"!({excluded})")
+            if not parts:
                 lines.append("else {" if not first else "{")
             else:
-                parts = [self.condition(scope, args['compareTo'], k) for k in keys]
                 cond = parts[0] if len(parts) == 1 else " || ".join(f"({c})" for c in parts)
                 lines.append(f"{'if' if first else 'else if'} ({cond}) {{")
             picker = f"Pick<{cpp}>" if single else f"PickAt<{index + 1}>"
@@ -996,6 +1003,114 @@ class Bridge:
         self.order.append((key, fg, fcpp, tg, tcpp, fn))
         return fn
 
+    def chunk_conversion(self, fg, fcpp, tg, tcpp, fdecl, tdecl):
+        """Translate the old conditional chunk DTOs without changing either wire schema."""
+        fm = {m: shape(fg, e) for _, m, e in fdecl.fields}
+        tm = {m: shape(tg, e) for _, m, e in tdecl.fields}
+        if fcpp == tcpp == "LevelChunkPacket":
+            source = fm.get("highestSubchunkCount")
+            target = tm.get("highestSubchunkCount")
+            if source and target and {source.kind, target.kind} == {"switch", "option"}:
+                lines = ["b.subChunkCount = a.subChunkCount;", "b.highestSubchunkCount.reset();"]
+                if source.kind == "switch":
+                    # The old count doubles as a request-mode discriminator.
+                    # UINT32_MAX is unlimited; UINT32_MAX-1 carries a uint16
+                    # highest relative index. Ordinary counts have no limit.
+                    lines += ["if (a.subChunkCount == 0xffffffffu)",
+                              "    b.highestSubchunkCount = -1;",
+                              "else if (a.subChunkCount == 0xfffffffeu && a.highestSubchunkCount)",
+                              "    b.highestSubchunkCount = *a.highestSubchunkCount;",
+                              "b.blobs.clear();",
+                              "if (a.cacheEnabled && a.blobs) b.blobs = a.blobs->hashes;"]
+                else:
+                    lines += ["if (a.highestSubchunkCount) {",
+                              "    if (*a.highestSubchunkCount == -1) b.subChunkCount = 0xffffffffu;",
+                              "    else {",
+                              "        b.subChunkCount = 0xfffffffeu;",
+                              "        b.highestSubchunkCount = static_cast<uint16_t>(*a.highestSubchunkCount);",
+                              "    }", "}", "b.blobs.reset();",
+                              "if (a.cacheEnabled) b.blobs.emplace().hashes = a.blobs;"]
+                return {"subChunkCount", "highestSubchunkCount", "blobs"}, lines
+        if fcpp == tcpp == "SubchunkPacket":
+            source, target = fm.get("entries"), tm.get("entries")
+            if source and target and source.kind == "array" and target.kind == "switch":
+                lines = []
+                for index, alternative, keys in self.alternatives(tg, target):
+                    if "true" in keys:
+                        condition = "a.cacheEnabled"
+                    elif "false" in keys:
+                        condition = "!a.cacheEnabled"
+                    else:
+                        continue
+                    lines += [f"if ({condition}) {{", f"    auto& entries = b.entries.template emplace<{index}>();"]
+                    lines.extend("    " + line for line in self.conv(fg, source, tg, alternative,
+                                                                      "a.entries", "entries", 0))
+                    lines.append("}")
+                return {"entries"}, lines
+        old_entries = {"SubChunkEntryWithCachingEntry", "SubChunkEntryWithoutCachingEntry"}
+        flat_options = False
+        if fcpp == tcpp == "SubChunkEntryEntry":
+            source, target = fm.get("heightmap"), tm.get("heightmap")
+            if source and target and source.kind == target.kind == "option":
+                source_map, target_map = shape(fg, source.args), shape(tg, target.args)
+                flat_options = {source_map.kind, target_map.kind} == {"bytes", "array"}
+        if ((fcpp in old_entries and tcpp == "SubChunkEntryEntry") or
+                (fcpp == "SubChunkEntryEntry" and tcpp in old_entries) or flat_options):
+            old_to_current = source_map.kind == "bytes" if flat_options else fcpp in old_entries
+            cached = (fcpp if old_to_current else tcpp) == "SubChunkEntryWithCachingEntry"
+            lines = []
+            if flat_options:
+                # The intermediate schema already has optional fields and one
+                # entry DTO, but still represents each map as 256 flat bytes.
+                pass
+            elif old_to_current:
+                lines += ["b.payload.reset();"]
+                if cached:
+                    lines += ["if (a.payload) b.payload = *a.payload;"]
+                else:
+                    lines += ["b.payload = a.payload;"]
+                lines += ["b.blobId.reset();"]
+                if cached:
+                    lines += ["b.blobId = a.blobId;"]
+            else:
+                if cached:
+                    lines += ["b.payload.reset();",
+                              f"if (a.result != {self.ns(fg)}::SubChunkEntryEntryResult::SuccessAllAir)",
+                              "    b.payload = a.payload.value_or(std::vector<uint8_t>{});"]
+                else:
+                    lines += ["b.payload = a.payload.value_or(std::vector<uint8_t>{});"]
+            for member in ("heightmap", "renderHeightmap"):
+                # The legacy map is a fixed 256-byte buffer; the current DTO
+                # exposes sixteen rows of signed heights. Preserve byte bits
+                # and row order, and do not invent maps for absent switches.
+                lines.append(f"b.{member}.reset();")
+                if old_to_current:
+                    lines += [f"if (a.{member} && a.{member}->size() == 256) {{",
+                              f"    auto& rows = b.{member}.emplace();",
+                              "    for (size_t row = 0; row < 16; ++row) {",
+                              "        rows[row].resize(16);",
+                              "        for (size_t col = 0; col < 16; ++col)",
+                              f"            rows[row][col] = static_cast<int8_t>((*a.{member})[row * 16 + col]);",
+                              "    }", "}"]
+                else:
+                    # Leaving an unrepresentable HasData map absent makes
+                    # the existing required-field writer fail, not pad/truncate.
+                    lines += [f"if (a.{member}) {{", "    bool rectangular = true;",
+                              f"    for (const auto& row : *a.{member}) rectangular &= row.size() == 16;",
+                              "    if (rectangular) {",
+                              f"        auto& bytes = b.{member}.emplace();", "        bytes.reserve(256);",
+                              f"        for (const auto& row : *a.{member})",
+                              "            for (int8_t value : row) bytes.push_back(static_cast<uint8_t>(value));",
+                              "    }", "}"]
+            if flat_options:
+                return {"heightmap", "renderHeightmap"}, lines
+            return {"payload", "heightmap", "renderHeightmap"} | ({"blobId"} if old_to_current else set()), lines
+        if fcpp == "SubchunkRequestPacketRequestsEntry" and tcpp == "Vec3I8":
+            return {"x", "y", "z"}, [f"b.{axis} = a.d{axis};" for axis in "xyz"]
+        if fcpp == "Vec3I8" and tcpp == "SubchunkRequestPacketRequestsEntry":
+            return {"dx", "dy", "dz"}, [f"b.d{axis} = a.{axis};" for axis in "xyz"]
+        return set(), []
+
     def build_struct(self, key, fg, fcpp, tg, tcpp, fn):
         fdecl = fg.by_name.get(fcpp)
         tdecl = tg.by_name.get(tcpp)
@@ -1007,7 +1122,10 @@ class Bridge:
                         lines.append(f"b.{ident} = static_cast<decltype(b.{ident})>(a.{fdecl.bit_names[spec]});")
             elif hasattr(tdecl, "fields") and hasattr(fdecl, "fields"):
                 used = set()
+                chunk_fields, chunk_lines = self.chunk_conversion(fg, fcpp, tg, tcpp, fdecl, tdecl)
                 for spec, tm, texpr in tdecl.fields:
+                    if tm in chunk_fields:
+                        continue
                     tsh = shape(tg, texpr)
                     if tsh.kind in ("void", "unknown"):
                         continue
@@ -1024,6 +1142,61 @@ class Bridge:
                     used.add(pick[1])
                     fsh = shape(fg, pick[2])
                     lines.extend(self.conv(fg, fsh, tg, tsh, f"a.{pick[1]}", f"b.{tm}", 0))
+                lines.extend(chunk_lines)
+                if fcpp == tcpp == "TransactionActionsEntry":
+                    # Old source-tagged actions call the container field inventory_id.
+                    # It is conditional on Container, as flags is conditional on WorldInteraction.
+                    # Name-only conversion loses offhand/container addresses and invents flags=0.
+                    fm = {m for _, m, _ in fdecl.fields}
+                    tm = {m for _, m, _ in tdecl.fields}
+                    if "inventoryId" in fm and "windowId" in tm:
+                        lines += ["b.windowId.reset();", "b.flags.reset();",
+                                  f"if (a.sourceType == {self.ns(fg)}::TransactionActionsEntrySourceType::Container)",
+                                  "    b.windowId = static_cast<int8_t>(a.inventoryId);",
+                                  f"else if (a.sourceType == {self.ns(fg)}::TransactionActionsEntrySourceType::WorldInteraction)",
+                                  "    b.flags = a.flags;"]
+                    elif "windowId" in fm and "inventoryId" in tm:
+                        lines += [f"if (a.sourceType == {self.ns(fg)}::TransactionActionsEntrySourceType::Container && a.windowId)",
+                                  "    b.inventoryId = static_cast<decltype(b.inventoryId)>(*a.windowId);"]
+                if fcpp == tcpp == "TransactionLegacy":
+                    ff = next((shape(fg, e) for _, m, e in fdecl.fields if m == "legacyTransactions"), None)
+                    tf = next((shape(tg, e) for _, m, e in tdecl.fields if m == "legacyTransactions"), None)
+                    if ff and tf and ff.kind == "switch" and tf.kind == "option":
+                        # A switch represented by optional<> can be absent too. The generic
+                        # switch-to-option converter otherwise creates a present empty vector.
+                        lines.append("if (!a.legacyTransactions) b.legacyTransactions.reset();")
+                if fcpp == tcpp == "CameraInstructionPacketFade":
+                    # Earlier profiles use flat, mandatory fade times; the
+                    # current packet groups them inside an optional. Matching
+                    # member names alone loses all three values at this edge.
+                    fm = {m for _, m, _ in fdecl.fields}
+                    tm = {m for _, m, _ in tdecl.fields}
+                    times = ("fadeInDuration", "waitDuration", "fadeOutDuration")
+                    if "timeData" in tm and all(m in fm for m in times):
+                        lines.append("b.timeData.emplace();")
+                        lines.extend(f"b.timeData->{m} = a.{m};" for m in times)
+                    elif "timeData" in fm and all(m in tm for m in times):
+                        # The old representation cannot express an absent
+                        # triple. Materialize the receiving consumer's defaults.
+                        defaults = ("1.0f", "0.5f", "1.0f")
+                        lines.extend(f"b.{m} = a.timeData ? a.timeData->{m} : {v};"
+                                     for m, v in zip(times, defaults))
+                if fcpp == tcpp == "CameraInstructionPacketFov":
+                    ff = next((shape(fg, e) for _, m, e in fdecl.fields if m == "easeType"), None)
+                    tf = next((shape(tg, e) for _, m, e in tdecl.fields if m == "easeType"), None)
+                    if ff and tf and ff.kind == "enum" and tf.kind == "string":
+                        enum = fg.enums[ff.cpp]
+                        lines.append("switch (a.easeType) {")
+                        for ident, _, label in enum.extra:
+                            name = "_".join(words(label)).lower()
+                            lines.append(f"case {self.ns(fg)}::{ff.cpp}::{ident}: b.easeType = {json.dumps(name)}; break;")
+                        lines += ["default: b.easeType.clear(); break;", "}"]
+                    elif ff and tf and ff.kind == "string" and tf.kind == "enum":
+                        enum = tg.enums[tf.cpp]
+                        for i, (ident, _, label) in enumerate(enum.extra):
+                            prefix = "if" if i == 0 else "else if"
+                            name = "_".join(words(label)).lower()
+                            lines.append(f"{prefix} (a.easeType == {json.dumps(name)}) b.easeType = {self.ns(tg)}::{tf.cpp}::{ident};")
                 if fcpp == tcpp == "ClientboundUpdateSoundDataPacket" and self.old_ns == "perlin::proto2193":
                     # The matched 26.51 cereal binding serializes the entire
                     # sound variant seven times, with a varuint32 index for
@@ -1051,6 +1224,36 @@ class Bridge:
         while i < len(self.order):
             self.build_struct(*self.order[i])
             i += 1
+
+    def legacy_camera_fov_enum(self):
+        old = self.old.by_name.get("CameraInstructionPacketFov")
+        new = self.new.by_name.get("CameraInstructionPacketFov")
+        if old is None or new is None:
+            return None
+        old_type = next((shape(self.old, e) for _, m, e in old.fields if m == "easeType"), None)
+        new_type = next((shape(self.new, e) for _, m, e in new.fields if m == "easeType"), None)
+        if old_type and new_type and old_type.kind == "enum" and new_type.kind == "string":
+            return self.old.enums[old_type.cpp]
+        return None
+
+    def legacy_chunk_count(self):
+        old = self.old.by_name.get("LevelChunkPacket")
+        new = self.new.by_name.get("LevelChunkPacket")
+        if old is None or new is None:
+            return False
+        source = next((shape(self.old, e) for _, m, e in old.fields if m == "highestSubchunkCount"), None)
+        target = next((shape(self.new, e) for _, m, e in new.fields if m == "highestSubchunkCount"), None)
+        return source is not None and target is not None and source.kind == "switch" and target.kind == "option"
+
+    def legacy_optional_chunk_heightmap(self):
+        old = self.old.by_name.get("SubChunkEntryEntry")
+        new = self.new.by_name.get("SubChunkEntryEntry")
+        if old is None or new is None:
+            return False
+        source = next((shape(self.old, e) for _, m, e in old.fields if m == "heightmap"), None)
+        target = next((shape(self.new, e) for _, m, e in new.fields if m == "heightmap"), None)
+        return (source is not None and target is not None and source.kind == target.kind == "option" and
+                shape(self.old, source.args).kind == "bytes" and shape(self.new, target.args).kind == "array")
 
     def var(self):
         self.counter += 1
@@ -1348,6 +1551,7 @@ def emit_bridge(bridge, cur, legacy, version, cur_ns, old_ns, out_dir, packets):
         od = legacy.by_packet[name]
         up = bridge.struct_fn(legacy.gen, od.name, cur.gen, nd.name)
         down = bridge.struct_fn(cur.gen, nd.name, legacy.gen, od.name)
+        camera_ease = bridge.legacy_camera_fov_enum() if nd.name == "CameraInstructionPacket" else None
         if version == 2193 and nd.name == "ClientboundUpdateSoundDataPacket":
             # Native variant decoding checks the complete uint32 index before
             # narrowing it or dispatching an alternative. Validate every copy:
@@ -1361,9 +1565,49 @@ def emit_bridge(bridge, cur, legacy, version, cur_ns, old_ns, out_dir, packets):
             entry.append("    }")
             entry.append(f"    {up}(o, v); return true;")
             entry.append("}")
+        elif camera_ease is not None:
+            # Reject values this representation cannot preserve instead of
+            # silently converting an unknown enum/string into Linear(0).
+            entry.append(f"bool ReadInto(ReadStream& s, {cur_ns}::{nd.name}& v) {{")
+            entry.append(f"    {old_ns}::{od.name} o;")
+            entry.append("    if (!Read(s, o)) return false;")
+            entry.append("    if (o.fov) {")
+            entry.append("        switch (o.fov->easeType) {")
+            for ident, _, _ in camera_ease.extra:
+                entry.append(f"        case {old_ns}::{camera_ease.name}::{ident}: break;")
+            entry += ["        default: s.ok = false; return false;", "        }", "    }"]
+            entry.append(f"    {up}(o, v); return true;")
+            entry.append("}")
         else:
             entry.append(f"bool ReadInto(ReadStream& s, {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; const bool ok = Read(s, o); {up}(o, v); return ok; }}")
-        entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; {down}(v, o); Write(s, o); }}")
+        if nd.name == "LevelChunkPacket" and bridge.legacy_chunk_count():
+            # This is a representation check, not a claimed native invalid-
+            # packet policy: the old request limit is uint16 or the -1 sentinel.
+            entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{")
+            entry.append("    if (v.highestSubchunkCount ? (*v.highestSubchunkCount < -1 || *v.highestSubchunkCount > 65535)")
+            entry.append("                                 : v.subChunkCount >= 0xfffffffeu) { s.ok = false; return; }")
+            entry.append(f"    {old_ns}::{od.name} o; {down}(v, o); Write(s, o);")
+            entry.append("}")
+        elif nd.name == "SubchunkPacket" and bridge.legacy_optional_chunk_heightmap():
+            # In this intermediate layout the map itself is optional. A failed
+            # shape conversion must not silently turn present data into absence.
+            entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{")
+            entry.append("    for (const auto& entry : v.entries) {")
+            for member in ("heightmap", "renderHeightmap"):
+                entry.append(f"        if (entry.{member}) for (const auto& row : *entry.{member})")
+                entry.append("            if (row.size() != 16) { s.ok = false; return; }")
+            entry.append("    }")
+            entry.append(f"    {old_ns}::{od.name} o; {down}(v, o); Write(s, o);")
+            entry.append("}")
+        elif camera_ease is not None:
+            valid = " || ".join(f"v.fov->easeType == {json.dumps('_'.join(words(label)).lower())}"
+                                for _, _, label in camera_ease.extra)
+            entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{")
+            entry.append(f"    if (v.fov && !({valid})) {{ s.ok = false; return; }}")
+            entry.append(f"    {old_ns}::{od.name} o; {down}(v, o); Write(s, o);")
+            entry.append("}")
+        else:
+            entry.append(f"void WriteFrom(WriteStream& s, const {cur_ns}::{nd.name}& v) {{ {old_ns}::{od.name} o; {down}(v, o); Write(s, o); }}")
     bridge.flush()
     src = ['#include "protocol/Packets.hpp"', f'#include "protocol/v{version}/Packets.hpp"', '#include "protocol/Bridges.hpp"', "",
            "#include <type_traits>", "", f"namespace perlin::bridge{version} {{", "using net::ReadStream;", "using net::WriteStream;", BRIDGE_SUPPORT]

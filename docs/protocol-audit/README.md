@@ -4,7 +4,7 @@
 
 This source bundle contains verified static analysis, targeted compatibility fixes, regression tests, and an inventory of **every active packet ID in both supplied executables**. It is **not a completed reproduction of every Minecraft handler**, and it does not establish that all anticheat flags have been eliminated. Packet catalog coverage, successful codec generation, and regression tests are separate kinds of evidence.
 
-The continued implementation is described in [CONTINUATION.md](CONTINUATION.md), including packet wire corrections, analog input, send-state retry handling, armor and recipe consumers, GUI/location state, server sound playback, and session-specific codec selection. See [VALIDATION.md](VALIDATION.md) for completed checks and explicit limits.
+The camera command, animation, fade/FOV and control changes are described in [camera-behavior.md](camera-behavior.md). The creative category, item ordering and header-icon changes are described in [creative-inventory.md](creative-inventory.md). The latest movement/item repair pass is described in [BEHAVIOR_FIXES.md](BEHAVIOR_FIXES.md). The earlier continued implementation is described in [CONTINUATION.md](CONTINUATION.md), including packet wire corrections, analog input, send-state retry handling, armor and recipe consumers, GUI/location state, server sound playback, and session-specific codec selection. Chunk loading and rendering changes, including the bundled Conduit source, are described in [the performance report](../performance/README.md). See [VALIDATION.md](VALIDATION.md) for completed checks and explicit limits.
 
 No original Minecraft executable or PDB is included in the source bundle.
 
@@ -37,8 +37,8 @@ The source scanner reports these live receive registrations for the active execu
 
 | Reference protocol | Typed handler present | Partial handler present | Explicit no-op | No receive registration found | Active IDs |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 2193 | 116 | 2 | 22 | 91 | 231 |
-| 2225 catalog comparison | 116 | 2 | 22 | 99 | 239 |
+| 2193 | 117 | 2 | 21 | 91 | 231 |
+| 2225 catalog comparison | 117 | 2 | 21 | 99 | 239 |
 
 These counts describe source registrations, not a count or percentage of fully supported packets. Many client-to-server packets correctly have no incoming handler, and a registered incoming handler can still have missing behavior. Recorded-client replay callbacks are excluded from these live receive counts.
 
@@ -100,14 +100,15 @@ The matched `GuiDataPickItem` handler displays an item popup and flashes a hotba
 
 The repository's existing Windows build presets and main Build workflow are retained. A separate manually triggered **Protocol compatibility - Windows** workflow builds the client, runs the focused tests and handler tests, and uploads `Perlin-protocol-compatibility-windows-x64.zip`. It does not publish a GitHub release.
 
-To use it, extract the source archive and place the contents of its `perlin` folder at the root of your GitHub repository, including `.github`, `cmake`, `protocol`, `resources`, `src`, `tests`, and `tools`. Commit the workflow on the repository's default branch so GitHub exposes its manual trigger. Open **Actions → Protocol compatibility - Windows → Run workflow**. Download the artifact only after the build and tests succeed. See [GitHub's manual-workflow instructions](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+To use it, extract the source archive and place the contents of its `perlin` folder at the root of your GitHub repository, including `.github`, `cmake`, `protocol`, `resources`, `src`, `tests`, `third_party`, and `tools`. Commit the workflow on the repository's default branch so GitHub exposes its manual trigger. Open **Actions → Protocol compatibility - Windows → Run workflow**. Download the artifact only after the build and tests succeed. See [GitHub's manual-workflow instructions](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
 
 For a local Windows build, use a Visual Studio Developer PowerShell with **C++ Clang tools for Windows**, CMake 3.28 or later, Ninja, Python, and a static OpenSSL installation:
 
 ```powershell
-cmake --preset windows-clang-cl-fast -DPERLIN_BUILD_TESTS=ON
-cmake --build --preset windows-clang-cl-fast --parallel 4 --target Perlin packet_selftest wire_selftest move_input_selftest inventory_slots_selftest item_cooldown_selftest session_policy_selftest client_control_selftest actor_lerp_selftest physics_selftest gui_data_selftest armor_damage_selftest recipe_unlocks_selftest bridge2193_selftest sound_packets_wire_selftest camera_wire_selftest audio_selftest hud_feed_selftest
-ctest --test-dir build/windows-clang-cl-fast --output-on-failure -R "^(packet_selftest|wire_selftest|move_input_selftest|inventory_slots_selftest|item_cooldown_selftest|session_policy_selftest|client_control_selftest|actor_lerp_selftest|physics_selftest|protocol_audit_selftest|handler_dispatch_selftest|player_interaction_selftest|executable_boot_resources|gui_data_selftest|armor_damage_selftest|recipe_unlocks_selftest|bridge2193_selftest|sound_packets_wire_selftest|camera_wire_selftest|audio_selftest|hud_feed_selftest|armor_packets_selftest|recipe_packets_selftest|server_ui_packets_selftest|audio_packets_selftest|input_reporting_selftest|movement_protocol_selftest|session_codec_context_selftest|audio_director_selftest|hud_screen_selftest)$"
+cmake --preset windows-clang-cl -DPERLIN_BUILD_TESTS=ON -DCONDUIT_BUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPERLIN_FAST_MATH=OFF
+python tools/check_simulation_compile_options.py build/windows-clang-cl/compile_commands.json
+cmake --build --preset windows-clang-cl --parallel 4 --target Perlin packet_selftest wire_selftest move_input_selftest inventory_slots_selftest item_cooldown_selftest item_use_wire_selftest chunk_wire_selftest session_policy_selftest client_control_selftest actor_lerp_selftest physics_selftest status_effect_selftest heldbuild_selftest gui_data_selftest armor_damage_selftest item_nbt_selftest creative_catalog_selftest recipe_unlocks_selftest bridge2193_selftest sound_packets_wire_selftest camera_wire_selftest camera_effects_selftest audio_selftest hud_feed_selftest chunk_selftest chunk_ingest_selftest perlin_chunkbench cells16_selftest level_undo_selftest section_connectivity_selftest chunk_visibility_selftest perlin_meshbench common_cpu_selftest null_selftest render_profile_test vendor_test
+ctest --test-dir build/windows-clang-cl --output-on-failure -R "^(packet_selftest|wire_selftest|move_input_selftest|inventory_slots_selftest|item_cooldown_selftest|item_use_wire_selftest|chunk_wire_selftest|session_policy_selftest|client_control_selftest|actor_lerp_selftest|physics_selftest|protocol_audit_selftest|handler_dispatch_selftest|player_interaction_selftest|executable_boot_resources|gui_data_selftest|armor_damage_selftest|item_nbt_selftest|ranged_item_selftest|item_use_packets_selftest|creative_catalog_selftest|creative_inventory_selftest|recipe_unlocks_selftest|bridge2193_selftest|sound_packets_wire_selftest|camera_wire_selftest|camera_effects_selftest|camera_effects_packets_selftest|audio_selftest|hud_feed_selftest|armor_packets_selftest|recipe_packets_selftest|server_ui_packets_selftest|audio_packets_selftest|input_reporting_selftest|movement_protocol_selftest|movement_effects_selftest|attribute_replay_selftest|status_effect_selftest|status_effect_replay_selftest|heldbuild_selftest|session_codec_context_selftest|audio_director_selftest|hud_screen_selftest|chunk_selftest|chunk_ingest_selftest|chunk_bench_correctness|cells16_selftest|level_undo_selftest|section_connectivity_selftest|chunk_visibility_selftest|mesh_exactness|common_cpu_selftest|null_selftest|render_profile_test|vendor_test|chunk_pipeline_selftest)$"
 ```
 
 If OpenSSL is not discovered automatically, add `-DOPENSSL_ROOT_DIR=C:/path/to/x64-windows-static` to configure. Use the Visual Studio-supplied `clang-cl`, as described in the main README.
@@ -125,13 +126,13 @@ python tools/protocol_audit.py --spec protocol/legacy/bedrock-1.26.51.json --out
 
 The optional `--binary-inventory` and `--official-dir` inputs add independent catalog comparisons. `--reference-handler-manifest` adds the matched client dispatch targets after checking the executable SHA-256, packet IDs, names, and implementation addresses against the selected executable catalog. The binary/PDB scripts and retained evidence are described in `evidence/README.md`.
 
-## Work required before claiming complete behavior
+## How to interpret validation
 
-Every packet needs more than an ID and a parser: its allowed phases, field validation, entity/window ownership, world and inventory mutations, optional replies, outgoing triggers, tick handling, and interactions with other packets must agree with the reference version. An empty handler or an unused state cache is not completion.
+The regression suite exercises actual packet decoding, state consumers, input/physics, inventory transactions and outgoing packet bodies. Version-matched static findings are linked from the implementation reports. The source inventory accounts for all active packet IDs and records concrete handler registrations; it is not a percentage of completed gameplay.
 
-Some concrete unresolved areas include item-specific local cooldown starts and use-as-attack behavior, full native input-device arbitration and deadzones, prediction history/replay scheduling, advanced dynamic containers and UI, editor simulation, server-provided animation/control features, and world/resource-dependent effects. Analog magnitude now reaches both simulation and packet reporting; this does not establish all native input behavior. The continued report records additional partial consumers and proven reference effects that still lack their dependent systems. The source inventory and matched handler index make those gaps inspectable; they do not remove them.
+The latest changes include local cooldown/consumption prediction for pearls and wind charges, attribute history, fixed-priority ability layers, configured item-use movement modifiers, crossbow completion input reset, inventory selection and container-close lifecycle. See [BEHAVIOR_FIXES.md](BEHAVIOR_FIXES.md) for their exact behavior and tests.
 
-No controlled Windows runs of these two Minecraft builds and the modified Perlin client against the user's custom server configurations were available in this environment. Server implementation/version, enabled features, protocol selection, packet transcripts, and flag logs are needed to establish which remaining differences trigger those servers' checks. Passing self-tests is not a promise of acceptance by an anticheat.
+No controlled Windows run of the supplied Minecraft build and modified Perlin client against the user's server configuration was performed here. The validation report separates completed Linux tests, source-backed native contracts and the supplied Windows workflow. Passing those tests does not certify universal anticheat acceptance or an external service's official-client classification.
 
 ## Primary protocol references
 

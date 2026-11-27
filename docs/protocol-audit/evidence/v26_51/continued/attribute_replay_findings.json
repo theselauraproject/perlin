@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "facts": [
+    {
+      "topic": "attribute replay eligibility and frame boundary",
+      "contract": "The own-player update listener requires a nonzero packet tick, a ReplayStateComponent with history, and tick >= ActorHistory.mOldestFrame. ActorHistory.mOldestFrame is the PDB-named uint64 member at offset48. ReplayState reads the stamp frame and its following frame; a required retained correction is attached to stamp+1. An ineligible old/zero stamp reaches the ordinary live attribute update path.",
+      "anchors": [
+        "ClientNetworkHandler UpdateAttributes handler RVA0x1311D80; rewind-listener call RVA0x1311ED1",
+        "ClientPlayerRewindListener::_onUpdateAttributesPacketReceived RVA0x43596B0",
+        "eligibility helper RVA0x4358CD0; zero check RVA0x4358CD0; oldest comparison RVA0x4358DBD",
+        "ReplayStateComponent::applyFrameCorrection RVA0x2890810",
+        "ReplayStateComponent::_applyCorrection RVA0x2890390; stamp+1 RVA0x28903F1; addCorrectionToFrame call RVA0x28905CF"
+      ]
+    },
+    {
+      "topic": "attribute correction map",
+      "contract": "MovementAttributesComponentExt maps nine named attributes to optional floats. Health and hunger use NoRewindNoPrediction; movement, underwater/lava movement, jump strength, friction, bounciness and air drag use RewindIfDifferentPreservePrediction.",
+      "anchors": [
+        "MovementAttributesComponentExt::getAttributeMap RVA0x2878130",
+        "MovementAttributesComponent size72; optional fields every8 bytes",
+        "PDB MovementAttributeAccess and MovementAttributeCorrectionMode enums",
+        "PDB named SharedAttributes globals in attribute_replay_reference.json"
+      ],
+      "entries": [
+        {
+          "name": "SharedAttributes::MOVEMENT_SPEED",
+          "offset": 0,
+          "access": "Write",
+          "correction": "RewindIfDifferentPreservePrediction"
+        },
+        {
+          "name": "SharedAttributes::UNDERWATER_MOVEMENT_SPEED",
+          "offset": 8,
+          "access": "Write",
+          "correction": "RewindIfDifferentPreservePrediction"
+        },
+        {
+          "name": "SharedAttributes::LAVA_MOVEMENT_SPEED",
+          "offset": 16,
+          "access": "Write",
+          "correction": "RewindIfDifferentPreservePrediction"
+        },
+        {
+          "name": "SharedAttributes::JUMP_STRENGTH",
+          "offset": 24,
+          "access": "Write",
+          "correction": "RewindIfDifferentPreservePrediction"
+        },
+        {
+          "name": "SharedAttributes::HEALTH",
+          "offset": 32,
+          "access": "ReadOnly",
+          "correction": "NoRewindNoPrediction"
+        },
+        {
+          "name": "Player::HUNGER",
+          "offset": 40,
+          "access": "ReadOnly",
+          "correction": "NoRewindNoPrediction"
+        },
+        {
+          "name": "SharedAttributes::FRICTION_MODIFIER",
+          "offset": 48,
+          "access": "ReadOnly",
+          "correction": "RewindIfDifferentPreservePrediction"
+        },
+        {
+          "name": "SharedAttributes::BOUNCINESS",
+          "offset": 56,
+          "access": "ReadOnly",
+          "correction": "RewindIfDifferentPreservePrediction"
+        },
+        {
+          "name": "SharedAttributes::AIR_DRAG_MODIFIER",
+          "offset": 64,
+          "access": "ReadOnly",
+          "correction": "RewindIfDifferentPreservePrediction"
+        }
+      ]
+    },
+    {
+      "topic": "matching value preserves live prediction",
+      "contract": "For a rewind-enabled entry, getAdvanceFrameResult compares packet current with the saved optional component value using ordered exact float equality and requires the saved optional to be present. Equal present values set MovementAttributeInfo.mSkipUpdate. advanceLiveFrame skips those entries; other entries update the live attribute map with the full AttributeData. Equality is not a comparison of modifiers or default values.",
+      "anchors": [
+        "History::AttributeReplay::getAdvanceFrameResult RVA0x4375410",
+        "component lookup/access RVA0x437543C",
+        "mode gate RVA0x43754F3",
+        "ordered float equality and optional-presence test RVA0x4375510..RVA0x4375525",
+        "mSkipUpdate store RVA0x437552B",
+        "History::AttributeReplay::advanceLiveFrame RVA0x4375560",
+        "skip-flag branch RVA0x4375784..RVA0x4375788",
+        "BaseAttributeMap::updateAttribute call RVA0x437582F"
+      ]
+    },
+    {
+      "topic": "pending attribute correction bypasses equality shortcut",
+      "contract": "AttributeReplay reports correction-type bitset2. ReplayState checks the pending correction types before getAdvanceFrameResult; if that type is pending, it bypasses the equality comparison and still advances the live correction. This matters for several packets drained before the requested replay has completed.",
+      "anchors": [
+        "History::AttributeReplay vtable RVA0xE8CCA10",
+        "getCorrectionTypeBitset RVA0x4375A40 writes2",
+        "ReplayState::_applyCorrection pending-type test RVA0x2890433..RVA0x2890447",
+        "unconditional advanceLiveFrame call RVA0x289058F"
+      ]
+    },
+    {
+      "topic": "historical replay uses complete attribute records",
+      "contract": "advanceFrame writes every present value in the correction MovementAttributes snapshot to the historical component, then updates the historical AttributesComponent with full packet AttributeData, including defaults, bounds and modifiers. The historical path does not filter out entries whose live mSkipUpdate was true.",
+      "anchors": [
+        "MovementAttributesComponentExt::create RVA0x28791D0 copies packet current and presence",
+        "History::AttributeReplay::advanceFrame RVA0x4375A50",
+        "MovementAttributes component hash0xA795A68C",
+        "optional component value/presence copy RVA0x4375C3D..RVA0x4375C52",
+        "Attributes component hash0xFD3B0613",
+        "BaseAttributeMap::updateAttribute RVA0x31A1BE0"
+      ]
+    },
+    {
+      "topic": "latest-stamp comparison reads evaluated movement values",
+      "contract": "If stamp+1 has no captured frame but the stamp exists, _applyCorrection selects the actor entity context. SnapshotAccessor resolves a captured MovementSnapshotComponent when present, otherwise its live MovementAttributesComponent. The captured form contains an unchanged72-byte MovementAttributes copy at offset0x2D0. The compared values are evaluated component values, not the raw packet current or a newly recomputed value using later controls.",
+      "anchors": [
+        "actor-context fallback selection RVA0x289044D..RVA0x2890454",
+        "MovementDataExtractionUtility::SnapshotAccessor visitor RVA0x3298400",
+        "captured component movement offset/presence check RVA0x3298420..RVA0x3298431",
+        "live MovementAttributes lookup hash0xA795A68C at RVA0x329845E",
+        "snapshot capture callback RVA0x3276A40",
+        "MovementAttributes copy into snapshot+0x2D0 RVA0x3278C16..RVA0x3278C6F",
+        "capture callback list getter RVA0x3281370",
+        "ActorHistory::addFrame invokes capture callback RVA0x2BBC34B",
+        "PDB MovementDataExtractionUtility::MovementSnapshotComponent size1536"
+      ]
+    }
+  ],
+  "implementation": {
+    "files": [
+      "src/client/systems/player/LocalPlayer.cpp",
+      "src/client/systems/player/LocalPlayer.hpp",
+      "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
+      "src/client/systems/multiplayer/BedrockPlayerState.cpp",
+      "src/client/systems/multiplayer/BedrockSession.hpp"
+    ],
+    "scope": "The four already-consumed physics attributes: movement, underwater movement, lava movement and air drag.",
+    "changes": [
+      "Queue full own-player UpdateAttributes entries and stamps in arrival order; stage the four physics attributes until the local simulation consumes them. Health/UI and unrelated attribute handling remain in their existing immediate route.",
+      "Capture each frame\u2019s evaluated speed model and optional-presence state, retain accepted attribute boundaries, and recompute corrected history with each frame\u2019s saved sprint and freeze input. Later retained server events are reapplied rather than overwritten.",
+      "When a historical next-frame value matches, preserve that live attribute\u2019s current prediction and modifiers. A required mixed correction still retains the complete historical packet entries.",
+      "Compare current-tick acknowledgments against the last evaluated retained record, including freeze-derived speed. Changed current-tick values take effect on the next recorded input.",
+      "Keep pending live attribute events through a failed input transmission and consume them only when a new frame is recorded; clear local pending events with the world reset.",
+      "Do not mutate the live speed model while evaluating historical sprint/freeze transitions."
+    ],
+    "tests": [
+      "src/client/selftest/AttributeReplaySelfTest.cpp: real packets under944,2193,2225, retained/old/future/current/zero stamps, exact presence-aware acknowledgment, mixed entries/full modifiers, same-drain pending corrections, sprint/freeze carry, later-event precedence, failed-send retention and actual physics replay followed by decoded outgoing velocity",
+      "src/client/selftest/HandlerDispatchSelfTest.cpp: queue payload/stamp/FIFO isolation, pure-model isolation and connection/player/replay metadata resets"
+    ],
+    "verification": "Final Linux application build, attribute_replay_selftest (150 checks), handler_dispatch_selftest, movement_protocol_selftest and status_effect_replay_selftest passed. See docs/protocol-audit/VALIDATION.md and test-results-v3.txt. This is Perlin runtime validation, not differential execution of the native client."
+  },
+  "limits": [
+    "Native conclusions are for the GUID-matched1.26.51.1 executable, protocol2193; tests on944/2225 exercise Perlin compatibility paths and do not establish matching binaries for those versions.",
+    "Perlin only rewinds across retained stamp and stamp+1 records. Native missing-frame/current-frame fallback and broader ECS reconciliation have additional behavior; failed-send gaps are not claimed to be a complete native history implementation.",
+    "The latest-stamp implementation reconstructs the live evaluated component from Perlin\u2019s last retained simulation record. This fixes the common no-next-record acknowledgment case without substituting raw server/current-model values; no dynamic reference-client trace was run.",
+    "The new consumer does not add player jump-strength, friction or bounciness attribute physics. Their native map entries are recorded as evidence for separately verified work.",
+    "The existing movement modifier evaluator is extracted and reused; this change does not claim that every modifier operation, effect amplifier, collision or world state is now identical.",
+    "No successful anticheat/server trial or cause of a prior ban is established by these tests."
+  ]
+}

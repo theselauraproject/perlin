@@ -13,6 +13,7 @@
 #include "client/systems/i18n/Lang.hpp"
 #include "util/Env.hpp"
 #include "util/Log.hpp"
+#include <optional>
 
 namespace perlin::screen {
     void InventoryScreen::ApplyServerOptions(BedrockSession& live) {
@@ -493,9 +494,21 @@ namespace perlin::screen {
 
     void InventoryScreen::UpdateCreative(ui::Hud& hud, BedrockSession* live, int fbW, int fbH) {
         const auto now = Clock::now();
-                if (live && live->CreativeVersion() != creativeCatalogVersion) {
+        if (creativeCatalogSession != live) {
+            creativeCatalogSession = live;
+            creativeCatalog = {};
+            creativeCatalogVersion = ~0u;
+            creative.expandedGroups.clear();
+            creative.scroll = 0.0f;
+            creative.signature.clear();
+        }
+        if (live && live->CreativeVersion() != creativeCatalogVersion) {
             creativeCatalog = live->Creative();
-            creativeCatalogVersion = live->CreativeVersion();
+            // The version must describe this snapshot, not a second read that
+            // can already belong to a newer CreativeContent packet.
+            creativeCatalogVersion = creativeCatalog.version;
+            creative.expandedGroups.clear();
+            creative.scroll = 0.0f;
             creative.signature.clear();
         } else if (!live && creativeCatalog.items.empty()) {
             const char* names[4][6] = {{"minecraft:brick_block", "minecraft:stone", "minecraft:oak_planks",
@@ -549,45 +562,29 @@ namespace perlin::screen {
             if (const char* forced = PERLIN_ENV("PERLIN_PREVIEW_CREATIVETAB"))
                 creative.tab = std::atoi(forced);
         std::array<bool, ui::kCreativeTabs> present{};
-        std::array<ui::HudItem, ui::kCreativeTabs> icons;
-        for (const auto& g : creativeCatalog.groups) {
-            const int tab = g.category - 1;
-            if (tab >= 0 && tab < 4) {
+        for (const auto& group : creativeCatalog.groups) {
+            const int tab = perlin::creative::TabForCategory(group.category);
+            if (tab >= 0)
                 present[static_cast<size_t>(tab)] = true;
-                if (icons[static_cast<size_t>(tab)].Empty())
-                    icons[static_cast<size_t>(tab)] = ToHudItem(g.icon);
-            }
-        }
-        for (const auto& c : creativeCatalog.items) {
-            if (c.group < 0 || static_cast<size_t>(c.group) >= creativeCatalog.groups.size())
-                continue;
-            const int tab = creativeCatalog.groups[static_cast<size_t>(c.group)].category - 1;
-            if (tab >= 0 && tab < 4) {
-                present[static_cast<size_t>(tab)] = true;
-                if (icons[static_cast<size_t>(tab)].Empty())
-                    icons[static_cast<size_t>(tab)] = ToHudItem(c.info);
-            }
         }
         present[ui::kCreativeSearchTab] = true;
         present[ui::kCreativeSurvivalTab] = true;
-        if (!present[static_cast<size_t>(std::clamp(creative.tab, 0, ui::kCreativeTabs - 1))])
-            creative.tab = ui::kCreativeSearchTab;
         creative.tab = std::clamp(creative.tab, 0, ui::kCreativeTabs - 1);
+        if (!present[static_cast<size_t>(creative.tab)])
+            creative.tab = ui::kCreativeSearchTab;
 
-        std::vector<const BedrockSession::CreativeItem*> shown;
+        std::vector<perlin::creative::Cell> shown;
         if (creative.tab < 4) {
-            for (const auto& c : creativeCatalog.items)
-                if (c.group >= 0 && static_cast<size_t>(c.group) < creativeCatalog.groups.size() &&
-                    creativeCatalog.groups[static_cast<size_t>(c.group)].category == creative.tab + 1)
-                    shown.push_back(&c);
+            shown = perlin::creative::Category(
+                creativeCatalog, perlin::creative::kTabCategories[static_cast<size_t>(creative.tab)],
+                creative.expandedGroups);
         } else if (creative.tab == ui::kCreativeSearchTab) {
             const std::string needle = str::Lower(creative.search);
-            for (const auto& c : creativeCatalog.items) {
-                if (needle.empty() ||
-                    str::Lower(ui::UiAssets::Instance().ItemName(c.info.name, c.info.aux)).contains(needle) ||
-                    str::Lower(c.info.name).contains(needle))
-                    shown.push_back(&c);
-            }
+            shown = perlin::creative::Search(creativeCatalog, [&](const auto& c) {
+                return needle.empty() || str::Lower(c.info.customName).contains(needle) ||
+                       str::Lower(ui::UiAssets::Instance().ItemName(c.info.name, c.info.aux)).contains(needle) ||
+                       str::Lower(c.info.name).contains(needle);
+            });
         }
         const int rows = static_cast<int>((shown.size() + 8) / 9);
         const bool scrollable = rows > 5;
@@ -608,11 +605,10 @@ namespace perlin::screen {
         ui::CreativeView v;
         v.tab = creative.tab;
         v.tabPresent = present;
-        v.tabIcons = icons;
-        v.tabTitles[0] = i18n::TrOr("itemGroup.name.construction", "Construction");
-        v.tabTitles[1] = i18n::TrOr("itemGroup.name.nature", "Nature");
-        v.tabTitles[2] = i18n::TrOr("itemGroup.name.equipment", "Equipment");
-        v.tabTitles[3] = i18n::TrOr("itemGroup.name.items", "Items");
+        v.tabTitles[0] = i18n::TrOr("craftingScreen.tab.construction", "Construction");
+        v.tabTitles[1] = i18n::TrOr("craftingScreen.tab.equipment", "Equipment");
+        v.tabTitles[2] = i18n::TrOr("craftingScreen.tab.items", "Items");
+        v.tabTitles[3] = i18n::TrOr("craftingScreen.tab.nature", "Nature");
         v.tabTitles[ui::kCreativeSearchTab] = i18n::TrOr("itemGroup.search", "Search Items");
         v.tabTitles[ui::kCreativeSurvivalTab] = i18n::TrOr("itemGroup.name.inventory", "Survival Inventory");
         v.title = v.tabTitles[static_cast<size_t>(creative.tab)];
@@ -622,16 +618,27 @@ namespace perlin::screen {
         v.scrollable = scrollable;
         v.search = creative.search;
         std::array<uint32_t, 45> entry{};
+        std::array<std::optional<size_t>, 45> group{};
         for (int i = 0; i < 45; i++) {
             const size_t idx = static_cast<size_t>((firstRow * 9) + i);
             if (idx < shown.size()) {
-                v.grid[static_cast<size_t>(i)] = ToHudItem(shown[idx]->info);
+                const auto& cell = shown[idx];
+                v.gridKinds[static_cast<size_t>(i)] = cell.kind;
+                if (cell.IsHeader()) {
+                    const auto& header = creativeCatalog.groups[cell.index];
+                    v.grid[static_cast<size_t>(i)] = ToHudItem(header.icon);
+                    v.gridNames[static_cast<size_t>(i)] = i18n::Tr(header.name);
+                    group[static_cast<size_t>(i)] = cell.index;
+                } else {
+                    const auto& item = creativeCatalog.items[cell.index];
+                    v.grid[static_cast<size_t>(i)] = ToHudItem(item.info);
+                    v.gridNames[static_cast<size_t>(i)] =
+                        item.info.customName.empty()
+                            ? ui::UiAssets::Instance().ItemName(item.info.name, item.info.aux)
+                            : item.info.customName;
+                    entry[static_cast<size_t>(i)] = item.entryId;
+                }
                 v.grid[static_cast<size_t>(i)].count = 1;
-                v.gridNames[static_cast<size_t>(i)] =
-                    shown[idx]->info.customName.empty()
-                        ? ui::UiAssets::Instance().ItemName(shown[idx]->info.name, shown[idx]->info.aux)
-                        : shown[idx]->info.customName;
-                entry[static_cast<size_t>(i)] = shown[idx]->entryId;
             }
         }
         if (live) {
@@ -702,7 +709,11 @@ namespace perlin::screen {
             } else if (!hoverId.empty() && hoverId[0] == 'g') {
                 const int n = std::atoi(hoverId.c_str() + 1);
                 if (n >= 0 && n < 45) {
-                    if (!v.cursor.Empty())
+                    if (const auto header = group[static_cast<size_t>(n)]) {
+                        if (!creative.expandedGroups.erase(*header))
+                            creative.expandedGroups.insert(*header);
+                        creative.signature.clear();
+                    } else if (!v.cursor.Empty())
                         live->InvDestroyCursor();
                     else if (entry[static_cast<size_t>(n)] != 0)
                         live->InvCreativeTake(entry[static_cast<size_t>(n)],
@@ -782,6 +793,8 @@ namespace perlin::screen {
                                 std::to_string(creative.tab) + "|" +
                                 std::to_string(static_cast<int>(creative.scroll * 1000)) + "|" +
                                 creative.search + "|" + std::to_string(creativeCatalogVersion);
+        for (const size_t groupIndex : creative.expandedGroups)
+            signature += ":g" + std::to_string(groupIndex);
         for (const auto& e : v.effects)
             signature += std::to_string(e.id) + ":" + std::to_string(e.amplifier) + ":" +
                          std::to_string(e.ticks / 20) + ";";

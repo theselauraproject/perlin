@@ -1,0 +1,677 @@
+{
+  "scope": "Isolated CPU work only; no GPU, rendering, FPS or end-to-end chunk-loading measurement",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "compile_flags": [
+    "-std=c++23",
+    "-O3",
+    "-DNDEBUG",
+    "-pthread"
+  ],
+  "benchmark_sha256": "db8162b674936a8c274254a80a0c3b46552a3df799c63efb2c1f48c1b7887099",
+  "run_order": "baseline, optimized, optimized, baseline per round; both binaries compiled before timing",
+  "runs": [
+    {
+      "implementation": "baseline",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 2203.0,
+          "p95_ns_per_frame": 2244.0,
+          "allocations_per_frame": 7.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 17026.0,
+          "p95_ns_per_frame": 17407.0,
+          "allocations_per_frame": 10.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 140562.0,
+          "p95_ns_per_frame": 174144.0,
+          "allocations_per_frame": 13.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 36.382,
+          "p95_ns_per_lookup": 38.351,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 36.288,
+          "p95_ns_per_lookup": 39.224,
+          "checksum": 137088000
+        }
+      ],
+      "round": 1,
+      "retirement_header_sha256": "19ba0193fe39067fe10bcc8f121b4bc81ed713f888c75e879346e7a2bd4e94cf"
+    },
+    {
+      "implementation": "optimized",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 721.0,
+          "p95_ns_per_frame": 722.0,
+          "allocations_per_frame": 0.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 5458.0,
+          "p95_ns_per_frame": 5469.0,
+          "allocations_per_frame": 0.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 43445.0,
+          "p95_ns_per_frame": 56515.0,
+          "allocations_per_frame": 0.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.368,
+          "p95_ns_per_lookup": 0.471,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.634,
+          "p95_ns_per_lookup": 0.731,
+          "checksum": 137088000
+        }
+      ],
+      "round": 1,
+      "retirement_header_sha256": "94e5804de2c6160b85ee0dbaabea4c4bdfe5dc5e0650c8e99bae71e37e3d4f9f",
+      "binding_lookup_header_sha256": "380df9a428d7b56a950e52cbe77be4cd39a53e72effad890a5a548ad3e050a73"
+    },
+    {
+      "implementation": "optimized",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 721.0,
+          "p95_ns_per_frame": 721.0,
+          "allocations_per_frame": 0.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 5468.0,
+          "p95_ns_per_frame": 5479.0,
+          "allocations_per_frame": 0.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 44457.0,
+          "p95_ns_per_frame": 56225.0,
+          "allocations_per_frame": 0.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.371,
+          "p95_ns_per_lookup": 0.493,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.622,
+          "p95_ns_per_lookup": 0.707,
+          "checksum": 137088000
+        }
+      ],
+      "round": 1,
+      "retirement_header_sha256": "94e5804de2c6160b85ee0dbaabea4c4bdfe5dc5e0650c8e99bae71e37e3d4f9f",
+      "binding_lookup_header_sha256": "380df9a428d7b56a950e52cbe77be4cd39a53e72effad890a5a548ad3e050a73"
+    },
+    {
+      "implementation": "baseline",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 2104.0,
+          "p95_ns_per_frame": 2124.0,
+          "allocations_per_frame": 7.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 16906.0,
+          "p95_ns_per_frame": 19319.0,
+          "allocations_per_frame": 10.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 136045.0,
+          "p95_ns_per_frame": 229807.0,
+          "allocations_per_frame": 13.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 38.93,
+          "p95_ns_per_lookup": 50.096,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 37.71,
+          "p95_ns_per_lookup": 41.311,
+          "checksum": 137088000
+        }
+      ],
+      "round": 1,
+      "retirement_header_sha256": "19ba0193fe39067fe10bcc8f121b4bc81ed713f888c75e879346e7a2bd4e94cf"
+    },
+    {
+      "implementation": "baseline",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 2103.0,
+          "p95_ns_per_frame": 2153.0,
+          "allocations_per_frame": 7.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 16986.0,
+          "p95_ns_per_frame": 19510.0,
+          "allocations_per_frame": 10.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 140813.0,
+          "p95_ns_per_frame": 245381.0,
+          "allocations_per_frame": 13.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 36.763,
+          "p95_ns_per_lookup": 52.068,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 37.751,
+          "p95_ns_per_lookup": 45.752,
+          "checksum": 137088000
+        }
+      ],
+      "round": 2,
+      "retirement_header_sha256": "19ba0193fe39067fe10bcc8f121b4bc81ed713f888c75e879346e7a2bd4e94cf"
+    },
+    {
+      "implementation": "optimized",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 721.0,
+          "p95_ns_per_frame": 722.0,
+          "allocations_per_frame": 0.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 5318.0,
+          "p95_ns_per_frame": 5329.0,
+          "allocations_per_frame": 0.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 42204.0,
+          "p95_ns_per_frame": 54362.0,
+          "allocations_per_frame": 0.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.368,
+          "p95_ns_per_lookup": 0.454,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.622,
+          "p95_ns_per_lookup": 0.925,
+          "checksum": 137088000
+        }
+      ],
+      "round": 2,
+      "retirement_header_sha256": "94e5804de2c6160b85ee0dbaabea4c4bdfe5dc5e0650c8e99bae71e37e3d4f9f",
+      "binding_lookup_header_sha256": "380df9a428d7b56a950e52cbe77be4cd39a53e72effad890a5a548ad3e050a73"
+    },
+    {
+      "implementation": "optimized",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 721.0,
+          "p95_ns_per_frame": 722.0,
+          "allocations_per_frame": 0.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 5458.0,
+          "p95_ns_per_frame": 5469.0,
+          "allocations_per_frame": 0.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 47832.0,
+          "p95_ns_per_frame": 70437.0,
+          "allocations_per_frame": 0.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.368,
+          "p95_ns_per_lookup": 0.612,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.639,
+          "p95_ns_per_lookup": 1.028,
+          "checksum": 137088000
+        }
+      ],
+      "round": 2,
+      "retirement_header_sha256": "94e5804de2c6160b85ee0dbaabea4c4bdfe5dc5e0650c8e99bae71e37e3d4f9f",
+      "binding_lookup_header_sha256": "380df9a428d7b56a950e52cbe77be4cd39a53e72effad890a5a548ad3e050a73"
+    },
+    {
+      "implementation": "baseline",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 2123.0,
+          "p95_ns_per_frame": 2144.0,
+          "allocations_per_frame": 7.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 16916.0,
+          "p95_ns_per_frame": 27482.0,
+          "allocations_per_frame": 10.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 135355.0,
+          "p95_ns_per_frame": 202807.0,
+          "allocations_per_frame": 13.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 38.566,
+          "p95_ns_per_lookup": 71.238,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 38.474,
+          "p95_ns_per_lookup": 67.561,
+          "checksum": 137088000
+        }
+      ],
+      "round": 2,
+      "retirement_header_sha256": "19ba0193fe39067fe10bcc8f121b4bc81ed713f888c75e879346e7a2bd4e94cf"
+    },
+    {
+      "implementation": "baseline",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 2193.0,
+          "p95_ns_per_frame": 2223.0,
+          "allocations_per_frame": 7.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 17256.0,
+          "p95_ns_per_frame": 17436.0,
+          "allocations_per_frame": 10.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 142045.0,
+          "p95_ns_per_frame": 233913.0,
+          "allocations_per_frame": 13.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 36.38,
+          "p95_ns_per_lookup": 40.396,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 38.277,
+          "p95_ns_per_lookup": 42.846,
+          "checksum": 137088000
+        }
+      ],
+      "round": 3,
+      "retirement_header_sha256": "19ba0193fe39067fe10bcc8f121b4bc81ed713f888c75e879346e7a2bd4e94cf"
+    },
+    {
+      "implementation": "optimized",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 721.0,
+          "p95_ns_per_frame": 722.0,
+          "allocations_per_frame": 0.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 6029.0,
+          "p95_ns_per_frame": 6360.0,
+          "allocations_per_frame": 0.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 48884.0,
+          "p95_ns_per_frame": 97537.0,
+          "allocations_per_frame": 0.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.368,
+          "p95_ns_per_lookup": 0.501,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.63,
+          "p95_ns_per_lookup": 0.717,
+          "checksum": 137088000
+        }
+      ],
+      "round": 3,
+      "retirement_header_sha256": "94e5804de2c6160b85ee0dbaabea4c4bdfe5dc5e0650c8e99bae71e37e3d4f9f",
+      "binding_lookup_header_sha256": "380df9a428d7b56a950e52cbe77be4cd39a53e72effad890a5a548ad3e050a73"
+    },
+    {
+      "implementation": "optimized",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 721.0,
+          "p95_ns_per_frame": 731.0,
+          "allocations_per_frame": 0.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 5469.0,
+          "p95_ns_per_frame": 6039.0,
+          "allocations_per_frame": 0.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 47802.0,
+          "p95_ns_per_frame": 101874.0,
+          "allocations_per_frame": 0.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.368,
+          "p95_ns_per_lookup": 1.196,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 0.635,
+          "p95_ns_per_lookup": 1.455,
+          "checksum": 137088000
+        }
+      ],
+      "round": 3,
+      "retirement_header_sha256": "94e5804de2c6160b85ee0dbaabea4c4bdfe5dc5e0650c8e99bae71e37e3d4f9f",
+      "binding_lookup_header_sha256": "380df9a428d7b56a950e52cbe77be4cd39a53e72effad890a5a548ad3e050a73"
+    },
+    {
+      "implementation": "baseline",
+      "unit": "CPU only, not FPS",
+      "results": [
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 64,
+          "frames": 500,
+          "median_ns_per_frame": 2103.0,
+          "p95_ns_per_frame": 2123.0,
+          "allocations_per_frame": 7.0,
+          "released": 33536
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 512,
+          "frames": 500,
+          "median_ns_per_frame": 16796.0,
+          "p95_ns_per_frame": 17697.0,
+          "allocations_per_frame": 10.0,
+          "released": 268288
+        },
+        {
+          "scenario": "retirement",
+          "callbacks_per_frame": 4096,
+          "frames": 500,
+          "median_ns_per_frame": 140542.0,
+          "p95_ns_per_frame": 227845.0,
+          "allocations_per_frame": 13.0,
+          "released": 2146304
+        },
+        {
+          "scenario": "dense_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 36.469,
+          "p95_ns_per_lookup": 70.401,
+          "checksum": 137088000
+        },
+        {
+          "scenario": "sparse_layout",
+          "entries": 64,
+          "median_ns_per_lookup": 37.782,
+          "p95_ns_per_lookup": 45.849,
+          "checksum": 137088000
+        }
+      ],
+      "round": 3,
+      "retirement_header_sha256": "19ba0193fe39067fe10bcc8f121b4bc81ed713f888c75e879346e7a2bd4e94cf"
+    }
+  ],
+  "summary": [
+    {
+      "scenario": "retirement",
+      "callbacks_per_frame": 64,
+      "baseline": {
+        "median_ns_per_frame": 2113.5,
+        "allocations_per_frame": 7.0,
+        "runs": 6
+      },
+      "optimized": {
+        "median_ns_per_frame": 721.0,
+        "allocations_per_frame": 0.0,
+        "runs": 6
+      }
+    },
+    {
+      "scenario": "retirement",
+      "callbacks_per_frame": 512,
+      "baseline": {
+        "median_ns_per_frame": 16951.0,
+        "allocations_per_frame": 10.0,
+        "runs": 6
+      },
+      "optimized": {
+        "median_ns_per_frame": 5463.0,
+        "allocations_per_frame": 0.0,
+        "runs": 6
+      }
+    },
+    {
+      "scenario": "retirement",
+      "callbacks_per_frame": 4096,
+      "baseline": {
+        "median_ns_per_frame": 140552.0,
+        "allocations_per_frame": 13.0,
+        "runs": 6
+      },
+      "optimized": {
+        "median_ns_per_frame": 46129.5,
+        "allocations_per_frame": 0.0,
+        "runs": 6
+      }
+    },
+    {
+      "scenario": "dense_layout",
+      "entries": 64,
+      "baseline": {
+        "median_ns_per_lookup": 36.616,
+        "runs": 6
+      },
+      "optimized": {
+        "median_ns_per_lookup": 0.368,
+        "runs": 6
+      }
+    },
+    {
+      "scenario": "sparse_layout",
+      "entries": 64,
+      "baseline": {
+        "median_ns_per_lookup": 37.76649999999999,
+        "runs": 6
+      },
+      "optimized": {
+        "median_ns_per_lookup": 0.632,
+        "runs": 6
+      }
+    }
+  ]
+}

@@ -111,7 +111,7 @@ namespace perlin {
         });
 
         On<UpdateAttributesPacket>([this](const UpdateAttributesPacket& p) {
-            if (runtimeId != 0 && p.runtimeEntityId != runtimeId) {
+            if (runtimeId == 0 || p.runtimeEntityId != runtimeId) {
                 for (const PlayerAttributesEntry& a : p.attributes) {
                     entities.SetAttribute(p.runtimeEntityId, a.name, a.min, a.current, a.max);
                     if (a.name == "minecraft:health")
@@ -121,12 +121,15 @@ namespace perlin {
             }
             {
                 std::lock_guard lk(attrMutex);
+                if (!p.attributes.empty())
+                    pendingAttributeUpdates.push_back({p.tick, p.attributes});
                 for (const PlayerAttributesEntry& a : p.attributes) {
-                    ownAttributes[a.name] = a.current;
-                    if (a.name == "minecraft:movement") {
-                        movementAttribute = a;
-                        ApplyMovementAttribute(a);
-                    }
+                    // The movement consumer compares stamped values with its
+                    // saved frame before deciding whether live prediction
+                    // should be replaced. Health and other actor data remain
+                    // immediately available to their existing consumers.
+                    if (!IsMovementAttribute(a.name))
+                        ownAttributes[a.name] = a.current;
                 }
             }
             for (const PlayerAttributesEntry& a : p.attributes) {
@@ -148,6 +151,9 @@ namespace perlin {
         });
 
         On<EntityEventPacket>([this](const EntityEventPacket& p) {
+            if (runtimeId != 0 && p.runtimeEntityId == runtimeId &&
+                p.eventId == EntityEventPacketEventId::ChargedItem)
+                chargedItemUseReset = true;
             if (runtimeId != 0 && p.runtimeEntityId == runtimeId &&
                 p.eventId == EntityEventPacketEventId::HurtAnimation)
                 NoteHurt();

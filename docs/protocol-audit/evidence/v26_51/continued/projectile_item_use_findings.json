@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only disassembly, matched public symbols, C++ field layouts and explicit virtual slots. No executable was run. These are bounded branch and data conclusions; this artifact contains no code bytes or disassembly."
+  },
+  "facts": [
+    {
+      "topic": "pearl use gate",
+      "contract": "EnderpearlItem::use proceeds if game-rule index40 is absent. If present it must hold the bool alternative and be true. The matched enum names this index AllowDestructiveObjects. Ordinary GameRules::_registerRules allocates39 rule entries in this build, so this extra index is absent in that path. Its network spelling and custom Education configuration were not established.",
+      "anchors": [
+        "EnderpearlItem::use RVA0x8BACA10..RVA0x8BACC84",
+        "ILevel::getGameRules slot0xAB0 call RVA0x8BACA4E",
+        "index40 presence/type/value checks RVA0x8BACA60..RVA0x8BACA91; bool discriminator check RVA0x8BACA77; bool value check RVA0x8BACA84",
+        "PDB GameRules::GameRulesIndex: VanillaGameRuleCount39, GlobalMute39, AllowDestructiveObjects40, AllowMobs41",
+        "GameRules::_registerRules RVA0x614140, size39 at RVA0x614170 -> resize helper RVA0x6457F0"
+      ]
+    },
+    {
+      "topic": "pearl client branch and post-use cooldown",
+      "contract": "The pearl calls Player::useItem with Throw=4 and the consume flag true before its client/server test. The client skips projectile construction. The later cooldown block requires an actor that is not removed, a nonempty post-use item pointer and cooldown type Use=0. That block calls Player::startItemCooldown(Item,true). An attempted use stopped by the outer cooldown gate never reaches this local item-use block.",
+      "anchors": [
+        "Player::useItem virtual slot0x370 call RVA0x8BACAAA",
+        "ILevel::isClientSide slot0x9E8 call RVA0x8BACAD5; client target RVA0x8BACC29",
+        "Actor.mRemoved offset0x269 checked RVA0x8BACC29",
+        "post-use item-pointer checks RVA0x8BACC32..RVA0x8BACC41",
+        "Item::getCooldownType slot0x348 call RVA0x8BACC4D",
+        "Player::startItemCooldown call RVA0x8BACC64 -> RVA0x1EE7F0"
+      ]
+    },
+    {
+      "topic": "pearl category, type and duration",
+      "contract": "The matched pearl cooldown category is ender_pearl, its cooldown type is Use=0 and its duration getter returns20. The category is an initialized HashedString; it is not inferred from the item identifier.",
+      "anchors": [
+        "category getter EnderpearlItem::getCooldownCategory RVA0x8BACCD0 -> object RVA0x11EAA550",
+        "11-byte category literal at RVA0xEC3792B, copied by RVA0x8BB2FF7..RVA0x8BB300A; see evidence/README.md category table",
+        "duration getter RVA0x2A50930 returns20",
+        "pearl vtable RVA0xEA38CB0: use slot0x288 -> RVA0x8BACA10; category slot0x338 -> RVA0x8BACCD0; duration slot0x340 -> RVA0x2A50930; type slot0x348 -> zero leaf RVA0x76C20",
+        "PDB SharedTypes::ItemCooldownType: Use0, Attack1; vtable correlation uses multiple named slots, not an RTTI COL"
+      ]
+    },
+    {
+      "topic": "pearl consumption uses Instabuild and can empty the last stack before cooldown",
+      "contract": "Player::useItem consumes one count when its consume flag is true and the effective layered Instabuild ability is false. There is no client/server branch around this decrement. Setting count to zero clears the stack item pointer. Consequently the recovered ordinary count1 pearl path empties the item before the subsequent cooldown test and skips that local cooldown block. A remaining count, or Instabuild preventing consumption, retains the item and can reach the20-tick cooldown. This finding is not a complete inventory-prediction implementation contract.",
+      "anchors": [
+        "Player::useItem RVA0x1EDAA0..RVA0x1EDCC9",
+        "consume flag check RVA0x1EDB3C",
+        "PDB AbilitiesIndex::Instabuild11; effective layered ability lookup in Player::useItem",
+        "stack count load/decrement RVA0x1EDC9A/RVA0x1EDC9E; ItemStackBase::set call RVA0x1EDCA3 -> RVA0x24870A0",
+        "ItemStackBase::set count store RVA0x2487128; zero-count virtual setNull call RVA0x248721A",
+        "ItemStack vtable RVA0xE6D6CD0 slot0x20 -> ItemStack::setNull RVA0x2484450",
+        "base ItemStackBase::setNull call RVA0x2484480 -> RVA0x2484580; item pointer clear RVA0x2484614"
+      ]
+    },
+    {
+      "topic": "local cooldown update is not a client echo packet",
+      "contract": "Player::startItemCooldown(category,duration,bool) updates ActorItemCooldownsComponent. The bool enables a later packet path, but that path is skipped on the client even when the bool is true. The local pearl start therefore does not imply an outgoing ClientStartItemCooldown packet.",
+      "anchors": [
+        "Player::startItemCooldown(Item,bool) RVA0x1EE7F0..RVA0x1EE948; category/type duration virtual getters and nonempty-category guard",
+        "duration getter call RVA0x1EE8CC; overload call RVA0x1EE8DF -> RVA0x20DD30",
+        "Player::startItemCooldown(category,duration,bool) RVA0x20DD30..RVA0x20E145",
+        "ActorItemCooldownsComponent update call RVA0x20DE4F",
+        "client-side test RVA0x20DE76; client branch target RVA0x20E0B0 skips packet construction"
+      ]
+    },
+    {
+      "topic": "cooldown rejects local use before item-specific effects",
+      "contract": "GameMode::useItem checks Use-type cooldown before invoking the item use virtual method. While the cooldown is active it skips that call. Thus a blocked pearl attempt does not consume the item or start a fresh cooldown through EnderpearlItem::use.",
+      "anchors": [
+        "GameMode::useItem RVA0x259F050",
+        "cooldown type virtual call RVA0x259F29A; category call RVA0x259F2B5",
+        "Player::isItemOnCooldown call RVA0x259F2C1 -> RVA0x20E700; gate RVA0x259F2CB",
+        "Item::use slot0x288 call RVA0x259F2FE"
+      ]
+    },
+    {
+      "topic": "ordinary client air-use forwarding does not depend on local use success",
+      "contract": "When input reaches GameMode::baseUseItem, the client forwards its ItemUse/ClickAir transaction before reading the callback local-success byte. This includes an item use operation that returns failure. It does not prove that every input mode or earlier eligibility filter always enters baseUseItem, and it does not establish a dedicated timed-use completion transaction.",
+      "anchors": [
+        "GameMode::baseUseItem RVA0x259EB30..RVA0x259EF0B",
+        "client sendComplexInventoryTransaction slot0x718 call RVA0x259EE7E",
+        "local-success byte read at RVA0x259EE84, after forwarding",
+        "population/local-use callback RVA0x25B6150..RVA0x25B630D; see consumable_use_findings.json"
+      ]
+    },
+    {
+      "topic": "air-use inventory changes are captured as actions",
+      "contract": "baseUseItem runs local use inside Container::createTransactionContext. Its container-change callback constructs an InventoryAction with old and new stacks, appends it to the player transaction manager and adds it to the complex transaction. Main-hand actions use ordinary container source0/container0 and the reported slot. The offhand branch uses container119/slot0. The local packet path copies the ItemUse transaction into the payload and applies additional legacy-request metadata. The later air_use_transaction_findings.json closes the selected-item pre-use snapshot and ordinary nonempty selected-slot legacy-tagging chain. Full screen lifecycle and acknowledgement/reconciliation remain unresolved, so an empty-action sender plus a local count decrement is not asserted equivalent.",
+      "anchors": [
+        "Container::createTransactionContext call RVA0x259EE0D -> RVA0x26B0210",
+        "callback vtable RVA0xE827FC0 slot0x10 -> RVA0x25B87B0..RVA0x25B88DC",
+        "main-hand source/slot setup RVA0x25B87EC..RVA0x25B8804; InventoryAction constructor call RVA0x25B8817 -> RVA0x1D4AD0",
+        "offhand source/container119/slot0 setup RVA0x25B881E..RVA0x25B8849; constructor call RVA0x25B884C",
+        "pending-action append RVA0x25B888A/RVA0x25B88AD",
+        "InventoryTransaction::addAction call RVA0x25B88C1 -> RVA0x266F0A0",
+        "InventoryTransactionPacketPayload constructor RVA0x27324A0 -> type conversion helper RVA0x2732730",
+        "ItemUse case copy constructor call RVA0x27328D2 -> RVA0x1BAF330; constructor copies the inventory-action map and contents before item-use fields",
+        "LocalPlayer send-complex RVA0x476A960; _populateLegacyTransactionRequest call RVA0x476A9ED -> RVA0x476A4A0"
+      ]
+    },
+    {
+      "topic": "continued use intention also applies to pearls",
+      "contract": "After an air use with no active timed in-use stack, handleBuildAction retains use intention0x10 when the selected/copied item is throwable and its count is nonzero. The matched pearl reports isThrowable=true, so held use is not restricted to food or other timed items. The shared NoBlockBreakUntil deadline remains a separate input gate; no exact global repeat cadence is asserted.",
+      "anchors": [
+        "post-use Item::isThrowable slot0xA0 call RVA0x5D95E24",
+        "nonzero count test and retained-use branch RVA0x5D95E32..RVA0x5D95E36",
+        "IClientInstance::resetBai(0x10) call RVA0x5D95F1F",
+        "pearl vtable RVA0xEA38CB0 slot0xA0 -> true leaf RVA0x848A0; slot0xA8 isUseable -> false leaf RVA0x76C20",
+        "exact resetBai storage and later reuse are detailed in consumable_use_findings.json"
+      ]
+    },
+    {
+      "topic": "generic throwable component immediate versus timed use",
+      "contract": "ThrowableItemComponent installs an OnUse callback. With a positive draw duration it starts the common use timer. Otherwise it invokes _doThrow and reports successful use. _doThrow skips projectile construction on the client, but its client path still reaches swing and consumption logic. Consumption is either Player::useItem(Throw,true) or a direct count decrement protected by Instabuild, depending on the component event flag.",
+      "anchors": [
+        "ThrowableItemComponent::_initializeComponent RVA0x2952900..RVA0x2952B46",
+        "OnUse callback vtable RVA0xE83E5B0 slot0x10 -> RVA0x29A18C0..RVA0x29A1A50",
+        "positive-draw-duration startUsingItem call RVA0x29A1974; timed-result store RVA0x29A1979",
+        "immediate _doThrow call RVA0x29A19EE -> RVA0x294D8C0; success-result store RVA0x29A19F3",
+        "ThrowableItemComponent::_doThrow RVA0x294D8C0..RVA0x294DCB5",
+        "ILevel::isClientSide call RVA0x294D900; client branch bypasses projectile calculations",
+        "event-flag Player::useItem call RVA0x294D937; direct count-set call RVA0x294DC8C",
+        "server-only ProjectileItemComponent::shootProjectile call RVA0x294DBD9 -> RVA0x3677380"
+      ]
+    },
+    {
+      "topic": "generic component use cooldown and duration units",
+      "contract": "ComponentItem::use starts a Use-type cooldown only after its OnUse result indicates success, the legacy camera component is absent, the actor is not removed and the post-use item pointer remains valid. Its cooldown duration getter multiplies the component float duration by20 and truncates toward zero to integer ticks. An absent cooldown component returns0. This establishes a generic component path, not the specific wind-charge component data.",
+      "anchors": [
+        "ComponentItem::use RVA0x3FD3590..RVA0x3FD397A",
+        "success check RVA0x3FD37C3; Item.mCameraComponentLegacy offset0x1D8 check RVA0x3FD37CC",
+        "Actor.mRemoved check RVA0x3FD37D6; post-use item checks RVA0x3FD37DF..RVA0x3FD37EE",
+        "Use-type check RVA0x3FD37FA/RVA0x3FD3802; startItemCooldown call RVA0x3FD3811",
+        "ComponentItem::getCooldownDuration RVA0x3FD1920",
+        "component duration offset16 load RVA0x3FD1976; multiply by float20 at RVA0x3FD197B (constant RVA0xE6ABFC0); truncation RVA0x3FD1983",
+        "PDB CooldownItemComponent: duration16, type20, category24; SharedTypes::v1_20_50::CooldownItemComponent: duration0, type4, category8"
+      ]
+    },
+    {
+      "topic": "wind-charge item-specific data remains unclosed",
+      "contract": "The executable exposes the minecraft:wind_charge item-name registration, but this investigation did not recover the supplied vanilla item component definition assigning its throwable behavior, draw duration, cooldown category or cooldown duration. No wind-charge-specific duration/category or local inventory prediction is justified by the generic component functions alone.",
+      "anchors": [
+        "minecraft:wind_charge string RVA0xEC76D11",
+        "VanillaItemNames::WindCharge object RVA0x11DEE7B0; name initializer reference RVA0x4018CB9",
+        "No named WindChargeItem class was found in the matched public-symbol inventory"
+      ]
+    },
+    {
+      "topic": "mace smash motion and Wind Burst are gated to server in these paths",
+      "contract": "MaceItem::hurtActor first performs durability handling. A true isClientSide result then bypasses its smash-motion section. WindBurstEnchant::doPostItemHurtActor likewise bypasses its burst implementation on the client. These recovered branches do not justify adding a bespoke local mace or Wind Burst impulse; they do not prove that no other motion subsystem or server packet contributes movement.",
+      "anchors": [
+        "MaceItem::hurtActor RVA0x24984E0..RVA0x249903E",
+        "ItemStackBase::hurtAndBreak(1) call RVA0x2498529 -> RVA0x2489240",
+        "ILevel::isClientSide call RVA0x2498548; client branch RVA0x2498550 -> RVA0x2498F16 skips smash section",
+        "WindBurstEnchant::doPostItemHurtActor RVA0x519E450..RVA0x519E716",
+        "ILevel::isClientSide call RVA0x519E480; client branch RVA0x519E488 -> RVA0x519E705",
+        "server-only WindBurstUtility::burst call RVA0x519E700 -> RVA0x33E0A00"
+      ]
+    }
+  ],
+  "comparison_at_investigation": {
+    "scope": "The parent owns production implementation. These observations identify behavior differences and evidence limits, not an assertion about the eventual source snapshot.",
+    "pearl": "Perlin already had incoming cooldown state but ordinary air use did not start this locally predicted built-in cooldown. Existing BedrockSession::Instabuild exposes the relevant ability; using worldBuilder or mayFly would test a different ability.",
+    "inventory": "The investigated Perlin air-use sender carried empty action lists and did not predict a count decrement. Native capture of old/new actions is established, but complete authoritative manager and payload framing is not. A local decrement cannot safely be declared complete parity from this evidence alone.",
+    "failed_attempts": "The shared native client forwarding path sends the attempted transaction before checking local success. Upstream input eligibility and later server behavior remain separate.",
+    "wind_charge": "Specific vanilla component data was not available in this static pass. Generic throwable support does not establish that data.",
+    "mace": "No new local smash/Wind Burst impulse is supported by the recovered client branches. Existing server motion handling remains relevant, with its own separate scheduling limits."
+  },
+  "limitations": [
+    "All RVA and branch claims apply to the supplied matching 1.26.51.1/protocol2193 executable and PDB. They are not independent proof for protocol2225 or944.",
+    "A local cooldown-only implementation must use the native post-use item-presence condition. For an ordinary consumable pearl this differs between count1, count greater than1, and Instabuild.",
+    "The full client inventory manager, legacy request identifiers, item-stack action encoding and acknowledgement reconciliation were not reconstructed in this pass.",
+    "No exact mapping from AllowDestructiveObjects enum index40 to a network game-rule key was established.",
+    "Held-input reuse is established for pearls through their throwable virtual. This does not establish identical reuse or timing for every instant-use item.",
+    "The ItemCompleteUseEvent dynamic listener set and exact first-tick duration ordering remain limited as described in consumable_use_findings.json.",
+    "No native executable, server, or anti-cheat acceptance test was run. No entire-item or movement parity guarantee is made."
+  ]
+}

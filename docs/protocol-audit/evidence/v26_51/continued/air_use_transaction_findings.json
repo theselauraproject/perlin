@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Static inspection of the matched executable, public symbols, field layouts and virtual slots. No executable was run. This file contains metadata and bounded conclusions, not code bytes or disassembly."
+  },
+  "reproducible_metadata": [
+    "air_use_transaction_query.json",
+    "air_use_transaction_reference.json"
+  ],
+  "facts": [
+    {
+      "topic": "ClickAir held-item descriptor is captured before local use",
+      "contract": "The baseUseItem population callback sets the transaction selected-item descriptor from the original stack before copying the stack and invoking local GameMode::useItem. If local use succeeds, it writes the modified copy to the selected hand. It does not refresh the transaction selected-item descriptor afterward. Therefore the recovered ordinary ClickAir selected-item field is a pre-use snapshot; the inventory action carries the old-to-new change.",
+      "anchors": [
+        "GameMode::baseUseItem RVA0x259EB30..RVA0x259EF0B; population callback RVA0x25B6150..RVA0x25B630D",
+        "setSelectedItem call RVA0x25B6182 -> RVA0x25B5F50; NetworkItemStackDescriptor constructor call RVA0x25B5F67 -> RVA0x24A2C90",
+        "Transaction mItem offset0x90 from matched PDB ItemUseInventoryTransaction",
+        "Original stack copied at RVA0x25B623A; net-ID variant copied at RVA0x25B6273; GameMode::useItem virtual call RVA0x25B628A",
+        "Success check RVA0x25B629A; selected-hand setter slot0x260 or0x270 at RVA0x25B62C7"
+      ]
+    },
+    {
+      "topic": "Inventory change capture and unconditional client forwarding",
+      "contract": "baseUseItem wraps local use in a container transaction context. Its change callback constructs InventoryAction from old and new stacks, appends the pending player action and adds it to the complex transaction. The main-hand source is ordinary container0 with the reported slot; offhand is container119/slot0. The client forwards the complex transaction before consulting the callback success byte, so local failure does not itself suppress this sender.",
+      "anchors": [
+        "Container::createTransactionContext call RVA0x259EE0D -> RVA0x26B0210",
+        "Change callback vtable RVA0xE827FC0 slot0x10 -> RVA0x25B87B0..RVA0x25B88DC",
+        "InventoryAction constructor calls RVA0x25B8817/RVA0x25B884C -> RVA0x1D4AD0",
+        "Pending append RVA0x25B888A/RVA0x25B88AD; complex addAction RVA0x25B88C1 -> RVA0x266F0A0",
+        "Client forwarding call RVA0x259EE7E precedes success-byte read RVA0x259EE84"
+      ]
+    },
+    {
+      "topic": "Local payload construction preserves the action transaction",
+      "contract": "LocalPlayer constructs the packet payload from the complex transaction, decorates it with legacy-request metadata, then sends it. The ItemUse payload alternative is copied through its copy constructor, including its inventory-action map and contents. No action-clearing operation was found in this recovered constructor/conversion path. This is not a complete byte-level serialization trace.",
+      "anchors": [
+        "LocalPlayer::sendComplexInventoryTransaction RVA0x476A960; payload ctor RVA0x476A9C3 -> RVA0x27324A0",
+        "Payload conversion helper call RVA0x2732579 -> RVA0x2732730; ItemUse copy ctor RVA0x27328D2 -> RVA0x1BAF330",
+        "Legacy metadata call RVA0x476A9ED -> RVA0x476A4A0; sendNetworkPacket call RVA0x476AA06"
+      ]
+    },
+    {
+      "topic": "Concrete client manager and enable flag",
+      "contract": "StartGame constructs ItemStackNetManagerClient using the packet enable-item-stack-net-manager flag. Its base stores that flag as mEnabled, and the concrete client vtable is installed. The legacy request helpers below belong to that matched client implementation. Their recovered bodies are not sufficient to establish the outer HUD screen lifecycle for every authority mode.",
+      "anchors": [
+        "StartGame handler packet flag load RVA0x1336C5A at wrapper offset0x640 (payload offset0x610)",
+        "Base constructor call RVA0x1336CA4 -> RVA0x25AA270; enable store RVA0x25AA29D, client store RVA0x25AA2A1",
+        "Client vtable RVA0xE827EC0 loaded RVA0x1336CA9 and installed RVA0x1336CB7; player manager assignment RVA0x1336CDA",
+        "Client slots: isEnabled0x8 -> RVA0x23BF70; retainSetItemStackNetIdVariant0x18 -> false leaf RVA0x76C20; legacy-scope0x28 -> RVA0x25B0840; changed-slot0x48 -> RVA0x25AF810"
+      ]
+    },
+    {
+      "topic": "Legacy request scope uses a current client screen",
+      "contract": "The client legacy-scope helper first obtains a current ClientScreenData. If no screen exists it returns a no-op scope. With a screen, it advances the legacy counter as min(counter,-2)-2, stores the resulting negative-even request ID and clears that screen changed-slot map. The scope cleanup resets the active request ID to0 and clears the map. The exact first observed ID depends on earlier counter use.",
+      "anchors": [
+        "ItemStackNetManagerClient::_tryBeginClientLegacyTransactionRequest RVA0x25B0840..RVA0x25B09A5",
+        "Current-screen helper call RVA0x25B0851 -> RVA0x25AC3E0; ClientScreenData component hash0x763ED7F4 matches the exact PDB type name",
+        "Counter RVA0x11D68B80 read RVA0x25B085E and updated RVA0x25B0872; active request ID store RVA0x25B0878 to manager offset0x50",
+        "Scope cleanup vtable RVA0xE828410 slot0x10 -> RVA0x25BE9E0..RVA0x25BEAF4; reset RVA0x25BE9EB",
+        "baseUseItem destroys the scope after forwarding at RVA0x259EEA1"
+      ]
+    },
+    {
+      "topic": "Ordinary selected inventory reaches the manager-aware setter",
+      "contract": "For selected container Inventory=0, Player::setCarriedItem forwards to PlayerInventory.mInventory at the selected slot. The concrete Inventory setter forwards to setItemWithForceBalance, which calls the manager-aware setPlayerContainer helper before falling back to FillingContainer. The helper callback also ends in FillingContainer. This closes the ordinary main-hand count-change call chain; it does not close every event listener or offhand path.",
+      "anchors": [
+        "Player::setCarriedItem RVA0x203360..RVA0x20355F; selected-container check RVA0x203529, setItem slot0x60 call RVA0x203546",
+        "PDB PlayerInventory: mSelected16, mSelectedContainerId176, mInventory184 as unique_ptr<Inventory>; ContainerID::Inventory0",
+        "Inventory vtable RVA0xE6AFE10 is installed during construction at RVA0x1DEE89, after loading it at RVA0x1DEE7B",
+        "Inventory vtable slot0x60 -> RVA0x1D5150 -> virtual slot0x68 -> Inventory::setItemWithForceBalance RVA0x1D5170",
+        "setPlayerContainer call RVA0x1D53BE -> RVA0x25ABD60; fallback FillingContainer::setItemWithForceBalance call RVA0x1D5402 -> RVA0x25A4AE0",
+        "Helper callback vtable RVA0xE6D5840 slot0x10 -> RVA0x22E4A0; tailcall RVA0x22E4B2 -> RVA0x25A4AE0"
+      ]
+    },
+    {
+      "topic": "Nonempty changed stacks receive the active legacy ID in this client branch",
+      "contract": "setPlayerContainer rejects an invalid, null or zero-count proposed new stack before its client legacy branch. For a local player with an active negative-even legacy ID, a nonempty changed stack is copied, its ItemStackNetIdVariant is set to the legacy-request alternative carrying the active ID, the changed slot is registered, and the callback receives the tagged copy. An unchanged item/count returns without this mutation. Consequently retaining an old positive server stack ID while predicting a decrement is not equivalent to this recovered branch.",
+      "anchors": [
+        "ItemStackNetManagerBase::setPlayerContainer RVA0x25ABD60..RVA0x25AC021",
+        "New-stack validity checks RVA0x25ABD83..RVA0x25ABDCA",
+        "Client request-ID gate RVA0x25ABE77..RVA0x25ABE84; local-player component check call RVA0x25ABE86 -> RVA0x1A017F0",
+        "Count/item comparison RVA0x25ABE92..RVA0x25ABEB2; changed-stack copy RVA0x25ABEB8 -> RVA0x24823E0",
+        "Legacy variant existing-alternative update RVA0x25ABED0 or alternative construction RVA0x25ABF9C..RVA0x25ABFAB; index2 names TypedClientNetId<ItemStackLegacyRequestIdTag,int,0> in the matched PDB",
+        "Changed-slot virtual call RVA0x25ABFE6; callback with tagged copy RVA0x25AC000"
+      ]
+    },
+    {
+      "topic": "Changed-slot enum translation and empty-slot distinction",
+      "contract": "The client changed-slot callback translates legacy Inventory=-1 to InventoryContainer=29, Armor=18 to ArmorContainer=6, and Hand=19 to OffhandContainer=34; it records the slot as an unsigned byte. Unsupported legacy container kinds return. Empty proposed stacks take the caller fallback instead of this particular nonempty legacy-tagging path. This distinction matters for a last-item consumption and does not by itself prove all other listeners leave the changed-slot map empty.",
+      "anchors": [
+        "ItemStackNetManagerClient::_addLegacyTransactionRequestSetItemSlot RVA0x25AF810..RVA0x25AF946",
+        "Slot-byte conversion RVA0x25AF814; per-screen changed-slot inserts RVA0x25AF923/RVA0x25AF93B",
+        "Matched PDB SharedTypes::Legacy::ContainerType and ContainerEnumName",
+        "setPlayerContainer early false return RVA0x25ABED9; Inventory fallback RVA0x1D53F6..RVA0x1D5402"
+      ]
+    },
+    {
+      "topic": "Outgoing legacy request decoration",
+      "contract": "LocalPlayer copies the active legacy request ID to the outgoing payload. Only negative-even IDs below-1 enter changed-slot collection. It copies per-screen container/slot sets into LegacySetSlot records. If that collected vector is empty, it resets the outgoing legacy request ID to0. Unordered containers do not establish a stable multi-slot ordering.",
+      "anchors": [
+        "LocalPlayer::_populateLegacyTransactionRequest RVA0x476A4A0..RVA0x476A8D6",
+        "Active manager ID read RVA0x476A4CA, outgoing typed-ID raw store RVA0x476A4CE",
+        "Current-screen helper RVA0x25AC3E0; map-copy helper RVA0x25BB200",
+        "Empty-vector outgoing-ID reset RVA0x476A7F0",
+        "PDB LegacySetSlot: container enum offset0, slot vector offset8"
+      ]
+    }
+  ],
+  "limits": [
+    "These are matched protocol2193 control/data-flow facts. The protocol2225 executable was not assumed identical.",
+    "The native current HUD/request-screen creation and lifetime, all packet authority-mode gates, request acknowledgement/reconciliation and rollback were not reconstructed. The captured scope conditions must not be replaced with an unconditional locally invented request ID.",
+    "The complete wire-level net-ID/include-ID encoding and byte-for-byte inventory transaction serialization were not re-derived here. C++ layout is not a wire format.",
+    "Player::setCarriedItem also publishes an event before the selected-container mutation (call RVA0x2034CF -> RVA0x2FEA260); its full dynamic listener set was not traced. Offhand and custom container variants are outside this follow-up.",
+    "This artifact closes the prior held-item pre/post snapshot uncertainty and ordinary nonempty selected-slot call chain. It does not authorize claiming a complete pearl prediction implementation from a count decrement plus an empty action vector.",
+    "The empty-new-stack helper branch and outgoing empty-set reset are established individually; a global claim that every last-item use always emits legacyRequestId0 would require closing all contributing callbacks."
+  ]
+}

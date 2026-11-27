@@ -1091,7 +1091,10 @@ namespace perlin::physics {
 
         if (water || lava) {
             DragInFluid(s, in, attr, frame, mv, water);
-        } else if (!glide) {
+        } else if (glide) {
+            if (attr.levitation > 0)
+                mv.velocity.y = bds::LevitateVelocity(static_cast<float>(mv.velocity.y), attr.levitation);
+        } else {
             Vec3& v = mv.velocity;
             v.y = bds::PostGroundVertical(static_cast<float>(v.y), s.fallDistance, gravity, attr.levitation,
                                           attr.slowFalling, autoClimb, false, attr.airDrag, mv.bounceGravity);

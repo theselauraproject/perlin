@@ -117,6 +117,10 @@ namespace perlin {
             if (!cooldown && hasComponents)
                 if (auto component = itemcooldown::ComponentDefinition(FindKey(nbt, "minecraft:cooldown")))
                     cooldown = std::move(component);
+            // Unlike the native-class overrides above, wind charge obtains
+            // these defaults from the vanilla item component definition.
+            if (!cooldown && item.name == "minecraft:wind_charge")
+                cooldown = itemcooldown::Definition{"wind_charge", itemcooldown::Type::Use, 10};
             if (cooldown)
                 cooldowns[item.name] = std::move(*cooldown);
             if (item.name.starts_with("minecraft:") || !hasComponents)
@@ -142,9 +146,16 @@ namespace perlin {
                         def.armorSlot = i;
             }
 
-            if (const json::Value* mods = FindKey(nbt, "minecraft:use_modifiers"); mods && mods->IsObject())
+            if (const json::Value* mods = FindKey(nbt, "minecraft:use_modifiers"); mods && mods->IsObject()) {
+                def.useMovementModifier = 1.0f;
+                if (const json::Value* m = mods->Find("movement_modifier"); m && m->IsNumber()) {
+                    const float modifier = static_cast<float>(m->NumberOr(1.0));
+                    if (std::isfinite(modifier))
+                        def.useMovementModifier = modifier;
+                }
                 if (const json::Value* d = mods->Find("use_duration"); d && d->IsNumber())
                     def.useTicks = static_cast<int>(d->NumberOr(0) * 20.0);
+            }
             if (def.useTicks == 0)
                 if (const json::Value* d = FindKey(nbt, "use_duration"); d && d->IsNumber())
                     def.useTicks = static_cast<int>(d->NumberOr(0));

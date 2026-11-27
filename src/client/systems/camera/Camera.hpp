@@ -51,7 +51,16 @@ namespace perlin {
             return mode == PerspectiveMode::ThirdPersonFront ? -Direction() : Direction();
         }
 
-        glm::vec3 Up() const { return {0.0f, 1.0f, 0.0f}; }
+        glm::vec3 Up() const {
+            // Command cameras may look exactly up or down. A world-up vector
+            // parallel to the view direction would make lookAt singular.
+            const float pr = glm::radians(pitch);
+            if (std::abs(std::sin(pr)) > 0.9999f) {
+                const float yr = glm::radians(yaw);
+                return {-std::cos(yr) * std::sin(pr), std::cos(pr), -std::sin(yr) * std::sin(pr)};
+            }
+            return {0.0f, 1.0f, 0.0f};
+        }
 
         glm::mat4 SkyViewProjection() const {
             const glm::vec3 dir = ViewDirection();

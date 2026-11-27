@@ -1,0 +1,611 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="(empty)"
+	tests="57"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname=""
+	time="3"
+	timestamp="2026-11-27T03:21:24"
+	>
+	<testcase name="actor_lerp_selftest" classname="actor_lerp_selftest" time="0.484074" status="run">
+		<properties/>
+		<system-out>ActorLerp: 63 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="chunk_visibility_selftest" classname="chunk_visibility_selftest" time="0.547346" status="run">
+		<properties/>
+		<system-out>chunk_visibility_selftest: ok (260 checks, 0 failures)
+</system-out>
+	</testcase>
+	<testcase name="section_connectivity_selftest" classname="section_connectivity_selftest" time="0.0833325" status="run">
+		<properties/>
+		<system-out>section_connectivity_selftest: ok (1907 checks, 0 failures)
+</system-out>
+	</testcase>
+	<testcase name="heldbuild_selftest" classname="heldbuild_selftest" time="0.00312188" status="run">
+		<properties/>
+		<system-out>HeldBuild: 80 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="audio_selftest" classname="audio_selftest" time="0.0102554" status="run">
+		<properties/>
+		<system-out>[audio] 2 sound definitions, 1 block sound types, 2 entities with sounds
+[audio] 3 sound definitions, 1 block sound types, 2 entities with sounds
+[audio] 3 sound definitions, 1 block sound types, 2 entities with sounds
+[audio] 2 sound definitions, 1 block sound types, 2 entities with sounds
+audio_selftest ok
+</system-out>
+	</testcase>
+	<testcase name="level_undo_selftest" classname="level_undo_selftest" time="0.00271392" status="run">
+		<properties/>
+		<system-out>level_undo_selftest ok
+</system-out>
+	</testcase>
+	<testcase name="cells16_selftest" classname="cells16_selftest" time="0.00386445" status="run">
+		<properties/>
+		<system-out>ok   1 distinct ids round-trip (8192 bytes)
+ok   7 distinct ids round-trip (8192 bytes)
+ok   200 distinct ids round-trip (8192 bytes)
+ok   256 distinct ids round-trip (8192 bytes)
+ok   257 distinct ids round-trip (8192 bytes)
+ok   900 distinct ids round-trip (8192 bytes)
+ok   a section of two ids takes one byte per cell
+ok   reads after load
+0 failure(s)
+</system-out>
+	</testcase>
+	<testcase name="hud_feed_selftest" classname="hud_feed_selftest" time="0.0466355" status="run">
+		<properties/>
+		<system-out>hud_feed_selftest passed
+</system-out>
+	</testcase>
+	<testcase name="handler_dispatch_selftest" classname="handler_dispatch_selftest" time="0.0390447" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 187 len 143 hex 47000000000000000100060000026e0a00026e0a00a4707d3f000010416666663f0100026e0a0002040000cdcc4c3d0000803fcdcccc3d020000060200000602
+[net] first update_abilities (id 187, 143 bytes)
+[bedrock] abilities mayFly=false flying=false noclip=true fly=0.2
+[net] packet #2 id 187 len 143 hex 47000000000000000100060000026e0a00026e0a00a4707d3f000010416666663f0100026e0a0002040000cdcc4c3d0000803fcdcccc3d020000060200000602
+[bedrock] abilities mayFly=false flying=false noclip=true fly=0.2
+[net] packet #3 id 187 len 143 hex 47000000000000000100060000026e0a00026e0a00a4707d3f000010416666663f0100026e0a0002040000cdcc4c3d0000803fcdcccc3d020000060200000602
+[bedrock] abilities mayFly=false flying=false noclip=true fly=0.2
+[net] packet #4 id 187 len 143 hex 47000000000000000100060000026e0a00026e0a00a4707d3f000010416666663f0100026e0a0002040000cdcc4c3d0000803fcdcccc3d020000060200000602
+[bedrock] abilities mayFly=false flying=false noclip=true fly=0.2
+[net] packet #5 id 187 len 143 hex 47000000000000000100...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="armor_packets_selftest" classname="armor_packets_selftest" time="0.00801498" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 162 len 122 hex 04156d696e6563726166743a69726f6e5f68656c6d65740a0000000a0000196d696e6563726166743a69726f6e5f6368657374706c6174650b0000000a000017
+[net] first item_registry (id 162, 122 bytes)
+[items] server defines 0 custom items
+[net] packet #2 id 32 len 329 hex 070a0001000001ca010046ffff010a000003060044616d616765070000000a0700646973706c61790804004e616d65050061726d6f7200000000000001000000
+[net] first mob_armor_equipment (id 32, 329 bytes)
+[net] packet #3 id 149 len 4 hex 01022300
+[net] first player_armor_damage (id 149, 4 bytes)
+[net] packet #4 id 149 len 4 hex 01022300
+[net] packet #5 id 149 len 4 hex 01000c00
+[net] packet #6 id 149 len 2 hex 0102
+[net] failed to decode player_armor_damage (id 149, 2 bytes)
+[net] packet #7 id 50 len 84 hex 770000000a00010000018e030046ffff010a000003060044616d616765150000000a0700646973706c61790804004e616d65050061726d6f7200000000000001
+[net] first inventory_slot (id 50, 84 bytes)
+[net] packet #8 id 149 len 4 hex 01084600
+[net] packet #9 id 149 len 4 hex 01014...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="recipe_packets_selftest" classname="recipe_packets_selftest" time="0.00383683" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 162 len 164 hex 06146d696e6563726166743a6f616b5f706c616e6b73010000000a0000156d696e6563726166743a636f62626c6573746f6e65020000000a00000f6d696e6563
+[net] first item_registry (id 162, 164 bytes)
+[items] server defines 0 custom items
+[net] packet #2 id 50 len 23 hex 0000000001000800000166000a00000000000000000000
+[net] first inventory_slot (id 50, 23 bytes)
+[net] packet #3 id 52 len 491 hex 000410746573743a73746f6e655f737469636b0101046e616d65156d696e6563726166743a636f62626c6573746f6e6500020106010000000a00000000000000
+[net] first crafting_data (id 52, 491 bytes)
+[inventory] 4 crafting-table recipes
+[net] packet #4 id 199 len 5 hex 0000000000
+[net] first unlocked_recipes (id 199, 5 bytes)
+[net] packet #5 id 199 len 39 hex 010000000210746573743a73746f6e655f737469636b10746573743a73746f6e655f737469636b
+[net] packet #6 id 199 len 16 hex 01000000010a746573743a6272656164
+[net] packet #7 id 199 len 22 hex 030000000110746573743a73746f6e655f737469636b
+[net] packet #8 id 199 len 21 hex 02000000010f746573743a...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="server_ui_packets_selftest" classname="server_ui_packets_selftest" time="0.0179814" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 54 len 28 hex 0a6669727374206974656d0c66697273742065666665637408000000
+[net] first gui_data_pick_item (id 54, 28 bytes)
+[net] packet #2 id 54 len 40 hex 107265706c6163656d656e74206974656d127265706c6163656d656e742065666665637401000000
+[net] packet #3 id 54 len 39 hex 107265706c6163656d656e74206974656d127265706c6163656d656e7420656666656374010000
+[net] failed to decode gui_data_pick_item (id 54, 39 bytes)
+[net] packet #4 id 307 len 5 hex 0a06010402
+[net] first set_player_inventory_options (id 307, 5 bytes)
+[net] packet #5 id 307 len 5 hex 0d06000402
+[net] packet #6 id 307 len 4 hex 0d060004
+[net] failed to decode set_player_inventory_options (id 307, 4 bytes)
+[net] packet #7 id 351 len 4 hex 0116002a
+[net] first set_player_furnace_options (id 351, 4 bytes)
+[net] packet #8 id 351 len 4 hex 0218012c
+[net] packet #9 id 351 len 4 hex 031a002e
+[net] packet #10 id 351 len 4 hex 001a002e
+[net] packet #11 id 351 len 4 hex 041a002e
+[net] packet #12 id 351 len 4 hex ff1a002e
+[net] first player_location ...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="audio_packets_selftest" classname="audio_packets_selftest" time="0.00879118" status="run">
+		<properties/>
+		<system-out>[audio] no audio subsystem: No available audio device
+[audio] running without an output device
+[audio] 1 sound definitions, 0 block sound types, 0 entities with sounds
+[net] packet #1 id 86 len 39 hex 0b636f6d7061745f746f6e650000000000803f0000803fffffffff0f0001000000000000000000
+[net] first play_sound (id 86, 39 bytes)
+[net] packet #2 id 348 len 13 hex 0000000000000000010000803e
+[net] first clientbound_update_sound_data (id 348, 13 bytes)
+[net] packet #3 id 348 len 9 hex 000000000000000005
+[net] packet #4 id 348 len 13 hex 0000000000000000040000403f
+[net] packet #5 id 348 len 9 hex 000000000000000006
+[net] packet #6 id 348 len 13 hex 00000000000000000200000000
+[net] packet #7 id 348 len 17 hex 0000000000000000030000000000000000
+[net] packet #8 id 348 len 13 hex e703000000000000010000803f
+[net] packet #9 id 348 len 13 hex 0000000000000000010000803f
+[net] packet #10 id 348 len 9 hex 000000000000000000
+[net] packet #11 id 86 len 43 hex 0b636f6d7061745f746f6e650000000000803f0000803fffffffff0f00010b000000000000000...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="input_reporting_selftest" classname="input_reporting_selftest" time="0.00535253" status="run">
+		<properties/>
+		<system-out>[move] input #0 tick=1 eye=(0,65.62,-0.0196) move=(-0,1) flags=1
+[move] input #0 tick=1 eye=(0,65.62,-0.00490001) move=(-0,0.25) flags=1
+[move] input #0 tick=1 eye=(0,65.62,0) move=(-0,0) flags=0
+input_reporting_test: ok (44 checks)
+</system-out>
+	</testcase>
+	<testcase name="movement_protocol_selftest" classname="movement_protocol_selftest" time="0.0224978" status="run">
+		<properties/>
+		<system-out>[move] input #0 tick=1 eye=(8,65.62,8.0049) move=(-0,0.25) flags=1
+[move] input #1 tick=2 eye=(8,65.5416,8.01014) move=(-0,0.04) flags=1
+[move] input #2 tick=3 eye=(8,65.3864,8.03451) move=(-0,1) flags=1
+[move] input #0 tick=1 eye=(8,65.62,8.0049) move=(-0,0.25) flags=1
+[move] input #1 tick=2 eye=(8,65.5416,8.01014) move=(-0,0.04) flags=1
+[move] input #2 tick=3 eye=(8,65.3864,8.03451) move=(-0,1) flags=1
+[move] input #0 tick=1 eye=(8,65.62,8.0049) move=(-0,0.25) flags=1
+[move] input #1 tick=2 eye=(8,65.5416,8.01014) move=(-0,0.04) flags=1
+[move] input #2 tick=3 eye=(8,65.3864,8.03451) move=(-0,1) flags=1
+[move] input #0 tick=1 eye=(0.5,65.62,0.5) move=(-0,0) flags=0
+[move] input #1 tick=2 eye=(0.5,65.62,0.5196) move=(-0,1) flags=1
+[move] input #2 tick=3 eye=(0.4804,65.62,0.5) move=(-1,0) flags=1
+[move] input #0 tick=1 eye=(0.5,65.62,0.5) move=(-0,0) flags=0
+[move] input #1 tick=2 eye=(0.5,65.62,0.5196) move=(-0,1) flags=1
+[move] input #2 tick=3 eye=(0.4804,65.62,0.5) move=(-1,0) flags=1
+[move] input #0 tick=1...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="movement_effects_selftest" classname="movement_effects_selftest" time="0.0267677" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 28 len 9 hex 0701360001c8010000
+[net] first mob_effect (id 28, 9 bytes)
+[move] input #0 tick=1 eye=(0.5,65.37,0.5) move=(-0,0) flags=0
+[net] packet #2 id 28 len 9 hex 0701360001c8010000
+[move] input #0 tick=1 eye=(0.5,65.62,0.5) move=(-0,0) flags=0
+[net] packet #3 id 28 len 9 hex 0701360001c8010000
+[move] input #0 tick=1 eye=(0.5,65.87,0.5) move=(-0,0) flags=0
+[net] packet #4 id 28 len 8 hex 0701360001010000
+[move] input #0 tick=1 eye=(0.5,65.37,0.5) move=(-0,0) flags=0
+[move] input #1 tick=2 eye=(0.5,65.1152,0.5) move=(-0,0) flags=0
+[move] input #2 tick=3 eye=(0.5,64.8557,0.5) move=(-0,0) flags=0
+[net] packet #5 id 28 len 8 hex 0703360001000000
+[net] packet #6 id 28 len 9 hex 0801360001c8010000
+[net] packet #7 id 28 len 9 hex 0700360001c8010000
+[net] packet #8 id 28 len 9 hex 0704360001c8010000
+[net] packet #9 id 28 len 9 hex 07ff360001c8010000
+[net] packet #10 id 28 len 8 hex 0701360001010000
+[net] packet #11 id 28 len 8 hex 0701300001500000
+[move] input #0 tick=1 eye=(0.5,65.37,0.5) move...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="attribute_replay_selftest" classname="attribute_replay_selftest" time="0.0201077" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 29 len 204 hex 07040000000000002041cdcccc3d0000000000002041cdcccc3d126d696e6563726166743a6d6f76656d656e740000000000000020418fc2f53c000000000000
+[net] first update_attributes (id 29, 204 bytes)
+[net] packet #2 id 29 len 204 hex 07040000000000002041cdcc4c3e0000000000002041cdcc4c3e126d696e6563726166743a6d6f76656d656e74000000000000002041295c8f3d000000000000
+[net] packet #3 id 29 len 47 hex 070100000000000020419a99993e00000000000020419a99993e126d696e6563726166743a6d6f76656d656e74006a
+[net] packet #4 id 29 len 47 hex 07010000000000002041cdcccc3e0000000000002041cdcccc3e126d696e6563726166743a6d6f76656d656e740066
+[net] packet #5 id 29 len 204 hex 070400000000000020419a99993e0000000000002041cdcc4c3e126d696e6563726166743a6d6f76656d656e740000000000000020418fc2f53c000000000000
+[net] packet #6 id 29 len 47 hex 070100000000000020419a99193f0000000000002041cdcccc3e126d696e6563726166743a6d6f76656d656e740065
+[net] packet #7 id 29 len 204 hex 07040000000000002041cdcccc3d0000000000002041cdcccc3d126d696e65637261...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="status_effect_replay_selftest" classname="status_effect_replay_selftest" time="0.0122262" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 28 len 8 hex 0702300200506400
+[net] first mob_effect (id 28, 8 bytes)
+[net] packet #2 id 28 len 8 hex 0702100200046400
+[net] packet #3 id 28 len 8 hex 0702100800046400
+[net] packet #4 id 28 len 8 hex 0702360000026400
+[net] packet #5 id 28 len 8 hex 0703360000006800
+[net] packet #6 id 28 len 8 hex 0702360200286400
+[net] packet #7 id 28 len 8 hex 0701300400046a00
+[net] packet #8 id 28 len 8 hex 0702300200286400
+[net] packet #9 id 28 len 8 hex 0702300400086200
+[net] packet #10 id 28 len 9 hex 070236000004c80100
+[net] packet #11 id 28 len 8 hex 0702360000040000
+[net] packet #12 id 28 len 8 hex 0702360000080000
+[move] input #0 tick=110 eye=(0,65.5416,0) move=(-0,0) flags=0
+[move] input #0 tick=110 eye=(0,65.5416,0) move=(-0,0) flags=0
+status_effect_replay_test: ok (88 checks)
+</system-out>
+	</testcase>
+	<testcase name="ranged_item_selftest" classname="ranged_item_selftest" time="0.00588386" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 162 len 190 hex 08126d696e6563726166743a63726f7373626f770a0000000a00000f6d696e6563726166743a6172726f770b0000000a0000196d696e6563726166743a666972
+[net] first item_registry (id 162, 190 bytes)
+[items] server defines 1 custom items
+[net] packet #2 id 50 len 24 hex 00000000001401000001ca01000a00000000000000000000
+[net] first inventory_slot (id 50, 24 bytes)
+[net] packet #3 id 50 len 88 hex 00000000001401000001ca01004affff010a00000a0b00636861726765644974656d0804004e616d650f006d696e6563726166743a6172726f77010500436f75
+[net] packet #4 id 50 len 98 hex 00000000001401000001ca010054ffff010a00000a0b00636861726765644974656d0804004e616d6519006d696e6563726166743a66697265776f726b5f726f
+[net] packet #5 id 50 len 24 hex 00000000001401000001ca01000a00000000000000000000
+[net] packet #6 id 50 len 24 hex 00090000001601000001cc01000a00000000000000000000
+[net] packet #7 id 50 len 6 hex 000900000000
+[net] packet #8 id 50 len 85 hex 00000000001401000001ca010047ffff010a00000a0b00636861726765644974656d0804004e616d650...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="item_use_packets_selftest" classname="item_use_packets_selftest" time="0.032419" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 162 len 106 hex 040f6d696e6563726166743a6172726f770a0000000a0000106d696e6563726166743a736164646c650b0000000a0000156d696e6563726166743a77696e645f
+[net] first item_registry (id 162, 106 bytes)
+[items] server defines 0 custom items
+[net] packet #2 id 187 len 33 hex 470000000000000000000101000008000000000000000000000000000000000000
+[net] first update_abilities (id 187, 33 bytes)
+[bedrock] abilities mayFly=false flying=false noclip=false fly=0
+[net] packet #3 id 50 len 39 hex 000400000018030000017a001affff010a0000030400746573742a000000000000000000000000
+[net] first inventory_slot (id 50, 39 bytes)
+[inventory] drop request -3 slot 4 stack -4 count 1 form 0
+[net] packet #4 id 162 len 106 hex 040f6d696e6563726166743a6172726f770a0000000a0000106d696e6563726166743a736164646c650b0000000a0000156d696e6563726166743a77696e645f
+[items] server defines 0 custom items
+[net] packet #5 id 187 len 33 hex 470000000000000000000101000008000000000000000000000000000000000000
+[bedrock] abilities mayFly=false flying=fal...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="creative_inventory_selftest" classname="creative_inventory_selftest" time="0.0465152" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 162 len 136 hex 050f6d696e6563726166743a73746f6e650a0000000a0000146d696e6563726166743a6f616b5f706c616e6b730b0000000a0000126d696e6563726166743a72
+[net] first item_registry (id 162, 136 bytes)
+[items] server defines 0 custom items
+[net] packet #2 id 145 len 508 hex 05010000000b746573742e626c6f636b7314010000005cffff010a000003060044616d616765070000000a0700646973706c61790804004e616d650b00486561
+[net] first creative_content (id 145, 508 bytes)
+[ui] missing texture textures/ui/recipe_book_light_button
+[ui] missing texture textures/ui/recipe_book_expand_icon
+[ui] missing texture textures/ui/icon_recipe_construction
+[ui] missing texture textures/ui/icon_recipe_equipment
+[ui] missing texture textures/ui/icon_recipe_nature
+[ui] missing texture textures/ui/magnifyingGlass
+[ui] missing texture textures/ui/inventory_icon
+[ui] missing texture textures/ui/purpleBorder
+[ui] missing texture textures/ui/recipe_book_dark_button_pressed
+[ui] missing texture textures/ui/recipe_book_collapse_icon
+[ui] missing tex...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="camera_effects_packets_selftest" classname="camera_effects_packets_selftest" time="0.00682851" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 198 len 419 hex 070e6d696e6563726166743a6672656500000000000000000000000000000000000100010000000b746573743a706172656e740e6d696e6563726166743a6672
+[net] first camera_presets (id 198, 419 bytes)
+[net] packet #2 id 300 len 21 hex 010200000000000000000000000000000000000000
+[net] first camera_instruction (id 300, 21 bytes)
+[net] packet #3 id 300 len 21 hex 010100000000000000000000000000000000000000
+[net] packet #4 id 300 len 41 hex 010200000000010000803f000000400000404001000080400000a04000000000000000000000000000
+[net] packet #5 id 300 len 10 hex 00010000000000000000
+[net] packet #6 id 300 len 10 hex 00010100000000000000
+[net] packet #7 id 300 len 21 hex 010200000000000000000000000000000000000000
+[net] packet #8 id 300 len 22 hex 01020000000000000000000101000000000000000000
+[net] packet #9 id 300 len 42 hex 010200000000010000e04000000041000010410100002041000030410000000101000000000000000000
+[net] packet #10 id 300 len 21 hex 010000000000000000000000000000000000000000
+[net] packet #11 id 300 len 2...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="session_codec_context_selftest" classname="session_codec_context_selftest" time="0.00645781" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 86 len 24 hex 0c636f6e746578742e746f6e651020300000803f0000403f
+[net] first play_sound (id 86, 24 bytes)
+[net] packet #2 id 86 len 40 hex 0c636f6e746578742e746f6e651020300000803f0000403f0301012a00000000000000010000003f
+[net] packet #3 id 86 len 24 hex 0c636f6e746578742e746f6e651020300000803f0000403f
+[net] packet #4 id 162 len 25 hex 01106d696e6563726166743a736869656c64110000000a0000
+[net] first item_registry (id 162, 25 bytes)
+[items] server defines 0 custom items
+[net] packet #5 id 162 len 25 hex 01106d696e6563726166743a736869656c64630000000a0000
+[items] server defines 0 custom items
+[net] packet #6 id 50 len 31 hex 000000000022010000015400120000000000000000000015cd5b0700000000
+[net] first inventory_slot (id 50, 31 bytes)
+[net] packet #7 id 50 len 31 hex 000000006300010000015400120000000000000000000015cd5b0700000000
+[net] packet #8 id 162 len 24 hex 010f6d696e6563726166743a73746f6e65010000000a0000
+[items] server defines 0 custom items
+[net] packet #9 id 162 len 25 hex 01106d696e656372616674...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="chunk_pipeline_selftest" classname="chunk_pipeline_selftest" time="0.0140548" status="run">
+		<properties/>
+		<system-out>[chunk] LevelChunk (0,0) dim=0 subChunkCount=0 requestMode=false limit=-1 cache=false payload=0B
+[chunk] reply (0,-4,0) result=1 payload=6B blob=0
+[chunk] reply (0,-4,0) result=6 payload=0B blob=0
+[chunk] reply (0,-3,0) result=1 payload=6B blob=0
+[chunk] reply (0,-3,0) result=6 payload=0B blob=0
+[chunk] decoded (0,-4,0) bpb=0 palette=1 layers=1
+[chunk] decoded (0,-3,0) bpb=0 palette=1 layers=1
+[chunk] reply (0,-3,0) result=6 payload=0B blob=0
+[chunk] reply (0,-3,0) result=1 payload=6B blob=0
+[chunk] reply (0,-4,0) result=6 payload=0B blob=0
+[chunk] reply (0,-4,0) result=1 payload=6B blob=0
+[chunk] decoded (0,-3,0) bpb=0 palette=1 layers=1
+[chunk] decoded (0,-4,0) bpb=0 palette=1 layers=1
+[chunk] reply (0,-4,0) result=1 payload=0B blob=4850460722339003137
+[chunk] reply (0,-4,0) result=1 payload=47B blob=0
+[chunk] decoded (0,-4,0) bpb=0 palette=1 layers=1
+[chunk] reply (0,-4,0) result=1 payload=0B blob=4850460722339003138
+[chunk] reply (0,-3,0) result=1 payload=49B blob=0
+[chunk] decoded (0,-3,0) bpb=0 palette=...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="audio_director_selftest" classname="audio_director_selftest" time="0.00953604" status="run">
+		<properties/>
+		<system-out>[audio] no audio subsystem: No available audio device
+[audio] running without an output device
+[net] packet #1 id 86 len 30 hex 0c72616e646f6d2e636c69636ba001c002100000003f0000c03f00010000
+[net] first play_sound (id 86, 30 bytes)
+[net] packet #2 id 123 len 44 hex 05627265616b0000803f00000040000040400e0d6d696e6563726166743a636f770100000000000000000000
+[net] first level_sound_event (id 123, 44 bytes)
+[net] packet #3 id 87 len 13 hex 0a6d757369632e67616d650000
+[net] first stop_sound (id 87, 13 bytes)
+[net] packet #4 id 87 len 3 hex 000100
+[audio] no audio subsystem: No available audio device
+[audio] running without an output device
+[net] packet #5 id 123 len 31 hex 05706c61636500002841000081420000284100000000000000000000000000
+[net] packet #6 id 123 len 31 hex 05706c61636500004842000080420000484200000000000000000000000000
+[audio] no audio subsystem: No available audio device
+[audio] running without an output device
+[audio] no audio subsystem: No available audio device
+[audio] running without an output device
+aud...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="player_interaction_selftest" classname="player_interaction_selftest" time="0.0314805" status="run">
+		<properties/>
+		<system-out>[item] started using minecraft:apple
+[net] packet #1 id 162 len 88 hex 010f6d696e6563726166743a6170706c65050001020a000a0a636f6d706f6e656e74730a126d696e6563726166743a636f6f6c646f776e080863617465676f72
+[net] first item_registry (id 162, 88 bytes)
+[items] server defines 0 custom items
+[net] packet #2 id 50 len 22 hex 00000000050003000000000a00000000000000000000
+[net] first inventory_slot (id 50, 22 bytes)
+[net] packet #3 id 176 len 11 hex 09746573743a666f6f6404
+[net] first client_start_item_cooldown (id 176, 11 bytes)
+[item] started using minecraft:apple
+[net] packet #4 id 162 len 31 hex 01166d696e6563726166743a676f6c64656e5f6170706c652d0000000a0000
+[items] server defines 0 custom items
+[net] packet #5 id 50 len 22 hex 000000002d0003000000000a00000000000000000000
+[item] started using minecraft:golden_apple
+[move] input #0 tick=1 eye=(0.5,65.62,0.5) move=(-0,0) flags=1
+[move] input #1 tick=2 eye=(0.5,65.5416,0.5) move=(-0,0) flags=0
+[move] input #2 tick=3 eye=(0.5,65.3864,0.5) move=(-0,0) flags=0
+[item] finished ...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="hud_screen_selftest" classname="hud_screen_selftest" time="0.0157785" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 54 len 41 hex 10536572766572206974656d206e616d6513536572766572206974656d206566666563747308000000
+[net] first gui_data_pick_item (id 54, 41 bytes)
+[net] packet #2 id 54 len 41 hex 10536572766572206974656d206e616d6513536572766572206974656d206566666563747308000000
+[net] packet #3 id 307 len 5 hex 0a00010402
+[net] first set_player_inventory_options (id 307, 5 bytes)
+[net] packet #4 id 307 len 5 hex 0a00000406
+[net] packet #5 id 326 len 16 hex c8010000000020410000000000000000
+[net] first player_location (id 326, 16 bytes)
+[net] packet #6 id 326 len 4 hex c8010100
+hud_screen_test: ok (43 checks)
+</system-out>
+	</testcase>
+	<testcase name="executable_boot_resources" classname="executable_boot_resources" time="0.0848238" status="run">
+		<properties/>
+		<system-out>[boot] exe dir /workspace/scratch/c87aa92cdace/perlin/build/compatibility
+[boot] embedded resources registered
+[perlin] starting 2026-11-27 03:21:25, data dir /home/agent/.local/share/Perlin, log /home/agent/.local/share/Perlin/perlin.log
+Perlin options:
+  --join &lt;host:port&gt;   server to join
+  --name &lt;name&gt;        offline player name
+  --skin &lt;png&gt;         skin image (64x32, 64x64 or 128x128)
+  --cape &lt;png&gt;         cape image (64x32)
+  --slim               slim (Alex) arms for the skin
+  --login              sign in with a Microsoft/Xbox account (remembered afterwards)
+  --offline            skip the saved Microsoft login for this run
+  --hidden             run without showing or focusing the game window
+  --control-port &lt;n&gt;   enable localhost developer HTTP controls
+  --logout             forget the saved Microsoft login
+  --raknet             connect over RakNet (Lifeboat, The Hive, any public server)
+  --nethernet          connect over NetherNet (BDS with the nethernet transport)
+  --tls                use...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="session_policy_selftest" classname="session_policy_selftest" time="0.00279519" status="run">
+		<properties/>
+		<system-out>session_policy_selftest passed
+</system-out>
+	</testcase>
+	<testcase name="chunk_selftest" classname="chunk_selftest" time="0.00403197" status="run">
+		<properties/>
+		<system-out>all chunk self-tests passed
+</system-out>
+	</testcase>
+	<testcase name="chunk_ingest_selftest" classname="chunk_ingest_selftest" time="0.0116843" status="run">
+		<properties/>
+		<system-out>chunk_ingest_selftest: 868 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="chunk_bench_correctness" classname="chunk_bench_correctness" time="0.00401709" status="run">
+		<properties/>
+		<system-out>{"workload":"expand","fixture":"mixed","sections":12,"iterations":2,"workers":1,"operations":24,"elapsed_ns":159852,"ns_per_section":6660.500,"checksum":"3f5e897cd91ac0c8","correct":true,"reader_calls":0,"reader_samples":0,"reader_sample_rate":16,"reader_p50_ns":0,"reader_p95_ns":0,"reader_p99_ns":0,"reader_max_ns":0,"reader_checksum":"0000000000000000"}
+{"workload":"decode","fixture":"mixed","sections":12,"iterations":2,"workers":1,"operations":24,"elapsed_ns":168774,"ns_per_section":7032.250,"checksum":"d88756a552ca084e","correct":true,"reader_calls":0,"reader_samples":0,"reader_sample_rate":16,"reader_p50_ns":0,"reader_p95_ns":0,"reader_p99_ns":0,"reader_max_ns":0,"reader_checksum":"0000000000000000"}
+{"workload":"commit","fixture":"mixed","sections":12,"iterations":2,"workers":1,"operations":24,"elapsed_ns":244629,"ns_per_section":10192.875,"checksum":"6018e23c1572c703","correct":true,"reader_calls":0,"reader_samples":0,"reader_sample_rate":16,"reader_p50_ns":0,"reader_p95_ns":0,"reader_p99_ns":0,"reader_...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="packet_selftest" classname="packet_selftest" time="0.00324945" status="run">
+		<properties/>
+		<system-out>packet self-tests passed
+</system-out>
+	</testcase>
+	<testcase name="wire_selftest" classname="wire_selftest" time="0.00195122" status="run">
+		<properties/>
+		<system-out>wire_selftest: ok
+</system-out>
+	</testcase>
+	<testcase name="move_input_selftest" classname="move_input_selftest" time="0.00169641" status="run">
+		<properties/>
+		<system-out>move_input_selftest: ok
+</system-out>
+	</testcase>
+	<testcase name="inventory_slots_selftest" classname="inventory_slots_selftest" time="0.000874199" status="run">
+		<properties/>
+		<system-out>inventory_slots_selftest: ok
+</system-out>
+	</testcase>
+	<testcase name="item_cooldown_selftest" classname="item_cooldown_selftest" time="0.00193196" status="run">
+		<properties/>
+		<system-out>item_cooldown_selftest: ok
+</system-out>
+	</testcase>
+	<testcase name="item_use_wire_selftest" classname="item_use_wire_selftest" time="0.00210486" status="run">
+		<properties/>
+		<system-out>item_use_wire_selftest: ok (78 checks, 0 failures)
+</system-out>
+	</testcase>
+	<testcase name="chunk_wire_selftest" classname="chunk_wire_selftest" time="0.00228808" status="run">
+		<properties/>
+		<system-out>chunk_wire_selftest: ok (302 checks, 0 failures)
+</system-out>
+	</testcase>
+	<testcase name="gui_data_selftest" classname="gui_data_selftest" time="0.00210318" status="run">
+		<properties/>
+		<system-out>gui_data_selftest: ok
+</system-out>
+	</testcase>
+	<testcase name="status_effect_selftest" classname="status_effect_selftest" time="0.00136229" status="run">
+		<properties/>
+		<system-out>status_effect_selftest passed (16 checks)
+</system-out>
+	</testcase>
+	<testcase name="armor_damage_selftest" classname="armor_damage_selftest" time="0.00193401" status="run">
+		<properties/>
+		<system-out>armor_damage_selftest: all checks passed
+</system-out>
+	</testcase>
+	<testcase name="item_nbt_selftest" classname="item_nbt_selftest" time="0.00205283" status="run">
+		<properties/>
+		<system-out>item_nbt_selftest: ok (73 checks)
+</system-out>
+	</testcase>
+	<testcase name="creative_catalog_selftest" classname="creative_catalog_selftest" time="0.00216185" status="run">
+		<properties/>
+		<system-out>creative_catalog_selftest: ok (20 checks)
+</system-out>
+	</testcase>
+	<testcase name="recipe_unlocks_selftest" classname="recipe_unlocks_selftest" time="0.00192578" status="run">
+		<properties/>
+		<system-out>recipe_unlocks_selftest: all checks passed
+</system-out>
+	</testcase>
+	<testcase name="bridge2193_selftest" classname="bridge2193_selftest" time="0.00157728" status="run">
+		<properties/>
+		<system-out>bridge2193_selftest: 19 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="sound_packets_wire_selftest" classname="sound_packets_wire_selftest" time="0.0034333" status="run">
+		<properties/>
+		<system-out>sound_packets_wire_selftest: 207 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="camera_wire_selftest" classname="camera_wire_selftest" time="0.00208841" status="run">
+		<properties/>
+		<system-out>camera_wire_selftest: 493 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="camera_effects_selftest" classname="camera_effects_selftest" time="0.00490892" status="run">
+		<properties/>
+		<system-out>camera_effects_selftest: 175 checks, 0 failures
+</system-out>
+	</testcase>
+	<testcase name="protocol_audit_selftest" classname="protocol_audit_selftest" time="1.04491" status="run">
+		<properties/>
+		<system-out>.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.931s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="physics_selftest" classname="physics_selftest" time="0.0323134" status="run">
+		<properties/>
+		<system-out>physics_selftest: all checks passed
+</system-out>
+	</testcase>
+	<testcase name="mesh_exactness" classname="mesh_exactness" time="1.00695" status="run">
+		<properties/>
+		<system-out>[meshbench] merge: 794928 -&gt; 470544 vertices (40.8% fewer), 0 of 1589856 sample points differ
+[meshbench] 25 chunks x 1 rounds: mean 3.336 ms, median 3.113 ms, p90 3.878 ms, 18822 vertices/chunk
+[meshprof] 100 chunks: fill+classify 0.16 ms, connectivity 0.11 ms, lighting 0.27 ms, quads 2.89 ms, total 3.43 ms (avg)
+[meshbench] block on the surface                   same (1 sections rebuilt, 9 copied)
+[meshbench] block removed at the surface           same (1 sections rebuilt, 9 copied)
+[meshbench] block dug a section down               same (2 sections rebuilt, 8 copied)
+[meshbench] block dug deep                         same (0 sections rebuilt, 10 copied)
+[meshbench] shaft opened down to a cave            same (4 sections rebuilt, 6 copied)
+[meshbench] shaft capped (relights below)          same (4 sections rebuilt, 6 copied)
+[meshbench] block at the chunk edge                same (1 sections rebuilt, 9 copied)
+[meshbench] neighbour chunk edit at the border     same (1 sections rebuilt, 9 copied)
+[meshbench]...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="client_control_selftest" classname="client_control_selftest" time="0.0117383" status="run">
+		<properties/>
+		<system-out>client control: 0 failures
+</system-out>
+	</testcase>
+	<testcase name="null_selftest" classname="null_selftest" time="0.00537686" status="run">
+		<properties/>
+		<system-out>null_selftest ok
+</system-out>
+	</testcase>
+	<testcase name="common_cpu_selftest" classname="common_cpu_selftest" time="0.0509712" status="run">
+		<properties/>
+		<system-out>conduit common CPU tests: PASS
+</system-out>
+	</testcase>
+	<testcase name="render_profile_test" classname="render_profile_test" time="0.0162049" status="run">
+		<properties/>
+		<system-out>no usable graphics adapter
+  no usable graphics adapter found
+render_profile_test ok
+</system-out>
+	</testcase>
+	<testcase name="vendor_test" classname="vendor_test" time="0.00267614" status="run">
+		<properties/>
+		<system-out>vendor_test ok
+</system-out>
+	</testcase>
+</testsuite>

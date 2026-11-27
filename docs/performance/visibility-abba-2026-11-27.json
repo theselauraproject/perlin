@@ -1,0 +1,207 @@
+{
+  "metadata": {
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu_affinity": [
+      0
+    ],
+    "radius": 24,
+    "frames": 2000,
+    "order": [
+      "before",
+      "after",
+      "after",
+      "before"
+    ],
+    "compiler": "GNU c++14 Release -O3 -DNDEBUG -std=c++23",
+    "backend": "Conduit null (CPU submission only)",
+    "binaries": {
+      "before": "d9ee7e147eb3d1284e6cb3a2c88ec687e2105f4978eb2f5af92e8f86fe7377ae",
+      "after": "8ea505fc07fc35d4ca51e6a9c416830cbfd25ebb06a555a137e1871c4aea7873"
+    }
+  },
+  "records": [
+    {
+      "run": 0,
+      "variant": "before",
+      "case": "stationary",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 505.845,
+      "per_frame_us": 252.922,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 98304.0
+    },
+    {
+      "run": 0,
+      "variant": "before",
+      "case": "moving",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 479.309,
+      "per_frame_us": 239.655,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 98304.0
+    },
+    {
+      "run": 0,
+      "variant": "before",
+      "case": "mesh_churn",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 518.814,
+      "per_frame_us": 259.407,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 98304.0
+    },
+    {
+      "run": 1,
+      "variant": "after",
+      "case": "stationary",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 3.841,
+      "per_frame_us": 1.921,
+      "cache_bytes": 159744.0,
+      "reset_bytes": 0.0
+    },
+    {
+      "run": 1,
+      "variant": "after",
+      "case": "moving",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 400.715,
+      "per_frame_us": 200.357,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 0.0
+    },
+    {
+      "run": 1,
+      "variant": "after",
+      "case": "mesh_churn",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 459.503,
+      "per_frame_us": 229.752,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 0.0
+    },
+    {
+      "run": 2,
+      "variant": "after",
+      "case": "stationary",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 3.824,
+      "per_frame_us": 1.912,
+      "cache_bytes": 159744.0,
+      "reset_bytes": 0.0
+    },
+    {
+      "run": 2,
+      "variant": "after",
+      "case": "moving",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 396.221,
+      "per_frame_us": 198.111,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 0.0
+    },
+    {
+      "run": 2,
+      "variant": "after",
+      "case": "mesh_churn",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 459.433,
+      "per_frame_us": 229.717,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 0.0
+    },
+    {
+      "run": 3,
+      "variant": "before",
+      "case": "stationary",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 484.591,
+      "per_frame_us": 242.296,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 98304.0
+    },
+    {
+      "run": 3,
+      "variant": "before",
+      "case": "moving",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 505.249,
+      "per_frame_us": 252.624,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 98304.0
+    },
+    {
+      "run": 3,
+      "variant": "before",
+      "case": "mesh_churn",
+      "chunks": 2401.0,
+      "frames": 2000.0,
+      "total_ms": 521.621,
+      "per_frame_us": 260.811,
+      "cache_bytes": 98304.0,
+      "reset_bytes": 98304.0
+    }
+  ],
+  "raw_runs": [
+    {
+      "run": 0,
+      "variant": "before",
+      "checksum": 7037541917220,
+      "stdout": "BENCH stationary chunks=2401 frames=2000 total_ms=505.845 per_frame_us=252.922 cache_bytes=98304 reset_bytes=98304\nBENCH moving chunks=2401 frames=2000 total_ms=479.309 per_frame_us=239.655 cache_bytes=98304 reset_bytes=98304\nBENCH mesh_churn chunks=2401 frames=2000 total_ms=518.814 per_frame_us=259.407 cache_bytes=98304 reset_bytes=98304\nBENCH checksum=7037541917220\n"
+    },
+    {
+      "run": 1,
+      "variant": "after",
+      "checksum": 7037541917220,
+      "stdout": "BENCH stationary chunks=2401 frames=2000 total_ms=3.841 per_frame_us=1.921 cache_bytes=159744 reset_bytes=0\nBENCH moving chunks=2401 frames=2000 total_ms=400.715 per_frame_us=200.357 cache_bytes=98304 reset_bytes=0\nBENCH mesh_churn chunks=2401 frames=2000 total_ms=459.503 per_frame_us=229.752 cache_bytes=98304 reset_bytes=0\nBENCH checksum=7037541917220\n"
+    },
+    {
+      "run": 2,
+      "variant": "after",
+      "checksum": 7037541917220,
+      "stdout": "BENCH stationary chunks=2401 frames=2000 total_ms=3.824 per_frame_us=1.912 cache_bytes=159744 reset_bytes=0\nBENCH moving chunks=2401 frames=2000 total_ms=396.221 per_frame_us=198.111 cache_bytes=98304 reset_bytes=0\nBENCH mesh_churn chunks=2401 frames=2000 total_ms=459.433 per_frame_us=229.717 cache_bytes=98304 reset_bytes=0\nBENCH checksum=7037541917220\n"
+    },
+    {
+      "run": 3,
+      "variant": "before",
+      "checksum": 7037541917220,
+      "stdout": "BENCH stationary chunks=2401 frames=2000 total_ms=484.591 per_frame_us=242.296 cache_bytes=98304 reset_bytes=98304\nBENCH moving chunks=2401 frames=2000 total_ms=505.249 per_frame_us=252.624 cache_bytes=98304 reset_bytes=98304\nBENCH mesh_churn chunks=2401 frames=2000 total_ms=521.621 per_frame_us=260.811 cache_bytes=98304 reset_bytes=98304\nBENCH checksum=7037541917220\n"
+    }
+  ],
+  "summary": {
+    "stationary": {
+      "before_us_per_frame": 247.60899999999998,
+      "after_us_per_frame": 1.9165,
+      "reduction_percent": 99.22599743951149,
+      "speedup": 129.19853900339157
+    },
+    "moving": {
+      "before_us_per_frame": 246.1395,
+      "after_us_per_frame": 199.23399999999998,
+      "reduction_percent": 19.056470009892767,
+      "speedup": 1.2354291938123012
+    },
+    "mesh_churn": {
+      "before_us_per_frame": 260.109,
+      "after_us_per_frame": 229.73450000000003,
+      "reduction_percent": 11.677604388929241,
+      "speedup": 1.132215666345281
+    }
+  },
+  "source_sha256": {
+    "src/client/systems/renderer/gpu/ChunkMeshStore.cpp": "b21fe3f2417aefc770d1c8c0cb5ab9c4bd22c38279e184b9a7f76767054514c1",
+    "src/client/systems/renderer/gpu/ChunkMeshStore.hpp": "ddbfca1b27fcef16ec8749198937c298bb9ba3696189f436858fe79bc302527f",
+    "tools/chunk_visibility_bench.cpp": "12046221bcbef81a3cfcbe91a7c25baea5724d98d1ace909dbfe85b56eb42ac0"
+  }
+}

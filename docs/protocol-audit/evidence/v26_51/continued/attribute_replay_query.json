@@ -1,0 +1,29 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "ActorHistory",
+    "ReplayStateComponent",
+    "IMovementCorrection",
+    "History::AttributeReplay",
+    "MovementAttributesComponent",
+    "MovementAttributeEntry",
+    "MovementAttributeAccess",
+    "MovementAttributeCorrectionMode",
+    "MovementDataExtractionUtility::MovementSnapshotComponent",
+    "MovementDataExtractionUtility::SnapshotAccessor",
+    "AttributeData"
+  ],
+  "class_regex": "^History::AttributeReplay::",
+  "symbol_regex": "(_onUpdateAttributesPacketReceived|advanceFrame@AttributeReplay|advanceLiveFrame@AttributeReplay|getAdvanceFrameResult@AttributeReplay|addFrame@ActorHistory|updateAttribute@BaseAttributeMap|tickUpdateAttributesSystem|MovementAttributesComponentExt)",
+  "symbol_rvas": [
+    "0x11dc5488",
+    "0x11dc5280",
+    "0x11dc52b8",
+    "0x11dc54f0",
+    "0x11dc53e0",
+    "0x11d1ecf8",
+    "0x11dc5338",
+    "0x11dc5370",
+    "0x11dc53a8"
+  ]
+}

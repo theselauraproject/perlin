@@ -204,6 +204,9 @@ namespace perlin {
         });
 
         On<UpdateBlockPacket>([this](const UpdateBlockPacket& p) {
+            std::lock_guard commitLock(chunkCommitMutex);
+            if (!ChunkInputCurrent())
+                return;
             lastBlockPos[0] = p.position.x;
             lastBlockPos[1] = static_cast<int32_t>(p.position.y);
             lastBlockPos[2] = p.position.z;
@@ -237,6 +240,7 @@ namespace perlin {
                     }
                 }
                 netLevel.SetBlock(lastBlockPos[0], lastBlockPos[1], lastBlockPos[2], id);
+                RecordChunkCellUpdate(lastBlockPos[0], lastBlockPos[1], lastBlockPos[2], 0, id);
                 std::lock_guard lock(supportMutex);
                 const auto now = std::chrono::steady_clock::now();
                 std::erase_if(brokenSupports, [&](const BrokenSupport& b) {
@@ -247,18 +251,24 @@ namespace perlin {
                     if (id != 0)
                         for (const auto& [y, old] : b.above) {
                             bool loaded = false;
-                            if (netLevel.GetBlock(b.x, y, b.z, loaded) == 0 && loaded)
+                            if (netLevel.GetBlock(b.x, y, b.z, loaded) == 0 && loaded) {
                                 netLevel.SetBlock(b.x, y, b.z, old);
+                                RecordChunkCellUpdate(b.x, y, b.z, 0, old);
+                            }
                         }
                     return true;
                 });
-            } else if (p.layer == 1)
-                netLevel.SetLiquid(
-                    lastBlockPos[0], lastBlockPos[1], lastBlockPos[2],
-                    BlockPalette::Instance().InternRuntime(static_cast<int32_t>(p.blockRuntimeId)));
+            } else if (p.layer == 1) {
+                const uint16_t id = BlockPalette::Instance().InternRuntime(static_cast<int32_t>(p.blockRuntimeId));
+                netLevel.SetLiquid(lastBlockPos[0], lastBlockPos[1], lastBlockPos[2], id);
+                RecordChunkCellUpdate(lastBlockPos[0], lastBlockPos[1], lastBlockPos[2], 1, id);
+            }
         });
 
         On<UpdateSubchunkBlocksPacket>([this](const UpdateSubchunkBlocksPacket& p) {
+            std::lock_guard commitLock(chunkCommitMutex);
+            if (!ChunkInputCurrent())
+                return;
             const auto sane = [&](const BlockUpdate& b) {
                 const int32_t y = static_cast<int32_t>(b.position.y);
                 if (y < -64 || y >= 320 || std::abs(b.position.x) > 30000000 ||
@@ -283,22 +293,27 @@ namespace perlin {
                 std::cout << " afterAuthTick=" << LastAuthTick() << std::endl;
             }
             for (const BlockUpdate& b : p.extra)
-                if (sane(b))
-                    netLevel.SetLiquid(
-                        b.position.x, static_cast<int32_t>(b.position.y), b.position.z,
-                        BlockPalette::Instance().InternRuntime(static_cast<int32_t>(b.runtimeId)));
+                if (sane(b)) {
+                    const uint16_t id = BlockPalette::Instance().InternRuntime(static_cast<int32_t>(b.runtimeId));
+                    netLevel.SetLiquid(b.position.x, static_cast<int32_t>(b.position.y), b.position.z, id);
+                    RecordChunkCellUpdate(b.position.x, static_cast<int32_t>(b.position.y), b.position.z, 1, id);
+                }
             for (const BlockUpdate& b : p.blocks) {
                 if (!sane(b))
                     continue;
                 NoteUnknownBlock(static_cast<int32_t>(b.runtimeId));
                 ConfirmPlace(b.position.x, static_cast<int32_t>(b.position.y), b.position.z,
                              static_cast<int32_t>(b.runtimeId));
-                netLevel.SetBlock(b.position.x, static_cast<int32_t>(b.position.y), b.position.z,
-                                  BlockPalette::Instance().InternRuntime(static_cast<int32_t>(b.runtimeId)));
+                const uint16_t id = BlockPalette::Instance().InternRuntime(static_cast<int32_t>(b.runtimeId));
+                netLevel.SetBlock(b.position.x, static_cast<int32_t>(b.position.y), b.position.z, id);
+                RecordChunkCellUpdate(b.position.x, static_cast<int32_t>(b.position.y), b.position.z, 0, id);
             }
         });
 
         On<UpdateBlockSyncedPacket>([this](const UpdateBlockSyncedPacket& p) {
+            std::lock_guard commitLock(chunkCommitMutex);
+            if (!ChunkInputCurrent())
+                return;
             const int x = p.position.x, y = static_cast<int32_t>(p.position.y), z = p.position.z;
             const uint16_t id =
                 BlockPalette::Instance().InternRuntime(static_cast<int32_t>(p.blockRuntimeId));
@@ -308,6 +323,8 @@ namespace perlin {
                 netLevel.SetBlock(x, y, z, id);
             else if (p.layer == 1)
                 netLevel.SetLiquid(x, y, z, id);
+            if (p.layer <= 1)
+                RecordChunkCellUpdate(x, y, z, p.layer, id);
         });
     }
 }

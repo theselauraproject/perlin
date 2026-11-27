@@ -1,4 +1,5 @@
 #include "client/systems/multiplayer/SessionPolicy.hpp"
+#include "network/Transport.hpp"
 
 #include <cstdio>
 #include <string>
@@ -89,6 +90,35 @@ namespace {
 }
 
 int main() {
+    using ProtocolSource = LoginProtocolSelection::Source;
+    const int latest = perlin::kBedrockProtocol;
+    for (const int previous : {944, 2193, latest}) {
+        for (const int placeholder : {0, 121, 943, latest + 1}) {
+            const auto transferred = SelectLoginProtocol(latest, placeholder, previous, true);
+            CHECK(transferred.protocol == previous);
+            CHECK(transferred.source == ProtocolSource::Transfer);
+            const auto fresh = SelectLoginProtocol(latest, placeholder, previous, false);
+            CHECK(fresh.protocol == latest);
+            CHECK(fresh.source == ProtocolSource::Transport);
+        }
+        for (const int supported : {944, 2193}) {
+            const auto selected = SelectLoginProtocol(latest, supported, previous, true);
+            CHECK(selected.protocol == supported);
+            CHECK(selected.source == ProtocolSource::Advertisement);
+        }
+        const auto explicitLatest = SelectLoginProtocol(latest, latest, previous, true);
+        CHECK(explicitLatest.protocol == latest);
+        CHECK(explicitLatest.source == ProtocolSource::Transport);
+        const auto overridden = SelectLoginProtocol(latest, 121, previous, true, 2193);
+        CHECK(overridden.protocol == 2193);
+        CHECK(overridden.source == ProtocolSource::Override);
+    }
+    for (const int invalidPrevious : {0, 121, 943, latest + 1}) {
+        const auto selected = SelectLoginProtocol(latest, 121, invalidPrevious, true);
+        CHECK(selected.protocol == latest);
+        CHECK(selected.source == ProtocolSource::Transport);
+    }
+
     for (const uint16_t algorithm : {0, 1}) {
         for (const size_t size : {0, 1, 255, 256, 4096})
             CHECK(static_cast<uint8_t>(SelectBatchCompression(algorithm, 0, size)) == 0xFF);

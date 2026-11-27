@@ -1,6 +1,6 @@
 # Continued matched-client inspection
 
-These findings extend the catalog and dispatch map with bounded, manually reviewed contracts for 21 packet types in the supplied **1.26.51.1 / protocol 2193** executable. The executable and PDB were inspected as data and never executed. All addresses are RVAs in the exact executable identified below.
+These findings extend the catalog and dispatch map with bounded, manually reviewed contracts for 21 packet types, followed by movement, effect, item-use and creative-inventory investigations in the supplied **1.26.51.1 / protocol 2193** executable. The executable and PDB were inspected as data and never executed. Native-code addresses are RVAs in the exact executable identified below. The separately identified creative UI assets come from pinned public resource-pack revisions.
 
 | Input | Identity |
 | --- | --- |
@@ -106,6 +106,28 @@ behavior, other CameraInstruction fields, or newer/older version semantics.
 
 ## Metadata and reproduction
 
+### Movement, item-use and creative follow-up
+
+| Evidence report | Bounded subject |
+| --- | --- |
+| `slow_falling_findings.json` | Gravity sign condition, effect IDs, movement-system ordering and levitation interaction |
+| `mob_effect_contracts.json` | Recognized events, merge semantics, duration normalization and expiry |
+| `consumable_use_findings.json` | Retained input, use timer, client/server completion split and ordinary item-use forwarding |
+| `item_use_movement_findings.json` | Default/configured movement modifier and the explicit squared-input consumer |
+| `item_use_identity_findings.json` | Item/slot/hand continuity, count refresh, comparison options and stop-only cancellation |
+| `ranged_item_contracts.json` | Loaded crossbows, Quick Charge, trident startup, damage and active enchantments |
+| `projectile_item_use_findings.json` | Pearl/generic throwable use and cooldown paths; server-side mace/Wind Burst branches |
+| `air_use_transaction_findings.json` | Pre-use held-item snapshot, old/new inventory actions and legacy request scope; acknowledgement lifecycle remains open |
+| `creative_catalog_findings.json` | Registry/group insertion order, expando headers and retained unassigned entries |
+| `creative_ui_assets_findings.json` | Official desktop tab order and fixed composite sprites; distinct pocket layout |
+| `creative_ui_assets_sources.json` | Pinned official URLs and content hashes for the compared resource-pack revisions |
+
+The corresponding `*_query.json` and `*_reference.json` files retain reproducible
+type/symbol selections where available. Compact manually reviewed reports remain
+explicitly scoped. The creative UI files identify the surrounding published
+26.50.4 and 26.60.5 assets; neither is presented as a supplied matching 26.51.1
+resource pack. No game artwork was added to the source bundle.
+
 `continued_type_reference.json` and `wire_type_reference.json` contain focused type, enum, method, virtual-slot and public-symbol metadata. `continued_query.json`, `wire_query.json`, `camera_fade_query.json`, and `camera_fov_query.json` specify their reproducible selections and expected executable hash. Other reference JSON files preserve supporting armor, recipe, GUI, sound, pause and interface facts used during the inspection. Memory offsets alone do not establish wire order; virtual overrides need their base-slot correlation.
 
 Run from the Perlin repository root, with your own matching files:
@@ -135,3 +157,21 @@ python3 tools/bedrock_reference/query_pdb_reference.py "/path/to/1.26.51/Minecra
 The new query exporter uses Python's standard library and the adjacent PE/PDB parser scripts. It rejects an executable/PDB GUID or age mismatch, a section-header mismatch, and a supplied query whose expected executable SHA-256 differs. Its explicit virtual-slot fields reflect CodeView declarations; a null slot on an override does not mean the method is nonvirtual.
 
 `packet_contracts.json` is a manually reviewed report, not generated disassembly or a fully automatic decompiler. Its named anchors allow further local review with a static disassembler. No proprietary executable/PDB bytes, reconstructed source, or raw disassembly are included in this directory.
+
+## Additional implemented behavior references
+
+The current source changes and tests are described in [BEHAVIOR_FIXES.md](../../../BEHAVIOR_FIXES.md). These additional groups use the same executable/PDB identity checks above:
+
+| Subject | Query/reference/findings prefix | Applied consumer |
+| --- | --- | --- |
+| Layered ability replacement and fixed priority | `ability_layers` | Local ability resolution, speed values and reset |
+| Levitation during gliding | `glide_levitation` | Physics and movement-packet regressions |
+| Attribute history and acknowledgement handling | `attribute_replay` | Local prediction history, modifier state and live updates |
+| Legacy item-use identities and descriptor serialization | `item_prediction_reconciliation` | Pearl/wind-charge transactions, prediction and following stack requests |
+| Hotbar and local equipment selection | `inventory_selection` | Selection bounds and authoritative item ownership |
+| Container-close manager lifecycle | `container_close` | Screen-close requests, responses and warning packets |
+| Camera preset/runtime consumers | `camera_runtime` | Camera transforms, effects, defaults and easing |
+| Camera controls and orientation | `camera_controls` | View/movement transforms, pitch reset and auth-input orientation |
+| Named/inline camera splines | `camera_spline` | Registry lookup, playback and keyframe interpolation |
+
+`crossbow_use_reset_findings.json` records event 74's input-reset continuation and the verified downstream default handlers. Each findings file retains its version and evidence scope. The common checksum manifest is regenerated after the final implementation and validation record are written.

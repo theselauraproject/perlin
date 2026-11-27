@@ -1,0 +1,2020 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "CameraFadeAnimation",
+      "type_index": "0x33ec1",
+      "size": 32,
+      "fieldlist": "0x33ec0",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mKeyframes",
+          "offset": 0,
+          "type": "std::vector<CameraFadeAnimation::Keyframe,std::allocator<CameraFadeAnimation::Keyframe> >",
+          "type_index": "0xd8e5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCurrentValue",
+          "offset": 24,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mElapsedTime",
+          "offset": 28,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "_addKeyframe",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33ebd",
+          "return_type": "void",
+          "class_type": "CameraFadeAnimation",
+          "this_type": "CameraFadeAnimation *",
+          "argument_types": [
+            "float",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "addFade",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33ebf",
+          "return_type": "void",
+          "class_type": "CameraFadeAnimation",
+          "this_type": "CameraFadeAnimation *",
+          "argument_types": [
+            "float",
+            "float",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraFadeAnimation::Keyframe",
+      "type_index": "0x1b110",
+      "size": 8,
+      "fieldlist": "0x1b10f",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mTime",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mValue",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstruction",
+      "type_index": "0x16e18",
+      "size": 336,
+      "fieldlist": "0x16e17",
+      "member_count": 17,
+      "fields": [
+        {
+          "name": "mAttachToEntity",
+          "offset": 0,
+          "type": "std::optional<CameraInstructionOptions::AttachToEntityInstruction>",
+          "type_index": "0xc5c9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFade",
+          "offset": 24,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction>",
+          "type_index": "0xc643",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFieldOfView",
+          "offset": 60,
+          "type": "std::optional<CameraInstructionOptions::FovInstruction>",
+          "type_index": "0xc65b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSet",
+          "offset": 80,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction>",
+          "type_index": "0xc71e",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSpline",
+          "offset": 176,
+          "type": "std::optional<CameraInstructionOptions::SplineInstruction>",
+          "type_index": "0xc72d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTarget",
+          "offset": 296,
+          "type": "std::optional<CameraInstructionOptions::TargetInstruction>",
+          "type_index": "0xc741",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClear",
+          "offset": 328,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDetachFromEntity",
+          "offset": 330,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRemoveTarget",
+          "offset": 332,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e15",
+          "return_type": "bool",
+          "class_type": "CameraInstruction",
+          "this_type": "const CameraInstruction *",
+          "argument_types": [
+            "const CameraInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e16",
+          "return_type": "void",
+          "class_type": "CameraInstruction",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraInstructionOptions::AttachToEntityInstruction",
+      "type_index": "0x15dac",
+      "size": 16,
+      "fieldlist": "0x15dab",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mAttachToEntityId",
+          "offset": 0,
+          "type": "long long",
+          "type_index": "0x13",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mActorLocator",
+          "offset": 8,
+          "type": "SharedTypes::Legacy::ActorLocation",
+          "type_index": "0x1078",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::FadeInstruction",
+      "type_index": "0x196d0",
+      "size": 32,
+      "fieldlist": "0x196cf",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mTime",
+          "offset": 0,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction::TimeOption>",
+          "type_index": "0xc74d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mColor",
+          "offset": 16,
+          "type": "std::optional<CameraInstructionOptions::FadeInstruction::ColorOption>",
+          "type_index": "0xc5f5",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::FadeInstruction::ColorOption",
+      "type_index": "0x1771e",
+      "size": 12,
+      "fieldlist": "0x1771d",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mRed",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGreen",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlue",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::FadeInstruction::TimeOption",
+      "type_index": "0x20f38",
+      "size": 12,
+      "fieldlist": "0x20f37",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mFadeInTime",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHoldTime",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFadeOutTime",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::FovInstruction",
+      "type_index": "0x19b0b",
+      "size": 16,
+      "fieldlist": "0x19b0a",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mFov",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFovClear",
+          "offset": 4,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFovEaseTime",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFovEaseType",
+          "offset": 12,
+          "type": "EasingType",
+          "type_index": "0x156f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::SetInstruction",
+      "type_index": "0x1fd30",
+      "size": 92,
+      "fieldlist": "0x1fd2f",
+      "member_count": 22,
+      "fields": [
+        {
+          "name": "mPresetIndex",
+          "offset": 0,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEase",
+          "offset": 4,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction::EaseOption>",
+          "type_index": "0xc62b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPos",
+          "offset": 16,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction::PosOption>",
+          "type_index": "0xc6d6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRot",
+          "offset": 32,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction::RotOption>",
+          "type_index": "0xc6eb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFacing",
+          "offset": 44,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction::FacingOption>",
+          "type_index": "0xc642",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mViewOffset",
+          "offset": 60,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction::ViewOffsetOption>",
+          "type_index": "0xc75b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntityOffset",
+          "offset": 72,
+          "type": "std::optional<CameraInstructionOptions::SetInstruction::EntityOffsetOption>",
+          "type_index": "0xc637",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDefault",
+          "offset": 88,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRemoveIgnoreStartingValuesComponent",
+          "offset": 90,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1fd2e",
+          "return_type": "bool",
+          "class_type": "CameraInstructionOptions::SetInstruction",
+          "this_type": "const CameraInstructionOptions::SetInstruction *",
+          "argument_types": [
+            "const CameraInstructionOptions::SetInstruction &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraInstructionOptions::SetInstruction::EaseOption",
+      "type_index": "0x18db7",
+      "size": 8,
+      "fieldlist": "0x18db6",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mEasingType",
+          "offset": 0,
+          "type": "EasingType",
+          "type_index": "0x156f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEasingTime",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraInstructionOptions::TargetInstruction",
+      "type_index": "0x20b38",
+      "size": 24,
+      "fieldlist": "0x20b37",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mTargetCenterOffset",
+          "offset": 0,
+          "type": "std::optional<Vec3>",
+          "type_index": "0xc8e9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTargetActorId",
+          "offset": 16,
+          "type": "long long",
+          "type_index": "0x13",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraPresets",
+      "type_index": "0x33f25",
+      "size": 48,
+      "fieldlist": "0x33f24",
+      "member_count": 14,
+      "fields": [
+        {
+          "name": "mPresets",
+          "offset": 0,
+          "type": "std::vector<SharedTypes::v1_26_50::CameraPreset,std::allocator<SharedTypes::v1_26_50::CameraPreset> >",
+          "type_index": "0xd7d8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLists",
+          "offset": 24,
+          "type": "std::vector<CameraPresets::CameraList,std::allocator<CameraPresets::CameraList> >",
+          "type_index": "0xd7d7",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f14",
+          "return_type": "CameraPresets &",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [
+            "const CameraPresets &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f17",
+          "return_type": "CameraPresets &",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [
+            "CameraPresets &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "CameraPresets",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f19",
+          "return_type": "void",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [
+            "const CameraPresets &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "CameraPresets",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f1a",
+          "return_type": "void",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_storeCameraList",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f1e",
+          "return_type": "void",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [
+            "CameraPresets::CameraList &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "loadPresets",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f20",
+          "return_type": "void",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [
+            "ResourcePackManager &",
+            "const Experiments &",
+            "Bedrock::NonOwnerPointer<LinkedAssetValidator>",
+            "IMinecraftEventing &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "~CameraPresets",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f21",
+          "return_type": "void",
+          "class_type": "CameraPresets",
+          "this_type": "CameraPresets *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f22",
+          "return_type": "void",
+          "class_type": "CameraPresets",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isAllowedEaseTarget",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f23",
+          "return_type": "bool",
+          "class_type": "CameraPresets",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isVanillaCamera",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f23",
+          "return_type": "bool",
+          "class_type": "CameraPresets",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraShakeAction",
+      "type_index": "0x122f",
+      "fieldlist": "0x122e",
+      "underlying": 32,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Add",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Stop",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "CameraShakeComponent",
+      "type_index": "0x33f5e",
+      "size": 112,
+      "fieldlist": "0x33f5d",
+      "member_count": 14,
+      "fields": [
+        {
+          "name": "xAxisNoise",
+          "offset": 0,
+          "type": "std::unique_ptr<SimplexNoise,std::default_delete<SimplexNoise> >",
+          "type_index": "0xd230",
+          "member_kind": "instance"
+        },
+        {
+          "name": "yAxisNoise",
+          "offset": 8,
+          "type": "std::unique_ptr<SimplexNoise,std::default_delete<SimplexNoise> >",
+          "type_index": "0xd230",
+          "member_kind": "instance"
+        },
+        {
+          "name": "zAxisNoise",
+          "offset": 16,
+          "type": "std::unique_ptr<SimplexNoise,std::default_delete<SimplexNoise> >",
+          "type_index": "0xd230",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLastUpdatedTime",
+          "offset": 24,
+          "type": "double",
+          "type_index": "0x41",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNoiseTime",
+          "offset": 32,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDecayRate",
+          "offset": 36,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShakeTypeQueues",
+          "offset": 40,
+          "type": "std::array<CameraShakeTypeQueue,2>",
+          "type_index": "0xb90b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mWasShaking",
+          "offset": 104,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getActiveShakeTypes",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f55",
+          "return_type": "std::vector<CameraShakeType,std::allocator<CameraShakeType> >",
+          "class_type": "CameraShakeComponent",
+          "this_type": "const CameraShakeComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getShakeVector",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f57",
+          "return_type": "Vec3",
+          "class_type": "CameraShakeComponent",
+          "this_type": "const CameraShakeComponent *",
+          "argument_types": [
+            "CameraShakeType",
+            "float",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "initialize",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f59",
+          "return_type": "void",
+          "class_type": "CameraShakeComponent",
+          "this_type": "CameraShakeComponent *",
+          "argument_types": [
+            "Random &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "queueShakeEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f5b",
+          "return_type": "bool",
+          "class_type": "CameraShakeComponent",
+          "this_type": "CameraShakeComponent *",
+          "argument_types": [
+            "CameraShakeType",
+            "float",
+            "float"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "~CameraShakeComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x33f5c",
+          "return_type": "void",
+          "class_type": "CameraShakeComponent",
+          "this_type": "CameraShakeComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "CameraShakeType",
+      "type_index": "0x1231",
+      "fieldlist": "0x1230",
+      "underlying": 32,
+      "member_count": 2,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Positional",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Rotational",
+          "value": 1,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "EasingType",
+      "type_index": "0x156f",
+      "fieldlist": "0x156e",
+      "underlying": 116,
+      "member_count": 34,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Linear",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Spring",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InQuad",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutQuad",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutQuad",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InCubic",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutCubic",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutCubic",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InQuart",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutQuart",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutQuart",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InQuint",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutQuint",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutQuint",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InSine",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutSine",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutSine",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InExpo",
+          "value": 17,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutExpo",
+          "value": 18,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutExpo",
+          "value": 19,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InCirc",
+          "value": 20,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutCirc",
+          "value": 21,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutCirc",
+          "value": 22,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InBounce",
+          "value": 23,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutBounce",
+          "value": 24,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutBounce",
+          "value": 25,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InBack",
+          "value": 26,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutBack",
+          "value": 27,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutBack",
+          "value": 28,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InElastic",
+          "value": 29,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "OutElastic",
+          "value": 30,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "InOutElastic",
+          "value": 31,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 32,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Invalid",
+          "value": 33,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ICameraAPI",
+      "type_index": "0x3b77c",
+      "size": 8,
+      "fieldlist": "0x3b77b",
+      "member_count": 23,
+      "fields": [],
+      "methods": [
+        {
+          "name": "~ICameraAPI",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 0,
+          "type_index": "0x3b768",
+          "return_type": "void",
+          "class_type": "ICameraAPI",
+          "this_type": "ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetActorRelativeLocation",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x3b76b",
+          "return_type": "std::optional<Vec3>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "const WeakRef<EntityContext>",
+            "SharedTypes::Legacy::ActorLocation"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetActorInterpolatedPosition",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x3b76d",
+          "return_type": "std::optional<Vec3>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "WeakRef<EntityContext>",
+            "float"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetActorRotation",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x3b76e",
+          "return_type": "std::optional<Vec2>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "const WeakRef<const EntityContext>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetActorPositionDelta",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x3b76f",
+          "return_type": "std::optional<Vec3>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "WeakRef<EntityContext>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetShakeParameters",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x3b770",
+          "return_type": "std::vector<ICameraAPI::ShakeParameters,std::allocator<ICameraAPI::ShakeParameters> >",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "WeakRef<EntityContext>",
+            "float",
+            "float",
+            "float"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "tryGetFOV",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x3b771",
+          "return_type": "std::optional<float>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCameraMovementVector",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x3b772",
+          "return_type": "ICameraAPI::CameraMovementData",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSecondsSinceProgramStart",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x3b773",
+          "return_type": "float",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDefaultCameraTarget",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x3b774",
+          "return_type": "WeakRef<EntityContext>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getWeakEntity",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x3b775",
+          "return_type": "WeakRef<EntityContext>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "long long"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getRegistryWeakEntity_DONOTUSE",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x3b776",
+          "return_type": "WeakRef<EntityRegistry>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getFrameAlpha",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x3b773",
+          "return_type": "float",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getViewportSize",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x3b777",
+          "return_type": "glm::vec<2,float,0>",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "clip",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x3b778",
+          "return_type": "std::optional<Vec3>",
+          "class_type": "ICameraAPI",
+          "this_type": "ICameraAPI *",
+          "argument_types": [
+            "const glm::vec<3,float,0> &",
+            "const glm::vec<3,float,0> &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "isInWall",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 120,
+          "type_index": "0x3b779",
+          "return_type": "bool",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "const Vec3 &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isAlive",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 128,
+          "type_index": "0x3b77a",
+          "return_type": "bool",
+          "class_type": "ICameraAPI",
+          "this_type": "const ICameraAPI *",
+          "argument_types": [
+            "const WeakRef<EntityContext>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "MinecraftCamera::CameraAttachComponent",
+      "type_index": "0x16d98",
+      "size": 72,
+      "fieldlist": "0x16d97",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mAttachTo",
+          "offset": 0,
+          "type": "WeakRef<EntityContext>",
+          "type_index": "0x7bd4",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLocator",
+          "offset": 24,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraAttachToEntityComponent",
+      "type_index": "0x16d9d",
+      "size": 24,
+      "fieldlist": "0x16d9c",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mValidActor",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mActorId",
+          "offset": 8,
+          "type": "long long",
+          "type_index": "0x13",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mActorLocation",
+          "offset": 16,
+          "type": "SharedTypes::Legacy::ActorLocation",
+          "type_index": "0x1078",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraBlendStateComponent",
+      "type_index": "0x16db8",
+      "size": 128,
+      "fieldlist": "0x16db7",
+      "member_count": 13,
+      "fields": [
+        {
+          "name": "mLastEaseState",
+          "offset": 0,
+          "type": "std::optional<MinecraftCamera::CameraBlendStateComponent::EaseState>",
+          "type_index": "0xc62c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mActiveCamera",
+          "offset": 40,
+          "type": "WeakRef<EntityId>",
+          "type_index": "0x7bd5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPercentage",
+          "offset": 64,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEaseFunction",
+          "offset": 72,
+          "type": "type_0x16db5_kind_0x1008 *",
+          "type_index": "0x16db6",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlendTime",
+          "offset": 80,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlendStartFieldOfView",
+          "offset": 84,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlendStartPosition",
+          "offset": 88,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlendStartEulerAngles",
+          "offset": 100,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSnapShotEaseValues",
+          "offset": 112,
+          "type": "MinecraftCamera::CameraBlendStateComponent::SnapShotEaseValues",
+          "type_index": "0x668c",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraCustomFovEaseComponent",
+      "type_index": "0x16dda",
+      "size": 24,
+      "fieldlist": "0x16dd9",
+      "member_count": 5,
+      "fields": [
+        {
+          "name": "mClearCustomFov",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPreviousCustomFov",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPercentage",
+          "offset": 8,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlendTime",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEaseFunction",
+          "offset": 16,
+          "type": "type_0x16db5_kind_0x1008 *",
+          "type_index": "0x16db6",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraFadeEffectComponent",
+      "type_index": "0x16dfb",
+      "size": 56,
+      "fieldlist": "0x16dfa",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mColor",
+          "offset": 0,
+          "type": "mce::Color",
+          "type_index": "0xe4c3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFadeAnimation",
+          "offset": 16,
+          "type": "CameraFadeAnimation",
+          "type_index": "0xe2f3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayerWasSleeping",
+          "offset": 48,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraIgnoreInstructionValuesComponent",
+      "type_index": "0x16e0d",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraIgnoreStartingValuesComponent",
+      "type_index": "0x16e0e",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraInstructionComponent",
+      "type_index": "0x16e1a",
+      "size": 28,
+      "fieldlist": "0x16e19",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mPos",
+          "offset": 0,
+          "type": "std::optional<Vec3>",
+          "type_index": "0xc8e9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRot",
+          "offset": 16,
+          "type": "std::optional<Vec2>",
+          "type_index": "0xc8e8",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraOffsetComponent",
+      "type_index": "0x16e53",
+      "size": 76,
+      "fieldlist": "0x16e52",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mEntityOffset",
+          "offset": 0,
+          "type": "glm::vec<3,float,0>",
+          "type_index": "0x47d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mViewOffset",
+          "offset": 12,
+          "type": "glm::vec<2,float,0>",
+          "type_index": "0x47cf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCalculatedOffset",
+          "offset": 20,
+          "type": "glm::vec<3,float,0>",
+          "type_index": "0x47d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPivot",
+          "offset": 32,
+          "type": "glm::vec<3,float,0>",
+          "type_index": "0x47d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCaclulatedViewOffset",
+          "offset": 44,
+          "type": "glm::vec<3,float,0>",
+          "type_index": "0x47d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOriginalEntityOffset",
+          "offset": 56,
+          "type": "glm::vec<3,float,0>",
+          "type_index": "0x47d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOriginalViewOffset",
+          "offset": 68,
+          "type": "glm::vec<2,float,0>",
+          "type_index": "0x47cf",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::CameraThirdPersonBoomComponent",
+      "type_index": "0x16ee3",
+      "size": 16,
+      "fieldlist": "0x16ee2",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mStartingRadius",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStartingOrientation",
+          "offset": 4,
+          "type": "glm::vec<2,float,0>",
+          "type_index": "0x47cf",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRotSpace",
+          "offset": 12,
+          "type": "SharedTypes::v1_21_100::RotationSpace",
+          "type_index": "0x1ef4",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MinecraftCamera::StationaryCameraComponent",
+      "type_index": "0x4af03",
+      "size": 20,
+      "fieldlist": "0x4af02",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mPos",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRot",
+          "offset": 12,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::Legacy::ActorLocation",
+      "type_index": "0x1078",
+      "fieldlist": "0x1077",
+      "underlying": 116,
+      "member_count": 10,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Feet",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Body",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WeaponAttachPoint",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Head",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DropAttachPoint",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ExplosionPoint",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Eyes",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BreathingPoint",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Mouth",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 9,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::v1_21_90::CameraPreset",
+      "type_index": "0x16e81",
+      "size": 288,
+      "fieldlist": "0x16e80",
+      "member_count": 29,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "SharedTypes::Identifier<7>",
+          "type_index": "0x287a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInheritFrom",
+          "offset": 32,
+          "type": "SharedTypes::Reference<7>",
+          "type_index": "0x28b9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosX",
+          "offset": 64,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosY",
+          "offset": 72,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosZ",
+          "offset": 80,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRotX",
+          "offset": 88,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRotY",
+          "offset": 96,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraRotationSpeed",
+          "offset": 104,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSnapToTarget",
+          "offset": 112,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHorizontalRotationLimit",
+          "offset": 116,
+          "type": "std::optional<Vec2>",
+          "type_index": "0xc8e8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVerticalRotationLimit",
+          "offset": 128,
+          "type": "std::optional<Vec2>",
+          "type_index": "0xc8e8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mContinueTargeting",
+          "offset": 140,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTrackingRadius",
+          "offset": 144,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mViewOffset",
+          "offset": 152,
+          "type": "std::optional<Vec2>",
+          "type_index": "0xc8e8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEntityOffset",
+          "offset": 164,
+          "type": "std::optional<Vec3>",
+          "type_index": "0xc8e9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRadius",
+          "offset": 180,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mYawLimitMin",
+          "offset": 188,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mYawLimitMax",
+          "offset": 196,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mListener",
+          "offset": 204,
+          "type": "std::optional<SharedTypes::v1_21_90::CameraPreset::AudioListener>",
+          "type_index": "0xc8fc",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayerEffects",
+          "offset": 206,
+          "type": "std::optional<bool>",
+          "type_index": "0xc987",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAimAssist",
+          "offset": 208,
+          "type": "std::optional<SharedTypes::v1_21_50::CameraAimAssistCommandPresetDefinition>",
+          "type_index": "0xc5eb",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mControlScheme",
+          "offset": 280,
+          "type": "std::optional<ControlScheme::Scheme>",
+          "type_index": "0xc963",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "CameraPreset",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e72",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_21_90::CameraPreset",
+          "this_type": "SharedTypes::v1_21_90::CameraPreset *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "CameraPreset",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e76",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_21_90::CameraPreset",
+          "this_type": "SharedTypes::v1_21_90::CameraPreset *",
+          "argument_types": [
+            "const SharedTypes::v1_21_90::CameraPreset &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e7b",
+          "return_type": "SharedTypes::v1_21_90::CameraPreset &",
+          "class_type": "SharedTypes::v1_21_90::CameraPreset",
+          "this_type": "SharedTypes::v1_21_90::CameraPreset *",
+          "argument_types": [
+            "SharedTypes::v1_21_90::CameraPreset &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e7c",
+          "return_type": "SharedTypes::v1_21_90::CameraPreset &",
+          "class_type": "SharedTypes::v1_21_90::CameraPreset",
+          "this_type": "SharedTypes::v1_21_90::CameraPreset *",
+          "argument_types": [
+            "const SharedTypes::v1_21_90::CameraPreset &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~CameraPreset",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e7e",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_21_90::CameraPreset",
+          "this_type": "SharedTypes::v1_21_90::CameraPreset *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x16e7f",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_21_90::CameraPreset",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "SharedTypes::v1_26_50::CameraPreset",
+      "type_index": "0x16e83",
+      "size": 304,
+      "fieldlist": "0x16e82",
+      "member_count": 3,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "SharedTypes::v1_21_90::CameraPreset",
+          "member_kind": "base"
+        },
+        {
+          "name": "mApplyInheritedStartingRotation",
+          "offset": 288,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStartingRot",
+          "offset": 292,
+          "type": "std::optional<Vec2>",
+          "type_index": "0xc8e8",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 905516,
+      "name": "?_applyPresetValues@CameraRegistry@@SAX_KAEAV?$OwnerPtr@VEntityId@@@@AEBUCameraPreset@v1_26_50@SharedTypes@@AEBVExperiments@@@Z",
+      "section": 1,
+      "section_offset": "0x9edd30",
+      "rva": "0x9eed30"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2317968,
+      "name": "?getActiveShakeTypes@CameraShakeComponent@@QEBA?AV?$vector@W4CameraShakeType@@V?$allocator@W4CameraShakeType@@@std@@@std@@XZ",
+      "section": 1,
+      "section_offset": "0x2415180",
+      "rva": "0x2416180"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2683852,
+      "name": "?getShakeVector@CameraShakeComponent@@QEBA?AVVec3@@W4CameraShakeType@@MMM@Z",
+      "section": 1,
+      "section_offset": "0x2414e20",
+      "rva": "0x2415e20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2762352,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraInstructionPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x131a260",
+      "rva": "0x131b260"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2762552,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraPresetsPacket@@@Z",
+      "section": 1,
+      "section_offset": "0x131ac60",
+      "rva": "0x131bc60"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2762652,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraShakePacket@@@Z",
+      "section": 1,
+      "section_offset": "0x131b3a0",
+      "rva": "0x131c3a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2762752,
+      "name": "?handle@ClientNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCameraSplinePacket@@@Z",
+      "section": 1,
+      "section_offset": "0x131b750",
+      "rva": "0x131c750"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3330200,
+      "name": "?queueShakeEvent@CameraShakeComponent@@QEAA_NW4CameraShakeType@@MM@Z",
+      "section": 1,
+      "section_offset": "0x2415080",
+      "rva": "0x2416080"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3712832,
+      "name": "?setupPresets@CameraRegistry@@QEAAXAEAVEntityRegistry@@AEBVCameraPresets@@AEBVExperiments@@@Z",
+      "section": 1,
+      "section_offset": "0x9f18e0",
+      "rva": "0x9f28e0"
+    }
+  ]
+}

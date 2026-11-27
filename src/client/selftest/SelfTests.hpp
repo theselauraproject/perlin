@@ -8,7 +8,15 @@ namespace perlin::selftest {
     int AudioPackets();
     int InputReporting();
     int MovementProtocol();
+    int MovementEffects();
+    int AttributeReplay();
+    int StatusEffectReplay();
+    int RangedItem();
+    int ItemUsePackets();
+    int CreativeInventory();
+    int CameraEffectsPackets();
     int SessionCodecContext();
+    int ChunkPipeline();
     int RecipePackets();
     int TitleController();
     int PackManagerTest();

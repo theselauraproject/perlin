@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "retrieved_utc_date": "2026-11-27",
+  "repository": "https://github.com/Mojang/bedrock-samples",
+  "revisions": [
+    {
+      "tag": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d"
+    },
+    {
+      "tag": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3"
+    }
+  ],
+  "license": {
+    "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/LICENSE.md",
+    "sha256": "ca18c0dede68ce24ea1cd6f9df0813579b6f9f979787983a50baec99345f975d",
+    "notice_summary": "Mojang AB reserves all rights and states that repository files are subject to the Minecraft End User License Agreement. This is not recorded here as a permissive software license.",
+    "eula_url": "https://www.minecraft.net/en-us/eula"
+  },
+  "files": [
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "ui/inventory_screen.json",
+      "sha256": "10e72254bac2a95801b61cb229ad43ab793ec585a52aee7e27791e79ab6d9f80",
+      "bytes": 84539,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/ui/inventory_screen.json"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "ui/inventory_screen_pocket.json",
+      "sha256": "2652ac6ea429606650f0e6cbc959e9fdc0bb9d1d7b004faf4d88a1431e585d3d",
+      "bytes": 47497,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/ui/inventory_screen_pocket.json"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "ui/ui_common.json",
+      "sha256": "0aae480d123b2c8667463776f8b0eabad665bc0378b287acd0babcf41d8083a6",
+      "bytes": 243941,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/ui/ui_common.json"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "ui/_global_variables.json",
+      "sha256": "ea39206de2c7b6f157def5cdf1662767c0ccd9560dfafb1378c3c364b236f69b",
+      "bytes": 20210,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/ui/_global_variables.json"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/icon_recipe_construction.png",
+      "sha256": "621c27048e015fa79ff04936cbc8b02d0c71fdeb3a8ed0d50b33d791b5bb5796",
+      "bytes": 386,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/icon_recipe_construction.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/icon_recipe_equipment.png",
+      "sha256": "da02526305b5f254e47da59b015f91e82278b3cdb4c0f500f78d7a7252ff6550",
+      "bytes": 459,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/icon_recipe_equipment.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/icon_recipe_item.png",
+      "sha256": "482f9199200fabcd51d8afbadfee4d039f051626164bf9d5f72fed6caac58bce",
+      "bytes": 510,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/icon_recipe_item.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/icon_recipe_nature.png",
+      "sha256": "0f334a123b498ecec76b4512c4fcf269ee3e79169e79a338db43b5f6a9f6fca9",
+      "bytes": 566,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/icon_recipe_nature.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/magnifyingGlass.png",
+      "sha256": "f7981e0ddec7fa63165ce4ecc7530800be9083232325fc580688cc10e6e29e49",
+      "bytes": 328,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/magnifyingGlass.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/icon_crafting.png",
+      "sha256": "353aa171730d550c9050046f26cfdbc1600ed5667700616e1b1ae86f7347d436",
+      "bytes": 238,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/icon_crafting.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/icon_armor.png",
+      "sha256": "49f05c05a7a6b93d70bfb1901af240c881298ee42f601abeacbcd75db9d54045",
+      "bytes": 345,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/icon_armor.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/inventory_icon.png",
+      "sha256": "57e0a1a340ad5ebb74b82c001c1a22131b08d0ba70913d18899ab13934b82d3c",
+      "bytes": 376,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/inventory_icon.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/creative_icon.png",
+      "sha256": "878ee16ad7cff76c628848a1b8585de9d02d774fc3422b89093721561b776660",
+      "bytes": 287,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/creative_icon.png"
+    },
+    {
+      "release": "v1.26.60.5",
+      "commit": "15701fa9c13923f12662984c32c124327e40e3d3",
+      "path": "textures/ui/recipe_book_icon.png",
+      "sha256": "603c7c9006080f8d9911853239c2ab50337802cad2ec9b19202e305798f103bc",
+      "bytes": 576,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/15701fa9c13923f12662984c32c124327e40e3d3/resource_pack/textures/ui/recipe_book_icon.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "ui/inventory_screen.json",
+      "sha256": "10e72254bac2a95801b61cb229ad43ab793ec585a52aee7e27791e79ab6d9f80",
+      "bytes": 84539,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/ui/inventory_screen.json"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "ui/inventory_screen_pocket.json",
+      "sha256": "2652ac6ea429606650f0e6cbc959e9fdc0bb9d1d7b004faf4d88a1431e585d3d",
+      "bytes": 47497,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/ui/inventory_screen_pocket.json"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "ui/ui_common.json",
+      "sha256": "8c17795cca5b8c56d72976c7176f7c3586b144b55474eb87b146e161d19f817f",
+      "bytes": 243795,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/ui/ui_common.json"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "ui/_global_variables.json",
+      "sha256": "ea39206de2c7b6f157def5cdf1662767c0ccd9560dfafb1378c3c364b236f69b",
+      "bytes": 20210,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/ui/_global_variables.json"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/icon_recipe_construction.png",
+      "sha256": "621c27048e015fa79ff04936cbc8b02d0c71fdeb3a8ed0d50b33d791b5bb5796",
+      "bytes": 386,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/icon_recipe_construction.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/icon_recipe_equipment.png",
+      "sha256": "da02526305b5f254e47da59b015f91e82278b3cdb4c0f500f78d7a7252ff6550",
+      "bytes": 459,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/icon_recipe_equipment.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/icon_recipe_item.png",
+      "sha256": "482f9199200fabcd51d8afbadfee4d039f051626164bf9d5f72fed6caac58bce",
+      "bytes": 510,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/icon_recipe_item.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/icon_recipe_nature.png",
+      "sha256": "0f334a123b498ecec76b4512c4fcf269ee3e79169e79a338db43b5f6a9f6fca9",
+      "bytes": 566,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/icon_recipe_nature.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/magnifyingGlass.png",
+      "sha256": "f7981e0ddec7fa63165ce4ecc7530800be9083232325fc580688cc10e6e29e49",
+      "bytes": 328,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/magnifyingGlass.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/icon_crafting.png",
+      "sha256": "353aa171730d550c9050046f26cfdbc1600ed5667700616e1b1ae86f7347d436",
+      "bytes": 238,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/icon_crafting.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/icon_armor.png",
+      "sha256": "49f05c05a7a6b93d70bfb1901af240c881298ee42f601abeacbcd75db9d54045",
+      "bytes": 345,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/icon_armor.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/inventory_icon.png",
+      "sha256": "57e0a1a340ad5ebb74b82c001c1a22131b08d0ba70913d18899ab13934b82d3c",
+      "bytes": 376,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/inventory_icon.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/creative_icon.png",
+      "sha256": "878ee16ad7cff76c628848a1b8585de9d02d774fc3422b89093721561b776660",
+      "bytes": 287,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/creative_icon.png"
+    },
+    {
+      "release": "v1.26.50.4",
+      "commit": "46ba6ea985fb5a92d79a9419198f10dda14c199d",
+      "path": "textures/ui/recipe_book_icon.png",
+      "sha256": "603c7c9006080f8d9911853239c2ab50337802cad2ec9b19202e305798f103bc",
+      "bytes": 576,
+      "url": "https://raw.githubusercontent.com/Mojang/bedrock-samples/46ba6ea985fb5a92d79a9419198f10dda14c199d/resource_pack/textures/ui/recipe_book_icon.png"
+    }
+  ],
+  "redistribution": "This evidence manifest contains source locations and hashes, not the original UI artwork or UI JSON files."
+}

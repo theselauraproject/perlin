@@ -1,0 +1,19 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "MobEquipmentPacketPayload",
+    "PlayerHotbarPacketPayload",
+    "PlayerInventory",
+    "UserEntityIdentifierComponent",
+    "NetworkIdentifier",
+    "IClientInstance",
+    "AbstractScene"
+  ],
+  "symbol_rvas": [
+    "0x1340d60",
+    "0x474ee0",
+    "0xd95c80",
+    "0x1f4860",
+    "0x13452e0"
+  ]
+}

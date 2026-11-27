@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only disassembly and matching PDB metadata. The executable was not run."
+  },
+  "facts": [
+    {
+      "topic": "effect IDs",
+      "contract": "MobEffectIds assigns Jump=8, Levitation=24, SlowFalling=27. SlowFalling initialization uses ID27 and the slow_falling name.",
+      "anchors": [
+        "PDB MobEffectIds",
+        "MobEffect::mMobEffects RVA0x11DBF400",
+        "SlowFalling initializer ID0x1b at RVA0x2FE019E",
+        "registration call RVA0x2FE01A6"
+      ]
+    },
+    {
+      "topic": "default gravity selection",
+      "contract": "MobMovementGravity::tickDefaultGravity returns without adding gravity when HasGravity bit49 is clear, or when DescendThroughBlock bit71 and either InScaffolding bit69 or OverScaffolding bit70 are set. Otherwise it selects slow gravity only when StateVector.mPosDelta.y is strictly negative and the SlowFalling vector entry is present. Positive velocity and either sign of zero select normal gravity.",
+      "anchors": [
+        "function RVA0x2DE3560",
+        "scaffolding guard RVA0x2DE3566",
+        "HasGravity guard RVA0x2DE357E",
+        "strict negative comparison RVA0x2DE3599",
+        "effect ID lookup RVA0x2DE35A0",
+        "presence comparison RVA0x2DE35D8"
+      ]
+    },
+    {
+      "topic": "gravity values and fall distance",
+      "contract": "The selected ApplyGravityComponent is -0.01f with mResetFallDistance=true for falling with SlowFalling, otherwise -0.08f with false. The ordinary application callback adds component gravity to vertical velocity and sets FallDistanceComponent.mValue to zero when its flag is true. No amplifier is read by this gravity-selection helper.",
+      "anchors": [
+        "slow constant RVA0xE7D5AB8",
+        "normal constant RVA0xE7E14FC",
+        "component stores RVA0x2DE368A/RVA0x2DE368E",
+        "application callback RVA0x2E0D280",
+        "reset store RVA0x2E0D296"
+      ]
+    },
+    {
+      "topic": "ordinary system registration order",
+      "contract": "The ordinary AI-step registration registers JumpFromGround, TriggerJump and ApplyJumpModifier before travel, move requests and the actor-move registration. It then registers automatic climbing, liquid drag, levitation, gravity and normal drag in that order. Gravity selection is not registered before jumping.",
+      "anchors": [
+        "registerActorAiStepSystems RVA0x6822800",
+        "JumpFromGround label RVA0x6823EBF",
+        "TriggerJump label RVA0x6825D06",
+        "ApplyJumpModifier label RVA0x6825D9E and registration call RVA0x6825DD5",
+        "DefaultMoveSystems call RVA0x6826493",
+        "actor-move registration RVA0x682655B",
+        "auto-climb RVA0x682657F",
+        "liquid drag RVA0x682658B",
+        "levitation RVA0x6826597",
+        "gravity RVA0x68265A3",
+        "normal drag RVA0x68265AF"
+      ]
+    },
+    {
+      "topic": "ordinary scheduler iteration",
+      "contract": "The jump registration and post-travel callback use the same registration adapter and normal-tick mode. The default collection appends each system index to its category vector. Normal ticking iterates that vector from begin to end and invokes each system before advancing. This closes the ordinary registration-order interpretation for this collection; it is not a complete model of replay or every alternate scheduler.",
+      "anchors": [
+        "adapter RVA0x66567E0 -> RVA0x6662E90",
+        "post-travel callback vtable RVA0xE9A36D0 slot16 -> RVA0x685CEB0",
+        "callback mode1/call RVA0x685D01D/RVA0x685D022",
+        "DefaultEntitySystemsCollection factory RVA0x25C25A0, vtable RVA0xE8285E0",
+        "collection registration vslot8 RVA0x25C5DD0",
+        "category append RVA0x25C66BF and end increment RVA0x25C66C1",
+        "collection iteration vslot32 RVA0x25C6CF0 -> RVA0x25C82D0",
+        "system index load RVA0x25C83DD",
+        "per-system invocation RVA0x25C8469",
+        "next index RVA0x25C83D0"
+      ]
+    },
+    {
+      "topic": "levitation callback",
+      "contract": "The matched per-entity levitation helper reads effect24, multiplies vertical velocity by 0.8f, then adds float(amplifier+1)*0.01f and adds LevitateTravelFlagComponent. It is registered after ordinary travel/move. Its view metadata lists MobTravel, MobEffects and StateVector and a separate PlayerFlyingTravel component filter. Full coexistence with every travel mode is not claimed here.",
+      "anchors": [
+        "helper RVA0x2DE57E0",
+        "multiply RVA0x2DE5837",
+        "level increment RVA0x2DE5848",
+        "addition RVA0x2DE5856",
+        "flag add RVA0x2DE5869",
+        "view builder RVA0x2E0E6C0",
+        "detailed metadata RVA0x2E0F140"
+      ]
+    },
+    {
+      "topic": "player water gravity callback",
+      "contract": "The matched player-water gravity callback omits gravity when ActorDataFlag Swimming bit57 is set; otherwise writes -0.005f to ApplyGravityComponent. This callback does not read SlowFalling or its amplifier.",
+      "anchors": [
+        "callback RVA0x2E08780",
+        "Swimming test RVA0x2E08785",
+        "gravity store RVA0x2E08816"
+      ]
+    }
+  ],
+  "comparison": {
+    "ordinary_slow_falling_sign_and_values": "The existing Perlin helper already uses the matched strict-negative condition and constants in isolation. This investigation does not establish a changed gravity coefficient or pre-jump selection rule.",
+    "incident_log": "The incident log records MobEffect packet counts and a disconnect message but not decoded effect IDs, amplifiers, effect durations, packet tick fields, or a full jumping trajectory. It cannot establish the specific server detection rule or prove the causal defect."
+  },
+  "limitations": [
+    "The symbol-backed and scheduling proof is specific to the supplied 1.26.51.1/protocol2193 executable. The incident destination used protocol2225; complete equivalence with 1.26.65.1 is not asserted.",
+    "This is a static contract, not an executed native full-tick trajectory or an acceptance test against a server.",
+    "All travel-tag membership, collision/fall-distance details, full replay scheduling, and complete gliding/liquid precedence are not reconstructed by this artifact.",
+    "Effect packet timing, merge and expiry behavior are a separate investigation.",
+    "No claim is made about avoiding bans or satisfying a particular anti-cheat."
+  ]
+}

@@ -1,0 +1,568 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "ActorHeadRotationComponent",
+      "type_index": "0x156ab",
+      "size": 8,
+      "fieldlist": "0x156aa",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mYHeadRot",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mYHeadRotO",
+          "offset": 4,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ActorRotationComponent",
+      "type_index": "0x1575b",
+      "size": 16,
+      "fieldlist": "0x1575a",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mRot",
+          "offset": 0,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRotPrev",
+          "offset": 8,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ControlScheme::Scheme",
+      "type_index": "0x1f55",
+      "fieldlist": "0x1f54",
+      "underlying": 32,
+      "member_count": 5,
+      "enum": true,
+      "fields": [
+        {
+          "name": "LockedPlayerRelativeStrafe",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CameraRelative",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "CameraRelativeStrafe",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PlayerRelative",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "PlayerRelativeStrafe",
+          "value": 4,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "ControlSchemeComponent",
+      "type_index": "0x17ed5",
+      "size": 1,
+      "fieldlist": "0x17514",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mControlScheme",
+          "offset": 0,
+          "type": "ControlScheme::Scheme",
+          "type_index": "0x1f55",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "InputMode",
+      "type_index": "0x1879",
+      "fieldlist": "0x1878",
+      "underlying": 117,
+      "member_count": 6,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Undefined",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Mouse",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Touch",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "GamePad",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MotionControllerDeprecated",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 5,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MoveInputComponent",
+      "type_index": "0x1be8a",
+      "size": 100,
+      "fieldlist": "0x1be89",
+      "member_count": 12,
+      "fields": [
+        {
+          "name": "mInputState",
+          "offset": 0,
+          "type": "MoveInputState",
+          "type_index": "0x5b2b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRawInputState",
+          "offset": 16,
+          "type": "MoveInputState",
+          "type_index": "0x5b2b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHoldAutoJumpInWaterTicks",
+          "offset": 32,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMove",
+          "offset": 36,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookDelta",
+          "offset": 44,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInteractDir",
+          "offset": 52,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDisplacement",
+          "offset": 60,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDisplacementDelta",
+          "offset": 72,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraOrientation",
+          "offset": 84,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlagValues",
+          "offset": 96,
+          "type": "brstd::bitset<11,unsigned short>",
+          "type_index": "0xb9ae",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsPaddling",
+          "offset": 98,
+          "type": "std::array<bool,2>",
+          "type_index": "0xb937",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MoveInputState",
+      "type_index": "0x1be8c",
+      "size": 16,
+      "fieldlist": "0x1be8b",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mFlagValues",
+          "offset": 0,
+          "type": "brstd::bitset<27,unsigned int>",
+          "type_index": "0xb9a2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAnalogMoveVector",
+          "offset": 4,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookSlightDirField",
+          "offset": 12,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookNormalDirField",
+          "offset": 13,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookSmoothDirField",
+          "offset": 14,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "OptionID",
+      "type_index": "0x1bc5",
+      "fieldlist": "0x1004",
+      "underlying": 116,
+      "member_count": 0,
+      "enum": true,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "PlayerAuthInputPacketPayload",
+      "type_index": "0x1d119",
+      "size": 176,
+      "fieldlist": "0x1d118",
+      "member_count": 28,
+      "fields": [
+        {
+          "name": "mRot",
+          "offset": 0,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPos",
+          "offset": 8,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mYHeadRot",
+          "offset": 20,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosDelta",
+          "offset": 24,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mVehicleRot",
+          "offset": 36,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAnalogMoveVector",
+          "offset": 44,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMove",
+          "offset": 52,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInteractRotation",
+          "offset": 60,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraOrientation",
+          "offset": 68,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRawMoveVector",
+          "offset": 80,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInputData",
+          "offset": 88,
+          "type": "Bedrock::EnumSet<PlayerAuthInputPacketPayload::InputData,66>",
+          "type_index": "0x708f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInputMode",
+          "offset": 104,
+          "type": "InputMode",
+          "type_index": "0x1879",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayMode",
+          "offset": 108,
+          "type": "ClientPlayMode",
+          "type_index": "0x12ce",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNewInteractionModel",
+          "offset": 112,
+          "type": "NewInteractionModel",
+          "type_index": "0x1b57",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClientTick",
+          "offset": 120,
+          "type": "PlayerInputTick",
+          "type_index": "0x5ea9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemUseTransaction",
+          "offset": 128,
+          "type": "std::unique_ptr<PackedItemUseLegacyInventoryTransaction,std::default_delete<PackedItemUseLegacyInventoryTransaction> >",
+          "type_index": "0xce92",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mItemStackRequest",
+          "offset": 136,
+          "type": "std::unique_ptr<ItemStackRequestData,std::default_delete<ItemStackRequestData> >",
+          "type_index": "0xd0d9",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPlayerBlockActions",
+          "offset": 144,
+          "type": "PlayerBlockActions",
+          "type_index": "0xf7f8",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mClientPredictedVehicle",
+          "offset": 168,
+          "type": "ActorUniqueID",
+          "type_index": "0x48fa",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d10b",
+          "return_type": "PlayerAuthInputPacketPayload &",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "PlayerAuthInputPacketPayload *",
+          "argument_types": [
+            "const PlayerAuthInputPacketPayload &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d10e",
+          "return_type": "PlayerAuthInputPacketPayload &",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "PlayerAuthInputPacketPayload *",
+          "argument_types": [
+            "PlayerAuthInputPacketPayload &&"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "PlayerAuthInputPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d110",
+          "return_type": "void",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "PlayerAuthInputPacketPayload *",
+          "argument_types": [
+            "const PlayerAuthInputPacketPayload &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "PlayerAuthInputPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d111",
+          "return_type": "void",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "PlayerAuthInputPacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "readIntoComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d114",
+          "return_type": "PlayerActionComponent",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "const PlayerAuthInputPacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setFromComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d116",
+          "return_type": "void",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "PlayerAuthInputPacketPayload *",
+          "argument_types": [
+            "PlayerActionComponent &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "~PlayerAuthInputPacketPayload",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1d117",
+          "return_type": "void",
+          "class_type": "PlayerAuthInputPacketPayload",
+          "this_type": "PlayerAuthInputPacketPayload *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 905832,
+      "name": "?_applyTurnDelta@LocalPlayer@@QEAAXAEBVVec2@@@Z",
+      "section": 1,
+      "section_offset": "0x47607c0",
+      "rva": "0x47617c0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 1819900,
+      "name": "?calculateMoveVector@PlayerMovement@@YA?AVVec2@@AEBUMoveInputState@@_NAEBUActorDataFlagComponent@@1PEBUSneakingComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x4485e0",
+      "rva": "0x4495e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3551520,
+      "name": "?sendInput@LocalPlayer@@QEAAXXZ",
+      "section": 1,
+      "section_offset": "0x47686a0",
+      "rva": "0x47696a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3884848,
+      "name": "?tickUpdateClientInputView@ClientInputUpdateSystemInternal@@SAXAEBVStrictEntityContext@@AEBUAABBShapeComponent@@AEBUMovementAbilitiesComponent@@AEBUActorRotationComponent@@AEBUMovementAttributesComponent@@AEBUStateVectorComponent@@AEBUSubBBsComponent@@AEAUClientInputLockComponent@@AEAUMoveInputComponent@@AEAURawMoveInputComponent@@AEAUActorDataFlagComponent@@V?$Optional@$$CBUImmuneToLavaDragComponent@@@@V?$Optional@$$CBUPassengerComponent@@@@V?$Optional@$$CBUSneakingComponent@@@@V?$Optional@$$CBUWasInWaterFlagComponent@@@@AEAV?$StrictExecutionContext@U?$Filter@UCanStandOnPowderSnowComponent@@UCanStandOnPowderSnowFromEquipmentComponent@@UHorseFlagComponent@@UMobFlagComponent@@UParrotFlagComponent@@UVehicleComponent@@UCamelFlagComponent@@UPlayerComponent@@ULocalPlayerComponent@@UPlayerInputRequestComponent@@@@U?$Read@UAABBShapeComponent@@UMovementAbilitiesComponent@@UActorTypeComponent@@UFallDistanceComponent@@UPassengerComponent@@UActorGameTypeComponent@@UActorDataFlagComponent@@UVehicleComponent@@UActorRotationComponent@@UMobBodyRotationComponent@@URenderRotationComponent@@UStandAnimationComponent@@UOffsetsComponent@@UVanillaOffsetComponent@@UPassengerRenderingRidingOffsetComponent@@UMovementAttributesComponent@@UDimensionTypeComponent@@UImmuneToLavaDragComponent@@UMobEffectsComponent@@USneakingComponent@@UStateVectorComponent@@USubBBsComponent@@UWasInWaterFlagComponent@@@@U?$Write@VActorOwnerComponent@@UClientInputLockComponent@@UMoveInputComponent@@URawMoveInputComponent@@UActorDataFlagComponent@@UActorDataDirtyFlagsComponent@@UVanillaClientGameplayComponent@@@@U?$AddRemove@$$V@@U?$GlobalRead@UExternalDataComponent@@ULocalConstBlockSourceFactoryComponent@@@@U?$GlobalWrite@$$V@@U?$EntityFactoryT@$$V@@@@V?$OptionalGlobal@$$CBUExternalDataComponent@@@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x66973a0",
+      "rva": "0x66983a0"
+    }
+  ]
+}

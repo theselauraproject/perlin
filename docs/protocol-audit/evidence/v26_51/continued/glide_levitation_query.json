@@ -1,0 +1,13 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "TravelTypeSensingSystem",
+    "GroundTravelTypeSystem",
+    "MobTravelComponent",
+    "GlidingTravelFlagComponent",
+    "LevitateTravelFlagComponent",
+    "PlayerFlyingTravelComponent"
+  ],
+  "class_regex": "^ViewT<.*(MobTravel|GlidingTravel|LevitateTravel).*",
+  "symbol_regex": "(TravelTypeSensingSystem|GlidingTravel|LevitateTravel|tick.*Glid|MobTravelComponent)"
+}

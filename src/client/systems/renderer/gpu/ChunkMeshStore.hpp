@@ -142,6 +142,25 @@ namespace perlin::gpu {
         uint64_t IndexBytes() const;
 
     private:
+        friend struct ChunkMeshStoreTestAccess;
+        struct RunCache {
+            bool valid = false, farToNear = false, faceCull = false;
+            std::array<float, 3> camera{};
+            std::vector<Run> runs;
+        };
+        struct SelectionCache {
+            bool valid = false, caveCulling = false, reused = false;
+            uint64_t meshEpoch = 0, caveEpoch = 0;
+            Frustum frustum{};
+            std::array<float, 3> camera{};
+            int radius = 0;
+            std::vector<Visible> visible;
+            std::vector<const Section*> sections;
+            std::array<RunCache, kRenderLayerCount> runs;
+        };
+        void ClearSelections();
+        void BuildRuns(const SelectionCache& selection, RenderLayer layer, bool farToNear,
+                       std::vector<Run>& out, const float* faceCamera) const;
         struct Page {
             Arena vb;
             Arena ext;
@@ -200,8 +219,11 @@ namespace perlin::gpu {
         std::unordered_map<int64_t, Chunk> chunks;
         std::unordered_set<const Chunk*> blended;
         std::unordered_map<int64_t, Chunk> lods;
-        std::vector<Visible> visible;
-        std::vector<const Section*> visibleSections;
+        // The renderer alternates all-terrain and translucent-only queries when GPU culling or its
+        // CPU fallback/statistics is used. Retain only those two CPU descriptions, never frame handles.
+        std::array<SelectionCache, 2> selections;
+        size_t selected = 0;
+        uint64_t selectionBuilds = 0, runBuilds = 0;
         uint64_t generation = 1;
         uint64_t caveGeneration = 0;
         uint64_t caveEpoch = 0;

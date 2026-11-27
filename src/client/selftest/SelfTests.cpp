@@ -16,8 +16,24 @@ namespace perlin::selftest {
             return InputReporting();
         if (name == "movement_protocol")
             return MovementProtocol();
+        if (name == "movement_effects")
+            return MovementEffects();
+        if (name == "attribute_replay")
+            return AttributeReplay();
+        if (name == "status_effect_replay")
+            return StatusEffectReplay();
+        if (name == "ranged_item")
+            return RangedItem();
+        if (name == "item_use_packets")
+            return ItemUsePackets();
+        if (name == "creative_inventory")
+            return CreativeInventory();
+        if (name == "camera_effects_packets")
+            return CameraEffectsPackets();
         if (name == "session_codec_context")
             return SessionCodecContext();
+        if (name == "chunk_pipeline")
+            return ChunkPipeline();
         if (name == "recipe_packets")
             return RecipePackets();
         if (name == "title_controller")

@@ -1,6 +1,8 @@
 #include "network/PacketDispatcher.hpp"
 #include "network/Uuid.hpp"
 #include "protocol/Packets.hpp"
+#include "protocol/v944/Types.hpp"
+#include "fixtures/protogen_switch_fixture.inc"
 
 #include <cstdio>
 #include <string>
@@ -33,7 +35,114 @@ template <class P> static bool Decode(const std::vector<uint8_t>& body, P& packe
     return Read(stream, packet);
 }
 
+static void LegacyRequestSwitch() {
+    using Legacy = proto944::TransactionLegacy;
+    Legacy value;
+    std::vector<uint8_t> encoded;
+    CHECK(net::EncodeChecked(value, encoded));
+    CHECK((encoded == std::vector<uint8_t>{0x00}));
+
+    value.legacyTransactions.emplace();
+    value.legacyTransactions->push_back({7, {{3}, {4}}});
+    CHECK(net::EncodeChecked(value, encoded));
+    CHECK((encoded == std::vector<uint8_t>{0x00}));
+    const std::vector<uint8_t> zeroWithNextField{0x00, 0xA5};
+    net::ReadStream zero(zeroWithNextField.data(), zeroWithNextField.size());
+    CHECK(proto944::Read(zero, value) && zero.remaining() == 1 && *zero.position() == 0xA5);
+    CHECK(value.legacyRequestId == 0 && !value.legacyTransactions);
+
+    value.legacyRequestId = 1;
+    value.legacyTransactions.reset();
+    CHECK(!net::EncodeChecked(value, encoded));
+    value.legacyTransactions.emplace();
+    CHECK(net::EncodeChecked(value, encoded));
+    CHECK((encoded == std::vector<uint8_t>{0x02, 0x00}));
+    Legacy empty;
+    net::ReadStream emptyInput(encoded.data(), encoded.size());
+    CHECK(proto944::Read(emptyInput, empty) && emptyInput.remaining() == 0 &&
+          empty.legacyRequestId == 1 && empty.legacyTransactions && empty.legacyTransactions->empty());
+
+    const std::vector<uint8_t> nested{0x01, 0x02, 0x07, 0x02, 0x03, 0x04, 0x09, 0x01, 0x0B};
+    Legacy decoded;
+    net::ReadStream input(nested.data(), nested.size());
+    CHECK(proto944::Read(input, decoded) && input.remaining() == 0);
+    CHECK(decoded.legacyRequestId == -1 && decoded.legacyTransactions &&
+          decoded.legacyTransactions->size() == 2);
+    if (decoded.legacyTransactions && decoded.legacyTransactions->size() == 2) {
+        const auto& first = (*decoded.legacyTransactions)[0];
+        const auto& second = (*decoded.legacyTransactions)[1];
+        CHECK(first.containerId == 7 && first.changedSlots.size() == 2 &&
+              first.changedSlots[0].slotId == 3 && first.changedSlots[1].slotId == 4);
+        CHECK(second.containerId == 9 && second.changedSlots.size() == 1 &&
+              second.changedSlots[0].slotId == 11);
+    }
+    CHECK(net::EncodeChecked(decoded, encoded) && encoded == nested);
+    const std::vector<uint8_t> truncated{0x02};
+    net::ReadStream missing(truncated.data(), truncated.size());
+    CHECK(!proto944::Read(missing, decoded));
+}
+
+static void SharedDefaultSwitch() {
+    using Switch = switch_fixture::SharedDefaultSwitch;
+    Switch value;
+    value.tail = 0xA5;
+    std::vector<uint8_t> encoded;
+    for (const uint8_t selector : {0, 4}) {
+        value.selector = selector;
+        value.payload.emplace<2>(0xBEEF);
+        CHECK(net::EncodeChecked(value, encoded));
+        CHECK((encoded == std::vector<uint8_t>{selector, 0xA5}));
+        const std::vector<uint8_t> literal{selector, 0xA5};
+        net::ReadStream input(literal.data(), literal.size());
+        CHECK(switch_fixture::Read(input, value) && input.remaining() == 0 &&
+              value.selector == selector && value.payload.index() == 0 && value.tail == 0xA5);
+    }
+    for (const uint8_t selector : {1, 2, 9}) {
+        value.selector = selector;
+        value.payload.emplace<1>(switch_fixture::SharedPayload{0x33, {0x44, 0x55}});
+        const std::vector<uint8_t> literal{selector, 0x33, 0x02, 0x44, 0x55, 0xA5};
+        CHECK(net::EncodeChecked(value, encoded) && encoded == literal);
+        Switch decoded;
+        net::ReadStream input(literal.data(), literal.size());
+        CHECK(switch_fixture::Read(input, decoded) && input.remaining() == 0 &&
+              decoded.selector == selector && decoded.payload.index() == 1 && decoded.tail == 0xA5);
+        if (const auto* payload = std::get_if<1>(&decoded.payload))
+            CHECK(payload->tag == 0x33 && payload->bytes == std::vector<uint8_t>({0x44, 0x55}));
+    }
+    value.selector = 3;
+    value.payload.emplace<2>(0xBEEF);
+    CHECK(net::EncodeChecked(value, encoded));
+    CHECK((encoded == std::vector<uint8_t>{0x03, 0xEF, 0xBE, 0xA5}));
+    Switch word;
+    const std::vector<uint8_t> wordLiteral{0x03, 0xEF, 0xBE, 0xA5};
+    net::ReadStream wordInput(wordLiteral.data(), wordLiteral.size());
+    CHECK(switch_fixture::Read(wordInput, word) && wordInput.remaining() == 0 &&
+          word.payload.index() == 2 && std::get<2>(word.payload) == 0xBEEF && word.tail == 0xA5);
+    value.selector = 9;
+    CHECK(!net::EncodeChecked(value, encoded));
+    value.payload.emplace<0>();
+    CHECK(!net::EncodeChecked(value, encoded));
+    const std::vector<uint8_t> truncated{0x09, 0x33, 0x02, 0x44};
+    net::ReadStream missing(truncated.data(), truncated.size());
+    CHECK(!switch_fixture::Read(missing, value));
+
+    switch_fixture::VoidDefaultSwitch absent;
+    absent.selector = 9;
+    absent.payload = 0x99;
+    absent.tail = 0xA5;
+    CHECK(net::EncodeChecked(absent, encoded));
+    CHECK((encoded == std::vector<uint8_t>{0x09, 0xA5}));
+    const std::vector<uint8_t> absentLiteral{0x09, 0xA5};
+    net::ReadStream absentInput(absentLiteral.data(), absentLiteral.size());
+    CHECK(switch_fixture::Read(absentInput, absent) && absentInput.remaining() == 0 &&
+          !absent.payload && absent.tail == 0xA5);
+    absent.selector = 1;
+    CHECK(!net::EncodeChecked(absent, encoded));
+}
+
 int main() {
+    LegacyRequestSwitch();
+    SharedDefaultSwitch();
     {
         SetTimePacket p;
         p.time = -5000;

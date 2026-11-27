@@ -642,7 +642,10 @@ namespace perlin::worldview {
             fireSprites.push_back(sprite);
         }
         ein.fire = &fireSprites;
-        ein.screenFire = hudState.burning && ein.firstPerson && hudState.mode != ui::GameMode::Spectator;
+        const bool playerEffects = live->Camera().PlayerEffectsEnabled();
+        const bool detachedPlayerEffects = cameraDetached && live->Camera().PoseActive() && playerEffects;
+        ein.screenFire = hudState.burning && playerEffects && (ein.firstPerson || detachedPlayerEffects) &&
+                         hudState.mode != ui::GameMode::Spectator;
         ein.particles = &particleQuads;
         ein.dataParticles = &dataParticles;
         ein.dataWorld = dataWorld;

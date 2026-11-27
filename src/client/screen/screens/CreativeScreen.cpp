@@ -50,13 +50,28 @@ namespace perlin::ui {
 
     namespace {
         void Cell(SceneBuilder& b, const std::string& id, int px, int py, bool survival, const HudItem& item,
-                  int iconIndex) {
+                  int iconIndex, creative::CellKind kind = creative::CellKind::Item) {
             int x, y;
             CreativeSlotPos(id, survival, x, y);
             BeginSlot(b, id, px + x, py + y);
+            const char* background = nullptr;
+            if (kind == creative::CellKind::CollapsedGroup)
+                background = "textures/ui/recipe_book_light_button";
+            else if (kind == creative::CellKind::ExpandedGroup)
+                background = "textures/ui/recipe_book_dark_button_pressed";
+            else if (kind == creative::CellKind::GroupItem)
+                background = "textures/ui/recipe_book_dark_button";
+            if (background)
+                kit::Image(b, 0, 0, 18, 18, background, "3");
             if (item.Empty() && iconIndex >= 0)
                 AddSprite(b, "ui_slot_icons.png", iconIndex * 16, 0, 16, 16, 1, 1);
             AddSlotItem(b, item, -1, 10);
+            if (kind == creative::CellKind::CollapsedGroup || kind == creative::CellKind::ExpandedGroup)
+                kit::Image(b, 10, 10, 7, 7,
+                           kind == creative::CellKind::CollapsedGroup
+                               ? "textures/ui/recipe_book_expand_icon"
+                               : "textures/ui/recipe_book_collapse_icon",
+                           "6");
             EndSlot(b);
         }
 
@@ -87,18 +102,17 @@ namespace perlin::ui {
                        selected ? "tab on" : "tab off", "t" + std::to_string(t), selected ? "3" : "1");
             AddSprite(tabs, "ui_creative_tabs.png", col * 26, row * 32, 26, 32, 0, 0);
             tabs.End();
-            HudItem icon = v.tabIcons[static_cast<size_t>(t)];
-            if (t == kCreativeSearchTab) {
-                icon = HudItem{};
-                icon.name = "minecraft:compass";
-                icon.count = 1;
-            }
-            if (t == kCreativeSurvivalTab)
-                icon.name = "minecraft:grass_block", icon.count = 1, icon.blockRuntimeId = 0, icon.aux = 0;
             const int iy = py + y + (top ? 9 : 7);
-            if (icon.Empty())
-                continue;
-            SceneNode& node = kit::Item(tabs, static_cast<float>(px + x + 5), static_cast<float>(iy), 16, 16, icon.Key(), "4");
+            // Category controls use fixed composite UI textures. A packet's
+            // group icon belongs to its collapsible grid header, not this tab.
+            const char* texture = t < 4 ? creative::kTabTextures[static_cast<size_t>(t)]
+                                       : t == kCreativeSearchTab ? "textures/ui/magnifyingGlass"
+                                                                : "textures/ui/inventory_icon";
+            const bool inventory = t == kCreativeSurvivalTab;
+            SceneNode& node = kit::Image(tabs, static_cast<float>(px + x + (inventory ? 4 : 5)),
+                                        static_cast<float>(iy + (inventory ? 2 : 0)),
+                                        inventory ? 19.0f : 17.0f, inventory ? 13.0f : 17.0f,
+                                        texture, "4");
             node.cls = "ticon";
         }
 
@@ -116,7 +130,8 @@ namespace perlin::ui {
             Cell(slots, "del", px, py, true, HudItem{}, -1);
         } else {
             for (int i = 0; i < 45; i++)
-                Cell(slots, "g" + std::to_string(i), px, py, false, v.grid[static_cast<size_t>(i)], -1);
+                Cell(slots, "g" + std::to_string(i), px, py, false, v.grid[static_cast<size_t>(i)], -1,
+                     v.gridKinds[static_cast<size_t>(i)]);
             const int thumb = 18 + static_cast<int>(97.0f * std::clamp(v.scroll, 0.0f, 1.0f));
             kit::Begin(scrollbar, static_cast<float>(px + 175), static_cast<float>(py + thumb), 12, 15, {}, "scroll", "3");
             AddSprite(scrollbar, "ui_creative_misc.png", v.scrollable ? 0 : 12, 0, 12, 15, 0, 0);
@@ -147,7 +162,9 @@ namespace perlin::ui {
             const int n = v.hovered.size() > 1 ? std::atoi(v.hovered.c_str() + 1) : 0;
             const HudItem* it = nullptr;
             if (v.hovered[0] == 'g' && n >= 0 && n < 45) {
-                it = &v.grid[static_cast<size_t>(n)];
+                const auto kind = v.gridKinds[static_cast<size_t>(n)];
+                if (kind != creative::CellKind::CollapsedGroup && kind != creative::CellKind::ExpandedGroup)
+                    it = &v.grid[static_cast<size_t>(n)];
                 tipText = v.gridNames[static_cast<size_t>(n)];
             } else if (v.hovered[0] == 's' && n >= 0 && n < 36)
                 it = &v.slots[static_cast<size_t>(n)];

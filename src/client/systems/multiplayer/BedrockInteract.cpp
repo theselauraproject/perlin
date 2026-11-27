@@ -1,6 +1,8 @@
 #include "client/systems/multiplayer/BedrockSession.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <bit>
 #include <cmath>
 #include <iterator>
 #include <cstdlib>
@@ -17,6 +19,19 @@ namespace perlin {
     namespace {
         Vec3F V(const float p[3]) {
             return {p[0], p[1], p[2]};
+        }
+
+        int32_t NextLegacyItemUseId() {
+            // The matched client's legacy IDs share a process-wide counter;
+            // the first allocation is -4, separate from odd stack requests.
+            static std::atomic<int32_t> counter{0};
+            int32_t previous = counter.load(std::memory_order_relaxed);
+            for (;;) {
+                const int32_t base = std::min(previous, int32_t{-2});
+                const int32_t next = std::bit_cast<int32_t>(static_cast<uint32_t>(base) - 2u);
+                if (counter.compare_exchange_weak(previous, next, std::memory_order_relaxed))
+                    return next;
+            }
         }
     }
 
@@ -66,13 +81,13 @@ namespace perlin {
         }
         haveLoggedInteraction = true;
         Log("place",
-            "use item on ({},{},{}) face {} clicked id {} held {} x{} block {} use {} dest ({},{},{})", bx,
+            "use item on ({},{},{}) face {} clicked id {} held {} x{} block {} use {} dest ({},{},{}) trigger={} afterAuthTick={}", bx,
             by, bz, face, u.blockRuntimeId, u.heldItem.networkId, static_cast<int>(u.heldItem.count),
             u.heldItem.blockRuntimeId,
             (use == 2   ? "place"
              : use == 1 ? "interact"
                         : "nothing"),
-            dest[0], dest[1], dest[2]);
+            dest[0], dest[1], dest[2], repeat ? "held-repeat" : "press", LastAuthTick());
         // A block's own interaction runs before ItemStack::useOn. Cooldown
         // prevents using the held block, but does not prevent opening a chest.
         const bool predictSuccess = use != 0 && !(use == 2 && onCooldown);
@@ -126,19 +141,75 @@ namespace perlin {
     }
 
     bool BedrockSession::SendUseItemInAir(const float eye[3], bool held) {
+        const net::context::ScopedSettings codecScope(PacketCodecSettings());
         InventoryTransactionPacket p;
         p.transaction.transactionType = TransactionTransactionType::ItemUse;
         TransactionUseItem u;
-        int selected = 0;
+        const int32_t legacyId = NextLegacyItemUseId();
+        const uint64_t worldAtUse = WorldSerial();
+        int selected = 0, address = 0;
+        bool offhand = false, immediate = false, consumes = false;
         bool onCooldown = false;
+        uint64_t epoch = 0, slotRevision = 0, cooldownRevision = 0;
+        ItemV4 after;
+        std::vector<uint8_t> beforeBytes;
+        std::optional<itemcooldown::Definition> cooldown;
+        std::string cooldownKey;
         {
             std::lock_guard lock(statusMutex);
             selected = std::clamp(inventory.selected, 0, 8);
-            u.heldItem = useOffhand ? InvRawLocked(kInvOffhand) : inventoryRaw[selected];
+            offhand = useOffhand;
+            address = offhand ? kInvOffhand : selected;
+            u.heldItem = InvRawLocked(address);
             onCooldown = ItemOnCooldownLocked(u.heldItem, itemcooldown::Type::Use);
+            const auto name = itemNames.find(u.heldItem.networkId);
+            immediate = !onCooldown && u.heldItem.count > 0 && u.heldItem.networkId != 0 &&
+                        name != itemNames.end() &&
+                        (name->second == "minecraft:ender_pearl" || name->second == "minecraft:wind_charge");
+            if (immediate) {
+                epoch = itemStateRevision;
+                slotRevision = itemSlotRevisions[address];
+                if (!net::EncodeChecked(u.heldItem, beforeBytes))
+                    return false;
+                after = u.heldItem;
+                consumes = !Instabuild();
+                if (consumes) {
+                    --after.count;
+                    if (after.count == 0) {
+                        after = ItemV4{};
+                    } else {
+                        after.hasStackId = true;
+                        after.stackId = legacyId;
+                        p.transaction.legacy.legacyRequestId = legacyId;
+                        p.transaction.legacy.legacyTransactions.emplace();
+                        TransactionLegacyLegacyTransactionsEntry changed;
+                        changed.containerId = static_cast<uint8_t>(offhand ? ContainerSlotType::Offhand
+                                                                          : ContainerSlotType::Inventory);
+                        changed.changedSlots.push_back({static_cast<uint8_t>(offhand ? 0 : selected)});
+                        p.transaction.legacy.legacyTransactions->push_back(std::move(changed));
+                    }
+                    TransactionActionsEntry change;
+                    change.sourceType = TransactionActionsEntrySourceType::Container;
+                    change.windowId = static_cast<int8_t>(offhand ? 119 : 0);
+                    change.slot = static_cast<uint32_t>(offhand ? 0 : selected);
+                    change.oldItem = u.heldItem;
+                    change.newItem = after;
+                    p.transaction.actions.push_back(std::move(change));
+                }
+                // Native use starts cooldown after consumption and only if the
+                // post-use item remains nonempty. Instabuild retains that item.
+                if (after.networkId != 0 && after.count > 0) {
+                    if (const auto def = itemCooldownDefinitions.find(name->second);
+                        def != itemCooldownDefinitions.end() && def->second.type == itemcooldown::Type::Use) {
+                        cooldown = def->second;
+                        cooldownKey = itemcooldown::CategoryKey(cooldown->category);
+                        if (const auto revision = itemCooldownRevisions.find(cooldownKey);
+                            revision != itemCooldownRevisions.end())
+                            cooldownRevision = revision->second;
+                    }
+                }
+            }
         }
-        if (held && !onCooldown)
-            QueueInputFlag(InputFlag::StartUsingItem);
         u.actionType = TransactionUseItemActionType::ClickAir;
         u.triggerType = TransactionUseItemTriggerType::Unknown;
         u.clientPrediction = TransactionUseItemClientPrediction::Failure;
@@ -146,13 +217,52 @@ namespace perlin {
         // with cooldown state Off; cooldown gates the local item-use action.
         u.blockPosition = {0, 0, 0};
         u.face = 255;
-        u.hotbarSlot = useOffhand ? 0 : selected;
-        u.hand = useOffhand ? TransactionUseItemHand::OffHand : TransactionUseItemHand::MainHand;
+        u.hotbarSlot = offhand ? 0 : selected;
+        u.hand = offhand ? TransactionUseItemHand::OffHand : TransactionUseItemHand::MainHand;
         u.playerPos = HeadPos(eye);
         u.clickPos = {0, 0, 0};
         u.blockRuntimeId = 0;
+        if (ServerProtocol() == 2193) {
+            // The matched client transaction serializer leaves descriptor
+            // includeNetIds false. The local predicted stack keeps its even
+            // legacy ID for subsequent ItemStackRequests; only these outgoing
+            // descriptor copies omit it. Other profiles are not inferred from
+            // this version's reflected serializer.
+            const auto omitNetId = [](ItemV4& item) {
+                item.hasStackId = false;
+                item.stackId.reset();
+            };
+            omitNetId(u.heldItem);
+            for (auto& action : p.transaction.actions) {
+                omitNetId(action.oldItem);
+                omitNetId(action.newItem);
+            }
+        }
         p.transaction.transactionData = u;
-        return Send(p);
+        if (!Send(p))
+            return false;
+        if (immediate) {
+            std::lock_guard lock(statusMutex);
+            if (epoch == itemStateRevision && worldAtUse == WorldSerial()) {
+                if (consumes && slotRevision == itemSlotRevisions[address]) {
+                    std::vector<uint8_t> currentBytes;
+                    if (net::EncodeChecked(InvRawLocked(address), currentBytes) && currentBytes == beforeBytes) {
+                        InvRawLocked(address) = after;
+                        InvInfoLocked(address) = ConvertItemStack(after);
+                        ++itemSlotRevisions[address];
+                    }
+                }
+                const auto revision = itemCooldownRevisions.find(cooldownKey);
+                const uint64_t currentRevision = revision == itemCooldownRevisions.end() ? 0 : revision->second;
+                if (cooldown && cooldownRevision == currentRevision) {
+                    itemCooldowns.Start(cooldown->category, cooldown->durationTicks);
+                    ++itemCooldownRevisions[cooldownKey];
+                }
+            }
+        }
+        if (held && !onCooldown && !immediate)
+            QueueInputFlag(InputFlag::StartUsingItem);
+        return true;
     }
 
     bool BedrockSession::SendReleaseItem(const float eye[3]) {
@@ -258,13 +368,13 @@ namespace perlin {
     }
 
     bool BedrockSession::SendDropRequest(int slot, int count, int attempt) {
+        if (slot < 0 || slot >= 36)
+            return false;
         if (legacyInventory) {
             InventoryTransactionPacket tx;
             tx.transaction.transactionType = TransactionTransactionType::Normal;
             {
                 std::lock_guard lock(statusMutex);
-                if (slot < 0 || slot > 35)
-                    return false;
                 const ItemV4 was = inventoryRaw[slot];
                 if (was.networkId == 0 || was.count == 0)
                     return false;
@@ -336,6 +446,7 @@ namespace perlin {
                 std::copy(std::begin(inventoryRaw), std::end(inventoryRaw), std::begin(snapshot.raw));
                 std::copy(std::begin(extraRaw), std::end(extraRaw), std::begin(snapshot.extra));
                 std::copy(std::begin(chestRaw), std::end(chestRaw), std::begin(snapshot.chest));
+                std::copy(std::begin(horseRaw), std::end(horseRaw), std::begin(snapshot.horse));
                 invSnapshots[r.requestId] = std::move(snapshot);
                 if (invSnapshots.size() > 16)
                     invSnapshots.erase(std::prev(invSnapshots.end()));
@@ -587,17 +698,39 @@ namespace perlin {
         return true;
     }
 
+    void BedrockSession::ResetContainerStateLocked() {
+        inventoryOpen = false;
+        serverClosedInventory = false;
+        workbenchOpen = false;
+        workbenchJustOpened = false;
+        horseJustOpened = false;
+        chestJustOpened = false;
+        invCloseWanted = false;
+        inventoryWindow = 0;
+        inventoryWindowType = WindowType::Inventory;
+        serverCloseWindowType = WindowType::None;
+        inventory.horseOpen = false;
+        horseWindow = -1;
+        inventory.chestOpen = false;
+        inventory.furnaceKind = -1;
+        chestWindow = -1;
+        pendingWindows.clear();
+        for (auto& item : inventory.work)
+            item = ItemStackInfo{};
+    }
+
     bool BedrockSession::SendCloseNow() {
         int window;
         {
             std::lock_guard lock(statusMutex);
-            window = inventoryOpen ? inventoryWindow : 0;
-            inventoryOpen = false;
-            workbenchOpen = false;
+            if (!inventoryOpen)
+                return true;
+            window = inventoryWindow;
+            ResetContainerStateLocked();
         }
         ContainerClosePacket p;
         p.windowId = static_cast<WindowID>(window);
-        p.windowType = WindowType::Inventory;
+        p.windowType = WindowType::None;
         p.server = false;
         Log("inventory", "close window {}", window);
         return Send(p);
@@ -605,9 +738,10 @@ namespace perlin {
 
     bool BedrockSession::TakeServerClosedInventory() {
         std::lock_guard lock(statusMutex);
-        const bool v = serverClosedInventory;
+        if (!serverClosedInventory || !inventoryOpen || inventoryWindowType != serverCloseWindowType)
+            return false;
         serverClosedInventory = false;
-        return v;
+        return true;
     }
 
     static void FillSlot(StackRequestSlotInfo& s, int slot, const ItemV4& raw) {

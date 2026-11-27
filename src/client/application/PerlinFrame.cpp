@@ -161,11 +161,9 @@ namespace perlin {
         }
         {
             frame::ProfileScope p(frame::Profiler::Prep);
-            view.SampleEyeEnvironment(f);
             hudScreen.FillFrameHud(f);
             debugOverlay.HandleKeys(f, loop->previewLevel.get());
             debugOverlay.Fill(hudState, f.live, f.live ? &f.live->NetLevel() : loop->previewLevel.get());
-            audioDirector.Update(f.live, detail::SecondsSince(loop->startedAt, f.frameStart), f.dt);
             if (PERLIN_ENV("PERLIN_PREVIEW_BORDERS"))
                 debugOverlay.state.chunkBorders = true;
             if (PERLIN_ENV("PERLIN_PREVIEW_SUBTITLES")) {
@@ -197,6 +195,8 @@ namespace perlin {
         UpdateWorldIcon();
 
         UpdateCameraEffects();
+        view.SampleEyeEnvironment(f);
+        audioDirector.Update(f.live, detail::SecondsSince(loop->startedAt, f.frameStart), f.dt);
         frameParams.PrepareView(f);
         frameParams.BuildFrameParams(f);
         levelPass.RenderLevel(f);
@@ -425,7 +425,7 @@ namespace perlin {
             if (!lookTaken) {
                 if (modHost.DetachTakesLook())
                     modHost.DetachLook(look.yaw, look.pitch);
-                else
+                else if (!(sessionReady && session && session->Camera().ApplyLook(look.yaw, look.pitch)))
                     camera.Rotate(look.yaw, look.pitch);
             }
         }
@@ -495,14 +495,21 @@ namespace perlin {
         }
         CameraEffects& fx = session->Camera();
         const CameraPose base{glm::vec3(camera.x, camera.y, camera.z), camera.yaw, camera.pitch};
-        const EntityLookup lookup = [this, &base](int64_t uid, TrackedEntity& out) {
+        const auto& state = player.State();
+        const glm::vec3 playerCenter(static_cast<float>(state.x),
+                                     static_cast<float>(state.y + state.Height(player.Sneaking()) * 0.5),
+                                     static_cast<float>(state.z));
+        const bool front = camera.mode == PerspectiveMode::ThirdPersonFront;
+        const CameraPose renderedBase{camera.EyePosition(), camera.yaw + (front ? 180.0f : 0.0f),
+                                       front ? -camera.pitch : camera.pitch};
+        const EntityLookup lookup = [this, &base, &playerCenter](int64_t uid, TrackedEntity& out) {
             entity::Entity e;
             if (!session->Entities().FindUnique(uid, e))
                 return false;
             const float h = e.boxHeight > 0.0f ? e.boxHeight : 1.8f;
             if (e.isSelf) {
                 out.eye = base.position;
-                out.center = base.position - glm::vec3(0.0f, 0.2f, 0.0f);
+                out.center = playerCenter;
                 out.yaw = base.yaw;
                 out.pitch = base.pitch;
                 return true;
@@ -515,7 +522,7 @@ namespace perlin {
             out.pitch = -e.pitch;
             return true;
         };
-        fx.Tick(base, lookup);
+        fx.Tick(base, lookup, renderedBase, playerCenter);
         using Kind = CameraEffects::Kind;
         const Kind kind = fx.PresetKind();
         std::optional<PerspectiveMode> wanted;
@@ -550,7 +557,7 @@ namespace perlin {
             camera.y = p.position.y;
             camera.z = p.position.z;
             camera.yaw = p.yaw;
-            camera.pitch = glm::clamp(p.pitch, -89.9f, 89.9f);
+            camera.pitch = glm::clamp(p.pitch, -90.0f, 90.0f);
             cameraDetached = true;
         }
     }
@@ -626,6 +633,17 @@ namespace perlin {
             CameraEffects& cam = live->Camera();
             const int scheme = cam.ControlScheme();
             player.SetCameraControl(scheme, scheme >= 0 ? cam.Pose().yaw : 0.0f);
+            if (cam.PoseActive()) {
+                const auto pose = cam.Pose();
+                const float yaw = glm::radians(pose.yaw), pitch = glm::radians(pose.pitch);
+                player.SetCameraView(std::array<float, 3>{std::cos(yaw) * std::cos(pitch),
+                                                          std::sin(pitch),
+                                                          std::sin(yaw) * std::cos(pitch)});
+            } else {
+                player.SetCameraView(std::nullopt);
+            }
+            if (cam.TakeControlPitchReset())
+                player.RequestCameraControlPitchReset();
         }
         if (!replayCtl.Playing()) {
             player.Update(*live, inputManager, camera, levelRenderer->Blocks(), dt);

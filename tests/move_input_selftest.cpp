@@ -49,6 +49,10 @@ int main() {
             input = walking;
             input.position[axis] = invalid;
             Check(!ValidMoveInput(input), "non-finite position cannot enter PlayerAuthInput");
+            input = walking;
+            input.cameraOrientation = std::array<float, 3>{0.8f, 0.6f, 0};
+            (*input.cameraOrientation)[axis] = invalid;
+            Check(!ValidMoveInput(input), "non-finite independent camera direction is rejected");
         }
         for (float MoveInput::*field : {&MoveInput::yaw, &MoveInput::pitch, &MoveInput::eyeHeight,
                                        &MoveInput::moveX, &MoveInput::moveZ, &MoveInput::rawX,
@@ -73,6 +77,9 @@ int main() {
     Check(ValidMoveInput(vehicle), "complete vehicle prediction is valid");
     vehicle.predictedVehicle.reset();
     Check(!ValidMoveInput(vehicle), "rotation requires a matching predicted vehicle");
+    MoveInput camera = walking;
+    camera.cameraOrientation = std::array<float, 3>{0.8f, 0.6f, 0};
+    Check(ValidMoveInput(camera), "a finite independent camera direction can accompany actor rotation");
     MoveInput device = walking;
     device.device = static_cast<perlin::InputDevice>(0);
     Check(!ValidMoveInput(device), "an unsupported physical input device is rejected");

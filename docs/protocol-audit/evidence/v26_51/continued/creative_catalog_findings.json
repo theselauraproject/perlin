@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Static inspection of the matched executable, public symbols, field layouts and virtual slots. No executable was run. This file contains metadata and bounded conclusions, not code bytes or disassembly."
+  },
+  "reproducible_metadata": [
+    "creative_inventory_query.json",
+    "creative_inventory_reference.json"
+  ],
+  "facts": [
+    {
+      "topic": "Category values and category objects",
+      "contract": "SharedTypes::CreativeItemCategory is All=0, Construction=1, Nature=2, Equipment=3, Items=4, ItemCommandOnly=5, Undefined=6, NumCategories=7. Registry initialization creates category objects for keys 1 through 5. This numeric registry order is not the top-tab display order. Category objects have a name and child-group indexes; the per-group item icon is a separate CreativeGroupInfo member.",
+      "anchors": [
+        "Matched PDB SharedTypes::CreativeItemCategory, CreativeItemGroupCategory and CreativeGroupInfo",
+        "CreativeItemRegistry::createCategories RVA0x3469B00; explicit category construction starts at RVA0x3469B59, RVA0x3469C59, RVA0x3469D4E, RVA0x3469E5C and RVA0x3469F87"
+      ]
+    },
+    {
+      "topic": "Replacement and packet-order traversal",
+      "contract": "The CreativeContent handler delegates to registry initialization. That path clears the previous entries, groups and categories, creates categories, traverses packet groups in array order, then traverses packet entries in array order. It does not alphabetically sort these arrays. Child-group lookup can reuse an existing named group, so this traversal does not establish that duplicate named packet groups always produce distinct UI groups.",
+      "anchors": [
+        "LegacyClientNetworkHandler CreativeContent handler RVA0x1343AB0 -> ItemRegistryRef::initCreativeItemsClient RVA0x348FF50 -> CreativeItemRegistry::initializeFromCreativeContentPacket RVA0x346B880..RVA0x346C68D",
+        "Prior-registry clearing RVA0x346B8B0..RVA0x346BA1C; createCategories call RVA0x346BA26",
+        "Packet-group stride 0x68 at RVA0x346BC58; packet-entry stride 0x50 at RVA0x346BFEC; entry index increment RVA0x346BFE0",
+        "CreativeItemGroupCategory::addChildGroup RVA0x3469320; named-group lookup and potential reuse precede new-group insertion"
+      ]
+    },
+    {
+      "topic": "Supported groups and anonymous groups",
+      "contract": "Groups are resolved against the created categories 1 through 5. A group with an unsupported category, including All=0 or Undefined=6, is skipped in this path. An empty group name takes addAnonymousGroup; a nonempty name takes addChildGroup. This does not define malformed-input group-index repair or UI visibility of the stored command-only category.",
+      "anchors": [
+        "Category lookup failure skips group at RVA0x346BD92",
+        "Empty-name branch RVA0x346BDA7; addAnonymousGroup call RVA0x346BC47 -> RVA0x3469790",
+        "Named addChildGroup call RVA0x346BDC7 -> RVA0x3469320"
+      ]
+    },
+    {
+      "topic": "Retained entries and group member order",
+      "contract": "Entry records are appended with their packet entry index before group assignment. UINT32_MAX or an out-of-range group index leaves the record retained without group membership. An unresolved item also prevents the later group assignment. For a valid item and group, the group records the entry index in encounter order, avoiding a duplicate of the same entry index. Retention alone does not prove search visibility.",
+      "anchors": [
+        "Entry record append/copy RVA0x346C07E..RVA0x346C153; mGroupIndex initially UINT32_MAX",
+        "Group-index checks RVA0x346C490..RVA0x346C4CA",
+        "Resolved item receives group category at RVA0x346C508",
+        "CreativeGroupInfo::_addCreativeItemEntry call RVA0x346BFCF -> RVA0x3469220; entry group assignment RVA0x34692AF, existing-index search RVA0x34692D3, append RVA0x34692ED"
+      ]
+    },
+    {
+      "topic": "Expando input validity and header eligibility",
+      "contract": "Expando refresh skips invalid, null or zero-count input items. A group header is produced only for a group with at least two recorded members and a valid nonempty icon whose item identifier is nonzero. A single-member group or one without such an icon is represented as ordinary items through this path. Empty groups have no item visit from which to construct a header. These are model-consumer conditions; they do not prove how a malformed wire descriptor is normalized before reaching this model.",
+      "anchors": [
+        "ExpandoContainerModel::_refreshContainer RVA0x3446B90..RVA0x34474B3",
+        "Input validity/null checks RVA0x3446DB6..RVA0x3446DDA; zero-count check RVA0x3446DDC",
+        "Member-index vector byte-size check >=5 at RVA0x3446F14 (4-byte indexes, therefore at least two members)",
+        "Header icon validity checks RVA0x3446F91..RVA0x3446FAF and nonzero item-ID check RVA0x3446FB1"
+      ]
+    },
+    {
+      "topic": "Initial collapse and retained expansion",
+      "contract": "ContainerExpandStatus is Normal=0, Expanded=1, Contracted=2, Child=3. A newly constructed qualifying header defaults to Contracted. When refresh is allowed to retain expansion state, it first remembers previous Expanded headers and can restore a matching icon/count header to Expanded. This is not a proof of persistent state across sessions or a complete duplicate-icon policy.",
+      "anchors": [
+        "Matched PDB ContainerExpandStatus and ExpandoModelElement (status at offset128)",
+        "Retention condition and previous Expanded scan near RVA0x3446D22",
+        "Previous-header comparison RVA0x34471E9..RVA0x3447221; choose status2 if unmatched or status1 if matched at RVA0x3447212..RVA0x3447219",
+        "ExpandoModelElement constructor call RVA0x3447228 -> RVA0x3446890; child status3 setup RVA0x3446FD2/RVA0x3447305; ordinary status0 setup RVA0x344704F"
+      ]
+    },
+    {
+      "topic": "Collapsed child filtering and flat model sequence",
+      "contract": "_generateCurrentItems copies the flat expando sequence into the current view. After copying a Contracted header it skips following Child entries until the next nonchild. The recovered model functions do not insert blank cells or row-padding records at group boundaries. Pixel wrapping and grid geometry belong to the UI layer and were not inferred from this flat sequence.",
+      "anchors": [
+        "ExpandoContainerModel::_generateCurrentItems RVA0x3447710..RVA0x34479C5",
+        "Contracted status2 check RVA0x3447935; Child status3 skipping RVA0x3447981",
+        "Expando refresh appends header/child/ordinary model elements without a group-row padding operation"
+      ]
+    }
+  ],
+  "limits": [
+    "These conclusions are for the matched 1.26.51.1/protocol2193 executable only. The separately researched official UI assets are described in creative_ui_assets_findings.json and have their own version boundary.",
+    "Native controller behavior for All/search, command-only category5, ungrouped or invalid-group entries, search text matching, and empty-category tab visibility was not recovered. Keeping all entries in a flat search catalog or showing/hiding empty tabs is not established here as exact native behavior.",
+    "Duplicate creative entry-ID collision policy, duplicate named-group remapping, malformed packet category/index combinations, zero-count wire-descriptor normalization and unknown-item decoding were not fully recovered.",
+    "Matching a header by icon and count can affect expansion retention; full native persistence and identity rules are not reconstructed.",
+    "No complete creative inventory or anti-cheat compatibility guarantee follows from these bounded registry/model contracts."
+  ]
+}

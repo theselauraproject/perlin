@@ -1,0 +1,27 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "MobEffectIds",
+    "MobEffectInstance",
+    "MobEffectsComponent",
+    "ApplyGravityComponent",
+    "StateVectorComponent",
+    "FallDistanceComponent",
+    "MobTravelComponent",
+    "MovementAttributesComponent",
+    "TickingSystemWithInfo",
+    "SystemInfo",
+    "Dependencies",
+    "EntitySystemTickingMode",
+    "IEntitySystemsCollection",
+    "DefaultEntitySystemsCollection",
+    "DefaultEntitySystemsCollection::TickingSystemsInCategory"
+  ],
+  "symbol_regex": "tickDefaultGravity@MobMovementGravity|tickApplyJumpModifierSystem@ApplyJumpModifierSystem|forSystems@MobMovementGravity|forSystem@MobMovementLevitate|registerActorAiStepSystems|registerActorMoveSystems|registerTickingSystem@EntitySystems|\\?tick@EntitySystems|mMobEffects@MobEffect",
+  "symbol_rvas": [
+    "0x2de3560",
+    "0x9024ef0",
+    "0x6822800",
+    "0x63b1320"
+  ]
+}

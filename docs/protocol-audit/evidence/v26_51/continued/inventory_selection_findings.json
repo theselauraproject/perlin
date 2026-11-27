@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Static inspection of the matched executable, public symbols, field layouts and virtual slots. No executable was run. This file contains metadata and bounded conclusions, not code bytes or disassembly."
+  },
+  "reproducible_metadata": [
+    "inventory_selection_query.json",
+    "inventory_selection_reference.json"
+  ],
+  "facts": [
+    {
+      "topic": "MobEquipment identifies the known local player through network identity and subclient",
+      "contract": "The recovered player branch obtains UserEntityIdentifierComponent and compares its NetworkIdentifier against ClientNetworkSystem::tryGetLocalNetworkId, including identifier type/type-data equality and the sender subclient ID. This distinguishes the local-player branch from the remote-player inventory/equipment branch.",
+      "anchors": [
+        "Client MobEquipment handler RVA0x1340D60..RVA0x13412B7; component getter RVA0x130E150 uses FNV1a32(UserEntityIdentifierComponent)=0x0B845379",
+        "UserEntityIdentifierComponent PDB mNetworkId0, mClientSubId176; local network lookup RVA0x1341073 -> RVA0x474EE0; type comparison RVA0x13410F0; NetworkIdentifier::equalsTypeData RVA0x1341106 -> RVA0xD95C80; subclient comparison RVA0x1341117"
+      ]
+    },
+    {
+      "topic": "Known-local MobEquipment selects the hotbar and does not replace the item",
+      "contract": "For the known local player, container0 calls PlayerInventory::selectSlot with mSelectedSlot. It does not replace the hotbar stack from the packet item or slot fields. Every nonzero container, including offhand119, leaves this local inventory/selection branch without mutation. Remote equipment has a separate offhand119 branch and must not be substituted for the known-local behavior.",
+      "anchors": [
+        "Known-local nonzero-container branch RVA0x1341125 -> RVA0x134122B; Inventory0 selectSlot call RVA0x1341138 -> RVA0x1F4860",
+        "Packet wrapper offsets: runtimeID+0x30, descriptor+0x38, slot+0x98, selectedSlot+0x9C, containerID+0xA0",
+        "Separate nonlocal offhand119 branch RVA0x13411AE; Mob equipped-slot virtual call at RVA0x13411C7"
+      ]
+    },
+    {
+      "topic": "selectSlot ignores invalid indices and stores the supplied container",
+      "contract": "PlayerInventory::selectSlot returns before mutation when its unsigned selected slot is greater than8, including negative signed values reinterpreted as unsigned. Valid0..8 stores mSelected and mSelectedContainerId. A nonzero supplied container or an unchanged slot skips the later Inventory0 change side effects. The recovered client-side level branch skips the server-side selection event path.",
+      "anchors": [
+        "PlayerInventory::selectSlot RVA0x1F4860..RVA0x1F4B7B; unsigned slot bound RVA0x1F4888/0x1F488B -> RVA0x1F4B61",
+        "mSelected offset16 store RVA0x1F4895; mSelectedContainerId offset176 store RVA0x1F4898; nonzero-container/same-slot early return RVA0x1F489F..RVA0x1F48AD",
+        "ILevel::isClientSide call RVA0x1F493A; true skips event branch at RVA0x1F4942 -> RVA0x1F4B2A"
+      ]
+    },
+    {
+      "topic": "PlayerHotbar forwards its container and separately refreshes the top scene",
+      "contract": "With a local player and mShouldSelectSlot=true, PlayerHotbar forwards mSelectedSlot and mContainerId unchanged to selectSlot. Unlike the local MobEquipment branch, it does not require container0 first. Independently of shouldSelectSlot, it calls onInternetUpdate on a nonnull top scene, then marks the packet handled. The implementation of every selected-container consumer and UI refresh is outside this narrow dispatch contract.",
+      "anchors": [
+        "PlayerHotbar client handler RVA0x13452E0..RVA0x134536A; shouldSelectSlot check RVA0x1345305; container load RVA0x1345326; slot load RVA0x134532B; selectSlot call RVA0x134532E",
+        "PlayerHotbarPacketPayload PDB fields selectedSlot0, shouldSelectSlot4, containerID5; payload begins packet+0x30",
+        "IClientInstance::getTopScene explicit slot0x710 invoked at RVA0x1345341; AbstractScene::onInternetUpdate explicit slot0x20 invoked at RVA0x1345359; handled flag at RVA0x134535F"
+      ]
+    }
+  ],
+  "limits": [
+    "All native conclusions refer only to the matched1.26.51.1 protocol2193 executable. Other protocol equivalence is unverified.",
+    "The known-local equipment branch and PlayerHotbar dispatch are established; this is not a reconstruction of all remote actors, inventory containers, GUI refresh effects, or selected-item consumers.",
+    "This metadata contains no executable, PDB, machine code bytes, or disassembly."
+  ]
+}

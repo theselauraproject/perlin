@@ -206,6 +206,15 @@ namespace perlin {
             }
             return sp;
         }
+
+        void StartPacketSpline(CameraEffects& camera, CameraSpline spline) {
+            for (char& c : spline.type)
+                if (c >= 'A' && c <= 'Z')
+                    c = static_cast<char>(c - 'A' + 'a');
+            if (spline.type != "catmullrom" && spline.type != "linear")
+                return;
+            camera.StartSpline(spline);
+        }
     }
 
     void BedrockSession::RegisterWorldExtraHandlers() {
@@ -228,8 +237,14 @@ namespace perlin {
 
         On<BlockEntityDataPacket>([this](const BlockEntityDataPacket& p) {
             json::Value json;
-            if (NetworkNbtToJson(p.nbt.bytes, json))
-                blockEntities.Set(p.position.x, p.position.y, p.position.z, json);
+            if (!NetworkNbtToJson(p.nbt.bytes, json) || !json.IsObject())
+                return;
+            std::lock_guard commitLock(chunkCommitMutex);
+            if (!ChunkInputCurrent())
+                return;
+            const int y = static_cast<int32_t>(p.position.y);
+            blockEntities.Set(p.position.x, y, p.position.z, json);
+            RecordChunkBlockEntityUpdate(p.position.x, y, p.position.z);
         });
 
         On<OpenSignPacket>([this](const OpenSignPacket& p) {
@@ -329,11 +344,16 @@ namespace perlin {
         On<CameraShakePacket>([this](const CameraShakePacket& p) {
             if (p.action == CameraShakePacketAction::Stop)
                 cameraEffects.StopShake();
-            else
+            else if (p.action == CameraShakePacketAction::Add)
                 cameraEffects.Shake(p.intensity, p.duration, p.type);
         });
 
         On<PlayerFogPacket>([this](const PlayerFogPacket& p) { cameraEffects.SetFog(p.stack); });
+
+        On<ClientboundControlsSchemePacket>([this](const ClientboundControlsSchemePacket& p) {
+            if (runtimeId != 0)
+                cameraEffects.SetControlScheme(static_cast<int>(p.scheme));
+        });
 
         On<CameraPresetsPacket>([this](const CameraPresetsPacket& p) {
             std::vector<CameraPreset> list;
@@ -341,6 +361,8 @@ namespace perlin {
                 CameraPreset r;
                 r.name = c.name;
                 r.parent = c.parent;
+                r.positionComponents = {c.position.x, c.position.y, c.position.z};
+                r.rotationComponents = {c.rotation.x, c.rotation.y};
                 if (c.position.x && c.position.y && c.position.z)
                     r.position = glm::vec3(*c.position.x, *c.position.y, *c.position.z);
                 if (c.rotation.x && c.rotation.y)
@@ -359,6 +381,18 @@ namespace perlin {
                     r.trackingRadius = *c.trackingRadius;
                 if (c.radius)
                     r.radius = *c.radius;
+                r.yawLimitMin = c.yawLimitMin;
+                r.yawLimitMax = c.yawLimitMax;
+                r.playerEffects = c.playerEffects;
+                if (c.aimAssist) {
+                    auto& assist = r.aimAssist.emplace();
+                    assist.presetId = c.aimAssist->presetId;
+                    if (c.aimAssist->targetMode)
+                        assist.targetMode = static_cast<int>(*c.aimAssist->targetMode);
+                    if (c.aimAssist->angle)
+                        assist.angle = glm::vec2(c.aimAssist->angle->x, c.aimAssist->angle->z);
+                    assist.distance = c.aimAssist->distance;
+                }
                 if (c.startingRotation)
                     r.startingRotation = glm::vec2(c.startingRotation->x, c.startingRotation->z);
                 r.applyStartingRotation = c.applyInheritedStartingRotation;
@@ -378,7 +412,7 @@ namespace perlin {
         On<CameraSplinePacket>([this](const CameraSplinePacket& p) {
             std::vector<CameraSpline> list;
             for (const auto& d : p.splines)
-                list.push_back(SplineFrom(d.name, d.totalTime, d.splineType ? *d.splineType : std::string(),
+                list.push_back(SplineFrom(d.name, d.totalTime, d.splineType.value_or("catmullrom"),
                                           d.controlPoints, d.progressKeyFrames, d.rotationKeyFrames));
             cameraEffects.SetSplines(std::move(list));
         });
@@ -386,7 +420,7 @@ namespace perlin {
         On<CameraInstructionPacket>([this](const CameraInstructionPacket& p) {
             if (p.clear && *p.clear)
                 cameraEffects.Clear();
-            if (p.fade && (p.fade->timeData || p.fade->colorRgb)) {
+            if (p.fade) {
 
                 float in = 1.0f, wait = 0.5f, out = 1.0f;
                 if (p.fade->timeData) {
@@ -427,6 +461,7 @@ namespace perlin {
                 if (s.entityOffset)
                     set.entityOffset = glm::vec3(s.entityOffset->x, s.entityOffset->y, s.entityOffset->z);
                 set.useDefault = s.default_ && *s.default_;
+                set.removeIgnoreStartingValues = s.removeIgnoreStartingValues;
                 if (s.easeData) {
                     set.hasEase = true;
                     set.easeType = static_cast<int>(s.easeData->type);
@@ -436,17 +471,17 @@ namespace perlin {
             }
             if (p.spline) {
                 const auto& d = *p.spline;
-                CameraSpline sp;
-                if (d.splineIdentifier && !d.splineIdentifier->empty() && d.curve.empty()) {
-                    const int idx = cameraEffects.SplineIndex(*d.splineIdentifier);
-                    if (idx >= 0)
-                        sp = cameraEffects.SplineAt(idx);
+                if (d.loadFromJson.value_or(false)) {
+                    // Named playback uses the complete registered definition, including its
+                    // duration. A missing definition leaves the active camera unchanged.
+                    if (auto registered = cameraEffects.FindSpline(d.splineIdentifier.value_or(std::string())))
+                        StartPacketSpline(cameraEffects, std::move(*registered));
                 } else {
-                    sp = SplineFrom(d.splineIdentifier ? *d.splineIdentifier : std::string(), d.totalTime,
-                                    d.splineType ? *d.splineType : std::string(), d.curve, d.progressKeyFrames,
-                                    d.rotationOptions);
+                    StartPacketSpline(cameraEffects,
+                        SplineFrom(d.splineIdentifier.value_or(std::string()), d.totalTime,
+                                   d.splineType.value_or("catmullrom"), d.curve, d.progressKeyFrames,
+                                   d.rotationOptions));
                 }
-                cameraEffects.StartSpline(sp);
             }
         });
     }
@@ -1193,10 +1228,10 @@ namespace perlin {
         operator()<AnimateEntityPacket, EmotePacket, HurtArmorPacket,
                    LevelEventGenericPacket, ServerPostMovePacket, SetLastHurtByPacket,
                    SimulationTypePacket, SpawnExperienceOrbPacket, UpdateBlockPropertiesPacket,
-                   UpdateEquipmentPacket, ClientboundControlsSchemePacket, ClientboundTextureShiftPacket,
+                   UpdateEquipmentPacket, ClientboundTextureShiftPacket,
                    SetMovementAuthorityPacket,
                    GraphicsOverrideParameterPacket, PrimitiveShapesPacket, ServerScriptDebugDrawerPacket,
-                   ClientboundAttributeLayerSyncPacket, CameraSplinePacket, CameraAimAssistPacket,
+                   ClientboundAttributeLayerSyncPacket, CameraAimAssistPacket,
                    CameraAimAssistPresetsPacket, CameraAimAssistActorPriorityPacket,
                    ClientboundDataStorePacket, ClientboundDataDrivenUiShowScreenPacket,
                    ClientboundDataDrivenUiCloseScreenPacket, ClientboundDataDrivenUiReloadPacket>();

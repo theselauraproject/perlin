@@ -20,6 +20,51 @@ namespace perlin {
             return (4096 + perWord - 1) / perWord;
         }
 
+        // Block-storage words are padded independently; indices never straddle words.
+        template <unsigned Bits, bool CheckIndices>
+        bool ExpandPackedIndices(const PaletteStorage& storage, ChunkCodec::CellIndices& out) {
+            constexpr unsigned perWord = 32 / Bits;
+            constexpr unsigned fullWords = ChunkCodec::kCells / perWord;
+            constexpr unsigned remainder = ChunkCodec::kCells % perWord;
+            constexpr uint32_t mask = (1u << Bits) - 1u;
+            constexpr unsigned requiredWords = fullWords + (remainder != 0);
+            if (storage.words.size() < requiredWords)
+                return false;
+            const size_t paletteSize = storage.palette.size();
+            uint16_t* dst = out.data();
+            for (unsigned word = 0; word < fullWords; ++word) {
+                uint32_t packed = storage.words[word];
+                for (unsigned slot = 0; slot < perWord; ++slot) {
+                    const uint32_t index = packed & mask;
+                    if constexpr (CheckIndices)
+                        if (index >= paletteSize)
+                            return false;
+                    *dst++ = static_cast<uint16_t>(index);
+                    packed >>= Bits;
+                }
+            }
+            if constexpr (remainder != 0) {
+                uint32_t packed = storage.words[fullWords];
+                for (unsigned slot = 0; slot < remainder; ++slot) {
+                    const uint32_t index = packed & mask;
+                    if constexpr (CheckIndices)
+                        if (index >= paletteSize)
+                            return false;
+                    *dst++ = static_cast<uint16_t>(index);
+                    packed >>= Bits;
+                }
+            }
+            return true;
+        }
+
+        template <unsigned Bits>
+        bool ExpandPackedIndices(const PaletteStorage& storage, ChunkCodec::CellIndices& out) {
+            constexpr uint32_t mask = (1u << Bits) - 1u;
+            if (storage.palette.size() > mask)
+                return ExpandPackedIndices<Bits, false>(storage, out);
+            return ExpandPackedIndices<Bits, true>(storage, out);
+        }
+
         PersistentResolver gResolver = nullptr;
 
         bool NbtString(wire::Reader& r, std::string& out) {
@@ -319,23 +364,21 @@ namespace perlin {
     bool ChunkCodec::ExpandIndices(const PaletteStorage& st, CellIndices& out) {
         if (st.palette.empty())
             return false;
-        if (st.bitsPerBlock == 0) {
+        switch (st.bitsPerBlock) {
+        case 0:
             out.fill(0);
             return true;
-        }
-        unsigned bpb = static_cast<unsigned>(st.bitsPerBlock);
-        unsigned perWord = 32 / bpb;
-        uint32_t mask = (1u << bpb) - 1;
-        if (st.words.size() < WordCount(bpb))
+        case 1: return ExpandPackedIndices<1>(st, out);
+        case 2: return ExpandPackedIndices<2>(st, out);
+        case 3: return ExpandPackedIndices<3>(st, out);
+        case 4: return ExpandPackedIndices<4>(st, out);
+        case 5: return ExpandPackedIndices<5>(st, out);
+        case 6: return ExpandPackedIndices<6>(st, out);
+        case 8: return ExpandPackedIndices<8>(st, out);
+        case 16: return ExpandPackedIndices<16>(st, out);
+        default:
             return false;
-        for (unsigned pos = 0; pos < static_cast<unsigned>(kCells); pos++) {
-            uint32_t w = st.words[pos / perWord];
-            uint32_t idx = (w >> ((pos % perWord) * bpb)) & mask;
-            if (idx >= st.palette.size())
-                return false;
-            out[pos] = static_cast<uint16_t>(idx);
         }
-        return true;
     }
 
     bool ChunkCodec::Expand(const PaletteStorage& st, CellIds& out) {

@@ -876,6 +876,91 @@ int main() {
     }
 
     {
+        // Native ordinary tick order is jump, movement/collision, levitation, gravity, drag.
+        // Slow Falling therefore does not replace gravity during upward jump travel, or
+        // after a floor/ceiling collision has resolved the vertical velocity to zero.
+        TestWorld ground;
+        ground.fn = [](int, int y, int) { return y == 0 ? Full() : BlockShape{}; };
+        State normal;
+        normal.x = normal.z = 0.5;
+        normal.y = 1;
+        normal.onGround = true;
+        Step(normal, Input{}, attr, ground);
+        CHECK(std::bit_cast<uint32_t>(static_cast<float>(normal.vy)) == 0xbda0902e);
+        State slow = normal;
+        Attributes slowAttributes;
+        slowAttributes.slowFalling = true;
+        Input jump;
+        jump.jump = true;
+        CHECK(Step(normal, jump, attr, ground));
+        CHECK(Step(slow, jump, slowAttributes, ground));
+        CHECK(std::bit_cast<uint32_t>(static_cast<float>(slow.vy)) == 0x3eaa9930);
+        CHECK(normal.y == slow.y && normal.vy == slow.vy);
+        for (int frame = 0; frame < 5; ++frame) {
+            Step(normal, Input{}, attr, ground);
+            Step(slow, Input{}, slowAttributes, ground);
+            CHECK(normal.y == slow.y && normal.vy == slow.vy);
+        }
+        Step(normal, Input{}, attr, ground);
+        Step(slow, Input{}, slowAttributes, ground);
+        CHECK(slow.vy < 0 && slow.vy > normal.vy && slow.fallDistance == 0);
+
+        State landing;
+        landing.x = landing.z = 0.5;
+        landing.y = 1.1;
+        landing.vy = -0.2f;
+        landing.fallDistance = 4;
+        Step(landing, Input{}, slowAttributes, ground);
+        CHECK(landing.onGround && Near(landing.y, 1, 0.000001));
+        CHECK(std::bit_cast<uint32_t>(static_cast<float>(landing.vy)) == 0xbda0902e);
+        CHECK(landing.fallDistance == 0);
+
+        TestWorld ceiling;
+        ceiling.fn = [](int, int y, int) { return y == 0 || y == 3 ? Full() : BlockShape{}; };
+        State blocked = landing;
+        CHECK(Step(blocked, jump, slowAttributes, ceiling));
+        CHECK(blocked.verticalCollision && !blocked.onGround && Near(blocked.y, 1.2, 0.000001));
+        CHECK(std::bit_cast<uint32_t>(static_cast<float>(blocked.vy)) == 0xbda0902e);
+
+        State levitating = landing;
+        slowAttributes.levitation = 1;
+        CHECK(Step(levitating, jump, slowAttributes, ground));
+        CHECK(std::bit_cast<uint32_t>(static_cast<float>(levitating.vy)) == 0x3ead9be5);
+    }
+
+    {
+        TestWorld fluidWorld;
+        uint8_t fluid = 1;
+        fluidWorld.fn = [&](int, int, int) {
+            BlockShape shape;
+            shape.fluid = fluid;
+            shape.fluidLevel = 1;
+            shape.fluidDepth = 0;
+            return shape;
+        };
+        for (fluid = 1; fluid <= 2; ++fluid) {
+            for (const bool jumping : {false, true}) {
+                for (const int levitation : {0, 1}) {
+                    State normal;
+                    normal.y = 10;
+                    normal.vy = -0.2f;
+                    State slow = normal;
+                    Attributes ordinary;
+                    ordinary.levitation = levitation;
+                    Attributes withSlow = ordinary;
+                    withSlow.slowFalling = true;
+                    Input input;
+                    input.jump = jumping;
+                    Step(normal, input, ordinary, fluidWorld);
+                    Step(slow, input, withSlow, fluidWorld);
+                    CHECK(normal.y == slow.y && normal.vy == slow.vy);
+                    CHECK(fluid == 1 ? slow.inWater : slow.inLava);
+                }
+            }
+        }
+    }
+
+    {
         TestWorld empty;
         empty.fn = [](int, int, int) { return BlockShape{}; };
         State state;
@@ -944,11 +1029,42 @@ int main() {
         CHECK(std::bit_cast<uint32_t>(static_cast<float>(state.vz)) == 0x3f57a6f1);
         CHECK(std::bit_cast<uint32_t>(state.fallDistance) == 0x3f812104);
         CHECK(state.movementEffects[0].type == -1);
+        for (const auto& [level, expected] :
+             std::array<std::pair<int, uint32_t>, 2>{{{1, 0x3b40f01e}, {2, 0x3c541312}}}) {
+            State lifted;
+            lifted.fallDistance = 11.25f;
+            Attributes levitation;
+            levitation.levitation = level;
+            Step(lifted, gliding, levitation, empty);
+            CHECK(std::bit_cast<uint32_t>(static_cast<float>(lifted.vy)) == expected);
+            CHECK(lifted.x == state.x && lifted.y == state.y && lifted.z == state.z);
+            CHECK(lifted.vx == state.vx && lifted.vz == state.vz &&
+                  lifted.fallDistance == state.fallDistance);
+        }
         gliding.movementEffects.clear();
         gliding.pitch = -30;
         state.yaw = 45;
         Step(state, gliding, attr, empty);
         CHECK(state.previousRotation.pitch == -30 && state.previousRotation.yaw == 45);
+    }
+
+    {
+        // Glide applies its own drag before collision; the later levitation system
+        // acts on the resolved vertical velocity without ordinary vertical drag.
+        TestWorld ceiling;
+        ceiling.fn = [](int, int y, int) { return y == 65 ? Full() : BlockShape{}; };
+        State state;
+        state.x = state.z = 0.5;
+        state.y = 64.25;
+        state.vy = 0.4f;
+        Input input;
+        input.gliding = true;
+        input.gravity.hasGravity = false;
+        Attributes levitation;
+        levitation.levitation = 1;
+        Step(state, input, levitation, ceiling);
+        CHECK(state.verticalCollision && !state.onGround);
+        CHECK(std::bit_cast<uint32_t>(static_cast<float>(state.vy)) == 0x3c23d70a);
     }
 
     {

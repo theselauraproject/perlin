@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only matched executable/PDB metadata and direct branch/jump-table inspection; no native code execution. This artifact contains conclusions and address anchors, not code bytes or disassembly."
+  },
+  "facts": [
+    {
+      "topic": "FinishedChargingItem is a local input-reset event",
+      "contract": "ActorEvent74 is FinishedChargingItem in the matched PDB. LocalPlayer::handleEntityEvent dispatches it to a store of true in Player.mFlagClientForBAIReset at offset0xCA8. It then follows the base Mob/Actor handlers; both select their default branch for74 and the Actor branch returns without changing item-use state.",
+      "anchors": [
+        "PDB ActorEvent FinishedChargingItem=74",
+        "PDB Player.mFlagClientForBAIReset offset3240",
+        "LocalPlayer::handleEntityEvent RVA0x476DAC0; jump-table RVA0xE8E333C, index74-35 -> RVA0x476DCCF",
+        "flag store RVA0x476DCCF; base handler jump RVA0x476DCCA -> RVA0x207E4F0",
+        "Mob jump-table RVA0xE7FBF14, index74-2 -> RVA0x207E89A; base jump RVA0x207E8AA -> RVA0x1A085B0",
+        "Actor jump-table RVA0xE7D02E0, index74-6 -> RVA0x1A09B77 (return)"
+      ]
+    },
+    {
+      "topic": "Input reset waits for charged-item state",
+      "contract": "handleBuildAction first asks the selected stack whether it has a charged item. If that result is true and mFlagClientForBAIReset is true, it invokes IClientInstance::clearInProgressBAI, clears the flag, and returns from that input handling path. The reset therefore waits if FinishedChargingItem precedes the inventory update that supplies chargedItem. The branch does not call releaseUsingItem or stopUsingItem.",
+      "anchors": [
+        "ItemStackBase::hasChargedItem call RVA0x5D94F66 -> RVA0x2482F90; saved result at stack+0xD7",
+        "charged-state check RVA0x5D950F8; reset-flag check RVA0x5D95101",
+        "PDB IClientInstance::clearInProgressBAI explicit virtual slot0x9D8",
+        "clearInProgressBAI call RVA0x5D95117; flag clear RVA0x5D95124; return-path branch RVA0x5D9512B -> RVA0x5D95CB9"
+      ]
+    },
+    {
+      "topic": "Successful loaded-item use clears retained input",
+      "contract": "The post-baseUseItem success path also checks the pre-use hasChargedItem result and invokes clearInProgressBAI when that result was true. This is separate from the server event latch; it does not prove the local item succeeds for every malformed or custom loaded-stack definition.",
+      "anchors": [
+        "GameMode::baseUseItem call RVA0x5D95D8F",
+        "success test RVA0x5D95D97/0x5D95D99",
+        "pre-use charged result check RVA0x5D95DBD",
+        "clearInProgressBAI vslot0x9D8 call RVA0x5D95DD3"
+      ]
+    }
+  ],
+  "perlin_change": "The local ChargedItem event is retained in session state until the selected crossbow is loaded, then blocks continuation from the same held press. The existing active-use timer continues; no ItemRelease is fabricated. Physical release clears the completed-use continuation latch, allowing one ordinary loaded-item attempt on a fresh press.",
+  "validation": "PlayerInteractionSelfTest exercises event-before-inventory and inventory-before-event order, active timer preservation, completion without same-press firing, a fresh loaded shot, and no repeated firing from the old completion latch. ItemUsePacketsSelfTest exercises other-actor/no-local-player filtering, consume-once behavior and session reset. Integration run is owned by the parent agent.",
+  "limits": [
+    "The native addresses establish this branch in supplied protocol2193 only. Other profiles exercise Perlin interoperability tests, not independent native equivalence.",
+    "The branch clearing retained input does not itself establish all crossbow load, release, projectile or custom-item behavior."
+  ]
+}

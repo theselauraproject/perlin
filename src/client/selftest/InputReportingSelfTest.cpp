@@ -14,6 +14,20 @@ namespace perlin::selftest {
             Input input;
             Options options;
             InputManager manager(input, options);
+            input.OnMouseDown(Mouse::Right);
+            manager.Poll();
+            t.Check(manager.Pressed(Action::Use), "the first button transition reports use pressed");
+            input.OnMouseDown(Mouse::Right);
+            manager.Poll();
+            t.Check(!manager.Pressed(Action::Use) && manager.IsDown(Action::Use),
+                    "a repeated mouse-down notification preserves held state without another press");
+            input.OnMouseUp(Mouse::Right);
+            manager.Poll();
+            input.OnMouseDown(Mouse::Right);
+            manager.Poll();
+            t.Check(manager.Pressed(Action::Use), "a real release and new press creates a new input edge");
+            input.OnMouseUp(Mouse::Right);
+            manager.Poll();
             t.Equal(manager.Device(), InputDevice::Mouse, "default input remains mouse and keyboard");
             input.SetPadConnected(true);
             t.Equal(manager.Device(), InputDevice::Mouse, "connecting an idle controller does not select it");

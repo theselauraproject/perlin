@@ -1,4 +1,5 @@
 #include "client/systems/multiplayer/SessionPolicy.hpp"
+#include "network/Transport.hpp"
 
 namespace perlin::session {
 
@@ -6,6 +7,25 @@ namespace perlin::session {
         if (algorithm == 0xFFFF || threshold == 0 || size < threshold)
             return BatchCompression::None;
         return algorithm == 1 ? BatchCompression::Snappy : BatchCompression::Zlib;
+    }
+
+    LoginProtocolSelection SelectLoginProtocol(int transportProtocol, int advertisedProtocol,
+                                                int previousProtocol, bool transfer,
+                                                int overrideProtocol) {
+        using Source = LoginProtocolSelection::Source;
+        if (overrideProtocol > 0)
+            return {overrideProtocol, Source::Override};
+        if (advertisedProtocol >= kOldestBedrockProtocol && advertisedProtocol < kBedrockProtocol)
+            return {advertisedProtocol, Source::Advertisement};
+        const bool advertisedSupported = advertisedProtocol >= kOldestBedrockProtocol &&
+                                         advertisedProtocol <= kBedrockProtocol;
+        const bool previousSupported = previousProtocol >= kOldestBedrockProtocol &&
+                                       previousProtocol <= kBedrockProtocol;
+        // Some transfer destinations advertise a placeholder version. It does not
+        // select a new wire format for an already working connection profile.
+        if (transfer && !advertisedSupported && previousSupported)
+            return {previousProtocol, Source::Transfer};
+        return {transportProtocol, Source::Transport};
     }
 
     PlayStatusDecision DecidePlayStatus(PlayStatusKind status, int statusCode, Phase phase,

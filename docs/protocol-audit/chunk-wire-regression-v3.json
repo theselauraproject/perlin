@@ -1,0 +1,20 @@
+{
+  "fixture_sha256": "a234d163d03415482394fd0aa509a61cc364f3a5e048821e1a7288c27730cd1b",
+  "baseline_library_sha256": "51657b2e4768d8d0f2d64d5009683dc7b3ec70b71cede29c83293cc88af42625",
+  "baseline_exit": 1,
+  "baseline_summary": "chunk_wire_selftest: FAIL (302 checks, 110 failures)",
+  "corrected_summary": "chunk_wire_selftest: ok (302 checks, 0 failures)",
+  "corrected_exit": 0,
+  "protocols_repaired": [
+    944,
+    975,
+    1001,
+    2168
+  ],
+  "later_column_smoke_profiles": [
+    2168,
+    2193,
+    2225
+  ],
+  "basis": "Independent literal byte fixtures run against the saved pre-fix codec library and the final rebuilt library; no native game execution"
+}

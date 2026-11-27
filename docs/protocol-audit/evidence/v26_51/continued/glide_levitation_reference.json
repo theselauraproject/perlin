@@ -1,0 +1,298 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "GlidingTravelFlagComponent",
+      "type_index": "0x19ebf",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "GroundTravelTypeSystem",
+      "type_index": "0x19fa4",
+      "size": 1,
+      "fieldlist": "0x19fa3",
+      "member_count": 3,
+      "fields": [],
+      "methods": [
+        {
+          "name": "calcMoveRelativeSpeed",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19fa0",
+          "return_type": "float",
+          "class_type": "GroundTravelTypeSystem",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const IConstBlockSource &",
+            "const Vec3 &",
+            "const AABB &",
+            "float",
+            "bool",
+            "const BaseGameVersion &"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        },
+        {
+          "name": "create",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19fa1",
+          "return_type": "TickingSystemWithInfo",
+          "class_type": "GroundTravelTypeSystem",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const BaseGameVersion &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "FRICTION_FIX_VERSION",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x19fa2",
+          "return_type": "const BaseGameVersion &",
+          "class_type": "GroundTravelTypeSystem",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "LevitateTravelFlagComponent",
+      "type_index": "0x1b395",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "MobTravelComponent",
+      "type_index": "0x1bbe8",
+      "size": 40,
+      "fieldlist": "0x1bbe7",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mLocalMovementVelocity",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMovementSpeed",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosBeforeMove",
+          "offset": 16,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFriction",
+          "offset": 28,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSlowdown",
+          "offset": 32,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDoesVerticalFriction",
+          "offset": 36,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDoesGroundFriction",
+          "offset": 37,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "PlayerFlyingTravelComponent",
+      "type_index": "0x1d16b",
+      "size": 4,
+      "fieldlist": "0x1d16a",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mPreMoveYVel",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "TravelTypeSensingSystem",
+      "type_index": "0x2129e",
+      "size": 1,
+      "fieldlist": "0x2129d",
+      "member_count": 2,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "ViewT<StrictEntityContext,Include<LavaTravelFlagComponent>,Optional<const NavigationComponent>,const AABBShapeComponent,const ActorRotationComponent,const ActorDataFlagComponent,FallDistanceComponent,MobTravelComponent,StateVectorComponent,Optional<const CanStandOnPowderSnowComponent>,Optional<const CanStandOnPowderSnowFromEquipmentComponent> >",
+      "type_index": "0x23e6e",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "ViewT<StrictEntityContext,Include<MobTravelComponent>,Optional<const MovementAbilitiesComponent>,Optional<const WasInWaterFlagComponent>,Optional<const OnGroundFlagComponent>,Optional<const ImmuneToLavaDragComponent>,const AABBShapeComponent,const SubBBsComponent,const ActorDataFlagComponent>",
+      "type_index": "0x23e70",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "ViewT<StrictEntityContext,Include<MobTravelComponent>,const ActorDataFlagComponent,const ActorDataControllingSeatIndexComponent,const VehicleComponent,const AABBShapeComponent,const StateVectorComponent,const JumpPendingScaleComponent,const MovementAttributesComponent,Optional<const OnGroundFlagComponent>,Optional<const DashActionComponent>,Optional<const MobIsJumpingFlagComponent>,Optional<const WasInLavaFlagComponent>,Optional<const WasInWaterFlagComponent> >",
+      "type_index": "0x23e6f",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    },
+    {
+      "name": "ViewT<StrictEntityContext,Include<OnGroundFlagComponent,PowerJumpFlagComponent>,Exclude<MobIsJumpingFlagComponent>,const TriggerJumpRequestComponent,const ActorRotationComponent,const MovementAttributesComponent,const MobEffectsComponent,const MobTravelComponent,JumpPendingScaleComponent,StateVectorComponent>",
+      "type_index": "0x23e71",
+      "size": 1,
+      "fieldlist": "0x1004",
+      "member_count": 0,
+      "fields": [],
+      "methods": []
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 1877828,
+      "name": "?climbOutOfLiquid@MobMovementClimbOutOfLiquid@@YAXAEBVStrictEntityContext@@AEBUAABBShapeComponent@@AEBUMobTravelComponent@@AEAUStateVectorComponent@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x82a7d00",
+      "rva": "0x82a8d00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2093312,
+      "name": "?doDefaultMoveSystems@DefaultMoveSystems@@YAXAEBVStrictEntityContext@@V?$Optional@$$CBUOnGroundFlagComponent@@@@V?$Optional@$$CBUCanStandOnPowderSnowComponent@@@@V?$Optional@$$CBUCanStandOnPowderSnowFromEquipmentComponent@@@@V?$Optional@$$CBUMoveInputComponent@@@@AEBUAABBShapeComponent@@AEBUActorRotationComponent@@AEBUActorDataFlagComponent@@AEAUFallDistanceComponent@@AEAUMobTravelComponent@@AEAUStateVectorComponent@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x8b60af0",
+      "rva": "0x8b61af0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2100548,
+      "name": "?doFlyingPlayerMoveSystems@DefaultMoveSystems@@YAXAEBVStrictEntityContext@@V?$Optional@$$CBUOnGroundFlagComponent@@@@AEBUAABBShapeComponent@@AEBUActorRotationComponent@@AEAUMobTravelComponent@@AEAUStateVectorComponent@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x8b60e10",
+      "rva": "0x8b61e10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2103596,
+      "name": "?doLavaMoveSystem@@YAXAEBVStrictEntityContext@@V?$Optional@$$CBVNavigationComponent@@@@AEBUAABBShapeComponent@@AEBUActorRotationComponent@@AEBUActorDataFlagComponent@@AEAUFallDistanceComponent@@AEAUMobTravelComponent@@AEAUStateVectorComponent@@V?$Optional@$$CBUCanStandOnPowderSnowComponent@@@@V?$Optional@$$CBUCanStandOnPowderSnowFromEquipmentComponent@@@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0xc6193a0",
+      "rva": "0xc61a3a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2111228,
+      "name": "?doResetMoveDirectionJumpPendingSystem@@YAXAEAVStrictEntityContext@@AEBUJumpPendingScaleComponent@@AEBUActorDataFlagComponent@@AEBUActorDataControllingSeatIndexComponent@@AEBUVehicleComponent@@AEAUMobTravelComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x7cb58f0",
+      "rva": "0x7cb68f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2114028,
+      "name": "?doTickNavigationTravelSystem@@YAXAEAVStrictEntityContext@@AEAVActorOwnerComponent@@AEAUMobTravelComponent@@AEAVNavigationComponent@@V?$EntityModifier@UMobTravelComponent@@@@@Z",
+      "section": 1,
+      "section_offset": "0x31c6e70",
+      "rva": "0x31c7e70"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2114836,
+      "name": "?doTravelTypeSensingSystem@@YAXAEBVStrictEntityContext@@V?$Optional@$$CBUMovementAbilitiesComponent@@@@V?$Optional@$$CBUWasInWaterFlagComponent@@@@V?$Optional@$$CBUOnGroundFlagComponent@@@@V?$Optional@$$CBUImmuneToLavaDragComponent@@@@AEBUAABBShapeComponent@@AEBUSubBBsComponent@@AEBUActorDataFlagComponent@@V?$EntityModifier@UAirTravelFlagComponent@@UGlidingTravelFlagComponent@@UGroundTravelFlagComponent@@ULavaTravelFlagComponent@@UWaterTravelFlagComponent@@UPlayerFlyingTravelComponent@@ULiquidTravelFlagComponent@@@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x90db7a0",
+      "rva": "0x90dc7a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2833424,
+      "name": "?horizontalMovement@DefaultMoveSystems@@YAXV?$Optional@$$CBUOnGroundFlagComponent@@@@AEBUAABBShapeComponent@@AEBUActorRotationComponent@@AEAUMobTravelComponent@@AEAUStateVectorComponent@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x8b608a0",
+      "rva": "0x8b618a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3838456,
+      "name": "?tick@GlideMoveControl@@UEAAXAEAVMoveControlComponent@@AEAVMob@@@Z",
+      "section": 1,
+      "section_offset": "0x3877cc0",
+      "rva": "0x3878cc0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3866392,
+      "name": "?tick@SwimControlSystemImpl@1@UEAAXAEAV?$StrictExecutionContext@U?$Filter@UMobTravelComponent@@UWasInWaterFlagComponent@@UMobIsJumpingFlagComponent@@@@U?$Read@UActorDataFlagComponent@@UMovementAbilitiesComponent@@UActorRotationComponent@@UMoveInputComponent@@UPlayerInputRequestComponent@@@@U?$Write@UStateVectorComponent@@@@U?$AddRemove@$$V@@U?$GlobalRead@$$V@@U?$GlobalWrite@$$V@@U?$EntityFactoryT@$$V@@@@@Z",
+      "section": 1,
+      "section_offset": "0x90cb320",
+      "rva": "0x90cc320"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3876104,
+      "name": "?tickApplyJumpModifierSystem@ApplyJumpModifierSystem@@SAXAEBVStrictEntityContext@@AEBUTriggerJumpRequestComponent@@AEBUActorRotationComponent@@AEBUMovementAttributesComponent@@AEBUMobEffectsComponent@@AEBUMobTravelComponent@@AEAUJumpPendingScaleComponent@@AEAUStateVectorComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x9023ef0",
+      "rva": "0x9024ef0"
+    }
+  ]
+}

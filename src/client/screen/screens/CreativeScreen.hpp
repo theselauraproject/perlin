@@ -1,4 +1,5 @@
 #pragma once
+#include "client/screen/screens/CreativeCatalogView.hpp"
 #include "client/systems/model/HudState.hpp"
 #include "client/ui/Scene.hpp"
 
@@ -10,10 +11,10 @@ namespace perlin::ui {
     struct CreativeView {
         int tab = 0;
         std::array<std::string, 6> tabTitles;
-        std::array<HudItem, 6> tabIcons;
         std::array<bool, 6> tabPresent{};
         std::array<HudItem, 45> grid;
         std::array<std::string, 45> gridNames;
+        std::array<creative::CellKind, 45> gridKinds{};
         float scroll = 0.0f;
         bool scrollable = false;
         std::string search;

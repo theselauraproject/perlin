@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "facts": [
+    {
+      "topic": "glide and ordinary mob travel coexist",
+      "contract": "The matched travel-sensing view includes MobTravelComponent. Its concrete callback adds GlidingTravelFlagComponent for the gliding actor flag, while its typed modifier lists travel tags but not MobTravelComponent. This path retains mob travel for the subsequent glide and levitation systems.",
+      "anchors": [
+        "PDB ViewT<StrictEntityContext,Include<MobTravelComponent>,Optional<const MovementAbilitiesComponent>,Optional<const WasInWaterFlagComponent>,Optional<const OnGroundFlagComponent>,Optional<const ImmuneToLavaDragComponent>,const AABBShapeComponent,const SubBBsComponent,const ActorDataFlagComponent>",
+        "doTravelTypeSensingSystem RVA0x90DC7A0",
+        "gliding flag test RVA0x90DC8F9",
+        "GlidingTravelFlagComponent lookup/add path RVA0x90DCB18/RVA0x90DCB1D/RVA0x90DCA94",
+        "FNV1a(MobTravelComponent)=0x39CF8D64",
+        "FNV1a(GlidingTravelFlagComponent)=0x27A011EE"
+      ]
+    },
+    {
+      "topic": "levitation remains eligible during glide",
+      "contract": "The glide view includes rotation, MobEffects, FallDistance, StateVector, ActorMovementTickNeeded and GlidingTravel. The later levitation view includes MobEffects, StateVector and MobTravel and excludes PlayerFlyingTravel. It does not exclude GlidingTravel. The inspected tryStartGliding route has no MobEffects/levitation check.",
+      "anchors": [
+        "GlideMoveSystem vtable RVA0xE996440, tick slot0x28 -> RVA0x66685A0",
+        "glide view RVA0x6668030, six include-store lookups RVA0x666807B..RVA0x66680D0",
+        "levitation view RVA0x2E0E6C0, three include stores RVA0x2E0E6F3/RVA0x2E0E703/RVA0x2E0E713",
+        "excluded PlayerFlyingTravel store RVA0x2E0E723/RVA0x2E0E78C",
+        "levitation tick negative-membership branch RVA0x2E0EB17..RVA0x2E0EB50",
+        "Player::tryStartGliding RVA0x20CA80"
+      ]
+    },
+    {
+      "topic": "post-collision vertical operation",
+      "contract": "Normal-category insertion order puts glide movement and actor movement before levitation. Glide already applies its own drag in its velocity callback; levitation subsequently uses the resolved vertical velocity, multiplies by0.8f, adds float(amplifier+1)*0.01f and adds LevitateTravelFlagComponent. This supports applying levitation after glide collision without another ordinary gravity or drag step.",
+      "anchors": [
+        "GlideMoveSystem registration RVA0x6826393",
+        "actor movement registration RVA0x682655B",
+        "levitation registration RVA0x6826597",
+        "normal-category insertion-order proof in slow_falling_findings.json",
+        "glide velocity callback RVA0x6667B10",
+        "levitation per-entity helper RVA0x2DE57E0",
+        "velocity multiplication RVA0x2DE5837",
+        "amplifier increment RVA0x2DE5848",
+        "scaled addition RVA0x2DE5856",
+        "LevitateTravelFlag add RVA0x2DE5869"
+      ]
+    }
+  ],
+  "implementation": {
+    "file": "src/world/movement/PlayerPhysics.cpp",
+    "change": "Gliding now applies active positive-level levitation to resolved vertical velocity after collision; ordinary glide behavior and its existing drag remain unchanged.",
+    "tests": [
+      "tests/physics_selftest.cpp: boosted-glide level1/2 literal float results, unchanged same-tick displacement/horizontal velocity/fall distance, and ceiling-resolved velocity with gravity disabled",
+      "src/client/selftest/MovementEffectsSelfTest.cpp: real MobEffect handler -> LocalPlayer glide -> PlayerAuthInput across944/2193/2225; combination with slow falling and removal"
+    ],
+    "baseline": "Before the production fix, the isolated physics selftest failed exactly the three new vertical-velocity assertions.",
+    "verification": "Final physics_selftest and movement_effects_selftest (234 checks across944/2193/2225) passed in the integrated Linux build. The original isolated physics selftest failed the three new vertical-velocity assertions before the production fix. See docs/protocol-audit/VALIDATION.md and test-results-v3.txt."
+  },
+  "limitations": [
+    "Evidence establishes this normal glide-plus-levitation path in matched1.26.51.1. It does not establish whole-client or other-version equality.",
+    "This change does not redesign negative/overflowing effect-amplifier representation or every flight activation path.",
+    "No real-server acceptance or anticheat-cause conclusion follows from these local tests."
+  ]
+}

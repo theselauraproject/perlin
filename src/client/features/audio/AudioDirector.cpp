@@ -42,6 +42,10 @@ namespace perlin::audio {
         if (atCamera) {
             listenerPosition = {p.position.x, p.position.y, p.position.z};
             deps.engine.SetListener(listenerPosition, p.yaw - 90.0f);
+        } else if (live && live->Camera().PoseActive() && live->Camera().AudioAtPlayer()) {
+            const CameraPose playerView = live->Camera().PlayerPose();
+            listenerPosition = playerView.position;
+            deps.engine.SetListener(listenerPosition, playerView.yaw - 90.0f);
         } else {
             listenerPosition = {deps.camera.x, deps.camera.y, deps.camera.z};
             deps.engine.SetListener(listenerPosition, deps.camera.yaw - 90.0f);

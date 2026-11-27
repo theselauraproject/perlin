@@ -1,0 +1,35 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "ItemInUseComponent",
+    "PlayerItemInUse",
+    "ItemUseInventoryTransaction",
+    "ItemUseInventoryTransaction::ActionType",
+    "ItemReleaseInventoryTransaction",
+    "ItemReleaseInventoryTransaction::ActionType",
+    "ItemUseMethod",
+    "ItemCompleteUseEvent",
+    "ActorEvent",
+    "HandSlot",
+    "BuildActionIntention",
+    "IFoodItemComponent",
+    "FoodItemComponentLegacy",
+    "FoodItemComponent",
+    "Item",
+    "Actor",
+    "Player",
+    "GameMode",
+    "IClientInstance",
+    "ItemStackNetManagerBase"
+  ],
+  "symbol_regex": "\\?(completeUsingItem|startUsingItem|stopUsingItem|releaseUsingItem)@Player|\\?normalTick@Player|\\?eat@Player|\\?baseUseItem@GameMode|\\?(useTimeDepleted|use)@(FoodItemComponentLegacy|FoodItemComponent)|\\?(useTimeDepleted|getMaxUseDuration)@Item@@|\\?_tickBuildAction@ClientInstance|\\?resetBai@ClientInstance|\\?handleBuildAction@ClientInputCallbacks|ItemUseTickDurationSystem|\\?_populateLegacyTransactionRequest@LocalPlayer|\\?normalTick@LocalPlayer|\\?sendInventoryTransaction@LocalPlayer|\\?handleEntityEvent@LocalPlayer",
+  "symbol_rvas": [
+    "0x1eb190",
+    "0x21e6e0",
+    "0x25b6150",
+    "0x27324a0",
+    "0x272c690",
+    "0x476a960",
+    "0x9b4b780"
+  ]
+}

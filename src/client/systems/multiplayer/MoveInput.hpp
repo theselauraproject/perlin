@@ -35,6 +35,7 @@ namespace perlin::movement {
         InputInteraction interaction = InputInteraction::Crosshair;
         float position[3] = {0, 0, 0};
         float delta[3] = {0, 0, 0};
+        std::optional<std::array<float, 3>> cameraOrientation;
         bool hasDelta = false;
         bool hasBlockAction = false;
         BlockActionData blockAction;
@@ -66,6 +67,10 @@ namespace perlin::movement {
             return false;
         if (input.vehicleRotation)
             for (float value : *input.vehicleRotation)
+                if (!std::isfinite(value))
+                    return false;
+        if (input.cameraOrientation)
+            for (float value : *input.cameraOrientation)
                 if (!std::isfinite(value))
                     return false;
         return true;

@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only PE/PDB metadata, public symbols, C++ field layouts, explicit virtual slots, and static disassembly. No executable or its machine code was executed. This artifact contains metadata and behavioral conclusions, not code bytes or disassembly.",
+    "scope": "Matched Windows client, protocol2193. The 2225 executable has not been shown to share these runtime branches."
+  },
+  "facts": [
+    {
+      "topic": "handler forwarding and world lifetime",
+      "contract": "CameraInstruction, CameraPresets and CameraShake handlers require the level reference to be valid and the level not to be tearing down. CameraInstruction forwards to a private preprocessor; CameraPresets replaces the level preset vectors and calls CameraRegistry::setupPresets. This does not establish every preset inheritance or rendering rule.",
+      "anchors": [
+        "CameraInstruction handler RVA0x131B260..0x131B4D4; delegate call RVA0x131B3DF -> RVA0x5679AD0",
+        "CameraPresets handler RVA0x131BC60..0x131BEF0; delegate call RVA0x131BE32 -> RVA0x5679A30",
+        "preset-vector assignment RVA0x5679A30..0x5679AC1; setupPresets call RVA0x5679AAC -> RVA0x9F28E0",
+        "ILevel::getTearingDown explicit virtual slot0xB00; CameraShake lifetime checks RVA0x131C3AC..0x131C43E"
+      ]
+    },
+    {
+      "topic": "invalid set index is local to the Set field",
+      "contract": "If Set.presetIndex is outside the current preset vector, the preprocessor clears the local Set optional and continues processing other instruction fields. It does not reject the entire CameraInstruction through this branch.",
+      "anchors": [
+        "preset-index comparison RVA0x5679BF3; Set optional cleared RVA0x5679C7D"
+      ]
+    },
+    {
+      "topic": "set-ease eligibility includes a vanilla-name allowlist",
+      "contract": "When Set has an ease and the selected preset is in the vanilla namespace, the preprocessor checks an initialized name allowlist. Failure removes only the ease optional. The allowlist contents were not recovered in this pass, so this finding does not identify a single allowed preset or justify accepting ease on every vanilla preset.",
+      "anchors": [
+        "Util::isVanillaNamespace call RVA0x5679C13 -> RVA0x21FED50",
+        "allowlist vector RVA0x11DB29F0/RVA0x11DB29F8; ease optional cleared RVA0x5679CA5"
+      ]
+    },
+    {
+      "topic": "set input clamps",
+      "contract": "The preprocessor clamps present Set pitch to[-90,90], both viewOffset coordinates to[-64,64], and all three entityOffset coordinates to[-64,64]. This is a field-specific preprocessing contract, not proof of general finite-value rejection.",
+      "anchors": [
+        "pitch RVA0x567A102..0x567A128; constants RVA0xE760F44=90 and RVA0xE6D7C5C=-90",
+        "viewOffset RVA0x567A137..0x567A186",
+        "entityOffset RVA0x5679CC3..0x5679D34; constants RVA0xE942874=-64 and RVA0xE7A7910=64"
+      ]
+    },
+    {
+      "topic": "persistent position and rotation overrides",
+      "contract": "For the matching preset entity, present Set position and rotation write independent optionals in CameraInstructionComponent. An absent optional leaves its previous stored value intact through this path. Facing, when present, is applied after the direct position/rotation writes and writes the rotation optional. Other lifecycle paths may remove this component.",
+      "anchors": [
+        "CameraInstruction core RVA0x66F1230..0x66F4642; matching preset index RVA0x66F15EB..0x66F15F8",
+        "CameraInstructionComponent hash0x0A91C987; pool helper RVA0x670A000",
+        "position presence test RVA0x66F161D, values RVA0x66F16B3..0x66F16C0, presence store RVA0x66F16C9",
+        "rotation presence test RVA0x66F16D4, values RVA0x66F1774/RVA0x66F1779, presence store RVA0x66F178B",
+        "Facing branch RVA0x66F178F onward; PDB component fields mPos0, mRot16"
+      ]
+    },
+    {
+      "topic": "default and removeIgnoreStartingValues ordering",
+      "contract": "Set default runs only when the optional is present and true. After explicit position/rotation processing, default removes CameraInstructionComponent and CameraIgnoreInstructionValuesComponent, so default wins over explicit position/rotation within that Set. The removeIgnoreStartingValues flag is examined only inside this default-true branch: when true, it restores original view/entity offsets and removes CameraIgnoreStartingValuesComponent. The flag alone has no effect in this branch.",
+      "anchors": [
+        "default presence/value guards RVA0x66F1C4F/RVA0x66F1C63",
+        "removeIgnoreStartingValues guard RVA0x66F1C77",
+        "original view offset restore RVA0x66F1D0B..0x66F1D10; original entity offset restore RVA0x66F1D3A..0x66F1D4A",
+        "CameraIgnoreStartingValuesComponent removal call RVA0x66F1DEE",
+        "CameraInstructionComponent removal call RVA0x66F1E92; CameraIgnoreInstructionValuesComponent removal call RVA0x66F1F3A",
+        "PDB CameraOffsetComponent: mEntityOffset0, mViewOffset12, mOriginalEntityOffset56, mOriginalViewOffset68; IgnoreInstructionValues hash0x654F22DB"
+      ]
+    },
+    {
+      "topic": "manual view/entity offsets",
+      "contract": "The offset updates require CameraOffsetComponent; otherwise the native path reports that the offset cannot be used on a non-follow_orbit preset. A successful manual offset update adds CameraIgnoreStartingValuesComponent. For entityOffset storage, native negates X and copies Y/Z unchanged. This storage sign conversion must be interpreted with the renderer coordinate basis; it is not by itself proof that any world-space addition should negate X.",
+      "anchors": [
+        "viewOffset presence RVA0x66F19B7; copy RVA0x66F1A53; tag addition RVA0x66F1A5C..0x66F1AD2; diagnostic RVA0x66F1AE6",
+        "entityOffset presence RVA0x66F1AF9; X negation RVA0x66F1B95..0x66F1BA5; Y/Z copy RVA0x66F1BA9; diagnostic RVA0x66F1C3C"
+      ]
+    },
+    {
+      "topic": "present empty fade, defaults and color retention",
+      "contract": "A present Fade is dispatched even if its time and color optionals are absent. The native fade consumer uses time defaults(1,.5,1). When the animation has no keyframes, present RGB is copied as float RGB with alpha1, otherwise color defaults to black with alpha1. If keyframes already exist, color assignment is skipped, retaining the existing fade color. There is no divide-by255 conversion in this consumer.",
+      "anchors": [
+        "present Fade dispatch guard RVA0x567B3BE",
+        "consumer RVA0x66EE7D0..0x66EE92B; CameraFadeEffectComponent hash0x2636F71E",
+        "default time load RVA0x66EE873..0x66EE88B; data RVA0xE99E660=(1,.5,1)",
+        "empty-keyframe guard RVA0x66EE89B; present color RVA0x66EE8A1..0x66EE8B8; default color load RVA0x66EE8C1, data RVA0xE779850=(0,0,0,1)",
+        "animation merge call RVA0x66EE8D3 -> RVA0x6778300"
+      ]
+    },
+    {
+      "topic": "fade phase limits and minimum total",
+      "contract": "The packet preprocessor clamps each present fade time to[0,10]. The animation helper rejects negative phase lengths or opacity and extends wait to max(wait,.5-in-out). It then merges three points(in,1),(in+wait,1),(in+wait+out,0). A new empty curve has an implicit starting point(0,0) for interpolation, rather than an additional stored zero keyframe. This distinction matters at the helper epsilon boundary.",
+      "anchors": [
+        "preprocessor clamp RVA0x5679D39..0x5679DB1; upper constant RVA0xE6AE474=10",
+        "negative guards RVA0x6778326..0x6778355",
+        "wait extension RVA0x6778445..0x677845A; minimum constant RVA0xE5C6370=.5",
+        "merge calls RVA0x6778469, RVA0x677847E, RVA0x6778492",
+        "implicit zero predecessor before first keyframe RVA0x67780EA..0x67780FF"
+      ]
+    },
+    {
+      "topic": "overlapping fade timeline and keyframe selection",
+      "contract": "Before merging a new fade, subtract current elapsed time from existing key times and discard negative-time keys. If keys remain, insert(0,currentValue); reset elapsed to0. For each requested new point, evaluate the old piecewise-linear curve. With epsilon=float.0001, skip insertion if oldValue+epsilon>=newValue and lastTime+epsilon>=newTime. Otherwise insert in time order, or replace the value of a preceding key whose time is within epsilon of newTime. Then remove any middle key whose two neighbor values are both at least its value. This is the recovered insertion/pruning rule; it is not an assertion that the algorithm computes the exact mathematical pointwise maximum of two continuous curves.",
+      "anchors": [
+        "timeline shift RVA0x6778380..0x6778394; removal RVA0x67783B0 onward; current-value key insertion RVA0x67783E0..0x677843C",
+        "keyframe helper RVA0x67780A0..0x67782FA",
+        "skip test RVA0x6778192..0x67781AF; epsilon data RVA0xE75D7C4",
+        "insert/replace selection RVA0x67781D0..0x6778255",
+        "middle-key pruning RVA0x6778292..0x67782CC"
+      ]
+    },
+    {
+      "topic": "spring easing function and pose/FOV selection",
+      "contract": "For finite progress, Spring clamps u to[0,1], samples the sine lookup at truncateToInt32(((2.5*u*u*u+.2)*(pi*u))*10430.3779296875) modulo65536, and forms ((sample*powf(1-u,2.2)+u)*(1+1.2*(1-u))). It returns start+(end-start)*that value. This is neither an exponential damping formula nor a direct arbitrary-frequency cosine. The same lookup table of easing function pointers selects this function for pose CameraBlendStateComponent and custom FOV easing. Float operation order and the imported CRT functions remain numerical details.",
+      "anchors": [
+        "Spring function RVA0x263FD70..0x263FE82; sine index RVA0x263FDF5..0x263FE0E; powf call RVA0x263FE29",
+        "easing pointer table RVA0xE8BF850 entry0 (enum Spring1) -> RVA0x263FD70; linear fallback RVA0x263FD60",
+        "pose blend initializer RVA0x6787400..0x6787814; enum selection RVA0x67874D4..0x67874F1; mEaseFunction+72 and mBlendTime+80 stores",
+        "FOV enum selection RVA0x66F31FA; CameraCustomFovEaseComponent mEaseFunction+16",
+        "IAT RVA0xF104598 resolves to api-ms-win-crt-math-l1-1-0.dll!powf"
+      ]
+    },
+    {
+      "topic": "spring sine table construction and reuse boundary",
+      "contract": "The native sine table is uninitialized .data on disk. Its initializer fills65536 temporary floats by calling imported CRT sinf(float(i)/10430.3779296875f), then copies them to the global table. This uses division, unlike Perlin\u2019s separate legacy algorithmic SineTable multiplication path. The existing CurrentSineEntry data uses the corresponding division-style convention, but exact equality to this client\u2019s runtime CRT output has not been proven. Comparing the existing data to a double-precision sin of the binary32 angle, rounded to binary32, differs at86 entries by1ULP; this is not a captured native table hash.",
+      "anchors": [
+        "initializer RVA0x2647070..0x26471A5; scalar int-to-float/division/call loop RVA0x26470C0..0x2647119",
+        "copy to global table RVA0x2647122..0x2647134; table RVA0x11D6973C",
+        "scale constant RVA0xE6AE484=10430.3779296875; IAT RVA0xF1045B8 resolves to api-ms-win-crt-math-l1-1-0.dll!sinf",
+        "existing data src/world/movement/data/perlin_sine_1_26_52.bin SHA256 ad80e88d62b795fa32bdd8b44a8712737c2e74ff02378134ff585a489fd380fc"
+      ]
+    },
+    {
+      "topic": "FOV limit in the runtime consumer",
+      "contract": "The native custom-FOV branch emits an out-of-range diagnostic for values outside[30,110], then clamps the stored target to that range and converts it to radians. Ease initialization is conditional on positive duration. This does not establish all FOV-clear transition or concurrent instruction timing rules.",
+      "anchors": [
+        "out-of-range diagnostic RVA0x66F31A5; positive-duration branch RVA0x66F31B8..0x66F31C1",
+        "target clamp and radians store RVA0x66F32BC..0x66F32E7"
+      ]
+    },
+    {
+      "topic": "clear, detach and target removal are value-sensitive optional booleans",
+      "contract": "The instruction preprocessor requires both presence and true for Clear, DetachFromEntity and RemoveTarget. Merely present false does not enqueue these actions.",
+      "anchors": [
+        "RemoveTarget guards RVA0x567AB59/RVA0x567AB66",
+        "Clear guards RVA0x567AF9E/RVA0x567AFAB",
+        "Detach guards RVA0x567CC64/RVA0x567CC71"
+      ]
+    },
+    {
+      "topic": "typed instruction enqueue order does not prove final precedence",
+      "contract": "The preprocessor handles fields in order Set, Target, RemoveTarget, Clear, Fade, FOV, Spline, Attach, Detach. These are separate typed event queues/listeners. Most listeners append a one-field CameraInstruction to the global instruction vector; Fade updates its own global component. The complete event-queue drain schedule has not been established, so this list must not be presented as verified final precedence for a deliberately combined multi-action packet.",
+      "anchors": [
+        "preprocessor RVA0x5679AD0..0x567D3B2",
+        "VanillaCamera::registerCameraEventListeners RVA0x8C3450..0x8C6952",
+        "Set listener RVA0x8FEB00 -> RVA0x66F6440; Target0x8FF910 ->0x66F6670; RemoveTarget0x8FF9E0 ->0x66F6880; Clear0x8FE610 ->0x66F6060",
+        "Fade listener RVA0x8FF440 -> RVA0x66EE7D0; FOV0x8FFEC0 ->0x66F6A70; Spline0x8FEF80 ->0x66F6C70; Attach0x8FFF90 ->0x66F5E60; Detach0x900060 ->0x66F6250",
+        "CameraInstructions component hash0x0378044C; core processor RVA0x66F1230"
+      ]
+    },
+    {
+      "topic": "attach applies to boom cameras in the recovered core",
+      "contract": "The core Attach branch enumerates CameraThirdPersonBoomComponent entities and installs or updates CameraAttachToEntityComponent and CameraAttachComponent there. It copies the packet actor identifier and actor location. It does not enumerate ordinary stationary/free cameras through this branch. The later boom callbacks request the actor-relative location through ICameraAPI. Full final pivot placement, locator fallback, component layering and detach behavior remain unclosed.",
+      "anchors": [
+        "Attach presence RVA0x66F1FB0; CameraThirdPersonBoomComponent hash0xEF14FB9A pool selection RVA0x66F1FD1",
+        "CameraAttachToEntityComponent hash0x6D9880F2 selected RVA0x66F20A4; CameraAttachComponent hash0xA6233058 selected RVA0x66F218B",
+        "actor location and ID copies RVA0x66F23A4..0x66F23AF",
+        "PDB AttachToEntityInstruction: mAttachToEntityId0, mActorLocator8; PDB ActorLocation includes Body1 and Eyes6",
+        "ICameraAPI::tryGetActorRelativeLocation explicit vslot8; calls in callbacks RVA0x677E970 and RVA0x677ECB0"
+      ]
+    },
+    {
+      "topic": "shake action dispatch and stop scope",
+      "contract": "CameraShake action0 adds a shake, action1 stops, and any other action returns. Add requires a local player and enabled user option0x23A, then forwards type, intensity and duration to CameraShakeComponent::queueShakeEvent. Stop removes the local player\u2019s entire CameraShakeComponent and does not read the packet shake type. Thus this handler supports Stop-all, not a type-specific stop conclusion. Noise generation, overlap blending and option naming were not closed.",
+      "anchors": [
+        "action branch RVA0x131C461..0x131C470",
+        "Add user option0x23A query RVA0x131C49A..0x131C4AA",
+        "Stop component hash0x84246E07 lookup RVA0x131C5CE; removal RVA0x131C63F..0x131C656",
+        "Add payload loads RVA0x131C736..0x131C740; tailcall RVA0x131C71D -> RVA0x2416080"
+      ]
+    }
+  ],
+  "numeric_comparison": {
+    "method": "Independent re-expression of the statically recovered angle construction using Python double math.sin, rounded to binary32. Not native execution and not a substitute for the imported Windows CRT.",
+    "entry_count": 65536,
+    "existing_data_sha256": "ad80e88d62b795fa32bdd8b44a8712737c2e74ff02378134ff585a489fd380fc",
+    "reexpressed_math_sha256": "2fef492a29b7f02c226ee2c8de31726c4fe2a08c4b4edb7d63edcb8b5be10f5d",
+    "different_entries": 86,
+    "maximum_float_word_distance": 1
+  },
+  "reference_extraction": {
+    "query": "camera_runtime_query.json",
+    "reference": "camera_runtime_reference.json",
+    "result": {
+      "classes": 31,
+      "symbols": 9,
+      "missing": []
+    },
+    "command": "python3 tools/bedrock_reference/query_pdb_reference.py /path/to/Minecraft.Windows.exe /path/to/Windows_Client_26.51.pdb --query docs/protocol-audit/evidence/v26_51/continued/camera_runtime_query.json --out /path/to/camera_runtime_reference.json"
+  },
+  "limits": [
+    "Runtime findings are matched protocol2193 evidence; protocol2225 equivalence has not been established.",
+    "No Minecraft executable, DLL or machine-code fragment was run. No captured native trajectory, frame output or sine-table memory is claimed.",
+    "The table comparison does not establish exact CRT sinf or powf bit behavior on the user\u2019s Windows system.",
+    "Final multi-field instruction precedence requires event-queue scheduling evidence beyond enqueue order.",
+    "Complete preset inheritance/default construction, malformed numeric handling and the vanilla ease allowlist are not closed here.",
+    "Focus target snap, continue-targeting, yaw-limit/angle conventions, aim-assist and custom-camera rendering interactions are not fully reverse-engineered.",
+    "Attach pool filtering is established; full final boom position/locator fallback and exact detach behavior are not.",
+    "Spline findings are delegated to camera_spline_reference/findings metadata; no spline completion rule is asserted by this artifact.",
+    "Shake action routing/Stop-all are established; native noise distribution, overlap and complete option behavior remain unresolved."
+  ]
+}

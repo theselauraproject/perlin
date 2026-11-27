@@ -29,15 +29,15 @@
     },
     "receive_status_all_definitions": {
       "no_receive_handler_found": 109,
-      "typed_handler_present": 119,
+      "typed_handler_present": 120,
       "partial_handler_present": 2,
-      "explicit_no_op": 24
+      "explicit_no_op": 23
     },
     "receive_status_executable_packets": {
       "no_receive_handler_found": 99,
-      "typed_handler_present": 116,
+      "typed_handler_present": 117,
       "partial_handler_present": 2,
-      "explicit_no_op": 22
+      "explicit_no_op": 21
     },
     "reference_client_dispatch_entries": 0,
     "reference_return_only_entries": 0,
@@ -97,11 +97,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 364
+          "line": 448
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 493
+          "line": 577
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -615,7 +615,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1160
+          "line": 1287
         },
         {
           "path": "src/client/systems/multiplayer/handlers/SessionHandlers.cpp",
@@ -887,8 +887,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1260,
-          "end_line": 1268,
+          "line": 1468,
+          "end_line": 1476,
           "registration_function": "find_if",
           "scope": "live_session",
           "kind": "partial",
@@ -907,11 +907,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1260
+          "line": 1468
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1694
+          "line": 1826
         },
         {
           "path": "src/client/systems/multiplayer/handlers/HandlerRegistration.cpp",
@@ -1860,8 +1860,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -1871,7 +1871,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1194
+          "line": 1229
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -2245,7 +2245,7 @@
         {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
           "line": 206,
-          "end_line": 259,
+          "end_line": 266,
           "registration_function": "find_if",
           "scope": "live_session",
           "kind": "typed",
@@ -2253,6 +2253,10 @@
         }
       ],
       "source_references": [
+        {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1217
+        },
         {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
           "line": 206
@@ -2363,8 +2367,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 270,
-          "end_line": 275,
+          "line": 285,
+          "end_line": 290,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -2376,11 +2380,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 270
+          "line": 285
         },
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 271
+          "line": 286
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -2431,8 +2435,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1114,
-          "end_line": 1128,
+          "line": 1149,
+          "end_line": 1163,
           "registration_function": "RegisterProtocolExtras",
           "scope": "live_session",
           "kind": "typed",
@@ -2442,7 +2446,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1114
+          "line": 1149
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -2716,6 +2720,14 @@
       ],
       "source_references": [
         {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1224
+        },
+        {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1225
+        },
+        {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
           "line": 8
         }
@@ -2780,8 +2792,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1169,
-          "end_line": 1172,
+          "line": 1204,
+          "end_line": 1207,
           "registration_function": "RegisterProtocolExtras",
           "scope": "live_session",
           "kind": "typed",
@@ -2791,7 +2803,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1169
+          "line": 1204
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -2929,8 +2941,8 @@
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 150,
-          "end_line": 161,
+          "line": 153,
+          "end_line": 167,
           "registration_function": "remove_if",
           "scope": "live_session",
           "kind": "typed",
@@ -2938,8 +2950,8 @@
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 163,
-          "end_line": 224,
+          "line": 169,
+          "end_line": 230,
           "registration_function": "remove_if",
           "scope": "live_session",
           "kind": "typed",
@@ -2947,8 +2959,8 @@
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 237,
-          "end_line": 256,
+          "line": 243,
+          "end_line": 262,
           "registration_function": "remove_if",
           "scope": "live_session",
           "kind": "typed",
@@ -2962,15 +2974,15 @@
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 150
+          "line": 153
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 163
+          "line": 169
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 237
+          "line": 243
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3054,8 +3066,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1117,
-          "end_line": 1155,
+          "line": 1314,
+          "end_line": 1363,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -3065,7 +3077,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1117
+          "line": 1314
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3119,8 +3131,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1082,
-          "end_line": 1104,
+          "line": 1279,
+          "end_line": 1301,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -3129,7 +3141,7 @@
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
           "line": 113,
-          "end_line": 148,
+          "end_line": 151,
           "registration_function": "remove_if",
           "scope": "live_session",
           "kind": "typed",
@@ -3139,7 +3151,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1082
+          "line": 1279
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
@@ -3189,8 +3201,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 627,
-          "end_line": 669,
+          "line": 803,
+          "end_line": 845,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -3200,27 +3212,27 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 25
+          "line": 40
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 129
+          "line": 145
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 159
+          "line": 269
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 177
+          "line": 287
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 196
+          "line": 306
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 262
+          "line": 374
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInventory.cpp",
@@ -3228,11 +3240,11 @@
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 627
+          "line": 803
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1590
+          "line": 1722
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3294,8 +3306,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 387,
-          "end_line": 392,
+          "line": 552,
+          "end_line": 557,
           "registration_function": "InjectClientPacket",
           "scope": "recorded_client_replay",
           "kind": "typed",
@@ -3303,8 +3315,8 @@
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1045,
-          "end_line": 1055,
+          "line": 1240,
+          "end_line": 1249,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -3323,15 +3335,15 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 347
+          "line": 512
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 387
+          "line": 552
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1045
+          "line": 1240
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
@@ -3401,8 +3413,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1057,
-          "end_line": 1066,
+          "line": 1251,
+          "end_line": 1261,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -3421,7 +3433,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1057
+          "line": 1251
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
@@ -3503,15 +3515,15 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 221
+          "line": 331
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 558
+          "line": 669
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 572
+          "line": 683
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3574,7 +3586,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 230
+          "line": 340
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3629,7 +3641,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 250
+          "line": 360
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3691,8 +3703,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 393,
-          "end_line": 402,
+          "line": 558,
+          "end_line": 567,
           "registration_function": "InjectClientPacket",
           "scope": "recorded_client_replay",
           "kind": "typed",
@@ -3702,23 +3714,23 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 80
+          "line": 95
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 548
+          "line": 659
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 393
+          "line": 558
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1582
+          "line": 1714
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1806
+          "line": 1938
         },
         {
           "path": "src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp",
@@ -3776,8 +3788,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -3787,7 +3799,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1193
+          "line": 1228
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -3845,9 +3857,9 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1157,
-          "end_line": 1172,
-          "registration_function": "remove_if",
+          "line": 1365,
+          "end_line": 1380,
+          "registration_function": "find_if",
           "scope": "live_session",
           "kind": "typed",
           "send_calls_in_handler": []
@@ -3865,7 +3877,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1157
+          "line": 1365
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp",
@@ -3993,8 +4005,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 258,
-          "end_line": 268,
+          "line": 264,
+          "end_line": 274,
           "registration_function": "remove_if",
           "scope": "live_session",
           "kind": "typed",
@@ -4004,7 +4016,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 258
+          "line": 264
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4226,8 +4238,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 380,
-          "end_line": 386,
+          "line": 545,
+          "end_line": 551,
           "registration_function": "InjectClientPacket",
           "scope": "recorded_client_replay",
           "kind": "typed",
@@ -4246,11 +4258,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 365
+          "line": 530
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 380
+          "line": 545
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
@@ -4321,7 +4333,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1797
+          "line": 1929
         },
         {
           "path": "src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp",
@@ -4383,8 +4395,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 892,
-          "end_line": 1007,
+          "line": 1073,
+          "end_line": 1193,
           "registration_function": "RegisterContainerHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -4394,7 +4406,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 892
+          "line": 1073
+        },
+        {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1223
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4448,8 +4464,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1008,
-          "end_line": 1027,
+          "line": 1194,
+          "end_line": 1221,
           "registration_function": "now",
           "scope": "live_session",
           "kind": "typed",
@@ -4461,15 +4477,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 598
+          "line": 731
         },
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1008
-        },
-        {
-          "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1023
+          "line": 1194
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4523,8 +4535,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1038,
-          "end_line": 1043,
+          "line": 1233,
+          "end_line": 1238,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -4534,7 +4546,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1038
+          "line": 1233
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4592,8 +4604,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 619,
-          "end_line": 621,
+          "line": 795,
+          "end_line": 797,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -4603,7 +4615,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 619
+          "line": 795
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4671,8 +4683,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 622,
-          "end_line": 625,
+          "line": 798,
+          "end_line": 801,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -4682,7 +4694,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 622
+          "line": 798
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4736,8 +4748,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 277,
-          "end_line": 280,
+          "line": 292,
+          "end_line": 295,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -4747,7 +4759,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 277
+          "line": 292
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -4891,8 +4903,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 809,
-          "end_line": 879,
+          "line": 990,
+          "end_line": 1060,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -4902,7 +4914,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 809
+          "line": 990
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -5129,8 +5141,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 229,
-          "end_line": 233,
+          "line": 238,
+          "end_line": 248,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -5139,12 +5151,16 @@
       ],
       "source_references": [
         {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1219
+        },
+        {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
           "line": 92
         },
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 229
+          "line": 238
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -5281,35 +5297,35 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 93
+          "line": 116
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 104
+          "line": 127
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 107
+          "line": 130
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1112
+          "line": 1216
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1870
+          "line": 2002
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2248
+          "line": 2482
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2261
+          "line": 2496
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2303
+          "line": 2551
         },
         {
           "path": "src/client/systems/multiplayer/handlers/HandlerRegistration.cpp",
@@ -5547,8 +5563,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 78,
-          "end_line": 86,
+          "line": 93,
+          "end_line": 101,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -5558,7 +5574,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 78
+          "line": 93
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -5816,8 +5832,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -5827,7 +5843,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1195
+          "line": 1230
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -5972,8 +5988,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 282,
-          "end_line": 304,
+          "line": 297,
+          "end_line": 319,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -5983,7 +5999,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 282
+          "line": 297
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -6098,7 +6114,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1191
+          "line": 1318
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -6438,8 +6454,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 73,
-          "end_line": 76,
+          "line": 88,
+          "end_line": 91,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -6449,11 +6465,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 243
+          "line": 353
         },
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 73
+          "line": 88
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -6878,7 +6894,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1721
+          "line": 1853
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -7101,8 +7117,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 93,
-          "end_line": 114,
+          "line": 108,
+          "end_line": 129,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -7125,7 +7141,7 @@
         },
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 93
+          "line": 108
         },
         {
           "path": "src/client/systems/multiplayer/handlers/SessionHandlers.cpp",
@@ -7211,8 +7227,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 318,
-          "end_line": 327,
+          "line": 333,
+          "end_line": 342,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -7222,7 +7238,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 318
+          "line": 333
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -7284,8 +7300,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -7295,7 +7311,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1196
+          "line": 1231
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -7525,7 +7541,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 977
+          "line": 1081
         },
         {
           "path": "src/client/systems/multiplayer/handlers/SessionHandlers.cpp",
@@ -7859,8 +7875,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1216,
-          "end_line": 1258,
+          "line": 1424,
+          "end_line": 1466,
           "registration_function": "find_if",
           "scope": "live_session",
           "kind": "typed",
@@ -7870,7 +7886,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1216
+          "line": 1424
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -8167,7 +8183,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1744
+          "line": 1876
         },
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
@@ -8307,8 +8323,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -8318,7 +8334,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1194
+          "line": 1229
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -8960,8 +8976,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 58,
-          "end_line": 61,
+          "line": 73,
+          "end_line": 76,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -8971,7 +8987,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 58
+          "line": 73
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -9384,8 +9400,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
-          "line": 301,
-          "end_line": 311,
+          "line": 313,
+          "end_line": 328,
           "registration_function": "erase_if",
           "scope": "live_session",
           "kind": "typed",
@@ -9394,8 +9410,12 @@
       ],
       "source_references": [
         {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1218
+        },
+        {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
-          "line": 301
+          "line": 313
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -9652,7 +9672,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1201
+          "line": 1328
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -9722,8 +9742,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1147,
-          "end_line": 1167,
+          "line": 1182,
+          "end_line": 1202,
           "registration_function": "RegisterProtocolExtras",
           "scope": "live_session",
           "kind": "typed",
@@ -9733,7 +9753,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1147
+          "line": 1182
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -9783,8 +9803,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 88,
-          "end_line": 91,
+          "line": 103,
+          "end_line": 106,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -9796,11 +9816,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1707
+          "line": 1839
         },
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 88
+          "line": 103
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -9896,8 +9916,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 226,
-          "end_line": 235,
+          "line": 232,
+          "end_line": 241,
           "registration_function": "remove_if",
           "scope": "live_session",
           "kind": "typed",
@@ -9907,7 +9927,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp",
-          "line": 226
+          "line": 232
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10000,8 +10020,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1130,
-          "end_line": 1145,
+          "line": 1165,
+          "end_line": 1180,
           "registration_function": "RegisterProtocolExtras",
           "scope": "live_session",
           "kind": "typed",
@@ -10011,7 +10031,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1130
+          "line": 1165
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10290,8 +10310,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -10301,7 +10321,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1194
+          "line": 1229
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10450,7 +10470,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1187
+          "line": 1314
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10496,8 +10516,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 68,
-          "end_line": 71,
+          "line": 83,
+          "end_line": 86,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -10507,7 +10527,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 68
+          "line": 83
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10721,8 +10741,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -10732,7 +10752,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1195
+          "line": 1230
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10795,11 +10815,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 99
+          "line": 122
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2236
+          "line": 2470
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -10862,15 +10882,15 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 100
+          "line": 123
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1112
+          "line": 1217
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2266
+          "line": 2501
         },
         {
           "path": "src/client/systems/multiplayer/handlers/HandlerRegistration.cpp",
@@ -11081,8 +11101,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -11092,7 +11112,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1193
+          "line": 1228
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -11195,7 +11215,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1734
+          "line": 1866
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -11611,8 +11631,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 403,
-          "end_line": 422,
+          "line": 568,
+          "end_line": 587,
           "registration_function": "InjectClientPacket",
           "scope": "recorded_client_replay",
           "kind": "typed",
@@ -11622,19 +11642,19 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 403
+          "line": 568
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 94
+          "line": 117
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1462
+          "line": 1589
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1513
+          "line": 1645
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -11741,8 +11761,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 768,
-          "end_line": 807,
+          "line": 953,
+          "end_line": 988,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -11752,7 +11772,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 768
+          "line": 953
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -11853,11 +11873,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 310
+          "line": 420
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInteract.cpp",
-          "line": 622
+          "line": 756
         },
         {
           "path": "src/client/systems/multiplayer/BedrockInventory.cpp",
@@ -11907,8 +11927,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 671,
-          "end_line": 766,
+          "line": 847,
+          "end_line": 951,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -11920,7 +11940,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 671
+          "line": 847
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -11972,8 +11992,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1068,
-          "end_line": 1080,
+          "line": 1263,
+          "end_line": 1277,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -11983,7 +12003,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1068
+          "line": 1263
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12083,8 +12103,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 47,
-          "end_line": 57,
+          "line": 62,
+          "end_line": 72,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -12094,7 +12114,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 47
+          "line": 62
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12392,6 +12412,14 @@
       ],
       "source_references": [
         {
+          "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
+          "line": 1215
+        },
+        {
+          "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
+          "line": 1218
+        },
+        {
           "path": "src/client/systems/multiplayer/handlers/SessionHandlers.cpp",
           "line": 238
         }
@@ -12447,8 +12475,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1173,
-          "end_line": 1178,
+          "line": 1208,
+          "end_line": 1213,
           "registration_function": "RegisterProtocolExtras",
           "scope": "live_session",
           "kind": "typed",
@@ -12458,7 +12486,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1173
+          "line": 1208
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12534,8 +12562,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -12545,7 +12573,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1193
+          "line": 1228
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12612,8 +12640,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 329,
-          "end_line": 334,
+          "line": 344,
+          "end_line": 349,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -12623,7 +12651,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 329
+          "line": 344
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12675,8 +12703,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 336,
-          "end_line": 336,
+          "line": 351,
+          "end_line": 351,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -12686,7 +12714,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 336
+          "line": 351
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12919,8 +12947,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -12930,7 +12958,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1198
+          "line": 1233
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -12976,8 +13004,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 212,
-          "end_line": 213,
+          "line": 221,
+          "end_line": 222,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -12987,11 +13015,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 212
+          "line": 221
         },
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 213
+          "line": 222
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -13168,8 +13196,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -13179,7 +13207,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1195
+          "line": 1230
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -13254,8 +13282,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 306,
-          "end_line": 316,
+          "line": 321,
+          "end_line": 331,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -13265,7 +13293,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 306
+          "line": 321
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -13431,8 +13459,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
-          "line": 261,
-          "end_line": 299,
+          "line": 268,
+          "end_line": 311,
           "registration_function": "erase_if",
           "scope": "live_session",
           "kind": "typed",
@@ -13441,8 +13469,12 @@
       ],
       "source_references": [
         {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1218
+        },
+        {
           "path": "src/client/systems/multiplayer/handlers/LevelHandlers.cpp",
-          "line": 261
+          "line": 268
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -13538,15 +13570,15 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 97
+          "line": 120
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1112
+          "line": 1216
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2114
+          "line": 2274
         },
         {
           "path": "src/client/systems/multiplayer/handlers/HandlerRegistration.cpp",
@@ -13611,11 +13643,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 101
+          "line": 124
         },
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 2742
+          "line": 3097
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -13665,8 +13697,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1031,
-          "end_line": 1036,
+          "line": 1225,
+          "end_line": 1231,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -13676,7 +13708,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1031
+          "line": 1225
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -13726,8 +13758,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1184,
-          "end_line": 1190,
+          "line": 1219,
+          "end_line": 1225,
           "registration_function": "RegisterIgnoredHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -13737,11 +13769,11 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1714
+          "line": 1846
         },
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1184
+          "line": 1219
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -14125,8 +14157,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 215,
-          "end_line": 227,
+          "line": 224,
+          "end_line": 236,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -14136,7 +14168,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 215
+          "line": 224
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -14451,7 +14483,7 @@
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
           "line": 8,
-          "end_line": 45,
+          "end_line": 60,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -14527,8 +14559,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 63,
-          "end_line": 66,
+          "line": 78,
+          "end_line": 81,
           "registration_function": "RegisterPlayerRuleHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -14538,7 +14570,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
-          "line": 63
+          "line": 78
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -14804,7 +14836,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1124
+          "line": 1251
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -15090,8 +15122,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 338,
-          "end_line": 376,
+          "line": 358,
+          "end_line": 410,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -15101,7 +15133,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 338
+          "line": 358
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -15169,8 +15201,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 881,
-          "end_line": 888,
+          "line": 1062,
+          "end_line": 1069,
           "registration_function": "RegisterInventoryHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -15180,7 +15212,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 881
+          "line": 1062
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -15427,8 +15459,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 386,
-          "end_line": 451,
+          "line": 420,
+          "end_line": 486,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -15438,7 +15470,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 386
+          "line": 420
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -15601,8 +15633,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 235,
-          "end_line": 268,
+          "line": 250,
+          "end_line": 283,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -15611,8 +15643,12 @@
       ],
       "source_references": [
         {
+          "path": "src/client/systems/multiplayer/BedrockSession.cpp",
+          "line": 1223
+        },
+        {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 235
+          "line": 250
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -16098,7 +16134,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1211
+          "line": 1338
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -16393,8 +16429,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -16404,7 +16440,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1199
+          "line": 1234
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -16510,8 +16546,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1106,
-          "end_line": 1115,
+          "line": 1303,
+          "end_line": 1312,
           "registration_function": "RegisterEquipmentHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -16521,7 +16557,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1106
+          "line": 1303
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -16562,8 +16598,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -16573,7 +16609,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1197
+          "line": 1232
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -16848,8 +16884,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -16859,7 +16895,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1200
+          "line": 1235
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -17029,7 +17065,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockSession.cpp",
-          "line": 1543
+          "line": 1675
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -17385,22 +17421,22 @@
       },
       "reference_client_dispatch": null,
       "catalog_name_match": true,
-      "receive_status": "explicit_no_op",
+      "receive_status": "typed_handler_present",
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
-          "registration_function": "RegisterIgnoredHandlers",
-          "kind": "no_op",
+          "line": 353,
+          "end_line": 356,
+          "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
+          "kind": "typed",
           "send_calls_in_handler": []
         }
       ],
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1196
+          "line": 353
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -17557,8 +17593,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -17568,7 +17604,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1198
+          "line": 1233
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -17710,8 +17746,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -17721,7 +17757,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1201
+          "line": 1236
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -17806,8 +17842,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -17817,7 +17853,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1198
+          "line": 1233
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -17960,8 +17996,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -17971,7 +18007,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1201
+          "line": 1236
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18020,8 +18056,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -18031,7 +18067,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1202
+          "line": 1237
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18072,8 +18108,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -18083,7 +18119,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1202
+          "line": 1237
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18175,8 +18211,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -18186,7 +18222,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1196
+          "line": 1231
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18319,31 +18355,18 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 378,
-          "end_line": 384,
+          "line": 412,
+          "end_line": 418,
           "registration_function": "RegisterWorldExtraHandlers",
           "scope": "live_session",
           "kind": "typed",
-          "send_calls_in_handler": []
-        },
-        {
-          "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
-          "registration_function": "RegisterIgnoredHandlers",
-          "kind": "no_op",
-          "scope": "live_session",
           "send_calls_in_handler": []
         }
       ],
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 378
-        },
-        {
-          "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1199
+          "line": 412
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18395,8 +18418,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -18406,7 +18429,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1200
+          "line": 1235
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18513,8 +18536,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1176,
-          "end_line": 1214,
+          "line": 1384,
+          "end_line": 1422,
           "registration_function": "RegisterHudHandlers",
           "scope": "live_session",
           "kind": "typed",
@@ -18524,7 +18547,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockPlayerState.cpp",
-          "line": 1176
+          "line": 1384
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -18911,8 +18934,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1192,
-          "end_line": 1202,
+          "line": 1227,
+          "end_line": 1237,
           "registration_function": "RegisterIgnoredHandlers",
           "kind": "no_op",
           "scope": "live_session",
@@ -18922,7 +18945,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1199
+          "line": 1234
         }
       ],
       "behavioral_equivalence": "not_established"
@@ -19062,8 +19085,8 @@
       "handlers": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1077,
-          "end_line": 1112,
+          "line": 1112,
+          "end_line": 1147,
           "registration_function": "RegisterProtocolExtras",
           "scope": "live_session",
           "kind": "typed",
@@ -19073,7 +19096,7 @@
       "source_references": [
         {
           "path": "src/client/systems/multiplayer/BedrockWorldExtras.cpp",
-          "line": 1077
+          "line": 1112
         }
       ],
       "behavioral_equivalence": "not_established"

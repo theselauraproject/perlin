@@ -1,0 +1,29 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "Abilities",
+    "Ability",
+    "Ability::Type",
+    "Ability::Options",
+    "LayeredAbilities",
+    "SerializedAbilitiesData",
+    "SerializedAbilitiesData::SerializedLayer",
+    "AbilitiesIndex",
+    "AbilitiesLayer",
+    "PlayerPermissionLevel"
+  ],
+  "symbol_rvas": [
+    "0x134b6b0",
+    "0x1d6600",
+    "0xc4d650",
+    "0xcd0c10",
+    "0xcd0cc0",
+    "0x1d77c0",
+    "0x1d7830",
+    "0x1d13f0",
+    "0x1cfde0",
+    "0x476ce40",
+    "0x1efe80",
+    "0x11d1be68"
+  ]
+}

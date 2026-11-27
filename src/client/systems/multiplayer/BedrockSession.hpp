@@ -2,6 +2,7 @@
 #include "network/FriendWorld.hpp"
 #include "client/systems/model/CommandInfo.hpp"
 #include "world/level/Level.hpp"
+#include "world/level/chunk/ChunkLoadOrder.hpp"
 #include "network/PacketDispatcher.hpp"
 #include "protocol/Packets.hpp"
 #include "client/systems/resources/SkinLoader.hpp"
@@ -50,6 +51,7 @@ namespace perlin {
 
     class BedrockSession {
         friend struct MovementProtocolTestAccess;
+        friend struct ChunkPipelineTestAccess;
 
     public:
         enum class State {
@@ -275,6 +277,45 @@ namespace perlin {
             return it == ownAttributes.end() ? 0.1f : it->second;
         }
         float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength = std::nullopt);
+        struct MovementAttributeState {
+            bool known = false;
+            std::vector<proto::PlayerAttributesEntryModifiersEntry> modifiers;
+            std::array<float, 3> base{};
+            std::array<float, 2> limits{};
+            float value = 0.1f;
+        };
+        MovementAttributeState CaptureMovementAttribute() const {
+            std::lock_guard lock(attrMutex);
+            return movementState;
+        }
+        std::array<bool, 4> MovementAttributePresence() const {
+            std::lock_guard lock(attrMutex);
+            return {ownAttributes.contains("minecraft:movement"),
+                    ownAttributes.contains("minecraft:underwater_movement"),
+                    ownAttributes.contains("minecraft:lava_movement"),
+                    ownAttributes.contains("minecraft:air_drag_modifier")};
+        }
+        static void ApplyMovementAttribute(MovementAttributeState& state,
+                                           const proto::PlayerAttributesEntry& entry);
+        static float PredictedMovementSpeed(MovementAttributeState& state, bool sprinting,
+                                            std::optional<float> freezeStrength = std::nullopt);
+        float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength,
+                                     MovementAttributeState& snapshot);
+        static bool IsMovementAttribute(std::string_view name) {
+            return name == "minecraft:movement" || name == "minecraft:underwater_movement" ||
+                   name == "minecraft:lava_movement" || name == "minecraft:air_drag_modifier";
+        }
+        struct AttributeUpdate {
+            uint64_t tick = 0;
+            std::vector<proto::PlayerAttributesEntry> attributes;
+        };
+        void ApplyAttributeUpdate(const AttributeUpdate& update);
+        std::vector<AttributeUpdate> TakeAttributeUpdates() {
+            std::lock_guard lock(attrMutex);
+            std::vector<AttributeUpdate> updates;
+            updates.swap(pendingAttributeUpdates);
+            return updates;
+        }
         struct FreezeUpdate {
             uint64_t tick = 0;
             float strength = 0;
@@ -551,6 +592,18 @@ namespace perlin {
             sentTapActive.store(static_cast<bool>(sentTap), std::memory_order_release);
         }
         void BeginReplayMode(const std::string& name, uint64_t localRuntimeId, int protocol) {
+            cameraEffects.Reset();
+            ResetPlayerAbilities();
+            ResetPlayerAttributes();
+            chargedItemUseReset = false;
+            {
+                std::lock_guard lock(statusMutex);
+                ++itemStateRevision;
+                itemSlotRevisions.fill(0);
+                itemCooldownRevisions.clear();
+                itemCooldowns.Clear();
+                ResetContainerStateLocked();
+            }
             replayMode = true;
             playerName = name;
             runtimeId = localRuntimeId;
@@ -561,9 +614,18 @@ namespace perlin {
             netLevel.EnableUndo(static_cast<size_t>(768) << 20);
         }
         void AdoptWorld(BedrockSession& old) {
+            if (&old == this)
+                return;
             old.WaitChunkWorkIdle();
+            std::scoped_lock commitLock(chunkCommitMutex, old.chunkCommitMutex);
+            CancelQueuedChunkWork();
+            old.CancelQueuedChunkWork();
             netLevel.TakeFrom(old.netLevel);
             blockEntities.TakeFrom(old.blockEntities);
+            chunkLoadOrder.Synchronize(netLevel.IngestGeneration());
+            old.chunkLoadOrder.Synchronize(old.netLevel.IngestGeneration());
+            chunkChanges.clear();
+            old.chunkChanges.clear();
         }
         void WaitChunkWorkIdle() {
             for (int i = 0; i < 20000 && !ChunkWorkIdle(); i++)
@@ -573,12 +635,31 @@ namespace perlin {
             if (epoch == netLevel.Epoch())
                 return;
             WaitChunkWorkIdle();
+            std::lock_guard commitLock(chunkCommitMutex);
             netLevel.SetEpoch(epoch);
         }
         bool ReplayCanRewind(int64_t epoch) const { return netLevel.CanRewindTo(epoch); }
         bool ReplayRewindWorld(int64_t epoch) {
             WaitChunkWorkIdle();
-            return netLevel.RewindTo(epoch);
+            std::lock_guard commitLock(chunkCommitMutex);
+            bool rewound = false;
+            {
+                // Enqueue must not observe the new generation before obsolete
+                // queued packets have been cancelled.
+                std::lock_guard queueLock(chunkMutex);
+                rewound = netLevel.RewindTo(epoch);
+                if (rewound) {
+                    chunkIn.clear();
+                    ++chunkCancellation;
+                    chunkCompleted = chunkSubmitted;
+                }
+            }
+            if (rewound) {
+                chunkLoadOrder.Synchronize(netLevel.IngestGeneration());
+                chunkChanges.clear();
+                chunkCompletionCv.notify_all();
+            }
+            return rewound;
         }
         bool IsReplay() const { return replayMode; }
         struct ReplayClientEvent {
@@ -624,6 +705,7 @@ namespace perlin {
         bool MayFly() const { return mayFly; }
         bool Instabuild() const { return instabuild; }
         bool MayMine() const { return mayMine; }
+        bool TakeChargedItemUseReset() { return chargedItemUseReset.exchange(false); }
         bool IsFlying() const { return isFlying; }
         uint32_t AbilitiesSeq() const { return abilitiesSeq; }
         void ApplyGameTypeAbilities(int worldGameType) {
@@ -668,7 +750,7 @@ namespace perlin {
         int GameType() const { return gameType; }
         float FlySpeed() const { return flySpeed; }
         float VFlySpeed() const { return vFlySpeed; }
-        float WalkSpeed() const { return walkSpeed > 0 ? walkSpeed : 0.1f; }
+        float WalkSpeed() const { return walkSpeed; }
         uint64_t CurrentServerTick() const { return serverTick; }
         bool HaveStartPos() const { return haveStartPos; }
         void GetStartPos(float out[3]) const {
@@ -692,6 +774,8 @@ namespace perlin {
             uint32_t blockRuntimeId = 0;
             bool enchanted = false;
             std::string customName;
+            std::string chargedItemName;
+            int chargedItemCount = 0;
             bool hasColor = false;
             int32_t color = 0;
             int nbtTags = 0;
@@ -822,6 +906,11 @@ namespace perlin {
         int32_t ItemCooldownTicks(std::string_view itemName) const;
         bool ItemUseOnCooldown(std::string_view itemName) const;
         bool HeldItemUseOnCooldown() const;
+        bool HeldItemIsChargedCrossbow() const;
+        // Item startup gates only. The caller supplies its water/rain state and
+        // keeps attempted transactions independent from local use prediction.
+        bool CanStartUsingHeldItem(bool inWaterOrRain) const;
+        int HeldItemEnchantLevel(int id) const;
         void SetUseOffhand(bool v) { useOffhand = v; }
         void SetAttackOffhand(bool v) { attackOffhand = v; }
         bool SendReleaseItem(const float eye[3]);
@@ -851,6 +940,8 @@ namespace perlin {
             int id = 0, amplifier = 0;
             bool active = false;
             int32_t duration = 0;
+            bool ambient = false;
+            bool particles = true;
         };
         std::vector<EffectUpdate> TakeEffectUpdates();
         struct MotionUpdate {
@@ -935,6 +1026,7 @@ namespace perlin {
         static const char* PacketName(uint32_t id);
 
     private:
+        struct ChunkLoadContext;
         bool PredictPlaceState(int x, int y, int z, int32_t runtimeId, bool resolved);
         void HandleBatch(const std::vector<uint8_t>& msg);
         void OnGamePacket(uint32_t id, const std::vector<uint8_t>& body);
@@ -946,7 +1038,8 @@ namespace perlin {
         void RegisterEntityLifecycleHandlers();
         void RegisterEntityStateHandlers();
         void RegisterPlayerRuleHandlers();
-        void ParseBlockEntities(const uint8_t* data, size_t size, bool scan);
+        void ParseBlockEntities(const uint8_t* data, size_t size, bool scan,
+                                 const ChunkLoadContext* context = nullptr);
         BlockEntityStore blockEntities;
         void RegisterServerUiHandlers();
         void RegisterWorldExtraHandlers();
@@ -1019,7 +1112,25 @@ namespace perlin {
         void FinishLoadingIfReady();
 
         bool Transmit(uint32_t packetId, const std::vector<uint8_t>& body, bool reliable);
-        void HandleLevelChunk(const proto::LevelChunkPacket& packet);
+        struct DeferredChunkChanges {
+            struct CellEdit {
+                uint64_t revision = 0;
+                uint16_t value = 0;
+            };
+            struct Section {
+                std::unordered_map<uint16_t, CellEdit> cells;
+                std::unordered_map<uint16_t, uint64_t> blockEntities;
+            };
+            Level::ChunkWriteTarget target;
+            std::unordered_map<int, Section> sections;
+        };
+        struct ChunkLoadContext {
+            ChunkLoadOrder::Ticket order;
+            Level::ChunkWriteTarget target;
+            std::shared_ptr<DeferredChunkChanges> changes;
+        };
+        void HandleLevelChunk(const proto::LevelChunkPacket& packet,
+                               std::optional<ChunkLoadContext> resumed = std::nullopt);
         void HandleSubChunk(const proto::SubchunkPacket& packet);
         void QueueSubChunkRequests(int dim, int cx, int cz, int firstSubY, int count, bool far = false);
         void UpdateColumnLod();
@@ -1033,24 +1144,51 @@ namespace perlin {
         std::atomic<int64_t> lastColumnMs{0};
         std::chrono::steady_clock::time_point lastFill;
         uint64_t statFilled = 0;
-        bool ApplySubChunk(int cx, int cz, int absSubY, const SubChunkData& sc);
+        struct PreparedSubChunk {
+            int absY = 0;
+            Chunk::PreparedSection storage;
+        };
+        bool PrepareSubChunk(int cx, int cz, int absSubY, const SubChunkData& sc, PreparedSubChunk& prepared);
+        bool ChunkContextCurrent(const ChunkLoadContext& context, bool requireSlot) const;
+        bool ChunkInputCurrent() const;
+        void RecordChunkCellUpdate(int x, int y, int z, unsigned layer, uint16_t value);
+        void RecordChunkBlockEntityUpdate(int x, int y, int z);
+        std::shared_ptr<DeferredChunkChanges> ActiveChunkChanges(int x, int y, int z);
+        void ApplyPendingChunkChanges(const ChunkLoadContext& context, PreparedSubChunk& prepared) const;
+        bool HasNewerChunkBlockEntity(const ChunkLoadContext& context, int x, int y, int z) const;
         void ApplyBiomeColumn(int cx, int cz, const std::vector<uint8_t>& payload);
 
         void ChunkWorkerMain();
         void StartChunkWorker();
         void StopChunkWorker();
+        enum class ChunkBarrierResult { Ready, Cancelled, Reentrant };
+        ChunkBarrierResult WaitForEarlierChunkWork(uint64_t generation);
+        void CancelQueuedChunkWork();
+        void QueueChunkPacket(uint32_t id, const std::vector<uint8_t>& body,
+                               const net::context::Settings& codec);
         std::thread chunkThread;
         std::unique_ptr<ThreadPool> decodePool;
         std::mutex chunkMutex;
+        // Reset and final chunk/request/block-entity publication share this lock;
+        // decoding and storage preparation never hold it.
+        mutable std::mutex chunkCommitMutex;
+        ChunkLoadOrder chunkLoadOrder;
+        std::unordered_map<ChunkPos, std::weak_ptr<DeferredChunkChanges>, ChunkPosHash> chunkChanges;
         std::condition_variable chunkCv;
+        std::condition_variable chunkCompletionCv;
         struct ChunkPacket {
             uint32_t id;
             std::vector<uint8_t> body;
             net::context::Settings codec;
+            uint64_t generation = 0;
+            uint64_t sequence = 0;
         };
         std::deque<ChunkPacket> chunkIn;
         bool chunkStop = false;
         bool chunkBusy = false;
+        uint64_t chunkSubmitted = 0, chunkCompleted = 0, chunkCancellation = 0;
+        uint32_t chunkBarrierWaiters = 0;
+        std::thread::id chunkWorkerId;
 
         bool ConnectImpl(const std::string& host, uint16_t port, bool transfer);
         void BeginTransfer();
@@ -1211,6 +1349,7 @@ namespace perlin {
             size_t missing = 0;
             std::optional<proto::LevelChunkPacket> column;
             std::tuple<int, int, int, int> slot{};
+            ChunkLoadContext context;
             std::vector<uint8_t> tail;
             std::chrono::steady_clock::time_point askedAt;
             int asks = 0;
@@ -1222,10 +1361,21 @@ namespace perlin {
         std::atomic<uint64_t> statBlobHit{0}, statBlobMiss{0};
         bool LoadBlobs(BlobWait& wait, std::vector<uint64_t>& missing, std::vector<uint64_t>& have);
         void SendBlobStatus(const std::vector<uint64_t>& missing, const std::vector<uint64_t>& have);
-        void HandleCachedColumn(const proto::LevelChunkPacket& packet);
+        void HandleCachedColumn(const proto::LevelChunkPacket& packet, const ChunkLoadContext& context);
         void HandleCacheMiss(const proto::ClientCacheMissResponsePacket& packet);
         std::vector<uint8_t> JoinBlobs(BlobWait& wait);
-        void DecodeSubChunkBodies(const std::vector<std::pair<std::tuple<int, int, int, int>, std::vector<uint8_t>>>& bodies);
+        struct SubChunkBody {
+            std::tuple<int, int, int, int> key{};
+            ChunkLoadContext context;
+            std::vector<uint8_t> owned;
+            const std::vector<uint8_t>* borrowed = nullptr;
+            bool allAir = false;
+            bool hasData = true;
+            bool retry = false;
+            bool requireLatest = false;
+            const std::vector<uint8_t>& Bytes() const { return borrowed ? *borrowed : owned; }
+        };
+        void DecodeSubChunkBodies(const std::vector<SubChunkBody>& bodies);
         void RetryBlobWaits();
 
         std::string playerName = "Perlin";
@@ -1278,10 +1428,8 @@ namespace perlin {
         std::array<uint64_t, 2> ownFlagWords{};
         std::array<bool, 2> ownFlagWordsKnown{};
         std::optional<proto::PlayerAttributesEntry> movementAttribute;
-        std::vector<proto::PlayerAttributesEntryModifiersEntry> movementModifiers;
-        std::array<float, 3> movementBase{};
-        std::array<float, 2> movementLimits{};
-        float movementValue = 0.1f;
+        MovementAttributeState movementState;
+        std::vector<AttributeUpdate> pendingAttributeUpdates;
         std::vector<FreezeUpdate> freezeUpdates;
         void ApplyMovementAttribute(const proto::PlayerAttributesEntry& entry);
         int64_t ownPlayerFlags = 0;
@@ -1321,6 +1469,7 @@ namespace perlin {
         bool noClip = false;
         bool instabuild = false;
         bool mayMine = true;
+        std::atomic<bool> chargedItemUseReset{false};
         int gameType = 0;
         bool isFlying = false;
         uint32_t abilitiesSeq = 0;
@@ -1379,6 +1528,8 @@ namespace perlin {
                                  const std::optional<proto::FullContainerName>& container, int firstSlot,
                                  const std::vector<proto::ItemV4>& items, bool whole);
         void ResetPlayerState();
+        void ResetPlayerAbilities();
+        void ResetPlayerAttributes();
         mutable std::mutex statusMutex;
         mutable std::mutex locatorMutex;
         std::vector<LocatorWaypoint> locatorWaypoints;
@@ -1437,6 +1588,11 @@ namespace perlin {
             proto::ItemV4 horse[17];
         };
         std::map<int32_t, InvSnapshot> invSnapshots;
+        // Authoritative write generations distinguish even byte-identical
+        // corrections from unrelated slot/category updates during a send.
+        uint64_t itemStateRevision = 0;
+        std::array<uint64_t, kInvTotal> itemSlotRevisions{};
+        std::map<std::string, uint64_t, std::less<>> itemCooldownRevisions;
         bool SendLegacyInventoryLocked(const InvSnapshot& before);
         int craftedRecipe = -1;
         std::deque<std::function<bool(proto::ItemStackRequest&)>> invQueue;
@@ -1449,6 +1605,7 @@ namespace perlin {
         proto::ItemV4& InvRawLocked(int addr);
         void InvEnqueue(std::function<bool(proto::ItemStackRequest&)> op);
         bool SendCloseNow();
+        void ResetContainerStateLocked();
         struct ActiveEffect {
             int id = 0;
             int amplifier = 0;
@@ -1463,6 +1620,8 @@ namespace perlin {
              workbenchJustOpened = false;
         bool horseJustOpened = false;
         int inventoryWindow = 0;
+        proto::WindowType inventoryWindowType = proto::WindowType::Inventory;
+        proto::WindowType serverCloseWindowType = proto::WindowType::None;
         std::atomic<int64_t> ownInventoryAskedAt{0};
         int32_t nextStackRequestId = -3;
         struct PendingDrop {

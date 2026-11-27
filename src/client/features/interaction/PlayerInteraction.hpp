@@ -55,6 +55,8 @@ namespace perlin::interaction {
     };
 
     class Player {
+        friend struct InteractionTestAccess;
+
     public:
         struct Deps {
             Options& options;
@@ -107,6 +109,11 @@ namespace perlin::interaction {
         Action touchHoldAction = Action::Count;
         void UpdateBlockBreaking(FrameContext& f, const ui::HudItem& held, bool creative);
         void UpdateBlockUse(FrameContext& f, const ui::HudItem& held, bool creative);
+        int HeldUseDuration(const ui::HudItem& held, BedrockSession& live) const;
+        void BeginHeldItemUse(const ui::HudItem& held, BedrockSession& live);
+        void StopHeldItemUse();
+        void ReconcileHeldItemUse(const ui::HudItem& held);
+        bool RainingOnPlayer(BedrockSession& live) const;
         void ReleaseHeldItem(BedrockSession* live, const ui::HudItem& held, const float eye[3]);
 
         Options& options;
@@ -137,7 +144,13 @@ namespace perlin::interaction {
         float scrollAccum = 0.0f;
         int spectatorSpeed = 0;
         uint64_t useStartTick = 0;
+        int useDuration = 0;
         bool useConsumed = false, useWasHeld = false;
+        bool useRestartBlocked = false;
+        bool repeatAirUse = false;
+        std::string useItemName;
+        int useItemSlot = 0;
+        bool useItemOffhand = false;
 
         std::chrono::steady_clock::time_point lastUseSent{};
         uint64_t lastBuildAt = 0;

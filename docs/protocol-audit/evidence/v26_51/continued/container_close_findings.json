@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Static inspection of the matched executable, public symbols, field layouts and virtual slots. No executable was run. This file contains metadata and bounded conclusions, not code bytes or disassembly."
+  },
+  "reproducible_metadata": [
+    "container_close_query.json",
+    "container_close_reference.json"
+  ],
+  "facts": [
+    {
+      "topic": "A response close packet cannot close an active client container",
+      "contract": "The matched client handler branches on mServerInitiatedClose. When it is false and the local player has a live nonnull container manager, the handler sends PacketViolationWarning with severity Warning(0), violation type Unknown(-1), violating packet ID PacketViolationWarning(156), and the exact context below. It leaves the container manager open. No received container ID or type equality test occurs in this response branch.",
+      "context": "Server sent a ContainerClosePacket response packet when it should have sent the server initiated packet",
+      "anchors": [
+        "ContainerClose handler RVA0x1342690..RVA0x1342AAB; local-player guard RVA0x13426CB; server flag branch RVA0x13426DE; false branch RVA0x1342818",
+        "Player PDB mContainerManager offset0x5A0; live manager checks RVA0x1342818..RVA0x1342896",
+        "Payload ctor RVA0x134294B -> named PacketViolationWarningPacketPayload ctor RVA0x3C632C0 with severity0, type-1, packet0x9C; context literal RVA0xEBDA42E; outgoing send RVA0x13429D3",
+        "PDB PacketViolationSeverity Warning0 and PacketViolationType Unknown-1; handler marks original packet handled at RVA0x1342A5B"
+      ]
+    },
+    {
+      "topic": "A response received after the manager has closed finalizes the screen stack",
+      "contract": "When mServerInitiatedClose is false but no live container manager exists, the handler calls ItemStackNetManagerBase::onContainerScreenClose. It does not reconstruct or open a manager and does not send the warning. The recovered handler does not match a pending response by the incoming container ID or type. The screen-stack close helper preserves the base screen, as separately established in item_prediction_reconciliation_findings.json.",
+      "anchors": [
+        "No-live-manager false branch reaches RVA0x1342A47, loads player manager+0xAB8, invokes vslot0x38 at RVA0x1342A55",
+        "ItemStackNetManagerBase PDB explicit onContainerScreenClose slot56; base implementation RVA0x25AB930 only pops when at least two screen entries exist"
+      ]
+    },
+    {
+      "topic": "Server-initiated close schedules type-matched screen closure",
+      "contract": "A true server-initiated close with a live manager records its container type and should-close flag in LocalPlayer::ContainerCloseInfo. The normal ContainerScreenController tick closes only when its manager type equals that pending type and mScreenCanBeClosedByServer is true. A true server close without a live manager is ignored. The handler does not use the incoming container ID to select which manager closes. A separate option-dependent immediate deletion branch exists; it is not generalized here to every UI mode.",
+      "anchors": [
+        "Handler true branch RVA0x13426E8 onward; mShouldCloseContainerScreen store RVA0x134276F at LocalPlayer+0xEC5; mContainerTypeToClose store RVA0x1342776 at+0xEC4",
+        "ContainerScreenController::tick RVA0x4DF8280; pending flag check RVA0x4DF8403; type comparison RVA0x4DF848F; mScreenCanBeClosedByServer(+0x12B8) check RVA0x4DF8498; ScreenController::leaveScreen slot0x80 call RVA0x4DF84C0",
+        "LocalPlayer::normalTick clears pending close to {None,false} when manager absent or type differs at RVAs0x475F2F9..0x475F32D, in the enclosing normal tick branch",
+        "Option-dependent handler path RVAs0x134277D..0x1342813 includes option0x251 and a container-type allow-mask; its full option/UI eligibility was not reconstructed"
+      ]
+    },
+    {
+      "topic": "Actual manager deletion sends the ordinary close response then clears the manager",
+      "contract": "LocalPlayer::deleteContainerManager first flushes pending stack requests. If the current container manager is live, it obtains that manager container ID and sends ContainerClose with that ID, container type None(-9), and serverInitiatedClose=false. It then clears the player container manager. This same deletion routine is used for ordinary client closing and the recovered server-triggered deletion path; it does not echo the incoming server container type or ID blindly. Exact UI scheduling and every event subscriber remain outside this contract.",
+      "anchors": [
+        "LocalPlayer::deleteContainerManager RVA0x47613F0..RVA0x47615A0; pending request helper call RVA0x4761416 -> RVA0x25B1F70",
+        "Current manager IContainerManager::getContainerId slot8 call RVA0x47614E4; response ID store RVA0x4761517; packed type/server flag store RVA0x476151A encodes None=-9 and false",
+        "ContainerClose vtable RVA0xE897540 selected at RVA0x476150C; send at RVA0x4761539; manager clearing call RVA0x4761559 -> RVA0x1EEE80",
+        "PDB SharedTypes::Legacy::ContainerType None=-9; response flag/type are memory payload fields independently corroborated by ContainerClosePacketPayload layout"
+      ]
+    }
+  ],
+  "limits": [
+    "All conclusions are static facts from matched protocol2193. No execution or network probe was performed. Protocol2225 equivalence is not established.",
+    "The normal UI-controller close route and manager deletion response are established. All screen types, option0x251 mode behavior, event subscribers, close timing, and reopen races are not exhaustively reconstructed.",
+    "The response branch has no packet-specific ID/type matching; this should not be rewritten as a stronger native pending-ID acknowledgement guarantee.",
+    "This metadata contains no executable, PDB, machine-code bytes, or disassembly."
+  ]
+}

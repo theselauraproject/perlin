@@ -16,7 +16,7 @@ namespace perlin::blockuse {
     int PillarAxis(int face);
     bool IsInteractive(const std::string& blockName);
 
-    int VanillaUseTicks(const std::string& itemName, bool food);
+    int VanillaUseTicks(const std::string& itemName, bool food, int quickChargeLevel = 0);
 
     struct Result {
         Use use = Use::Nothing;

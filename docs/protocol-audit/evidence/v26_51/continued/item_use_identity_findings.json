@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "executable_version": "1.26.51.1",
+    "protocol": 2193,
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "method": "Read-only disassembly and matching PDB metadata. The executable was not run."
+  },
+  "facts": [
+    {
+      "topic": "normal-tick active-use identity check",
+      "contract": "Player::normalTick obtains the current selected item, rejects an invalid or empty current stack, calls ItemStackBase::sameItem against PlayerItemInUse.mItem, then compares the selected slot index and hand with the saved PlayerInventorySlotData. An incompatible item, slot or hand branches to Player::stopUsingItem. The observed branch calls stopUsingItem rather than releaseUsingItem.",
+      "anchors": [
+        "Player::normalTick RVA0x1E8570",
+        "saved ItemStack at Player+0x730",
+        "current stack validity/count checks RVA0x1E9707-RVA0x1E973E",
+        "sameItem call RVA0x1E9751 -> RVA0x2483880",
+        "saved slot comparison RVA0x1E976B (Player+0x7CC versus PlayerInventory+0x10)",
+        "saved hand comparison RVA0x1E977B (Player+0x7C8 versus PlayerInventory+0xB0)",
+        "stopUsingItem call RVA0x1E991E -> RVA0x1EBB00",
+        "PDB PlayerItemInUse and PlayerInventorySlotData"
+      ]
+    },
+    {
+      "topic": "comparison options for active use",
+      "contract": "The sameItem call uses ComparisonOptions with mCompareAux=false, mCompareRelevantUserData=true and mCompareDamage=false. sameItem requires both stacks to resolve to the same Item definition pointer. It skips the aux and damage comparisons for these options and invokes Item::hasSameRelevantUserData for the remaining item-specific check. This is not general whole-NBT equality.",
+      "anchors": [
+        "options address load RVA0x1E9744 -> RVA0xE6D6930",
+        "three option bytes at RVA0xE6D6930: 0,1,0",
+        "PDB ItemStackBase::ComparisonOptions offsets0/1/2",
+        "sameItem RVA0x2483880",
+        "Item definition pointer comparison RVA0x24838A4",
+        "optional aux branch RVA0x24838B3",
+        "relevant-user-data branch RVA0x24838C5",
+        "Item::hasSameRelevantUserData vslot0x390 invocation RVA0x24838E2",
+        "optional damage branch RVA0x24838F2"
+      ]
+    },
+    {
+      "topic": "relevant-user-data predicate for ordinary use items",
+      "contract": "The verified Item, ComponentItem, BowItem, CrossbowItem, TridentItem, PotionItem and ShieldItem vtables resolve hasSameRelevantUserData to the unconditional true leaf at RVA0x848A0. For these definitions, changing aux, durability, enchantments or other user data alone does not fail this active-use identity check. MapItem and FireworkChargeItem have distinct overrides; this artifact does not generalize the true predicate to every item class.",
+      "anchors": [
+        "Item ctor RVA0x24B1930 installs vtable0xE818C90 at RVA0x24B195D",
+        "ComponentItem ctor RVA0x3F64E30 installs vtable0xE8AE710 at RVA0x3F64E59",
+        "BowItem ctor RVA0x8E21970 installs vtable0xEA47070 at RVA0x8E219D6",
+        "CrossbowItem ctor RVA0x8BA0D60 installs vtable0xEA35AD0 at RVA0x8BA0DC6",
+        "Trident initialization calls Item ctor RVA0x3EF3F49 and installs vtable0xE8ABF70 at RVA0x3EF3F5C",
+        "Trident vtable use slot0x288 -> named TridentItem::use RVA0x3EC5FC0",
+        "PDB PotionItem vtable0xE863CD0 and ShieldItem vtable0xE866620",
+        "all seven verified tables at slot0x390 -> RVA0x848A0 (returns true)",
+        "PDB MapItem::hasSameRelevantUserData RVA0x249D050",
+        "PDB FireworkChargeItem::hasSameRelevantUserData RVA0x24B5D20"
+      ]
+    },
+    {
+      "topic": "count and copied-stack refresh",
+      "contract": "After item, slot and hand identity pass, normalTick compares count and a further stack-match predicate. If count differs or the further predicate reports a difference, it copies the current stack into PlayerItemInUse.mItem and continues the use path. A nonempty count change is therefore not by itself a cancellation condition.",
+      "anchors": [
+        "count comparison RVA0x1E9787/RVA0x1E978C",
+        "further stack predicate call RVA0x1E979A -> RVA0x248DAC0",
+        "saved-stack assignment RVA0x1E97A9 -> RVA0x2482520",
+        "continuation RVA0x1E97AE"
+      ]
+    }
+  ],
+  "perlin_implication": {
+    "state_lifecycle": "A tracked active use should stop locally when the selected item definition, slot or hand changes or the current stack becomes empty. Stopping this state must clear the active-use timer/continuation latches and movement slowdown. It should not call the ordinary release action merely to clear state, because that action can release a charged weapon or start Riptide.",
+    "identity_mapping": "Within Perlin's current known-item registry, item name plus slot and hand is a practical proxy for the native definition pointer. This proxy is not proof of exact behavior when a registry definition is replaced under the same name. Count differences should be ignored except for becoming empty; aux/durability/NBT should not be added as cancellation conditions for the verified ordinary use classes.",
+    "interaction_regression": "Adding a guard that suppresses new interactions while usingItem is true exposes stale-use state if selection changes do not clear it. Holding a bow/food and switching to a block can otherwise leave placement and entity interactions blocked until physical release."
+  },
+  "limitations": [
+    "The normalTick branch establishes stop-versus-release for item replacement detected there. It does not prove that every explicit input handler, event subscriber or other selection path sends no additional packet.",
+    "All side effects of stopUsingItem and arbitrary item overrides have not been reconstructed here. No new ItemRelease packet contract is inferred from this cancellation branch.",
+    "These findings are specific to the matched protocol2193 executable; complete protocol2225 parity and real-server acceptance are not established."
+  ]
+}

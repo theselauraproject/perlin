@@ -1,0 +1,2802 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "Item",
+      "type_index": "0x3d9a7",
+      "size": 536,
+      "fieldlist": "0x3d9a6",
+      "member_count": 200,
+      "fields": [
+        {
+          "name": "mItemParseVersion",
+          "offset": 8,
+          "type": "ItemVersion",
+          "type_index": "0x1901",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTextureAtlasFile",
+          "offset": 16,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFrameCount",
+          "offset": 48,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAnimatesInToolbar",
+          "offset": 52,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsMirroredArt",
+          "offset": 53,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUseAnim",
+          "offset": 54,
+          "type": "SharedTypes::Legacy::UseAnimation",
+          "type_index": "0x2417",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHoverTextColorFormat",
+          "offset": 56,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIconFrame",
+          "offset": 88,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAtlasFrame",
+          "offset": 92,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAtlasTotalFrames",
+          "offset": 96,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIconName",
+          "offset": 104,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAtlasName",
+          "offset": 136,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxStackSize",
+          "offset": 168,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mId",
+          "offset": 170,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDescriptionId",
+          "offset": 176,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRawNameId",
+          "offset": 208,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mNamespace",
+          "offset": 256,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFullName",
+          "offset": 288,
+          "type": "HashedString",
+          "type_index": "0xecd3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxDamage",
+          "offset": 336,
+          "type": "short",
+          "type_index": "0x11",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsGlint",
+          "offset": 338,
+          "type": "type_0x108f5_kind_0x1205",
+          "type_index": "0x108f5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHandEquipped",
+          "offset": 338,
+          "type": "type_0x157a0_kind_0x1205",
+          "type_index": "0x157a0",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsStackedByData",
+          "offset": 338,
+          "type": "type_0x157a1_kind_0x1205",
+          "type_index": "0x157a1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRequiresWorldBuilder",
+          "offset": 338,
+          "type": "type_0x157a2_kind_0x1205",
+          "type_index": "0x157a2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mExplodable",
+          "offset": 338,
+          "type": "type_0x157a3_kind_0x1205",
+          "type_index": "0x157a3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFireResistant",
+          "offset": 338,
+          "type": "type_0x1b221_kind_0x1205",
+          "type_index": "0x1b221",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mShouldDespawn",
+          "offset": 338,
+          "type": "type_0x1b222_kind_0x1205",
+          "type_index": "0x1b222",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIgnoresPermissions",
+          "offset": 338,
+          "type": "type_0x18365_kind_0x1205",
+          "type_index": "0x18365",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMaxUseDuration",
+          "offset": 340,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMinRequiredBaseGameVersion",
+          "offset": 344,
+          "type": "BaseGameVersion",
+          "type_index": "0xe0be",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBlockType",
+          "offset": 376,
+          "type": "const BlockType *",
+          "type_index": "0x11bff",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeCategory",
+          "offset": 384,
+          "type": "SharedTypes::CreativeItemCategory",
+          "type_index": "0x142a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCraftingRemainingItem",
+          "offset": 392,
+          "type": "Item *",
+          "type_index": "0x23af2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCreativeGroup",
+          "offset": 400,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFurnaceBurnIntervalModifier",
+          "offset": 432,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFurnaceXPmultiplier",
+          "offset": 436,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsHiddenInCommands",
+          "offset": 440,
+          "type": "ItemCommandVisibility",
+          "type_index": "0x18d1",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBaseRarity",
+          "offset": 444,
+          "type": "Rarity",
+          "type_index": "0x1dea",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMineBlockType",
+          "offset": 448,
+          "type": "Interactions::Mining::MineBlockItemEffectType",
+          "type_index": "0x1a6c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFoodComponentLegacy",
+          "offset": 456,
+          "type": "std::unique_ptr<FoodItemComponentLegacy,std::default_delete<FoodItemComponentLegacy> >",
+          "type_index": "0xcff3",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSeedComponent",
+          "offset": 464,
+          "type": "std::unique_ptr<SeedItemComponentLegacy,std::default_delete<SeedItemComponentLegacy> >",
+          "type_index": "0xd214",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraComponentLegacy",
+          "offset": 472,
+          "type": "std::unique_ptr<CameraItemComponentLegacy,std::default_delete<CameraItemComponentLegacy> >",
+          "type_index": "0xcf4a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnResetBAICallbacks",
+          "offset": 480,
+          "type": "std::vector<std::function<void ()>,std::allocator<std::function<void ()> > >",
+          "type_index": "0xdaff",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTags",
+          "offset": 504,
+          "type": "std::vector<ItemTag,std::allocator<ItemTag> >",
+          "type_index": "0xd8db",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAllowOffhand",
+          "offset": 528,
+          "type": "type_0x3d933_kind_0x1205",
+          "type_index": "0x3d933",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "Item",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d934",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "Item",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d936",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "short"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "~Item",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 0,
+          "type_index": "0x3d938",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "initServer",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x3d939",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "SharedTypes::v1_26_30::ItemDocument &&",
+            "const SemVersion &",
+            "const Experiments &",
+            "std::optional<LegacyEventItemComponentData>"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "tearDown",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x3d938",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setDescriptionId",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x3d93a",
+          "return_type": "Item &",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDescriptionId",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x3d93b",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getMaxUseDuration",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x3d93c",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStack *"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBlockTypeForRendering",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x3d93d",
+          "return_type": "const BlockType *",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isMusicDisk",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "executeEvent",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x3d93f",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "RenderParams &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "isComponentBased",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isHumanoidArmor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isBlockPlanterItem",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isBucket",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isCandle",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isDamageable",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 112,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isDyeable",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 120,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isDye",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 128,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getItemColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 136,
+          "type_index": "0x3d940",
+          "return_type": "ItemColor",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isFertilizer",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 144,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isFood",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 152,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isThrowable",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 160,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isUseable",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 168,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isTrimAllowed",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 176,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isBodyArmor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 184,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getComponent",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 192,
+          "type_index": "0x3d941",
+          "return_type": "ItemComponent *",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const HashedString &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getFood",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 200,
+          "type_index": "0x3d942",
+          "return_type": "IFoodItemComponent *",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "setMaxDamage",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 208,
+          "type_index": "0x3d943",
+          "return_type": "Item &",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setMaxUseDuration",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 216,
+          "type_index": "0x3d943",
+          "return_type": "Item &",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "buildNetworkTag",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 224,
+          "type_index": "0x3d944",
+          "return_type": "std::unique_ptr<CompoundTag,std::default_delete<CompoundTag> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "initializeFromNetwork",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 232,
+          "type_index": "0x3d945",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "validateFromNetwork",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 240,
+          "type_index": "0x3d946",
+          "return_type": "std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_string<char,std::char_traits<char>,std::allocator<char> > > >",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBlockShape",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 248,
+          "type_index": "0x3d947",
+          "return_type": "BlockShape",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "canBeDepleted",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 256,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "canDestroySpecial",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 264,
+          "type_index": "0x3d948",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const Block &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLevelDataForAuxValue",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 272,
+          "type_index": "0x3d949",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isStackedByData",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 280,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getMaxDamage",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 288,
+          "type_index": "0x3d94a",
+          "return_type": "short",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAttackDamage",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 296,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAttackDamageBonus",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 304,
+          "type_index": "0x3d94c",
+          "return_type": "float",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const Actor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isHandEquipped",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 312,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isGlint",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 320,
+          "type_index": "0x3d94d",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isPattern",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 328,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getPatternIndex",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 336,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBaseRarity",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 344,
+          "type_index": "0x3d94e",
+          "return_type": "Rarity",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getRarity",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 352,
+          "type_index": "0x3d94f",
+          "return_type": "Rarity",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSwingDuration",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 360,
+          "type_index": "0x3d950",
+          "return_type": "uint32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "showsDurabilityInCreative",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 368,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isWearableThroughLootTable",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 376,
+          "type_index": "0x3d951",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const CompoundTag *"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "canDestroyInCreative",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 384,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isDestructive",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 392,
+          "type_index": "0x3d952",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isLiquidClipItem",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 400,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "shouldInteractionWithBlockBypassLiquid",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 408,
+          "type_index": "0x3d948",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const Block &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "requiresInteract",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 416,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getHoverTextColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 424,
+          "type_index": "0x3d953",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "appendFormattedHovertext",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 432,
+          "type_index": "0x3d954",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "Level &",
+            "Bedrock::Safety::RedactableString &",
+            "bool"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "isValidRepairItem",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 440,
+          "type_index": "0x3d955",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "const ItemStackBase &",
+            "const BaseGameVersion &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getEnchantSlot",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 448,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getEnchantValue",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 456,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getArmorValue",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 464,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getToughnessValue",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 472,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getKnockbackResistanceValue",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 480,
+          "type_index": "0x3d956",
+          "return_type": "float",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAttackMissSound",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 488,
+          "type_index": "0x3d957",
+          "return_type": "std::optional<SoundEventIdentifier>",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAttackHitSound",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 496,
+          "type_index": "0x3d957",
+          "return_type": "std::optional<SoundEventIdentifier>",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAttackCriticalHitSound",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 504,
+          "type_index": "0x3d957",
+          "return_type": "std::optional<SoundEventIdentifier>",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getBreakSound",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 512,
+          "type_index": "0x3d958",
+          "return_type": "SharedTypes::Legacy::LevelSoundEvent",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getEquipSound",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 520,
+          "type_index": "0x3d958",
+          "return_type": "SharedTypes::Legacy::LevelSoundEvent",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isComplex",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 528,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isValidAuxValue",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 536,
+          "type_index": "0x3d952",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDamageChance",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 544,
+          "type_index": "0x3d949",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getViewDamping",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 552,
+          "type_index": "0x3d956",
+          "return_type": "float",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "uniqueAuxValues",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 560,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "isActorPlacerItem",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 568,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getTintStrategy",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 576,
+          "type_index": "0x3d959",
+          "return_type": "ItemTintStrategy",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 584,
+          "type_index": "0x3d95a",
+          "return_type": "mce::Color",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const CompoundTag *",
+            "const ItemDescriptor &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasCustomColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 600,
+          "type_index": "0x3d94d",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasCustomColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 592,
+          "type_index": "0x3d951",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const CompoundTag *"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "clearColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 608,
+          "type_index": "0x3d95c",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setColor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 616,
+          "type_index": "0x3d95d",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "const mce::Color &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getActorIdentifier",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 624,
+          "type_index": "0x3d95e",
+          "return_type": "ActorDefinitionIdentifier",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStack &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "buildIdAux",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 632,
+          "type_index": "0x3d95f",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "short",
+            "const CompoundTag *"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "canUseOnSimTick",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 640,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "use",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 648,
+          "type_index": "0x3d960",
+          "return_type": "ItemStack &",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Player &",
+            "HandSlot"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "canUseAsAttack",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 656,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "useAsAttack",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 664,
+          "type_index": "0x3d961",
+          "return_type": "ItemStack &",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Player &",
+            "const Vec3 &",
+            "HandSlot"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "createProjectileActor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 672,
+          "type_index": "0x3d962",
+          "return_type": "Actor *",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "BlockSource &",
+            "const ItemStack &",
+            "const Vec3 &",
+            "const Vec3 &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "dispense",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 680,
+          "type_index": "0x3d963",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "BlockSource &",
+            "Container &",
+            "int32_t",
+            "const Vec3 &",
+            "unsigned char"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "useTimeDepleted",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 688,
+          "type_index": "0x3d964",
+          "return_type": "ItemUseMethod",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Level *",
+            "Player *"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "releaseUsing",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 696,
+          "type_index": "0x3d965",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Player *",
+            "int32_t"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDestroySpeed",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 704,
+          "type_index": "0x3d966",
+          "return_type": "float",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "const Block &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "hurtActor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 712,
+          "type_index": "0x3d967",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Actor &",
+            "Mob &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "hitActor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 720,
+          "type_index": "0x3d967",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Actor &",
+            "Mob &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "hitBlock",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 728,
+          "type_index": "0x3d968",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "const Block &",
+            "const BlockPos &",
+            "Mob &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "buildDescriptionName",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 736,
+          "type_index": "0x3d953",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "buildRedactedDescriptionName",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 744,
+          "type_index": "0x3d969",
+          "return_type": "const Bedrock::Safety::RedactableString",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "buildDescriptionId",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 752,
+          "type_index": "0x3d96a",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemDescriptor &",
+            "const CompoundTag *"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getRedactedCustomName",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 760,
+          "type_index": "0x3d96b",
+          "return_type": "Bedrock::Safety::RedactableString",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasCustomHoverName",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 768,
+          "type_index": "0x3d94d",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "buildEffectDescriptionName",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 776,
+          "type_index": "0x3d96c",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "bool"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "readUserData",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 784,
+          "type_index": "0x3d96e",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "IDataInput &",
+            "ReadOnlyBinaryStream &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "writeUserData",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 792,
+          "type_index": "0x3d970",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "IDataOutput &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getMaxStackSize",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 800,
+          "type_index": "0x3d971",
+          "return_type": "unsigned char",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemDescriptor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "inventoryTick",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 808,
+          "type_index": "0x3d972",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Level &",
+            "Actor &",
+            "int32_t",
+            "bool"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "refreshedInContainer",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 816,
+          "type_index": "0x3d974",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "Level &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCooldownCategory",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 824,
+          "type_index": "0x3d975",
+          "return_type": "const HashedString &",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCooldownDuration",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 832,
+          "type_index": "0x3d94b",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCooldownType",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 840,
+          "type_index": "0x3d976",
+          "return_type": "SharedTypes::ItemCooldownType",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "fixupCommon",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 856,
+          "type_index": "0x3d95c",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "fixupCommon",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 848,
+          "type_index": "0x3d978",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "ILevel &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getInHandUpdateType",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 864,
+          "type_index": "0x3d97b",
+          "return_type": "InHandUpdateType",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const Player &",
+            "const ItemStack &",
+            "const ItemStack &",
+            "const bool",
+            "const bool"
+          ],
+          "argument_count": 5,
+          "this_adjust": 0
+        },
+        {
+          "name": "validFishInteraction",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 872,
+          "type_index": "0x3d952",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "enchantProjectile",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 880,
+          "type_index": "0x3d97c",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "Actor &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getEquipLocation",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 888,
+          "type_index": "0x3d97d",
+          "return_type": "SharedTypes::Legacy::ActorLocation",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "shouldEmitInUseGameEvents",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 896,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "useInterruptedByAttacking",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 904,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasSameRelevantUserData",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 912,
+          "type_index": "0x3d97e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "const ItemStackBase &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "initClient",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 920,
+          "type_index": "0x3d97f",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "SharedTypes::v1_26_30::ItemDocument &&",
+            "const SemVersion &",
+            "const Experiments &",
+            "type_0x1aae2_kind_0x1008 *"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "setIconInfo",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 928,
+          "type_index": "0x3d980",
+          "return_type": "Item &",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+            "int32_t"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getIconInfo",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 936,
+          "type_index": "0x3d981",
+          "return_type": "ResolvedItemIconInfo",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &",
+            "int32_t",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getInteractText",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 944,
+          "type_index": "0x3d982",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const Player &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAnimationFrameFor",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 952,
+          "type_index": "0x3d983",
+          "return_type": "int32_t",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "Mob *",
+            "bool",
+            "const ItemStack *",
+            "bool"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "isEmissive",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 960,
+          "type_index": "0x3d952",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLightEmission",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 968,
+          "type_index": "0x3d984",
+          "return_type": "Brightness",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "int32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "canBeCharged",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 976,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "playSoundIncrementally",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 984,
+          "type_index": "0x3d985",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStack &",
+            "Mob &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getFurnaceXPmultiplier",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 992,
+          "type_index": "0x3d986",
+          "return_type": "float",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemStackBase &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "calculatePlacePos",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 1000,
+          "type_index": "0x3d987",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "Actor &",
+            "unsigned char &",
+            "BlockPos &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_getHoverTextDescription",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 1008,
+          "type_index": "0x3d988",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_checkUseOnPermissions",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 1016,
+          "type_index": "0x3d989",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "Actor &",
+            "ItemStackBase &",
+            "const unsigned char &",
+            "const BlockPos &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_calculatePlacePos",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 1024,
+          "type_index": "0x3d987",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "Actor &",
+            "unsigned char &",
+            "BlockPos &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_shouldAutoCalculatePlacePos",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 1032,
+          "type_index": "0x3d93e",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_useOn",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 1040,
+          "type_index": "0x3d98a",
+          "return_type": "InteractionResult",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Actor &",
+            "BlockPos",
+            "unsigned char",
+            "HandSlot",
+            "const Vec3 &"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        },
+        {
+          "name": "_dispenseHoneycombItem",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d98c",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "BlockSource &",
+            "Container &",
+            "int32_t",
+            "const Vec3 &"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_helpChangeInventoryItemInPlace",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d98e",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "Actor &",
+            "ItemStack &",
+            "ItemStack &",
+            "ItemAcquisitionMethod"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "_sendTryPlaceBlockEvent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d990",
+          "return_type": "CoordinatorResult",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const Block &",
+            "const BlockSource &",
+            "const Actor &",
+            "const BlockPos &",
+            "unsigned char",
+            "const Vec3 &"
+          ],
+          "argument_count": 6,
+          "this_adjust": 0
+        },
+        {
+          "name": "addOnResetBAICallback",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d991",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "std::function<void ()>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "addTag",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d994",
+          "return_type": "Item &",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const ItemTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "addTag",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d995",
+          "return_type": "Item &",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [
+            "const HashedString &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "clearTags",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d938",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getCommandNames",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d997",
+          "return_type": "std::vector<CommandName,std::allocator<CommandName> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDamageValue",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d998",
+          "return_type": "short",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const CompoundTag *"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSerializedName",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d988",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasTag",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d999",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const ItemTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasTag",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d99a",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "const HashedString &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "setDamageValue",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d99d",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStackBase &",
+            "short"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateCustomBlockEntityTag",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d99f",
+          "return_type": "void",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "BlockSource &",
+            "ItemStackBase &",
+            "const BlockPos &"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "useOn",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a1",
+          "return_type": "InteractionResult",
+          "class_type": "Item",
+          "this_type": "const Item *",
+          "argument_types": [
+            "ItemStack &",
+            "Actor &",
+            "const BlockPos &",
+            "unsigned char",
+            "HandSlot",
+            "const Vec3 &",
+            "ItemUsedOnEventContext"
+          ],
+          "argument_count": 7,
+          "this_adjust": 0
+        },
+        {
+          "name": "isElytra",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a2",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const ItemDescriptor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "isFlyEnabled",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a3",
+          "return_type": "bool",
+          "class_type": "Item",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const ItemInstance &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "DATA_DRIVEN_NEXT_VERSION",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a4",
+          "return_type": "const SemVersionConstant &",
+          "class_type": "Item",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "DATA_DRIVEN_VERSION",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a4",
+          "return_type": "const SemVersionConstant &",
+          "class_type": "Item",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "ICON_DESCRIPTION_PREFIX",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a5",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "Item",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "TAG_DAMAGE",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x3d9a5",
+          "return_type": "const std::basic_string<char,std::char_traits<char>,std::allocator<char> > &",
+          "class_type": "Item",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "ItemUseSlowdownModifierComponent",
+      "type_index": "0x1abbf",
+      "size": 4,
+      "fieldlist": "0x1abbe",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mModifier",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MoveInputComponent",
+      "type_index": "0x1be8a",
+      "size": 100,
+      "fieldlist": "0x1be89",
+      "member_count": 12,
+      "fields": [
+        {
+          "name": "mInputState",
+          "offset": 0,
+          "type": "MoveInputState",
+          "type_index": "0x5b2b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mRawInputState",
+          "offset": 16,
+          "type": "MoveInputState",
+          "type_index": "0x5b2b",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHoldAutoJumpInWaterTicks",
+          "offset": 32,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMove",
+          "offset": 36,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookDelta",
+          "offset": 44,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInteractDir",
+          "offset": 52,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDisplacement",
+          "offset": 60,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDisplacementDelta",
+          "offset": 72,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mCameraOrientation",
+          "offset": 84,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFlagValues",
+          "offset": 96,
+          "type": "brstd::bitset<11,unsigned short>",
+          "type_index": "0xb9ae",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsPaddling",
+          "offset": 98,
+          "type": "std::array<bool,2>",
+          "type_index": "0xb937",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MoveInputState",
+      "type_index": "0x1be8c",
+      "size": 16,
+      "fieldlist": "0x1be8b",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mFlagValues",
+          "offset": 0,
+          "type": "brstd::bitset<27,unsigned int>",
+          "type_index": "0xb9a2",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAnalogMoveVector",
+          "offset": 4,
+          "type": "Vec2",
+          "type_index": "0x1065d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookSlightDirField",
+          "offset": 12,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookNormalDirField",
+          "offset": 13,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLookSmoothDirField",
+          "offset": 14,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SharedTypes::v1_20_50::UseModifiersItemComponent",
+      "type_index": "0x215e3",
+      "size": 24,
+      "fieldlist": "0x215e2",
+      "member_count": 6,
+      "fields": [
+        {
+          "name": "mUseDuration",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEmitVibrations",
+          "offset": 4,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStartSound",
+          "offset": 8,
+          "type": "std::optional<SharedTypes::Legacy::LevelSoundEvent>",
+          "type_index": "0xc93a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMovementModifier",
+          "offset": 16,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x215e0",
+          "return_type": "void",
+          "class_type": "SharedTypes::v1_20_50::UseModifiersItemComponent",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "NAME",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x215e1",
+          "return_type": "const std::basic_string_view<char,std::char_traits<char> > &",
+          "class_type": "SharedTypes::v1_20_50::UseModifiersItemComponent",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "UseModifiersItemComponent",
+      "type_index": "0x4d627",
+      "size": 104,
+      "fieldlist": "0x4d626",
+      "member_count": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "NetworkedItemComponent<UseModifiersItemComponent>",
+          "member_kind": "base"
+        },
+        {
+          "name": "mUseDuration",
+          "offset": 16,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEmitVibrations",
+          "offset": 20,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStartSound",
+          "offset": 24,
+          "type": "std::optional<SoundEventIdentifier>",
+          "type_index": "0xc724",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMovementModifier",
+          "offset": 72,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mStartUsing",
+          "offset": 80,
+          "type": "UseModifiersItemComponent::StartUsing",
+          "type_index": "0x2113",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mOnUseSubscription",
+          "offset": 88,
+          "type": "Bedrock::PubSub::Subscription",
+          "type_index": "0x10360",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "UseModifiersItemComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d620",
+          "return_type": "void",
+          "class_type": "UseModifiersItemComponent",
+          "this_type": "UseModifiersItemComponent *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "UseModifiersItemComponent",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d622",
+          "return_type": "void",
+          "class_type": "UseModifiersItemComponent",
+          "this_type": "UseModifiersItemComponent *",
+          "argument_types": [
+            "SharedTypes::Beta::UseModifiersItemComponent"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "_initializeComponent",
+          "attribute": "0x7",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d624",
+          "return_type": "void",
+          "class_type": "UseModifiersItemComponent",
+          "this_type": "UseModifiersItemComponent *",
+          "argument_types": [
+            "ComponentItem &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "bindType",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x4d625",
+          "return_type": "void",
+          "class_type": "UseModifiersItemComponent",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "cereal::ReflectionCtx &",
+            "const std::vector<AllExperiments,std::allocator<AllExperiments> > &",
+            "std::optional<SemVersion>"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 1819900,
+      "name": "?calculateMoveVector@PlayerMovement@@YA?AVVec2@@AEBUMoveInputState@@_NAEBUActorDataFlagComponent@@1PEBUSneakingComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x4485e0",
+      "rva": "0x4495e0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2569812,
+      "name": "?getMovementModifier@ComponentItem@@QEBAMXZ",
+      "section": 1,
+      "section_offset": "0x3fd6e10",
+      "rva": "0x3fd7e10"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3884848,
+      "name": "?tickUpdateClientInputView@ClientInputUpdateSystemInternal@@SAXAEBVStrictEntityContext@@AEBUAABBShapeComponent@@AEBUMovementAbilitiesComponent@@AEBUActorRotationComponent@@AEBUMovementAttributesComponent@@AEBUStateVectorComponent@@AEBUSubBBsComponent@@AEAUClientInputLockComponent@@AEAUMoveInputComponent@@AEAURawMoveInputComponent@@AEAUActorDataFlagComponent@@V?$Optional@$$CBUImmuneToLavaDragComponent@@@@V?$Optional@$$CBUPassengerComponent@@@@V?$Optional@$$CBUSneakingComponent@@@@V?$Optional@$$CBUWasInWaterFlagComponent@@@@AEAV?$StrictExecutionContext@U?$Filter@UCanStandOnPowderSnowComponent@@UCanStandOnPowderSnowFromEquipmentComponent@@UHorseFlagComponent@@UMobFlagComponent@@UParrotFlagComponent@@UVehicleComponent@@UCamelFlagComponent@@UPlayerComponent@@ULocalPlayerComponent@@UPlayerInputRequestComponent@@@@U?$Read@UAABBShapeComponent@@UMovementAbilitiesComponent@@UActorTypeComponent@@UFallDistanceComponent@@UPassengerComponent@@UActorGameTypeComponent@@UActorDataFlagComponent@@UVehicleComponent@@UActorRotationComponent@@UMobBodyRotationComponent@@URenderRotationComponent@@UStandAnimationComponent@@UOffsetsComponent@@UVanillaOffsetComponent@@UPassengerRenderingRidingOffsetComponent@@UMovementAttributesComponent@@UDimensionTypeComponent@@UImmuneToLavaDragComponent@@UMobEffectsComponent@@USneakingComponent@@UStateVectorComponent@@USubBBsComponent@@UWasInWaterFlagComponent@@@@U?$Write@VActorOwnerComponent@@UClientInputLockComponent@@UMoveInputComponent@@URawMoveInputComponent@@UActorDataFlagComponent@@UActorDataDirtyFlagsComponent@@UVanillaClientGameplayComponent@@@@U?$AddRemove@$$V@@U?$GlobalRead@UExternalDataComponent@@ULocalConstBlockSourceFactoryComponent@@@@U?$GlobalWrite@$$V@@U?$EntityFactoryT@$$V@@@@V?$OptionalGlobal@$$CBUExternalDataComponent@@@@AEBVIConstBlockSource@@@Z",
+      "section": 1,
+      "section_offset": "0x66973a0",
+      "rva": "0x66983a0"
+    }
+  ]
+}

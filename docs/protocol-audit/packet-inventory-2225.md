@@ -20,84 +20,84 @@ The reference dispatch column is a matched-build virtual entrypoint, not proof o
 | 6 | `resource_packs_info` | ResourcePacksInfoPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:127` |
 | 7 | `resource_pack_stack` | ResourcePackStackPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:214` |
 | 8 | `resource_pack_client_response` | ResourcePackClientResponsePacket | yes | generated | no receive handler | — | — |
-| 9 | `text` | TextPacket | yes | generated | partial | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1260`; `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:146` |
+| 9 | `text` | TextPacket | yes | generated | partial | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1468`; `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:146` |
 | 10 | `set_time` | SetTimePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:86` |
 | 11 | `start_game` | StartGamePacket | yes | generated | partial | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:257` |
 | 12 | `add_player` | AddPlayerPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:8` |
 | 13 | `add_entity` | AddActorPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:44` |
 | 14 | `remove_entity` | RemoveActorPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:115` |
 | 15 | `add_item_entity` | AddItemActorPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:65` |
-| 16 | `server_post_move` | ServerPlayerPostMovePositionPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 16 | `server_post_move` | ServerPlayerPostMovePositionPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 17 | `take_item_entity` | TakeItemActorPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:81` |
 | 18 | `move_entity` | MoveActorAbsolutePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:117` |
 | 19 | `move_player` | MovePlayerPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:155`; `src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp:8` |
 | 20 | `rider_jump` | — | no | generated | no receive handler | — | — |
 | 21 | `update_block` | UpdateBlockPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:206` |
 | 22 | `add_painting` | AddPaintingPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:36` |
-| 23 | `tick_sync` | — | no | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:270` |
-| 24 | `level_sound_event_old` | — | no | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1114` |
+| 23 | `tick_sync` | — | no | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:285` |
+| 24 | `level_sound_event_old` | — | no | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1149` |
 | 25 | `level_event` | LevelEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:8` |
-| 26 | `block_event` | BlockEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1169` |
-| 27 | `entity_event` | ActorEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:100`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:150`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:163`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:237` |
-| 28 | `mob_effect` | MobEffectPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1117` |
-| 29 | `update_attributes` | UpdateAttributesPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1082`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:113` |
-| 30 | `inventory_transaction` | InventoryTransactionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:627` |
-| 31 | `mob_equipment` | MobEquipmentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1045`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:53` |
-| 32 | `mob_armor_equipment` | MobArmorEquipmentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1057`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:66` |
+| 26 | `block_event` | BlockEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1204` |
+| 27 | `entity_event` | ActorEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:100`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:153`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:169`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:243` |
+| 28 | `mob_effect` | MobEffectPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1314` |
+| 29 | `update_attributes` | UpdateAttributesPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1279`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:113` |
+| 30 | `inventory_transaction` | InventoryTransactionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:803` |
+| 31 | `mob_equipment` | MobEquipmentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1240`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:53` |
+| 32 | `mob_armor_equipment` | MobArmorEquipmentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1251`; `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:66` |
 | 33 | `interact` | InteractPacket | yes | generated | no receive handler | — | — |
 | 34 | `block_pick_request` | BlockPickRequestPacket | yes | generated | no receive handler | — | — |
 | 35 | `entity_pick_request` | ActorPickRequestPacket | yes | generated | no receive handler | — | — |
 | 36 | `player_action` | PlayerActionPacket | yes | generated | no receive handler | — | — |
-| 38 | `hurt_armor` | HurtArmorPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 39 | `set_entity_data` | SetActorDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1157`; `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:171` |
+| 38 | `hurt_armor` | HurtArmorPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 39 | `set_entity_data` | SetActorDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1365`; `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:171` |
 | 40 | `set_entity_motion` | SetActorMotionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:77`; `src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp:144` |
-| 41 | `set_entity_link` | SetActorLinkPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:258` |
+| 41 | `set_entity_link` | SetActorLinkPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:264` |
 | 42 | `set_health` | SetHealthPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:331` |
 | 43 | `set_spawn_position` | SetSpawnPositionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:192` |
 | 44 | `animate` | AnimatePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:81` |
 | 45 | `respawn` | RespawnPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp:58` |
-| 46 | `container_open` | ContainerOpenPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:892` |
-| 47 | `container_close` | ContainerClosePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1008` |
-| 48 | `player_hotbar` | PlayerHotbarPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1038` |
-| 49 | `inventory_content` | InventoryContentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:619` |
-| 50 | `inventory_slot` | InventorySlotPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:622` |
-| 51 | `container_set_data` | ContainerSetDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:277` |
-| 52 | `crafting_data` | CraftingDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:809` |
+| 46 | `container_open` | ContainerOpenPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1073` |
+| 47 | `container_close` | ContainerClosePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1194` |
+| 48 | `player_hotbar` | PlayerHotbarPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1233` |
+| 49 | `inventory_content` | InventoryContentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:795` |
+| 50 | `inventory_slot` | InventorySlotPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:798` |
+| 51 | `container_set_data` | ContainerSetDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:292` |
+| 52 | `crafting_data` | CraftingDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:990` |
 | 53 | `crafting_event` | — | no | generated | no receive handler | — | — |
 | 54 | `gui_data_pick_item` | GuiDataPickItemPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:166` |
 | 55 | `adventure_settings` | — | no | generated | no receive handler | — | — |
-| 56 | `block_entity_data` | BlockActorDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:229` |
+| 56 | `block_entity_data` | BlockActorDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:238` |
 | 57 | `player_input` | — | no | generated | no receive handler | — | — |
 | 58 | `level_chunk` | LevelChunkPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/HandlerRegistration.cpp:32` |
 | 59 | `set_commands_enabled` | SetCommandsEnabledPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:166` |
 | 60 | `set_difficulty` | SetDifficultyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:170` |
 | 61 | `change_dimension` | ChangeDimensionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:110` |
-| 62 | `set_player_game_type` | SetPlayerGameTypePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:78` |
+| 62 | `set_player_game_type` | SetPlayerGameTypePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:93` |
 | 63 | `player_list` | PlayerListPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:8` |
 | 64 | `simple_event` | SimpleEventPacket | yes | generated | no receive handler | — | — |
 | 65 | `event` | LegacyTelemetryEventPacket | yes | generated | no receive handler | — | — |
-| 66 | `spawn_experience_orb` | SpawnExperienceOrbPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 67 | `clientbound_map_item_data` | ClientboundMapItemDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:282` |
+| 66 | `spawn_experience_orb` | SpawnExperienceOrbPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 67 | `clientbound_map_item_data` | ClientboundMapItemDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:297` |
 | 68 | `map_info_request` | MapInfoRequestPacket | yes | generated | no receive handler | — | — |
 | 69 | `request_chunk_radius` | RequestChunkRadiusPacket | yes | generated | no receive handler | — | — |
 | 70 | `chunk_radius_update` | ChunkRadiusUpdatedPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:31` |
 | 72 | `game_rules_changed` | GameRulesChangedPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:174` |
 | 73 | `camera` | CameraPacket | yes | generated | no receive handler | — | — |
 | 74 | `boss_event` | BossEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:213` |
-| 75 | `show_credits` | ShowCreditsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:73` |
+| 75 | `show_credits` | ShowCreditsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:88` |
 | 76 | `available_commands` | AvailableCommandsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:171` |
 | 77 | `command_request` | CommandRequestPacket | yes | generated | no receive handler | — | — |
 | 78 | `command_block_update` | CommandBlockUpdatePacket | yes | generated | no receive handler | — | — |
-| 79 | `command_output` | CommandOutputPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:93`; `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:157` |
-| 80 | `update_trade` | UpdateTradePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:318` |
-| 81 | `update_equipment` | UpdateEquipPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 79 | `command_output` | CommandOutputPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:108`; `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:157` |
+| 80 | `update_trade` | UpdateTradePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:333` |
+| 81 | `update_equipment` | UpdateEquipPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 82 | `resource_pack_data_info` | ResourcePackDataInfoPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:165` |
 | 83 | `resource_pack_chunk_data` | ResourcePackChunkDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:187` |
 | 84 | `resource_pack_chunk_request` | ResourcePackChunkRequestPacket | yes | generated | no receive handler | — | — |
 | 85 | `transfer` | TransferPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:207` |
 | 86 | `play_sound` | PlaySoundPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:132` |
 | 87 | `stop_sound` | StopSoundPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:149` |
-| 88 | `set_title` | SetTitlePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1216` |
+| 88 | `set_title` | SetTitlePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1424` |
 | 89 | `add_behavior_tree` | AddBehaviorTreePacket | yes | generated | no receive handler | — | — |
 | 90 | `structure_block_update` | StructureBlockUpdatePacket | yes | generated | no receive handler | — | — |
 | 91 | `show_store_offer` | ShowStoreOfferPacket | yes | generated | no receive handler | — | — |
@@ -105,7 +105,7 @@ The reference dispatch column is a matched-build virtual entrypoint, not proof o
 | 93 | `player_skin` | PlayerSkinPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:43` |
 | 94 | `sub_client_login` | SubClientLoginPacket | yes | generated | no receive handler | — | — |
 | 95 | `initiate_web_socket_connection` | AutomationClientConnectPacket | yes | generated | no receive handler | — | — |
-| 96 | `set_last_hurt_by` | SetLastHurtByPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 96 | `set_last_hurt_by` | SetLastHurtByPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 97 | `book_edit` | BookEditPacket | yes | generated | no receive handler | — | — |
 | 98 | `npc_request` | NpcRequestPacket | yes | generated | no receive handler | — | — |
 | 99 | `photo_transfer` | PhotoTransferPacket | yes | generated | no receive handler | — | — |
@@ -114,87 +114,87 @@ The reference dispatch column is a matched-build virtual entrypoint, not proof o
 | 102 | `server_settings_request` | ServerSettingsRequestPacket | yes | generated | no receive handler | — | — |
 | 103 | `server_settings_response` | ServerSettingsResponsePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:208` |
 | 104 | `show_profile` | ShowProfilePacket | yes | generated | no receive handler | — | — |
-| 105 | `set_default_game_type` | SetDefaultGameTypePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:58` |
+| 105 | `set_default_game_type` | SetDefaultGameTypePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:73` |
 | 106 | `remove_objective` | RemoveObjectivePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:271` |
 | 107 | `set_display_objective` | SetDisplayObjectivePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:261` |
 | 108 | `set_score` | SetScorePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:290` |
 | 109 | `lab_table` | LabTablePacket | yes | generated | no receive handler | — | — |
-| 110 | `update_block_synced` | UpdateBlockSyncedPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:301` |
+| 110 | `update_block_synced` | UpdateBlockSyncedPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:313` |
 | 111 | `move_entity_delta` | MoveActorDeltaPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:130` |
 | 112 | `set_scoreboard_identity` | SetScoreboardIdentityPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:280` |
 | 113 | `set_local_player_as_initialized` | SetLocalPlayerAsInitializedPacket | yes | generated | no receive handler | — | — |
-| 114 | `update_soft_enum` | UpdateSoftEnumPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1147` |
-| 115 | `network_stack_latency` | NetworkStackLatencyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:88` |
+| 114 | `update_soft_enum` | UpdateSoftEnumPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1182` |
+| 115 | `network_stack_latency` | NetworkStackLatencyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:103` |
 | 117 | `script_custom_event` | — | no | generated | no receive handler | — | — |
-| 118 | `spawn_particle_effect` | SpawnParticleEffectPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:226` |
+| 118 | `spawn_particle_effect` | SpawnParticleEffectPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityStateHandlers.cpp:232` |
 | 119 | `available_entity_identifiers` | AvailableActorIdentifiersPacket | yes | generated | no receive handler | — | — |
-| 120 | `level_sound_event_v2` | — | no | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1130` |
+| 120 | `level_sound_event_v2` | — | no | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1165` |
 | 121 | `network_chunk_publisher_update` | NetworkChunkPublisherUpdatePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:8` |
 | 122 | `biome_definition_list` | BiomeDefinitionListPacket | yes | generated | no receive handler | — | — |
 | 123 | `level_sound_event` | LevelSoundEventPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:157` |
-| 124 | `level_event_generic` | LevelEventGenericPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 124 | `level_event_generic` | LevelEventGenericPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 125 | `lectern_update` | LecternUpdatePacket | yes | generated | no receive handler | — | — |
 | 126 | `video_stream_connect` | — | no | generated | no receive handler | — | — |
 | 129 | `client_cache_status` | ClientCacheStatusPacket | yes | generated | no receive handler | — | — |
-| 130 | `on_screen_texture_animation` | OnScreenTextureAnimationPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:68` |
+| 130 | `on_screen_texture_animation` | OnScreenTextureAnimationPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:83` |
 | 131 | `map_create_locked_copy` | MapCreateLockedCopyPacket | yes | generated | no receive handler | — | — |
 | 132 | `structure_template_data_export_request` | StructureTemplateDataRequestPacket | yes | generated | no receive handler | — | — |
 | 133 | `structure_template_data_export_response` | StructureTemplateDataResponsePacket | yes | generated | no receive handler | — | — |
-| 134 | `update_block_properties` | — | no | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 134 | `update_block_properties` | — | no | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 135 | `client_cache_blob_status` | ClientCacheBlobStatusPacket | yes | generated | no receive handler | — | — |
 | 136 | `client_cache_miss_response` | ClientCacheMissResponsePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/HandlerRegistration.cpp:34` |
 | 137 | `education_settings` | EducationSettingsPacket | yes | generated | no receive handler | — | — |
-| 138 | `emote` | EmotePacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 138 | `emote` | EmotePacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 139 | `multiplayer_settings` | MultiplayerSettingsPacket | yes | generated | no receive handler | — | — |
 | 140 | `settings_command` | SettingsCommandPacket | yes | generated | no receive handler | — | — |
 | 141 | `anvil_damage` | AnvilDamagePacket | yes | generated | no receive handler | — | — |
 | 142 | `completed_using_item` | CompletedUsingItemPacket | yes | generated | no receive handler | — | — |
 | 143 | `network_settings` | NetworkSettingsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:41` |
 | 144 | `player_auth_input` | PlayerAuthInputPacket | yes | generated | no receive handler | — | — |
-| 145 | `creative_content` | CreativeContentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:768` |
+| 145 | `creative_content` | CreativeContentPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:953` |
 | 146 | `player_enchant_options` | PlayerEnchantOptionsPacket | yes | generated | no receive handler | — | — |
 | 147 | `item_stack_request` | ItemStackRequestPacket | yes | generated | no receive handler | — | — |
-| 148 | `item_stack_response` | ItemStackResponsePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:671` |
-| 149 | `player_armor_damage` | PlayerArmorDamagePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1068` |
+| 148 | `item_stack_response` | ItemStackResponsePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:847` |
+| 149 | `player_armor_damage` | PlayerArmorDamagePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1263` |
 | 150 | `code_builder` | CodeBuilderPacket | yes | generated | no receive handler | — | — |
-| 151 | `update_player_game_type` | UpdatePlayerGameTypePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:47` |
+| 151 | `update_player_game_type` | UpdatePlayerGameTypePacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:62` |
 | 152 | `emote_list` | EmoteListPacket | yes | generated | no receive handler | — | — |
 | 153 | `position_tracking_db_broadcast` | PositionTrackingDBServerBroadcastPacket | yes | generated | no receive handler | — | — |
 | 154 | `position_tracking_db_request` | PositionTrackingDBClientRequestPacket | yes | generated | no receive handler | — | — |
 | 155 | `debug_info` | DebugInfoPacket | yes | generated | no receive handler | — | — |
 | 156 | `packet_violation_warning` | PacketViolationWarningPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:238` |
-| 157 | `motion_prediction_hints` | MotionPredictionHintsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1173` |
-| 158 | `animate_entity` | AnimateEntityPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 159 | `camera_shake` | CameraShakePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:329` |
-| 160 | `player_fog` | PlayerFogPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:336` |
+| 157 | `motion_prediction_hints` | MotionPredictionHintsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1208` |
+| 158 | `animate_entity` | AnimateEntityPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 159 | `camera_shake` | CameraShakePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:344` |
+| 160 | `player_fog` | PlayerFogPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:351` |
 | 161 | `correct_player_move_prediction` | CorrectPlayerMovePredictionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp:91` |
 | 162 | `item_registry` | ItemRegistryPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:41` |
 | 163 | `filter_text_packet` | — | no | generated | no receive handler | — | — |
-| 164 | `primitive_shapes` | ClientboundDebugRendererPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 165 | `sync_entity_property` | SyncActorPropertyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:212` |
+| 164 | `primitive_shapes` | ClientboundDebugRendererPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 165 | `sync_entity_property` | SyncActorPropertyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:221` |
 | 166 | `add_volume_entity` | AddVolumeEntityPacket | yes | generated | no receive handler | — | — |
 | 167 | `remove_volume_entity` | RemoveVolumeEntityPacket | yes | generated | no receive handler | — | — |
-| 168 | `simulation_type` | SimulationTypePacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 169 | `npc_dialogue` | NpcDialoguePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:306` |
+| 168 | `simulation_type` | SimulationTypePacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 169 | `npc_dialogue` | NpcDialoguePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:321` |
 | 170 | `edu_uri_resource_packet` | EduUriResourcePacket | yes | generated | no receive handler | — | — |
 | 171 | `create_photo` | CreatePhotoPacket | yes | generated | no receive handler | — | — |
-| 172 | `update_subchunk_blocks` | UpdateSubChunkBlocksPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:261` |
+| 172 | `update_subchunk_blocks` | UpdateSubChunkBlocksPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LevelHandlers.cpp:268` |
 | 173 | `photo_info_request` | — | no | generated | no receive handler | — | — |
 | 174 | `subchunk` | SubChunkPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/HandlerRegistration.cpp:33` |
 | 175 | `subchunk_request` | SubChunkRequestPacket | yes | generated | no receive handler | — | — |
-| 176 | `client_start_item_cooldown` | PlayerStartItemCooldownPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1031` |
-| 177 | `script_message` | ScriptMessagePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1184` |
+| 176 | `client_start_item_cooldown` | PlayerStartItemCooldownPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1225` |
+| 177 | `script_message` | ScriptMessagePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1219` |
 | 178 | `code_builder_source` | CodeBuilderSourcePacket | yes | generated | no receive handler | — | — |
 | 179 | `ticking_areas_load_status` | TickingAreasLoadStatusPacket | yes | generated | no receive handler | — | — |
 | 180 | `dimension_data` | DimensionDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:23` |
 | 181 | `agent_action` | AgentActionEventPacket | yes | generated | no receive handler | — | — |
-| 182 | `change_mob_property` | ChangeMobPropertyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:215` |
+| 182 | `change_mob_property` | ChangeMobPropertyPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:224` |
 | 183 | `lesson_progress` | LessonProgressPacket | yes | generated | no receive handler | — | — |
 | 184 | `request_ability` | RequestAbilityPacket | yes | generated | no receive handler | — | — |
 | 185 | `request_permissions` | RequestPermissionsPacket | yes | generated | no receive handler | — | — |
 | 186 | `toast_request` | ToastRequestPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:321` |
 | 187 | `update_abilities` | UpdateAbilitiesPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:8` |
-| 188 | `update_adventure_settings` | UpdateAdventureSettingsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:63` |
+| 188 | `update_adventure_settings` | UpdateAdventureSettingsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp:78` |
 | 189 | `death_info` | DeathInfoPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/LocalPlayerHandlers.cpp:50` |
 | 190 | `editor_network` | EditorNetworkPacket | yes | generated | no receive handler | — | — |
 | 191 | `feature_registry` | FeatureRegistryPacket | yes | generated | no receive handler | — | — |
@@ -204,12 +204,12 @@ The reference dispatch column is a matched-build virtual entrypoint, not proof o
 | 195 | `game_test_results` | GameTestResultsPacket | yes | generated | no receive handler | — | — |
 | 196 | `update_client_input_locks` | UpdateClientInputLocksPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:328` |
 | 197 | `client_cheat_ability` | — | no | generated | no receive handler | — | — |
-| 198 | `camera_presets` | CameraPresetsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:338` |
-| 199 | `unlocked_recipes` | UnlockedRecipesPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:881` |
-| 300 | `camera_instruction` | CameraInstructionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:386` |
+| 198 | `camera_presets` | CameraPresetsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:358` |
+| 199 | `unlocked_recipes` | UnlockedRecipesPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1062` |
+| 300 | `camera_instruction` | CameraInstructionPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:420` |
 | 301 | `compressed_biome_definitions` | — | no | generated | no receive handler | — | — |
 | 302 | `trim_data` | TrimDataPacket | yes | generated | no receive handler | — | — |
-| 303 | `open_sign` | OpenSignPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:235` |
+| 303 | `open_sign` | OpenSignPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:250` |
 | 304 | `agent_animation` | AgentAnimationPacket | yes | generated | no receive handler | — | — |
 | 305 | `refresh_entitlements` | RefreshEntitlementsPacket | yes | generated | no receive handler | — | — |
 | 306 | `toggle_crafter_slot_request` | PlayerToggleCrafterSlotRequestPacket | yes | generated | no receive handler | — | — |
@@ -221,39 +221,39 @@ The reference dispatch column is a matched-build virtual entrypoint, not proof o
 | 313 | `jigsaw_structure_data` | JigsawStructureDataPacket | yes | generated | no receive handler | — | — |
 | 314 | `current_structure_feature` | CurrentStructureFeaturePacket | yes | generated | no receive handler | — | — |
 | 315 | `serverbound_diagnostics` | ServerboundDiagnosticsPacket | yes | generated | no receive handler | — | — |
-| 316 | `camera_aim_assist` | CameraAimAssistPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 316 | `camera_aim_assist` | CameraAimAssistPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 317 | `container_registry_cleanup` | ContainerRegistryCleanupPacket | yes | generated | no receive handler | — | — |
-| 318 | `movement_effect` | MovementEffectPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1106` |
-| 319 | `set_movement_authority` | — | no | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 320 | `camera_aim_assist_presets` | CameraAimAssistPresetsPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 318 | `movement_effect` | MovementEffectPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1303` |
+| 319 | `set_movement_authority` | — | no | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 320 | `camera_aim_assist_presets` | CameraAimAssistPresetsPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 321 | `client_camera_aim_assist` | ClientCameraAimAssistPacket | yes | generated | no receive handler | — | — |
 | 322 | `client_movement_prediction_sync` | ClientMovementPredictionSyncPacket | yes | generated | no receive handler | — | — |
 | 323 | `update_client_options` | UpdateClientOptionsPacket | yes | generated | no receive handler | — | — |
 | 324 | `player_video_capture` | PlayerVideoCapturePacket | yes | generated | no receive handler | — | — |
 | 325 | `player_update_entity_overrides` | PlayerUpdateEntityOverridesPacket | yes | generated | no receive handler | — | — |
 | 326 | `player_location` | PlayerLocationPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:146` |
-| 327 | `clientbound_controls_scheme` | ClientboundControlSchemeSetPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 328 | `server_script_debug_drawer` | PrimitiveShapesPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 327 | `clientbound_controls_scheme` | ClientboundControlSchemeSetPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:353` |
+| 328 | `server_script_debug_drawer` | PrimitiveShapesPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 329 | `serverbound_pack_setting_change` | ServerboundPackSettingChangePacket | yes | generated | no receive handler | — | — |
-| 330 | `clientbound_data_store` | ClientboundDataStorePacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 331 | `graphics_override_parameter` | GraphicsOverrideParameterPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 330 | `clientbound_data_store` | ClientboundDataStorePacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 331 | `graphics_override_parameter` | GraphicsOverrideParameterPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 332 | `serverbound_data_store` | ServerboundDataStorePacket | yes | generated | no receive handler | — | — |
-| 333 | `clientbound_data_driven_ui_show_screen` | ClientboundDataDrivenUIShowScreenPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 334 | `clientbound_data_driven_ui_close_screen` | ClientboundDataDrivenUICloseScreenPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 335 | `clientbound_data_driven_ui_reload` | ClientboundDataDrivenUIReloadPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 336 | `clientbound_texture_shift` | ClientboundTextureShiftPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 333 | `clientbound_data_driven_ui_show_screen` | ClientboundDataDrivenUIShowScreenPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 334 | `clientbound_data_driven_ui_close_screen` | ClientboundDataDrivenUICloseScreenPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 335 | `clientbound_data_driven_ui_reload` | ClientboundDataDrivenUIReloadPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
+| 336 | `clientbound_texture_shift` | ClientboundTextureShiftPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 337 | `voxel_shapes` | VoxelShapesPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/EntityLifecycleHandlers.cpp:60` |
-| 338 | `camera_spline` | CameraSplinePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:378`; `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
-| 339 | `camera_aim_assist_actor_priority` | CameraAimAssistActorPriorityPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 338 | `camera_spline` | CameraSplinePacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:412` |
+| 339 | `camera_aim_assist_actor_priority` | CameraAimAssistActorPriorityPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 340 | `resource_packs_ready_for_validation` | ResourcePacksReadyForValidationPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/SessionHandlers.cpp:226` |
-| 341 | `locator_bar` | LocatorBarPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1176` |
+| 341 | `locator_bar` | LocatorBarPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockPlayerState.cpp:1384` |
 | 342 | `party_changed` | PartyChangedPacket | yes | generated | no receive handler | — | — |
 | 343 | `serverbound_data_driven_screen_closed` | ServerboundDataDrivenScreenClosedPacket | yes | generated | no receive handler | — | — |
 | 344 | `sync_world_clocks` | SyncWorldClocksPacket | yes | generated | typed | — | `src/client/systems/multiplayer/handlers/WorldStateHandlers.cpp:91` |
-| 345 | `clientbound_attribute_layer_sync` | ClientboundAttributeLayerSyncPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1192` |
+| 345 | `clientbound_attribute_layer_sync` | ClientboundAttributeLayerSyncPacket | yes | generated | no-op | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1227` |
 | 346 | `server_store_info` | ServerStoreInfoPacket | yes | generated | no receive handler | — | — |
 | 347 | `server_presence_info` | ServerPresenceInfoPacket | yes | generated | no receive handler | — | — |
-| 348 | `clientbound_update_sound_data` | ClientboundUpdateSoundDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1077` |
+| 348 | `clientbound_update_sound_data` | ClientboundUpdateSoundDataPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockWorldExtras.cpp:1112` |
 | 349 | `send_party_destination_cookie` | SendPartyDestinationCookiePacket | yes | generated | no receive handler | — | — |
 | 350 | `party_destination_cookie_response` | PartyDestinationCookieResponsePacket | yes | generated | no receive handler | — | — |
 | 351 | `set_player_furnace_options` | SetPlayerFurnaceOptionsPacket | yes | generated | typed | — | `src/client/systems/multiplayer/BedrockServerUi.cpp:181` |

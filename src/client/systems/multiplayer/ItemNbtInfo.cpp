@@ -156,27 +156,36 @@ namespace perlin {
                 }
             }
 
-            void Enchants() {
+            void Enchants(bool active) {
                 const uint8_t t = r.U8();
                 const int32_t n = r.I32();
                 if (t != 10 || n < 0 || n > 64)
                     return r.fail = true, void();
                 for (int32_t i = 0; i < n && !r.fail; i++) {
                     int id = -1, lvl = 0;
+                    bool hasId = false;
                     while (!r.fail) {
                         const uint8_t ct = r.U8();
                         if (ct == 0)
                             break;
                         const std::string name = r.Str();
-                        if (ct == 2 && name == "id")
+                        if (ct == 2 && name == "id") {
                             id = r.I16();
-                        else if (ct == 2 && name == "lvl")
+                            hasId = true;
+                        } else if (ct == 2 && name == "lvl")
                             lvl = r.I16();
                         else
                             SkipPayload(ct);
                     }
                     if (id >= 0)
                         info.enchants.emplace_back(id, lvl);
+                    if (active) {
+                        // ItemEnchants::_fromList narrows its ShortTag id to
+                        // an unsigned byte and ignores ids outside its table.
+                        const int nativeId = hasId ? static_cast<uint8_t>(id) : 0;
+                        if (nativeId <= 41)
+                            info.activeEnchants.emplace_back(nativeId, lvl);
+                    }
                 }
             }
 
@@ -204,6 +213,34 @@ namespace perlin {
                 }
             }
 
+            void ChargedItem() {
+                info.chargedItemName.clear();
+                info.chargedItemCount = 0;
+                ++depth;
+                while (!r.fail) {
+                    const uint8_t type = r.U8();
+                    if (type == 0)
+                        break;
+                    const std::string name = r.Str();
+                    if (name == "Name") {
+                        info.chargedItemName.clear();
+                        if (type == 8)
+                            info.chargedItemName = r.Str();
+                        else
+                            SkipPayload(type);
+                    } else if (name == "Count") {
+                        info.chargedItemCount = 0;
+                        if (type == 1)
+                            info.chargedItemCount = r.U8();
+                        else
+                            SkipPayload(type);
+                    } else {
+                        SkipPayload(type);
+                    }
+                }
+                --depth;
+            }
+
             bool Run() {
                 if (r.U8() != 10)
                     return false;
@@ -216,21 +253,28 @@ namespace perlin {
                     info.tagCount++;
                     if (t == 2 && name == "Damage") {
                         info.hasDamage = true;
+                        info.damageTagType = t;
                         info.damage = r.I16();
                     } else if (t == 3 && name == "Damage") {
                         info.hasDamage = true;
+                        info.damageTagType = t;
                         info.damage = r.I32();
                     } else if (t == 3 && name == "customColor") {
                         info.color = r.I32();
                         info.hasColor = true;
                     } else if (t == 9 && (name == "ench" || name == "StoredEnchantments"))
-                        Enchants();
+                        Enchants(name == "ench");
                     else if (t == 10 && name == "display")
                         Display();
+                    else if (t == 10 && name == "chargedItem")
+                        ChargedItem();
                     else
                         SkipPayload(t);
                 }
-                return !r.fail;
+                // The item codec supplies exactly one NBT root. Requiring its
+                // full extent also prevents a malformed little-endian root
+                // from looking like an empty network-NBT root on fallback.
+                return !r.fail && r.p == r.b.size();
             }
         };
 

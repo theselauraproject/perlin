@@ -511,6 +511,7 @@ foreach(PERLIN_PHYSICS_SOURCE IN ITEMS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/world/movement/VehiclePhysics.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/player/LocalPlayer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/player/PlayerFov.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/camera/CameraEffects.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/resources/BlockOffsetDefinition.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/resources/BlockBoxDefinition.cpp")
     if(MSVC)
@@ -536,7 +537,9 @@ if(MSVC)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/client/systems/multiplayer/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/network/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/world/*.cpp")
-    set_source_files_properties(${PERLIN_HOT_SOURCES} PROPERTIES COMPILE_OPTIONS "/O2;/Ob2")
+    # Keep the source-specific floating-point rules above when optimizing hot
+    # Windows files. Replacing this property removed /fp:strict from physics.
+    set_property(SOURCE ${PERLIN_HOT_SOURCES} APPEND PROPERTY COMPILE_OPTIONS /O2 /Ob2)
 else()
     target_compile_options(Perlin PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
@@ -563,9 +566,9 @@ if(PERLIN_FAST_MATH)
 endif()
 
 if(MSVC AND NOT PERLIN_CLANG_CL_BUILD)
-    set_source_files_properties(src/client/systems/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict")
+    set_property(SOURCE src/client/systems/player/HeldBuild.cpp APPEND PROPERTY COMPILE_OPTIONS /fp:strict)
 else()
-    set_source_files_properties(src/client/systems/player/HeldBuild.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
+    set_property(SOURCE src/client/systems/player/HeldBuild.cpp APPEND PROPERTY COMPILE_OPTIONS -fno-fast-math -ffp-contract=off)
 endif()
 
 include(CheckIPOSupported)
@@ -577,9 +580,9 @@ endif()
 if(PERLIN_IPO AND PERLIN_LTO)
     set_property(TARGET Perlin PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set_source_files_properties(src/client/systems/entity/EntityRenderer.cpp PROPERTIES COMPILE_OPTIONS "-fno-lto")
+        set_property(SOURCE src/client/systems/entity/EntityRenderer.cpp APPEND PROPERTY COMPILE_OPTIONS -fno-lto)
     elseif(MSVC)
-        set_source_files_properties(src/client/systems/entity/EntityRenderer.cpp PROPERTIES COMPILE_OPTIONS "/GL-")
+        set_property(SOURCE src/client/systems/entity/EntityRenderer.cpp APPEND PROPERTY COMPILE_OPTIONS /GL-)
     endif()
 endif()
 
@@ -826,6 +829,21 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_link_libraries(gpu_terrain_selftest PRIVATE perlin_gpu)
     add_test(NAME gpu_terrain_selftest COMMAND gpu_terrain_selftest "${PERLIN_SHADER_PACK}")
     set_tests_properties(gpu_terrain_selftest PROPERTIES SKIP_RETURN_CODE 77)
+    add_executable(chunk_visibility_selftest tests/chunk_visibility_selftest.cpp
+        src/client/systems/gfx/Tessellator.cpp)
+    target_include_directories(chunk_visibility_selftest BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
+    target_compile_features(chunk_visibility_selftest PRIVATE cxx_std_23)
+    target_link_libraries(chunk_visibility_selftest PRIVATE perlin_gpu)
+    add_test(NAME chunk_visibility_selftest COMMAND chunk_visibility_selftest "${PERLIN_SHADER_PACK}")
+    add_executable(perlin_visibilitybench tools/chunk_visibility_bench.cpp
+        src/client/systems/gfx/Tessellator.cpp)
+    target_include_directories(perlin_visibilitybench BEFORE PRIVATE tests/stubs src "${glm_SOURCE_DIR}")
+    target_compile_features(perlin_visibilitybench PRIVATE cxx_std_23)
+    target_link_libraries(perlin_visibilitybench PRIVATE perlin_gpu)
+    add_executable(section_connectivity_selftest tests/section_connectivity_selftest.cpp)
+    target_include_directories(section_connectivity_selftest PRIVATE src)
+    target_compile_features(section_connectivity_selftest PRIVATE cxx_std_23)
+    add_test(NAME section_connectivity_selftest COMMAND section_connectivity_selftest)
     include(CheckCXXSourceCompiles)
     set(_perlin_saved_flags "${CMAKE_REQUIRED_FLAGS}")
     if(MSVC)
@@ -1164,7 +1182,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_compile_features(resources_selftest PRIVATE cxx_std_23)
     add_test(NAME resources_selftest COMMAND resources_selftest "${CMAKE_CURRENT_SOURCE_DIR}/resources")
     if(TARGET Perlin AND NOT CMAKE_CROSSCOMPILING AND NOT APPLE)
-        set(PERLIN_BEHAVIOR_SELFTESTS handler_dispatch armor_packets recipe_packets server_ui_packets audio_packets input_reporting movement_protocol session_codec_context title_controller pack_manager server_browser audio_director light_band_cache debug_overlay player_interaction hud_screen hud_screen_preview studio worldview worldview_preview connection_controllers connection_controllers_preview title_ports)
+        set(PERLIN_BEHAVIOR_SELFTESTS handler_dispatch armor_packets recipe_packets server_ui_packets audio_packets input_reporting movement_protocol movement_effects attribute_replay status_effect_replay ranged_item item_use_packets creative_inventory camera_effects_packets session_codec_context chunk_pipeline title_controller pack_manager server_browser audio_director light_band_cache debug_overlay player_interaction hud_screen hud_screen_preview studio worldview worldview_preview connection_controllers connection_controllers_preview title_ports)
         foreach(selftest IN LISTS PERLIN_BEHAVIOR_SELFTESTS)
             add_test(NAME ${selftest}_selftest COMMAND Perlin --selftest ${selftest})
             set(selftest_env "PERLIN_DATA_DIR=${CMAKE_BINARY_DIR}/selftest_data")
@@ -1240,6 +1258,22 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/world/level/chunk/ChunkCodec.cpp)
     target_link_libraries(chunk_selftest PRIVATE perlin_protocol)
     add_test(NAME chunk_selftest COMMAND chunk_selftest)
+    add_executable(chunk_ingest_selftest
+        tests/chunk_ingest_selftest.cpp
+        src/world/level/chunk/ChunkCodec.cpp
+        src/world/level/Level.cpp)
+    target_include_directories(chunk_ingest_selftest PRIVATE src)
+    target_compile_features(chunk_ingest_selftest PRIVATE cxx_std_23)
+    target_link_libraries(chunk_ingest_selftest PRIVATE Threads::Threads)
+    add_test(NAME chunk_ingest_selftest COMMAND chunk_ingest_selftest)
+    add_executable(perlin_chunkbench
+        tools/chunk_bench.cpp
+        src/world/level/chunk/ChunkCodec.cpp
+        src/world/level/Level.cpp)
+    target_include_directories(perlin_chunkbench PRIVATE src)
+    target_compile_features(perlin_chunkbench PRIVATE cxx_std_23)
+    target_link_libraries(perlin_chunkbench PRIVATE Threads::Threads)
+    add_test(NAME chunk_bench_correctness COMMAND perlin_chunkbench --verify)
     add_executable(blob_cache_selftest
         tests/blob_cache_selftest.cpp
         src/client/systems/multiplayer/BlobCache.cpp
@@ -1266,14 +1300,32 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(item_cooldown_selftest PRIVATE src)
     target_compile_features(item_cooldown_selftest PRIVATE cxx_std_23)
     add_test(NAME item_cooldown_selftest COMMAND item_cooldown_selftest)
+    add_executable(item_use_wire_selftest tests/item_use_wire_selftest.cpp)
+    target_link_libraries(item_use_wire_selftest PRIVATE perlin_protocol)
+    add_test(NAME item_use_wire_selftest COMMAND item_use_wire_selftest)
+    add_executable(chunk_wire_selftest tests/chunk_wire_selftest.cpp)
+    target_link_libraries(chunk_wire_selftest PRIVATE perlin_protocol)
+    add_test(NAME chunk_wire_selftest COMMAND chunk_wire_selftest)
     add_executable(gui_data_selftest tests/gui_data_selftest.cpp)
     target_include_directories(gui_data_selftest PRIVATE src)
     target_compile_features(gui_data_selftest PRIVATE cxx_std_23)
     add_test(NAME gui_data_selftest COMMAND gui_data_selftest)
+    add_executable(status_effect_selftest tests/status_effect_selftest.cpp)
+    target_include_directories(status_effect_selftest PRIVATE src)
+    target_compile_features(status_effect_selftest PRIVATE cxx_std_23)
+    add_test(NAME status_effect_selftest COMMAND status_effect_selftest)
     add_executable(armor_damage_selftest tests/armor_damage_selftest.cpp
         src/client/systems/multiplayer/ItemNbtInfo.cpp)
     target_link_libraries(armor_damage_selftest PRIVATE perlin_protocol)
     add_test(NAME armor_damage_selftest COMMAND armor_damage_selftest)
+    add_executable(item_nbt_selftest tests/item_nbt_selftest.cpp
+        src/client/systems/multiplayer/ItemNbtInfo.cpp)
+    target_link_libraries(item_nbt_selftest PRIVATE perlin_protocol)
+    add_test(NAME item_nbt_selftest COMMAND item_nbt_selftest)
+    add_executable(creative_catalog_selftest tests/creative_catalog_selftest.cpp)
+    target_include_directories(creative_catalog_selftest PRIVATE src)
+    target_compile_features(creative_catalog_selftest PRIVATE cxx_std_23)
+    add_test(NAME creative_catalog_selftest COMMAND creative_catalog_selftest)
     add_executable(recipe_unlocks_selftest tests/recipe_unlocks_selftest.cpp)
     target_include_directories(recipe_unlocks_selftest PRIVATE src)
     target_compile_features(recipe_unlocks_selftest PRIVATE cxx_std_23)
@@ -1289,6 +1341,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     add_executable(camera_wire_selftest tests/camera_wire_selftest.cpp)
     target_link_libraries(camera_wire_selftest PRIVATE perlin_protocol)
     add_test(NAME camera_wire_selftest COMMAND camera_wire_selftest)
+    add_executable(camera_effects_selftest tests/camera_effects_selftest.cpp
+        src/client/systems/camera/CameraEffects.cpp)
+    target_include_directories(camera_effects_selftest PRIVATE src "${glm_SOURCE_DIR}")
+    target_compile_features(camera_effects_selftest PRIVATE cxx_std_23)
+    add_test(NAME camera_effects_selftest COMMAND camera_effects_selftest)
     add_test(NAME protocol_audit_selftest
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/protocol_audit_selftest.py")
 
@@ -1550,7 +1607,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/world/level/block/BlockPalette.cpp src/util/Resources.cpp
         src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/resources/ServerBlocks.cpp src/util/JsonValue.cpp)
     target_include_directories(texture_selftest PRIVATE src "${stb_SOURCE_DIR}")
-    target_link_libraries(texture_selftest PRIVATE glaze::glaze miniz Threads::Threads)
+    target_link_libraries(texture_selftest PRIVATE glaze::glaze miniz Threads::Threads SDL3::SDL3)
     target_compile_features(texture_selftest PRIVATE cxx_std_23)
     if(PERLIN_TEXTURE_TEST_ASSETS)
         add_test(NAME texture_selftest COMMAND texture_selftest "${PERLIN_TEXTURE_TEST_ASSETS}")
@@ -1564,7 +1621,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/world/level/block/BlockPalette.cpp src/util/Resources.cpp
         src/client/systems/resources/ServerPackRegistry.cpp src/client/systems/resources/ServerBlocks.cpp src/util/JsonValue.cpp)
     target_include_directories(block_library_dump PRIVATE src "${stb_SOURCE_DIR}")
-    target_link_libraries(block_library_dump PRIVATE glaze::glaze miniz Threads::Threads)
+    target_link_libraries(block_library_dump PRIVATE glaze::glaze miniz Threads::Threads SDL3::SDL3)
     target_compile_features(block_library_dump PRIVATE cxx_std_23)
     if(Python3_FOUND)
         add_test(NAME block_library_golden
@@ -1588,7 +1645,7 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/world/level/lighting/LightRegistry.cpp src/world/level/lighting/ChunkLighting.cpp
         src/world/level/lighting/LightStore.cpp)
     target_include_directories(perlin_meshbench PRIVATE src "${stb_SOURCE_DIR}" "${glm_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/generated")
-    target_link_libraries(perlin_meshbench PRIVATE glaze::glaze miniz Threads::Threads)
+    target_link_libraries(perlin_meshbench PRIVATE glaze::glaze miniz Threads::Threads SDL3::SDL3)
     target_compile_features(perlin_meshbench PRIVATE cxx_std_23)
     add_test(NAME mesh_exactness COMMAND perlin_meshbench 2 1 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     set_tests_properties(mesh_exactness PROPERTIES PASS_REGULAR_EXPRESSION "RESULT mesh=" FAIL_REGULAR_EXPRESSION "FAIL")

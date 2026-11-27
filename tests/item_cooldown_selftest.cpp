@@ -65,6 +65,7 @@ int main() {
     }
     CHECK(!itemcooldown::BuiltinDefinition("example:ender_pearl"));
     CHECK(!itemcooldown::BuiltinDefinition("minecraft:stone"));
+    CHECK(itemcooldown::BuiltinDefinition("minecraft:ender_pearl")->durationTicks == 20);
 
     json::Value component = json::Value::MakeObject();
     CHECK(!itemcooldown::ComponentDefinition(nullptr));
@@ -78,6 +79,18 @@ int main() {
     component.Set("type", json::Value("use"));
     definition = itemcooldown::ComponentDefinition(&component);
     CHECK(definition && definition->type == Type::Use);
+    component.Set("duration", json::Value(0.5));
+    definition = itemcooldown::ComponentDefinition(&component);
+    CHECK(definition && definition->durationTicks == 10);
+    component.Set("duration", json::Value(0.129));
+    definition = itemcooldown::ComponentDefinition(&component);
+    CHECK(definition && definition->durationTicks == 2);
+    component.Set("duration", json::Value(-0.129));
+    definition = itemcooldown::ComponentDefinition(&component);
+    CHECK(definition && definition->durationTicks == -2);
+    component.Set("duration", json::Value(std::numeric_limits<double>::infinity()));
+    definition = itemcooldown::ComponentDefinition(&component);
+    CHECK(definition && definition->durationTicks == 0);
     component.Set("type", json::Value("invalid"));
     CHECK(!itemcooldown::ComponentDefinition(&component));
     component.Set("type", json::Value(1));

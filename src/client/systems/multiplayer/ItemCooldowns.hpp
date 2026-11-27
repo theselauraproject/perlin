@@ -3,6 +3,8 @@
 #include "util/JsonValue.hpp"
 
 #include <cstdint>
+#include <cmath>
+#include <limits>
 #include <map>
 #include <optional>
 #include <string>
@@ -14,6 +16,7 @@ namespace perlin::itemcooldown {
     struct Definition {
         std::string category;
         Type type = Type::Use;
+        int32_t durationTicks = 0;
     };
 
     inline std::string CategoryKey(std::string_view category) {
@@ -26,7 +29,7 @@ namespace perlin::itemcooldown {
     // Definition-shaped registry data can supply further categories.
     inline std::optional<Definition> BuiltinDefinition(std::string_view name) {
         if (name == "minecraft:ender_pearl")
-            return Definition{"ender_pearl"};
+            return Definition{"ender_pearl", Type::Use, 20};
         if (name == "minecraft:goat_horn")
             return Definition{"goat_horn"};
         if (name == "minecraft:ice_bomb")
@@ -52,6 +55,16 @@ namespace perlin::itemcooldown {
                 out.type = Type::Attack;
             else if (type->string != "use")
                 return std::nullopt;
+        }
+        if (const json::Value* duration = component->Find("duration"); duration && duration->IsNumber()) {
+            // The native getter multiplies its float seconds by20, then
+            // truncates toward zero. Malformed/out-of-range values retain the
+            // default rather than invoking an undefined C++ conversion.
+            const float ticks = static_cast<float>(duration->NumberOr(0)) * 20.0f;
+            if (std::isfinite(ticks) &&
+                static_cast<double>(ticks) >= std::numeric_limits<int32_t>::min() &&
+                static_cast<double>(ticks) <= std::numeric_limits<int32_t>::max())
+                out.durationTicks = static_cast<int32_t>(ticks);
         }
         return out;
     }

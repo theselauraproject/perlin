@@ -3,7 +3,9 @@
 #include "network/Stream.hpp"
 #include "client/selftest/SelfTests.hpp"
 #include "client/selftest/ItemFixtures.hpp"
+#include "client/selftest/MovementProtocolFixtures.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
@@ -22,13 +24,256 @@ namespace {
         s.InjectIncoming(P::kId, perlin::net::Encode(packet));
     }
 
+    void AbilityLayers() {
+        using namespace perlin;
+        using namespace perlin::proto;
+        for (int protocol : {944, 2193, kBedrockProtocol}) {
+            BedrockSession session;
+            session.BeginReplayMode("abilities", 7, protocol);
+            MovementProtocolTestAccess::SetUniqueId(session, 71);
+            int replies = 0;
+            session.SetSentTap([&](uint32_t, const std::vector<uint8_t>&) { ++replies; });
+            UpdateAbilitiesPacket packet;
+            packet.entityUniqueId = 71;
+            packet.permissionLevel = static_cast<decltype(packet.permissionLevel)>(1);
+            std::array<proto::AbilityLayers, 6> layers{};
+            constexpr uint32_t all = (1u << 1) | (1u << 9) | (1u << 10) | (1u << 11) |
+                                     (1u << 13) | (1u << 14) | (1u << 17) | (1u << 19);
+            for (size_t i = 0; i < layers.size(); ++i)
+                layers[i].type = static_cast<AbilityLayersType>(i);
+            layers[0].allowed = layers[0].enabled = all;
+            layers[0].flySpeed = .99f;
+            layers[0].verticalFlySpeed = 9;
+            layers[0].walkSpeed = .9f;
+            layers[1].allowed = all;
+            layers[1].enabled = (1u << 1) | (1u << 10);
+            layers[1].flySpeed = .05f;
+            layers[1].verticalFlySpeed = 1;
+            layers[1].walkSpeed = .1f;
+            layers[2].allowed = layers[2].enabled = (1u << 9) | (1u << 10) | (1u << 17);
+            layers[3].allowed = (1u << 1) | (1u << 11) | (1u << 13);
+            layers[3].enabled = 1u << 11;
+            layers[3].flySpeed = .2f;
+            layers[4].allowed = (1u << 9) | (1u << 14);
+            layers[4].walkSpeed = .3f;
+            layers[5].allowed = (1u << 10) | (1u << 19);
+            layers[5].verticalFlySpeed = .4f;
+            std::array<size_t, 6> order{0, 1, 2, 3, 4, 5};
+            do {
+                packet.abilities.clear();
+                for (size_t i : order)
+                    packet.abilities.push_back(layers[i]);
+                Inject(session, packet);
+                Check(!session.MayFly() && !session.MayMine() && session.Instabuild() &&
+                          !session.IsFlying() && session.NoClip(),
+                      "abilities: fixed native layer priority survives every packet order");
+                Check(session.FlySpeed() == .2f && session.WalkSpeed() == .3f &&
+                          (protocol == 944 || session.VFlySpeed() == .4f),
+                      "abilities: each speed resolves independently from its highest set layer");
+            } while (std::next_permutation(order.begin(), order.end()));
+
+            // The second Commands record removes Mine/Instabuild from that
+            // layer, exposing Base. It must not merge with the first record.
+            packet.abilities.assign(layers.begin(), layers.end());
+            proto::AbilityLayers replacement;
+            replacement.type = AbilityLayersType::Commands;
+            replacement.allowed = 1u << 13;
+            replacement.flySpeed = .6f;
+            packet.abilities.push_back(replacement);
+            Inject(session, packet);
+            Check(session.MayMine() && !session.Instabuild() && session.FlySpeed() == .6f,
+                  "abilities: duplicate layer replaces omitted abilities as well as values");
+
+            packet.abilities = {layers[1]};
+            Inject(session, packet);
+            Check(session.MayFly() && session.MayMine() && !session.NoClip() &&
+                      !session.IsFlying() && !session.Instabuild() && session.FlySpeed() == .05f &&
+                      session.WalkSpeed() == .1f,
+                  "abilities: replacement packet removes previous overriding layers");
+            packet.abilities[0].flySpeed = 0;
+            packet.abilities[0].verticalFlySpeed = 0;
+            packet.abilities[0].walkSpeed = 0;
+            Inject(session, packet);
+            Check(session.FlySpeed() == 0 && session.WalkSpeed() == 0 &&
+                      (protocol == 944 || session.VFlySpeed() == 0),
+                  "abilities: explicit zero speeds remain zero");
+
+            packet.abilities.clear();
+            Inject(session, packet);
+            Check(session.MayMine() && !session.MayFly() && !session.IsFlying() &&
+                      !session.Instabuild() && !session.NoClip() && session.FlySpeed() == 0 &&
+                      session.VFlySpeed() == 0 && session.WalkSpeed() == 0,
+                  "abilities: empty update restores permission layer and clears stale speeds");
+            packet.permissionLevel = static_cast<decltype(packet.permissionLevel)>(0);
+            Inject(session, packet);
+            Check(!session.MayMine(), "abilities: visitor permission disables mining without a layer");
+            packet.permissionLevel = static_cast<decltype(packet.permissionLevel)>(3);
+            Inject(session, packet);
+            Check(!session.MayMine(), "abilities: custom permission does not invent a mining grant");
+            packet.permissionLevel = static_cast<decltype(packet.permissionLevel)>(1);
+            layers[0].allowed = 1u << 1;
+            layers[0].enabled = 0;
+            packet.abilities = {layers[0]};
+            Inject(session, packet);
+            Check(session.MayMine(), "abilities: generated permission Base outranks Cache");
+
+            // Native deserialization maps an unknown layer number to Base.
+            replacement.type = static_cast<AbilityLayersType>(65535);
+            replacement.allowed = (1u << 10) | (1u << 13);
+            replacement.enabled = 1u << 10;
+            replacement.flySpeed = .7f;
+            packet.abilities = {replacement};
+            Inject(session, packet);
+            Check(session.MayFly() && !session.MayMine() && session.FlySpeed() == .7f,
+                  "abilities: unknown layer maps to Base and replaces its permission abilities");
+            const auto sequence = session.AbilitiesSeq();
+            packet.entityUniqueId = 99;
+            packet.abilities.clear();
+            Inject(session, packet);
+            Check(session.MayFly() && session.FlySpeed() == .7f && session.AbilitiesSeq() == sequence,
+                  "abilities: other player update leaves local state untouched");
+            packet.entityUniqueId = 0;
+            Inject(session, packet);
+            Check(session.MayFly() && session.AbilitiesSeq() == sequence,
+                  "abilities: zero target is not a broadcast to the local player");
+            packet.entityUniqueId = 71;
+            auto truncated = net::Encode(packet);
+            truncated.pop_back();
+            session.InjectIncoming(UpdateAbilitiesPacket::kId, truncated);
+            Check(session.MayFly() && session.AbilitiesSeq() == sequence,
+                  "abilities: malformed update does not partially clear movement state");
+
+            MovementProtocolTestAccess::ResetPlayerState(session);
+            Check(!session.MayFly() && !session.IsFlying() && !session.NoClip() &&
+                      !session.Instabuild() && session.MayMine() && session.FlySpeed() == .05f &&
+                      session.VFlySpeed() == 1 && session.WalkSpeed() == .1f,
+                  "abilities: transfer reset restores fresh player movement defaults");
+            packet.abilities = {replacement};
+            Inject(session, packet);
+            session.BeginReplayMode("replacement", 8, protocol);
+            Check(!session.MayFly() && session.FlySpeed() == .05f && session.VFlySpeed() == 1 &&
+                      session.WalkSpeed() == .1f,
+                  "abilities: replay replacement resets previous player overrides");
+            Check(replies == 0, "abilities: server updates and resets emit no unsolicited reply");
+            session.SetSentTap({});
+        }
+    }
+
+    void PlayerAttributeLifecycle() {
+        using namespace perlin;
+        using namespace perlin::proto;
+        for (int protocol : {944, 2193, kBedrockProtocol}) {
+            BedrockSession session;
+            session.BeginReplayMode("attributes", 7, protocol);
+            UpdateAttributesPacket attributes;
+            attributes.runtimeEntityId = 7;
+            attributes.tick = 41;
+            PlayerAttributesEntry speed;
+            speed.name = "minecraft:movement";
+            speed.min = speed.defaultMin = 0;
+            speed.max = speed.defaultMax = 1;
+            speed.current = speed.default_ = .3f;
+            PlayerAttributesEntryModifiersEntry modifier;
+            modifier.id = "53f4775d-4f51-4327-9e07-7f3929cbe017";
+            modifier.name = "Server movement adjustment";
+            modifier.amount = .1f;
+            modifier.operation = 0;
+            modifier.operand = 2;
+            modifier.serializable = true;
+            speed.modifiers.push_back(modifier);
+            attributes.attributes.push_back(speed);
+            Inject(session, attributes);
+            attributes.tick = 0;
+            attributes.attributes[0].current = .4f;
+            Inject(session, attributes);
+            attributes.runtimeEntityId = 8;
+            attributes.tick = 99;
+            attributes.attributes[0].current = .9f;
+            Inject(session, attributes);
+            const auto events = session.TakeAttributeUpdates();
+            Check(events.size() == 2 && events[0].tick == 41 && events[1].tick == 0 &&
+                      events[0].attributes.size() == 1 && events[1].attributes.size() == 1 &&
+                      events[0].attributes[0].current == .3f && events[1].attributes[0].current == .4f,
+                  "attributes: queued local updates preserve stamp, arrival order and independent snapshots");
+            Check(events.size() == 2 && events[0].attributes[0].modifiers.size() == 1 &&
+                      events[0].attributes[0].modifiers[0].id == modifier.id &&
+                      events[0].attributes[0].modifiers[0].amount == .1f &&
+                      session.TakeAttributeUpdates().empty(),
+                  "attributes: replay events preserve full modifiers and are consumed once");
+            Check(!session.CaptureMovementAttribute().known,
+                  "attributes: movement updates wait for history comparison before live mutation");
+            for (const auto& event : events)
+                session.ApplyAttributeUpdate(event);
+            const auto original = session.CaptureMovementAttribute();
+            auto replay = original;
+            const float sprint = BedrockSession::PredictedMovementSpeed(replay, true);
+            Check(original.known && original.value == .4f && replay.modifiers.size() == 2 &&
+                      sprint > original.value && session.CaptureMovementAttribute().modifiers.size() == 1 &&
+                      session.CaptureMovementAttribute().value == .4f,
+                  "attributes: replay sprint evaluation does not mutate live server modifier state");
+
+            SetEntityDataPacket metadata;
+            metadata.runtimeEntityId = 7;
+            metadata.tick = 12;
+            const auto number = [&](MetadataDictionaryEntryKey key, float value) {
+                MetadataDictionaryEntry entry;
+                entry.key = key;
+                entry.type = MetadataDictionaryEntryType::Float;
+                entry.value.emplace<4>().emplace<4>(value);
+                metadata.metadata.push_back(std::move(entry));
+            };
+            number(MetadataDictionaryEntryKey::Scale, 2);
+            number(MetadataDictionaryEntryKey::BoundingboxWidth, 1);
+            number(MetadataDictionaryEntryKey::BoundingboxHeight, 2.5f);
+            number(MetadataDictionaryEntryKey::FreezingEffectStrength, .75f);
+            MetadataDictionaryEntry flags;
+            flags.key = MetadataDictionaryEntryKey::Flags;
+            flags.type = MetadataDictionaryEntryType::Long;
+            flags.value.emplace<1>((1ll << 16) | (1ll << 5));
+            metadata.metadata.push_back(flags);
+            MetadataDictionaryEntry playerFlags;
+            playerFlags.key = MetadataDictionaryEntryKey::PlayerFlags;
+            playerFlags.type = MetadataDictionaryEntryType::Int;
+            playerFlags.value.emplace<4>().emplace<3>(2);
+            metadata.metadata.push_back(playerFlags);
+            Inject(session, metadata);
+            UpdateClientInputLocksPacket locks;
+            locks.locks = 512;
+            Inject(session, locks);
+            Check(session.ActorSize() == std::array<float, 2>{2, 5} && session.OwnScale() == 2 &&
+                      session.Sleeping() && session.Invisible() && session.InputLocks() == (512u | 4u | 64u),
+                  "attributes: size, sleeping, visibility and input locks are populated before reset");
+            Check(session.TakeFreezeUpdates().size() == 1,
+                  "attributes: server freezing update reaches the replay queue");
+            Inject(session, metadata);
+            attributes.runtimeEntityId = 7;
+            Inject(session, attributes);
+            MovementProtocolTestAccess::ResetPlayerState(session);
+            Check(session.ActorSize() == std::array<float, 2>{.6f, 1.8f} && session.OwnScale() == 1 &&
+                      !session.Sleeping() && !session.Invisible() && session.InputLocks() == 0 &&
+                      !session.MovementAttribute() && !session.CaptureMovementAttribute().known &&
+                      session.PredictedMovementSpeed(false) == .1f && session.TakeAttributeUpdates().empty() &&
+                      session.TakeFreezeUpdates().empty() &&
+                      (session.OwnActorFlags()[0] & FlagsMetadataFlags1::AffectedByGravity) != 0,
+                  "attributes: player replacement clears old size, flags, modifier history and input restrictions");
+            Inject(session, metadata);
+            Inject(session, attributes);
+            Inject(session, locks);
+            session.BeginReplayMode("replacement", 8, protocol);
+            Check(session.ActorSize() == std::array<float, 2>{.6f, 1.8f} && session.InputLocks() == 0 &&
+                      !session.Sleeping() && !session.MovementAttribute() &&
+                      session.TakeAttributeUpdates().empty() && session.TakeFreezeUpdates().empty(),
+                  "attributes: replay replacement also clears previous movement metadata");
+        }
+    }
+
     struct InventoryRig {
         perlin::BedrockSession session;
         std::vector<perlin::proto::ItemStackRequest> requests;
 
-        InventoryRig() {
+        explicit InventoryRig(int protocol = perlin::kBedrockProtocol) {
             using namespace perlin;
-            session.BeginReplayMode("inventory", 7, kBedrockProtocol);
+            session.BeginReplayMode("inventory", 7, protocol);
             session.SetSentTap([this](uint32_t id, const std::vector<uint8_t>& bytes) {
                 if (id != proto::ItemStackRequestPacket::kId)
                     return;
@@ -69,14 +314,17 @@ namespace {
             packet.item.count = static_cast<uint16_t>(count);
             packet.item.hasStackId = true;
             packet.item.stackId = stackId;
+            packet.item.extra = ItemExtraDataWithoutBlockingTick{};
             Inject(session, packet);
         }
 
-        void Respond(perlin::proto::ContainerSlotType type, int slot, int count, int stackId) {
+        void Respond(perlin::proto::ContainerSlotType type, int slot, int count, int stackId,
+                     int32_t requestId = -1) {
             using namespace perlin::proto;
             ItemStackResponsePacket packet;
             ItemStackResponsesEntry response;
             response.status = ItemStackResponsesEntryStatus::Ok;
+            response.requestId = requestId;
             response.containers.emplace();
             ItemStackResponsesEntryContainersEntry container;
             container.slotType.containerId = type;
@@ -96,6 +344,90 @@ namespace {
 
 namespace perlin::selftest {
 int HandlerDispatch() {
+    AbilityLayers();
+    PlayerAttributeLifecycle();
+    for (int protocol : {944, 2193, kBedrockProtocol}) {
+        using C = proto::ContainerSlotType;
+        InventoryRig rig(protocol);
+        rig.Store(0, C::HotbarAndInventory, 0, 5, 13);
+        rig.Store(119, C::Offhand, 0, 7, 26);
+        proto::MobEquipmentPacket equipment;
+        equipment.runtimeEntityId = 7;
+        equipment.windowId = proto::WindowID::Inventory;
+        equipment.slot = 0;
+        equipment.selectedSlot = 2;
+        equipment.item.networkId = 6;
+        equipment.item.count = 1;
+        equipment.item.hasStackId = true;
+        equipment.item.stackId = 77;
+        equipment.item.extra = proto::ItemExtraDataWithoutBlockingTick{};
+        Inject(rig.session, equipment);
+        Check(rig.session.GetInventory().selected == 2 &&
+                  rig.session.GetInventory().hotbar[0].name == "minecraft:arrow" &&
+                  rig.session.GetInventory().hotbar[0].count == 5,
+              "equipment: local Inventory update selects the slot without replacing item contents");
+        equipment.windowId = static_cast<proto::WindowID>(119);
+        equipment.selectedSlot = 4;
+        Inject(rig.session, equipment);
+        Check(rig.session.GetInventory().selected == 2 &&
+                  rig.session.GetInventory().hotbar[0].count == 5 &&
+                  rig.session.GetInventory().offhand.count == 7,
+              "equipment: local offhand equipment packet changes neither selection nor either hand");
+        equipment.windowId = static_cast<proto::WindowID>(1);
+        Inject(rig.session, equipment);
+        Check(rig.session.GetInventory().selected == 2,
+              "equipment: other local equipment containers do not select the hotbar");
+        equipment.windowId = proto::WindowID::Inventory;
+        for (uint8_t slot : {uint8_t{9}, uint8_t{255}}) {
+            equipment.selectedSlot = slot;
+            Inject(rig.session, equipment);
+            Check(rig.session.GetInventory().selected == 2,
+                  "equipment: invalid selected slot is ignored instead of clamped");
+        }
+        equipment.runtimeEntityId = 8;
+        equipment.selectedSlot = 3;
+        Inject(rig.session, equipment);
+        Check(rig.session.GetInventory().selected == 2,
+              "equipment: another actor cannot change local selection");
+        for (int32_t request : {0, 1, 2, -2, -4}) {
+            rig.Respond(C::HotbarAndInventory, 0, 1, 99, request);
+            Check(rig.session.GetInventory().hotbar[0].count == 5 && rig.requests.empty(),
+                  "inventory response: invalid and legacy IDs do not change ordinary inventory state");
+        }
+        rig.session.InvClick(0, false);
+        Check(rig.requests.size() == 1 && rig.requests[0].actions.size() == 1 &&
+                  rig.requests[0].actions[0].source.stackId == 13,
+              "equipment: the next inventory request retains the authoritative slot's original stack ID");
+
+        BedrockSession noPlayer;
+        equipment.runtimeEntityId = 7;
+        Inject(noPlayer, equipment);
+        Check(noPlayer.GetInventory().selected == 0,
+              "equipment: no local player means no local selection mutation");
+
+        proto::PlayerHotbarPacket hotbar;
+        hotbar.selectedSlot = 6;
+        hotbar.windowId = static_cast<proto::WindowID>(119);
+        hotbar.selectSlot = true;
+        Inject(rig.session, hotbar);
+        Check(rig.session.GetInventory().selected == 6,
+              "hotbar: selection accepts the packet's nonzero container identifier");
+        for (uint32_t slot : {9u, 255u, 0xffffffffu}) {
+            hotbar.selectedSlot = slot;
+            Inject(rig.session, hotbar);
+            Check(rig.session.GetInventory().selected == 6,
+                  "hotbar: invalid unsigned selected slots are ignored instead of clamped");
+        }
+        hotbar.selectedSlot = 1;
+        hotbar.selectSlot = false;
+        Inject(rig.session, hotbar);
+        Check(rig.session.GetInventory().selected == 6,
+              "hotbar: a packet without shouldSelectSlot cannot change selection");
+        hotbar.selectSlot = true;
+        Inject(noPlayer, hotbar);
+        Check(noPlayer.GetInventory().selected == 0,
+              "hotbar: no local player means no selection mutation");
+    }
     {
         perlin::proto::MetadataDictionaryEntry e;
         e.value.emplace<1>(7);

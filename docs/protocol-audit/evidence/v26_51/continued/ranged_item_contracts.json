@@ -1,0 +1,32 @@
+{
+  "build": "Minecraft Windows1.26.51.1 protocol2193, matching PDB",
+  "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "scope": "Static metadata and paraphrased behavior contracts. No target code bytes; not whole-client equivalence.",
+  "crossbow_loaded": {
+    "use": "0x8BA1A20\u20130x8BA2D4F",
+    "loaded_check": "0x8BA1A9E reads ItemStackBase+0x78; loaded branch precedes Player::hasResource at0x8BA2C5F and startUsingItem at0x8BA2CC8",
+    "save": "ItemStackBase::_setChargedItem0x24920E0 writes compound chargedItem at0x2492205 after ItemStackBase::save0x248E170. Save writes Name(string) and Count(byte).",
+    "loaded_predicate": "ItemStackBase::hasChargedItem0x2482F90 checks valid/non-null cached charged item, without a projectile name whitelist. Perlin implements positive-count registered non-air names; arbitrary malformed/zero-count cached-state equivalence is not established."
+  },
+  "crossbow_duration": {
+    "getter": "0x8BA40F0\u20130x8BA4124",
+    "rule": "Quick Charge enchant35: level<=0 returns25; otherwise signed32 arithmetic25\u22125*level, without duration clamp.",
+    "start_store": "Player::startUsingItem0x1EC3A0 preserves r8d in edi at0x1EC3C6 and directly stores edi at0x1EC72C to duration component+8, no clamp.",
+    "countdown": "Native duration callback0xC6109B0 decrements only signed>0; normalTick0x1EA813/0x1EA818 skips completion for duration!=0.",
+    "completion": "normalTick calls completeUsingItem at0x1EA84C; client branch0x1EB40D\u21920x1EB86A\u2192stopUsingItem0x1EB86D skips item useTimeDepleted and transaction/CompletedUsingItem construction. Generic completion event listener side effects not fully traced.",
+    "item_depletion": "CrossbowItem::useTimeDepleted0x8BA3580 invokes releaseUsing withremaining0 and returns-1, but this is not proof that the client common timer calls it."
+  },
+  "trident_startup": {
+    "use": "0x3EC5FC0\u20130x3EC60ED",
+    "riptide": "enchant30 at0x3EC5FDE; nonzero requires helper0x19F69B0 before startUsingItem0x3EC60C4.",
+    "wet": "helper0x19F69B0 checks WasInWaterFlagComponent hash0x78E89F39 (FNV1a exact name), or rain-at-position then Biome::getTemperature0x687BDA0 >0.15f (constantRVA0xE6AE4DC). Perlin caller provides its state.inWater/rain proxy; exact native ECS sensing timing/biome rain coverage remains unproven.",
+    "damage": "use looks up root IntTag Damage, reads low16, signed-compares against getMaxDamage at0x3EC6089\u20130x3EC6095. CompoundTagVariant PDB order EndTag,ByteTag,ShortTag,IntTag confirms index3 checked by lookup0x2548D90; IntTag.data+8.",
+    "max": "Trident vtableRVA0xE8ABF70 (use slot0x288, getMaxDamage0x120, setMaxDamage0xD0); registered0x3EF3F4E then0x3EF4227\u20130x3EF422C calls setMaxDamage250. Setter0x24D0B00 writes item+0x150; getter0x24CD6A0 reads it."
+  },
+  "active_enchantments": {
+    "lookup": "EnchantUtils::getEnchantLevel0x32602C0 tests root ench ListTag, obtains ItemEnchants, returns first matching category entry at0x326036F.",
+    "list": "ItemEnchants::_fromList0x519B430 reads id low unsigned byte from ShortTag at0x519B541, level signedshort at0x519B577, skips id>41 at0x519B580, appends in list order at0x519B4C0. StoredEnchantments not consulted.",
+    "limitations": "Existing bounded NBT reader depth/list limits remain; not a proof of native malformed/duplicate-root-tag handling."
+  },
+  "effects_review": "Read-only review of LocalPlayer effect snapshot/event propagation found no definite blocker. savePrediction=false clears history before dropping accepted unsaved events. Signed INT_MAX amplifier+1 arithmetic remains an existing unproven extreme-input boundary."
+}

@@ -1,0 +1,1223 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "missing_class_names": [],
+  "classes": [
+    {
+      "name": "ApplyGravityComponent",
+      "type_index": "0x15bc2",
+      "size": 8,
+      "fieldlist": "0x15bc1",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mGravity",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mResetFallDistance",
+          "offset": 4,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "DefaultEntitySystemsCollection",
+      "type_index": "0x372c0",
+      "size": 256,
+      "fieldlist": "0x372bf",
+      "member_count": 9,
+      "fields": [
+        {
+          "offset": 0,
+          "type": "IEntitySystemsCollection",
+          "member_kind": "base"
+        },
+        {
+          "name": "mAllSystems",
+          "offset": 8,
+          "type": "std::vector<std::shared_ptr<ISystem>,std::allocator<std::shared_ptr<ISystem> > >",
+          "type_index": "0xdb5d",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAllSystemsInfo",
+          "offset": 32,
+          "type": "std::vector<InternalSystemInfo,std::allocator<InternalSystemInfo> >",
+          "type_index": "0xd8ca",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTickingSystemCategories",
+          "offset": 56,
+          "type": "std::vector<DefaultEntitySystemsCollection::TickingSystemsInCategory,std::allocator<DefaultEntitySystemsCollection::TickingSystemsInCategory> >",
+          "type_index": "0xda55",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSingleTickingSystemCategories",
+          "offset": 80,
+          "type": "std::vector<DefaultEntitySystemsCollection::TickingSystemsInCategory,std::allocator<DefaultEntitySystemsCollection::TickingSystemsInCategory> >",
+          "type_index": "0xda55",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAllComponentsInfo",
+          "offset": 104,
+          "type": "entt::dense_map<unsigned int,ComponentInfo,std::hash<unsigned int>,std::equal_to<void>,std::allocator<std::pair<const unsigned int,ComponentInfo> > >",
+          "type_index": "0xba03",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTimingMutex",
+          "offset": 176,
+          "type": "std::mutex",
+          "type_index": "0x10870",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "DefaultEntitySystemsCollection::TickingSystemsInCategory",
+      "type_index": "0x20eeb",
+      "size": 56,
+      "fieldlist": "0x20eea",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mCategory",
+          "offset": 0,
+          "type": "Bedrock::typeid_t<SystemCategory>",
+          "type_index": "0xce22",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSystems",
+          "offset": 8,
+          "type": "std::vector<unsigned int,std::allocator<unsigned int> >",
+          "type_index": "0xd66c",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mTimings",
+          "offset": 32,
+          "type": "std::vector<DefaultEntitySystemsCollection::ECSTiming,std::allocator<DefaultEntitySystemsCollection::ECSTiming> >",
+          "type_index": "0xd84d",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "Dependencies",
+      "type_index": "0x187c4",
+      "size": 152,
+      "fieldlist": "0x187c3",
+      "member_count": 4,
+      "fields": [
+        {
+          "name": "mBlocking",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUsesEntityFactory",
+          "offset": 1,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAccessGroups",
+          "offset": 8,
+          "type": "std::array<std::vector<unsigned int,std::allocator<unsigned int> >,6>",
+          "type_index": "0xb8fc",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "EntitySystemTickingMode",
+      "type_index": "0x19286",
+      "size": 2,
+      "fieldlist": "0x19285",
+      "member_count": 2,
+      "fields": [
+        {
+          "name": "mNormalTick",
+          "offset": 0,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSingleTick",
+          "offset": 1,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "FallDistanceComponent",
+      "type_index": "0x196f8",
+      "size": 8,
+      "fieldlist": "0x196f7",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mValue",
+          "offset": 0,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIgnoresFallDamage",
+          "offset": 4,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSpawnParticlesWhenHittingGround",
+          "offset": 5,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "IEntitySystemsCollection",
+      "type_index": "0x1a23e",
+      "size": 8,
+      "fieldlist": "0x1a23d",
+      "member_count": 16,
+      "fields": [],
+      "methods": [
+        {
+          "name": "~IEntitySystemsCollection",
+          "attribute": "0x13",
+          "explicit_virtual_slot": 0,
+          "type_index": "0x1a218",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "IEntitySystemsCollection *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerTickingSystem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 8,
+          "type_index": "0x1a21c",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "IEntitySystemsCollection *",
+          "argument_types": [
+            "gsl::span<const Bedrock::typeid_t<SystemCategory>,18446744073709551615>",
+            "std::unique_ptr<ITickingSystem,std::default_delete<ITickingSystem> >",
+            "const SystemInfo &",
+            "EntitySystemTickingMode"
+          ],
+          "argument_count": 4,
+          "this_adjust": 0
+        },
+        {
+          "name": "registerSystem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 16,
+          "type_index": "0x1a21e",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "IEntitySystemsCollection *",
+          "argument_types": [
+            "std::unique_ptr<ISystem,std::default_delete<ISystem> >",
+            "const SystemInfo &"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "foreachSystem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 24,
+          "type_index": "0x1a222",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "IEntitySystemsCollection *",
+          "argument_types": [
+            "const std::function<void (ISystem &)> &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "foreachTickingSystem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 32,
+          "type_index": "0x1a228",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "IEntitySystemsCollection *",
+          "argument_types": [
+            "const EntitySystemsFilter &",
+            "const std::function<void (ITickingSystem &, TickingSystemId)> &",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "foreachSingleTickingSystem",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 40,
+          "type_index": "0x1a228",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "IEntitySystemsCollection *",
+          "argument_types": [
+            "const EntitySystemsFilter &",
+            "const std::function<void (ITickingSystem &, TickingSystemId)> &",
+            "bool"
+          ],
+          "argument_count": 3,
+          "this_adjust": 0
+        },
+        {
+          "name": "getLargestSystemIndex",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 48,
+          "type_index": "0x1a22b",
+          "return_type": "unsigned long long",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "getSystemInfoForTickingSystemId",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 56,
+          "type_index": "0x1a22e",
+          "return_type": "const SystemInfo *",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [
+            "TickingSystemId"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getTickingSystemForTickingSystemId",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 64,
+          "type_index": "0x1a230",
+          "return_type": "ITickingSystem *",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [
+            "TickingSystemId"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getComponentInfoForId",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 72,
+          "type_index": "0x1a233",
+          "return_type": "const ComponentInfo *",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [
+            "uint32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "foreachComponentInfo",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 80,
+          "type_index": "0x1a237",
+          "return_type": "void",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [
+            "const std::function<void (unsigned int, const ComponentInfo &)> &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "hasSingleTickCategory",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 88,
+          "type_index": "0x1a23a",
+          "return_type": "bool",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [
+            "const Bedrock::typeid_t<SystemCategory>"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "gatherSystemTimings",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 96,
+          "type_index": "0x1a23b",
+          "return_type": "std::vector<SystemTiming,std::allocator<SystemTiming> >",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "_isValidIndex",
+          "attribute": "0x1b",
+          "explicit_virtual_slot": 104,
+          "type_index": "0x1a23c",
+          "return_type": "bool",
+          "class_type": "IEntitySystemsCollection",
+          "this_type": "const IEntitySystemsCollection *",
+          "argument_types": [
+            "uint32_t"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "MobEffectIds",
+      "type_index": "0x1a84",
+      "fieldlist": "0x1a83",
+      "underlying": 117,
+      "member_count": 39,
+      "enum": true,
+      "fields": [
+        {
+          "name": "Empty",
+          "value": 0,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MovementSpeed",
+          "value": 1,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "MovementSlowdown",
+          "value": 2,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DigSpeed",
+          "value": 3,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DigSlowdown",
+          "value": 4,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DamageBoost",
+          "value": 5,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Heal",
+          "value": 6,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Harm",
+          "value": 7,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Jump",
+          "value": 8,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Confusion",
+          "value": 9,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Regeneration",
+          "value": 10,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "DamageResistance",
+          "value": 11,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FireResistance",
+          "value": 12,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WaterBreathing",
+          "value": 13,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Invisibility",
+          "value": 14,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Blindness",
+          "value": 15,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "NightVision",
+          "value": 16,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Hunger",
+          "value": 17,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Weakness",
+          "value": 18,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Poison",
+          "value": 19,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Wither",
+          "value": 20,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "HealthBoost",
+          "value": 21,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Absorption",
+          "value": 22,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Saturation",
+          "value": 23,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Levitation",
+          "value": 24,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "FatalPoison",
+          "value": 25,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "ConduitPower",
+          "value": 26,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "SlowFalling",
+          "value": 27,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BadOmen",
+          "value": 28,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "VillageHero",
+          "value": 29,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Darkness",
+          "value": 30,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "TrialOmen",
+          "value": 31,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "WindCharged",
+          "value": 32,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Weaving",
+          "value": 33,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Oozing",
+          "value": 34,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Infested",
+          "value": 35,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "RaidOmen",
+          "value": 36,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "BreathOfTheNautilus",
+          "value": 37,
+          "member_kind": "enumerator"
+        },
+        {
+          "name": "Count",
+          "value": 38,
+          "member_kind": "enumerator"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MobEffectInstance",
+      "type_index": "0x40a6f",
+      "size": 144,
+      "fieldlist": "0x40a6e",
+      "member_count": 21,
+      "fields": [
+        {
+          "name": "mId",
+          "offset": 0,
+          "type": "uint32_t",
+          "type_index": "0x75",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDuration",
+          "offset": 4,
+          "type": "EffectDuration",
+          "type_index": "0x52b5",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDurationEasy",
+          "offset": 8,
+          "type": "std::optional<EffectDuration>",
+          "type_index": "0xc634",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDurationNormal",
+          "offset": 16,
+          "type": "std::optional<EffectDuration>",
+          "type_index": "0xc634",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDurationHard",
+          "offset": 24,
+          "type": "std::optional<EffectDuration>",
+          "type_index": "0xc634",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAmplifier",
+          "offset": 32,
+          "type": "int32_t",
+          "type_index": "0x74",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDisplayOnScreenTextureAnimation",
+          "offset": 36,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsCounterPausedThisTick",
+          "offset": 37,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAmbient",
+          "offset": 38,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mEffectVisible",
+          "offset": 39,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mIsLeveled",
+          "offset": 40,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFactorCalculationData",
+          "offset": 48,
+          "type": "MobEffect::FactorCalculationData",
+          "type_index": "0x53d4",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "MobEffectInstance",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a62",
+          "return_type": "void",
+          "class_type": "MobEffectInstance",
+          "this_type": "MobEffectInstance *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "MobEffectInstance",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a64",
+          "return_type": "void",
+          "class_type": "MobEffectInstance",
+          "this_type": "MobEffectInstance *",
+          "argument_types": [
+            "uint32_t",
+            "EffectDuration"
+          ],
+          "argument_count": 2,
+          "this_adjust": 0
+        },
+        {
+          "name": "getDisplayName",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a66",
+          "return_type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "class_type": "MobEffectInstance",
+          "this_type": "const MobEffectInstance *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "save",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a67",
+          "return_type": "std::unique_ptr<CompoundTag,std::default_delete<CompoundTag> >",
+          "class_type": "MobEffectInstance",
+          "this_type": "const MobEffectInstance *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "updateEffects",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a68",
+          "return_type": "void",
+          "class_type": "MobEffectInstance",
+          "this_type": "const MobEffectInstance *",
+          "argument_types": [
+            "Actor &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "getAverageColorValue",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a6a",
+          "return_type": "mce::Color",
+          "class_type": "MobEffectInstance",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const std::vector<MobEffectInstance,std::allocator<MobEffectInstance> > &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "load",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a6b",
+          "return_type": "MobEffectInstance",
+          "class_type": "MobEffectInstance",
+          "this_type": "basic_0x0000",
+          "argument_types": [
+            "const CompoundTag &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "NO_EFFECT",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a6c",
+          "return_type": "const MobEffectInstance &",
+          "class_type": "MobEffectInstance",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "splashDurationMultiplier",
+          "attribute": "0xb",
+          "explicit_virtual_slot": null,
+          "type_index": "0x40a6d",
+          "return_type": "float &",
+          "class_type": "MobEffectInstance",
+          "this_type": "basic_0x0000",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "MobEffectsComponent",
+      "type_index": "0x1bb97",
+      "size": 24,
+      "fieldlist": "0x1bb96",
+      "member_count": 1,
+      "fields": [
+        {
+          "name": "mMobEffects",
+          "offset": 0,
+          "type": "std::vector<MobEffectInstance,std::allocator<MobEffectInstance> >",
+          "type_index": "0xdccc",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MobTravelComponent",
+      "type_index": "0x1bbe8",
+      "size": 40,
+      "fieldlist": "0x1bbe7",
+      "member_count": 7,
+      "fields": [
+        {
+          "name": "mLocalMovementVelocity",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mMovementSpeed",
+          "offset": 12,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosBeforeMove",
+          "offset": 16,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFriction",
+          "offset": 28,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mSlowdown",
+          "offset": 32,
+          "type": "float",
+          "type_index": "0x40",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDoesVerticalFriction",
+          "offset": 36,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDoesGroundFriction",
+          "offset": 37,
+          "type": "bool",
+          "type_index": "0x30",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "MovementAttributesComponent",
+      "type_index": "0x1bf6c",
+      "size": 72,
+      "fieldlist": "0x1bf6b",
+      "member_count": 11,
+      "fields": [
+        {
+          "name": "mMovementSpeed",
+          "offset": 0,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mUnderwaterMovementSpeed",
+          "offset": 8,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mLavaMovementSpeed",
+          "offset": 16,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mJumpStrength",
+          "offset": 24,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHealth",
+          "offset": 32,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mHunger",
+          "offset": 40,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mFrictionModifier",
+          "offset": 48,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mBounciness",
+          "offset": 56,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mAirDragModifier",
+          "offset": 64,
+          "type": "std::optional<float>",
+          "type_index": "0xc59a",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator==",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x1bf69",
+          "return_type": "bool",
+          "class_type": "MovementAttributesComponent",
+          "this_type": "const MovementAttributesComponent *",
+          "argument_types": [
+            "const MovementAttributesComponent &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "StateVectorComponent",
+      "type_index": "0x204b7",
+      "size": 36,
+      "fieldlist": "0x204b6",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mPos",
+          "offset": 0,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosPrev",
+          "offset": 12,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mPosDelta",
+          "offset": 24,
+          "type": "Vec3",
+          "type_index": "0x1065f",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "name": "SystemInfo",
+      "type_index": "0x20a74",
+      "size": 200,
+      "fieldlist": "0x20a73",
+      "member_count": 8,
+      "fields": [
+        {
+          "name": "mName",
+          "offset": 0,
+          "type": "std::basic_string<char,std::char_traits<char>,std::allocator<char> >",
+          "type_index": "0xb986",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDisplayCategoryIndex",
+          "offset": 32,
+          "type": "unsigned char",
+          "type_index": "0x20",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mDependencies",
+          "offset": 40,
+          "type": "Dependencies",
+          "type_index": "0x5132",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mGenerateDetailedInfo",
+          "offset": 192,
+          "type": "type_0x20a6a_kind_0x1008 *",
+          "type_index": "0x20a6b",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "operator=",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20a6f",
+          "return_type": "SystemInfo &",
+          "class_type": "SystemInfo",
+          "this_type": "SystemInfo *",
+          "argument_types": [
+            "const SystemInfo &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        },
+        {
+          "name": "SystemInfo",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20a70",
+          "return_type": "void",
+          "class_type": "SystemInfo",
+          "this_type": "SystemInfo *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        },
+        {
+          "name": "SystemInfo",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20a71",
+          "return_type": "void",
+          "class_type": "SystemInfo",
+          "this_type": "SystemInfo *",
+          "argument_types": [
+            "const SystemInfo &"
+          ],
+          "argument_count": 1,
+          "this_adjust": 0
+        }
+      ]
+    },
+    {
+      "name": "TickingSystemWithInfo",
+      "type_index": "0x20ee9",
+      "size": 208,
+      "fieldlist": "0x20ee8",
+      "member_count": 3,
+      "fields": [
+        {
+          "name": "mTickingSystem",
+          "offset": 0,
+          "type": "std::unique_ptr<ITickingSystem,std::default_delete<ITickingSystem> >",
+          "type_index": "0xd09f",
+          "member_kind": "instance"
+        },
+        {
+          "name": "mInfo",
+          "offset": 8,
+          "type": "SystemInfo",
+          "type_index": "0x6831",
+          "member_kind": "instance"
+        }
+      ],
+      "methods": [
+        {
+          "name": "~TickingSystemWithInfo",
+          "attribute": "0x3",
+          "explicit_virtual_slot": null,
+          "type_index": "0x20ee7",
+          "return_type": "void",
+          "class_type": "TickingSystemWithInfo",
+          "this_type": "TickingSystemWithInfo *",
+          "argument_types": [],
+          "argument_count": 0,
+          "this_adjust": 0
+        }
+      ]
+    }
+  ],
+  "symbols": [
+    {
+      "kind": "0x110e",
+      "record_offset": 2273588,
+      "name": "?forSystem@MobMovementLevitate@@YAXAEBV?$function@$$A6AX$$QEAUTickingSystemWithInfo@@@Z@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2de48f0",
+      "rva": "0x2de58f0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 2273936,
+      "name": "?forSystems@MobMovementGravity@@YAXAEBV?$function@$$A6AX$$QEAUTickingSystemWithInfo@@@Z@std@@@Z",
+      "section": 1,
+      "section_offset": "0x2de26a0",
+      "rva": "0x2de36a0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3038184,
+      "name": "?mMobEffects@MobEffect@@2V?$DenseEnumMap@W4MobEffectIds@@V?$unique_ptr@VMobEffect@@U?$default_delete@VMobEffect@@@std@@@std@@$0CG@@Bedrock@@A",
+      "section": 3,
+      "section_offset": "0x5e5400",
+      "rva": "0x11dbf400"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3398500,
+      "name": "?registerActorAiStepSystems@VanillaSystemsRegistration@@YAXAEAVEntitySystems@@AEBURegistrationOptions@1@@Z",
+      "section": 1,
+      "section_offset": "0x6821800",
+      "rva": "0x6822800"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3398700,
+      "name": "?registerActorMoveSystems@VanillaSystemsRegistration@@YAXAEAVEntitySystems@@AEBURegistrationOptions@1@@Z",
+      "section": 1,
+      "section_offset": "0x6819c20",
+      "rva": "0x681ac20"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3430380,
+      "name": "?registerTickingSystem@EntitySystems@@UEAAXV?$span@$$CBV?$typeid_t@USystemCategory@@@Bedrock@@$0?0@gsl@@V?$unique_ptr@VITickingSystem@@U?$default_delete@VITickingSystem@@@std@@@std@@AEBUSystemInfo@@UEntitySystemTickingMode@@@Z",
+      "section": 1,
+      "section_offset": "0x63b0320",
+      "rva": "0x63b1320"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3832824,
+      "name": "?tick@EntitySystems@@QEAAXAEAVEntityRegistry@@@Z",
+      "section": 1,
+      "section_offset": "0x63afb00",
+      "rva": "0x63b0b00"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3876104,
+      "name": "?tickApplyJumpModifierSystem@ApplyJumpModifierSystem@@SAXAEBVStrictEntityContext@@AEBUTriggerJumpRequestComponent@@AEBUActorRotationComponent@@AEBUMovementAttributesComponent@@AEBUMobEffectsComponent@@AEBUMobTravelComponent@@AEAUJumpPendingScaleComponent@@AEAUStateVectorComponent@@@Z",
+      "section": 1,
+      "section_offset": "0x9023ef0",
+      "rva": "0x9024ef0"
+    },
+    {
+      "kind": "0x110e",
+      "record_offset": 3877704,
+      "name": "?tickDefaultGravity@MobMovementGravity@@YAXAEBVStrictEntityContext@@AEBUActorDataFlagComponent@@AEBUMobEffectsComponent@@AEBUStateVectorComponent@@AEAV?$EntityModifier@UApplyGravityComponent@@@@@Z",
+      "section": 1,
+      "section_offset": "0x2de2560",
+      "rva": "0x2de3560"
+    }
+  ]
+}

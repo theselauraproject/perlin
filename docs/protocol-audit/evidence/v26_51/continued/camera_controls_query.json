@@ -1,0 +1,24 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "OptionID",
+    "ActorRotationComponent",
+    "ActorHeadRotationComponent",
+    "MoveInputState",
+    "MoveInputComponent",
+    "ControlSchemeComponent",
+    "ControlScheme::Scheme",
+    "InputMode",
+    "PlayerAuthInputPacketPayload"
+  ],
+  "symbol_rvas": [
+    "0x47617c0",
+    "0x48c2d10",
+    "0x48c31d0",
+    "0x681da00",
+    "0x4495e0",
+    "0x66983a0",
+    "0x47696a0",
+    "0x668de10"
+  ]
+}

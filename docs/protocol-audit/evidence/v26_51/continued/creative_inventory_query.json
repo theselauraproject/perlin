@@ -1,0 +1,25 @@
+{
+  "expected_executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+  "classes": [
+    "SharedTypes::CreativeItemCategory",
+    "CreativeContentPacketPayload",
+    "CreativeGroupInfoPayload",
+    "CreativeItemEntryPayload",
+    "CreativeGroupInfo",
+    "CreativeItemEntry",
+    "CreativeItemGroupCategory",
+    "CreativeItemRegistry",
+    "FilteredContainerModel",
+    "ExpandoContainerModel",
+    "ExpandoModelElement",
+    "ContainerExpandStatus"
+  ],
+  "symbol_regex": "\\?(initializeFromCreativeContentPacket|createCategories|newItemEntry|updateNetIdMap)@CreativeItemRegistry|\\?(addAnonymousGroup|addChildGroup|getChildGroup)@CreativeItemGroupCategory|\\?initCreativeItemsClient@ItemRegistryRef|\\?handle@LegacyClientNetworkHandler.*CreativeContentPacket|\\?(_createContainerModel|_refreshContainer)@CraftingContainerManagerModel|\\?(.*Group|.*group|.*Filter|.*filter)@FilteredContainerModel|\\?(_refreshContainer|_generateCurrentItems)@ExpandoContainerModel|\\?_addCreativeItemEntry@CreativeGroupInfo|\\?\\?0ExpandoModelElement",
+  "symbol_rvas": [
+    "0x3446890",
+    "0x3446b90",
+    "0x3447710",
+    "0x3438210",
+    "0x3469220"
+  ]
+}

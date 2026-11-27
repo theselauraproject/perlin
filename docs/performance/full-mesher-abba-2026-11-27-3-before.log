@@ -1,0 +1,15 @@
+[meshbench] merge: 794928 -> 470544 vertices (40.8% fewer), 0 of 1589856 sample points differ
+[meshbench] 25 chunks x 8 rounds: mean 3.716 ms, median 3.419 ms, p90 5.068 ms, 18822 vertices/chunk
+[meshprof] 275 chunks: fill+classify 0.19 ms, connectivity 0.22 ms, lighting 0.11 ms, quads 3.13 ms, total 3.65 ms (avg)
+[meshbench] block on the surface                   same (1 sections rebuilt, 9 copied)
+[meshbench] block removed at the surface           same (1 sections rebuilt, 9 copied)
+[meshbench] block dug a section down               same (2 sections rebuilt, 8 copied)
+[meshbench] block dug deep                         same (0 sections rebuilt, 10 copied)
+[meshbench] shaft opened down to a cave            same (4 sections rebuilt, 6 copied)
+[meshbench] shaft capped (relights below)          same (4 sections rebuilt, 6 copied)
+[meshbench] block at the chunk edge                same (1 sections rebuilt, 9 copied)
+[meshbench] neighbour chunk edit at the border     same (1 sections rebuilt, 9 copied)
+[meshbench] water placed                           same (1 sections rebuilt, 9 copied)
+[meshbench] leaves placed                          same (1 sections rebuilt, 9 copied)
+[meshbench] edits: full rebuild 3.783 ms, partial 0.881 ms per edit
+RESULT mesh=3.716 checksum=466c21ae50e4e75b

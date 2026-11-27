@@ -1,0 +1,10 @@
+{
+  "evidence_hashes": 104,
+  "frozen_source_inputs": 1200,
+  "conduit_local_patch_hashes": 10,
+  "workflow_build_targets": 37,
+  "selected_ctests": 57,
+  "diff_check": "passed",
+  "portability_check": "passed",
+  "schema_inventory_hashes": "passed"
+}

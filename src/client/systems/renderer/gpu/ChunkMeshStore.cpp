@@ -82,8 +82,7 @@ namespace perlin::gpu {
         blended.clear();
         lods.clear();
         lodGroups.clear();
-        visible.clear();
-        visibleSections.clear();
+        ClearSelections();
         NoteAll();
         if (gpu) {
             gpu->Dev().wait_idle();
@@ -108,8 +107,7 @@ namespace perlin::gpu {
         blended.clear();
         lods.clear();
         lodGroups.clear();
-        visible.clear();
-        visibleSections.clear();
+        ClearSelections();
 
         for (Page& p : pages) {
             if (!p.live)
@@ -739,45 +737,76 @@ namespace perlin::gpu {
         return bit < 0 || bit >= 32 || (it->second.secVis & (1u << bit)) != 0;
     }
 
+    void ChunkMeshStore::ClearSelections() {
+        // These calls accompany a world/mesh-format reset, not an individual mesh upload. Give back
+        // peak-world capacities here; ordinary queries retain them to avoid per-frame allocations.
+        for (SelectionCache& selection : selections)
+            selection = SelectionCache{};
+    }
+
     void ChunkMeshStore::Select(const Frustum& frustum, float camX, float camY, float camZ, int cullRadius,
                                 bool caveCulling, double now, bool translucentOnly) {
+        // UpdateCave has its own time/generation gate. It must run before the cache check so a delayed
+        // connectivity refresh invalidates selection even when the camera and mesh epoch are unchanged.
+        if (caveCulling && !chunks.empty())
+            UpdateCave(camX, camY, camZ, now);
+        selected = translucentOnly ? 1 : 0;
+        SelectionCache& selection = selections[selected];
+        const std::array<float, 3> camera{camX, camY, camZ};
+        if (selection.valid && selection.meshEpoch == meshEpoch && selection.caveEpoch == caveEpoch &&
+            selection.radius == cullRadius && selection.caveCulling == caveCulling &&
+            std::memcmp(selection.camera.data(), camera.data(), sizeof(camera)) == 0 &&
+            std::memcmp(selection.frustum.planes, frustum.planes, sizeof(frustum.planes)) == 0) {
+            selection.reused = true;
+            return;
+        }
+        selection.valid = false;
+        selection.reused = false;
+        selection.meshEpoch = meshEpoch;
+        selection.caveEpoch = caveEpoch;
+        selection.frustum = frustum;
+        selection.camera = camera;
+        selection.radius = cullRadius;
+        selection.caveCulling = caveCulling;
+        for (RunCache& cache : selection.runs)
+            cache.valid = false;
+        selectionBuilds++;
+        auto& visible = selection.visible;
+        auto& visibleSections = selection.sections;
         const auto hasBlend = [](const Chunk& g) {
             return g.layerCount[static_cast<size_t>(RenderLayer::Translucent)] ||
                    g.layerCount[static_cast<size_t>(RenderLayer::TranslucentCull)];
         };
         visible.clear();
         visibleSections.clear();
-        if (chunks.empty() && lods.empty())
+        if (chunks.empty() && lods.empty()) {
+            selection.valid = true;
             return;
-        if (caveCulling)
-            UpdateCave(camX, camY, camZ, now);
+        }
         const int cullCx = static_cast<int>(std::floor(camX / 16.0f)),
                   cullCz = static_cast<int>(std::floor(camZ / 16.0f));
-        static thread_local std::vector<const Chunk*> pool;
-        pool.clear();
-        if (translucentOnly) {
-            pool.assign(blended.begin(), blended.end());
-        } else {
-            pool.reserve(chunks.size());
-            for (const auto& entry : chunks)
-                pool.push_back(&entry.second);
-        }
-        for (const Chunk* chunk : pool) {
-            const Chunk& g = *chunk;
+        const auto consider = [&](const Chunk& g) {
             if (g.page < 0 || g.sections.empty())
-                continue;
+                return;
             if (cullRadius > 0) {
                 const int ddx = g.cx - cullCx, ddz = g.cz - cullCz;
                 if (std::abs(ddx) > cullRadius || std::abs(ddz) > cullRadius ||
                     ddx * ddx + ddz * ddz > (cullRadius + 1) * (cullRadius + 1))
-                    continue;
+                    return;
             }
             const float x0 = g.cx * 16.0f, z0 = g.cz * 16.0f;
             const auto result = frustum.Test(x0, g.minY, z0, x0 + 16.0f, g.maxY, z0 + 16.0f);
             if (result == Frustum::Result::Outside)
-                continue;
+                return;
             const float dx = x0 + 8.0f - camX, dz = z0 + 8.0f - camZ;
             visible.push_back({dx * dx + dz * dz, &g, result == Frustum::Result::Inside});
+        };
+        if (translucentOnly) {
+            for (const Chunk* chunk : blended)
+                consider(*chunk);
+        } else {
+            for (const auto& entry : chunks)
+                consider(entry.second);
         }
 
         std::ranges::sort(visible,
@@ -815,7 +844,7 @@ namespace perlin::gpu {
             const float extent = static_cast<float>(g.size);
             item.secBegin = static_cast<uint32_t>(visibleSections.size());
             for (const Section& sec : g.sections) {
-                if (g.secVis != ~0u) {
+                if (caveCulling && g.secVis != ~0u) {
                     const int bit = sec.sy - g.visMin;
                     if (bit >= 0 && bit < 32 && !(g.secVis & (1u << bit)))
                         continue;
@@ -827,6 +856,7 @@ namespace perlin::gpu {
             }
             item.secEnd = static_cast<uint32_t>(visibleSections.size());
         }
+        selection.valid = true;
     }
 
     void ChunkMeshStore::BuildCullRecords(RenderLayer layer, std::vector<CullRecord>& records,
@@ -880,7 +910,40 @@ namespace perlin::gpu {
     }
 
     void ChunkMeshStore::CollectRuns(RenderLayer layer, bool farToNear, std::vector<Run>& out, const float* faceCamera) {
+        SelectionCache& selection = selections[selected];
+        // An upload/unload can invalidate the stored pointers. The normal frame calls Select first;
+        // also make a caller that skipped it safe rather than dereferencing old section storage.
+        if (!selection.valid || selection.meshEpoch != meshEpoch || selection.caveEpoch != caveEpoch) {
+            out.clear();
+            return;
+        }
+        // A moving camera or incoming mesh stream normally changes selection every frame. Keep that
+        // path's single output write; admit a run cache only after this selection is reused.
+        if (!selection.reused) {
+            BuildRuns(selection, layer, farToNear, out, faceCamera);
+            runBuilds++;
+            return;
+        }
+        RunCache& cache = selection.runs[static_cast<size_t>(layer)];
+        const bool faceCull = faceCamera != nullptr;
+        if (!cache.valid || cache.farToNear != farToNear || cache.faceCull != faceCull ||
+            (faceCull && std::memcmp(cache.camera.data(), faceCamera, sizeof(cache.camera)) != 0)) {
+            BuildRuns(selection, layer, farToNear, cache.runs, faceCamera);
+            cache.farToNear = farToNear;
+            cache.faceCull = faceCull;
+            if (faceCull)
+                std::copy_n(faceCamera, 3, cache.camera.data());
+            cache.valid = true;
+            runBuilds++;
+        }
+        out = cache.runs;
+    }
+
+    void ChunkMeshStore::BuildRuns(const SelectionCache& selection, RenderLayer layer, bool farToNear,
+                                  std::vector<Run>& out, const float* faceCamera) const {
         out.clear();
+        const auto& visible = selection.visible;
+        const auto& visibleSections = selection.sections;
         const size_t slot = static_cast<size_t>(layer);
         const int split = SplitSlot(layer);
         const auto push = [&](uint32_t page, uint32_t start, uint32_t count) {

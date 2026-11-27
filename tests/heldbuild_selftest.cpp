@@ -24,6 +24,19 @@ constexpr physics::Box kSlab{0, 0, 0, 1, 0.5, 1};
 
 int main() {
     {
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false) == 25);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false, -1) == 25);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false, 1) == 20);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false, 2) == 15);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false, 3) == 10);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false, 5) == 0);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false, 6) == -5);
+        CHECK(blockuse::VanillaUseTicks("minecraft:crossbow", false,
+                                       std::numeric_limits<int32_t>::max()) == -2147483618);
+        CHECK(blockuse::VanillaUseTicks("minecraft:bow", false, 3) == 72000);
+        CHECK(blockuse::VanillaUseTicks("minecraft:apple", true, 3) == 32);
+    }
+    {
         constexpr int64_t ms = 1000000;
         heldbuild::HeldBuild build;
         heldbuild::Hit hit{true, {{0, 0, 0}, 5}, {1, 0.5f, 0.5f}};

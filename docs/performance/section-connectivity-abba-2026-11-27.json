@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu_affinity": [
+      0
+    ],
+    "compiler": "GNU c++14 -O3 -DNDEBUG -std=c++23",
+    "scope": "CPU connectivity only; identical dense and padded occupancy; per-case ABBA order",
+    "tables": "Final thread-safe function-local const initialization; no enlarged constexpr budget"
+  },
+  "cases": [
+    {
+      "case": "air",
+      "before_ms": 17.986,
+      "after_ms": 3.337,
+      "speedup": 5.39,
+      "sections_per_run": 3200
+    },
+    {
+      "case": "solid",
+      "before_ms": 19.18,
+      "after_ms": 3.338,
+      "speedup": 5.75,
+      "sections_per_run": 3200
+    },
+    {
+      "case": "sealed cavities",
+      "before_ms": 129.602,
+      "after_ms": 5.853,
+      "speedup": 22.14,
+      "sections_per_run": 3200
+    },
+    {
+      "case": "terrain",
+      "before_ms": 39.669,
+      "after_ms": 25.477,
+      "speedup": 1.56,
+      "sections_per_run": 3200
+    },
+    {
+      "case": "sparse",
+      "before_ms": 125.056,
+      "after_ms": 9.711,
+      "speedup": 12.88,
+      "sections_per_run": 3200
+    },
+    {
+      "case": "dense",
+      "before_ms": 43.345,
+      "after_ms": 8.51,
+      "speedup": 5.09,
+      "sections_per_run": 3200
+    },
+    {
+      "case": "random",
+      "before_ms": 177.726,
+      "after_ms": 12.312,
+      "speedup": 14.44,
+      "sections_per_run": 3200
+    }
+  ],
+  "checksum": 1797615200,
+  "checks": 2131,
+  "failures": 0,
+  "stdout": "BENCH air              old_ms=17.986 new_ms=3.337 speedup=5.39 sections=3200 order=ABBA\nBENCH solid            old_ms=19.180 new_ms=3.338 speedup=5.75 sections=3200 order=ABBA\nBENCH sealed cavities  old_ms=129.602 new_ms=5.853 speedup=22.14 sections=3200 order=ABBA\nBENCH terrain          old_ms=39.669 new_ms=25.477 speedup=1.56 sections=3200 order=ABBA\nBENCH sparse           old_ms=125.056 new_ms=9.711 speedup=12.88 sections=3200 order=ABBA\nBENCH dense            old_ms=43.345 new_ms=8.510 speedup=5.09 sections=3200 order=ABBA\nBENCH random           old_ms=177.726 new_ms=12.312 speedup=14.44 sections=3200 order=ABBA\nBENCH checksum=1797615200\nsection_connectivity_selftest: ok (2131 checks, 0 failures)\n",
+  "source_sha256": {
+    "src/client/systems/renderer/chunk/SectionConnectivity.hpp": "f3828a36b60b8b038b4708f4df904f4a6340a1a348d4fca813e58c2e07d98221",
+    "tests/section_connectivity_selftest.cpp": "a87e6ffa0bff7756be45ae2bff2aeea304f683c1d09494a0d08de876afeb0bbe"
+  },
+  "binary_sha256": "0341cb70542deab56db4948dfa23a73df8deb798d09f32a67dc9f0c2165d38f0"
+}

@@ -33,6 +33,7 @@ namespace perlin {
         void Load(const uint16_t* cells);
         void CopyOut(int cell, int n, uint16_t* out) const;
         bool AllZero(int cell, int n) const;
+        bool Equals(const Cells16& other) const;
         size_t Bytes() const;
         Cells16 Clone() const;
 
@@ -50,6 +51,27 @@ namespace perlin {
         static constexpr int HEIGHT = 384;
         static constexpr int SECTION_COUNT = HEIGHT / 16;
         static constexpr uint8_t DEFAULT_BIOME = 1;
+
+        // Prepared without holding Level::mutex. Biomes belong to the existing
+        // section and are deliberately not part of a block-storage replacement.
+        struct PreparedSection {
+            Cells16 blocks;
+            Cells16 liquid;
+            uint16_t uniform = 0;
+            void SetBlock(int cell, uint16_t id) {
+                if (blocks.Empty()) {
+                    if (id == uniform)
+                        return;
+                    blocks.Fill(uniform);
+                }
+                blocks.Set(cell, id);
+            }
+            void SetLiquid(int cell, uint16_t id) {
+                if (!liquid.Empty() || id != 0)
+                    liquid.Set(cell, id);
+            }
+        };
+        static PreparedSection PrepareSection(const uint16_t* cells, const uint16_t* liquidCells = nullptr);
 
         bool HasSection(int y) const {
             return y >= MIN_Y && y < MIN_Y + HEIGHT && sections[(y - MIN_Y) >> 4] != nullptr;
@@ -84,15 +106,18 @@ namespace perlin {
         void CopyRun(int y, int z, int x0, int n, uint16_t* blocks, uint8_t* biomes, uint16_t* liquid) const;
 
         void SetSection(int section, const uint16_t* cells, const uint16_t* liquidCells = nullptr);
+        void SetSection(int section, PreparedSection&& prepared);
         void SetBiomeSection(int section, const uint8_t* cells);
 
         Chunk Clone() const;
         bool SectionEquals(int section, const uint16_t* cells, const uint16_t* liquidCells) const;
+        bool SectionEquals(int section, const PreparedSection& prepared) const;
         bool BiomeSectionEquals(int section, const uint8_t* cells) const;
         size_t ApproxBytes() const;
 
         uint64_t version = 0;
         uint64_t borderVersion = 0;
+        uint64_t incarnation = 0;
         bool streaming = false;
         uint64_t readyAt = 0;
         uint64_t firstSeen = 0;
@@ -142,6 +167,10 @@ namespace perlin {
 
     class Level {
     public:
+        struct ChunkWriteTarget {
+            uint64_t generation = 0;
+            uint64_t incarnation = 0;
+        };
         void DrainDirty(std::vector<DirtyChunk>& out);
         void MarkAllDirty();
         static uint64_t NowMs();
@@ -162,6 +191,12 @@ namespace perlin {
         bool RemoveChunk(int cx, int cz);
         void SetSubChunk(int cx, int cz, int absSubY, const uint16_t* cells,
                          const uint16_t* liquidCells = nullptr);
+        bool SetPreparedSubChunk(int cx, int cz, int absSubY, Chunk::PreparedSection&& prepared,
+                                 ChunkWriteTarget target);
+        ChunkWriteTarget CaptureChunkWriteTarget(int cx, int cz) const;
+        // Unlike the renderer's clearCounter, this also invalidates work that was
+        // prepared before a rewind or a world transfer.
+        uint64_t IngestGeneration() const { return ingestGeneration.load(std::memory_order_acquire); }
         void SetBiomeSubChunk(int cx, int cz, int absSubY, const uint8_t* cells);
         void Clear();
 
@@ -187,6 +222,7 @@ namespace perlin {
         bool undoOn = false;
         int64_t undoFloor = 0;
         std::atomic<int64_t> currentEpoch{0};
+        std::atomic<uint64_t> ingestGeneration{0};
 
         void Touch(const ChunkPos& pos, Chunk& chunk) {
             if (!chunk.queued) {

@@ -1,0 +1,96 @@
+name: Protocol compatibility - Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protocol-compatibility-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cpm-cache
+            openssl-install
+          key: protocol-windows-v1-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: protocol-windows-v1-
+      - name: Install build tools and OpenSSL
+        shell: pwsh
+        run: |
+          python -m pip install cmake==3.31.5 ninja
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:x64-windows-static --x-install-root="$env:GITHUB_WORKSPACE/openssl-install"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          $bin = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+          if (-not (Test-Path (Join-Path $bin "clang-cl.exe"))) { throw "Visual Studio C++ Clang tools are required" }
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Configure
+        shell: pwsh
+        run: |
+          python tools/ci/retry_configure.py -- cmake --preset windows-clang-cl -B build/compatibility-windows `
+            -DPERLIN_BUILD_TESTS=ON `
+            -DCONDUIT_BUILD_TESTS=ON `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+            -DPERLIN_FAST_MATH=OFF `
+            "-DOPENSSL_ROOT_DIR=$env:GITHUB_WORKSPACE/openssl-install/x64-windows-static"
+          exit $LASTEXITCODE
+      - name: Verify simulation compiler options
+        run: python tools/check_simulation_compile_options.py build/compatibility-windows/compile_commands.json
+      - name: Build client and compatibility tests
+        run: >-
+          cmake --build build/compatibility-windows --parallel 4 --target
+          Perlin packet_selftest wire_selftest move_input_selftest inventory_slots_selftest item_cooldown_selftest item_use_wire_selftest chunk_wire_selftest
+          session_policy_selftest client_control_selftest actor_lerp_selftest physics_selftest status_effect_selftest heldbuild_selftest
+          gui_data_selftest armor_damage_selftest item_nbt_selftest creative_catalog_selftest recipe_unlocks_selftest bridge2193_selftest
+          sound_packets_wire_selftest camera_wire_selftest camera_effects_selftest audio_selftest hud_feed_selftest
+          chunk_selftest chunk_ingest_selftest perlin_chunkbench cells16_selftest level_undo_selftest
+          section_connectivity_selftest chunk_visibility_selftest perlin_meshbench
+          common_cpu_selftest null_selftest render_profile_test vendor_test
+      - name: Test
+        run: >-
+          ctest --test-dir build/compatibility-windows --output-on-failure --timeout 120
+          -R "^(packet_selftest|wire_selftest|move_input_selftest|inventory_slots_selftest|item_cooldown_selftest|item_use_wire_selftest|chunk_wire_selftest|session_policy_selftest|client_control_selftest|actor_lerp_selftest|physics_selftest|protocol_audit_selftest|handler_dispatch_selftest|player_interaction_selftest|executable_boot_resources|gui_data_selftest|armor_damage_selftest|item_nbt_selftest|ranged_item_selftest|item_use_packets_selftest|creative_catalog_selftest|creative_inventory_selftest|recipe_unlocks_selftest|bridge2193_selftest|sound_packets_wire_selftest|camera_wire_selftest|camera_effects_selftest|camera_effects_packets_selftest|audio_selftest|hud_feed_selftest|armor_packets_selftest|recipe_packets_selftest|server_ui_packets_selftest|audio_packets_selftest|input_reporting_selftest|movement_protocol_selftest|movement_effects_selftest|attribute_replay_selftest|status_effect_selftest|status_effect_replay_selftest|heldbuild_selftest|session_codec_context_selftest|audio_director_selftest|hud_screen_selftest|chunk_selftest|chunk_ingest_selftest|chunk_bench_correctness|cells16_selftest|level_undo_selftest|section_connectivity_selftest|chunk_visibility_selftest|mesh_exactness|common_cpu_selftest|null_selftest|render_profile_test|vendor_test|chunk_pipeline_selftest)$"
+      - name: Test handler behavior with tracing and experimental offhand enabled
+        env:
+          PERLIN_TRACE: "1"
+          PERLIN_OFFHAND_EXPERIMENT: "1"
+        run: ctest --test-dir build/compatibility-windows --output-on-failure --timeout 120 -R "^handler_dispatch_selftest$"
+      - name: Package
+        shell: pwsh
+        run: |
+          cmake --install build/compatibility-windows --config Release --prefix dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($name in @("include", "lib", "lib64", "cmake")) {
+            Remove-Item (Join-Path dist $name) -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          Get-ChildItem dist -Recurse -File | Where-Object { $_.Extension -in ".pdb", ".map", ".lib", ".exp", ".ilk", ".a" } | Remove-Item -Force
+          Compress-Archive -Path dist/* -DestinationPath Perlin-protocol-compatibility-windows-x64.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Perlin-protocol-compatibility-windows-x64
+          path: Perlin-protocol-compatibility-windows-x64.zip
+      - name: Preserve test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: protocol-compatibility-test-logs
+          path: build/compatibility-windows/Testing/Temporary
+          if-no-files-found: ignore

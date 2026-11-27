@@ -52,7 +52,7 @@ namespace perlin {
                 if (n == s)
                     return 1;
             static const char* const k16[] = {"ender_pearl",  "snowball",    "egg",        "bucket",
-                                              "honey_bottle", "wind_charge", "armor_stand"};
+                                              "honey_bottle", "armor_stand"};
             for (const char* s : k16)
                 if (n == s)
                     return 16;
@@ -1284,13 +1284,14 @@ namespace perlin {
     std::vector<BedrockSession::EffectState> BedrockSession::GetEffects() const {
         std::lock_guard lock(statusMutex);
         std::vector<EffectState> out;
+        const uint64_t now = LastAuthTick();
         for (const ActiveEffect& e : activeEffects) {
             EffectState s;
             s.id = e.id;
             s.amplifier = e.amplifier;
             s.ambient = e.ambient;
             s.particles = e.particles;
-            s.ticks = physics::bds::StatusEffectTicksAt(e.duration, e.appliedTick, LastAuthTick());
+            s.ticks = physics::bds::StatusEffectTicksAt(e.duration, e.appliedTick, now);
             if (s.ticks == 0)
                 continue;
             out.push_back(s);

@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "method": "Read-only matched PE/PDB inspection and static instruction review; reference executable was not run. No code bytes or disassembly are included.",
+  "contracts": [
+    {
+      "subject": "fixed layer priority",
+      "behavior": "Each of20 ability indices is resolved by searching LoadingScreen5, Editor4, Commands3, Spectator2, Base1, then CustomCache0 for the first ability whose type is not Unset1. Packet record order is not resolution priority.",
+      "anchors": [
+        "LayeredAbilities::getAbility RVA0x1D77C0; six comparisons RVA0x1D77DC..0x1D7826",
+        "PDB LayeredAbilities.mLayers: six Abilities, stride240; Ability stride12",
+        "LayeredAbilities::getBool RVA0x1D7830"
+      ]
+    },
+    {
+      "subject": "full replacement and duplicate records",
+      "behavior": "The packet handler constructs a new LayeredAbilities, fills it from serialized data, and copies all six resulting layers into the player. fillIn first unsets every ability in every layer. Each serialized record then writes all20 abilities: allowed bits set the relevant bool/float, absent bits explicitly unset. A repeated layer record replaces the previous record including omitted abilities.",
+      "anchors": [
+        "LegacyClientNetworkHandler::handle(UpdateAbilitiesPacket) RVA0x134B715 and0x134B724",
+        "fillIn RVA0xC4D650; reset callback RVA0xCD0C10",
+        "record callback RVA0xCD0CC0; absent bit branch RVA0xCD0D98",
+        "LocalPlayer::setAbilities RVA0x476CE40 -> base copy RVA0x1EFE80; full six-layer copy RVA0x1EFFCD..0x1F01CC"
+      ]
+    },
+    {
+      "subject": "unknown serialized layer",
+      "behavior": "A serialized layer number at least6 is mapped to Base1 before applying its record.",
+      "anchors": [
+        "RVA0xC4D759..0xC4D76D: unsigned16 comparison against6 and conditional Base1 selection"
+      ]
+    },
+    {
+      "subject": "permissions before explicit layers",
+      "behavior": "After unsetting, fillIn sets the Base permission abilities before applying serialized records. Visitor0 disables indices0..7. Member1 enables0..5 and disables6..7. Operator2 enables0..7. Custom3 does not synthesize those grants. Any explicit Base record can unset these abilities through its allowed mask.",
+      "anchors": [
+        "fillIn RVA0xC4D6AC..0xC4D728",
+        "Abilities::setFromPermissions RVA0x1D13F0..0x1D1540",
+        "PDB PlayerPermissionLevel enum"
+      ]
+    },
+    {
+      "subject": "float speeds and missing values",
+      "behavior": "FlySpeed13, WalkSpeed14, and VerticalFlySpeed19 use independent allowed-mask bits and directly store their serialized floats, including zero. No set layer resolves to Abilities::INVALID_ABILITY rather than a previous packet value. The invalid ability object occupies a zero-initialized virtual data tail.",
+      "anchors": [
+        "float record branches RVA0xCD0D51..0xCD0D96",
+        "null return RVA0x1D77C0/0x1D782E; public symbol Abilities::INVALID_ABILITY RVA0x11D1BE68",
+        "PE .data begins RVA0X117DA000, raw size5414912, virtual size8772568; invalid object is beyond raw data"
+      ]
+    },
+    {
+      "subject": "fresh player defaults",
+      "behavior": "The default ability definitions contain FlySpeed0.05f, WalkSpeed0.1f, VerticalFlySpeed1.0f. Perlin restores those defaults and clears previous flight/no-clip/instabuild state when reusing a connection/player/replay session. This reset is a Perlin lifecycle correction; its exact native connection scheduling is not inferred from the constructor.",
+      "anchors": [
+        "Abilities::_initDefaultAbilities RVA0x1CFDE0; float stores RVA0x1CFE9A,0x1CFEB2,0x1CFF1E"
+      ]
+    },
+    {
+      "subject": "target identity",
+      "behavior": "The packet handler looks up the player by the serialized ActorUniqueID and applies abilities to that found player. Perlin no longer interprets target0 as a broadcast to a different known local unique ID.",
+      "anchors": [
+        "LegacyClientNetworkHandler::handle(UpdateAbilitiesPacket) RVA0x134B729..0x134B77D"
+      ]
+    }
+  ],
+  "implementation": {
+    "files": [
+      "src/client/systems/multiplayer/handlers/PlayerRuleHandlers.cpp",
+      "src/client/systems/multiplayer/BedrockSession.hpp",
+      "src/client/systems/multiplayer/BedrockSession.cpp",
+      "src/client/systems/multiplayer/BedrockPlayerState.cpp"
+    ],
+    "tests": "HandlerDispatchSelfTest: all720 permutations of six conflicting layers per protocol944/2193/2225, duplicate replacement, explicit zero speeds, subsequent empty update, permission fallback, cache priority, unknown layer, wrong/zero targets, malformed packet, player/replay reset, no unsolicited reply.",
+    "runtime_validation": "Final Linux application build and handler_dispatch_selftest passed, including all720 layer permutations per944/2193/2225. The separate trace/offhand handler run also passed. See docs/protocol-audit/VALIDATION.md and test-results-v3.txt."
+  }
+}

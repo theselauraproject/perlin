@@ -1,0 +1,289 @@
+{
+  "scope": "Matched Windows 1.26.51.1 / protocol 2193 camera control movement and selected look consumers. This is a bounded static contract, not all camera/input behavior or bit-for-bit physics parity.",
+  "identity": {
+    "executable_sha256": "0245c20c4377d74a25f3644bf441b460d6b3b45a88617387edccaacd27418377",
+    "pdb_sha256": "1bddffbad2f0b8aa4701129a22b2a0abc9661a0c5b2cdb3890caac195b96f622",
+    "pdb_guid": "0353b4a9-3eaa-e2e2-4c4c-44205044422e",
+    "pdb_age": 1,
+    "pdb_match": true,
+    "section_header_match": true,
+    "scope": "C++ metadata and symbol addresses; memory layout is not wire serialization order; virtual overrides need base-slot verification."
+  },
+  "reference": "camera_controls_reference.json",
+  "reproduce_query": "camera_controls_query.json",
+  "primary_documentation": [
+    {
+      "url": "https://learn.microsoft.com/en-us/minecraft/creator/documents/controlschemes?view=minecraft-bedrock-stable",
+      "accessed_utc": "2026-11-27",
+      "facts": {
+        "schemes": {
+          "0": "locked_player_relative_strafe",
+          "1": "camera_relative",
+          "2": "camera_relative_strafe",
+          "3": "player_relative",
+          "4": "player_relative_strafe"
+        },
+        "default_scheme": 0,
+        "allowed": {
+          "first_person": [
+            0
+          ],
+          "third_person": [
+            0
+          ],
+          "third_person_front": [
+            0
+          ],
+          "free": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "follow_orbit": [
+            0,
+            1,
+            3
+          ],
+          "fixed_boom": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "clear": "Restores the current camera mode default; unsupported preset schemes use inherited/default selection."
+      }
+    }
+  ],
+  "movement_consumer": {
+    "name": "CameraInputTransformSystem",
+    "name_rva": "0xec34c3d",
+    "registration_function_rva": "0x681da00",
+    "name_load_rva": "0x681ec94",
+    "vtable_rva": "0xe8ec540",
+    "vtable_install_rva": "0x681ece9",
+    "register_call_rva": "0x681ed1f",
+    "tick_rva": "0x48c31d0",
+    "callback_rva": "0x48c2d10",
+    "callback_install_rva": "0x48c323a",
+    "view_builder_rva": "0x48c30b0",
+    "view_metadata_rva": "0x48c4060",
+    "components": [
+      "ActorMovementTickNeededComponent (filter)",
+      "MoveInputComponent (mMove offset36, mCameraOrientation offset84)",
+      "ControlSchemeComponent (byte at0)",
+      "ActorRotationComponent (current pitch0, yaw4)",
+      "ActorHeadRotationComponent (current0, previous4)"
+    ],
+    "entry_guard": {
+      "rva": "0x48c2d3e",
+      "fact": "Compute float length of mMove. Return when length <= FLT_EPSILON (1.1920928955078125e-7)."
+    },
+    "scheme0_and_4": {
+      "rva": "0x48c2d7a",
+      "fact": "No movement or rotation modification in this callback; their look handling is elsewhere."
+    },
+    "scheme1": {
+      "range_rva": [
+        "0x48c2d99",
+        "0x48c2ebe"
+      ],
+      "facts": [
+        "Compute heading from normalized horizontal mCameraOrientation and mMove using atan2f.",
+        "Reset actor pitch to0 and set actor yaw/head current/head previous to the wrapped combined heading.",
+        "Write mMove to zero sideways and original move magnitude forward; input flags/raw state are not rewritten."
+      ]
+    },
+    "scheme2": {
+      "range_rva": [
+        "0x48c2ec3",
+        "0x48c2fa1"
+      ],
+      "facts": [
+        "Reset actor pitch to0; retain actor yaw.",
+        "Compute camera horizontal heading minus actor yaw.",
+        "Rotate mMove into actor-local coordinates using the existing 65536-entry sine table: sideways = cos(delta)*oldSideways - sin(delta)*oldForward; forward = sin(delta)*oldSideways + cos(delta)*oldForward.",
+        "Sine index computes degrees*0.01745329238474369 then *10430.3779296875 and truncates to integer; cosine adds16384 before truncation. Native sideways uses left-positive; Perlin stores right-positive."
+      ]
+    },
+    "scheme3": {
+      "range_rva": [
+        "0x48c2fa6",
+        "0x48c3079"
+      ],
+      "facts": [
+        "If nonzero move length <=0.1, write both movement components to0 and retain pitch/yaw.",
+        "Otherwise reset pitch to0. Let q=1-forward; t=q if forward>=0, else t=2-q. The subtraction order is preserved.",
+        "If t>0.23, compute ease-out-cubic t as 1+(t-1)^3; multiply by10 degrees. Native sideways<0 adds the amount to yaw; sideways>=0 subtracts it.",
+        "If t>0.66, write both movement components to0; otherwise keep both original components.",
+        "Copy actor yaw into current and previous head yaw. Raw input flags are not modified."
+      ],
+      "cubic_helper_rva": "0x263ff50",
+      "constants": [
+        {
+          "rva": "0xe6ae460",
+          "value": 0.10000000149011612
+        },
+        {
+          "rva": "0xe8ebd00",
+          "value": 0.23000000417232513
+        },
+        {
+          "rva": "0xe79fd78",
+          "value": 0.6600000262260437
+        },
+        {
+          "rva": "0xe6ae474",
+          "value": 10.0
+        }
+      ]
+    },
+    "ordering": {
+      "registration_sequence": [
+        {
+          "name": "ClientInputUpdateSystem",
+          "name_load_rva": "0x681e953",
+          "register_call_rva": "0x681e9ac"
+        },
+        {
+          "name": "CameraInputTransformSystem",
+          "register_call_rva": "0x681ed1f"
+        },
+        {
+          "name": "ItemUseSlowdownSystem",
+          "name_load_rva": "0x681f04c"
+        },
+        {
+          "name": "ItemUseSlowdownApplySystem",
+          "name_load_rva": "0x681f21c",
+          "register_call_rva": "0x681f2ab"
+        }
+      ],
+      "facts": [
+        "Client input update calls calculateMoveVector at0x6698912 and stores mMove at0x6698920/0x669892e.",
+        "calculateMoveVector0x4495e0 normalizes overlength analog input and applies existing sneak scaling.",
+        "Camera transform registration precedes item-use attenuation. The ordinary category collection preserves insertion order; see slow_falling_findings.json for the collection adapter and iteration anchors."
+      ],
+      "qualification": "The strict input adapter and common camera/item adapter share the ordinary system collection; special replay/filter schedules and all touch/UI processing have not been exhaustively traced."
+    }
+  },
+  "look_consumer": {
+    "symbol": "LocalPlayer::_applyTurnDelta",
+    "rva": "0x47617c0",
+    "facts": [
+      "Always dispatches a camera look event before the control-scheme-specific tail.",
+      "The tail handles schemes0,2,4;1/3 do not take its actor-yaw update branches.",
+      "For2/4, nonzero input direction is combined with horizontal camera orientation and writes actor yaw plus current/previous head yaw.",
+      "Mouse mode1 with option0x187=false instead reads MoveInput.mLookDelta. Option name and the source of its screen-projection direction remain unresolved.",
+      "The direction magnitude-squared gate is FLT_EPSILON; normalization uses minimum length0.0001."
+    ],
+    "unresolved": [
+      "Exact mouse pointer unprojection and screen-space input preparation.",
+      "Absolute gamepad/right-stick mapping and full-keyboard alternate path.",
+      "OptionID metadata contains no enumerator names for IDs4,5,391.",
+      "All redirect-camera component combinations for scheme0."
+    ]
+  },
+  "packet327_pitch_reset": {
+    "handler_rva": "0x1319120",
+    "reset_rva": "0x131939c",
+    "fact": "Each valid scheme2/4 packet resets local actor pitch, including repeated values. Other handler facts are retained in packet_contracts.json."
+  },
+  "perlin_changes": {
+    "files": [
+      "src/client/systems/player/LocalPlayer.cpp",
+      "src/client/systems/player/LocalPlayer.hpp",
+      "src/client/selftest/MovementProtocolSelfTest.cpp",
+      "src/client/systems/multiplayer/MoveInput.hpp",
+      "src/client/systems/multiplayer/BedrockSession.cpp",
+      "tests/move_input_selftest.cpp"
+    ],
+    "implemented": [
+      "Scheme0 no longer replaces actor yaw with detached camera yaw.",
+      "Movement callback1/2/3 follows normalized/sneak-scaled input; item attenuation follows it.",
+      "Scheme2 rotates effective movement while retaining actor yaw.",
+      "Scheme3 applies recovered deadzone, cubic turn amount and travel cutoff.",
+      "The existing Update loop applies forced pitch as well as forced yaw to actor view.",
+      "Entering2/4 and explicit repeat requests can reset idle pitch. Root camera bridge supplies each packet reset request.",
+      "Direction flags and raw/analog vectors retain the original effective physical input rather than remapped movement.",
+      "MoveInput carries optional independent cameraOrientation. The sender copies it verbatim and retains the existing actor-derived fallback when absent.",
+      "SetCameraView accepts the active camera direction and clearing it restores the fallback. Nonfinite direction components reject the send before consuming tick/queued actions."
+    ],
+    "limits": [
+      "Perlin receives camera heading as yaw; the native horizontal orientation-vector normalization/atan2 path can differ at vertical or degenerate camera directions.",
+      "The existing sine table is reused; all transcendental and camera orientation construction paths have not been proved bit-identical.",
+      "Input mode2/4 absolute screen/stick aim is a separate incomplete path; this patch does not claim to implement it.",
+      "Riding/sleep-specific transforms remain outside this local walking callback integration.",
+      "2193 is the native reference; common behavior is tested through944/2193/2225 packet encodings, which does not independently prove identical native semantics in each version.",
+      "Render-time camera direction sampling is provided by the parent camera integration; exact native interpolation timing remains unproven."
+    ]
+  },
+  "validation": {
+    "syntax": [
+      "LocalPlayer.cpp passed",
+      "BedrockSession.cpp passed",
+      "MovementProtocolSelfTest.cpp passed"
+    ],
+    "integration": "120 added movement_protocol checks across944,2193,2225; full app build/test delegated to parent. Update runtime result after integration.",
+    "checks": [
+      "Locked player-relative idle/forward/strafe/clear behavior with detached yaw.",
+      "Camera-relative analog magnitude and pitch.",
+      "Independent actor yaw and rotated diagonal movement for scheme2.",
+      "Scheme3 turn signs, forward/back, native cubic shallow turn, item-use ordering, sneak ordering, deadzone boundary.",
+      "Idle2/4 entry and explicit repeated pitch reset.",
+      "Independent camera direction with unchanged actor/interaction rotation, clearing fallback and invalid-direction send rejection preserving pending movement state."
+    ],
+    "unit": "Standalone g++ -std=c++20 -Isrc tests/move_input_selftest.cpp executable passed, including10 new independent-direction validation checks."
+  },
+  "auth_input_consumer": {
+    "symbol": "LocalPlayer::sendInput",
+    "rva": "0x47696a0",
+    "packet_constructor_call_rva": "0x4769acf",
+    "component_hash": "0x018b1887",
+    "copy_helper_call_rva": "0x4769b9a",
+    "copy_helper_rva": "0x668de10",
+    "copies": [
+      {
+        "rva_range": [
+          "0x668e0b3",
+          "0x668e0c2"
+        ],
+        "source": "MoveInputComponent.mMove (offsets36,40)",
+        "destination": "PlayerAuthInputPacketPayload.mMove (offsets52,56)",
+        "fact": "Copies the already transformed effective movement vector."
+      },
+      {
+        "rva_range": [
+          "0x668e0c7",
+          "0x668e0d6"
+        ],
+        "source": "MoveInputComponent.mInputState.mAnalogMoveVector (offsets4,8)",
+        "destination": "PlayerAuthInputPacketPayload.mAnalogMoveVector (offsets44,48)"
+      },
+      {
+        "rva_range": [
+          "0x668e0db",
+          "0x668e0ea"
+        ],
+        "source": "MoveInputComponent.mInteractDir (offsets52,56)",
+        "destination": "PlayerAuthInputPacketPayload.mInteractRotation (offsets60,64)",
+        "qualification": "Its producer and exact aiming semantics are not yet traced; no Perlin interactRotation change is inferred."
+      },
+      {
+        "rva_range": [
+          "0x668e0ef",
+          "0x668e0f9"
+        ],
+        "source": "MoveInputComponent.mCameraOrientation (offsets84,88,92)",
+        "destination": "PlayerAuthInputPacketPayload.mCameraOrientation (offsets68,72,76)",
+        "fact": "Copies all three camera direction components verbatim, independently of actor rotation."
+      }
+    ],
+    "unresolved": [
+      "Exact stage and interpolation time at which the current input camera samples its orientation; a copy contract is not proof of render sampling timing."
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="(empty)"
+	tests="1"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname=""
+	time="0"
+	timestamp="2026-11-27T03:21:28"
+	>
+	<testcase name="handler_dispatch_selftest" classname="handler_dispatch_selftest" time="0.0532139" status="run">
+		<properties/>
+		<system-out>[net] packet #1 id 187 len 143 hex 47000000000000000100060000026e0a00026e0a00a4707d3f000010416666663f0100026e0a0002040000cdcc4c3d0000803fcdcccc3d020000060200000602
+[net] first update_abilities (id 187, 143 bytes)
+[bedrock] abilities mayFly=false flying=false noclip=true fly=0.2
+[trace] update_abilities {
+   "entityUniqueId": 71,
+   "permissionLevel": 1,
+   "commandPermission": 0,
+   "abilities": [
+      {
+         "type": 0,
+         "allowed": 683522,
+         "enabled": 683522,
+         "flySpeed": 0.99,
+         "verticalFlySpeed": 9,
+         "walkSpeed": 0.9
+      },
+      {
+         "type": 1,
+         "allowed": 683522,
+         "enabled": 1026,
+         "flySpeed": 0.05,
+         "verticalFlySpeed": 1,
+         "walkSpeed": 0.1
+      },
+      {
+         "type": 2,
+         "allowed": 132608,
+         "enabled": 132608,
+         "flySpeed": 0,
+         "verticalFlySpeed": 0,
+         "walkSpeed": 0
+      },
+      {
+         "type": 3,
+         "allowed": 10242,
+         "enabled": 2048,
+         "flySp...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+</testsuite>

@@ -45,8 +45,14 @@ namespace perlin {
         bool Riding() const { return rideLock; }
 
         void SetCameraControl(int scheme, float cameraYaw) {
+            if (scheme != cameraScheme)
+                resetControlPitch = scheme == 2 || scheme == 4;
             cameraScheme = scheme;
             cameraControlYaw = cameraYaw;
+        }
+        void RequestCameraControlPitchReset() { resetControlPitch = true; }
+        void SetCameraView(std::optional<std::array<float, 3>> direction) {
+            cameraView = direction;
         }
         void SetToggleModes(bool sprint, bool sneak) {
             sprintToggle = sprint;
@@ -59,12 +65,13 @@ namespace perlin {
         bool Crawling() const { return crawling; }
         void SetElytra(bool value) { hasElytra = value; }
 
-        void SetItemSlow(bool slow, uint32_t duration = 0, bool restart = false) {
+        void SetItemSlow(bool slow, uint32_t duration = 0, bool restart = false, float modifier = 0.35f) {
             if (slow && (!itemSlow || restart))
                 itemSlowUntil = duration ? tickCounter + duration : 0;
             if (!slow || !duration)
                 itemSlowUntil = 0;
             itemSlow = slow;
+            itemSlowModifier = slow ? modifier : 0.35f;
         }
         void SetRidePosition(bool riding, double x, double y, double z) {
             rideLock = riding;
@@ -108,6 +115,7 @@ namespace perlin {
         std::vector<ModCommand> modQueue;
         void ApplyModCommands();
         void ApplyServerMotion(BedrockSession& session, Camera& camera, BedrockSession::ServerMotion motion);
+        void ApplyAttributeUpdates(BedrockSession& session);
         void ApplyEffectUpdates(BedrockSession& session);
         void ApplyMovementEffectUpdates(BedrockSession& session);
         void ApplyMotionUpdate(BedrockSession& session, const BedrockSession::MotionUpdate& update);
@@ -124,6 +132,11 @@ namespace perlin {
             bool simulated = false;
             physics::Input input;
             physics::Attributes attributes;
+            BedrockSession::MovementAttributeState movementAttribute;
+            std::array<bool, 4> attributePresence{};
+            std::vector<BedrockSession::AttributeUpdate> attributeUpdates;
+            std::vector<BedrockSession::EffectState> effects;
+            std::vector<BedrockSession::EffectUpdate> effectUpdates;
             float yaw = 0;
             physics::State before;
             physics::State after;
@@ -137,6 +150,8 @@ namespace perlin {
         std::deque<BedrockSession::MotionUpdate> futureMotion;
         std::deque<BedrockSession::ServerMotion> futureTeleports;
         std::vector<physics::bds::MovementEffect> futureMovementEffects;
+        std::vector<BedrockSession::EffectUpdate> futureEffectUpdates;
+        std::vector<BedrockSession::AttributeUpdate> futureAttributeUpdates;
         std::optional<uint64_t> teleportMotionBoundary;
         std::optional<int> replayDimension;
         double smoothOffset[3] = {0, 0, 0};
@@ -168,7 +183,10 @@ namespace perlin {
         bool sentSwimming = false;
         int cameraScheme = -1;
         std::optional<float> forcedYaw;
+        std::optional<float> forcedPitch;
+        bool resetControlPitch = false;
         float cameraControlYaw = 0.0f;
+        std::optional<std::array<float, 3>> cameraView;
         bool sprintToggle = false, sneakToggle = false, sprintLatch = false, sneakLatch = false;
         bool gliding = false;
         bool crawling = false;
@@ -188,6 +206,7 @@ namespace perlin {
         std::chrono::steady_clock::time_point glideChangedAt;
         bool rideLock = false;
         bool itemSlow = false;
+        float itemSlowModifier = 0.35f;
         uint64_t itemSlowUntil = 0;
         double rideX = 0, rideY = 0, rideZ = 0;
 

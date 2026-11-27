@@ -6,6 +6,7 @@
 #include "client/screen/screens/InventoryView.hpp"
 #include "client/systems/multiplayer/BedrockSession.hpp"
 #include <chrono>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@ namespace perlin::screen {
         float scroll = 0.0f;
         bool dragging = false;
         std::string search, signature;
+        std::set<size_t> expandedGroups;
     };
 
     struct InventoryScreen : OverlayScreen {
@@ -54,6 +56,7 @@ namespace perlin::screen {
         TimePoint lastWarm{};
         BedrockSession::CreativeCatalog creativeCatalog;
         uint32_t creativeCatalogVersion = ~0u;
+        BedrockSession* creativeCatalogSession = nullptr;
         BedrockSession* optionsSession = nullptr;
         uint64_t optionsSerialSeen = 0;
         bool optionsWorkbench = false;
