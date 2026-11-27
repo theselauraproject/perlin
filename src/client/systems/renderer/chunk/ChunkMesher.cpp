@@ -224,8 +224,9 @@ namespace perlin {
     };
 
     static void EmitBox(Tessellator& tess, const CellLight& light, float bx, float by, float bz, float x0,
-                        float y0, float z0, float x1, float y1, float z1, int tTop, int tSide, int tBottom) {
-        const float e = 0.002f;
+                        float y0, float z0, float x1, float y1, float z1, int tTop, int tSide, int tBottom,
+                        float inset = 0.002f) {
+        const float e = inset;
         x0 += e;
         y0 += e;
         z0 += e;
@@ -1357,7 +1358,10 @@ namespace perlin {
                 float rx0 = ox0 < ox1 ? ox0 : ox1, rx1 = ox0 < ox1 ? ox1 : ox0;
                 float rz0 = oz0 < oz1 ? oz0 : oz1, rz1 = oz0 < oz1 ? oz1 : oz0;
                 float ry0 = flipY ? 1 - ly1 : ly0, ry1 = flipY ? 1 - ly0 : ly1;
-                EmitBox(tess, cellLight, bx, by, bz, rx0, ry0, rz0, rx1, ry1, rz1, ct, cs, cb);
+                // The stair half-blocks share surfaces. Insetting each half
+                // independently creates a visible crack along every step.
+                EmitBox(tess, cellLight, bx, by, bz, rx0, ry0, rz0, rx1, ry1, rz1, ct, cs, cb,
+                        gi.stair ? 0.0f : 0.002f);
             };
             if (gi.stair) {
                 float yA0 = gi.stairTop ? 0.5f : 0.0f;

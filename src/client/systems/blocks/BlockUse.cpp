@@ -50,6 +50,8 @@ namespace perlin::blockuse {
         const float turns = yaw * 4.0f / 360.0f + 0.5f;
         const int truncated = static_cast<int>(turns);
         const int quarter = (truncated - (static_cast<float>(truncated) > turns ? 1 : 0)) & 3;
+        // Bedrock stores the direction of the full-height side.
+        // At yaw zero the player faces south, which is state 2.
         static constexpr int kDirection[4] = {2, 1, 3, 0};
         return kDirection[quarter];
     }

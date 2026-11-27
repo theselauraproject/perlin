@@ -34,26 +34,37 @@ namespace perlin::creative {
 
     template<class Catalog, class Expanded>
     std::vector<Cell> Category(const Catalog& catalog, int category, const Expanded& expanded) {
-        std::vector<std::vector<size_t>> members(catalog.groups.size());
+        // Bedrock exposes group order separately from item order. Keep groups in
+        // their wire order, and preserve the original item order *within* each
+        // group. Use one packed index allocation instead of constructing a
+        // separate growing vector for every group on each UI frame.
+        const size_t count = catalog.groups.size();
+        std::vector<size_t> offsets(count + 1, 0);
+        for (const auto& item : catalog.items)
+            if (item.group >= 0 && static_cast<size_t>(item.group) < count)
+                ++offsets[static_cast<size_t>(item.group) + 1];
+        for (size_t i = 1; i < offsets.size(); ++i)
+            offsets[i] += offsets[i - 1];
+        std::vector<size_t> members(offsets.back());
+        std::vector<size_t> write(offsets.begin(), offsets.end() - 1);
         for (size_t i = 0; i < catalog.items.size(); ++i) {
-            const auto& item = catalog.items[i];
-            if (item.group >= 0 && static_cast<size_t>(item.group) < members.size())
-                members[static_cast<size_t>(item.group)].push_back(i);
+            const int group = catalog.items[i].group;
+            if (group >= 0 && static_cast<size_t>(group) < count)
+                members[write[static_cast<size_t>(group)]++] = i;
         }
         std::vector<Cell> result;
-        for (size_t i = 0; i < catalog.groups.size(); ++i) {
-            const auto& group = catalog.groups[i];
+        for (size_t g = 0; g < count; ++g) {
+            const auto& group = catalog.groups[g];
             if (group.category != category)
                 continue;
-            // Anonymous, empty, single-item and iconless groups do not create
-            // expando headers. Neither groups nor their entries are sorted.
-            const bool header = !group.name.empty() && members[i].size() > 1 && !group.icon.Empty();
-            const bool open = header && expanded.contains(i);
+            const size_t start = offsets[g], end = offsets[g + 1];
+            const bool header = !group.name.empty() && end - start > 1 && !group.icon.Empty();
+            const bool open = header && expanded.contains(g);
             if (header)
-                result.push_back({i, open ? CellKind::ExpandedGroup : CellKind::CollapsedGroup});
+                result.push_back({g, open ? CellKind::ExpandedGroup : CellKind::CollapsedGroup});
             if (!header || open)
-                for (const size_t item : members[i])
-                    result.push_back({item, header ? CellKind::GroupItem : CellKind::Item});
+                for (size_t j = start; j < end; ++j)
+                    result.push_back({members[j], header ? CellKind::GroupItem : CellKind::Item});
         }
         return result;
     }

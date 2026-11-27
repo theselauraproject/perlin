@@ -618,9 +618,12 @@ namespace perlin::screen {
         const auto [scale, guiW, guiH] = ui::OverlayViewport(*hud, fbW, fbH);
         (void)guiW;
         (void)guiH;
-        const float block = r.w * 0.9375f;
-        const float cx = r.x + r.w * 0.5f, cy = r.y + r.h * 0.5f;
-        const float feetY = cy + 1.5f * block;
+        // The HUD player renderer can be anchored at the extreme viewport edge by
+        // vanilla UI layouts. Give the paper doll a dedicated safe-area anchor so
+        // neither its head nor shoulders end up outside the frame.
+        const float block = std::clamp(guiH * 0.035f, 12.0f, 22.0f);
+        const float cx = 10.0f + block * 0.55f;
+        const float feetY = 10.0f + block * 2.15f;
         entity::Entity doll = *dollSelf;
         doll.runtimeId = 0xFFFFFFFFFFFF0004ull;
         doll.isSelf = true;
@@ -631,7 +634,7 @@ namespace perlin::screen {
         din.capePhysics = options.capePhysics == "shoulder" ? 2 : options.capePhysics == "off" ? 0 : 1;
             din.ownLeftHanded = options.hand.leftHanded;
         din.camera = doll.pos;
-        const int clip[4] = {0, 0, fbW, static_cast<int>((feetY + block * 0.5f) * scale)};
+        const int clip[4] = {0, 0, fbW, fbH};
         entityRenderer.RenderDoll(doll, din, cx * scale, feetY * scale, block * scale, clip, 22.5f);
     }
 

@@ -28,7 +28,10 @@ namespace perlin {
     int RenderContext_rhi::PackShadowInterval() const {
         if (const char* forced = PERLIN_ENV("PERLIN_PACK_SHADOW_INTERVAL"))
             return std::max(1, std::atoi(forced));
-        return 2;
+        // Integrated GPUs are usually fill-rate limited with multipass Java
+        // packs. Reuse the previous shadow map for an additional frame there.
+        // A user-specified interval always takes precedence.
+        return deviceTier <= conduit::tier::low ? 3 : 2;
     }
 
     bool RenderContext_rhi::AttachJavaPack() {

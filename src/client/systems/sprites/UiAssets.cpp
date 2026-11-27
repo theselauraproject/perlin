@@ -1,5 +1,6 @@
 #include "client/systems/model/DialFrames.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
+#include "client/systems/sprites/ShieldItemIcon.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/resources/ServerBlocks.hpp"
 #include "client/systems/i18n/Lang.hpp"
@@ -546,22 +547,11 @@ namespace perlin::ui {
                 t.height = t.width;
             }
             if (name == "shield" && t.width >= 64 && t.height >= 64) {
-                const int scale = t.width / 64;
-                std::vector<uint8_t> icon(16 * 16 * 4, 0);
-                const int fw = 8, fh = 14, ox = 4, oy = 1;
-                for (int y = 0; y < fh; y++)
-                    for (int x = 0; x < fw; x++) {
-                        const int sx = (1 + x * 12 / fw) * scale, sy = (1 + y * 22 / fh) * scale;
-                        const uint8_t* src = &t.pixels[(static_cast<size_t>(sy) * t.width + sx) * 4];
-                        uint8_t* dst = &icon[(static_cast<size_t>(oy + y) * 16 + ox + x) * 4];
-                        const bool edge = x == 0 || y == 0 || x == fw - 1 || y == fh - 1;
-                        for (int c = 0; c < 3; c++)
-                            dst[c] = edge ? static_cast<uint8_t>(src[c] * 6 / 10) : src[c];
-                        dst[3] = 255;
-                    }
+                std::vector<uint8_t> icon = BuildShieldItemIcon(t.pixels, t.width, t.height);
+                constexpr int side = 32;
                 out.ok = true;
                 out.block = false;
-                out.w = out.h = 16;
+                out.w = out.h = side;
                 out.rgba = std::move(icon);
                 out.handheld = false;
                 return true;

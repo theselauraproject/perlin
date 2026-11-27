@@ -1,6 +1,9 @@
+#include "client/systems/camera/BuiltinCameraPresets.hpp"
 #include "client/systems/multiplayer/BedrockSession.hpp"
 #include "client/systems/multiplayer/CameraEasing.hpp"
 #include "client/systems/multiplayer/NbtJson.hpp"
+#include "util/Env.hpp"
+#include "util/Log.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -406,6 +409,19 @@ namespace perlin {
                     r.verticalLimit = glm::vec2(c.verticalRotationLimit->x, c.verticalRotationLimit->z);
                 list.push_back(std::move(r));
             }
+            // Built-in cameras exist even when the server has no custom
+            // camera definitions (for example, the embedded Perlite server).
+            // Keep the packet's authoritative order whenever it is populated.
+            if (list.empty()) {
+                for (const auto name : camera::kBuiltinPresets) {
+                    CameraPreset preset;
+                    preset.name = std::string(name);
+                    list.push_back(std::move(preset));
+                }
+            }
+            if (PERLIN_ENV("PERLIN_TRACE_CAMERA"))
+                Log("camera", "received {} camera presets ({} built-in fallback entries)",
+                    p.presets.size(), p.presets.empty() ? list.size() : 0);
             cameraEffects.SetPresets(std::move(list));
         });
 
@@ -418,6 +434,11 @@ namespace perlin {
         });
 
         On<CameraInstructionPacket>([this](const CameraInstructionPacket& p) {
+            if (PERLIN_ENV("PERLIN_TRACE_CAMERA"))
+                Log("camera", "instruction: set={} clear={} fade={} fov={} target={} spline={}",
+                    static_cast<bool>(p.instructionSet), p.clear.value_or(false),
+                    static_cast<bool>(p.fade), static_cast<bool>(p.fov),
+                    static_cast<bool>(p.target), static_cast<bool>(p.spline));
             if (p.clear && *p.clear)
                 cameraEffects.Clear();
             if (p.fade) {
@@ -467,6 +488,9 @@ namespace perlin {
                     set.easeType = static_cast<int>(s.easeData->type);
                     set.easeDuration = s.easeData->duration;
                 }
+                if (PERLIN_ENV("PERLIN_TRACE_CAMERA") && !cameraEffects.PresetAt(set.presetIndex))
+                    Log("camera", "ignored set instruction: unregistered runtime preset index {}",
+                        set.presetIndex);
                 cameraEffects.Set(set);
             }
             if (p.spline) {

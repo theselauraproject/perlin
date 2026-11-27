@@ -511,7 +511,7 @@ namespace perlin {
                 const std::string& nm = item.name;
                 auto has = [&](const char* k) { return nm.contains(k); };
                 if (has("_stairs"))
-                    boxes = {{{0, 0, 0}, {1, 0.5f, 1}}, {{0.5f, 0.5f, 0}, {1, 1, 1}}};
+                    boxes = {{{0, 0, 0}, {1, 0.5f, 1}}, {{0, 0.5f, 0.5f}, {1, 1, 1}}};
                 else if (has("_slab") && !has("double"))
                     boxes = {{{0, 0, 0}, {1, 0.5f, 1}}};
                 else if (has("_fence_gate"))
@@ -1288,7 +1288,10 @@ namespace perlin {
             }
         }
         if (item.name == "minecraft:shield") {
-            RenderShield(in, s, item, rightArm, m);
+            // Use the resource pack's actual Bedrock attachable geometry when
+            // available, rather than the simplified Java-style fallback box.
+            if (!s.attachables || !RenderAttachable(in, s, item, rightArm, m))
+                RenderShield(in, s, item, rightArm, m);
             return;
         }
 
@@ -1503,7 +1506,8 @@ namespace perlin {
             return false;
         }
         if (!(item.name == "minecraft:bow" && PERLIN_ENV("PERLIN_BOW_ATTACHABLE")) &&
-            !(item.name == "minecraft:crossbow" && PERLIN_ENV("PERLIN_CROSSBOW_ATTACHABLE")))
+            !(item.name == "minecraft:crossbow" && PERLIN_ENV("PERLIN_CROSSBOW_ATTACHABLE")) &&
+            item.name != "minecraft:shield")
             return false;
         attachable::ItemState st;
         st.identifier = item.name;
