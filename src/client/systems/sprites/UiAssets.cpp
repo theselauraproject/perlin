@@ -1,6 +1,7 @@
 #include "client/systems/model/DialFrames.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
 #include "client/systems/sprites/ShieldItemIcon.hpp"
+#include "client/systems/attachable/Geometry.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/resources/ServerBlocks.hpp"
 #include "client/systems/i18n/Lang.hpp"
@@ -954,8 +955,94 @@ namespace perlin::ui {
         }
     }
 
+    bool UiAssets::ItemMesh(const std::string& name, std::vector<attachable::Quad>& out, Texture& atlas) {
+        out.clear();
+        if (!blocks || !blocks->Ready())
+            return false;
+        const BlockModels& models = blocks->Models();
+        const std::string bare = std::string(str::StripAnyNamespace(name));
+        const ModelEntry* entry = models.FindItem(bare);
+        if (!entry)
+            return false;
+
+        // The atlas includes only the textures actually used by this item,
+        // instead of allocating a full terrain atlas for every held model.
+        std::vector<int> usedTiles;
+        std::unordered_map<int, size_t> tileSlots;
+        std::vector<const ModelQuad*> faces;
+        for (const auto& group : entry->groups) {
+            if (group.empty())
+                continue;
+            for (const ModelQuad& q : models.Variant(group.front().variant)) {
+                // The held-item pipeline has no per-face biome tint yet. Keep
+                // the existing tinted sprite path instead of drawing gray
+                // grass/leaves simply because a Java mesh is available.
+                if (q.tint >= 0)
+                    return false;
+                const int tile = q.tile ? q.tile
+                                        : (q.tex != 0xffff && q.tex < models.tiles.size()
+                                               ? models.tiles[q.tex] : 0);
+                if (tile <= 0)
+                    continue;
+                if (!tileSlots.contains(tile)) {
+                    tileSlots[tile] = usedTiles.size();
+                    usedTiles.push_back(tile);
+                }
+                faces.push_back(&q);
+            }
+        }
+        if (faces.empty() || usedTiles.empty())
+            return false;
+        const int tilePx = BlockLibrary::TilePx();
+        if (tilePx <= 0 || usedTiles.size() > 64)
+            return false;
+        atlas.width = tilePx * static_cast<int>(usedTiles.size());
+        atlas.height = tilePx;
+        atlas.pixels.assign(static_cast<size_t>(atlas.width) * atlas.height * 4, 0);
+        for (size_t slot = 0; slot < usedTiles.size(); ++slot) {
+            std::vector<uint8_t> pixels;
+            if (!blocks->TilePixels(usedTiles[slot], pixels) ||
+                pixels.size() < static_cast<size_t>(tilePx) * tilePx * 4)
+                return false;
+            for (int y = 0; y < tilePx; ++y)
+                std::copy_n(pixels.data() + static_cast<size_t>(y) * tilePx * 4,
+                            static_cast<size_t>(tilePx) * 4,
+                            atlas.pixels.data() + (static_cast<size_t>(y) * atlas.width + slot * tilePx) * 4);
+        }
+        out.reserve(faces.size());
+        for (const ModelQuad* source : faces) {
+            const int tile = source->tile ? source->tile
+                                           : models.tiles[source->tex];
+            const float slot = static_cast<float>(tileSlots.at(tile));
+            const float columns = static_cast<float>(usedTiles.size());
+            attachable::Quad q{};
+            for (int i = 0; i < 4; ++i) {
+                q.p[i] = glm::vec3(source->pos[i][0], source->pos[i][1], source->pos[i][2]);
+                q.uv[i] = glm::vec2((slot + source->uv[i][0] / 16.0f) / columns,
+                                    source->uv[i][1] / 16.0f);
+            }
+            const glm::vec3 n = glm::cross(q.p[1] - q.p[0], q.p[3] - q.p[0]);
+            if (glm::dot(n, n) < 1.0e-12f)
+                continue;
+            q.n = glm::normalize(n);
+            out.push_back(q);
+        }
+        return !out.empty();
+    }
+
     bool UiAssets::ItemIcon(const std::string& key, Texture& out) {
         const ItemSprite* s = Item(key);
+        // A Java inventory model is a different mesh from a placed block.
+        // For example, a fence inventory icon has rails even when a world
+        // fence has no neighbours. Keep state-hashed variants on the old path.
+        if (key.find('#') == std::string::npos && blocks && blocks->Ready()) {
+            const size_t end = key.find_first_of(";@!");
+            const std::string base = std::string(str::StripAnyNamespace(key.substr(0, end)));
+            if (blocks->Models().FindItem(base) && BakeModelIcon(base, 0, 64, out, true)) {
+                CenterIconPixels(out);
+                return true;
+            }
+        }
         if (!s || s->fromBlock || s->generic) {
             const size_t hashAt = key.find('#');
             if (hashAt != std::string::npos && blocks && blocks->Ready()) {
@@ -997,11 +1084,11 @@ namespace perlin::ui {
         return true;
     }
 
-    bool UiAssets::BakeModelIcon(const std::string& name, int32_t hash, int size, Texture& out) {
+    bool UiAssets::BakeModelIcon(const std::string& name, int32_t hash, int size, Texture& out, bool inventory) {
         const BlockModels& bm = blocks->Models();
         if (!bm.Loaded())
             return false;
-        const ModelEntry* entry = bm.Find(hash);
+        const ModelEntry* entry = inventory ? bm.FindItem(name) : bm.Find(hash);
         if (!entry)
             return false;
         std::vector<const ModelQuad*> quads;

@@ -82,11 +82,24 @@ public class PerlinActivity extends SDLActivity {
                     && mode.getRefreshRate() > best.getRefreshRate())
                 best = mode;
         }
-        if (best.getModeId() == current.getModeId())
+        if (best.getModeId() == current.getModeId()) {
+            Log.i("Perlin", "display refresh: " + current.getRefreshRate() + " Hz (already preferred)");
             return;
+        }
         WindowManager.LayoutParams params = getWindow().getAttributes();
         params.preferredDisplayModeId = best.getModeId();
         getWindow().setAttributes(params);
+        Log.i("Perlin", "requested display refresh " + best.getRefreshRate() +
+                " Hz instead of " + current.getRefreshRate() + " Hz");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Some phones revert to their default display mode after leaving the
+        // game for the device-code browser. Reapply the user's high-Hz mode.
+        if (!redirected)
+            preferFastestDisplayMode();
     }
 
     private void installKeyboardResize() {
@@ -131,14 +144,20 @@ public class PerlinActivity extends SDLActivity {
     private Dialog signIn;
 
     public boolean showSignIn(final String url) {
+        // Device-code authentication is completed by the native polling thread.
+        // Microsoft's login pages can refuse embedded WebViews; using the
+        // system browser also retains the user's existing Microsoft session.
+        // The native SDL bridge already copies the verification code.
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    openSignIn(url);
-                } catch (Throwable t) {
-                    Log.w("Perlin", "in-app sign-in unavailable", t);
-                    openBrowser(url);
+                if (!openBrowser(url)) {
+                    // Preserve a fallback for devices without a browser app.
+                    try {
+                        openSignIn(url);
+                    } catch (Throwable t) {
+                        Log.e("Perlin", "cannot open Microsoft sign-in", t);
+                    }
                 }
             }
         });
@@ -161,11 +180,14 @@ public class PerlinActivity extends SDLActivity {
         return true;
     }
 
-    private void openBrowser(String url) {
+    private boolean openBrowser(String url) {
         try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addCategory(Intent.CATEGORY_BROWSABLE));
+            return true;
         } catch (Throwable t) {
             Log.w("Perlin", "no browser for sign-in", t);
+            return false;
         }
     }
 

@@ -11,6 +11,10 @@
 #include <unordered_set>
 #include <vector>
 
+namespace perlin::attachable {
+    struct Quad;
+}
+
 namespace perlin {
     class BlockLibrary;
 }
@@ -54,6 +58,9 @@ namespace perlin::ui {
         const ItemSprite* Item(const std::string& key);
         bool BlocksReady();
         bool ItemIcon(const std::string& key, Texture& out);
+        // A Java inventory block model with its own compact texture atlas.
+        // Used for held and dropped blocks; unlike ItemIcon, it keeps 3D geometry.
+        bool ItemMesh(const std::string& name, std::vector<attachable::Quad>& out, Texture& atlas);
         bool HasHead(const std::string& key);
         void SetHead(const std::string& key, Texture head);
         void EraseHead(const std::string& key);
@@ -76,7 +83,7 @@ namespace perlin::ui {
         void LoadLang();
         bool FlatSprite(const std::string& shortName, int aux, ItemSprite& out, int64_t dyeColor = -1,
                         const std::string& iconKey = {});
-        bool BakeModelIcon(const std::string& name, int32_t hash, int size, Texture& out);
+        bool BakeModelIcon(const std::string& name, int32_t hash, int size, Texture& out, bool inventory = false);
 
         std::string root;
         const BlockLibrary* blocks = nullptr;
@@ -98,5 +105,5 @@ namespace perlin::ui {
         uint32_t stemGeneration = 0;
     };
 
-    void BakeCubeIcon(const ItemSprite& sprite, int size, Texture& out);
+    void BakeCubeIcon(const ItemSprite& sprite, int size, Texture& out, bool inventory = false);
 }

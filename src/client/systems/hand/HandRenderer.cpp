@@ -459,6 +459,20 @@ namespace perlin {
         if (it != items.end())
             return it->second;
         Model model;
+        // Use the actual Java inventory mesh for block items. The legacy
+        // synthetic cube/post/stair meshes below remain a fallback for packs
+        // and states with no Java model, but should not override a real mesh.
+        Texture itemAtlas;
+        if (assets.ItemMesh(item.name, model.quads, itemAtlas)) {
+            model.texture = renderer->UiCreateTexture(itemAtlas.width, itemAtlas.height,
+                                                      itemAtlas.pixels.data(), false);
+            if (model.texture) {
+                model.valid = true;
+                model.block = true;
+                return items.emplace(key, std::move(model)).first->second;
+            }
+            model.quads.clear();
+        }
         const ui::ItemSprite* sprite = assets.Item(key);
         ui::ItemSprite baked;
         if (!sprite || sprite->generic || sprite->fromBlock) {
@@ -1288,13 +1302,11 @@ namespace perlin {
             }
         }
         if (item.name == "minecraft:shield") {
-            // Use the resource pack's actual Bedrock attachable geometry when
-            // available, rather than the simplified Java-style fallback box.
-            if (!s.attachables || !RenderAttachable(in, s, item, rightArm, m))
-                RenderShield(in, s, item, rightArm, m);
+            // Match Java's item model selection: no Bedrock attachable
+            // render/animation path for a shield in either hand.
+            RenderShield(in, s, item, rightArm, m);
             return;
         }
-
         if (item.name == "minecraft:trident" && s.attachables &&
             DrawGeometryItem(item, m, !rightArm, true, in.light))
             return;
@@ -1377,21 +1389,21 @@ namespace perlin {
             JavaBox(shieldQuads, {-6, -11, -2}, {12, 22, 1}, 0, 0);
             JavaBox(shieldQuads, {-1, -3, -1}, {2, 6, 6}, 26, 0);
         }
-        struct Display {
-            glm::vec3 rot, tr;
-            float scale;
-        };
+        // Display transforms are from the Minecraft 26.3 client JAR's
+        // assets/minecraft/models/item/shield(_blocking).json.
+        struct Display { glm::vec3 rot, tr; float scale; };
         static const Display idle[2] = {{{0, 180, 5}, {-10, 1.75f, -10}, 1.25f},
                                         {{0, 180, 5}, {10, 0, -10}, 1.25f}};
         static const Display block[2] = {{{0, 180, -5}, {-15, 3.25f, -11}, 1.25f},
                                          {{0, 180, -5}, {5, 5, -11}, 1.25f}};
-        const bool use = blocking && (rightArm == !s.leftHanded);
-        const Display& d = (use ? block : idle)[rightArm ? 0 : 1];
-        const float f = rightArm ? 1.0f : -1.0f;
-        glm::mat4 m = hand * T(f * d.tr.x / 16.0f, d.tr.y / 16.0f, d.tr.z / 16.0f) * Rx(d.rot.x) *
-                      Ry(d.rot.y * f) * Rz(d.rot.z * f) * S(d.scale) * S(s.scale);
-        m = m * Ry(180.0f) *
-            glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / 16.0f, -1.0f / 16.0f, -1.0f / 16.0f));
+        const Display& d = (blocking ? block : idle)[rightArm ? 0 : 1];
+        // The right- and left-hand JSON transforms already have distinct
+        // signed translations. Mirroring them a second time collapsed the
+        // offhand shield onto the main-hand side.
+        glm::mat4 m = hand * T(d.tr.x / 16.0f, d.tr.y / 16.0f, d.tr.z / 16.0f) *
+                      Rx(d.rot.x) * Ry(d.rot.y) * Rz(d.rot.z) *
+                      S(d.scale) * S(s.scale) * Ry(180.0f) *
+                      glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / 16.0f, -1.0f / 16.0f, -1.0f / 16.0f));
         DrawModel(shieldQuads, shieldTexture, m, in.light, 0.1f, item.enchanted);
     }
 
@@ -1461,6 +1473,33 @@ namespace perlin {
                                              bool sneaking, bool using_, float usedTicks, bool blocking,
                                              double life, const std::string& mainItem,
                                              const std::string& offItem, attachable::Frame& out) {
+        if (item == "minecraft:shield") {
+            // Third-person and paperdoll use the same Java plate/handle boxes
+            // as first-person, not the Bedrock attachable animation graph.
+            attachable::Part plate;
+            plate.texture = "textures/entity/shield";
+            JavaBox(plate.quads, {-6, -11, -2}, {12, 22, 1}, 0, 0);
+            JavaBox(plate.quads, {-1, -3, -1}, {2, 6, 6}, 26, 0);
+            // Java 26.3 models/item/shield(_blocking).json third-person
+            // display transforms, in sixteenth-block model units.
+            const glm::vec3 rot = blocking ? glm::vec3(45.0f, 155.0f, 0.0f)
+                                           : glm::vec3(0.0f, 90.0f, 0.0f);
+            const glm::vec3 tr = blocking
+                                     ? (left ? glm::vec3(11.51f, 7.0f, 2.5f)
+                                             : glm::vec3(-3.49f, 11.0f, -2.0f))
+                                     : (left ? glm::vec3(10.0f, 6.0f, 12.0f)
+                                             : glm::vec3(10.0f, 6.0f, -4.0f));
+            const glm::mat4 model = T(tr.x, tr.y, tr.z) * Rx(rot.x) * Ry(rot.y) * Rz(rot.z);
+            for (attachable::Quad& q : plate.quads) {
+                for (glm::vec3& vertex : q.p)
+                    vertex = glm::vec3(model * glm::vec4(vertex, 1.0f));
+                q.n = glm::normalize(glm::mat3(model) * q.n);
+            }
+            out.parts.clear();
+            out.parts.push_back(std::move(plate));
+            out.valid = true;
+            return true;
+        }
         attachables.Configure(ui::UiAssets::Instance().VanillaRoot());
         if (!attachables.Has(item))
             return false;

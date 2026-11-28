@@ -1025,13 +1025,9 @@ namespace perlin {
             }
         }
         int baseCap = fgActive > 1 ? FrameGenShownCap() : options.maxFps;
-#if defined(PERLIN_MOBILE)
-        // on phones the unlimited setting means the panel's own rate: past it frames are only heat
-        if (baseCap == 0) {
-            const double hz = platform->DisplayRefreshHz();
-            baseCap = hz >= 30.0 ? static_cast<int>(std::lround(std::min(hz, 165.0))) : 60;
-        }
-#endif
+        // Unlimited is uncapped on mobile too. Previously, mobile silently
+        // replaced Unlimited with the display rate (or 60 when undetected).
+        // VSync presentation and explicit user caps remain separate.
         const int fpsCap = modHost.ModFrameLimit(baseCap);
         if (fpsCap > 0 && !replayStudio.Exporting()) {
             const auto period = std::chrono::microseconds(1000000LL * std::max(1, fgActive) / fpsCap);

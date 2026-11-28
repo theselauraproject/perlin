@@ -66,7 +66,7 @@ namespace perlin::ui {
         face(project(6,11,0), project(6,11,-2), project(6,-11,-2), project(6,-11,0),
              13, 1, 2, 22, 0.70f);
         face(project(-6,11,0), project(6,11,0), project(6,-11,0), project(-6,-11,0),
-             2, 1, 12, 22, 0.95f);
+             14, 1, 12, 22, 0.95f);
         return icon;
     }
 }

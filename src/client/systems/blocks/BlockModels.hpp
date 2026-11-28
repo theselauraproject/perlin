@@ -44,6 +44,11 @@ namespace perlin {
             auto it = byHash.find(hash);
             return it == byHash.end() ? nullptr : &entries[it->second];
         }
+        const ModelEntry* FindItem(const std::string& name) const {
+            const auto it = byItem.find(name);
+            return it == byItem.end() ? nullptr : &entries[it->second];
+        }
+        size_t ItemModelCount() const { return byItem.size(); }
         const std::vector<ModelQuad>& Variant(uint32_t id) const {
             static const std::vector<ModelQuad> none;
             return id < variants.size() ? variants[id] : none;
@@ -58,6 +63,7 @@ namespace perlin {
         std::vector<std::vector<ModelQuad>> variants;
         std::vector<ModelEntry> entries;
         std::unordered_map<int32_t, uint32_t> byHash;
+        std::unordered_map<std::string, uint32_t> byItem;
     };
 
 }

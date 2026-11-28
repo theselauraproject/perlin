@@ -14,7 +14,48 @@ int main(int argc, char** argv) {
         std::printf("FAIL: too few models (%zu blocks, %zu textures)\n", m.BlockCount(), m.Textures().size());
         return 1;
     }
+    // Inventory meshes must be separate from placed-block states. A lone
+    // fence post is not a valid Java fence inventory icon.
+    if (m.ItemModelCount() < 700) {
+        std::printf("FAIL: missing Java inventory models (%zu)\n", m.ItemModelCount());
+        return 1;
+    }
+    for (const char* name : {"oak_fence", "oak_stairs", "oak_fence_gate", "mossy_cobblestone_wall", "spruce_planks"}) {
+        const auto* model = m.FindItem(name);
+        if (!model || model->groups.empty()) {
+            std::printf("FAIL: missing Java inventory mesh for %s\n", name);
+            return 1;
+        }
+        size_t faces = 0;
+        for (const auto& group : model->groups)
+            for (const auto& choice : group)
+                faces += m.Variant(choice.variant).size();
+        if (faces < 4) {
+            std::printf("FAIL: incomplete Java inventory mesh for %s\n", name);
+            return 1;
+        }
+    }
     size_t quads = 0;
+    // The previous random negative-hash scan could visit no entries at all.
+    // Verify the actual inventory meshes, including their texture references.
+    for (const char* name : {"oak_fence", "oak_stairs", "oak_fence_gate", "mossy_cobblestone_wall", "spruce_planks"}) {
+        const auto* model = m.FindItem(name);
+        for (const auto& group : model->groups)
+            for (const auto& choice : group)
+                for (const auto& q : m.Variant(choice.variant)) {
+                    ++quads;
+                    if (q.tex != 0xFFFF && q.tex >= m.Textures().size()) {
+                        std::printf("FAIL: item %s has invalid texture index\n", name);
+                        return 1;
+                    }
+                    for (const auto& v : q.pos)
+                        for (const float coordinate : v)
+                            if (!std::isfinite(coordinate) || coordinate < -1.5f || coordinate > 2.5f) {
+                                std::printf("FAIL: item %s has invalid vertex\n", name);
+                                return 1;
+                            }
+                }
+    }
     for (int32_t h = -2147483647; h < 0; h += 9973) {
         const auto* e = m.Find(h);
         if (!e)

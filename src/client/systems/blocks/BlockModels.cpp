@@ -43,6 +43,7 @@ namespace perlin {
         variants.clear();
         entries.clear();
         byHash.clear();
+        byItem.clear();
 
         const uint32_t nTex = r.Get<uint32_t>();
         for (uint32_t i = 0; i < nTex && r.ok; i++) {
@@ -95,6 +96,10 @@ namespace perlin {
             }
         }
         const uint32_t nBlk = r.Get<uint32_t>();
+        if (nBlk > 1000000)
+            r.ok = false;
+        else
+            byHash.reserve(nBlk);
         for (uint32_t i = 0; i < nBlk && r.ok; i++) {
             const int32_t h = r.Get<int32_t>();
             const uint32_t e = r.Get<uint32_t>();
@@ -104,12 +109,44 @@ namespace perlin {
             }
             byHash[h] = e;
         }
+        // An optional inventory-model footer contains Java models selected by
+        // the item renderer, independently of a placed block's state geometry.
+        if (r.ok && r.p < r.end) {
+            if (r.end - r.p < 8 || std::memcmp(r.p, "IMOD", 4) != 0) {
+                r.ok = false;
+            } else {
+                r.p += 4;
+                const uint32_t nItem = r.Get<uint32_t>();
+                if (nItem > 100000)
+                    r.ok = false;
+                else
+                    byItem.reserve(nItem);
+                for (uint32_t i = 0; i < nItem && r.ok; i++) {
+                    const uint16_t length = r.Get<uint16_t>();
+                    if (r.p + length > r.end) {
+                        r.ok = false;
+                        break;
+                    }
+                    std::string name(reinterpret_cast<const char*>(r.p), length);
+                    r.p += length;
+                    const uint32_t index = r.Get<uint32_t>();
+                    if (index >= entries.size()) {
+                        r.ok = false;
+                        break;
+                    }
+                    byItem.emplace(std::move(name), index);
+                }
+                if (r.p != r.end)
+                    r.ok = false;
+            }
+        }
         if (!r.ok) {
             std::printf("[models] corrupt block_models.bin\n");
             textures.clear();
             variants.clear();
             entries.clear();
             byHash.clear();
+            byItem.clear();
             return false;
         }
         tiles.assign(textures.size(), 0);

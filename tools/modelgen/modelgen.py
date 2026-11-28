@@ -78,6 +78,7 @@ class Gen:
         self.vox_cache = {}
         self.register_special_models()
         self.register_sign_models()
+        self.item_entries = {}
 
     CHEST_SETS = {
         "chest": ("chest_front", "chest_side", "chest_top"),
@@ -462,6 +463,7 @@ class Gen:
             qmax[rec["name"]] = max(qmax.get(rec["name"], 0), qn)
             stats["emitted"] += 1
         print('values outside java domain:', dict(badval.most_common(60)))
+        self.build_item_models()
         self.write(blocks)
         print('heaviest blocks (quads):', sorted(qmax.items(), key=lambda kv: -kv[1])[:40])
         print("emitted", len(blocks), "block states;", len(self.variants), "variants;", len(self.entries),
@@ -474,6 +476,36 @@ class Gen:
             print("   ", p)
         print("props not on java block:", dict(missing_props.most_common(40)))
         print("unresolved/poor textures:", dict(self.unresolved_tex.most_common(80)))
+
+    def build_item_models(self):
+        """Bake the separate Java inventory models, not the world-state models.
+
+        World fences usually have no arms; the Java fence inventory model has
+        arms on all sides. The same distinction applies to walls and stairs.
+        The optional IMOD footer keeps old PBM1 decoders backward compatible.
+        """
+        path = os.path.join(HERE, '..', '..', 'resources', 'data', 'items', 'item_display.json')
+        catalog = json.load(open(path, encoding='utf-8'))['items']
+        for name, row in catalog.items():
+            spec = row.get('hand')
+            if not isinstance(spec, list) or len(spec) < 3 or spec[0] != 'block':
+                continue
+            model = spec[2].split(':', 1)[-1]
+            if not model.startswith('block/'):
+                continue
+            # A missing model or an unresolvable texture must not replace the
+            # existing Bedrock fallback icon with an empty or magenta preview.
+            resolved = self.models.resolve(model)
+            if not resolved or not resolved['elements']:
+                continue
+            vid = self.bake_variant(model, 0, 0, False)
+            if not self.variants[vid]:
+                continue
+            key = (0, (((vid, 1),),))
+            if key not in self.entry_ids:
+                self.entry_ids[key] = len(self.entries)
+                self.entries.append(key)
+            self.item_entries[name] = self.entry_ids[key]
 
     def write(self, blocks):
         out = bytearray()
@@ -501,6 +533,12 @@ class Gen:
         out += struct.pack("<I", len(blocks))
         for h, eid in blocks:
             out += struct.pack("<iI", h if h < 2 ** 31 else h - 2 ** 32, eid)
+        # Optional inventory-model extension. Existing state hashes and their
+        # indices are unchanged; older decoders simply stop after the states.
+        out += b'IMOD' + struct.pack('<I', len(self.item_entries))
+        for name, eid in sorted(self.item_entries.items()):
+            encoded = name.encode('utf-8')
+            out += struct.pack('<H', len(encoded)) + encoded + struct.pack('<I', eid)
         os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
         open(OUT, "wb").write(out)
         print("wrote", OUT, len(out), "bytes")

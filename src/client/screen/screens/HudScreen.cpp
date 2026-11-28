@@ -623,8 +623,12 @@ namespace perlin::screen {
         const float block = std::clamp(std::min(r.w, r.h * 0.48f), 10.0f, 22.0f);
         const float cx = std::clamp(r.x + r.w * 0.5f, block * 0.6f + 2.0f,
                                     guiW - block * 0.6f - 2.0f);
-        const float feetY = std::clamp(r.y + r.h * 0.93f, block * 2.05f + 2.0f,
-                                       guiH - 2.0f);
+        // Keep the 3D doll in the HUD player-renderer region, but leave room
+        // above its head for the HUD/debug text. Previously the feet were
+        // placed at 93% of the control height, putting the head at the very
+        // top edge of the display on the vanilla layout.
+        const float feetY = std::clamp(r.y + r.h + block * 0.8f,
+                                       block * 2.05f + 2.0f, guiH - 2.0f);
         entity::Entity doll = *dollSelf;
         doll.runtimeId = 0xFFFFFFFFFFFF0004ull;
         doll.isSelf = true;

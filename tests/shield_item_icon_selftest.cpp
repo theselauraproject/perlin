@@ -28,6 +28,22 @@ int main() {
             }
     assert(xmax > xmin + 6 && xmax < xmin + 19); // recognizable angled plate
     assert(ymax > ymin + 17); // not collapsed into a line
+    // The plate's visible rear face uses the UV rectangle (14,1)-(26,23)
+    // in Java's box-unfolding scheme. It must not sample the handle/edge area.
+    std::vector<uint8_t> uvAtlas(64 * 64 * 4, 255);
+    for (int y = 0; y < 64; ++y)
+        for (int x = 0; x < 64; ++x) {
+            const size_t k = static_cast<size_t>(y * 64 + x) * 4;
+            uvAtlas[k] = (x >= 14 && x < 26 && y >= 1 && y < 23) ? 255 : 0;
+            uvAtlas[k + 1] = 0;
+            uvAtlas[k + 2] = (x >= 14 && x < 26 && y >= 1 && y < 23) ? 0 : 255;
+        }
+    const auto uvImg = perlin::ui::BuildShieldItemIcon(uvAtlas, 64, 64);
+    int platePixels = 0;
+    for (size_t i = 0; i < uvImg.size(); i += 4)
+        if (uvImg[i + 3] && uvImg[i] > uvImg[i + 2])
+            ++platePixels;
+    assert(platePixels > 60); // Java's plate UVs occupy the main visible face
     const auto missing = perlin::ui::BuildShieldItemIcon({}, 64, 64);
     assert(missing.size() == img.size() && missing[3] == 0);
     std::cout << "shield preview shape and bounds passed\n";
