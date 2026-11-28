@@ -34,6 +34,10 @@ namespace perlin {
         typed.clear();
         pluginEvents.clear();
         while (input.events.try_dequeue(ev)) {
+            if (ev.type == InputEvent::MouseDown)
+                polledButtons.set(ev.key & 7);
+            else if (ev.type == InputEvent::MouseUp)
+                polledButtons.reset(ev.key & 7);
             if (grabMouse || grabKeyboard) {
                 PluginInput p;
                 p.ctrl = input.IsKeyDown(Key::Control);
@@ -112,6 +116,10 @@ namespace perlin {
             else if (ev.type == InputEvent::PadDown)
                 Dispatch(Binding::PadButton(ev.key));
         }
+
+        for (int button = 0; button < 8; button++)
+            if (!input.IsMouseDown(button))
+                polledButtons.reset(button);
 
         const float mx = input.MouseX();
         const float my = input.MouseY();
@@ -260,7 +268,7 @@ namespace perlin {
         case Binding::Device::Keyboard:
             return input.IsKeyDown(b.code);
         case Binding::Device::Mouse:
-            return input.IsMouseDown(b.code);
+            return input.IsMouseDown(b.code) && polledButtons.test(b.code & 7);
         default:
             return false;
         }

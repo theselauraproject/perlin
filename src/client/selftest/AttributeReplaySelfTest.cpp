@@ -71,6 +71,20 @@ namespace {
                 MovementProtocolTestAccess::Attributes(player, session);
         }
 
+        void Effect(int id, int amplifier, uint64_t tick,
+                    proto::MobEffectPacketEventId event = proto::MobEffectPacketEventId::Add) {
+            proto::MobEffectPacket packet;
+            packet.runtimeEntityId = 7;
+            packet.eventId = event;
+            packet.effectId = id;
+            packet.amplifier = amplifier;
+            packet.duration = 600;
+            packet.tick = tick;
+            const net::context::ScopedSettings context({session.ServerProtocol(), -1});
+            session.InjectIncoming(packet.kId, net::Encode(packet));
+            MovementProtocolTestAccess::Effects(player, session);
+        }
+
         void Seed(float value = .1f, std::optional<float> base = std::nullopt) {
             Update({Attribute("minecraft:movement", value, base),
                     Attribute("minecraft:underwater_movement", .03f),
@@ -128,6 +142,33 @@ namespace perlin::selftest {
                 t.Check(rig.Frame(7).underwaterSpeed == .07f && rig.Frame(7).lavaSpeed == .09f &&
                             rig.Frame(7).airDrag == .8f,
                         "a partial speed correction preserves later fluid and drag attributes");
+            }
+            {
+                // A server that sends only the final movement value, with no modifier list.
+                Rig rig(protocol);
+                rig.Seed();
+                constexpr std::array<bool, 8> sprint{false, false, true, true, true, true, true, true};
+                const auto near = [](float a, float b) { return std::fabs(a - b) < 1e-6f; };
+                rig.Frames(sprint);
+                rig.Effect(1, 1, 100);
+                for (size_t i = 0; i < 8; ++i)
+                    t.Check(near(rig.Frame(i).speed, (sprint[i] ? .13f : .1f) * 1.4f),
+                            "a stamped speed effect replays every saved frame with its movement modifier");
+                rig.Effect(1, 0, 104, proto::MobEffectPacketEventId::Remove);
+                for (size_t i = 0; i < 8; ++i)
+                    t.Check(near(rig.Frame(i).speed, (sprint[i] ? .13f : .1f) * (i < 4 ? 1.4f : 1.0f)),
+                            "a stamped speed removal restores the plain speed from the next frame");
+                rig.Effect(1, 1, 0);
+                rig.Update({Attribute("minecraft:movement", .14f, .1f)}, 0);
+                const auto live = [&](bool sprinting) {
+                    return rig.session.PredictedMovementSpeed(sprinting, std::nullopt,
+                                                              rig.session.GetEffects());
+                };
+                t.Check(near(live(false), .14f) && near(live(true), .182f) && near(live(false), .14f),
+                        "a live speed effect survives sprint toggles after a modifier-free attribute update");
+                rig.Effect(2, 0, 0);
+                t.Check(near(live(false), .1f * 1.4f * .85f),
+                        "slowness stacks with speed on the live movement attribute");
             }
             {
                 Rig rig(protocol);

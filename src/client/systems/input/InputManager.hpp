@@ -118,6 +118,10 @@ namespace perlin {
         Input& input;
         Options& options;
         std::bitset<kActionCount> pressed;
+        // Mouse buttons whose press this manager has polled. The platform thread raises a button
+        // before its press event is queued, so a click landing after Poll would otherwise read as
+        // held for the rest of the frame and become a press on the next one.
+        std::bitset<8> polledButtons;
         bool controlled = false;
         std::bitset<kActionCount> controlActions, controlPressed;
         uint64_t controlTick = 0, controlUntil = 0;

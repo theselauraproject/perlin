@@ -1314,6 +1314,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(status_effect_selftest PRIVATE src)
     target_compile_features(status_effect_selftest PRIVATE cxx_std_23)
     add_test(NAME status_effect_selftest COMMAND status_effect_selftest)
+    add_executable(movement_speed_effect_selftest tests/movement_speed_effect_selftest.cpp
+        src/world/movement/PlayerPhysics.cpp)
+    target_include_directories(movement_speed_effect_selftest PRIVATE src)
+    target_link_libraries(movement_speed_effect_selftest PRIVATE perlin_protocol)
+    add_test(NAME movement_speed_effect_selftest COMMAND movement_speed_effect_selftest)
     add_executable(armor_damage_selftest tests/armor_damage_selftest.cpp
         src/client/systems/multiplayer/ItemNbtInfo.cpp)
     target_link_libraries(armor_damage_selftest PRIVATE perlin_protocol)
@@ -1380,6 +1385,20 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/client/systems/gfx/SkyGeometry.cpp)
     target_include_directories(input_selftest PRIVATE src "${glm_SOURCE_DIR}")
     add_test(NAME input_selftest COMMAND input_selftest)
+    add_executable(input_press_selftest
+        tests/input_press_selftest.cpp
+        src/client/systems/input/Input.cpp
+        src/client/systems/input/InputManager.cpp
+        src/client/systems/bindings/Keys.cpp
+        src/client/systems/bindings/KeyMapping.cpp
+        src/client/systems/config/Options.cpp
+        src/util/Json.cpp
+        src/util/Resources.cpp
+        src/util/Paths.cpp)
+    target_include_directories(input_press_selftest PRIVATE src "${concurrentqueue_SOURCE_DIR}")
+    target_link_libraries(input_press_selftest PRIVATE glaze::glaze Threads::Threads SDL3::SDL3)
+    target_compile_features(input_press_selftest PRIVATE cxx_std_23)
+    add_test(NAME input_press_selftest COMMAND input_press_selftest)
 
     add_executable(physics_selftest
         tests/physics_selftest.cpp
