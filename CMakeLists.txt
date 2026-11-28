@@ -1314,6 +1314,11 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
     target_include_directories(status_effect_selftest PRIVATE src)
     target_compile_features(status_effect_selftest PRIVATE cxx_std_23)
     add_test(NAME status_effect_selftest COMMAND status_effect_selftest)
+    add_executable(movement_speed_effect_selftest tests/movement_speed_effect_selftest.cpp
+        src/world/movement/PlayerPhysics.cpp)
+    target_include_directories(movement_speed_effect_selftest PRIVATE src)
+    target_link_libraries(movement_speed_effect_selftest PRIVATE perlin_protocol)
+    add_test(NAME movement_speed_effect_selftest COMMAND movement_speed_effect_selftest)
     add_executable(armor_damage_selftest tests/armor_damage_selftest.cpp
         src/client/systems/multiplayer/ItemNbtInfo.cpp)
     target_link_libraries(armor_damage_selftest PRIVATE perlin_protocol)

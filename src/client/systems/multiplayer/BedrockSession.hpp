@@ -39,6 +39,7 @@ using EC_KEY = struct ec_key_st;
 #include <mutex>
 #include <queue>
 #include <set>
+#include <span>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -276,10 +277,19 @@ namespace perlin {
             const auto it = ownAttributes.find("minecraft:movement");
             return it == ownAttributes.end() ? 0.1f : it->second;
         }
-        float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength = std::nullopt);
+        struct EffectState {
+            int id = 0;
+            int amplifier = 0;
+            int ticks = 0;
+            bool ambient = false;
+            bool particles = true;
+        };
+        float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength = std::nullopt,
+                                     std::span<const EffectState> effects = {});
         struct MovementAttributeState {
             bool known = false;
             std::vector<proto::PlayerAttributesEntryModifiersEntry> modifiers;
+            std::array<bool, 2> effectModifiers{};
             std::array<float, 3> base{};
             std::array<float, 2> limits{};
             float value = 0.1f;
@@ -298,9 +308,11 @@ namespace perlin {
         static void ApplyMovementAttribute(MovementAttributeState& state,
                                            const proto::PlayerAttributesEntry& entry);
         static float PredictedMovementSpeed(MovementAttributeState& state, bool sprinting,
-                                            std::optional<float> freezeStrength = std::nullopt);
+                                            std::optional<float> freezeStrength = std::nullopt,
+                                            std::span<const EffectState> effects = {});
         float PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength,
-                                     MovementAttributeState& snapshot);
+                                     MovementAttributeState& snapshot,
+                                     std::span<const EffectState> effects = {});
         static bool IsMovementAttribute(std::string_view name) {
             return name == "minecraft:movement" || name == "minecraft:underwater_movement" ||
                    name == "minecraft:lava_movement" || name == "minecraft:air_drag_modifier";
@@ -927,13 +939,6 @@ namespace perlin {
         bool CloseInventory();
         bool SwapInventorySlots(int a, int b);
         bool DropInventorySlot(int slot, bool whole);
-        struct EffectState {
-            int id = 0;
-            int amplifier = 0;
-            int ticks = 0;
-            bool ambient = false;
-            bool particles = true;
-        };
         std::vector<EffectState> GetEffects() const;
         struct EffectUpdate {
             uint64_t tick = 0;

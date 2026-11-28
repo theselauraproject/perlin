@@ -423,15 +423,17 @@ namespace perlin {
         }
     }
 
-    float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength) {
+    float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength,
+                                                 std::span<const EffectState> effects) {
         std::lock_guard lock(attrMutex);
-        return PredictedMovementSpeed(movementState, sprinting, freezeStrength);
+        return PredictedMovementSpeed(movementState, sprinting, freezeStrength, effects);
     }
 
     float BedrockSession::PredictedMovementSpeed(bool sprinting, std::optional<float> freezeStrength,
-                                                 MovementAttributeState& snapshot) {
+                                                 MovementAttributeState& snapshot,
+                                                 std::span<const EffectState> effects) {
         std::lock_guard lock(attrMutex);
-        const float result = PredictedMovementSpeed(movementState, sprinting, freezeStrength);
+        const float result = PredictedMovementSpeed(movementState, sprinting, freezeStrength, effects);
         snapshot = movementState;
         return result;
     }
@@ -440,6 +442,7 @@ namespace perlin {
                                                 const PlayerAttributesEntry& entry) {
         state.known = true;
         state.modifiers = entry.modifiers;
+        state.effectModifiers = {};
         const float baseMin = std::fmin(entry.defaultMax, entry.defaultMin);
         state.base = {baseMin, entry.defaultMax,
                         entry.defaultMax < entry.default_ ? entry.defaultMax
@@ -450,14 +453,22 @@ namespace perlin {
     }
 
     float BedrockSession::PredictedMovementSpeed(MovementAttributeState& state, bool sprinting,
-                                                 std::optional<float> freezeStrength) {
+                                                 std::optional<float> freezeStrength,
+                                                 std::span<const EffectState> effects) {
 
         std::optional<float> freeze;
         if (freezeStrength && std::fabs(*freezeStrength) > 0.00000011920929f)
             freeze = *freezeStrength * -0.05f;
+        const auto effectLevel = [&](const physics::bds::EffectSpeedModifier& modifier) {
+            const auto effect = std::ranges::find(effects, modifier.effectId, &EffectState::id);
+            return effect == effects.end() ? 0 : effect->amplifier + 1;
+        };
         if (!state.known) {
             const float factor = 0.3f + 1.0f;
-            const float value = freeze ? *freeze + 0.1f : 0.1f;
+            float value = freeze ? *freeze + 0.1f : 0.1f;
+            for (const auto& modifier : physics::bds::kEffectSpeedModifiers)
+                if (const int level = effectLevel(modifier))
+                    value *= modifier.amountPerLevel * static_cast<float>(level) + 1.0f;
             return sprinting ? factor * value : value;
         }
 
@@ -481,10 +492,16 @@ namespace perlin {
             std::array<float, 2> limits = state.limits;
             return physics::RecalculateAttribute(state.base, values, value, limits);
         };
+        bool effectsChanged = false;
+        for (size_t i = 0; i < physics::bds::kEffectSpeedModifiers.size(); ++i) {
+            const auto& modifier = physics::bds::kEffectSpeedModifiers[i];
+            effectsChanged |= physics::bds::SyncEffectSpeedModifier(state.modifiers, state.effectModifiers[i],
+                                                                    modifier, effectLevel(modifier));
+        }
         const bool present = std::ranges::any_of(state.modifiers, IsSprintModifier);
-        if (sprinting == present)
+        if (sprinting == present && !effectsChanged)
             return withFreeze(state.value);
-        if (sprinting) {
+        if (sprinting && !present) {
             PlayerAttributesEntryModifiersEntry boost;
             boost.id = "d208fc00-42aa-4aad-9276-d5446530de43";
             boost.name = "Sprinting speed boost";
@@ -493,7 +510,7 @@ namespace perlin {
             boost.operand = 2;
             boost.serializable = false;
             state.modifiers.push_back(boost);
-        } else {
+        } else if (!sprinting) {
             std::erase_if(state.modifiers, IsSprintModifier);
         }
         state.value = physics::RecalculateAttribute(state.base, ModifierValues(state.modifiers),
