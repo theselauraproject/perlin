@@ -177,3 +177,30 @@ same native-first path.
 - **Leather armour.** Undyed leather icons were left grey: they now take Java's default #A06540. Worn
   leather armour is coloured with the dye (`customColor`, read from MobArmorEquipment for other players
   and from the inventory for the local player) or the default brown, through the colour-mask bake.
+
+## Round 5: plants and leather follow-up
+
+- **Saplings, flowers, grass, rails, panes, ...** are flat items in Java (their block texture as a
+  sprite). With no Bedrock item texture they fell through to the placed-block render (a 3D cross); the
+  GUI and the hand now use the block's flat sprite (tinted like the plant) for every Java flat item.
+- **Leather item icons** follow Bedrock's change-colour convention, as worn armour does: opaque pixels
+  are dyed (default #A06540), nearly transparent pixels are the undyed overlay shown as is. The previous
+  rule had it backwards, leaving most of the helmet, leggings, boots and horse armour white. Leather horse
+  armour is dyed too.
+
+## Round 6: whole-catalogue audit (`tools/audit_items.py`)
+
+`python3 tools/audit_items.py --jar <client.jar> --sheets <dir>` checks every item and renders every
+block item's icon with the client's icon maths and the jar's textures (192 per sheet). Results for 26.3:
+
+- **Paths.** 1658 Java items: 819 block (inventory mesh), 761 flat, 78 special. Block items without a
+  mesh: big_dripleaf, small_dripleaf, heavy_core (old path). Special without a builder: decorated_pot.
+- **Names.** All 2029 Bedrock ids were checked against JavaItemName. The 351 without a Java item are
+  non-items (double slabs, wall signs, fluids, portals, candle cakes) or Bedrock/Education-only items
+  (elements, hard glass, chemistry tables, border/allow/deny, colored torches); they keep Bedrock icons.
+- **Geometry.** The 815 rendered block icons match Java's layout (stairs, fences, gates, walls,
+  shelves, trapdoors, buttons, plates, carpets, anvils, lecterns, grindstones, ...).
+- **Textures.** Two pixel-matcher mistakes were fixed in block_models.bin and recorded in texalias.json:
+  loom top (was lectern top) and the sandstone / red sandstone sides (were the bottom texture; Bedrock's
+  side is `*_sandstone_normal`), for icons and placed blocks. Still fuzzy, needing the Bedrock pack to
+  regenerate: dried_ghast body faces and the dried kelp block's bottom.
