@@ -532,6 +532,8 @@ namespace perlin {
                           : layer == UiLayer::WorldLate ? View::Late
                           : layer == UiLayer::Hand      ? View::Hand
                           : layer == UiLayer::Doll      ? View::Doll
+                          : layer == UiLayer::HudDoll   ? View::HudDoll
+                          : layer == UiLayer::Debug     ? View::Debug
                           : layer == UiLayer::Top       ? View::Top
                           : layer == UiLayer::Export    ? View::ExportUi
                                                         : View::Gui;
@@ -561,7 +563,8 @@ namespace perlin {
             BindTexture("s_uiGlint", glintRec->handle, glintRec->sampler);
 
         const bool world = layer == UiLayer::World || layer == UiLayer::WorldLate;
-        const bool entityView = world || layer == UiLayer::Hand || layer == UiLayer::Doll;
+        const bool entityView =
+            world || layer == UiLayer::Hand || layer == UiLayer::Doll || layer == UiLayer::HudDoll;
         const DrawMaterial domain = draw.material == DrawMaterial::Auto
                                         ? (entityView ? DrawMaterial::Entity : DrawMaterial::Auto)
                                         : draw.material;

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -106,6 +107,28 @@ namespace perlin::download {
         std::error_code ec;
         fs::create_directories(target.parent_path(), ec);
         const fs::path part = target.string() + ".part";
+
+#if defined(__ANDROID__)
+        // Android's own network stack first (one streamed connection); the ranged OpenSSL download below
+        // is the fallback. Java writes the byte counts straight into `prog` and polls its cancel flag.
+        static_assert(sizeof(std::atomic<uint64_t>) == 8 && std::atomic<uint64_t>::is_always_lock_free);
+        static_assert(offsetof(Progress, done) == 0 && offsetof(Progress, total) == 8 &&
+                      offsetof(Progress, cancel) == 16 && sizeof(std::atomic<bool>) == 1);
+        {
+            std::string error;
+            if (http::android::DownloadFile(url, part.string(), &prog, sizeof(Progress), options.timeoutSecs,
+                                            error)) {
+                fs::rename(part, target, ec);
+                if (!ec)
+                    return true;
+            }
+            fs::remove(part, ec);
+            if (prog.cancel)
+                return false;
+            Log("download", "{} failed over Android's network stack ({}); trying OpenSSL", url, error);
+            prog.done = 0;
+        }
+#endif
 
         std::string current = url;
         uint64_t total = 0;

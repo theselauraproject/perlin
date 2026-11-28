@@ -1,11 +1,13 @@
 #include "client/systems/model/DialFrames.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
-#include "client/systems/sprites/ShieldItemIcon.hpp"
+#include "client/systems/sprites/ItemDisplay.hpp"
+#include "client/systems/sprites/SpecialItemModels.hpp"
 #include "client/systems/attachable/Geometry.hpp"
 #include "client/systems/resources/ServerPacks.hpp"
 #include "client/systems/resources/ServerBlocks.hpp"
 #include "client/systems/i18n/Lang.hpp"
 #include "client/systems/text/McFont.hpp"
+#include "util/Paths.hpp"
 #include "util/Resources.hpp"
 #include "util/ResourcePaths.hpp"
 
@@ -14,6 +16,7 @@
 #include "util/JsonValue.hpp"
 
 #include <algorithm>
+#include <glm/glm.hpp>
 #include <cctype>
 #include <iostream>
 #include <cmath>
@@ -232,6 +235,13 @@ namespace perlin::ui {
     bool UiAssets::Image(const std::string& rel, Texture& out) {
         std::lock_guard lock(mutex);
         return FindImage(rel, out);
+    }
+
+    bool UiAssets::ModelTexture(const std::string& rel, Texture& out) {
+        if (Image(rel, out) && out.width > 0)
+            return true;
+        return rel.find('/') == std::string::npos && LoadTexture(paths::DataDir() + "/assets/" + rel, out) &&
+               out.width > 0;
     }
 
     bool UiAssets::ImageSize(const std::string& rel, int& w, int& h) {
@@ -546,16 +556,6 @@ namespace perlin::ui {
                 t.pixels.size() >= static_cast<size_t>(t.width) * t.width * 4) {
                 t.pixels.resize(static_cast<size_t>(t.width) * t.width * 4);
                 t.height = t.width;
-            }
-            if (name == "shield" && t.width >= 64 && t.height >= 64) {
-                std::vector<uint8_t> icon = BuildShieldItemIcon(t.pixels, t.width, t.height);
-                constexpr int side = 32;
-                out.ok = true;
-                out.block = false;
-                out.w = out.h = side;
-                out.rgba = std::move(icon);
-                out.handheld = false;
-                return true;
             }
             if (name.starts_with("leather_") && name != "leather_horse_armor") {
                 const uint32_t rgb = dyeColor >= 0 ? static_cast<uint32_t>(dyeColor) & 0xFFFFFFu : 0xA06540u;
@@ -1030,18 +1030,195 @@ namespace perlin::ui {
         return !out.empty();
     }
 
+    namespace {
+        // One textured quad for the software GUI rasteriser: model-space corners (0..1 block),
+        // normalised UVs and the texture it samples.
+        struct IconQuad {
+            glm::vec3 p[4];
+            glm::vec2 uv[4];
+            glm::vec3 n{0.0f};
+            const std::vector<uint8_t>* texture = nullptr;
+            int texW = 0, texH = 0;
+            glm::vec3 tint{1.0f};
+            bool shade = true;
+        };
+
+        // Draws an item the way GuiRenderer does: a 16x16 slot is `size` pixels, the model is placed with
+        // translate(8, 8) * scale(16, -16, 16) * ItemTransform.apply(gui) and depth tested. "side" lit
+        // models take the two GUI 3D lights; "front" lit ones are lit flat from the viewer.
+        // `pad` adds that many pixels around the slot on every side, for models that reach outside their
+        // 16x16 slot in Java (the shield, banners, beds): the image is then (size + 2 * pad) square.
+        bool RasterIcon(const std::vector<IconQuad>& quads, const glm::mat4& pose, bool frontLight, int size,
+                        Texture& out, int pad = 0) {
+            const int ss = 2;
+            const int slot = size * ss;
+            const int full = size + 2 * pad;
+            const int big = full * ss;
+            std::vector<uint8_t> color(static_cast<size_t>(big) * big * 4, 0);
+            std::vector<float> depth(static_cast<size_t>(big) * big, -1e9f);
+            const float half = static_cast<float>(big) * 0.5f;
+            const glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(pose)));
+            const glm::vec3 l0 = glm::normalize(glm::vec3(0.2f, 1.0f, -0.7f));
+            const glm::vec3 l1 = glm::normalize(glm::vec3(-0.2f, 1.0f, 0.7f));
+            bool any = false;
+            for (const IconQuad& q : quads) {
+                if (!q.texture || q.texW <= 0 || q.texH <= 0 ||
+                    q.texture->size() < static_cast<size_t>(q.texW) * q.texH * 4)
+                    continue;
+                float sx[4], sy[4], sz[4];
+                for (int i = 0; i < 4; i++) {
+                    const glm::vec4 v = pose * glm::vec4(q.p[i], 1.0f);
+                    sx[i] = half + v.x * static_cast<float>(slot);
+                    sy[i] = half - v.y * static_cast<float>(slot);
+                    sz[i] = v.z;
+                }
+                glm::vec3 n = q.n;
+                if (glm::dot(n, n) < 1e-12f)
+                    n = glm::cross(q.p[1] - q.p[0], q.p[3] - q.p[0]);
+                n = normalMatrix * n;
+                const float nl = glm::length(n);
+                if (nl < 1e-6f)
+                    continue;
+                n /= nl;
+                if (n.z < 0.0f)
+                    n = -n;
+                float shade = 1.0f;
+                if (q.shade)
+                    shade = frontLight ? 0.55f + 0.45f * n.z
+                                       : std::min(1.0f, (std::max(0.0f, glm::dot(n, l0)) +
+                                                         std::max(0.0f, glm::dot(n, l1))) *
+                                                                0.6f +
+                                                            0.4f);
+                const glm::vec3 lit = q.tint * shade;
+                const std::vector<uint8_t>& tex = *q.texture;
+                const int tris[2][3] = {{0, 1, 2}, {0, 2, 3}};
+                for (const auto& t : tris) {
+                    const float x0 = sx[t[0]], y0 = sy[t[0]], x1 = sx[t[1]], y1 = sy[t[1]], x2 = sx[t[2]],
+                                y2 = sy[t[2]];
+                    const float det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+                    if (std::fabs(det) < 1e-6f)
+                        continue;
+                    const int minX = std::max(0, static_cast<int>(std::floor(std::min({x0, x1, x2}))));
+                    const int maxX = std::min(big - 1, static_cast<int>(std::ceil(std::max({x0, x1, x2}))));
+                    const int minY = std::max(0, static_cast<int>(std::floor(std::min({y0, y1, y2}))));
+                    const int maxY = std::min(big - 1, static_cast<int>(std::ceil(std::max({y0, y1, y2}))));
+                    for (int y = minY; y <= maxY; y++)
+                        for (int x = minX; x <= maxX; x++) {
+                            const float px = static_cast<float>(x) + 0.5f, py = static_cast<float>(y) + 0.5f;
+                            const float w1 = ((px - x0) * (y2 - y0) - (x2 - x0) * (py - y0)) / det;
+                            const float w2 = ((x1 - x0) * (py - y0) - (px - x0) * (y1 - y0)) / det;
+                            const float w0 = 1.0f - w1 - w2;
+                            if (w0 < -1e-4f || w1 < -1e-4f || w2 < -1e-4f)
+                                continue;
+                            const float z = w0 * sz[t[0]] + w1 * sz[t[1]] + w2 * sz[t[2]];
+                            const size_t at = static_cast<size_t>(y) * big + x;
+                            if (z < depth[at])
+                                continue;
+                            const float u = w0 * q.uv[t[0]].x + w1 * q.uv[t[1]].x + w2 * q.uv[t[2]].x;
+                            const float v = w0 * q.uv[t[0]].y + w1 * q.uv[t[1]].y + w2 * q.uv[t[2]].y;
+                            const int tx = std::clamp(static_cast<int>(u * static_cast<float>(q.texW)), 0, q.texW - 1);
+                            const int ty = std::clamp(static_cast<int>(v * static_cast<float>(q.texH)), 0, q.texH - 1);
+                            const uint8_t* src = &tex[(static_cast<size_t>(ty) * q.texW + tx) * 4];
+                            if (src[3] < 8)
+                                continue;
+                            depth[at] = z;
+                            uint8_t* dst = &color[at * 4];
+                            dst[0] = static_cast<uint8_t>(std::min(255.0f, src[0] * lit.r));
+                            dst[1] = static_cast<uint8_t>(std::min(255.0f, src[1] * lit.g));
+                            dst[2] = static_cast<uint8_t>(std::min(255.0f, src[2] * lit.b));
+                            dst[3] = src[3];
+                            any = true;
+                        }
+                }
+            }
+            if (!any)
+                return false;
+            out.width = out.height = full;
+            out.pixels.assign(static_cast<size_t>(full) * full * 4, 0);
+            for (int y = 0; y < full; y++)
+                for (int x = 0; x < full; x++) {
+                    int sum[4] = {0, 0, 0, 0};
+                    for (int dy = 0; dy < ss; dy++)
+                        for (int dx = 0; dx < ss; dx++) {
+                            const uint8_t* c = &color[(static_cast<size_t>(y * ss + dy) * big + x * ss + dx) * 4];
+                            sum[0] += c[0] * c[3];
+                            sum[1] += c[1] * c[3];
+                            sum[2] += c[2] * c[3];
+                            sum[3] += c[3];
+                        }
+                    uint8_t* dst = &out.pixels[(static_cast<size_t>(y) * full + x) * 4];
+                    if (sum[3] > 0) {
+                        dst[0] = static_cast<uint8_t>(sum[0] / sum[3]);
+                        dst[1] = static_cast<uint8_t>(sum[1] / sum[3]);
+                        dst[2] = static_cast<uint8_t>(sum[2] / sum[3]);
+                        dst[3] = static_cast<uint8_t>(sum[3] / (ss * ss));
+                    }
+                }
+            return true;
+        }
+
+        // The GUI pose of an inventory model: its own "gui" display transform when the Java table has one,
+        // otherwise block/block.json's (30, 225, 0) at 0.625.
+        glm::mat4 GuiPose(const itemdisplay::Entry* display) {
+            if (display && display->found && display->gui.present)
+                return itemdisplay::Pose(display->gui, false);
+            itemdisplay::Transform block;
+            block.present = true;
+            block.rotation = {30.0f, 225.0f, 0.0f};
+            block.scale = glm::vec3(0.625f);
+            return itemdisplay::Pose(block, false);
+        }
+
+        std::string IconBaseName(const std::string& key) {
+            const size_t end = key.find_first_of(";@!#");
+            return std::string(str::StripAnyNamespace(key.substr(0, end)));
+        }
+    }
+
+    bool UiAssets::BakeSpecialIcon(const std::string& name, Texture& out) {
+        const itemdisplay::Entry& display = itemdisplay::Lookup(name, itemdisplay::Context::Gui);
+        if (!display.found || display.kind != itemdisplay::Entry::Kind::Special)
+            return false;
+        std::vector<special::Part> parts;
+        if (!special::Build(display, "minecraft:" + name, parts))
+            return false;
+        std::vector<Texture> textures(parts.size());
+        std::vector<IconQuad> quads;
+        for (size_t i = 0; i < parts.size(); i++) {
+            if (!ModelTexture(parts[i].texture, textures[i]))
+                continue;
+            for (const attachable::Quad& q : parts[i].quads) {
+                IconQuad iq;
+                std::copy_n(q.p, 4, iq.p);
+                std::copy_n(q.uv, 4, iq.uv);
+                iq.n = q.n;
+                iq.texture = &textures[i].pixels;
+                iq.texW = textures[i].width;
+                iq.texH = textures[i].height;
+                iq.tint = parts[i].tint;
+                quads.push_back(iq);
+            }
+        }
+        // Drawn with a margin so a model that reaches outside its slot (the shield's top, a banner) is not
+        // cut off; Canvas::Item recognises the size and places the margin around the slot.
+        return RasterIcon(quads, GuiPose(&display), display.frontLight, kOverflowIconSlotPx, out,
+                          (kOverflowIconPx - kOverflowIconSlotPx) / 2);
+    }
+
     bool UiAssets::ItemIcon(const std::string& key, Texture& out) {
         const ItemSprite* s = Item(key);
         // A Java inventory model is a different mesh from a placed block.
         // For example, a fence inventory icon has rails even when a world
         // fence has no neighbours. Keep state-hashed variants on the old path.
-        if (key.find('#') == std::string::npos && blocks && blocks->Ready()) {
-            const size_t end = key.find_first_of(";@!");
-            const std::string base = std::string(str::StripAnyNamespace(key.substr(0, end)));
-            if (blocks->Models().FindItem(base) && BakeModelIcon(base, 0, 64, out, true)) {
-                CenterIconPixels(out);
+        if (key.find('#') == std::string::npos) {
+            const std::string base = IconBaseName(key);
+            const itemdisplay::Entry& display = itemdisplay::Lookup(base, itemdisplay::Context::Gui);
+            if (display.found && display.kind == itemdisplay::Entry::Kind::Special && BakeSpecialIcon(base, out))
                 return true;
-            }
+            const bool blockModel = !display.found || display.kind == itemdisplay::Entry::Kind::Block;
+            if (blockModel && blocks && blocks->Ready() && blocks->Models().FindItem(base) &&
+                BakeModelIcon(base, 0, 64, out, true))
+                return true;
         }
         if (!s || s->fromBlock || s->generic) {
             const size_t hashAt = key.find('#');
@@ -1104,13 +1281,13 @@ namespace perlin::ui {
         if (quads.empty())
             return false;
         const BlockAppearance* app = blocks->LookByName("minecraft:" + name);
-        float tr = 1, tg = 1, tb = 1;
+        glm::vec3 tint(1.0f);
         bool tinted = false;
         {
             auto set = [&](uint32_t rgb) {
-                tr = ((rgb >> 16) & 255) / 255.0f;
-                tg = ((rgb >> 8) & 255) / 255.0f;
-                tb = (rgb & 255) / 255.0f;
+                tint = glm::vec3(static_cast<float>((rgb >> 16) & 255), static_cast<float>((rgb >> 8) & 255),
+                                 static_cast<float>(rgb & 255)) /
+                       255.0f;
                 tinted = true;
             };
             if (name.contains("spruce_leaves"))
@@ -1127,49 +1304,17 @@ namespace perlin::ui {
             else if (name == "vine" || name == "lily_pad")
                 set(0x48B518);
             else if (app && (app->tintTop || app->tintSide)) {
-                tr = app->tintR;
-                tg = app->tintG;
-                tb = app->tintB;
+                tint = glm::vec3(app->tintR, app->tintG, app->tintB);
                 tinted = true;
             }
         }
-        const int ss = 2;
-        const int big = size * ss;
-        std::vector<uint8_t> color(static_cast<size_t>(big) * big * 4, 0);
-        std::vector<float> depth(static_cast<size_t>(big) * big, -1e9f);
+        const int tpx = BlockLibrary::TilePx();
         std::unordered_map<int, std::vector<uint8_t>> tiles;
-        const float ry = 225.0f * 3.14159265f / 180.0f, rx = 30.0f * 3.14159265f / 180.0f;
-        const auto rotate = [&](const float* p, float* r) {
-            const float x1 = p[0] * std::cos(ry) + p[2] * std::sin(ry);
-            const float z1 = -p[0] * std::sin(ry) + p[2] * std::cos(ry);
-            r[0] = x1;
-            r[1] = p[1] * std::cos(rx) - z1 * std::sin(rx);
-            r[2] = p[1] * std::sin(rx) + z1 * std::cos(rx);
-        };
-        const float scale = 10.0f * static_cast<float>(big) / 16.0f;
-        const float centre = static_cast<float>(big) * 0.5f;
-        const float l0[3] = {0.2f / 1.237f, 1.0f / 1.237f, -0.7f / 1.237f};
-        const float l1[3] = {-0.2f / 1.237f, 1.0f / 1.237f, 0.7f / 1.237f};
-        int ymin = big, ymax = -1, xmin = big, xmax = -1;
-        struct Projected {
-            float sx[4], sy[4], sz[4];
-        };
-        std::vector<Projected> projected(quads.size());
-        for (size_t qi = 0; qi < quads.size(); qi++) {
-            const ModelQuad& q = *quads[qi];
-            for (int i = 0; i < 4; i++) {
-                const float p[3] = {q.pos[i][0] - 0.5f, q.pos[i][1] - 0.5f, q.pos[i][2] - 0.5f};
-                float r[3];
-                rotate(p, r);
-                projected[qi].sx[i] = centre + r[0] * scale;
-                projected[qi].sy[i] = centre - r[1] * scale;
-                projected[qi].sz[i] = r[2];
-            }
-        }
-        for (size_t qi = 0; qi < quads.size(); qi++) {
-            const ModelQuad& q = *quads[qi];
-            const Projected& P = projected[qi];
-            int tile = q.tile ? q.tile : ((q.tex != 0xFFFF && q.tex < bm.tiles.size()) ? bm.tiles[q.tex] : 0);
+        std::vector<IconQuad> iconQuads;
+        iconQuads.reserve(quads.size());
+        for (const ModelQuad* mq : quads) {
+            const ModelQuad& q = *mq;
+            const int tile = q.tile ? q.tile : ((q.tex != 0xFFFF && q.tex < bm.tiles.size()) ? bm.tiles[q.tex] : 0);
             if (!tile)
                 continue;
             auto found = tiles.find(tile);
@@ -1179,105 +1324,24 @@ namespace perlin::ui {
                     px.clear();
                 found = tiles.emplace(tile, std::move(px)).first;
             }
-            const std::vector<uint8_t>& tex = found->second;
-            const int tpx = BlockLibrary::TilePx();
-            if (tex.size() < static_cast<size_t>(tpx) * tpx * 4)
-                continue;
-            float e1[3], e2[3];
-            for (int c = 0; c < 3; c++) {
-                e1[c] = q.pos[1][c] - q.pos[0][c];
-                e2[c] = q.pos[3][c] - q.pos[0][c];
+            IconQuad iq;
+            for (int i = 0; i < 4; i++) {
+                iq.p[i] = glm::vec3(q.pos[i][0], q.pos[i][1], q.pos[i][2]);
+                iq.uv[i] = glm::vec2(q.uv[i][0], q.uv[i][1]) / 16.0f;
             }
-            float n[3] = {e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2],
-                          e1[0] * e2[1] - e1[1] * e2[0]};
-            const float nl = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-            if (nl < 1e-6f)
-                continue;
-            for (float& c : n)
-                c /= nl;
-            float rn[3];
-            rotate(n, rn);
-            if (rn[2] < 0)
-                for (float& c : rn)
-                    c = -c;
-            const auto dot = [&](const float* l) {
-                return std::max(0.0f, rn[0] * l[0] + rn[1] * l[1] + rn[2] * l[2]);
-            };
-            const float shade = q.shade ? std::min(1.0f, (dot(l0) + dot(l1)) * 0.6f + 0.4f) : 1.0f;
-            const bool useTint = tinted && q.tint >= 0 && !q.tile;
-            const int tris[2][3] = {{0, 1, 2}, {0, 2, 3}};
-            for (const auto& t : tris) {
-                const float x0 = P.sx[t[0]], y0 = P.sy[t[0]], x1 = P.sx[t[1]], y1 = P.sy[t[1]],
-                            x2 = P.sx[t[2]], y2 = P.sy[t[2]];
-                const float det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
-                if (std::fabs(det) < 1e-6f)
-                    continue;
-                const int minX = std::max(0, static_cast<int>(std::floor(std::min({x0, x1, x2}))));
-                const int maxX = std::min(big - 1, static_cast<int>(std::ceil(std::max({x0, x1, x2}))));
-                const int minY = std::max(0, static_cast<int>(std::floor(std::min({y0, y1, y2}))));
-                const int maxY = std::min(big - 1, static_cast<int>(std::ceil(std::max({y0, y1, y2}))));
-                for (int y = minY; y <= maxY; y++)
-                    for (int x = minX; x <= maxX; x++) {
-                        const float px = x + 0.5f, py = y + 0.5f;
-                        const float w1 = ((px - x0) * (y2 - y0) - (x2 - x0) * (py - y0)) / det;
-                        const float w2 = ((x1 - x0) * (py - y0) - (px - x0) * (y1 - y0)) / det;
-                        const float w0 = 1.0f - w1 - w2;
-                        if (w0 < -1e-4f || w1 < -1e-4f || w2 < -1e-4f)
-                            continue;
-                        const float z = w0 * P.sz[t[0]] + w1 * P.sz[t[1]] + w2 * P.sz[t[2]];
-                        const float u = w0 * q.uv[t[0]][0] + w1 * q.uv[t[1]][0] + w2 * q.uv[t[2]][0];
-                        const float v = w0 * q.uv[t[0]][1] + w1 * q.uv[t[1]][1] + w2 * q.uv[t[2]][1];
-                        const int tx = std::clamp(static_cast<int>(u / 16.0f * tpx), 0, tpx - 1);
-                        const int ty = std::clamp(static_cast<int>(v / 16.0f * tpx), 0, tpx - 1);
-                        const uint8_t* src = &tex[(static_cast<size_t>(ty) * tpx + tx) * 4];
-                        if (src[3] < 8)
-                            continue;
-                        const size_t at = static_cast<size_t>(y) * big + x;
-                        if (z < depth[at])
-                            continue;
-                        depth[at] = z;
-                        uint8_t* dst = &color[at * 4];
-                        float r = src[0] * shade, g = src[1] * shade, b = src[2] * shade;
-                        if (useTint) {
-                            r *= tr;
-                            g *= tg;
-                            b *= tb;
-                        }
-                        dst[0] = static_cast<uint8_t>(std::min(255.0f, r));
-                        dst[1] = static_cast<uint8_t>(std::min(255.0f, g));
-                        dst[2] = static_cast<uint8_t>(std::min(255.0f, b));
-                        dst[3] = src[3];
-                        xmin = std::min(xmin, x);
-                        xmax = std::max(xmax, x);
-                        ymin = std::min(ymin, y);
-                        ymax = std::max(ymax, y);
-                    }
-            }
+            iq.texture = &found->second;
+            iq.texW = iq.texH = tpx;
+            iq.shade = q.shade != 0;
+            if (tinted && q.tint >= 0 && !q.tile)
+                iq.tint = tint;
+            iconQuads.push_back(iq);
         }
-        if (xmax < 0)
-            return false;
-        out.width = out.height = size;
-        out.pixels.assign(static_cast<size_t>(size) * size * 4, 0);
-        for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++) {
-                int sum[4] = {0, 0, 0, 0};
-                for (int dy = 0; dy < ss; dy++)
-                    for (int dx = 0; dx < ss; dx++) {
-                        const uint8_t* c = &color[(static_cast<size_t>(y * ss + dy) * big + x * ss + dx) * 4];
-                        sum[0] += c[0] * c[3];
-                        sum[1] += c[1] * c[3];
-                        sum[2] += c[2] * c[3];
-                        sum[3] += c[3];
-                    }
-                uint8_t* dst = &out.pixels[(static_cast<size_t>(y) * size + x) * 4];
-                if (sum[3] > 0) {
-                    dst[0] = static_cast<uint8_t>(sum[0] / sum[3]);
-                    dst[1] = static_cast<uint8_t>(sum[1] / sum[3]);
-                    dst[2] = static_cast<uint8_t>(sum[2] / sum[3]);
-                    dst[3] = static_cast<uint8_t>(sum[3] / (ss * ss));
-                }
-            }
-        return true;
+        // An inventory model is drawn with its Java "gui" transform; a placed block state keeps the
+        // generic block view.
+        const itemdisplay::Entry* display =
+            inventory ? &itemdisplay::Lookup(name, itemdisplay::Context::Gui) : nullptr;
+        return RasterIcon(iconQuads, GuiPose(display), display && display->found && display->frontLight, size,
+                          out);
     }
 
     void BakeCubeIcon(const ItemSprite& sprite, int size, Texture& out) {

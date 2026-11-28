@@ -49,7 +49,8 @@ namespace perlin {
         const unsigned threads = std::clamp(cores > 3 ? cores - 2 : 2u, 2u, 16u);
         maxInFlight = threads * 6;
 #endif
-        meshPool = std::make_unique<ThreadPool>(threads, true, "perlin-mesh");
+        // Chunk meshing is the heaviest background work; on phones it runs on the performance cores.
+        meshPool = std::make_unique<ThreadPool>(threads, true, "perlin-mesh", true);
     }
 
     LevelRenderer::~LevelRenderer() {

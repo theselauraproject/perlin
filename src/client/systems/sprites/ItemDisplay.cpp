@@ -1,21 +1,19 @@
-#include "client/systems/hand/ItemDisplay.hpp"
+#include "client/systems/sprites/ItemDisplay.hpp"
 
-#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <vector>
 
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "util/Json.hpp"
-#include "util/Resources.hpp"
 #include "util/ResourcePaths.hpp"
+#include "util/Resources.hpp"
 
 namespace perlin::itemdisplay {
     namespace {
         struct Table {
-            std::vector<std::unordered_map<std::string, Transform>> styles;
-            std::unordered_map<std::string, Entry> hand, ground;
+            std::unordered_map<std::string, Entry> rows[4];
             Entry missing;
         };
 
@@ -27,7 +25,8 @@ namespace perlin::itemdisplay {
             const auto vec = [](json::View a, glm::vec3 fallback) {
                 if (!a.isArray() || a.size() < 3)
                     return fallback;
-                return glm::vec3(a[0].real(), a[1].real(), a[2].real());
+                return glm::vec3(static_cast<float>(a[0].real()), static_cast<float>(a[1].real()),
+                                 static_cast<float>(a[2].real()));
             };
             t.rotation = vec(v["rotation"], glm::vec3(0.0f));
             t.translation = vec(v["translation"], glm::vec3(0.0f));
@@ -35,16 +34,23 @@ namespace perlin::itemdisplay {
             return t;
         }
 
+        std::string Bare(std::string s) {
+            if (const size_t colon = s.find(':'); colon != std::string::npos)
+                s.erase(0, colon + 1);
+            return s;
+        }
+
         Entry Build(json::View row, const std::vector<json::View>& styles) {
             Entry e;
             if (!row.isArray() || row.size() < 3)
                 return e;
             const std::string kind = row[0].str();
-            if (kind == "flat")
+            if (kind == "flat") {
                 e.kind = Entry::Kind::Flat;
-            else if (kind == "block")
+                e.frontLight = true;
+            } else if (kind == "block") {
                 e.kind = Entry::Kind::Block;
-            else {
+            } else {
                 e.kind = Entry::Kind::Special;
                 e.special = kind.starts_with("special:") ? kind.substr(8) : kind;
             }
@@ -59,33 +65,54 @@ namespace perlin::itemdisplay {
                 e.ground = ReadTransform(s["ground"]);
                 e.head = ReadTransform(s["head"]);
                 e.fixed = ReadTransform(s["fixed"]);
+                e.gui = ReadTransform(s["gui"]);
+                // Tables written before the generator resolved left hands per file.
                 if (!e.firstLeft.present)
                     e.firstLeft = e.firstRight;
                 if (!e.thirdLeft.present)
                     e.thirdLeft = e.thirdRight;
+            }
+            if (row.size() > 3 && row[3].isObject()) {
+                const json::View extra = row[3];
+                const json::View light = extra["light"];
+                if (light.isString())
+                    e.frontLight = light.str() == "front";
+                const json::View local = extra["local"];
+                if (local.isArray() && local.size() == 16) {
+                    float m[16];
+                    for (size_t i = 0; i < 16; i++)
+                        m[i] = static_cast<float>(local[i].real());
+                    e.local = glm::make_mat4(m);
+                    e.hasLocal = true;
+                }
+                for (const auto [key, value] : extra["args"].members())
+                    if (value.isString())
+                        e.args[std::string(key)] = Bare(value.str());
             }
             e.found = true;
             return e;
         }
 
         const Table& Get() {
-            static Table table = [] {
+            static const Table table = [] {
                 Table t;
-                static std::string text;
-                static std::optional<json::Document> doc;
+                std::string text;
                 if (!resources::Read(resources::path::kItemDisplay, text))
                     return t;
-                doc = json::Document::Parse(text, true);
+                const std::optional<json::Document> doc = json::Document::Parse(text, true);
                 if (!doc)
                     return t;
                 const json::View root = doc->root();
                 std::vector<json::View> styles;
                 for (json::View s : root["styles"].items())
                     styles.push_back(s);
+                static const char* const kContexts[4] = {"hand", "ground", "gui", "hand_use"};
                 for (const auto [name, row] : root["items"].members()) {
-                    t.hand[std::string(name)] = Build(row["hand"], styles);
-                    t.ground[std::string(name)] =
-                        Build(row["ground"].isArray() ? row["ground"] : row["hand"], styles);
+                    const json::View hand = row["hand"];
+                    for (int c = 0; c < 4; c++) {
+                        const json::View own = row[kContexts[c]];
+                        t.rows[c][std::string(name)] = Build(own.isArray() ? own : hand, styles);
+                    }
                 }
                 return t;
             }();
@@ -93,29 +120,13 @@ namespace perlin::itemdisplay {
         }
     }
 
-    const Entry& Lookup(const std::string& name, bool ground) {
+    const Entry& Lookup(const std::string& name, Context context) {
         const Table& t = Get();
-        const std::string bare = name.starts_with("minecraft:") ? name.substr(10) : name;
-        const auto& map = ground ? t.ground : t.hand;
-        const auto it = map.find(bare);
+        const std::string_view bare = std::string_view(name).starts_with("minecraft:")
+                                          ? std::string_view(name).substr(10)
+                                          : std::string_view(name);
+        const auto& map = t.rows[static_cast<int>(context)];
+        const auto it = map.find(std::string(bare));
         return it == map.end() ? t.missing : it->second;
-    }
-
-    glm::mat4 Apply(const Transform& t, bool leftHand) {
-        if (!t.present)
-            return glm::mat4(1.0f);
-        const float k = 3.14159265358979323846f / 180.0f;
-        float ry = t.rotation.y, rz = t.rotation.z;
-        if (leftHand) {
-            ry = -ry;
-            rz = -rz;
-        }
-        const float side = leftHand ? -1.0f : 1.0f;
-        glm::mat4 m = glm::translate(
-            glm::mat4(1.0f), glm::vec3(side * t.translation.x, t.translation.y, t.translation.z) / 16.0f);
-        m = glm::rotate(m, t.rotation.x * k, glm::vec3(1, 0, 0));
-        m = glm::rotate(m, ry * k, glm::vec3(0, 1, 0));
-        m = glm::rotate(m, rz * k, glm::vec3(0, 0, 1));
-        return glm::scale(m, t.scale);
     }
 }

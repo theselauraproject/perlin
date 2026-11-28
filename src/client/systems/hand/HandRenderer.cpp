@@ -3,7 +3,8 @@
 #include "client/systems/hand/HandRenderer.hpp"
 #include "util/Env.hpp"
 
-#include "client/systems/hand/ItemDisplay.hpp"
+#include "client/systems/sprites/ItemDisplay.hpp"
+#include "client/systems/sprites/SpecialItemModels.hpp"
 #include "client/systems/resources/TextureLoader.hpp"
 
 #include "client/systems/sprites/Glint.hpp"
@@ -178,9 +179,13 @@ namespace perlin {
 
     void HandRenderer::ClearItems() {
         if (renderer)
-            for (auto& [key, model] : items)
+            for (auto& [key, model] : items) {
                 if (model.texture)
                     renderer->UiDestroyTexture(model.texture);
+                for (const Model& part : model.parts)
+                    if (part.texture)
+                        renderer->UiDestroyTexture(part.texture);
+            }
         items.clear();
         ClearMeshCache();
         if (renderer)
@@ -188,7 +193,6 @@ namespace perlin {
                 if (id)
                     renderer->UiDestroyTexture(id);
         attachableTextures.clear();
-        shieldTexture = 0;
         attachables.Clear();
     }
 
@@ -448,22 +452,74 @@ namespace perlin {
         skinFallback = true;
     }
 
-    const HandRenderer::Model& HandRenderer::ItemModel(const ui::HudItem& item) {
+    bool HandRenderer::BuildSpecialModel(const ui::HudItem& item, const itemdisplay::Entry& display,
+                                         ui::UiAssets& assets, Model& out) {
+        std::vector<ui::special::Part> parts;
+        if (!renderer || !ui::special::Build(display, item.name, parts))
+            return false;
+        Model model;
+        for (ui::special::Part& part : parts) {
+            Texture tex;
+            if (!assets.ModelTexture(part.texture, tex) || tex.pixels.empty())
+                continue;
+            Model piece;
+            piece.texture = renderer->UiCreateTexture(tex.width, tex.height, tex.pixels.data(), false);
+            if (!piece.texture)
+                continue;
+            piece.quads = std::move(part.quads);
+            piece.tint = part.tint;
+            piece.block = piece.valid = piece.special = true;
+            if (!model.valid)
+                model = std::move(piece);
+            else
+                model.parts.push_back(std::move(piece));
+        }
+        if (!model.valid)
+            return false;
+        out = std::move(model);
+        return true;
+    }
+
+    glm::mat4 HandRenderer::DisplayPose(const Model& model, const itemdisplay::Entry& display,
+                                        const itemdisplay::Transform& t, bool leftHand) {
+        // Special models already carry the item definition's transformation in their quads.
+        return model.special ? itemdisplay::Pose(t, leftHand) : itemdisplay::ModelPose(display, t, leftHand);
+    }
+
+    void HandRenderer::DrawItemModel(const Model& model, const glm::mat4& m, const glm::vec3& light, bool glint) {
+        DrawModel(model.quads, model.texture, m, light * model.tint, 0.1f, glint, 0.0f, &model);
+        for (const Model& part : model.parts)
+            DrawModel(part.quads, part.texture, m, light * part.tint, 0.1f, glint, 0.0f, &part);
+    }
+
+    const HandRenderer::Model& HandRenderer::ItemModel(const ui::HudItem& item, itemdisplay::Context context) {
         auto& assets = ui::UiAssets::Instance();
         if (assets.Generation() != itemGeneration) {
             itemGeneration = assets.Generation();
             ClearItems();
         }
-        const std::string key = item.Key();
+        // Java picks a different model per display context for some items (the trident and spyglass are
+        // flat on the ground, the raised shield is shield_blocking), so the context is part of the key.
+        std::string key = item.Key();
+        if (context != itemdisplay::Context::Hand) {
+            key += '|';
+            key += static_cast<char>('0' + static_cast<int>(context));
+        }
         auto it = items.find(key);
         if (it != items.end())
             return it->second;
+        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, context);
         Model model;
+        if (display.found && display.kind == itemdisplay::Entry::Kind::Special &&
+            BuildSpecialModel(item, display, assets, model))
+            return items.emplace(key, std::move(model)).first->second;
         // Use the actual Java inventory mesh for block items. The legacy
         // synthetic cube/post/stair meshes below remain a fallback for packs
         // and states with no Java model, but should not override a real mesh.
+        // Items Java draws as flat sprites (bell, doors, signs, ...) never take a block mesh.
+        const bool flatKind = display.found && display.kind == itemdisplay::Entry::Kind::Flat;
         Texture itemAtlas;
-        if (assets.ItemMesh(item.name, model.quads, itemAtlas)) {
+        if (!flatKind && assets.ItemMesh(item.name, model.quads, itemAtlas)) {
             model.texture = renderer->UiCreateTexture(itemAtlas.width, itemAtlas.height,
                                                       itemAtlas.pixels.data(), false);
             if (model.texture) {
@@ -785,6 +841,7 @@ namespace perlin {
             if (entry.mesh)
                 worldMeshes.push_back(entry.mesh);
         meshCache.clear();
+        meshCandidates.clear();
     }
 
     void HandRenderer::DrawModel(const std::vector<Quad>& quads, uint32_t texture, const glm::mat4& model,
@@ -864,6 +921,12 @@ namespace perlin {
                     it->second.used = ++meshCacheTick;
                     mesh = it->second.mesh;
                     shared = true;
+                } else if (!meshCandidates.erase(key)) {
+                    // First sighting of this shading: a spinning dropped item changes its shading every
+                    // frame, so it is drawn from the frame ring; a key that comes back is worth a buffer.
+                    if (meshCandidates.size() > 1024)
+                        meshCandidates.clear();
+                    meshCandidates.insert(key);
                 } else {
                     auto [vertices, indices] = buildMesh(colors);
                     mesh = renderer->UiCreateMesh(vertices.data(), static_cast<uint32_t>(vertices.size()),
@@ -916,7 +979,7 @@ namespace perlin {
             draw.scissor = true;
             std::copy_n(dollClip, 4, draw.scissorRect);
         }
-        const UiLayer layer = !worldPass ? UiLayer::Hand : dollClip ? UiLayer::Doll : UiLayer::World;
+        const UiLayer layer = !worldPass ? UiLayer::Hand : dollClip ? dollLayer : UiLayer::World;
         renderer->UiSubmit(layer, draw);
         if (glint) {
             if (glintTexture == 0)
@@ -927,9 +990,11 @@ namespace perlin {
                                                           .count());
                 const ui::GlintTransform g = ui::MakeGlintTransform(ms);
                 draw.glintTexture = glintTexture;
-                draw.glintStrength = PERLIN_ENV("PERLIN_GLINT_STRENGTH")
-                                         ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_GLINT_STRENGTH")))
-                                         : 1.0f;
+                static const float kGlintStrength =
+                    PERLIN_ENV("PERLIN_GLINT_STRENGTH")
+                        ? static_cast<float>(std::atof(PERLIN_ENV("PERLIN_GLINT_STRENGTH")))
+                        : 1.0f;
+                draw.glintStrength = kGlintStrength;
                 std::copy(g.matrix, g.matrix + 4, draw.glintMatrix);
                 std::copy(g.offset, g.offset + 2, draw.glintOffset);
                 renderer->UiSubmit(layer, draw);
@@ -950,7 +1015,7 @@ namespace perlin {
         currentItem = item.name;
         if (!renderer || item.Empty())
             return;
-        const Model& model = ItemModel(item);
+        const Model& model = ItemModel(item, itemdisplay::Context::Ground);
         if (!model.valid)
             return;
         const auto hash = [&](uint64_t salt) {
@@ -961,7 +1026,7 @@ namespace perlin {
             return static_cast<float>(x & 0xFFFFFF) / static_cast<float>(0x1000000);
         };
         const float bobOffs = hash(1) * 2.0f * kPi;
-        const itemdisplay::Entry& groundDisplay = itemdisplay::Lookup(item.name, true);
+        const itemdisplay::Entry& groundDisplay = itemdisplay::Lookup(item.name, itemdisplay::Context::Ground);
         const bool tabled = groundDisplay.found && groundDisplay.ground.present;
         const float scale = tabled ? groundDisplay.ground.scale.y : (model.block ? 0.25f : 0.5f);
         const float display = model.block ? 3.0f / 16.0f : 2.0f / 16.0f;
@@ -989,10 +1054,10 @@ namespace perlin {
                 m = solid ? m * T(fx * 0.15f, fy * 0.15f, fz * 0.15f) : m * T(fx * 0.075f, fy * 0.075f, 0.0f);
             }
             if (tabled)
-                m = m * itemdisplay::Apply(groundDisplay.ground, false) * T(-0.5f, -0.5f, -0.5f);
+                m = m * DisplayPose(model, groundDisplay, groundDisplay.ground, false);
             else
                 m = m * T(0.0f, display, 0.0f) * S(scale) * T(-0.5f, -0.5f, -0.5f);
-            DrawModel(model.quads, model.texture, m, light, 0.1f, false, 0.0f, &model);
+            DrawItemModel(model, m, light, false);
             if (!solid)
                 base = base * T(0.0f, 0.0f, 0.09375f * kz);
         }
@@ -1010,12 +1075,12 @@ namespace perlin {
         const glm::mat4 m = T(static_cast<float>(feet.x), static_cast<float>(feet.y), static_cast<float>(feet.z)) *
                             T(0.0f, 0.5f, 0.0f) * S(scale) * T(-0.5f, -0.5f, -0.5f);
         worldPass = true;
-        DrawModel(model.quads, model.texture, m, light, 0.1f, false, 0.0f, &model);
+        DrawItemModel(model, m, light, false);
         worldPass = false;
     }
 
     void HandRenderer::DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left,
-                                    const glm::vec3& light, float bowUseTicks) {
+                                    const glm::vec3& light, float bowUseTicks, bool raised) {
         currentItem = item.name;
         if (!renderer || item.Empty())
             return;
@@ -1026,7 +1091,8 @@ namespace perlin {
                                       : (bowUseTicks >= 18.0f ? 2 : bowUseTicks >= 13.0f ? 1 : 0);
             renderedItem.name = "minecraft:bow_pulling_" + std::to_string(frame);
         }
-        const Model& model = ItemModel(renderedItem);
+        const itemdisplay::Context context = raised ? itemdisplay::Context::HandUse : itemdisplay::Context::Hand;
+        const Model& model = ItemModel(renderedItem, context);
         if (!model.valid)
             return;
         if (classic) {
@@ -1047,7 +1113,7 @@ namespace perlin {
             }
             const glm::mat4 m = arm * (left ? kMirrorX : glm::mat4(1.0f)) * c * ClassicItemSpace(model);
             worldPass = true;
-            DrawModel(model.quads, model.texture, m, light, 0.1f, item.enchanted);
+            DrawItemModel(model, m, light, item.enchanted);
             worldPass = false;
             return;
         }
@@ -1060,8 +1126,8 @@ namespace perlin {
         const bool handheld = ends("_sword") || ends("_pickaxe") || ends("_axe") || ends("_shovel") ||
                               ends("_hoe") || n == "stick" || n == "blaze_rod" || n == "bone" ||
                               n == "mace" || n == "breeze_rod" || ends("_on_a_stick") || n == "fishing_rod";
-        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, false);
-        const itemdisplay::Transform& third = left ? display.thirdLeft : display.thirdRight;
+        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, context);
+        const itemdisplay::Transform& third = display.ThirdPerson(left);
         if (item.name == "minecraft:trident") {
             const glm::mat4 base =
                 arm * Rx(-90.0f) * Ry(180.0f) * T(side / 16.0f, 2.0f / 16.0f, -10.0f / 16.0f);
@@ -1071,11 +1137,13 @@ namespace perlin {
             if (drawn)
                 return;
         }
-        if (display.found && third.present) {
+        if (display.found) {
+            // ItemInHandLayer: translateToHand, rotate X -90 and Y 180, translate((left ? -1 : 1) / 16, 0.125,
+            // -0.625), then the item's third-person ItemTransform (NO_TRANSFORM is just the -0.5 recentring).
             glm::mat4 held = arm * Rx(-90.0f) * Ry(180.0f) * T(side / 16.0f, 2.0f / 16.0f, -10.0f / 16.0f);
-            held = held * itemdisplay::Apply(third, left) * T(-0.5f, -0.5f, -0.5f);
+            held = held * DisplayPose(model, display, third, left);
             worldPass = true;
-            DrawModel(model.quads, model.texture, held, light, 0.1f, item.enchanted);
+            DrawItemModel(model, held, light, item.enchanted);
             worldPass = false;
             return;
         }
@@ -1097,7 +1165,7 @@ namespace perlin {
         m = m * T(side * tr.x / 16.0f, tr.y / 16.0f, tr.z / 16.0f) *
             (Rx(rot.x) * Ry(side * rot.y) * Rz(side * rot.z)) * S(scale) * T(-0.5f, -0.5f, -0.5f);
         worldPass = true;
-        DrawModel(model.quads, model.texture, m, light, 0.1f, item.enchanted);
+        DrawItemModel(model, m, light, item.enchanted);
         worldPass = false;
     }
 
@@ -1237,7 +1305,15 @@ namespace perlin {
         if (!model.valid)
             return;
         m = m * S(s.scale) * ClassicItemSpace(model);
-        DrawModel(model.quads, model.texture, m, in.light, 0.1f, item.enchanted);
+        DrawItemModel(model, m, in.light, item.enchanted);
+    }
+
+    bool HandRenderer::ShieldRaised(const ui::HudItem& item, bool rightArm, const HandSettings& s) const {
+        if (!blocking || item.name != "minecraft:shield")
+            return false;
+        // With a shield in both hands the main hand's is the one in use.
+        const bool mainHand = rightArm == !s.leftHanded;
+        return mainHand || mainShown.name != "minecraft:shield";
     }
 
     void HandRenderer::RenderItem(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
@@ -1301,12 +1377,10 @@ namespace perlin {
                 m = m * Ry(side * -45.0f);
             }
         }
-        if (item.name == "minecraft:shield") {
-            // Match Java's item model selection: no Bedrock attachable
-            // render/animation path for a shield in either hand.
-            RenderShield(in, s, item, rightArm, m);
-            return;
-        }
+        // The shield (like every Java special item) takes the generic item path below: no Bedrock
+        // attachable, and the in-use model (shield_blocking) while it is raised.
+        const itemdisplay::Context context = ShieldRaised(item, rightArm, s) ? itemdisplay::Context::HandUse
+                                                                              : itemdisplay::Context::Hand;
         if (item.name == "minecraft:trident" && s.attachables &&
             DrawGeometryItem(item, m, !rightArm, true, in.light))
             return;
@@ -1333,78 +1407,25 @@ namespace perlin {
             pulled.name = std::string(isBow ? "minecraft:bow_pulling_" : "minecraft:crossbow_pulling_") +
                           std::to_string(frame);
         }
-        const Model& model = ItemModel(pulled.name.empty() ? item : pulled);
+        const Model& model = ItemModel(pulled.name.empty() ? item : pulled, context);
         if (!model.valid)
             return;
-        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, false);
-        const itemdisplay::Transform& first = rightArm ? display.firstRight : display.firstLeft;
-        if (display.found && first.present) {
-            m = m * itemdisplay::Apply(first, !rightArm);
+        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, context);
+        if (display.found) {
+            // ItemTransform.apply for the first-person context, exactly: an item without one (NO_TRANSFORM)
+            // is only recentred. The user's hand scale sits between the transform and the recentring.
+            const bool leftHand = !rightArm;
+            m = m * itemdisplay::Apply(display.FirstPerson(leftHand), leftHand) * S(s.scale) *
+                T(-0.5f, -0.5f, -0.5f);
+            if (display.hasLocal && !model.special)
+                m = m * display.local;
         } else if (model.block) {
-            m = m * Ry(rightArm ? 45.0f : -45.0f) * S(0.4f);
+            m = m * Ry(rightArm ? 45.0f : -45.0f) * S(0.4f) * S(s.scale) * T(-0.5f, -0.5f, -0.5f);
         } else {
             m = m * T(side * (1.13f / 16.0f), 3.2f / 16.0f, 1.13f / 16.0f) * (Ry(-90.0f) * Rz(25.0f)) *
-                S(0.68f);
+                S(0.68f) * S(s.scale) * T(-0.5f, -0.5f, -0.5f);
         }
-        m = m * S(s.scale) * T(-0.5f, -0.5f, -0.5f);
-        DrawModel(model.quads, model.texture, m, in.light, 0.1f, item.enchanted);
-    }
-
-    namespace {
-        void JavaBox(std::vector<attachable::Quad>& out, glm::vec3 o, glm::vec3 sz, float u, float v) {
-            const float w = sz.x, h = sz.y, d = sz.z;
-            const glm::vec3 lo = o, hi = o + sz;
-            auto face = [&](glm::vec3 origin, glm::vec3 du, glm::vec3 dv, float u0, float v0, float uw,
-                            float vh, glm::vec3 n) {
-                attachable::Quad q;
-                q.p[0] = origin;
-                q.p[1] = origin + du;
-                q.p[2] = origin + du + dv;
-                q.p[3] = origin + dv;
-                const float k = 1.0f / 64.0f;
-                q.uv[0] = {u0 * k, v0 * k};
-                q.uv[1] = {(u0 + uw) * k, v0 * k};
-                q.uv[2] = {(u0 + uw) * k, (v0 + vh) * k};
-                q.uv[3] = {u0 * k, (v0 + vh) * k};
-                q.n = n;
-                out.push_back(q);
-            };
-            face({lo.x, lo.y, lo.z}, {w, 0, 0}, {0, h, 0}, u + d, v + d, w, h, {0, 0, -1});
-            face({hi.x, lo.y, hi.z}, {-w, 0, 0}, {0, h, 0}, u + d + w + d, v + d, w, h, {0, 0, 1});
-            face({lo.x, lo.y, hi.z}, {0, 0, -d}, {0, h, 0}, u, v + d, d, h, {-1, 0, 0});
-            face({hi.x, lo.y, lo.z}, {0, 0, d}, {0, h, 0}, u + d + w, v + d, d, h, {1, 0, 0});
-            face({lo.x, lo.y, lo.z}, {w, 0, 0}, {0, 0, d}, u + d, v, w, d, {0, -1, 0});
-            face({lo.x, hi.y, hi.z}, {w, 0, 0}, {0, 0, -d}, u + d + w, v, w, d, {0, 1, 0});
-        }
-    }
-
-    void HandRenderer::RenderShield(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
-                                    bool rightArm, const glm::mat4& hand) {
-        currentItem = item.name;
-        if (!shieldTexture)
-            shieldTexture = AttachableTexture("textures/entity/shield");
-        if (!shieldTexture)
-            return;
-        if (shieldQuads.empty()) {
-            JavaBox(shieldQuads, {-6, -11, -2}, {12, 22, 1}, 0, 0);
-            JavaBox(shieldQuads, {-1, -3, -1}, {2, 6, 6}, 26, 0);
-        }
-        // Display transforms are from the Minecraft 26.3 client JAR's
-        // assets/minecraft/models/item/shield(_blocking).json.
-        struct Display { glm::vec3 rot, tr; float scale; };
-        static const Display idle[2] = {{{0, 180, 5}, {-10, 1.75f, -10}, 1.25f},
-                                        {{0, 180, 5}, {10, 0, -10}, 1.25f}};
-        static const Display block[2] = {{{0, 180, -5}, {-15, 3.25f, -11}, 1.25f},
-                                         {{0, 180, -5}, {5, 5, -11}, 1.25f}};
-        const Display& d = (blocking ? block : idle)[rightArm ? 0 : 1];
-        // The right- and left-hand JSON transforms already have distinct
-        // signed translations. Mirroring them a second time collapsed the
-        // offhand shield onto the main-hand side.
-        glm::mat4 m = hand * T(d.tr.x / 16.0f, d.tr.y / 16.0f, d.tr.z / 16.0f) *
-                      Rx(d.rot.x) * Ry(d.rot.y) * Rz(d.rot.z) *
-                      S(d.scale) * S(s.scale) * Ry(180.0f) *
-                      glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / 16.0f, -1.0f / 16.0f, -1.0f / 16.0f));
-        DrawModel(shieldQuads, shieldTexture, m, in.light, 0.1f, item.enchanted);
+        DrawItemModel(model, m, in.light, item.enchanted);
     }
 
     uint32_t HandRenderer::AttachableTexture(const std::string& path) {
@@ -1473,33 +1494,10 @@ namespace perlin {
                                              bool sneaking, bool using_, float usedTicks, bool blocking,
                                              double life, const std::string& mainItem,
                                              const std::string& offItem, attachable::Frame& out) {
-        if (item == "minecraft:shield") {
-            // Third-person and paperdoll use the same Java plate/handle boxes
-            // as first-person, not the Bedrock attachable animation graph.
-            attachable::Part plate;
-            plate.texture = "textures/entity/shield";
-            JavaBox(plate.quads, {-6, -11, -2}, {12, 22, 1}, 0, 0);
-            JavaBox(plate.quads, {-1, -3, -1}, {2, 6, 6}, 26, 0);
-            // Java 26.3 models/item/shield(_blocking).json third-person
-            // display transforms, in sixteenth-block model units.
-            const glm::vec3 rot = blocking ? glm::vec3(45.0f, 155.0f, 0.0f)
-                                           : glm::vec3(0.0f, 90.0f, 0.0f);
-            const glm::vec3 tr = blocking
-                                     ? (left ? glm::vec3(11.51f, 7.0f, 2.5f)
-                                             : glm::vec3(-3.49f, 11.0f, -2.0f))
-                                     : (left ? glm::vec3(10.0f, 6.0f, 12.0f)
-                                             : glm::vec3(10.0f, 6.0f, -4.0f));
-            const glm::mat4 model = T(tr.x, tr.y, tr.z) * Rx(rot.x) * Ry(rot.y) * Rz(rot.z);
-            for (attachable::Quad& q : plate.quads) {
-                for (glm::vec3& vertex : q.p)
-                    vertex = glm::vec3(model * glm::vec4(vertex, 1.0f));
-                q.n = glm::normalize(glm::mat3(model) * q.n);
-            }
-            out.parts.clear();
-            out.parts.push_back(std::move(plate));
-            out.valid = true;
-            return true;
-        }
+        // The shield is a Java special item: DrawHeldItem draws it from ShieldModel with the
+        // shield / shield_blocking third-person transforms, in every view including the paper doll.
+        if (item == "minecraft:shield")
+            return false;
         attachables.Configure(ui::UiAssets::Instance().VanillaRoot());
         if (!attachables.Has(item))
             return false;
@@ -1545,8 +1543,7 @@ namespace perlin {
             return false;
         }
         if (!(item.name == "minecraft:bow" && PERLIN_ENV("PERLIN_BOW_ATTACHABLE")) &&
-            !(item.name == "minecraft:crossbow" && PERLIN_ENV("PERLIN_CROSSBOW_ATTACHABLE")) &&
-            item.name != "minecraft:shield")
+            !(item.name == "minecraft:crossbow" && PERLIN_ENV("PERLIN_CROSSBOW_ATTACHABLE")))
             return false;
         attachable::ItemState st;
         st.identifier = item.name;

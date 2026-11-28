@@ -150,12 +150,14 @@ namespace {
         job.filesTotal = total;
         job.filesDone = 0;
         auto worker = [&] {
+#if !defined(__ANDROID__)
             httplib::SSLClient cli("raw.githubusercontent.com", 443);
             perlin::http::UseSystemCa(cli);
             cli.set_connection_timeout(20);
             cli.set_read_timeout(60);
             cli.set_keep_alive(true);
             cli.set_follow_location(true);
+#endif
             for (;;) {
                 const size_t i = next.fetch_add(1);
                 if (i >= total)
@@ -168,16 +170,30 @@ namespace {
                 }
                 bool ok = false;
                 for (int attempt = 0; attempt < 4 && !ok; attempt++) {
+                    std::string body;
+#if defined(__ANDROID__)
+                    // Android's network stack first, with OpenSSL as its fallback (http::Request).
+                    const std::string origin =
+                        prefix.starts_with("http") ? std::string() : std::string("https://raw.githubusercontent.com");
+                    perlin::http::Response res = perlin::http::GetUrl(origin + prefix + Encode(files[i]), {}, 60);
+                    if (res.status != 200) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(300 * (attempt + 1)));
+                        continue;
+                    }
+                    body = std::move(res.body);
+#else
                     httplib::Result res = cli.Get(prefix + Encode(files[i]));
                     if (!res || res->status != 200) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(300 * (attempt + 1)));
                         continue;
                     }
+                    body = std::move(res->body);
+#endif
                     fs::create_directories(target.parent_path(), ec);
                     const fs::path temp = target.string() + ".part";
                     {
                         std::ofstream out(temp, std::ios::binary);
-                        out.write(res->body.data(), static_cast<std::streamsize>(res->body.size()));
+                        out.write(body.data(), static_cast<std::streamsize>(body.size()));
                         if (!out.good())
                             continue;
                     }

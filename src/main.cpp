@@ -13,6 +13,7 @@
 #include "util/GraphicsDebugger.hpp"
 #include "util/Paths.hpp"
 
+#include <SDL3/SDL_log.h>
 #include <SDL3/SDL_main.h>
 #include "client/services/update/Updater.hpp"
 
@@ -46,6 +47,16 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#endif
+#if defined(__ANDROID__)
+#include <android/log.h>
+#include <csignal>
+#include <cstring>
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/prctl.h>
+#include <sys/system_properties.h>
+#include <unwind.h>
 #endif
 #include <chrono>
 #include <ctime>
@@ -87,8 +98,65 @@ namespace {
         setvbuf(stdout, nullptr, _IONBF, 0);
     }
 
+#if defined(__ANDROID__)
+    // Everything the game prints also goes to logcat (stdout is /dev/null in an Android app), one entry per
+    // line so `adb logcat -s Perlin` reads like perlin.log. Crashes and warnings get their logcat priority.
+    class LogcatTee {
+    public:
+        void Feed(const char* data, size_t size) {
+            pending.append(data, size);
+            size_t start = 0;
+            for (size_t nl = pending.find('\n'); nl != std::string::npos; nl = pending.find('\n', start)) {
+                Emit(std::string_view(pending).substr(start, nl - start));
+                start = nl + 1;
+            }
+            pending.erase(0, start);
+            // A runaway line without a newline is flushed in logcat-sized pieces.
+            while (pending.size() > kMax) {
+                Emit(std::string_view(pending).substr(0, kMax));
+                pending.erase(0, kMax);
+            }
+        }
+
+    private:
+        static constexpr size_t kMax = 3800;
+        static int Priority(std::string_view line) {
+            if (line.starts_with("[crash]"))
+                return ANDROID_LOG_FATAL;
+            if (line.find("error") != std::string_view::npos || line.find("failed") != std::string_view::npos)
+                return ANDROID_LOG_ERROR;
+            if (line.find("warning") != std::string_view::npos || line.find("could not") != std::string_view::npos)
+                return ANDROID_LOG_WARN;
+            return ANDROID_LOG_INFO;
+        }
+        void Emit(std::string_view line) {
+            if (!line.empty() && line.back() == '\r')
+                line.remove_suffix(1);
+            if (line.empty())
+                return;
+            const std::string text(line);
+            __android_log_write(Priority(line), "Perlin", text.c_str());
+        }
+        std::string pending;
+    };
+#endif
+
+    // The previous run's log is kept as perlin.prev.log: after a crash, the log that explains it is not
+    // overwritten by the launch made to go and read it.
+    void KeepPreviousLog(const std::string& path) {
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec))
+            return;
+        const std::filesystem::path p(path);
+        const std::filesystem::path previous = p.parent_path() / (p.stem().string() + ".prev" + p.extension().string());
+        std::filesystem::remove(previous, ec);
+        std::filesystem::rename(p, previous, ec);
+    }
+
     void StartLogCapture(const std::vector<std::string>& paths) {
         std::vector<FILE*> logs;
+        for (const std::string& path : paths)
+            KeepPreviousLog(path);
         for (const std::string& path : paths)
             if (FILE* f = std::fopen(path.c_str(), "wb")) {
                 std::fputs("[perlin] log opened\n", f);
@@ -121,6 +189,9 @@ namespace {
         setvbuf(stdout, nullptr, _IONBF, 0);
         setvbuf(stderr, nullptr, _IONBF, 0);
         std::thread([logs, saved, readFd] {
+#if defined(__ANDROID__)
+            LogcatTee logcat;
+#endif
             char buf[8192];
             for (;;) {
 #ifdef _WIN32
@@ -134,6 +205,10 @@ namespace {
                     std::fwrite(buf, 1, static_cast<size_t>(n), log);
                     std::fflush(log);
                 }
+#if defined(__ANDROID__)
+                logcat.Feed(buf, static_cast<size_t>(n));
+                continue;
+#endif
                 if (saved >= 0) {
 #ifdef _WIN32
                     (void)_write(saved, buf, static_cast<unsigned>(n));
@@ -477,6 +552,193 @@ namespace {
 }
 #endif
 
+#if defined(__ANDROID__)
+namespace {
+    // Bionic has no glibc backtrace(): native crashes on Android left no trace in perlin.log, only a
+    // tombstone the user cannot read without adb. This handler writes the signal, the fault address, the
+    // crashing thread and a symbolised stack to perlin.log and logcat, then hands the signal back to the
+    // previous handler (debuggerd), so the tombstone is still written.
+    char gAndroidCrashLog[1024];
+    struct sigaction gPreviousAction[NSIG];
+
+    struct UnwindState {
+        void** frames;
+        int depth, max;
+    };
+
+    _Unwind_Reason_Code UnwindFrame(struct _Unwind_Context* context, void* arg) {
+        auto* state = static_cast<UnwindState*>(arg);
+        const uintptr_t pc = _Unwind_GetIP(context);
+        if (pc) {
+            if (state->depth >= state->max)
+                return _URC_END_OF_STACK;
+            state->frames[state->depth++] = reinterpret_cast<void*>(pc);
+        }
+        return _URC_NO_REASON;
+    }
+
+    void Put(int fd, const char* s) {
+        if (fd >= 0 && s)
+            (void)!write(fd, s, std::strlen(s));
+    }
+
+    void PutHex(int fd, uintptr_t v) {
+        char buf[2 + sizeof(uintptr_t) * 2 + 1];
+        int n = sizeof(buf) - 1;
+        buf[n] = 0;
+        do {
+            const int d = static_cast<int>(v & 15u);
+            buf[--n] = static_cast<char>(d < 10 ? '0' + d : 'a' + d - 10);
+            v >>= 4;
+        } while (v && n > 2);
+        buf[--n] = 'x';
+        buf[--n] = '0';
+        Put(fd, buf + n);
+    }
+
+    void PutDec(int fd, long v) {
+        char buf[24];
+        int n = sizeof(buf) - 1;
+        buf[n] = 0;
+        const bool negative = v < 0;
+        unsigned long u = negative ? static_cast<unsigned long>(-v) : static_cast<unsigned long>(v);
+        do {
+            buf[--n] = static_cast<char>('0' + u % 10);
+            u /= 10;
+        } while (u && n > 1);
+        if (negative)
+            buf[--n] = '-';
+        Put(fd, buf + n);
+    }
+
+    const char* SignalName(int sig) {
+        switch (sig) {
+        case SIGSEGV:
+            return "SIGSEGV";
+        case SIGABRT:
+            return "SIGABRT";
+        case SIGBUS:
+            return "SIGBUS";
+        case SIGFPE:
+            return "SIGFPE";
+        case SIGILL:
+            return "SIGILL";
+        case SIGTRAP:
+            return "SIGTRAP";
+        default:
+            return "signal";
+        }
+    }
+
+    void AndroidCrash(int sig, siginfo_t* info, void* context) {
+        static volatile sig_atomic_t entered = 0;
+        if (!entered) {
+            entered = 1;
+            const int fd = open(gAndroidCrashLog, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
+            char thread[17] = {};
+            prctl(PR_GET_NAME, thread, 0, 0, 0);
+            Put(fd, "[crash] fatal signal ");
+            Put(fd, SignalName(sig));
+            Put(fd, " (code ");
+            PutDec(fd, info ? info->si_code : 0);
+            Put(fd, ", fault address ");
+            PutHex(fd, info ? reinterpret_cast<uintptr_t>(info->si_addr) : 0);
+            Put(fd, ") on thread ");
+            PutDec(fd, gettid());
+            Put(fd, " \"");
+            Put(fd, thread);
+            Put(fd, "\"; stack:\n");
+            void* frames[64];
+            UnwindState state{frames, 0, 64};
+            _Unwind_Backtrace(UnwindFrame, &state);
+            for (int i = 0; i < state.depth; i++) {
+                Dl_info dl{};
+                const uintptr_t pc = reinterpret_cast<uintptr_t>(frames[i]);
+                Put(fd, "[crash]   #");
+                PutDec(fd, i);
+                Put(fd, " pc ");
+                if (dladdr(frames[i], &dl) && dl.dli_fbase) {
+                    PutHex(fd, pc - reinterpret_cast<uintptr_t>(dl.dli_fbase));
+                    Put(fd, " ");
+                    const char* lib = dl.dli_fname ? std::strrchr(dl.dli_fname, '/') : nullptr;
+                    Put(fd, lib ? lib + 1 : (dl.dli_fname ? dl.dli_fname : "?"));
+                    if (dl.dli_sname) {
+                        Put(fd, " (");
+                        Put(fd, dl.dli_sname);
+                        Put(fd, "+");
+                        PutHex(fd, pc - reinterpret_cast<uintptr_t>(dl.dli_saddr));
+                        Put(fd, ")");
+                    }
+                } else {
+                    PutHex(fd, pc);
+                }
+                Put(fd, "\n");
+            }
+            if (fd >= 0) {
+                fsync(fd);
+                close(fd);
+            }
+            __android_log_print(ANDROID_LOG_FATAL, "Perlin", "native crash (%s) on thread %s; stack in %s",
+                                SignalName(sig), thread, gAndroidCrashLog);
+        }
+        (void)context;
+        sigaction(sig, &gPreviousAction[sig], nullptr);
+        // A fault re-executes and reaches debuggerd's handler; a signal that was sent (abort, kill) has to
+        // be raised again.
+        if (!info || info->si_code <= 0)
+            raise(sig);
+    }
+
+    void InstallAndroidCrashHandler(const std::string& dataDir) {
+        std::snprintf(gAndroidCrashLog, sizeof(gAndroidCrashLog), "%s/perlin.log", dataDir.c_str());
+        // Warm the unwinder outside a signal handler, so its first use does not allocate there.
+        {
+            void* warm[4];
+            UnwindState state{warm, 0, 4};
+            _Unwind_Backtrace(UnwindFrame, &state);
+        }
+        struct sigaction action {};
+        action.sa_sigaction = AndroidCrash;
+        action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+        sigemptyset(&action.sa_mask);
+        for (int sig : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGTRAP})
+            sigaction(sig, &action, &gPreviousAction[sig]);
+    }
+
+    std::string AndroidProperty(const char* name) {
+        char value[PROP_VALUE_MAX] = {};
+        return __system_property_get(name, value) > 0 ? std::string(value) : std::string();
+    }
+
+    void LogAndroidDevice() {
+        Dl_info self{};
+        dladdr(reinterpret_cast<void*>(&LogAndroidDevice), &self);
+        std::printf("[boot] native library %s\n", self.dli_fname ? self.dli_fname : "?");
+        std::printf("[boot] device %s %s (%s), Android %s (API %s), %s, %u cores\n",
+                    AndroidProperty("ro.product.manufacturer").c_str(), AndroidProperty("ro.product.model").c_str(),
+                    AndroidProperty("ro.board.platform").c_str(),
+                    AndroidProperty("ro.build.version.release").c_str(),
+                    AndroidProperty("ro.build.version.sdk").c_str(), AndroidProperty("ro.product.cpu.abi").c_str(),
+                    std::thread::hardware_concurrency());
+    }
+}
+#endif
+
+namespace {
+    // SDL's own messages (audio and video drivers, the Android glue) are written through the game's
+    // log, tagged, so they reach perlin.log and logcat like everything else.
+    void SdlLogToPerlin(void*, int category, SDL_LogPriority priority, const char* message) {
+        const char* area = category == SDL_LOG_CATEGORY_AUDIO    ? "sdl-audio"
+                           : category == SDL_LOG_CATEGORY_VIDEO  ? "sdl-video"
+                           : category == SDL_LOG_CATEGORY_RENDER ? "sdl-render"
+                           : category == SDL_LOG_CATEGORY_INPUT  ? "sdl-input"
+                           : category == SDL_LOG_CATEGORY_SYSTEM ? "sdl-system"
+                                                                 : "sdl";
+        const char* level = priority >= SDL_LOG_PRIORITY_ERROR ? "error: " : priority == SDL_LOG_PRIORITY_WARN ? "warning: " : "";
+        std::printf("[%s] %s%s\n", area, level, message ? message : "");
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc >= 3 && std::string_view(argv[1]) == "--selftest") {
         perlin::RegisterEmbeddedResources();
@@ -497,6 +759,10 @@ int main(int argc, char** argv) {
 #ifndef __EMSCRIPTEN__
     StartLogCapture({dataDir + "/perlin.log"});
 #endif
+    SDL_SetLogOutputFunction(SdlLogToPerlin, nullptr);
+#if defined(__ANDROID__)
+    InstallAndroidCrashHandler(dataDir);
+#endif
 #ifdef _WIN32
     SetUnhandledExceptionFilter(CrashFilter);
 #endif
@@ -516,7 +782,11 @@ int main(int argc, char** argv) {
         std::signal(sig, OnFatalSignal);
     std::thread(LoadCrashSymbols).detach();
 #endif
+#if defined(__ANDROID__)
+    LogAndroidDevice();
+#else
     std::printf("[boot] exe dir %s\n", perlin::paths::ExeDir().c_str());
+#endif
     if (perlin::gfxdebug::WantsRenderDoc(argc, argv)) {
         perlin::paths::EnsureDir(dataDir + "/captures");
         perlin::gfxdebug::LoadRenderDoc(dataDir + "/captures");

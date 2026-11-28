@@ -1151,6 +1151,9 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
         break;
 #elif defined(SDL_PLATFORM_ANDROID)
     case SDL_EVENT_WILL_ENTER_BACKGROUND:
+        // Logged so a log that stops here reads as "Android stopped or killed the app in the
+        // background", not as a hang.
+        perlin::Log("app", "entering the background");
         backgrounded = true;
         if (input)
             input->ReleaseAll();
@@ -1159,8 +1162,15 @@ void AppPlatform_SDL::HandleEvent(const SDL_Event& e) {
             game->OnBackground();
         break;
     case SDL_EVENT_DID_ENTER_FOREGROUND:
+        perlin::Log("app", "back in the foreground");
         surfaceLost = true;
         backgrounded = false;
+        break;
+    case SDL_EVENT_LOW_MEMORY:
+        perlin::Log("app", "warning: the system is low on memory");
+        break;
+    case SDL_EVENT_TERMINATING:
+        perlin::Log("app", "the system is terminating the app");
         break;
 #endif
     case SDL_EVENT_GAMEPAD_ADDED:

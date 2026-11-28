@@ -20,6 +20,12 @@ namespace perlin {
 }
 
 namespace perlin::ui {
+    // Special item icons are drawn with a margin, because Java lets those models reach outside their slot
+    // (the top of the shield, banners, beds). Such an icon is kOverflowIconPx square, its 16x16 slot being the
+    // central kOverflowIconSlotPx. No pack sprite has this size (they are multiples of 16).
+    inline constexpr int kOverflowIconPx = 90;
+    inline constexpr int kOverflowIconSlotPx = 60;
+
     struct ItemSprite {
         bool ok = false;
         bool block = false;
@@ -52,6 +58,9 @@ namespace perlin::ui {
         const std::string& VanillaRoot() const { return root; }
 
         bool Image(const std::string& rel, Texture& out);
+        // A special item model's texture: a pack image, or a sheet the client extracted from the Java jar
+        // into the data folder (the bed sheets).
+        bool ModelTexture(const std::string& rel, Texture& out);
         bool ImageSize(const std::string& rel, int& w, int& h);
         TextureSidecar Sidecar(const std::string& rel);
 
@@ -84,6 +93,9 @@ namespace perlin::ui {
         bool FlatSprite(const std::string& shortName, int aux, ItemSprite& out, int64_t dyeColor = -1,
                         const std::string& iconKey = {});
         bool BakeModelIcon(const std::string& name, int32_t hash, int size, Texture& out, bool inventory = false);
+        // A Java special item model (shield, chest, banner, head, conduit, shulker box, ...) drawn with
+        // its "gui" display transform, as a kOverflowIconPx image with the slot in the middle.
+        bool BakeSpecialIcon(const std::string& name, Texture& out);
 
         std::string root;
         const BlockLibrary* blocks = nullptr;

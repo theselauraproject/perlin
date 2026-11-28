@@ -61,6 +61,8 @@ namespace perlin::ui {
         void BeginBox(float ax, float ay, float w, float h, int z, const std::string& cls,
                       const std::string& id, bool clip, float scroll = 0.0f, const BoxSound& sound = {});
         void EndBox();
+        // A zero-size box at the origin whose subtree draws to the named UI layer ("debug"); close with EndBox.
+        void BeginLayer(int z, const std::string& layer);
 
         void BeginSection();
         void EndSection(const std::string& name);

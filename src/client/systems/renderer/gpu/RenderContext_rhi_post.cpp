@@ -352,12 +352,57 @@ namespace perlin {
     void RenderContext_rhi::PlanOverlayStages() {
         Stage hand;
         hand.toScreen = hand.useScreenDepth = hand.clearDepth = true;
-        hand.views = {View::Hand, View::Gui};
+        // The HUD paper doll is drawn after the rest of the HUD and before the debug screen;
+        // SplitOverlayStages gives it a depth buffer of its own on the frames that draw it.
+        hand.views = {View::Hand, View::Gui, View::HudDoll, View::Debug};
         stages.push_back(hand);
         Stage top;
         top.toScreen = top.useScreenDepth = top.clearDepth = true;
         top.views = {View::Doll, View::Top, View::ExportUi};
         stages.push_back(top);
+    }
+
+    void RenderContext_rhi::SplitOverlayStages() {
+        // The HUD doll is a 3-D model composited with the HUD (after its controls, before the F3 debug
+        // screen, which draws over it). It needs its own cleared depth (the hand's depth is from another
+        // projection), so it splits the overlay pass, but only on frames that draw it. An overlay pass with
+        // nothing to draw and no colour clear is dropped: on tiled GPUs every pass costs a full tile load
+        // and store of the screen.
+        const bool doll = !views[static_cast<size_t>(View::HudDoll)].draws.empty();
+        std::vector<Stage> out;
+        out.reserve(stages.size() + 1);
+        for (Stage& s : stages) {
+            if (s.kind == Stage::Kind::Pass && !s.views.empty()) {
+                const auto at = std::find(s.views.begin(), s.views.end(), View::HudDoll);
+                if (at != s.views.end()) {
+                    if (doll && at != s.views.begin()) {
+                        Stage rest = s;
+                        rest.views.assign(at, s.views.end());
+                        rest.clearColor = false;
+                        rest.clearDepth = true;
+                        s.views.erase(at, s.views.end());
+                        out.push_back(std::move(s));
+                        out.push_back(std::move(rest));
+                        continue;
+                    }
+                    if (!doll)
+                        s.views.erase(at);
+                }
+                const auto uiOnly = [](View v) {
+                    return v == View::HudDoll || v == View::Debug || v == View::Doll || v == View::Top ||
+                           v == View::ExportUi;
+                };
+                if (s.toScreen && !s.clearColor && !s.views.empty() && std::all_of(s.views.begin(), s.views.end(), uiOnly)) {
+                    size_t draws = 0;
+                    for (View v : s.views)
+                        draws += views[static_cast<size_t>(v)].draws.size();
+                    if (!draws)
+                        continue;
+                }
+            }
+            out.push_back(std::move(s));
+        }
+        stages = std::move(out);
     }
 
     void RenderContext_rhi::PlanDirectFrame(const FrameParams& params) {

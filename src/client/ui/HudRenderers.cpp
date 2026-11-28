@@ -381,8 +381,11 @@ namespace perlin::ui {
                     w.Text(x, y, width + 1, 9, n.layer + 1, {lines[i]}, st);
                 }
             };
+            // The F3 screen draws on its own layer, over the HUD and the HUD paper doll.
+            w.BeginLayer(n.layer, "debug");
             column(s.debugLeft, false);
             column(s.debugRight, true);
+            w.EndBox();
         }
 
         void Subtitles(const HudState& s, const LNode& n, SceneWriter& w) {

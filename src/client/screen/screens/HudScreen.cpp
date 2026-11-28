@@ -640,7 +640,7 @@ namespace perlin::screen {
             din.ownLeftHanded = options.hand.leftHanded;
         din.camera = doll.pos;
         const int clip[4] = {0, 0, fbW, fbH};
-        entityRenderer.RenderDoll(doll, din, cx * scale, feetY * scale, block * scale, clip, 22.5f);
+        entityRenderer.RenderDoll(doll, din, cx * scale, feetY * scale, block * scale, clip, 22.5f, true);
     }
 
     void HudScreen::Present(FrameContext& f, int fbW, int fbH) {

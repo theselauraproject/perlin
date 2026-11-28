@@ -104,6 +104,8 @@ namespace perlin {
         JavaComposite6,
         JavaComposite7,
         JavaFinal,
+        HudDoll,
+        Debug,
         Count
     };
     const char* ViewName(View v);
@@ -589,6 +591,7 @@ namespace perlin {
         void RenderShadows(float camX, float camY, float camZ);
         void PlanDirectStages(const FrameParams& params);
         void PlanOverlayStages();
+        void SplitOverlayStages();
         void PlanDirectFrame(const FrameParams& params);
         void ReleaseBloomTargets();
         void ApplyTemporalJitter();

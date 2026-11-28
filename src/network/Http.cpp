@@ -1,6 +1,7 @@
 #include "network/Http.hpp"
 #include <httplib.h>
 
+#include <atomic>
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
@@ -358,6 +359,30 @@ namespace perlin::http {
         Log("http", "{} {}{} also failed over winhttp: {}", method, host, path.substr(0, path.find('?')),
             w.error);
         return r;
+#elif defined(__ANDROID__)
+        // Android's network stack first (system and user CAs, Private DNS, VPNs and proxies apply); the
+        // bundled OpenSSL client only when that cannot complete the request.
+        static std::atomic<bool> s_reportedFallback{false};
+        std::string url = std::string(tls ? "https://" : "http://") + host;
+        if (port != (tls ? 443 : 80))
+            url += ":" + std::to_string(port);
+        url += path.empty() || path[0] != '/' ? "/" + path : path;
+        std::map<std::string, std::string> headers = extra;
+        if (!contentType.empty())
+            headers["Content-Type"] = contentType;
+        Response native;
+        if (android::Request(url, method, headers, body, timeoutSecs, native)) {
+            if (native.status != 0)
+                return native;
+            Log("http", "{} {}{} failed over Android's network stack: {}", method, host,
+                path.substr(0, path.find('?')), native.error);
+            Response fallback =
+                OpenSslRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
+            if (fallback.status != 0 && !s_reportedFallback.exchange(true))
+                Log("http", "OpenSSL reached {} where Android's network stack did not", host);
+            return fallback.status != 0 ? fallback : native;
+        }
+        return OpenSslRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
 #else
         return OpenSslRequest(host, port, tls, method, path, body, contentType, extra, timeoutSecs);
 #endif

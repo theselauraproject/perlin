@@ -69,6 +69,7 @@ namespace perlin::ui::draw {
         void PopClip();
         bool ClipEmpty() const;
         void SetLayer(UiLayer l) { layer = l; }
+        UiLayer Layer() const { return layer; }
         void SetShift(int s) { shift = s; }
         int Shift() const { return shift; }
         bool Starved() const { return starved; }

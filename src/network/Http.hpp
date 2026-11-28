@@ -25,6 +25,20 @@ namespace perlin::http {
 
 #if defined(__ANDROID__)
     const std::string& AndroidCaBundle();
+
+    // Android's own HTTP stack, reached over JNI (Http_android.cpp). Request returns false only when the
+    // bridge cannot be reached at all; otherwise `out` holds the result, with status 0 and `error` set when
+    // the request did not complete.
+    namespace android {
+        bool Available();
+        bool Request(const std::string& url, const std::string& method,
+                     const std::map<std::string, std::string>& headers, const std::string& body, int timeoutSecs,
+                     Response& out);
+        // Streams a GET into `path`. `state` (optional) is shared with the Java side: uint64 bytes done at
+        // offset 0, uint64 total at 8, and a cancel byte at 16 that may be set while the download runs.
+        bool DownloadFile(const std::string& url, const std::string& path, void* state, size_t stateBytes,
+                          int timeoutSecs, std::string& error);
+    }
 #endif
 
     template <class HttpClient> void UseSystemCa(HttpClient& cli) {

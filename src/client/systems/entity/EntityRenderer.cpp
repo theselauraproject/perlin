@@ -173,6 +173,8 @@ namespace perlin::entity {
         glm::mat4 itemR{1.0f}, itemL{1.0f};
         bool hasItemR = false, hasItemL = false;
         bool attachedItem[2] = {false, false};
+        // The shield is raised: its item renders with the Java "using_item" model (shield_blocking).
+        bool blockingShield = false;
         bool fp = false;
         double usingSince = 0;
         bool wasUsing = false;
@@ -951,6 +953,7 @@ namespace perlin::entity {
                     host.using_ && (usedItem == "minecraft:shield" || e.offHand == "minecraft:shield");
             }
         }
+        v.blockingShield = host.blocking;
         host.timeOfDay = std::fmod(in.worldTicks, 24000.0) / 24000.0;
         host.day = std::floor(in.worldTicks / 24000.0);
         v.scope.host = &host;
@@ -1895,7 +1898,7 @@ namespace perlin::entity {
                 std::copy_n(dollClip, 4, draw.scissorRect);
             }
             draw.shadowOnly = shadowOnlyPass;
-            const UiLayer target = dollModel ? UiLayer::Doll : fpModel ? UiLayer::Hand : UiLayer::World;
+            const UiLayer target = dollModel ? dollLayer : fpModel ? UiLayer::Hand : UiLayer::World;
             renderer->UiSubmit(target, draw);
             if (eyesTexture && !shadowOnlyPass) {
                 UiDraw eyes = draw;
@@ -1920,10 +1923,14 @@ namespace perlin::entity {
                 const bool main = left == leftMain;
                 const float bowTicks =
                     main && e.AimingBow() ? static_cast<float>((v.now - v.usingSince) * 20.0) : -1.0f;
-                itemRenderer->DrawHeldItem(item, model * arm, left, light, bowTicks);
+                // Only the hand that holds the raised shield uses shield_blocking; with a shield in
+                // both hands the main hand is the one in use.
+                const bool raised = v.blockingShield && name == "minecraft:shield" &&
+                                    (main || e.mainHand != "minecraft:shield");
+                itemRenderer->DrawHeldItem(item, model * arm, left, light, bowTicks, raised);
             };
             itemRenderer->SetWorldShadowOnly(shadowOnlyPass);
-            itemRenderer->SetDollClip(dollModel ? dollClip : nullptr);
+            itemRenderer->SetDollClip(dollModel ? dollClip : nullptr, dollLayer);
             itemRenderer->SetPackLight(levels.x, levels.y);
             itemRenderer->SetPackEntity(e.type.c_str());
             if (v.hasArmR && !v.attachedItem[0])
@@ -1993,7 +2000,8 @@ namespace perlin::entity {
     }
 
     void EntityRenderer::RenderDoll(const Entity& e, const FrameIn& in, float cx, float feetY,
-                                    float pxPerBlock, const int clip[4], std::optional<float> facing) {
+                                    float pxPerBlock, const int clip[4], std::optional<float> facing,
+                                    bool hudLayer) {
         if (!renderer)
             return;
         const std::string& root = ui::UiAssets::Instance().VanillaRoot();
@@ -2015,10 +2023,12 @@ namespace perlin::entity {
             dollModel = &m;
             dollClip = clip;
             dollFacing = facing;
+            dollLayer = hudLayer ? UiLayer::HudDoll : UiLayer::Doll;
             Draw(e, v, layers, scale, in);
             dollModel = nullptr;
             dollClip = nullptr;
             dollFacing.reset();
+            dollLayer = UiLayer::Doll;
         }
     }
 

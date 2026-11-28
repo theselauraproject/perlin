@@ -1101,7 +1101,7 @@ namespace perlin {
         views[static_cast<size_t>(View::Hand)].proj = ReverseDepth(glm::make_mat4(params.handProjection));
         const glm::mat4 ortho = ReverseDepth(glm::orthoRH_ZO(
             0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1000.0f, 1000.0f));
-        for (View v : {View::Gui, View::Doll, View::Top, View::ExportUi})
+        for (View v : {View::HudDoll, View::Debug, View::Gui, View::Doll, View::Top, View::ExportUi})
             views[static_cast<size_t>(v)].proj = ortho;
     }
 
@@ -1386,7 +1386,7 @@ namespace perlin {
     }
 
     const char* ViewName(View v) {
-        static constexpr const char* kViewNames[] = {"shadow", "shadow_glass", "shadow_entity", "world", "world_late", "entities", "late", "hand", "gui", "doll", "top", "export_ui", "blur", "post_out", "bloom0", "bloom1", "bloom2", "bloom3", "bloom4", "bloom5", "bloom6", "upscale", "sharpen", "java_deferred", "java_composite", "java_composite1", "java_composite3", "java_composite4", "java_composite5", "java_composite6", "java_composite7", "java_final"};
+        static constexpr const char* kViewNames[] = {"shadow", "shadow_glass", "shadow_entity", "world", "world_late", "entities", "late", "hand", "gui", "doll", "top", "export_ui", "blur", "post_out", "bloom0", "bloom1", "bloom2", "bloom3", "bloom4", "bloom5", "bloom6", "upscale", "sharpen", "java_deferred", "java_composite", "java_composite1", "java_composite3", "java_composite4", "java_composite5", "java_composite6", "java_composite7", "java_final", "hud_doll", "debug"};
         static_assert(std::size(kViewNames) == static_cast<size_t>(View::Count));
         return kViewNames[static_cast<size_t>(v)];
     }
@@ -1465,7 +1465,7 @@ namespace perlin {
                 uiCull.entries.clear();
                 for (View v : {View::Entity, View::Late})
                     BatchUiDraws(v, cull && uiCull.output);
-                for (View v : {View::Hand, View::Gui, View::Doll, View::Top, View::ExportUi})
+                for (View v : {View::Hand, View::Gui, View::HudDoll, View::Debug, View::Doll, View::Top, View::ExportUi})
                     BatchUiDraws(v, false);
                 RecordUiCull(*list);
             }
@@ -1478,6 +1478,7 @@ namespace perlin {
         screen.h = gpu.TargetHeight();
         screen.colorFormat = gpu.TargetFormat();
 
+        SplitOverlayStages();
         for (Stage& stage : stages)
             if (stage.toScreen) {
                 stage.target = screen;

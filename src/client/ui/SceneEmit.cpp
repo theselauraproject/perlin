@@ -148,6 +148,22 @@ namespace perlin::ui {
         oy = ay + scroll;
     }
 
+    void SceneWriter::BeginLayer(int z, const std::string& layer) {
+        count++;
+        SceneNode n;
+        n.kind = SceneNode::Box;
+        n.layer = layer;
+        n.x = -ox;
+        n.y = -oy;
+        n.w = 0;
+        n.h = 0;
+        n.z = std::to_string(z);
+        Builder().Begin(std::move(n));
+        origins.emplace_back(ox, oy);
+        ox = 0;
+        oy = 0;
+    }
+
     void SceneWriter::EndBox() {
         if (origins.empty())
             return;

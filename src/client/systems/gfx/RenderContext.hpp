@@ -65,7 +65,10 @@ namespace perlin {
     };
     static_assert(sizeof(UiVertex) == 24);
 
-    enum class UiLayer : uint8_t { World, WorldLate, Hand, Gui, Doll, Top, Export };
+    // HudDoll: the HUD paper doll, composited right after the HUD (Gui) as part of it. Debug: the F3 debug
+    // screen, drawn over the HUD and its paper doll. Doll (the inventory player preview) stays above the GUI
+    // it belongs to.
+    enum class UiLayer : uint8_t { World, WorldLate, Hand, Gui, Doll, Top, Export, HudDoll, Debug };
 
     enum class DrawMaterial : uint8_t { Auto, Entity, Particle, Weather, Cracks, Nametag };
 

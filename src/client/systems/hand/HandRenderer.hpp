@@ -5,6 +5,7 @@
 #include "client/systems/resources/SkinLoader.hpp"
 #include "client/systems/gfx/RenderContext.hpp"
 #include "client/systems/model/HudState.hpp"
+#include "client/systems/sprites/ItemDisplay.hpp"
 
 #include <glm/glm.hpp>
 
@@ -12,7 +13,12 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
+namespace perlin::ui {
+    class UiAssets;
+}
 
 namespace perlin {
     struct WalkBob {
@@ -74,15 +80,20 @@ namespace perlin {
                            const glm::vec3& light, float size = 1.0f);
         void DrawWorldBlock(const ui::HudItem& item, const glm::dvec3& feet, float scale, const glm::vec3& light);
 
+        // Third person, at the arm's hand (after ModelPart.translateAndRotate); `raised` selects the in-use
+        // model, i.e. shield_blocking.
         void DrawHeldItem(const ui::HudItem& item, const glm::mat4& arm, bool left, const glm::vec3& light,
-                          float bowUseTicks = -1.0f);
+                          float bowUseTicks = -1.0f, bool raised = false);
         void SetWorldShadowOnly(bool on) { worldShadowOnly = on; }
         void SetPackLight(int blockLevel, int skyLevel) {
             packBlockLight = static_cast<int8_t>(blockLevel);
             packSkyLight = static_cast<int8_t>(skyLevel);
         }
         void SetPackEntity(const char* type) { packEntity = type; }
-        void SetDollClip(const int* clip) { dollClip = clip; }
+        void SetDollClip(const int* clip, UiLayer layer = UiLayer::Doll) {
+            dollClip = clip;
+            dollLayer = layer;
+        }
 
         bool ThirdPersonAttachable(const std::string& item, bool left, bool firstPerson, bool sneaking,
                                    bool using_, float usedTicks, bool blocking, double life,
@@ -109,6 +120,11 @@ namespace perlin {
             uint32_t texture = 0;
             bool block = false;
             bool valid = false;
+            // A Java special model (shield, chest, banner, ...): its quads already include the item
+            // definition's transformation, and further textured pieces live in `parts`.
+            bool special = false;
+            glm::vec3 tint{1.0f};
+            std::vector<Model> parts;
             mutable std::vector<glm::vec3> groupNormals;
             mutable std::vector<uint8_t> quadGroup;
             mutable bool grouped = false, tooManyGroups = false;
@@ -127,13 +143,22 @@ namespace perlin {
             uint64_t used = 0;
         };
         std::unordered_map<uint64_t, CachedMesh> meshCache;
+        std::unordered_set<uint64_t> meshCandidates;
         uint64_t meshCacheTick = 0;
         void ClearMeshCache();
         void EnsureSleeves3d(const FrameIn& in);
         std::vector<Quad> sleeve3d[2];
         uint64_t sleeve3dSerial = ~0ull;
         bool sleeve3dFlags = false, sleeve3dValid = false, sleeve3dFallback = true;
-        const Model& ItemModel(const ui::HudItem& item);
+        const Model& ItemModel(const ui::HudItem& item,
+                               itemdisplay::Context context = itemdisplay::Context::Hand);
+        bool BuildSpecialModel(const ui::HudItem& item, const itemdisplay::Entry& display, ui::UiAssets& assets,
+                               Model& out);
+        void DrawItemModel(const Model& model, const glm::mat4& m, const glm::vec3& light, bool glint);
+        // The display pose of `model` for transform `t` (ItemTransform.apply, then the local transformation
+        // for models that do not carry it already).
+        static glm::mat4 DisplayPose(const Model& model, const itemdisplay::Entry& display,
+                                     const itemdisplay::Transform& t, bool leftHand);
         void EnsureSkin(const FrameIn& in);
         void BuildArms(bool slim);
         void RenderArm(const FrameIn& in, const HandSettings& s, bool rightArm, float swing, float equip);
@@ -145,10 +170,7 @@ namespace perlin {
         bool RenderAttachable(const FrameIn& in, const HandSettings& s, const ui::HudItem& item,
                               bool rightArm, const glm::mat4& hand);
         uint32_t AttachableTexture(const std::string& path);
-        void RenderShield(const FrameIn& in, const HandSettings& s, const ui::HudItem& item, bool rightArm,
-                          const glm::mat4& hand);
-        uint32_t shieldTexture = 0;
-        std::vector<Quad> shieldQuads;
+        bool ShieldRaised(const ui::HudItem& item, bool rightArm, const HandSettings& s) const;
         void ClearItems();
         float Unwrap(float yaw);
 
@@ -202,5 +224,6 @@ namespace perlin {
         int8_t packBlockLight = -1, packSkyLight = -1;
         const char* packEntity = nullptr;
         const int* dollClip = nullptr;
+        UiLayer dollLayer = UiLayer::Doll;
     };
 }

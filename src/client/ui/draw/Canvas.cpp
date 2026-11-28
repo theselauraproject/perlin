@@ -113,6 +113,17 @@ namespace perlin::ui::draw {
             starved = true;
             return;
         }
+        if (t.w == ui::kOverflowIconPx && t.h == ui::kOverflowIconPx) {
+            // A model icon with a margin around its slot (see UiAssets): grow the rect by that margin.
+            const float mx = w * static_cast<float>(ui::kOverflowIconPx - ui::kOverflowIconSlotPx) /
+                             (2.0f * static_cast<float>(ui::kOverflowIconSlotPx));
+            const float my = h * static_cast<float>(ui::kOverflowIconPx - ui::kOverflowIconSlotPx) /
+                             (2.0f * static_cast<float>(ui::kOverflowIconSlotPx));
+            x -= mx;
+            y -= my;
+            w += 2.0f * mx;
+            h += 2.0f * my;
+        }
         const float x0 = Snap(x), y0 = Snap(y), x1 = Snap(x + w), y1 = Snap(y + h);
         const uint32_t color = Packed(1, 1, 1, alpha);
         Append(Current(t.handle, false), {x0, y0, x1, y0, x1, y1, x0, y1}, {0, 0, 1, 0, 1, 1, 0, 1}, color);

@@ -156,8 +156,10 @@ namespace perlin::entity {
             glm::vec3 light{1.0f};
         };
         void RenderFirstPerson(const Entity& self, const FrameIn& in, const FpState& fp);
+        // hudLayer: the HUD paper doll, drawn with the rest of the HUD and under the debug screen,
+        // instead of on top of the GUI like the inventory doll.
         void RenderDoll(const Entity& doll, const FrameIn& in, float cx, float feetY, float pxPerBlock,
-                        const int clip[4], std::optional<float> facing = std::nullopt);
+                        const int clip[4], std::optional<float> facing = std::nullopt, bool hudLayer = false);
 
         size_t Drawn() const { return drawn; }
         size_t Considered() const { return considered; }
@@ -214,6 +216,7 @@ namespace perlin::entity {
         const glm::mat4* fpModel = nullptr;
         const glm::mat4* dollModel = nullptr;
         const int* dollClip = nullptr;
+        UiLayer dollLayer = UiLayer::Doll;
         std::optional<float> dollFacing;
         uint32_t TextureFor(const Entity& e, const std::string& key);
         void Track(const Entity& e, View& v, const FrameIn& in);

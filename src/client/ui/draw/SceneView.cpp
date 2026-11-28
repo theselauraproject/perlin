@@ -310,7 +310,12 @@ namespace perlin::ui::draw {
             void PaintEntry(int idx) {
                 Ctx& c = arena[static_cast<size_t>(idx)];
                 const SceneNode& n = *c.n;
-                if (!n.layer.empty())
+                // "debug" applies to its node's subtree only (the F3 screen over the HUD and its paper doll).
+                const UiLayer layerBefore = canvas.Layer();
+                const bool scopedLayer = n.layer == "debug";
+                if (scopedLayer)
+                    canvas.SetLayer(UiLayer::Debug);
+                else if (!n.layer.empty())
                     canvas.SetLayer(n.layer == "top" ? UiLayer::Top : n.layer == "export" ? UiLayer::Export : UiLayer::Gui);
                 const int previousShift = canvas.Shift();
                 const bool movable = n.id == "cursor" || n.id == "tip";
@@ -351,6 +356,8 @@ namespace perlin::ui::draw {
                     }
                 }
                 canvas.SetShift(previousShift);
+                if (scopedLayer)
+                    canvas.SetLayer(layerBefore);
             }
 
             void PaintBox(const Ctx& c) {
