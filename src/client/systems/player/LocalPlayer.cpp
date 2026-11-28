@@ -295,8 +295,8 @@ namespace perlin {
                         for (const auto& entry : later.attributes)
                             ApplyReplayAttribute(movement, attributes, presence, entry);
                 }
-                attributes.speed =
-                    BedrockSession::PredictedMovementSpeed(movement, record.input.sprint, record.freeze);
+                attributes.speed = BedrockSession::PredictedMovementSpeed(movement, record.input.sprint,
+                                                                          record.freeze, record.effects);
                 record.attributes.speed = attributes.speed;
                 record.attributes.underwaterSpeed = attributes.underwaterSpeed;
                 record.attributes.lavaSpeed = attributes.lavaSpeed;
@@ -312,6 +312,7 @@ namespace perlin {
     void LocalPlayer::ApplyEffectUpdates(BedrockSession& session) {
         const auto updates = session.TakeEffectUpdates();
         size_t first = history.size();
+        size_t speedFrom = history.size();
         for (const auto& update : updates) {
             size_t boundary = history.size();
             for (size_t i = 0; i < history.size(); ++i) {
@@ -347,6 +348,27 @@ namespace perlin {
                 StoreEffect(record.effects, update.id, effect);
                 if (ApplyEffectAttribute(record.attributes, update.id, effect))
                     first = std::min(first, i);
+            }
+            if (std::ranges::find(physics::bds::kEffectSpeedModifiers, update.id,
+                                  &physics::bds::EffectSpeedModifier::effectId) !=
+                physics::bds::kEffectSpeedModifiers.end())
+                speedFrom = std::min(speedFrom, boundary);
+        }
+        if (speedFrom < history.size()) {
+            auto movement = history[speedFrom].movementAttribute;
+            for (size_t i = speedFrom; i < history.size(); ++i) {
+                Record& record = history[i];
+                if (i != speedFrom)
+                    for (const auto& later : record.attributeUpdates)
+                        for (const auto& entry : later.attributes)
+                            if (MovementAttributeIndex(entry.name) == 0)
+                                BedrockSession::ApplyMovementAttribute(movement, entry);
+                const float speed = BedrockSession::PredictedMovementSpeed(movement, record.input.sprint,
+                                                                           record.freeze, record.effects);
+                if (speed != record.attributes.speed)
+                    first = std::min(first, i);
+                record.attributes.speed = speed;
+                record.movementAttribute = movement;
             }
         }
         ReplayFrom(session, first);
@@ -1027,7 +1049,8 @@ namespace perlin {
 
         physics::Attributes attributes;
         BedrockSession::MovementAttributeState movementAttribute;
-        attributes.speed = session.PredictedMovementSpeed(sprinting, freezeStrength, movementAttribute);
+        attributes.speed =
+            session.PredictedMovementSpeed(sprinting, freezeStrength, movementAttribute, effects);
         attributes.flySpeed = session.FlySpeed();
         attributes.verticalFlySpeed = session.VFlySpeed();
         attributes.airDrag = session.AirDragAttribute();
