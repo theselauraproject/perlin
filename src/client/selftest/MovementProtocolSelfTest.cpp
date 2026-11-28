@@ -97,6 +97,7 @@ namespace perlin::selftest {
             InputManager controls(input, options);
             input.OnKeyDown(options.GetKey(Action::Forward).code);
             input.OnMouseDown(Mouse::Right);
+            controls.Poll();
             LocalPlayer player;
             Camera camera;
             camera.yaw = 90;
@@ -216,6 +217,7 @@ namespace perlin::selftest {
                     input.OnMouseDown(Mouse::Right);
                 if (sneak)
                     input.OnKeyDown(options.GetKey(Action::Sneak).code);
+                controls.Poll();
                 LocalPlayer player;
                 player.SetCameraControl(scheme, 0);
                 player.SetItemSlow(itemSlow);
