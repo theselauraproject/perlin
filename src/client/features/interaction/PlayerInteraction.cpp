@@ -790,7 +790,7 @@ namespace perlin::interaction {
                 // negative duration is retained. Quick Charge can produce all
                 // three, so do not cast a negative duration to unsigned ticks.
                 const bool finite = need > 0 || (need == 0 && name == "minecraft:crossbow");
-                if (finite && now >= useStartTick && now - useStartTick > static_cast<uint64_t>(need)) {
+                if (finite && now >= useStartTick && now - useStartTick >= static_cast<uint64_t>(need)) {
                     Log("item", "finished using {} after {} ticks", name, now - useStartTick);
                     useConsumed = true;
                     usingItem = false;

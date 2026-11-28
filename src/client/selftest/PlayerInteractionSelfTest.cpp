@@ -537,6 +537,9 @@ namespace perlin::selftest {
                 frame();
             t.Check(airUses == 1 && releases == 0 && r.interactionPlayer.usingItem,
                     "held golden apple at full hunger starts once without repeated air-use attempts during eating");
+            frame();
+            t.Check(airUses == 2 || !r.interactionPlayer.usingItem,
+                    "a golden apple finishes after exactly 32 ticks of use, not 33");
             for (int tick = 0; tick < 8; ++tick)
                 frame();
             t.Check(airUses == 2 && r.interactionPlayer.usingItem,
