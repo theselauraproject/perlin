@@ -1,4 +1,5 @@
 #include "client/systems/model/DialFrames.hpp"
+#include "client/systems/entity/EntityColor.hpp"
 #include "client/systems/sprites/UiAssets.hpp"
 #include "client/systems/sprites/ItemDisplay.hpp"
 #include "client/systems/sprites/SpecialItemModels.hpp"
@@ -557,33 +558,10 @@ namespace perlin::ui {
                 t.pixels.resize(static_cast<size_t>(t.width) * t.width * 4);
                 t.height = t.width;
             }
-            if (name.starts_with("leather_") && name != "leather_horse_armor") {
-                const uint32_t rgb = dyeColor >= 0 ? static_cast<uint32_t>(dyeColor) & 0xFFFFFFu : 0xA06540u;
-                const float cr = ((rgb >> 16) & 255) / 255.0f, cg = ((rgb >> 8) & 255) / 255.0f,
-                            cb = (rgb & 255) / 255.0f;
-                bool anyMask = false;
-                for (size_t i = 3; i < t.pixels.size(); i += 4)
-                    if (t.pixels[i] != 0 && t.pixels[i] < 16)
-                        anyMask = true;
-                for (size_t i = 0; i + 3 < t.pixels.size(); i += 4) {
-                    uint8_t* px = &t.pixels[i];
-                    const bool mask = px[3] != 0 && px[3] < 16;
-                    if (mask)
-                        px[3] = 255;
-                    if (px[3] == 0 || (anyMask && !mask))
-                        continue;
-                    float l = (px[0] * 0.299f + px[1] * 0.587f + px[2] * 0.114f) / 255.0f;
-                    if (mask)
-                        l = std::min(1.0f, l / 0.42f);
-                    px[0] = static_cast<uint8_t>(std::clamp(l * cr * 255.0f, 0.0f, 255.0f));
-                    px[1] = static_cast<uint8_t>(std::clamp(l * cg * 255.0f, 0.0f, 255.0f));
-                    px[2] = static_cast<uint8_t>(std::clamp(l * cb * 255.0f, 0.0f, 255.0f));
-                }
-            } else if (name.starts_with("leather_")) {
-                for (size_t i = 3; i < t.pixels.size(); i += 4)
-                    if (t.pixels[i] != 0 && t.pixels[i] < 16)
-                        t.pixels[i] = 255;
-            }
+            // Leather items (armour and horse armour) are dyed like the worn armour; undyed ones are brown.
+            if (name.starts_with("leather_"))
+                entity::BakeColorMask(t.pixels, dyeColor >= 0 ? static_cast<uint32_t>(dyeColor) & 0xFFFFFFu
+                                                              : entity::kLeatherColor);
             out.ok = true;
             out.block = false;
             out.w = t.width;

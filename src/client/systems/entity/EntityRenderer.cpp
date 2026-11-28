@@ -410,21 +410,6 @@ namespace perlin::entity {
     }
 
     namespace {
-        void BakeColorMask(Texture& t, uint32_t rgb) {
-            const uint32_t r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
-            for (size_t i = 0; i + 3 < t.pixels.size(); i += 4) {
-                uint8_t* p = &t.pixels[i];
-                if (p[3] == 0)
-                    continue;
-                if (p[3] >= 128) {
-                    p[0] = static_cast<uint8_t>(p[0] * r / 255);
-                    p[1] = static_cast<uint8_t>(p[1] * g / 255);
-                    p[2] = static_cast<uint8_t>(p[2] * b / 255);
-                }
-                p[3] = 255;
-            }
-        }
-
         void SplitEmissive(Texture& t, bool eyes) {
             for (size_t i = 3; i < t.pixels.size(); i += 4) {
                 uint8_t& a = t.pixels[i];
@@ -1560,7 +1545,8 @@ namespace perlin::entity {
                 if (const std::string_view bare = std::string_view(item).substr(item.find(':') + 1);
                     bare.starts_with("leather_") && bare != "leather_horse_armor") {
                     layer.material.colorMask = true;
-                    layer.maskRgb = e.armorColor[slot] >= 0 ? static_cast<uint32_t>(e.armorColor[slot]) : 0xA06540u;
+                    layer.maskRgb =
+                        e.armorColor[slot] >= 0 ? static_cast<uint32_t>(e.armorColor[slot]) : kLeatherColor;
                 }
                 layer.skin = std::move(skin);
                 layer.bones = std::move(bones);
@@ -1697,7 +1683,7 @@ namespace perlin::entity {
                         uint32_t id = 0;
                         if (ui::UiAssets::Instance().Image(layer.texture, t) && t.width > 0) {
                             if (layer.material.colorMask)
-                                BakeColorMask(t, layer.maskRgb);
+                                BakeColorMask(t.pixels, layer.maskRgb);
                             bool glow = !*split;
                             for (size_t i = 3; !glow && i < t.pixels.size(); i += 4)
                                 glow = t.pixels[i] > 0 && t.pixels[i] < 255;
