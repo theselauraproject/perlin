@@ -733,6 +733,7 @@ namespace perlin::interaction {
         live.SetUseOffhand(offhandUse);
         const auto& held = offhandUse ? hudState.offhand : mainHeld;
         ReconcileHeldItemUse(held);
+        const std::optional<bool> serverUsing = live.TakeServerUsingItem();
         const auto& name = held.name;
         const bool use = input.Captured() && inputManager.IsDown(Action::Use);
         if (!use) {
@@ -775,6 +776,14 @@ namespace perlin::interaction {
             const float eye[3] = {static_cast<float>(camera.x), static_cast<float>(camera.y),
                                   static_cast<float>(camera.z)};
             ReleaseHeldItem(&live, held, eye);
+        }
+        // A server that ends the use clears the local player's UsingItem flag,
+        // for example one that completes eating on the next air use. Like the
+        // game, stop the use without a release and let the held button start
+        // the next one. A clear taken in the frame of a fresh press predates it.
+        if (serverUsing == false && usingItem && !earlyItemUse) {
+            StopHeldItemUse();
+            useConsumed = true;
         }
         {
             const uint64_t now = player.TickCount();

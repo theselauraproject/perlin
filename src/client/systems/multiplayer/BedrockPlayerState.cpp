@@ -172,6 +172,7 @@ namespace perlin {
         ResetPlayerAbilities();
         ResetPlayerAttributes();
         chargedItemUseReset = false;
+        serverUsingItem = -1;
         shieldItemId = -1;
         ResetServerGui();
         cameraEffects.Reset();
@@ -1371,6 +1372,8 @@ namespace perlin {
                 if (e.key == MetadataDictionaryEntryKey::Flags && IntegerOf(e, value)) {
                     vitals.onFire = (value & 1) != 0;
                     immobile = (value & (1 << 16)) != 0;
+                    if (runtimeId != 0)
+                        serverUsingItem = (value & (1 << 4)) != 0 ? 1 : 0;
                 } else if (e.key == MetadataDictionaryEntryKey::Air && IntegerOf(e, value))
                     vitals.air = value;
                 else if (e.key == MetadataDictionaryEntryKey::MaxAirdataMaxAir && IntegerOf(e, value) &&

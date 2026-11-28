@@ -641,6 +641,7 @@ namespace perlin {
         ResetPlayerAbilities();
         ResetPlayerAttributes();
         chargedItemUseReset = false;
+        serverUsingItem = -1;
         ChunkCodec::ResetDimensions();
         lastError.clear();
         state = State::Connecting;

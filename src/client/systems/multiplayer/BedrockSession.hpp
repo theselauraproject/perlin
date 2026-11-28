@@ -596,6 +596,7 @@ namespace perlin {
             ResetPlayerAbilities();
             ResetPlayerAttributes();
             chargedItemUseReset = false;
+            serverUsingItem = -1;
             {
                 std::lock_guard lock(statusMutex);
                 ++itemStateRevision;
@@ -706,6 +707,11 @@ namespace perlin {
         bool Instabuild() const { return instabuild; }
         bool MayMine() const { return mayMine; }
         bool TakeChargedItemUseReset() { return chargedItemUseReset.exchange(false); }
+        // The latest UsingItem flag the server wrote on the local player since the last call.
+        std::optional<bool> TakeServerUsingItem() {
+            const int8_t flag = serverUsingItem.exchange(-1);
+            return flag < 0 ? std::nullopt : std::optional<bool>(flag != 0);
+        }
         bool IsFlying() const { return isFlying; }
         uint32_t AbilitiesSeq() const { return abilitiesSeq; }
         void ApplyGameTypeAbilities(int worldGameType) {
@@ -1470,6 +1476,7 @@ namespace perlin {
         bool instabuild = false;
         bool mayMine = true;
         std::atomic<bool> chargedItemUseReset{false};
+        std::atomic<int8_t> serverUsingItem{-1};
         int gameType = 0;
         bool isFlying = false;
         uint32_t abilitiesSeq = 0;

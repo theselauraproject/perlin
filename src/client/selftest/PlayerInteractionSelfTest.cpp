@@ -553,6 +553,62 @@ namespace perlin::selftest {
             session.SetSentTap({});
         }
         {
+            UseRig r;
+            proto::ItemRegistryPacket registry;
+            proto::ItemstatesEntry definition;
+            definition.name = "minecraft:golden_apple";
+            definition.runtimeId = 45;
+            registry.itemstates.push_back(definition);
+            r.session.InjectIncoming(registry.kId, net::Encode(registry));
+            proto::ItemV4 apples;
+            apples.networkId = 45;
+            apples.count = 3;
+            r.Held(apples, "minecraft:golden_apple");
+            const auto serverFlags = [&](uint64_t actor, bool usingItem) {
+                proto::SetEntityDataPacket data;
+                data.runtimeEntityId = actor;
+                proto::MetadataDictionaryEntry flags;
+                flags.key = proto::MetadataDictionaryEntryKey::Flags;
+                flags.type = proto::MetadataDictionaryEntryType::Long;
+                flags.value.emplace<1>(usingItem ? int64_t{1} << 4 : 0);
+                data.metadata.push_back(flags);
+                r.session.InjectIncoming(data.kId, net::Encode(data));
+            };
+            r.input.OnMouseDown(Mouse::Right);
+            for (int tick = 0; tick < 40; ++tick)
+                r.Frame();
+            t.Check(r.attempts == 2 && r.interactionPlayer.usingItem,
+                    "held golden apple: the second air use starts the next apple");
+
+            serverFlags(7, true);
+            r.Frame();
+            t.Check(r.interactionPlayer.usingItem,
+                    "a server write that keeps UsingItem set leaves the use running");
+            serverFlags(8, false);
+            r.Frame();
+            t.Check(r.interactionPlayer.usingItem,
+                    "another actor's UsingItem flag cannot stop the local use");
+
+            serverFlags(7, false);
+            r.Frame(false);
+            t.Check(!r.interactionPlayer.usingItem && r.releases == 0,
+                    "the server clearing UsingItem stops the local use without a release");
+            interaction::InteractionTestAccess::ReadyUseRepeat(r.interactionPlayer);
+            r.Frame();
+            t.Check(r.attempts == 3 && r.interactionPlayer.usingItem,
+                    "the held button then starts the next apple with a new air use");
+            r.input.OnMouseUp(Mouse::Right);
+            r.Frame();
+            t.Check(r.releases == 1 && !r.interactionPlayer.usingItem,
+                    "letting go releases the use the server is now tracking");
+
+            serverFlags(7, false);
+            r.input.OnMouseDown(Mouse::Right);
+            r.Frame();
+            t.Check(r.attempts == 4 && r.interactionPlayer.usingItem,
+                    "a clear received before a fresh press does not stop the use that press starts");
+        }
+        {
             for (const auto& [hasComponent, configured, expected] :
                  {std::tuple{false, std::optional<float>{}, 0.35f},
                   std::tuple{true, std::optional<float>{}, 1.0f},
