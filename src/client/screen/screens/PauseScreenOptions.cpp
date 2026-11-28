@@ -1624,6 +1624,11 @@ namespace perlin::screen {
         m.Toggle("3D Skins", services.options.skins3d);
         m.Toggle("Show Paperdoll", services.options.paperDoll);
         m.Toggle("Always Show Paperdoll", services.options.paperDollAlways);
+        m.Slider("Paperdoll Scale", Percent(services.options.paperDollScale),
+                 (services.options.paperDollScale - 0.5f) / 2.0f, [this](float f) {
+                     services.options.paperDollScale =
+                         std::round((0.5f + std::clamp(f, 0.0f, 1.0f) * 2.0f) * 20.0f) / 20.0f;
+                 });
         m.Header("Hand");
         m.Toggle(i18n::TrOr("options.showHand", "Show Hand"), services.options.hand.show);
         m.Toggle(i18n::TrOr("perlin.options.bobHand", "Hand Bobbing"), services.options.hand.bobHand);

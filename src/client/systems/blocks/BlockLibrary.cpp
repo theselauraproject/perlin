@@ -1029,9 +1029,18 @@ namespace perlin {
                 app.cutout = ov["cutout"].boolean();
             return;
         }
-        const Tint* top = FindTint(names.top);
-        const Tint* side = FindTint(names.side);
-        const Tint* bottom = FindTint(names.bottom);
+        // Snow and ice are never tinted (no tintindex in Java, no biome colour in Bedrock). A pack's
+        // terrain_texture "tint_color" on the snow texture used to turn snow blocks and layers water-blue.
+        const auto untinted = [](const std::string& t) {
+            const auto slash = t.find_last_of('/');
+            const std::string_view base = slash == std::string::npos ? std::string_view(t) : std::string_view(t).substr(slash + 1);
+            return base.contains("snow") || base == "ice" || base.ends_with("_ice") || base.starts_with("ice_");
+        };
+        if (untinted(names.top) && (names.side.empty() || untinted(names.side)))
+            return;
+        const Tint* top = untinted(names.top) ? nullptr : FindTint(names.top);
+        const Tint* side = untinted(names.side) ? nullptr : FindTint(names.side);
+        const Tint* bottom = untinted(names.bottom) ? nullptr : FindTint(names.bottom);
         if (!top && !side && !bottom)
             return;
         const Tint& colour = top ? *top : (side ? *side : *bottom);

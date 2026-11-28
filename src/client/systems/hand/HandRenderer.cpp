@@ -508,7 +508,7 @@ namespace perlin {
         auto it = items.find(key);
         if (it != items.end())
             return it->second;
-        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, context);
+        const itemdisplay::Entry& display = itemdisplay::Lookup(item.name, item.aux, context);
         Model model;
         if (display.found && display.kind == itemdisplay::Entry::Kind::Special &&
             BuildSpecialModel(item, display, assets, model))

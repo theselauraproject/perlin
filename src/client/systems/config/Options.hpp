@@ -150,6 +150,8 @@ namespace perlin {
         bool skins3d = false;
         bool paperDoll = false;
         bool paperDollAlways = false;
+        // Size of the HUD paper doll, 0.5x to 2.5x.
+        float paperDollScale = 1.0f;
         std::string renderer = "auto";
         std::string capePhysics = "off";
         SkinParts skinParts;

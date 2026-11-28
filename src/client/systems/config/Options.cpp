@@ -162,6 +162,7 @@ namespace perlin {
             bool perlinBadges = true;
             int backgroundFps = 30;
             ChatSettings chat;
+            float paperDollScale = 1.0f;
         };
     }
 
@@ -481,6 +482,7 @@ namespace perlin {
         o.clouds = stored.clouds;
         o.perlinBadges = stored.perlinBadges;
         o.backgroundFps = std::clamp(stored.backgroundFps, 0, 240);
+        o.paperDollScale = std::clamp(stored.paperDollScale, 0.5f, 2.5f);
         return o;
     }
 
@@ -588,6 +590,7 @@ namespace perlin {
         stored.clouds = clouds;
         stored.perlinBadges = perlinBadges;
         stored.backgroundFps = backgroundFps;
+        stored.paperDollScale = paperDollScale;
 
         std::string out;
         if (glz::write<glz::opts{.prettify = true}>(stored, out))

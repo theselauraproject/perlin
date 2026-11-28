@@ -620,15 +620,20 @@ namespace perlin::screen {
         // GUI scaling rather than placing the doll at an independent screen
         // coordinate. Constrain it to the viewport when a pack anchors the
         // control partially off-screen.
-        const float block = std::clamp(std::min(r.w, r.h * 0.48f), 10.0f, 22.0f);
-        const float cx = std::clamp(r.x + r.w * 0.5f, block * 0.6f + 2.0f,
-                                    guiW - block * 0.6f - 2.0f);
+        const float baseBlock = std::clamp(std::min(r.w, r.h * 0.48f), 10.0f, 22.0f);
+        const float baseCx = std::clamp(r.x + r.w * 0.5f, baseBlock * 0.6f + 2.0f, guiW - baseBlock * 0.6f - 2.0f);
         // Keep the 3D doll in the HUD player-renderer region, but leave room
         // above its head for the HUD/debug text. Previously the feet were
         // placed at 93% of the control height, putting the head at the very
         // top edge of the display on the vanilla layout.
-        const float feetY = std::clamp(r.y + r.h + block * 0.8f,
-                                       block * 2.05f + 2.0f, guiH - 2.0f);
+        const float baseFeetY = std::clamp(r.y + r.h + baseBlock * 0.8f, baseBlock * 2.05f + 2.0f, guiH - 2.0f);
+        // The Paperdoll Scale setting grows or shrinks the doll from its top-left corner, so it stays in the
+        // corner the HUD reserves for it; it is kept on screen at any size.
+        const float dollScale = std::clamp(options.paperDollScale, 0.5f, 2.5f);
+        const float block = baseBlock * dollScale;
+        const float left = baseCx - baseBlock * 0.6f, top = baseFeetY - baseBlock * 2.05f;
+        const float cx = std::clamp(left + block * 0.6f, block * 0.6f + 2.0f, guiW - block * 0.6f - 2.0f);
+        const float feetY = std::clamp(top + block * 2.05f, block * 2.05f + 2.0f, guiH - 2.0f);
         entity::Entity doll = *dollSelf;
         doll.runtimeId = 0xFFFFFFFFFFFF0004ull;
         doll.isSelf = true;

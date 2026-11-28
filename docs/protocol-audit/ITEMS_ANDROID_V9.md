@@ -143,3 +143,19 @@ same native-first path.
 - **No full build was possible here:** SDL3, glaze, httplib, glm and Conduit could not be downloaded.
   No Android device or APK build was available either. Compile the full tree and run the tests before
   merging.
+
+## Round 3: stairs, item audit, snow, paperdoll scale
+
+- **Icon lighting.** Stairs (and every 3D block icon) looked wrong because the left face was darkest.
+  RasterIcon and BakeCubeIcon now use Java's exact `Lighting.ITEMS_3D` / `ITEMS_FLAT` vectors and the
+  `min(1, 0.6*(l0+l1) + 0.4)` shade. A Python re-render with the jar's textures matched Java for stairs,
+  fences, walls, furnace and snow.
+- **Bedrock → Java item ids.** `itemdisplay::JavaItemName(name, aux)` maps Bedrock ids to the Java ids
+  used by item_display.json and the IMOD meshes (snow → snow_block, snow_layer → snow,
+  stone_stairs → cobblestone_stairs, nether_brick → nether_bricks, aux beds/banners/skulls, …).
+  Previously Bedrock `snow` resolved to the Java snow *layer*, so the held snow block was a sliver.
+- **Snow tint.** BlockLibrary::ApplyTints never applies a `tint_color` to snow or ice textures; the
+  pack's tint on the snow texture turned snow blocks, layers and their icons water-blue.
+- **Audit.** Every block-kind Java item has a model mesh except air, big_dripleaf, small_dripleaf,
+  heavy_core and spyglass; decorated_pot and trident keep their previous renderers.
+- **Paperdoll Scale** slider (0.5–2.5, Video options, after "Always Show Paperdoll"); anchored top-left.

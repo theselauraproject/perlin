@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include <glm/glm.hpp>
@@ -41,9 +42,16 @@ namespace perlin::itemdisplay {
         }
     };
 
-    const Entry& Lookup(const std::string& name, Context context);
+    // The Java item id for a Bedrock item id (without namespace). Most ids are shared; this maps the ones
+    // Bedrock names differently (snow is Java's snow_block, snow_layer is Java's snow, stone_stairs is
+    // cobblestone_stairs, ...) and the aux-valued legacy ids (bed, banner, skull) when `aux` is known.
+    std::string JavaItemName(std::string_view name, int aux = -1);
+
+    // `name` may be a Bedrock id, with or without namespace; it goes through JavaItemName.
+    const Entry& Lookup(const std::string& name, int aux, Context context);
+    inline const Entry& Lookup(const std::string& name, Context context) { return Lookup(name, -1, context); }
     inline const Entry& Lookup(const std::string& name, bool ground) {
-        return Lookup(name, ground ? Context::Ground : Context::Hand);
+        return Lookup(name, -1, ground ? Context::Ground : Context::Hand);
     }
 
     // translate * rotationXYZ * scale, mirrored for the left hand (x translation, y and z rotation

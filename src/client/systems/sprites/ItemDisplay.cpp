@@ -120,13 +120,133 @@ namespace perlin::itemdisplay {
         }
     }
 
-    const Entry& Lookup(const std::string& name, Context context) {
+    std::string JavaItemName(std::string_view name, int aux) {
+        if (name.starts_with("minecraft:"))
+            name.remove_prefix(10);
+        static const char* const kDyes[16] = {"white", "orange", "magenta", "light_blue", "yellow", "lime",
+                                              "pink",  "gray",   "light_gray", "cyan",     "purple", "blue",
+                                              "brown", "green",  "red",     "black"};
+        if (aux >= 0 && aux < 16) {
+            if (name == "bed")
+                return std::string(kDyes[aux]) + "_bed";
+            // Bedrock numbers banner colours in reverse: 0 is black, 15 white.
+            if (name == "banner")
+                return std::string(kDyes[15 - aux]) + "_banner";
+        }
+        if (name == "skull") {
+            static const char* const kSkulls[7] = {"skeleton_skull", "wither_skeleton_skull", "zombie_head",
+                                                   "player_head",    "creeper_head",          "dragon_head",
+                                                   "piglin_head"};
+            return kSkulls[aux >= 0 && aux < 7 ? aux : 0];
+        }
+        if (name.starts_with("light_block"))
+            return "light";
+        static const std::unordered_map<std::string_view, std::string_view> kRenamed = {
+            // Same id, different item: Bedrock's is the Java item on the right.
+            {"snow", "snow_block"},
+            {"stone_stairs", "cobblestone_stairs"},
+            {"nether_brick", "nether_bricks"},
+            {"chain", "iron_chain"},
+            // Bedrock-only ids.
+            {"snow_layer", "snow"},
+            {"normal_stone_stairs", "stone_stairs"},
+            {"normal_stone_slab", "stone_slab"},
+            {"stone_block_slab", "smooth_stone_slab"},
+            {"netherbrick", "nether_brick"},
+            {"red_nether_brick", "red_nether_bricks"},
+            {"brick_block", "bricks"},
+            {"end_bricks", "end_stone_bricks"},
+            {"end_brick_stairs", "end_stone_brick_stairs"},
+            {"prismarine_bricks_stairs", "prismarine_brick_stairs"},
+            {"hardened_clay", "terracotta"},
+            {"silver_glazed_terracotta", "light_gray_glazed_terracotta"},
+            {"magma", "magma_block"},
+            {"slime", "slime_block"},
+            {"melon_block", "melon"},
+            {"lit_pumpkin", "jack_o_lantern"},
+            {"mob_spawner", "spawner"},
+            {"quartz_ore", "nether_quartz_ore"},
+            {"noteblock", "note_block"},
+            {"golden_rail", "powered_rail"},
+            {"frame", "item_frame"},
+            {"glow_frame", "glow_item_frame"},
+            {"web", "cobweb"},
+            {"waterlily", "lily_pad"},
+            {"deadbush", "dead_bush"},
+            {"reeds", "sugar_cane"},
+            {"wooden_door", "oak_door"},
+            {"wooden_button", "oak_button"},
+            {"wooden_pressure_plate", "oak_pressure_plate"},
+            {"trapdoor", "oak_trapdoor"},
+            {"fence_gate", "oak_fence_gate"},
+            {"grass_path", "dirt_path"},
+            {"dirt_with_roots", "rooted_dirt"},
+            {"frog_spawn", "frogspawn"},
+            {"azalea_leaves_flowered", "flowering_azalea_leaves"},
+            {"stonecutter_block", "stonecutter"},
+            {"undyed_shulker_box", "shulker_box"},
+            {"waxed_copper", "waxed_copper_block"},
+            {"standing_sign", "oak_sign"},
+            {"darkoak_standing_sign", "dark_oak_sign"},
+            {"crimson_standing_sign", "crimson_sign"},
+            {"warped_standing_sign", "warped_sign"},
+            {"empty_map", "map"},
+            {"lodestone_compass", "compass"},
+            {"scute", "turtle_scute"},
+            {"turtle_shell_piece", "turtle_scute"},
+            {"small_dripleaf_block", "small_dripleaf"},
+            {"bamboo_sapling", "bamboo"},
+            {"carrots", "carrot"},
+            {"potatoes", "potato"},
+            {"cocoa", "cocoa_beans"},
+            {"sweet_berry_bush", "sweet_berries"},
+            {"pitcher_crop", "pitcher_pod"},
+            {"torchflower_crop", "torchflower_seeds"},
+            {"melon_stem", "melon_seeds"},
+            {"pumpkin_stem", "pumpkin_seeds"},
+            {"trip_wire", "string"},
+            {"redstone_wire", "redstone"},
+            {"powder_snow", "powder_snow_bucket"},
+            {"cave_vines", "glow_berries"},
+            {"grass", "grass_block"},
+            {"tallgrass", "short_grass"},
+            {"yellow_flower", "dandelion"},
+            {"red_flower", "poppy"},
+            {"lit_furnace", "furnace"},
+            {"lit_blast_furnace", "blast_furnace"},
+            {"lit_smoker", "smoker"},
+            {"lit_redstone_lamp", "redstone_lamp"},
+            {"lit_redstone_ore", "redstone_ore"},
+            {"lit_deepslate_redstone_ore", "deepslate_redstone_ore"},
+            {"unlit_redstone_torch", "redstone_torch"},
+            {"powered_repeater", "repeater"},
+            {"unpowered_repeater", "repeater"},
+            {"powered_comparator", "comparator"},
+            {"unpowered_comparator", "comparator"},
+            {"daylight_detector_inverted", "daylight_detector"},
+            {"appleenchanted", "enchanted_golden_apple"},
+            {"chorus_fruit_popped", "popped_chorus_fruit"},
+            {"speckled_melon", "glistering_melon_slice"},
+            {"fireball", "fire_charge"},
+            {"clownfish", "tropical_fish"},
+            {"fish", "cod"},
+            {"cooked_fish", "cooked_cod"},
+            {"horsearmorleather", "leather_horse_armor"},
+            {"horsearmoriron", "iron_horse_armor"},
+            {"horsearmorgold", "golden_horse_armor"},
+            {"horsearmordiamond", "diamond_horse_armor"},
+            {"carrotonastick", "carrot_on_a_stick"},
+            {"bed", "red_bed"},
+            {"banner", "white_banner"},
+        };
+        const auto it = kRenamed.find(name);
+        return std::string(it == kRenamed.end() ? name : it->second);
+    }
+
+    const Entry& Lookup(const std::string& name, int aux, Context context) {
         const Table& t = Get();
-        const std::string_view bare = std::string_view(name).starts_with("minecraft:")
-                                          ? std::string_view(name).substr(10)
-                                          : std::string_view(name);
         const auto& map = t.rows[static_cast<int>(context)];
-        const auto it = map.find(std::string(bare));
+        const auto it = map.find(JavaItemName(name, aux));
         return it == map.end() ? t.missing : it->second;
     }
 }

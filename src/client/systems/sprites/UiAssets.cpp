@@ -960,8 +960,8 @@ namespace perlin::ui {
         if (!blocks || !blocks->Ready())
             return false;
         const BlockModels& models = blocks->Models();
-        const std::string bare = std::string(str::StripAnyNamespace(name));
-        const ModelEntry* entry = models.FindItem(bare);
+        // The inventory models are keyed by Java item id (Bedrock's snow is Java's snow_block, ...).
+        const ModelEntry* entry = models.FindItem(itemdisplay::JavaItemName(str::StripAnyNamespace(name)));
         if (!entry)
             return false;
 
@@ -1058,8 +1058,14 @@ namespace perlin::ui {
             std::vector<float> depth(static_cast<size_t>(big) * big, -1e9f);
             const float half = static_cast<float>(big) * 0.5f;
             const glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(pose)));
-            const glm::vec3 l0 = glm::normalize(glm::vec3(0.2f, 1.0f, -0.7f));
-            const glm::vec3 l1 = glm::normalize(glm::vec3(-0.2f, 1.0f, 0.7f));
+            // Lighting.ITEMS_3D ("side") and ITEMS_FLAT ("front") from the Java client: the level's two
+            // diffuse lights (0.2, 1, -0.7) and (-0.2, 1, 0.7) turned by the GUI's light matrices, expressed
+            // here in the y-up space the icon is built in. Top faces come out brightest, the left face of a
+            // block next and the right face darkest, as in Java's inventory.
+            const glm::vec3 l0 = frontLight ? glm::vec3(-0.222519f, 0.171499f, 0.959726f)
+                                            : glm::vec3(-0.933439f, 0.262695f, -0.244300f);
+            const glm::vec3 l1 = frontLight ? glm::vec3(-0.215012f, 0.971825f, 0.096568f)
+                                            : glm::vec3(-0.103571f, 0.976607f, 0.188446f);
             bool any = false;
             for (const IconQuad& q : quads) {
                 if (!q.texture || q.texW <= 0 || q.texH <= 0 ||
@@ -1084,11 +1090,8 @@ namespace perlin::ui {
                     n = -n;
                 float shade = 1.0f;
                 if (q.shade)
-                    shade = frontLight ? 0.55f + 0.45f * n.z
-                                       : std::min(1.0f, (std::max(0.0f, glm::dot(n, l0)) +
-                                                         std::max(0.0f, glm::dot(n, l1))) *
-                                                                0.6f +
-                                                            0.4f);
+                    shade = std::min(1.0f,
+                                     (std::max(0.0f, glm::dot(n, l0)) + std::max(0.0f, glm::dot(n, l1))) * 0.6f + 0.4f);
                 const glm::vec3 lit = q.tint * shade;
                 const std::vector<uint8_t>& tex = *q.texture;
                 const int tris[2][3] = {{0, 1, 2}, {0, 2, 3}};
@@ -1169,9 +1172,13 @@ namespace perlin::ui {
             return itemdisplay::Pose(block, false);
         }
 
+        // The Java item id of an icon key ("minecraft:bed;14@...": Bedrock id, aux and decorations).
         std::string IconBaseName(const std::string& key) {
             const size_t end = key.find_first_of(";@!#");
-            return std::string(str::StripAnyNamespace(key.substr(0, end)));
+            int aux = -1;
+            if (end != std::string::npos && key[end] == ';')
+                aux = std::atoi(key.c_str() + end + 1);
+            return itemdisplay::JavaItemName(str::StripAnyNamespace(key.substr(0, end)), aux);
         }
     }
 
@@ -1372,8 +1379,9 @@ namespace perlin::ui {
         };
         const float scale = 10.0f * static_cast<float>(size) / 16.0f;
         const float centre = static_cast<float>(size) * 0.5f;
-        const float l0[3] = {0.2f / 1.237f, 1.0f / 1.237f, -0.7f / 1.237f};
-        const float l1[3] = {-0.2f / 1.237f, 1.0f / 1.237f, 0.7f / 1.237f};
+        // Java's GUI "side" lights (see RasterIcon).
+        const float l0[3] = {-0.933439f, 0.262695f, -0.244300f};
+        const float l1[3] = {-0.103571f, 0.976607f, 0.188446f};
         const int tile = sprite.tile;
         for (const Face& f : faces) {
             float n[3];
