@@ -1380,6 +1380,20 @@ if(PERLIN_BUILD_TESTS AND NOT EMSCRIPTEN AND NOT ANDROID AND NOT PERLIN_IOS)
         src/client/systems/gfx/SkyGeometry.cpp)
     target_include_directories(input_selftest PRIVATE src "${glm_SOURCE_DIR}")
     add_test(NAME input_selftest COMMAND input_selftest)
+    add_executable(input_press_selftest
+        tests/input_press_selftest.cpp
+        src/client/systems/input/Input.cpp
+        src/client/systems/input/InputManager.cpp
+        src/client/systems/bindings/Keys.cpp
+        src/client/systems/bindings/KeyMapping.cpp
+        src/client/systems/config/Options.cpp
+        src/util/Json.cpp
+        src/util/Resources.cpp
+        src/util/Paths.cpp)
+    target_include_directories(input_press_selftest PRIVATE src "${concurrentqueue_SOURCE_DIR}")
+    target_link_libraries(input_press_selftest PRIVATE glaze::glaze Threads::Threads SDL3::SDL3)
+    target_compile_features(input_press_selftest PRIVATE cxx_std_23)
+    add_test(NAME input_press_selftest COMMAND input_press_selftest)
 
     add_executable(physics_selftest
         tests/physics_selftest.cpp
