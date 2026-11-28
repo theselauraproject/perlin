@@ -482,7 +482,19 @@ namespace perlin::ui {
                 {"melon_slice", "melon"},
                 {"potion", "potion_bottle_drinkable"},
                 {"glass_bottle", "potion_bottle_empty"},
-                {"milk_bucket", "bucket"},
+                {"milk_bucket", "bucket_milk"},
+                {"tropical_fish_bucket", "bucket_tropical"},
+                {"bone_meal", "dye_powder_white"},
+                {"ink_sac", "dye_powder_black"},
+                {"lapis_lazuli", "dye_powder_blue"},
+                {"cocoa_beans", "dye_powder_brown"},
+                {"slime_ball", "slimeball"},
+                {"minecart", "minecart_normal"},
+                {"glistering_melon_slice", "melon_speckled"},
+                {"firework_star", "fireworks_charge"},
+                {"redstone", "redstone_dust"},
+                {"dark_oak_sign", "sign_darkoak"},
+                {"iron_chain", "chain"},
                 {"totem_of_undying", "totem"},
                 {"fire_charge", "fireball"},
                 {"firework_rocket", "fireworks"},
@@ -509,6 +521,11 @@ namespace perlin::ui {
             }
             if (name == "glow_ink_sac")
                 candidates.push_back("dye_powder_glow");
+            // Bedrock's spawn egg sprites are textures/items/spawn_eggs/spawn_egg_<mob>.
+            if (name.ends_with("_spawn_egg")) {
+                const std::string mob = name.substr(0, name.size() - 10);
+                candidates.push_back("spawn_egg_" + (mob == "tropical_fish" ? std::string("tropicalfish") : mob));
+            }
             if (name.starts_with("music_disc_"))
                 candidates.push_back("record_" + name.substr(11));
             for (const auto& [from, to] : kAlias)
@@ -686,6 +703,32 @@ namespace perlin::ui {
         return blocks && blocks->Ready();
     }
 
+    namespace {
+        // Java's item grass colour: GrassColor.get(0.5, 1.0) from colormap/grass.png.
+        constexpr uint32_t kJavaItemGrass = 0x7CBD6B;
+
+        // The constant / grass "tints" of Java's items/*.json for the plant items (0: untinted).
+        uint32_t JavaItemTint(std::string_view name) {
+            if (name.starts_with("minecraft:"))
+                name.remove_prefix(10);
+            if (name == "spruce_leaves")
+                return 0x619961;
+            if (name == "birch_leaves")
+                return 0x80A755;
+            if (name == "mangrove_leaves")
+                return 0x92C648;
+            if (name == "oak_leaves" || name == "jungle_leaves" || name == "acacia_leaves" ||
+                name == "dark_oak_leaves" || name == "vine")
+                return 0x48B518;
+            if (name == "lily_pad" || name == "waterlily")
+                return 0x71C35C;
+            if (name == "short_grass" || name == "tallgrass" || name == "fern" || name == "large_fern" ||
+                name == "tall_grass" || name == "grass_block" || name == "grass" || name == "bush")
+                return kJavaItemGrass;
+            return 0;
+        }
+    }
+
     const ItemSprite* UiAssets::Item(const std::string& key) {
         std::lock_guard lock(mutex);
         if (itemTableLoaded && itemTableGeneration != ServerPacks::Instance().Generation()) {
@@ -781,32 +824,22 @@ namespace perlin::ui {
                     float tr = a->tintR, tg = a->tintG, tb = a->tintB;
                     const bool unsetTint = tr >= 0.999f && tg >= 0.999f && tb >= 0.999f;
                     bool tintTop = a->tintTop, tintSide = a->tintSide;
+                    // Java's item tints (items/*.json "tints"): constant foliage colours and the grass colour
+                    // at temperature 0.5 / downfall 1.0. Such items take the pack's grey texture times the
+                    // Java colour, not Bedrock's pre-coloured "carried" texture.
+                    bool javaTint = false;
                     if (unsetTint) {
                         auto set = [&](uint32_t rgb) {
                             tr = ((rgb >> 16) & 255) / 255.0f;
                             tg = ((rgb >> 8) & 255) / 255.0f;
                             tb = (rgb & 255) / 255.0f;
                         };
-                        if (name.contains("spruce_leaves")) {
-                            set(0x619961);
-                            tintTop = tintSide = true;
-                        } else if (name.contains("birch_leaves")) {
-                            set(0x80A755);
-                            tintTop = tintSide = true;
-                        } else if (name.contains("_leaves") && !name.contains("cherry") &&
-                                   !name.contains("azalea")) {
-                            set(0x48B518);
-                            tintTop = tintSide = true;
+                        if (const uint32_t java = JavaItemTint(name)) {
+                            set(java);
+                            tintTop = tintSide = javaTint = true;
                         } else if (a->overlayTile != 0) {
-                            set(0x79C05A);
+                            set(kJavaItemGrass);
                             tintTop = true;
-                        } else if (name == "short_grass" || name == "tallgrass" || name == "fern" ||
-                                   name == "large_fern" || name == "tall_grass" || name == "grass") {
-                            set(0x79C05A);
-                            tintTop = tintSide = true;
-                        } else if (name == "vine" || name == "lily_pad") {
-                            set(0x48B518);
-                            tintTop = tintSide = true;
                         }
                     }
                     if (tintTop)
@@ -830,17 +863,19 @@ namespace perlin::ui {
                         }
                         tintSide = false;
                     }
-                    if (!a->carriedTex.empty()) {
+                    bool carriedUsed = false;
+                    if (!a->carriedTex.empty() && !javaTint) {
                         Texture carried;
                         if (FindImage(a->carriedTex, carried) && carried.width == px &&
                             carried.height == px) {
                             side = carried.pixels;
+                            carriedUsed = true;
                             if (a->hasCarriedRGB)
                                 Multiply(side, a->carriedR, a->carriedG, a->carriedB);
                         }
-                    } else if (tintSide) {
-                        Multiply(side, tr, tg, tb);
                     }
+                    if (!carriedUsed && tintSide)
+                        Multiply(side, tr, tg, tb);
                     if (cube) {
                         sprite.ok = true;
                         sprite.block = true;
@@ -848,13 +883,14 @@ namespace perlin::ui {
                         sprite.left = side;
                         sprite.right = std::move(side);
                     } else {
+                        // Each face was tinted once above. The inventory sprite is the carried texture when
+                        // the pack has one; Java-tinted plants and flat blocks (rails, lily pad) use the top
+                        // (a double plant's "up" is its flower/top half, as Java's item); others the side.
                         sprite.ok = true;
                         sprite.block = false;
                         sprite.w = sprite.h = px;
-                        sprite.rgba =
-                            a->shape == BlockAppearance::Shape::Flat ? std::move(top) : std::move(side);
-                        if (tintSide || tintTop)
-                            Multiply(sprite.rgba, tr, tg, tb);
+                        const bool useTop = javaTint || (a->shape == BlockAppearance::Shape::Flat && !carriedUsed);
+                        sprite.rgba = useTop ? std::move(top) : std::move(side);
                     }
                 }
             }
@@ -952,60 +988,65 @@ namespace perlin::ui {
             return false;
         const BlockModels& models = blocks->Models();
         // The inventory models are keyed by Java item id (Bedrock's snow is Java's snow_block, ...).
-        const ModelEntry* entry = models.FindItem(itemdisplay::JavaItemName(str::StripAnyNamespace(name)));
+        const std::string javaName = itemdisplay::JavaItemName(str::StripAnyNamespace(name));
+        const ModelEntry* entry = models.FindItem(javaName);
         if (!entry)
             return false;
+        // Tinted faces (leaves, grass) take Java's item colour, baked into their own atlas slot.
+        const uint32_t tintRgb = JavaItemTint(javaName);
 
         // The atlas includes only the textures actually used by this item,
         // instead of allocating a full terrain atlas for every held model.
-        std::vector<int> usedTiles;
+        // A slot is a tile, tinted or not (key = tile * 2 + tinted).
+        std::vector<int> usedSlots;
         std::unordered_map<int, size_t> tileSlots;
-        std::vector<const ModelQuad*> faces;
+        std::vector<std::pair<const ModelQuad*, int>> faces;
         for (const auto& group : entry->groups) {
             if (group.empty())
                 continue;
             for (const ModelQuad& q : models.Variant(group.front().variant)) {
-                // The held-item pipeline has no per-face biome tint yet. Keep
-                // the existing tinted sprite path instead of drawing gray
-                // grass/leaves simply because a Java mesh is available.
-                if (q.tint >= 0)
+                const bool tinted = q.tint >= 0 && !q.tile;
+                // No known item colour: keep the tinted sprite path rather than draw grey foliage.
+                if (tinted && !tintRgb)
                     return false;
                 const int tile = q.tile ? q.tile
                                         : (q.tex != 0xffff && q.tex < models.tiles.size()
                                                ? models.tiles[q.tex] : 0);
                 if (tile <= 0)
                     continue;
-                if (!tileSlots.contains(tile)) {
-                    tileSlots[tile] = usedTiles.size();
-                    usedTiles.push_back(tile);
+                const int key = tile * 2 + (tinted ? 1 : 0);
+                if (!tileSlots.contains(key)) {
+                    tileSlots[key] = usedSlots.size();
+                    usedSlots.push_back(key);
                 }
-                faces.push_back(&q);
+                faces.emplace_back(&q, key);
             }
         }
-        if (faces.empty() || usedTiles.empty())
+        if (faces.empty() || usedSlots.empty())
             return false;
         const int tilePx = BlockLibrary::TilePx();
-        if (tilePx <= 0 || usedTiles.size() > 64)
+        if (tilePx <= 0 || usedSlots.size() > 64)
             return false;
-        atlas.width = tilePx * static_cast<int>(usedTiles.size());
+        atlas.width = tilePx * static_cast<int>(usedSlots.size());
         atlas.height = tilePx;
         atlas.pixels.assign(static_cast<size_t>(atlas.width) * atlas.height * 4, 0);
-        for (size_t slot = 0; slot < usedTiles.size(); ++slot) {
+        for (size_t slot = 0; slot < usedSlots.size(); ++slot) {
             std::vector<uint8_t> pixels;
-            if (!blocks->TilePixels(usedTiles[slot], pixels) ||
+            if (!blocks->TilePixels(usedSlots[slot] / 2, pixels) ||
                 pixels.size() < static_cast<size_t>(tilePx) * tilePx * 4)
                 return false;
+            if (usedSlots[slot] & 1)
+                Multiply(pixels, ((tintRgb >> 16) & 255) / 255.0f, ((tintRgb >> 8) & 255) / 255.0f,
+                         (tintRgb & 255) / 255.0f);
             for (int y = 0; y < tilePx; ++y)
                 std::copy_n(pixels.data() + static_cast<size_t>(y) * tilePx * 4,
                             static_cast<size_t>(tilePx) * 4,
                             atlas.pixels.data() + (static_cast<size_t>(y) * atlas.width + slot * tilePx) * 4);
         }
         out.reserve(faces.size());
-        for (const ModelQuad* source : faces) {
-            const int tile = source->tile ? source->tile
-                                           : models.tiles[source->tex];
-            const float slot = static_cast<float>(tileSlots.at(tile));
-            const float columns = static_cast<float>(usedTiles.size());
+        for (const auto& [source, key] : faces) {
+            const float slot = static_cast<float>(tileSlots.at(key));
+            const float columns = static_cast<float>(usedSlots.size());
             attachable::Quad q{};
             for (int i = 0; i < 4; ++i) {
                 q.p[i] = glm::vec3(source->pos[i][0], source->pos[i][1], source->pos[i][2]);
@@ -1315,19 +1356,8 @@ namespace perlin::ui {
                        255.0f;
                 tinted = true;
             };
-            if (name.contains("spruce_leaves"))
-                set(0x619961);
-            else if (name.contains("birch_leaves"))
-                set(0x80A755);
-            else if (name.contains("_leaves") && !name.contains("cherry") && !name.contains("azalea") &&
-                     !name.contains("pale"))
-                set(0x48B518);
-            else if (name == "short_grass" || name == "tallgrass" || name == "fern" || name == "large_fern" ||
-                     name == "tall_grass" || name == "grass_block" || name == "grass" ||
-                     name == "grass_path" || name == "sugar_cane" || name == "reeds")
-                set(0x79C05A);
-            else if (name == "vine" || name == "lily_pad")
-                set(0x48B518);
+            if (const uint32_t java = JavaItemTint(name))
+                set(java);
             else if (app && (app->tintTop || app->tintSide)) {
                 tint = glm::vec3(app->tintR, app->tintG, app->tintB);
                 tinted = true;

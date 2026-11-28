@@ -9,7 +9,7 @@ Checks, against resources/data:
   * every "block" item in item_display.json has an inventory mesh in block_models.bin (IMOD);
   * every texture those meshes use was matched to a Bedrock texture exactly (tools/modelgen/texmap.json,
     texalias.json): a fuzzy match means the icon shows the wrong texture;
-  * with --sheets, renders every block item's icon the way UiAssets::RasterIcon does (Java gui transform,
+  * with --sheets (and --bedrock-pack for the textures the client really uses), renders every block item's icon the way UiAssets::RasterIcon does (Java gui transform,
     Java GUI lights) with the jar's textures, 192 per PNG, for a visual pass.
 """
 import argparse, io, json, math, os, re, struct, sys, zipfile
@@ -107,7 +107,7 @@ def model_textures(jar, model):
     return used
 
 
-def render_sheets(jar, out, tex, var, ent, items, disp, texmap, alias):
+def render_sheets(jar, out, tex, var, ent, items, disp, texmap, alias, pack=None):
     import numpy as np
     from PIL import Image, ImageDraw
     inv = {}
@@ -120,7 +120,12 @@ def render_sheets(jar, out, tex, var, ent, items, disp, texmap, alias):
     def tload(t):
         if t not in cache:
             img = None
-            if t in inv:
+            if pack:
+                for ext in ('.png', '.tga'):
+                    if os.path.exists(os.path.join(pack, t + ext)):
+                        img = np.array(Image.open(os.path.join(pack, t + ext)).convert('RGBA'))
+                        break
+            elif t in inv:
                 try:
                     img = np.array(Image.open(io.BytesIO(jar.read(f'assets/minecraft/textures/{inv[t]}.png'))).convert('RGBA'))
                 except KeyError:
@@ -199,6 +204,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--jar', required=True)
     ap.add_argument('--sheets')
+    ap.add_argument('--bedrock-pack', help='render sheets with this Bedrock resource pack (what the client shows) '
+                                           'instead of the jar textures')
     a = ap.parse_args()
     jar = zipfile.ZipFile(a.jar)
     data = os.path.join(ROOT, 'resources/data')
@@ -226,7 +233,7 @@ def main():
             if e is None or e['diff'] > 3.5:
                 print(f'  {k}: {t} -> {e["path"] if e else "unmapped"} (diff {e["diff"] if e else "-"})')
     if a.sheets:
-        render_sheets(jar, a.sheets, tex, var, ent, items, disp, texmap, alias)
+        render_sheets(jar, a.sheets, tex, var, ent, items, disp, texmap, alias, a.bedrock_pack)
         print('sheets written to', a.sheets)
 
 

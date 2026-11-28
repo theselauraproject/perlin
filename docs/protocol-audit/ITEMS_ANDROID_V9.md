@@ -204,3 +204,35 @@ block item's icon with the client's icon maths and the jar's textures (192 per s
   loom top (was lectern top) and the sandstone / red sandstone sides (were the bottom texture; Bedrock's
   side is `*_sandstone_normal`), for icons and placed blocks. Still fuzzy, needing the Bedrock pack to
   regenerate: dried_ghast body faces and the dried kelp block's bottom.
+
+## Round 7: checked against the vanilla Bedrock resource pack
+
+With the vanilla Bedrock packs (min engine 1.26.60) the remaining checks were run against the real
+textures.
+
+- **Texture matcher (`tools/modelgen/texmap.py`).** Two bugs: it dropped every Bedrock texture ending in
+  `_normal` as a PBR normal map (so `sandstone_normal`, `red_sandstone_normal`, `piston_top_normal`,
+  `rail_normal` could never match — sandstone sides took the bottom, rails the activator rail, pistons the
+  sticky top), and it compared whole 16x16 images when models sample only part of them (the dried
+  ghast's 10x10 faces matched poplar logs). It now skips `_normal` only when the colour texture exists
+  beside it, and rematches poor results on the texels the Java models actually use. New exact matches:
+  every stained glass pane edge (were lever / torch textures), dried ghast (all four hydration states),
+  rail, piston top, sandstone, note block, melon stem. texalias.json: loom top, dried kelp bottom,
+  pumpkin stem, note block.
+- **block_models.bin regenerated** with `modelgen.py`, then `retexture_world.py` (new) copied the
+  texture fixes into the shipped world meshes only where the geometry is identical quad for quad (the
+  shipped multi-face / mushroom meshes are kept), and `merge_inventory_models.py` added the new item
+  meshes. 702 world quads retextured, 20,328 state records unchanged.
+- **Flat items.** Simulated the icon lookup for all 761 Java flat items against item_texture.json /
+  terrain_texture.json / blocks.json. Fixed: spawn eggs of two-word mobs (`spawn_egg_<mob>`), milk bucket
+  (showed an empty bucket), tropical fish bucket, bone meal, ink sac, lapis lazuli, cocoa beans (showed the
+  cocoa pod block), slime ball, minecart, glistering melon slice, firework star, redstone (showed the dust
+  line), dark oak sign, iron chain. Remaining misses are Java-only items (debug stick, knowledge book,
+  spectral arrow, explorer maps).
+- **Plant tints.** Java item tints from items/*.json: foliage #48B518, birch #80A755, spruce #619961,
+  mangrove #92C648 (was default), lily pad #71C35C (was foliage), grass-family #7CBD6B (GrassColor at
+  0.5/1.0; was plains #79C05A), bush added, pale oak leaves untinted. Non-cube plant sprites were
+  tinted twice; Java-tinted ones now use the grey texture times the Java colour once, others Bedrock's
+  carried texture untouched. Held leaves and grass blocks now use their 3D Java mesh with the tint baked in.
+- **Leather.** Confirmed from the pack: item and armour textures have opaque grey dyeable pixels and
+  alpha 1-3 brown overlay pixels, which is the convention the round 5 fix uses.

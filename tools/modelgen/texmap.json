@@ -408,8 +408,8 @@
   "path": "textures/blocks/glass_black"
  },
  "block/black_stained_glass_pane_top": {
-  "diff": 7.211933612823486,
-  "path": "textures/blocks/redstone_torch_off"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_black"
  },
  "block/black_terracotta": {
   "diff": 0.0,
@@ -508,8 +508,8 @@
   "path": "textures/blocks/glass_blue"
  },
  "block/blue_stained_glass_pane_top": {
-  "diff": 9.991497993469238,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_blue"
  },
  "block/blue_terracotta": {
   "diff": 0.0,
@@ -620,8 +620,8 @@
   "path": "textures/blocks/glass_brown"
  },
  "block/brown_stained_glass_pane_top": {
-  "diff": 7.3110833168029785,
-  "path": "textures/blocks/redstone_torch_off"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_brown"
  },
  "block/brown_terracotta": {
   "diff": 0.0,
@@ -1344,8 +1344,8 @@
   "path": "textures/blocks/glass_cyan"
  },
  "block/cyan_stained_glass_pane_top": {
-  "diff": 9.554801940917969,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_cyan"
  },
  "block/cyan_terracotta": {
   "diff": 0.0,
@@ -1545,11 +1545,11 @@
  },
  "block/destroy_oit_stage_0": {
   "diff": 1.697265625,
-  "path": "textures/blocks/grass_side_snowed"
+  "path": "textures/blocks/conduit_wind_vertical"
  },
  "block/destroy_oit_stage_1": {
   "diff": 2.689453125,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/destroy_oit_stage_2": {
   "diff": 4.0166015625,
@@ -1557,11 +1557,11 @@
  },
  "block/destroy_oit_stage_3": {
   "diff": 5.828125,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/destroy_oit_stage_4": {
   "diff": 8.1220703125,
-  "path": "textures/blocks/grass_side_snowed"
+  "path": "textures/blocks/conduit_wind_vertical"
  },
  "block/destroy_oit_stage_5": {
   "diff": 10.5361328125,
@@ -1569,7 +1569,7 @@
  },
  "block/destroy_oit_stage_6": {
   "diff": 13.0703125,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/destroy_oit_stage_7": {
   "diff": 18.3828125,
@@ -1577,15 +1577,15 @@
  },
  "block/destroy_oit_stage_8": {
   "diff": 23.3310546875,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/destroy_oit_stage_9": {
   "diff": 25.9853515625,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/destroy_stage_0": {
   "diff": 3.24609375,
-  "path": "textures/blocks/grass_side_snowed"
+  "path": "textures/blocks/conduit_wind_vertical"
  },
  "block/destroy_stage_1": {
   "diff": 6.33984375,
@@ -1593,11 +1593,11 @@
  },
  "block/destroy_stage_2": {
   "diff": 10.556640625,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/destroy_stage_3": {
   "diff": 16.171875,
-  "path": "textures/blocks/grass_side_snowed"
+  "path": "textures/blocks/conduit_wind_vertical"
  },
  "block/destroy_stage_4": {
   "diff": 21.9501953125,
@@ -1668,116 +1668,116 @@
   "path": "textures/blocks/dragon_egg"
  },
  "block/dried_ghast_hydration_0_bottom": {
-  "diff": 10.46484375,
-  "path": "textures/blocks/stripped_poplar_log_top"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_1_bottom"
  },
  "block/dried_ghast_hydration_0_east": {
-  "diff": 9.3291015625,
-  "path": "textures/blocks/stripped_poplar_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_1_right"
  },
  "block/dried_ghast_hydration_0_north": {
-  "diff": 9.4033203125,
-  "path": "textures/blocks/stripped_poplar_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_1_front"
  },
  "block/dried_ghast_hydration_0_south": {
-  "diff": 10.3115234375,
-  "path": "textures/blocks/stripped_poplar_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_1_back"
  },
  "block/dried_ghast_hydration_0_tentacles": {
   "diff": 0.0,
   "path": "textures/blocks/dried_ghast_state_1_tentacles"
  },
  "block/dried_ghast_hydration_0_top": {
-  "diff": 9.380859375,
-  "path": "textures/blocks/stripped_poplar_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_1_top"
  },
  "block/dried_ghast_hydration_0_west": {
-  "diff": 7.935546875,
-  "path": "textures/blocks/stripped_poplar_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_1_left"
  },
  "block/dried_ghast_hydration_1_bottom": {
-  "diff": 10.24609375,
-  "path": "textures/blocks/dried_ghast_state_3_tentacles"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_2_bottom"
  },
  "block/dried_ghast_hydration_1_east": {
-  "diff": 10.89453125,
-  "path": "textures/blocks/dried_ghast_state_3_tentacles"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_2_right"
  },
  "block/dried_ghast_hydration_1_north": {
-  "diff": 10.9921875,
-  "path": "textures/blocks/dried_ghast_state_3_tentacles"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_2_front"
  },
  "block/dried_ghast_hydration_1_south": {
-  "diff": 11.9013671875,
-  "path": "textures/blocks/dried_ghast_state_3_tentacles"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_2_back"
  },
  "block/dried_ghast_hydration_1_tentacles": {
   "diff": 0.0,
   "path": "textures/blocks/dried_ghast_state_2_tentacles"
  },
  "block/dried_ghast_hydration_1_top": {
-  "diff": 11.76171875,
-  "path": "textures/blocks/dried_ghast_state_3_tentacles"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_2_top"
  },
  "block/dried_ghast_hydration_1_west": {
-  "diff": 10.619140625,
-  "path": "textures/blocks/dried_ghast_state_3_tentacles"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_2_left"
  },
  "block/dried_ghast_hydration_2_bottom": {
-  "diff": 10.3974609375,
-  "path": "textures/blocks/mushroom_block_skin_stem"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_3_bottom"
  },
  "block/dried_ghast_hydration_2_east": {
-  "diff": 8.3466796875,
-  "path": "textures/blocks/mushroom_block_skin_stem"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_3_right"
  },
  "block/dried_ghast_hydration_2_north": {
-  "diff": 8.4658203125,
-  "path": "textures/blocks/mushroom_block_skin_stem"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_3_front"
  },
  "block/dried_ghast_hydration_2_south": {
-  "diff": 9.67578125,
-  "path": "textures/blocks/mushroom_block_skin_stem"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_3_back"
  },
  "block/dried_ghast_hydration_2_tentacles": {
   "diff": 0.0,
   "path": "textures/blocks/dried_ghast_state_3_tentacles"
  },
  "block/dried_ghast_hydration_2_top": {
-  "diff": 8.4658203125,
-  "path": "textures/blocks/mushroom_block_skin_stem"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_3_top"
  },
  "block/dried_ghast_hydration_2_west": {
-  "diff": 7.1943359375,
-  "path": "textures/blocks/mushroom_block_skin_stem"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_3_left"
  },
  "block/dried_ghast_hydration_3_bottom": {
-  "diff": 7.78515625,
-  "path": "textures/blocks/quartz_block_bottom"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_4_bottom"
  },
  "block/dried_ghast_hydration_3_east": {
-  "diff": 8.08203125,
-  "path": "textures/blocks/stripped_pale_oak_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_4_right"
  },
  "block/dried_ghast_hydration_3_north": {
-  "diff": 9.7470703125,
-  "path": "textures/blocks/stripped_pale_oak_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_4_front"
  },
  "block/dried_ghast_hydration_3_south": {
-  "diff": 8.798828125,
-  "path": "textures/blocks/stripped_pale_oak_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_4_back"
  },
  "block/dried_ghast_hydration_3_tentacles": {
   "diff": 0.0,
   "path": "textures/blocks/dried_ghast_state_4_tentacles"
  },
  "block/dried_ghast_hydration_3_top": {
-  "diff": 8.4169921875,
-  "path": "textures/blocks/stripped_pale_oak_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_4_top"
  },
  "block/dried_ghast_hydration_3_west": {
-  "diff": 7.234375,
-  "path": "textures/blocks/stripped_pale_oak_log_side"
+  "diff": 0.0,
+  "path": "textures/blocks/dried_ghast_state_4_left"
  },
  "block/dried_kelp_bottom": {
   "diff": 11.978515625,
@@ -2020,8 +2020,8 @@
   "path": "textures/blocks/glass"
  },
  "block/glass_pane_top": {
-  "diff": 16.033203125,
-  "path": "textures/blocks/soul_torch"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top"
  },
  "block/glow_item_frame": {
   "diff": 0.0,
@@ -2128,8 +2128,8 @@
   "path": "textures/blocks/glass_gray"
  },
  "block/gray_stained_glass_pane_top": {
-  "diff": 7.565295696258545,
-  "path": "textures/blocks/redstone_torch_off"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_gray"
  },
  "block/gray_terracotta": {
   "diff": 0.0,
@@ -2196,8 +2196,8 @@
   "path": "textures/blocks/glass_green"
  },
  "block/green_stained_glass_pane_top": {
-  "diff": 7.805377006530762,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_green"
  },
  "block/green_terracotta": {
   "diff": 0.0,
@@ -2508,8 +2508,8 @@
   "path": "textures/blocks/glass_light_blue"
  },
  "block/light_blue_stained_glass_pane_top": {
-  "diff": 11.788066864013672,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_light_blue"
  },
  "block/light_blue_terracotta": {
   "diff": 0.0,
@@ -2576,8 +2576,8 @@
   "path": "textures/blocks/glass_silver"
  },
  "block/light_gray_stained_glass_pane_top": {
-  "diff": 10.54021167755127,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_silver"
  },
  "block/light_gray_terracotta": {
   "diff": 0.0,
@@ -2668,8 +2668,8 @@
   "path": "textures/blocks/glass_lime"
  },
  "block/lime_stained_glass_pane_top": {
-  "diff": 9.901233673095703,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_lime"
  },
  "block/lime_terracotta": {
   "diff": 0.0,
@@ -2760,8 +2760,8 @@
   "path": "textures/blocks/glass_magenta"
  },
  "block/magenta_stained_glass_pane_top": {
-  "diff": 11.873506546020508,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_magenta"
  },
  "block/magenta_terracotta": {
   "diff": 0.0,
@@ -2841,7 +2841,7 @@
  },
  "block/melon_stem": {
   "diff": 0.0,
-  "path": "textures/blocks/pumpkin_stem_disconnected"
+  "path": "textures/blocks/melon_stem_disconnected"
  },
  "block/melon_top": {
   "diff": 0.0,
@@ -3084,8 +3084,8 @@
   "path": "textures/blocks/glass_orange"
  },
  "block/orange_stained_glass_pane_top": {
-  "diff": 9.803462028503418,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_orange"
  },
  "block/orange_terracotta": {
   "diff": 0.0,
@@ -3185,7 +3185,7 @@
  },
  "block/pale_moss_carpet": {
   "diff": 0.0,
-  "path": "textures/blocks/pale_moss_block"
+  "path": "textures/blocks/pale_moss"
  },
  "block/pale_moss_carpet_side_small": {
   "diff": 0.0,
@@ -3320,8 +3320,8 @@
   "path": "textures/blocks/glass_pink"
  },
  "block/pink_stained_glass_pane_top": {
-  "diff": 12.606082916259766,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_pink"
  },
  "block/pink_terracotta": {
   "diff": 0.0,
@@ -3348,8 +3348,8 @@
   "path": "textures/blocks/piston_side"
  },
  "block/piston_top": {
-  "diff": 16.3994140625,
-  "path": "textures/blocks/piston_top_sticky"
+  "diff": 2.5048828125,
+  "path": "textures/blocks/piston_top_normal"
  },
  "block/piston_top_sticky": {
   "diff": 0.7919921875,
@@ -3597,7 +3597,7 @@
  },
  "block/pumpkin_stem": {
   "diff": 0.916015625,
-  "path": "textures/blocks/pumpkin_stem_disconnected"
+  "path": "textures/blocks/melon_stem_disconnected"
  },
  "block/pumpkin_top": {
   "diff": 0.0400390625,
@@ -3660,8 +3660,8 @@
   "path": "textures/blocks/glass_purple"
  },
  "block/purple_stained_glass_pane_top": {
-  "diff": 10.015969276428223,
-  "path": "textures/blocks/lever"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_purple"
  },
  "block/purple_terracotta": {
   "diff": 0.0,
@@ -3708,8 +3708,8 @@
   "path": "textures/blocks/quartz_block_lines_top"
  },
  "block/rail": {
-  "diff": 10.6748046875,
-  "path": "textures/blocks/rail_activator"
+  "diff": 0.0,
+  "path": "textures/blocks/rail_normal"
  },
  "block/rail_corner": {
   "diff": 0.0,
@@ -3796,8 +3796,8 @@
   "path": "textures/blocks/red_sand"
  },
  "block/red_sandstone": {
-  "diff": 2.3173828125,
-  "path": "textures/blocks/red_sandstone_bottom"
+  "diff": 0.0,
+  "path": "textures/blocks/red_sandstone_normal"
  },
  "block/red_sandstone_bottom": {
   "diff": 0.0,
@@ -3820,8 +3820,8 @@
   "path": "textures/blocks/glass_red"
  },
  "block/red_stained_glass_pane_top": {
-  "diff": 7.915249824523926,
-  "path": "textures/blocks/redstone_torch_off"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_red"
  },
  "block/red_terracotta": {
   "diff": 0.0,
@@ -3853,7 +3853,7 @@
  },
  "block/redstone_dust_overlay": {
   "diff": 0.0,
-  "path": "textures/blocks/conduit_wind_vertical"
+  "path": "textures/blocks/grass_side_snowed"
  },
  "block/redstone_lamp": {
   "diff": 0.0,
@@ -3972,8 +3972,8 @@
   "path": "textures/blocks/sand"
  },
  "block/sandstone": {
-  "diff": 3.119140625,
-  "path": "textures/blocks/sandstone_bottom"
+  "diff": 0.0,
+  "path": "textures/blocks/sandstone_normal"
  },
  "block/sandstone_bottom": {
   "diff": 0.0,
@@ -4080,11 +4080,11 @@
   "path": "textures/blocks/stripped_oak_log"
  },
  "block/shelf_mushroom_stage0": {
-  "diff": 0.6513671875,
+  "diff": 0.0,
   "path": "textures/blocks/shelf_mushroom_small"
  },
  "block/shelf_mushroom_stage1": {
-  "diff": 1.146484375,
+  "diff": 0.0,
   "path": "textures/blocks/shelf_mushroom_large"
  },
  "block/short_dry_grass": {
@@ -4933,7 +4933,7 @@
  },
  "block/water_overlay": {
   "diff": 22.973648071289062,
-  "path": "textures/blocks/cauldron_water_placeholder"
+  "path": "textures/blocks/cauldron_water"
  },
  "block/water_still": {
   "diff": 16.619144439697266,
@@ -5100,8 +5100,8 @@
   "path": "textures/blocks/glass_white"
  },
  "block/white_stained_glass_pane_top": {
-  "diff": 18.28643798828125,
-  "path": "textures/blocks/soul_torch"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_white"
  },
  "block/white_terracotta": {
   "diff": 0.0,
@@ -5188,8 +5188,8 @@
   "path": "textures/blocks/glass_yellow"
  },
  "block/yellow_stained_glass_pane_top": {
-  "diff": 12.651232719421387,
-  "path": "textures/blocks/torch_on"
+  "diff": 0.0,
+  "path": "textures/blocks/glass_pane_top_yellow"
  },
  "block/yellow_terracotta": {
   "diff": 0.0,
