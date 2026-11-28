@@ -532,9 +532,11 @@ namespace perlin {
         const ui::ItemSprite* sprite = assets.Item(key);
         ui::ItemSprite baked;
         if (!sprite || sprite->generic || sprite->fromBlock) {
+            // ItemIcon gives the flat Java-style sprite for flat-kind items (lantern, chain) even when the
+            // Bedrock id only resolved to a block.
             Texture icon;
-            if (assets.ItemIcon(key, icon) && icon.width > 0 && !icon.pixels.empty() &&
-                (!sprite || sprite->generic || !sprite->block)) {
+            if (assets.ItemIcon(item.Key(), icon) && icon.width > 0 && !icon.pixels.empty() &&
+                (flatKind || !sprite || sprite->generic || !sprite->block)) {
                 baked.ok = true;
                 baked.w = icon.width;
                 baked.h = icon.height;

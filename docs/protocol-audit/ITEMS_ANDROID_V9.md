@@ -159,3 +159,21 @@ same native-first path.
 - **Audit.** Every block-kind Java item has a model mesh except air, big_dripleaf, small_dripleaf,
   heavy_core and spyglass; decorated_pot and trident keep their previous renderers.
 - **Paperdoll Scale** slider (0.5–2.5, Video options, after "Always Show Paperdoll"); anchored top-left.
+
+## Round 4: block-item icons, flat items, leather
+
+- **Block items ignored their Java model.** Every placeable stack carries a block runtime id ("#id" in
+  the icon key) and ItemIcon sent those keys to the placed-block path: a lone fence post, a world-facing
+  stair viewed at (30, 225), a backwards shelf. ItemIcon now always asks the Java item model first —
+  special renderer, the IMOD inventory mesh with the item's own gui transform, or a flat sprite — and only
+  falls back to the block-state render for items with no Java model. Re-rendering the IMOD meshes with
+  the jar's textures gives Java's stairs (profile on the left), fence (two posts, two rails), shelf and
+  wall icons.
+- **Lookup double-mapping.** UiAssets passed already-Java ids back through JavaItemName (Java `snow`
+  became `snow_block`, `stone_stairs` became cobblestone). `itemdisplay::LookupJava` takes Java ids as is.
+- **Flat items.** Items whose Java model is a flat sprite (lantern, soul lantern, chain, ...) use the
+  pack's item texture (by Bedrock id, then the Java texture name) in the GUI and in the hand, never the
+  block render.
+- **Leather armour.** Undyed leather icons were left grey: they now take Java's default #A06540. Worn
+  leather armour is coloured with the dye (`customColor`, read from MobArmorEquipment for other players
+  and from the inventory for the local player) or the default brown, through the colour-mask bake.

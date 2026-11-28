@@ -1,4 +1,5 @@
 #include "client/systems/multiplayer/handlers/HandlerSupport.hpp"
+#include "client/systems/multiplayer/ItemNbtInfo.hpp"
 
 namespace perlin {
     using namespace proto;
@@ -72,10 +73,27 @@ namespace perlin {
                     return it->second;
                 return {};
             };
+            // Leather armour's dye lives in the stack's "customColor" NBT.
+            const auto colorOf = [](const auto& item) -> int64_t {
+                const std::vector<uint8_t>* nbt = nullptr;
+                if (const auto* with = std::get_if<proto::ItemExtraDataWithBlockingTick>(&item.extra))
+                    nbt = with->nbt ? &with->nbt->nbt.bytes : nullptr;
+                else if (const auto* without = std::get_if<proto::ItemExtraDataWithoutBlockingTick>(&item.extra))
+                    nbt = without->nbt ? &without->nbt->nbt.bytes : nullptr;
+                if (!nbt)
+                    return -1;
+                const ItemNbtInfo info = ParseItemNbt(*nbt);
+                return info.ok && info.hasColor ? static_cast<int64_t>(static_cast<uint32_t>(info.color) & 0xFFFFFFu)
+                                                : -1;
+            };
             entities.SetArmor(p.runtimeEntityId, 0, nameOf(p.helmet));
             entities.SetArmor(p.runtimeEntityId, 1, nameOf(p.chestplate));
             entities.SetArmor(p.runtimeEntityId, 2, nameOf(p.leggings));
             entities.SetArmor(p.runtimeEntityId, 3, nameOf(p.boots));
+            entities.SetArmorColor(p.runtimeEntityId, 0, colorOf(p.helmet));
+            entities.SetArmorColor(p.runtimeEntityId, 1, colorOf(p.chestplate));
+            entities.SetArmorColor(p.runtimeEntityId, 2, colorOf(p.leggings));
+            entities.SetArmorColor(p.runtimeEntityId, 3, colorOf(p.boots));
         });
 
         On<AnimatePacket>([this](const AnimatePacket& p) {

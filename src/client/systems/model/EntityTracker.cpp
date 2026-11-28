@@ -509,6 +509,8 @@ namespace perlin::entity {
     PERLIN_ENTITY_SET(SetOffHand(uint64_t rid, const std::string& item), e.offHand = item)
     PERLIN_ENTITY_SET(SetArmor(uint64_t rid, int slot, const std::string& item),
                       if (slot >= 0 && slot < 4) e.armor[slot] = item)
+    PERLIN_ENTITY_SET(SetArmorColor(uint64_t rid, int slot, int64_t color),
+                      if (slot >= 0 && slot < 4) e.armorColor[slot] = color)
     PERLIN_ENTITY_SET(Hurt(uint64_t rid), e.hurtSerial++)
     PERLIN_ENTITY_SET(Swing(uint64_t rid), e.swingSerial++)
     PERLIN_ENTITY_SET(SetProperty(uint64_t rid, const std::string& key, float value), e.props[key] = value)

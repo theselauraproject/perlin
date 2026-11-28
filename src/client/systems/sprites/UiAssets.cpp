@@ -570,8 +570,6 @@ namespace perlin::ui {
                     const bool mask = px[3] != 0 && px[3] < 16;
                     if (mask)
                         px[3] = 255;
-                    if (dyeColor < 0 && anyMask)
-                        continue;
                     if (px[3] == 0 || (anyMask && !mask))
                         continue;
                     float l = (px[0] * 0.299f + px[1] * 0.587f + px[2] * 0.114f) / 255.0f;
@@ -1183,7 +1181,7 @@ namespace perlin::ui {
     }
 
     bool UiAssets::BakeSpecialIcon(const std::string& name, Texture& out) {
-        const itemdisplay::Entry& display = itemdisplay::Lookup(name, itemdisplay::Context::Gui);
+        const itemdisplay::Entry& display = itemdisplay::LookupJava(name, itemdisplay::Context::Gui);
         if (!display.found || display.kind != itemdisplay::Entry::Kind::Special)
             return false;
         std::vector<special::Part> parts;
@@ -1214,18 +1212,42 @@ namespace perlin::ui {
 
     bool UiAssets::ItemIcon(const std::string& key, Texture& out) {
         const ItemSprite* s = Item(key);
-        // A Java inventory model is a different mesh from a placed block.
-        // For example, a fence inventory icon has rails even when a world
-        // fence has no neighbours. Keep state-hashed variants on the old path.
-        if (key.find('#') == std::string::npos) {
+        // The Java item model decides how the icon is drawn, whatever block state ("#runtime id") the
+        // stack carries: a special renderer (shield, chest, bed, ...), the item's own inventory mesh
+        // (a fence icon has rails, stairs face the Java way, a shelf shows its front), or a flat sprite
+        // (lantern, chain, doors, ...). Custom (non-minecraft) items keep the pack's own icon.
+        const size_t idEnd = key.find_first_of(";@!#");
+        const bool vanilla = key.find(':') == std::string::npos || key.starts_with("minecraft:") ||
+                             key.find(':') > idEnd;
+        if (vanilla && key.find("!d") == std::string::npos) {
             const std::string base = IconBaseName(key);
-            const itemdisplay::Entry& display = itemdisplay::Lookup(base, itemdisplay::Context::Gui);
+            const itemdisplay::Entry& display = itemdisplay::LookupJava(base, itemdisplay::Context::Gui);
             if (display.found && display.kind == itemdisplay::Entry::Kind::Special && BakeSpecialIcon(base, out))
                 return true;
             const bool blockModel = !display.found || display.kind == itemdisplay::Entry::Kind::Block;
             if (blockModel && blocks && blocks->Ready() && blocks->Models().FindItem(base) &&
                 BakeModelIcon(base, 0, 64, out, true))
                 return true;
+            if (display.found && display.kind == itemdisplay::Entry::Kind::Flat && (!s || s->fromBlock)) {
+                // Java draws it as a flat item, but no item texture was found under the Bedrock id:
+                // try the Java texture's name and the Java id.
+                const size_t slash = display.model.find_last_of('/');
+                const std::string texture = slash == std::string::npos ? display.model : display.model.substr(slash + 1);
+                ItemSprite flat;
+                for (const std::string& candidate : {texture, base})
+                    if (!candidate.empty() && FlatSprite(candidate, 0, flat) && flat.ok && !flat.rgba.empty()) {
+                        out.width = flat.w;
+                        out.height = flat.h;
+                        out.pixels = std::move(flat.rgba);
+                        return true;
+                    }
+            }
+            if (display.found && display.kind == itemdisplay::Entry::Kind::Flat && s && !s->fromBlock && !s->block) {
+                out.width = s->w;
+                out.height = s->h;
+                out.pixels = s->rgba;
+                return true;
+            }
         }
         if (!s || s->fromBlock || s->generic) {
             const size_t hashAt = key.find('#');
@@ -1346,7 +1368,7 @@ namespace perlin::ui {
         // An inventory model is drawn with its Java "gui" transform; a placed block state keeps the
         // generic block view.
         const itemdisplay::Entry* display =
-            inventory ? &itemdisplay::Lookup(name, itemdisplay::Context::Gui) : nullptr;
+            inventory ? &itemdisplay::LookupJava(name, itemdisplay::Context::Gui) : nullptr;
         return RasterIcon(iconQuads, GuiPose(display), display && display->found && display->frontLight, size,
                           out);
     }

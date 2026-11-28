@@ -249,4 +249,11 @@ namespace perlin::itemdisplay {
         const auto it = map.find(JavaItemName(name, aux));
         return it == map.end() ? t.missing : it->second;
     }
+
+    const Entry& LookupJava(const std::string& javaName, Context context) {
+        const Table& t = Get();
+        const auto& map = t.rows[static_cast<int>(context)];
+        const auto it = map.find(javaName);
+        return it == map.end() ? t.missing : it->second;
+    }
 }

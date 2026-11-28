@@ -1555,6 +1555,13 @@ namespace perlin::entity {
                                     ? std::string("#cape")
                                     : texture;
                 layer.material = assets.materialLibrary.Find("entity_alphatest");
+                // Leather armour textures are grey and coloured by the dye, as Bedrock's
+                // entity_alphatest_change_color does; undyed leather is the default brown (#A06540).
+                if (const std::string_view bare = std::string_view(item).substr(item.find(':') + 1);
+                    bare.starts_with("leather_") && bare != "leather_horse_armor") {
+                    layer.material.colorMask = true;
+                    layer.maskRgb = e.armorColor[slot] >= 0 ? static_cast<uint32_t>(e.armorColor[slot]) : 0xA06540u;
+                }
                 layer.skin = std::move(skin);
                 layer.bones = std::move(bones);
                 layer.body = false;

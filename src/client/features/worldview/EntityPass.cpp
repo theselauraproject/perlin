@@ -150,8 +150,12 @@ namespace perlin::worldview {
         self.swingSerial = interaction.selfSwing;
         self.hurtSerial = live ? live->HurtCount() : 0;
         self.mainHand = hudState.hotbar[std::clamp(hudState.selectedSlot, 0, 8)].name;
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 4; i++) {
             self.armor[i] = hudState.armorItems[i].name;
+            self.armorColor[i] = hudState.armorItems[i].hasColor
+                                     ? static_cast<int64_t>(static_cast<uint32_t>(hudState.armorItems[i].color) & 0xFFFFFFu)
+                                     : -1;
+        }
         self.offHand = hudState.offhand.name;
         {
             const HandRenderer::RigState rig = handRenderer.Rig(0.0f);

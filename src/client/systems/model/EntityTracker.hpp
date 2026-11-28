@@ -166,6 +166,9 @@ namespace perlin::entity {
         int64_t vehicleUid = 0;
         std::string mainHand, offHand;
         std::string armor[4];
+        // Dye colour (0xRRGGBB) of each armour piece, -1 when it has none (leather then takes its
+        // default brown).
+        int64_t armorColor[4] = {-1, -1, -1, -1};
         std::shared_ptr<const SkinData> skin;
         std::map<std::string, float> props;
         std::map<std::string, std::string> propText;
@@ -226,6 +229,7 @@ namespace perlin::entity {
         void SetHeld(uint64_t rid, const std::string& item);
         void SetOffHand(uint64_t rid, const std::string& item);
         void SetArmor(uint64_t rid, int slot, const std::string& item);
+        void SetArmorColor(uint64_t rid, int slot, int64_t color);
         void SetVehicle(int64_t riderUid, int64_t vehicleUid);
         void Hurt(uint64_t rid);
         void Die(uint64_t rid);

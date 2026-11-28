@@ -50,6 +50,9 @@ namespace perlin::itemdisplay {
     // `name` may be a Bedrock id, with or without namespace; it goes through JavaItemName.
     const Entry& Lookup(const std::string& name, int aux, Context context);
     inline const Entry& Lookup(const std::string& name, Context context) { return Lookup(name, -1, context); }
+    // For a name that is already a Java item id (JavaItemName is not idempotent: Java's "snow" is the
+    // layer, Bedrock's the block).
+    const Entry& LookupJava(const std::string& javaName, Context context);
     inline const Entry& Lookup(const std::string& name, bool ground) {
         return Lookup(name, -1, ground ? Context::Ground : Context::Hand);
     }
