@@ -105,5 +105,5 @@ namespace perlin::ui {
         uint32_t stemGeneration = 0;
     };
 
-    void BakeCubeIcon(const ItemSprite& sprite, int size, Texture& out, bool inventory = false);
+    void BakeCubeIcon(const ItemSprite& sprite, int size, Texture& out);
 }
